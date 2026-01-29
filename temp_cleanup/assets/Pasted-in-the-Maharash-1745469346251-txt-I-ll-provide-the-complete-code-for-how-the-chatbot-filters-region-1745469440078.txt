@@ -1,0 +1,131 @@
+in-the-Maharash-1745469346251.txt
+I'll provide the complete code for how the chatbot filters regions and their schemes in the Maharashtra Water Dashboard. Here are all the relevant files and their code:
+
+1. server/routes/ai/openai-routes.ts
+This file handles the OpenAI integration for processing natural language queries:
+
+import { Router, Request, Response } from 'express';
+import { getDB } from '../../db';
+import { regions, schemeStatuses } from '@shared/schema';
+import { OpenAIService } from '../../services/openai-service';
+import { eq, like } from 'drizzle-orm';
+const router = Router();
+const openaiService = new OpenAIService();
+// Process natural language queries
+router.post('/query', async (req: Request, res: Response) => {
+  try {
+    // Get the query from the request body
+    const { query, language = 'en' } = req.body;
+    
+    if (!query) {
+      return res.status(400).json({ error: 'Query is required' });
+    }
+    
+    // Check if OpenAI API key is configured
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(500).json({ 
+        error: 'OpenAI API key not configured',
+        message: 'Please configure the OPENAI_API_KEY environment variable'
+      });
+    }
+    
+    // Process the query with OpenAI to extract intent and parameters
+    const result = await openaiService.processQuery(query, language);
+    
+    // If intent is to filter by region, get the region data
+    if (result.intent === 'filter_by_region' && result.parameters.region) {
+      const db = await getDB();
+      const regionName = result.parameters.region;
+      
+      // Get region information
+      const regionData = await db
+        .select()
+        .from(regions)
+        .where(like(regions.region_name, `%${regionName}%`));
+        
+      // Get schemes for this region
+      const schemeData = await db
+        .select()
+        .from(schemeStatuses)
+        .where(like(schemeStatuses.region, `%${regionName}%`))
+        .limit(10);
+        
+      return res.json({
+        intent: result.intent,
+        parameters: result.parameters,
+        response: {
+          message: `Here's data for ${regionName} region`,
+          regionData: regionData[0] || null,
+          schemeSummary: {
+            total: schemeData.length,
+            completed: schemeData.filter(s => s.fully_completion_scheme_status === 'Fully Completed').length,
+            partial: schemeData.filter(s => s.fully_completion_scheme_status === 'Partial').length
+          },
+          action: 'filter_dashboard',
+          filterData: {
+            regionName: regionName
+          }
+        }
+      });
+    }
+    
+    // Default response for other intents
+    return res.json(result);
+    
+  } catch (error) {
+    console.error('Error processing AI query:', error);
+    res.status(500).json({ error: 'Failed to process query' });
+  }
+});
+// Voice-to-text processing endpoint
+router.post('/speech-to-text', async (req: Request, res: Response) => {
+  try {
+    const { audioData, language = 'en' } = req.body;
+    
+    if (!audioData) {
+      return res.status(400).json({ error: 'Audio data is required' });
+    }
+    
+    // Process speech using OpenAI's whisper model
+    const text = await openaiService.processAudio(audioData, language);
+    
+    return res.json({ text });
+  } catch (error) {
+    console.error('Error processing speech:', error);
+    res.status(500).json({ error: 'Failed to process speech' });
+  }
+});
+export default router;
+2. server/services/openai-service.ts
+This service interfaces with OpenAI's API:
+
+import OpenAI from 'openai';
+export class OpenAIService {
+  private openai: OpenAI;
+  
+  constructor() {
+    // Initialize the OpenAI client with API key from environment variables
+    this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  
+  /**
+   * Process a natural language query to extract intent and parameters
+   */
+  async processQuery(query: string, language: string = 'en') {
+    // Prepare the system prompt with context about the water dashboard
+    const systemPrompt = `
+      You are an assistant for a Maharashtra Water Dashboard. 
+      The dashboard shows data about water infrastructure projects across different regions in Maharashtra.
+      Regions include: Nagpur, Chhatrapati Sambhajinagar, Pune, Konkan, Amravati, Nashik.
+      Extract the intent and parameters from the user's query. Focus on identifying:
+      1. The intent (filter_by_region, show_statistics, compare_regions, etc.)
+      2. Region names mentioned
+      3. Metrics of interest (villages, schemes, ESR tanks, flow meters, etc.)
+      4. Time period if mentioned
+      
+      Return a structured JSON response with 'intent' and 'parameters' fields.
+    `;
+    
+    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    const response = await this.openai.chat.completions.create({
+      mo...

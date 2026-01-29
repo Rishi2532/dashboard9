@@ -1,0 +1,23 @@
+🔍 Checking Pimparkhed Sensor
+
+Village: Pimparkhed
+ESR: Existing 0.75 LL ESR
+
+Recent history (most recent first):
+
+Date String    | Parsed Date | Value | Status
+---------------|-------------|-------|------------
+06-Jan         | 2026-01-06 |  0.24 | OPTIMAL
+05-Jan         | 2026-01-05 |  0.22 | OPTIMAL
+05-Jan         | 2026-01-05 |  0.22 | OPTIMAL
+
+>>> GAP DETECTED: 0 days between readings - stopping count
+
+
+📊 RESULT:
+   Consecutive optimal days calculated: 2
+
+⚠️ UI shows: 7 consecutive optimal days
+   Backend calculates: 2 consecutive optimal days
+
+❌ MISMATCH! The calculation differs from the UI.

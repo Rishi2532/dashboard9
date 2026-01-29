@@ -1,0 +1,77 @@
+Meaning: Villages that have any water supply (water_value > 0 on any day)
+Database Fields: water_value_day1 through water_value_day7 in water_consumption table
+Logic: At least one day has water_value > 0
+Villages No Water
+
+Meaning: Villages with no water supply at all (all days = 0 or null)
+Database Fields: water_value_day1 through water_value_day7 in water_consumption table
+Logic: All water values are 0 or null
+Consistent Water
+
+Meaning: Villages with reliable water supply for all 7 days
+Database Fields: water_value_day1 through water_value_day7 in water_consumption table
+Logic: All 7 days have water_value > 0
+Consistent Zero
+
+Meaning: Villages with zero water supply consistently for all 7 days
+Database Fields: consistent_zero_lpcd_for_a_week in water_scheme_data table (calculated field)
+Logic: Set to 1 when all 7 days have zero LPCD values
+LPCD Categories:
+Above 55 LPCD
+
+Meaning: Villages with water consumption above 55 liters per capita per day
+Database Fields: lpcd_value_day7 (latest value) in water_scheme_data table
+Logic: Latest LPCD value > 55
+Below 55 LPCD
+
+Meaning: Villages with water consumption below 55 liters per capita per day
+Database Fields: lpcd_value_day7 (latest value) in water_scheme_data table
+Logic: Latest LPCD value < 55 but > 0
+Consistent Above 55
+
+Meaning: Villages consistently above 55 LPCD for all 7 days
+Database Fields: lpcd_value_day1 through lpcd_value_day7 in water_scheme_data table
+Logic: All 7 days have LPCD > 55
+Consistent Below 55
+
+Meaning: Villages consistently below 55 LPCD for all 7 days
+Database Fields: lpcd_value_day1 through lpcd_value_day7 in water_scheme_data table
+Logic: All 7 days have LPCD < 55
+ESR/Sensors Categories:
+Optimal Chlorine
+
+Meaning: ESRs with chlorine levels in the safe drinking water range
+Database Fields: chlorine_value_7 (latest) in chlorine_data table
+Optimal Range: 0.2 to 0.5 mg/L
+Below Chlorine
+
+Meaning: ESRs with insufficient chlorine levels (unsafe)
+Database Fields: chlorine_value_7 in chlorine_data table
+Logic: Chlorine < 0.2 mg/L
+Above Chlorine
+
+Meaning: ESRs with excessive chlorine levels (may affect taste)
+Database Fields: chlorine_value_7 in chlorine_data table
+Logic: Chlorine > 0.5 mg/L
+Optimal Pressure
+
+Meaning: ESRs with adequate water pressure for proper distribution
+Database Fields: pressure_value_7 (latest) in pressure_data table
+Optimal Range: 0.2 to 0.7 bar
+Below Pressure
+
+Meaning: ESRs with insufficient water pressure
+Database Fields: pressure_value_7 in pressure_data table
+Logic: Pressure < 0.2 bar
+Above Pressure
+
+Meaning: ESRs with excessive water pressure (may damage pipes)
+Database Fields: pressure_value_7 in pressure_data table
+Logic: Pressure > 0.7 bar
+Key Database Tables:
+water_consumption - Daily water values and flow meter data
+water_scheme_data - LPCD calculations and derived metrics
+chlorine_data - Chlorine monitoring values (7 days)
+pressure_data - Pressure monitoring values (7 days)
+villages - Aggregated village-level statistics
+The system uses the latest day's values (day 7) for current status and checks all 7 days for consistency patterns.

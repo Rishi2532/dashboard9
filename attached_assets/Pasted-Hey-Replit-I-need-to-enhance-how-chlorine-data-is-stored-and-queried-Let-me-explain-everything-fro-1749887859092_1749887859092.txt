@@ -1,0 +1,85 @@
+Hey Replit, I need to enhance how chlorine data is stored and queried. Let me explain everything from the beginning:
+
+💾 1. Current System (How It Works Now)
+Every day I upload a CSV file.
+
+Each row contains chlorine values for 7 days per ESR.
+
+These are stored in a table with fields like:
+
+chlorine_date_day_1 → chlorine_value_1
+
+...
+
+chlorine_date_day_7 → chlorine_value_7
+
+The database only keeps the latest 7-day record.
+
+That means when I upload tomorrow’s CSV, yesterday’s data gets overwritten.
+
+So there’s no historical record — just a rolling 7-day window.
+
+❌ What I Don’t Like
+Because the data is overwritten:
+
+I can’t get a full month's report.
+
+I lose previous values as new CSVs come in.
+
+There's no way to fetch chlorine values for each day in the past, like from 21 May to 21 June.
+
+✅ What I Want to Achieve
+I want to change the system so that:
+
+1. All data is stored permanently
+Even if dates overlap across different CSVs (which they do), every date + ESR combination should be saved.
+
+2. No duplicate data when querying
+Example: if I upload a CSV with 14–20 June today, and 15–21 June tomorrow, then:
+
+15–20 June is repeated in both uploads.
+
+When I fetch data for a full month, I should only get one record per ESR per date.
+
+If a date is repeated, I want the latest uploaded value.
+
+3. Querying by date should work like this:
+User selects: From 21 May to 21 June
+
+System:
+
+Scans all records
+
+Looks inside all 7 date fields (chlorine_date_day_1 to day_7)
+
+Picks only those dates within the range
+
+Removes duplicate dates (based on ESR + date)
+
+Returns only the latest value for each date per ESR
+
+🔁 How I Think It Can Work
+Keep the current upload format and structure (7-day blocks)
+
+But on the backend, unpack those 7 days into separate rows and store in a new chlorine_history table like this:
+
+esr_id	chlorine_date	chlorine_value	uploaded_at
+123	2024-06-14	0.5	2024-06-20
+123	2024-06-15	0.6	2024-06-20
+123	2024-06-15	0.65	2024-06-21
+
+Then, during queries, the system can:
+
+Filter by date range
+
+Group by esr_id + chlorine_date
+
+Pick the most recent entry per day
+
+✅ Summary
+I want to switch from a rolling 7-day table to a historical structure.
+
+I want to keep all data ever uploaded.
+
+I want to allow clean queries like:
+“Give me chlorine values from 21 May to 21 June” — and get 1 value per day per ESR with no duplicates.

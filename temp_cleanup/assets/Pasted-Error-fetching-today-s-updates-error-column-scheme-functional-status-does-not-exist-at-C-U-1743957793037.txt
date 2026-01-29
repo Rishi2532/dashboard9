@@ -1,0 +1,66 @@
+Error fetching today's updates: error: column "scheme_functional_status" does not exist
+    at C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_8\JavaScriptDashboardnew-4 (4)\IoT_dashboard_8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_8/JavaScriptDashboardnew-4%20(4)/IoT_dashboard_8/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async PostgresStorage.getTodayUpdates (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_8/JavaScriptDashboardnew-4%20(4)/IoT_dashboard_8/server/storage.ts:9:873)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_8/JavaScriptDashboardnew-4%20(4)/IoT_dashboard_8/server/routes.ts:1:3667 {
+  length: 125,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '297',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3722',
+  routine: 'errorMissingColumn'
+}
+10:12:29 PM [express] GET /api/updates/today 500 in 1223ms :: {"message":"Failed to fetch today's upd…
+Connected to PostgreSQL database
+10:12:30 PM [express] GET /api/regions 304 in 2473ms :: [{"region_id":5,"region_name":"Amravati","tot…
+Connected to PostgreSQL database
+Error fetching schemes: error: column "scheme_functional_status" does not exist
+    at C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_8\JavaScriptDashboardnew-4 (4)\IoT_dashboard_8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_8/JavaScriptDashboardnew-4%20(4)/IoT_dashboard_8/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_8/JavaScriptDashboardnew-4%20(4)/IoT_dashboard_8/server/routes.ts:1:5825 {
+  length: 125,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '297',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3722',
+  routine: 'errorMissingColumn'
+}
+10:12:31 PM [express] GET /api/schemes 500 in 2816ms :: {"message":"Failed to fetch schemes"}
+Connected to PostgreSQL database
+Dynamic region summary calculated: {
+  total_schemes_integrated: '69',
+  fully_completed_schemes: '15',
+  total_villages_integrated: '595',
+  fully_completed_villages: '176',
+  total_esr_integrated: '743',
+  fully_completed_esr: '287',
+  partial_esr: '456',
+  flow_meter_integrated: '575',
+  rca_integrated: '603',
+  pressure_transmitter_integrated: '383'
+}
+10:12:32 PM [express] GET /api/regions/summary 304 in 4493ms :: {"total_schemes_integrated":"69","ful…

@@ -1,0 +1,47 @@
+10:06:21 AM [express] GET /api/regions/summary 304 in 384ms :: {"total_schemes_integrated":"69","full…
+No updates found for today (2025-04-07), creating new record
+10:06:22 AM [express] GET /api/updates/today 304 in 2002ms :: []
+Request params: region=undefined, status=Fully Completed, schemeId=undefined
+Getting all schemes with status=Fully Completed
+Found 0 schemes across all regions
+10:06:38 AM [express] GET /api/schemes 304 in 344ms :: []
+Request params: region=Nashik, status=Fully Completed, schemeId=undefined
+Filtering for region=Nashik, status=Fully Completed
+Found 0 schemes for region Nashik
+After filtering: 0 schemes for region Nashik
+10:06:46 AM [express] GET /api/schemes 200 in 278ms :: []
+10:06:46 AM [express] GET /api/regions/summary 304 in 275ms :: {"total_schemes_integrated":14,"fully_…
+Request params: region=Nashik, status=undefined, schemeId=undefined
+Filtering for region=Nashik, status=undefined
+Connected to PostgreSQL database
+Found 12 schemes for region Nashik
+After filtering: 12 schemes for region Nashik
+10:07:31 AM [express] GET /api/schemes 200 in 4780ms :: [{"sr_no":8,"scheme_id":8,"region_name":"Nash…
+10:07:34 AM [express] GET /api/auth/status 304 in 2ms :: {"isLoggedIn":1,"isAdmin":true}
+Fetching today's updates
+Calculating dynamic sum of all regions
+Request params: region=undefined, status=undefined, schemeId=undefined
+Getting all schemes with status=undefined
+Loaded 0 stored updates for today (2025-04-07)
+10:07:36 AM [express] GET /api/updates/today 304 in 2234ms :: []
+Connected to PostgreSQL database
+Connected to PostgreSQL database
+Connected to PostgreSQL database
+Dynamic region summary calculated: {
+  total_schemes_integrated: '69',
+  fully_completed_schemes: '15',
+  total_villages_integrated: '595',
+  fully_completed_villages: '176',
+  total_esr_integrated: '743',
+  fully_completed_esr: '287',
+  partial_esr: '456',
+  flow_meter_integrated: '575',
+  rca_integrated: '603',
+  pressure_transmitter_integrated: '383'
+}
+10:07:37 AM [express] GET /api/regions/summary 304 in 3418ms :: {"total_schemes_integrated":"69","ful…
+Found 65 schemes across all regions
+10:07:38 AM [express] GET /api/schemes 304 in 3736ms :: [{"sr_no":14,"scheme_id":14,"region_name":"Am…
+10:07:38 AM [express] GET /api/regions 304 in 4342ms :: [{"region_id":5,"region_name":"Amravati","tot…
+10:10:25 AM [express] GET /api/auth/status 304 in 1ms :: {"isLoggedIn":1,"isAdmin":true}
+10:10:32 AM [express] GET /api/auth/status 304 in 1ms :: {"isLoggedIn":1,"isAdmin":true}

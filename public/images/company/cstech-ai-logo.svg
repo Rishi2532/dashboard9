@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="250" viewBox="0 0 500 250">
+  <!-- Colorful X symbol -->
+  <g transform="translate(40, 125) scale(0.8)">
+    <!-- Top-left to bottom-right gradient line -->
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F15A29;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#CC3399;stop-opacity:1" />
+    </linearGradient>
+    <rect x="-10" y="-60" width="20" height="120" rx="5" fill="url(#grad1)" transform="rotate(-45)"/>
+    
+    <!-- Bottom-left to top-right gradient line -->
+    <linearGradient id="grad2" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#F15A29;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3366CC;stop-opacity:1" />
+    </linearGradient>
+    <rect x="-10" y="-60" width="20" height="120" rx="5" fill="url(#grad2)" transform="rotate(45)"/>
+  </g>
+  
+  <!-- CS TECH text -->
+  <g transform="translate(150, 130)">
+    <text font-family="Arial, sans-serif" font-weight="bold" font-size="55" fill="#0A2463">
+      CSTECH
+    </text>
+    <!-- Ai text with blue color -->
+    <text font-family="Arial, sans-serif" font-weight="bold" font-size="55" x="220" fill="#3366CC">
+      Ai
+    </text>
+  </g>
+  
+  <!-- Tagline -->
+  <g transform="translate(150, 165)">
+    <text font-family="Arial, sans-serif" font-size="24" fill="#666666">
+      Enhancing Possibilities
+    </text>
+  </g>
+</svg>

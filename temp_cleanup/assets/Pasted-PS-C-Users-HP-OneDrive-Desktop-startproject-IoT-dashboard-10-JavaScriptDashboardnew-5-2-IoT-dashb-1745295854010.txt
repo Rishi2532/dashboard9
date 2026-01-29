@@ -1,0 +1,85 @@
+PS C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard> npm run dev
+
+> rest-express@1.0.0 dev
+> tsx server/index.ts
+
+Setting up database connection from getDB()...
+DATABASE_URL is set: Yes
+Setting up database connection...
+VS Code pgAdmin configuration detected!
+Connecting to database...
+Database connection setup successfully
+Initializing database with new setup...
+Initializing database tables...
+Error initializing database tables: RangeError [ERR_SOCKET_BAD_PORT]: Port should be >= 0 and < 65536. Received type number (NaN).
+    at validatePort (node:internal/validators:424:11)
+    at lookupAndConnect (node:net:1289:5)
+    at Socket.connect (node:net:1246:5)
+    at Connection.connect (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg\lib\connection.js:43:17)
+    at Client._connect (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg\lib\client.js:117:11)
+    at Client.connect (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg\lib\client.js:166:12)
+    at BoundPool.newClient (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg-pool\index.js:241:12)
+    at BoundPool.connect (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg-pool\index.js:216:10)
+    at BoundPool.query (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg-pool\index.js:403:10)
+    at <anonymous> (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\src\node-postgres\session.ts:100:20) {
+  code: 'ERR_SOCKET_BAD_PORT'
+}
+Error initializing database: RangeError [ERR_SOCKET_BAD_PORT]: Port should be >= 0 and < 65536. Received type number (NaN).
+    at validatePort (node:internal/validators:424:11)
+    at lookupAndConnect (node:net:1289:5)
+    at Socket.connect (node:net:1246:5)
+    at Connection.connect (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg\lib\connection.js:43:17)
+    at Client._connect (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg\lib\client.js:117:11)
+    at Client.connect (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg\lib\client.js:166:12)
+    at BoundPool.newClient (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg-pool\index.js:241:12)
+    at BoundPool.connect (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg-pool\index.js:216:10)
+    at BoundPool.query (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg-pool\index.js:403:10)
+    at <anonymous> (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\src\node-postgres\session.ts:100:20) {
+  code: 'ERR_SOCKET_BAD_PORT'
+}
+Error initializing database in storage: RangeError [ERR_SOCKET_BAD_PORT]: Port should be >= 0 and < 65536. Received type number (NaN).  
+    at validatePort (node:internal/validators:424:11)
+    at lookupAndConnect (node:net:1289:5)
+    at Socket.connect (node:net:1246:5)
+    at Connection.connect (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg\lib\connection.js:43:17)
+    at Client._connect (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg\lib\client.js:117:11)
+    at Client.connect (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg\lib\client.js:166:12)
+    at BoundPool.newClient (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg-pool\index.js:241:12)
+    at BoundPool.connect (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg-pool\index.js:216:10)
+    at BoundPool.query (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg-pool\index.js:403:10)
+    at <anonymous> (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\src\node-postgres\session.ts:100:20) {
+  code: 'ERR_SOCKET_BAD_PORT'
+}
+Failed to initialize database in constructor: RangeError [ERR_SOCKET_BAD_PORT]: Port should be >= 0 and < 65536. Received type number (NaN).
+    at validatePort (node:internal/validators:424:11)
+    at lookupAndConnect (node:net:1289:5)
+    at Socket.connect (node:net:1246:5)
+    at Connection.connect (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg\lib\connection.js:43:17)
+    at Client._connect (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg\lib\client.js:117:11)
+    at Client.connect (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg\lib\client.js:166:12)
+    at BoundPool.newClient (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg-pool\index.js:241:12)
+    at BoundPool.connect (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg-pool\index.js:216:10)
+    at BoundPool.query (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg-pool\index.js:403:10)
+    at <anonymous> (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\src\node-postgres\session.ts:100:20) {
+  code: 'ERR_SOCKET_BAD_PORT'
+}
+node:internal/process/promises:289
+            triggerUncaughtException(err, true /* fromPromise */);
+            ^
+
+RangeError [ERR_SOCKET_BAD_PORT]: Port should be >= 0 and < 65536. Received type number (NaN).
+    at validatePort (node:internal/validators:424:11)
+    at lookupAndConnect (node:net:1289:5)
+    at Socket.connect (node:net:1246:5)
+    at Connection.connect (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg\lib\connection.js:43:17)
+    at Client._connect (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg\lib\client.js:117:11)
+    at Client.connect (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg\lib\client.js:166:12)
+    at BoundPool.newClient (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg-pool\index.js:241:12)
+    at BoundPool.connect (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg-pool\index.js:216:10)
+    at BoundPool.query (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\pg-pool\index.js:403:10)
+    at <anonymous> (C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard\node_modules\src\node-postgres\session.ts:100:20) {
+  code: 'ERR_SOCKET_BAD_PORT'
+}
+
+Node.js v20.11.0
+PS C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_10\JavaScriptDashboardnew-5 (2)\IoT_dashboard> 

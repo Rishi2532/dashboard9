@@ -1,0 +1,37 @@
+[
+  {
+    "chlorine_value": "0",
+    "chlorine_date": "04-Jan",
+    "parsed_date": "2026-01-04"
+  },
+  {
+    "chlorine_value": "0",
+    "chlorine_date": "03-Jan",
+    "parsed_date": "2026-01-03"
+  },
+  {
+    "chlorine_value": "0",
+    "chlorine_date": "02-Jan",
+    "parsed_date": "2026-01-02"
+  },
+  {
+    "chlorine_value": "0",
+    "chlorine_date": "01-Jan",
+    "parsed_date": "2026-01-01"
+  },
+  {
+    "chlorine_value": "0",
+    "chlorine_date": "31-Dec-2025",
+    "parsed_date": "2025-12-31"
+  },
+  {
+    "chlorine_value": "0",
+    "chlorine_date": "30-Dec-2025",
+    "parsed_date": "2025-12-30"
+  },
+  {
+    "chlorine_value": "0",
+    "chlorine_date": "29-Dec-2025",
+    "parsed_date": "2025-12-29"
+  }
+]

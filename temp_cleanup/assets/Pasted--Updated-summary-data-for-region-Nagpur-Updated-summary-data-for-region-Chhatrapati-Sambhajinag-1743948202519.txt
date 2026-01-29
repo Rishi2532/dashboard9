@@ -1,0 +1,59 @@
+}
+Updated summary data for region: Nagpur
+Updated summary data for region: Chhatrapati Sambhajinagar
+Updated summary data for region: Pune
+Updated summary data for region: Konkan
+Updated summary data for region: Amravati
+Updated summary data for region: Nashik
+All region summaries updated successfully
+Fetching today's updates
+No updates found for today (2025-04-06), creating new record
+Error fetching today's updates: error: column "total_villages_in_scheme" does not exist
+    at C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_6\JavaScriptDashboardnew-4 (2)\IoT_dashboard_6\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async PostgresStorage.getTodayUpdates (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/storage.ts:9:873)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/routes.ts:1:8568 {
+  length: 125,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '158',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3666',
+  routine: 'errorMissingColumn'
+}
+Error updating region summaries: error: column "total_villages_in_scheme" does not exist
+    at C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_6\JavaScriptDashboardnew-4 (2)\IoT_dashboard_6\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async PostgresStorage.getTodayUpdates (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/storage.ts:9:873)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/routes.ts:1:8568 {
+  length: 125,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '158',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3666',
+  routine: 'errorMissingColumn'
+}
+7:32:31 PM [express] POST /api/admin/update-region-summaries 500 in 27ms :: {"message":"Failed to up…

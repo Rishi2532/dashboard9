@@ -1,0 +1,71 @@
+Bidgaon Tarodi wss (7940695) comes under Maharashtra Jeevan Pradhikaran and is one of the key Multi-Village Schemes aimed at providing safe and sustainable drinking water supply.
+
+The Bidgaon Tarodi wss is currently Fully Completed.
+It covers 2 villages, out of which 2 villages have already been integrated.
+The scheme also includes 4 ESRs, with 4 fully integrated so far.
+Below is a detailed breakdown of water supply, LPCD levels, and sensor performance for this scheme.
+
+📊 Comprehensive Analysis for Bidgaon Tarodi wss
+
+🏗️ Scheme Information:
+• Region: Nagpur
+• Circle: Nagpur
+• Division: Nagpur
+• Block: Kamptee
+• Agency: null
+• Completion Status: ✅ Fully Completed
+• Functional Status: Unknown
+• MJP Commissioned: Yes
+• MJP Fully Completed: Fully Completed
+
+🏘️ Village Infrastructure:
+• Villages in Scheme: 2
+• Villages Integrated: 2
+• Functional Villages: 2
+• Fully Completed Villages: 2
+• Partial Villages: 0
+• Non-functional Villages: 0
+
+🏗️ ESR Infrastructure:
+• Total ESRs: 4
+• ESR Integrated: 4
+• Fully Completed ESR: 4
+• Balance ESR to Complete: 0
+• Flow Meters: 4
+• Chlorine Analyzers: 4
+• Pressure Transmitters: 4
+
+💧 Water Supply Analysis:
+• Villages with Data: 2
+• Villages Receiving Water: 2
+• Villages with No Water: 0
+• Villages with Consistent Water: 2
+• Villages with Consistent Zero Water: 0
+• Villages Above 55 LPCD: 1
+• Villages Below 55 LPCD: 1
+• Villages Consistently Above 55 LPCD: 1
+• Villages Consistently Below 55 LPCD: 1
+• Total Population Covered: 24,690
+• Average LPCD: 49.55
+
+🔬 Sensor Performance Analysis:
+Chlorine Levels (Optimal: 0.2-0.5 mg/L):
+• ESR with Optimal Chlorine: 0
+• ESR Below Optimal: 4
+• ESR Above Optimal: 0
+• ESR with Zero Readings: 3
+• ESR Consistently Optimal: 0
+• Average Chlorine Level: 0.03 mg/L
+
+Pressure Levels (Optimal: 0.2-0.7 bar):
+• ESR with Optimal Pressure: 1
+• ESR Below Optimal: 0
+• ESR Above Optimal: 3
+• ESR with Zero Readings: 0
+• ESR Consistently Optimal: 0
+• Average Pressure Level: 1.14 bar
+
+📈 Completion Summary:
+• Total Villages in System: 2
+• Fully Completed Villages: 2
+• Partial Villages: 0

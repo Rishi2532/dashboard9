@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="150" height="150" viewBox="0 0 150 150">
+  <g transform="translate(25,0)">
+    <!-- Water Drop -->
+    <path d="M50,10 C50,10 10,60 10,90 C10,115 30,135 50,135 C70,135 90,115 90,90 C90,60 50,10 50,10 Z" 
+          fill="#1D96D4" />
+    
+    <!-- Water Tap -->
+    <path d="M35,55 L65,55 C67,55 70,57 70,60 L70,65 C70,68 67,70 65,70 L60,70 L60,90 L50,90 L50,70 L40,70 L40,90 L33,90 L33,70 C31,70 28,68 28,65 L28,60 C28,57 31,55 33,55 L35,55" 
+          fill="white" />
+    
+    <!-- Water Drops from tap -->
+    <path d="M60,90 C60,90 60,95 60,100 L60,115 M55,95 C55,95 55,100 55,105 M50,92 C50,92 50,97 50,102" 
+          stroke="white" stroke-width="2" fill="none" />
+    
+    <!-- Text -->
+    <text x="50" y="155" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#1D96D4" text-anchor="middle">Har Ghar Jal</text>
+    <text x="50" y="170" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#1D96D4" text-anchor="middle">Jal Jeevan Mission</text>
+  </g>
+</svg>

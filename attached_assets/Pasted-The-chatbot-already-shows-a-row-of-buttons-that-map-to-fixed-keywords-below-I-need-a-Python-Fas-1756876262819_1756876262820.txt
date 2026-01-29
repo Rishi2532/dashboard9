@@ -1,0 +1,125 @@
+The chatbot already shows a row of “buttons” that map to fixed keywords (below). I need a Python FastAPI microservice that (a) understands user text (NLP + fuzzy), (b) classifies it into one of the fixed keywords + scope, and (c) returns the correct records from the DB. Current behavior is wrong:
+
+Current problems (must fix)
+
+“Optimal Chlorine”:
+
+When I ask just “optimal chlorine”, it does not show the list from all regions (it should).
+
+When I ask “optimal chlorine in Nagpur”, it returns wrong data.
+
+When I ask “optimal chlorine in Bidgaon Tarodi WSS”, it returns wrong data.
+
+Scheme matching is unreliable:
+
+It must match all words of the scheme name against the user sentence (order-agnostic, case-insensitive, punctuation ignored) before accepting it.
+
+It should also work with scheme ID when present.
+
+“Villages with Water” and “Villages with Above 55 LPCD” are not shown correctly.
+
+For every keyword, the bot must:
+
+Show all-region data when no region/scheme is provided.
+
+Show region-wise data when a specific region is provided.
+
+Show scheme-wise data when a specific scheme name or ID is provided.
+
+Regions (exact canonical names)
+
+Nagpur, Amravati, Chhatrapati Sambhajinagar, Nashik, Konkan, Pune
+
+Fixed keyword set (canonical labels)
+
+Villages
+
+Villages with Water
+
+Villages No Water
+
+Consistent Water
+
+Consistent Zero
+
+Above 55 LPCD
+
+Below 55 LPCD
+
+Consistent Above 55
+
+Consistent Below 55
+
+ESR / Sensors
+
+Optimal Chlorine
+
+Below Chlorine
+
+Above Chlorine
+
+Optimal Pressure
+
+Below Pressure
+
+Above Pressure
+
+NLP + Matching requirements
+
+Use spaCy (en_core_web_sm) for tokenization + entity extraction.
+
+Use RapidFuzz for fuzzy backup; prefer RapidFuzz (faster) over fuzzywuzzy.
+
+Maintain a synonym map so variants are detected (examples below). Map to canonical labels above.
+
+Example synonyms (not exhaustive, extendable):
+
+Optimal Chlorine: “optimum chlorine”, “good chlorine”, “right chlorine range”, “chlorine ok”, “optimal range chlorine”
+
+Below Chlorine: “low chlorine”, “chlorine below range”
+
+Above Chlorine: “high chlorine”, “chlorine above range”
+
+Optimal Pressure: “good pressure”, “pressure ok”, “right pressure”
+
+Below Pressure: “low pressure”, “pressure below range”
+
+Above Pressure: “high pressure”, “pressure above range”
+
+Above 55 LPCD: “>=55 lpcd”, “above fifty five lpcd”, “villages with above 55 lpcd”
+
+Below 55 LPCD: “<=55 lpcd”, “less than 55 lpcd”
+
+Consistent Water: “consistent supply”, “regular supply”
+
+Consistent Zero: “consistent zero supply”, “always zero”
+
+Villages with Water: “villages having water”, “water available villages”
+
+Villages No Water: “villages without water”, “no water villages”
+
+Scheme detection (must be strict & reliable):
+
+If a numeric ID appears (e.g., “scheme 1234”), treat as scheme_id.
+
+For name matching:
+
+Tokenize DB scheme name → remove stopwords like “scheme”, “wss”, “rrws”, “project”, etc.
+
+Tokenize user query similarly.
+
+Require that every significant token in the scheme name appears in the user query (order agnostic).
+
+Normalize accents, case, punctuation; allow hyphen/space variants.
+
+If multiple candidates match, choose the one with highest RapidFuzz token_set_ratio; only accept ≥ 88; otherwise return no scheme.
+
+Region detection:
+
+Detect any of the six canonical region names (exact or close variants). Accept RapidFuzz score ≥ 90 or substring match after normalization.
+
+Keyword detection:
+
+Try synonym map (exact token presence).
+
+Then use RapidFuzz against canonical labels; accept ≥ 85.

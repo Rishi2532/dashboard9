@@ -1,0 +1,91 @@
+3:53:04 PM [express] GET /api/chlorine/with-water-sensors 200 in 10ms :: {"success":true,"data":{"to…
+Connected to PostgreSQL database
+Returning 2192 chlorine records after filtering
+Sample data: [
+  {
+    scheme_id: '20027951',
+    region: 'Amravati',
+    village_name: 'Marodi',
+    esr_name: 'Existing 0.50 LL ESR',
+    chlorine_value_7: null
+  },
+  {
+    scheme_id: '20027951',
+    region: 'Amravati',
+    village_name: 'Mathodi',
+    esr_name: 'Existing 1.00 LL ESR- Outlet-1',
+    chlorine_value_7: null
+  },
+  {
+    scheme_id: '20027951',
+    region: 'Amravati',
+    village_name: 'Apoti Bk.',
+    esr_name: 'Existing 0.40 LL ESR',
+    chlorine_value_7: null
+  }
+]
+3:53:04 PM [express] GET /api/chlorine 200 in 233ms :: [{"region":"Amravati","circle":"Akola","divis…
+Connected to PostgreSQL database
+Connected to PostgreSQL database
+Total sensors with water: 0
+Connected to PostgreSQL database
+Below range sensors with water: 0
+Connected to PostgreSQL database
+Consolidated 407 schemes into 392 unique schemes
+Found 392 schemes across all regions
+Optimal range sensors with water: 0
+3:53:04 PM [express] GET /api/schemes 200 in 302ms :: [{"sr_no":3,"scheme_id":"20003791","region":"A…
+Above range sensors with water: 0
+3:53:04 PM [express] GET /api/regions 200 in 313ms :: [{"region_id":53,"region_name":"Amravati","tot…
+Consistent zero sensors with water: 0
+Consistent below range sensors with water: 0
+Consistent optimal range sensors with water: 0
+Consistent above range sensors with water: 0
+Finding chlorine sensors with no water...
+3:53:04 PM [express] GET /api/communication-status/schemes 200 in 355ms :: [{"scheme_id":"20003791",…
+Found 755 chlorine sensors with no water
+No water sensors: 755
+Dashboard stats: {
+  totalSensors: 0,
+  belowRangeSensors: 0,
+  optimalRangeSensors: 0,
+  aboveRangeSensors: 0,
+  consistentZeroSensors: 0,
+  consistentBelowRangeSensors: 0,
+  consistentOptimalSensors: 0,
+  consistentAboveRangeSensors: 0,
+  noWaterSensors: 755
+}
+3:53:04 PM [express] GET /api/chlorine/dashboard-stats 200 in 430ms :: {"totalSensors":0,"belowRange…
+3:53:10 PM [express] GET /api/auth/status 304 in 0ms :: {"isLoggedIn":1,"isAdmin":true}
+3:53:10 PM [express] GET /api/auth/status 304 in 0ms :: {"isLoggedIn":1,"isAdmin":true}
+Fetching regional chlorine sensor statistics
+Calculating regional chlorine sensor statistics...
+Found 6 regions to process
+Calculated statistics for 6 regions
+3:53:10 PM [express] GET /api/chlorine/regional-stats 200 in 166ms :: [{"region":"Amravati","totalCo…
+Fetching day-wise breakdown for region: all
+Calculating day-wise breakdown for region: all
+Error calculating day-wise breakdown: error: invalid value "30234" for "Mon"
+    at C:\Users\12717\Desktop\Iot_project\IoT_dashboard41\dashboard (17)\dashboard\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async PostgresStorage.getChlorineDayWiseBreakdown (C:\Users\12717\Desktop\Iot_project\IoT_dashboard41\dashboard (17)\dashboard\server\storage.ts:3395:22)
+    at async <anonymous> (C:\Users\12717\Desktop\Iot_project\IoT_dashboard41\dashboard (17)\dashboard\server\routes\chlorine-routes.ts:214:23) {
+  length: 174,
+  severity: 'ERROR',
+  code: '22007',
+  detail: 'The given value did not match any of the allowed values for this field.',
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'formatting.c',
+  line: '2753',
+  routine: 'from_char_seq_search'
+}

@@ -1,0 +1,276 @@
+PS C:\Users\HP\OneDrive\Desktop\startproject\Iot_dashboard43\IoTdashboard (13)\IoTdashboard>npm run dev
+
+> rest-express@1.0.0 dev
+> tsx server/index.ts
+
+Report files upload directory: /tmp/reports
+🔄 Auto-generating dashboard URLs...
+✅ Database already initialized, skipping...
+Generating any missing dashboard URLs...
+Creating HTTP server to run on port 5000 (will be bound to all interfaces)
+Looking for SSL certificates at: C:\Users\HP\OneDrive\Desktop\startproject\Iot_dashboard43\IoTdashboard (13)\IoTdashboard\ssl\privatekey.pem and C:\Users\HP\OneDrive\Desktop\startproject\Iot_dashboard43\IoTdashboard (13)\IoTdashboard\ssl\certificate.pem
+Certificate exists: true, Key exists: true
+SSL certificates found, creating HTTPS server
+Running both HTTP and HTTPS servers (HTTP: port 5000, HTTPS: port 443)
+HTTPS server running on port 443
+9:46:57 AM [express] serving on port 5000
+🔍 Checking for schemes with missing dashboard URLs...
+Setting up database connection from getDB()...
+DATABASE_URL is set: Yes
+Setting up database connection...
+VS Code pgAdmin configuration detected!
+Connecting to: localhost:5432
+Database connection setup successfully
+Initializing database with new setup...
+Initializing database tables...
+✅ No schemes with missing dashboard URLs found.
+🔍 Checking for villages with missing dashboard URLs...
+✅ No villages with missing dashboard URLs found.
+✅ Dashboard URL generation check completed!
+Connected to PostgreSQL database
+Database tables initialized successfully
+Database initialized successfully!
+Database initialized successfully in storage
+Browserslist: browsers data (caniuse-lite) is 7 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+9:47:13 AM [express] GET /api/auth/status 200 in 4ms :: {"isAdmin":false}
+9:47:13 AM [express] GET /api/auth/status 304 in 17ms :: {"isAdmin":false}
+9:47:14 AM [express] GET /api/auth/status 304 in 1ms :: {"isAdmin":false}
+9:47:14 AM [express] GET /api/auth/status 304 in 2ms :: {"isAdmin":false}
+Connected to PostgreSQL database
+9:47:17 AM [express] POST /api/auth/login 200 in 96ms :: {"id":1,"username":"admin","role":"admin","…
+9:47:17 AM [express] GET /api/auth/status 200 in 1ms :: {"isLoggedIn":1,"isAdmin":true}
+9:47:17 AM [express] GET /api/auth/status 304 in 1ms :: {"isLoggedIn":1,"isAdmin":true}
+9:47:24 AM [express] GET /api/auth/status 304 in 1ms :: {"isLoggedIn":1,"isAdmin":true}
+9:47:24 AM [express] GET /api/auth/status 304 in 1ms :: {"isLoggedIn":1,"isAdmin":true}
+Attempting to fetch report files from database...
+(node:14632) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.       
+(Use `node --trace-warnings ...` to show where the warning was created)
+Detailed error fetching report files: ErrorEvent {
+  [Symbol(kTarget)]: WebSocket {
+    _events: [Object: null prototype] {
+      error: [Function],
+      message: [Function],
+      close: [Function],
+      open: [Function]
+    },
+    _eventsCount: 4,
+    _maxListeners: undefined,
+    _binaryType: 'arraybuffer',
+    _closeCode: 1006,
+    _closeFrameReceived: false,
+    _closeFrameSent: false,
+    _closeMessage: <Buffer >,
+    _closeTimer: null,
+    _errorEmitted: true,
+    _extensions: {},
+    _paused: false,
+    _protocol: '',
+    _readyState: 3,
+    _receiver: null,
+    _sender: null,
+    _socket: null,
+    _bufferedAmount: 0,
+    _isServer: false,
+    _redirects: 0,
+    _autoPong: true,
+    _url: 'wss://localhost/v2',
+    _req: ClientRequest {
+      _events: [Object: null prototype],
+      _eventsCount: 4,
+      _maxListeners: undefined,
+      outputData: [],
+      outputSize: 0,
+      writable: true,
+      destroyed: true,
+      _last: true,
+      chunkedEncoding: false,
+      shouldKeepAlive: true,
+      maxRequestsOnConnectionReached: false,
+      _defaultKeepAlive: true,
+      useChunkedEncodingByDefault: false,
+      sendDate: false,
+      _removedConnection: false,
+      _removedContLen: false,
+      _removedTE: false,
+      strictContentLength: false,
+      _contentLength: 0,
+      _hasBody: true,
+      _trailer: '',
+      finished: true,
+      _headerSent: true,
+      _closed: true,
+      socket: [TLSSocket],
+      _header: 'GET /v2 HTTP/1.1\r\n' +
+        'Sec-WebSocket-Version: 13\r\n' +
+        'Sec-WebSocket-Key: W9tiU4hkb5kv24ICgywDEg==\r\n' +
+        'Connection: Upgrade\r\n' +
+        'Upgrade: websocket\r\n' +
+        'Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits\r\n' +
+        'Host: localhost\r\n' +
+        '\r\n',
+      _keepAliveTimeout: 0,
+      _onPendingData: [Function: nop],
+      agent: undefined,
+      socketPath: undefined,
+      method: 'GET',
+      maxHeaderSize: undefined,
+      insecureHTTPParser: undefined,
+      joinDuplicateHeaders: undefined,
+      path: '/v2',
+      _ended: true,
+      res: [IncomingMessage],
+      aborted: true,
+      timeoutCb: null,
+      upgradeOrConnect: false,
+      parser: null,
+      maxHeadersCount: null,
+      reusedSocket: false,
+      host: 'localhost',
+      protocol: 'https:',
+      [Symbol(shapeMode)]: false,
+      [Symbol(kCapture)]: false,
+      [Symbol(kBytesWritten)]: 0,
+      [Symbol(kNeedDrain)]: false,
+      [Symbol(corked)]: 0,
+      [Symbol(kOutHeaders)]: [Object: null prototype],
+      [Symbol(errored)]: null,
+      [Symbol(kHighWaterMark)]: 16384,
+      [Symbol(kRejectNonStandardBodyWrites)]: false,
+      [Symbol(kUniqueHeaders)]: null,
+      [Symbol(kAborted)]: true,
+      [Symbol(kError)]: undefined
+    },
+    [Symbol(shapeMode)]: false,
+    [Symbol(kCapture)]: false
+  },
+  [Symbol(kType)]: 'error',
+  [Symbol(kError)]: Error: Unexpected server response: 200
+      at ClientRequest.<anonymous> (C:\Users\HP\OneDrive\Desktop\startproject\Iot_dashboard43\IoTdashboard (13)\IoTdashboard\node_modules\ws\lib\websocket.js:913:7)
+      at ClientRequest.emit (node:events:518:28)
+      at HTTPParser.parserOnIncomingClient (node:_http_client:693:27)
+      at HTTPParser.parserOnHeadersComplete (node:_http_common:119:17)
+      at TLSSocket.socketOnData (node:_http_client:535:22)
+      at TLSSocket.emit (node:events:518:28)
+      at addChunk (node:internal/streams/readable:559:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:510:3)
+      at Readable.push (node:internal/streams/readable:390:5)
+      at TLSWrap.onStreamRead (node:internal/stream_base_commons:190:23),
+  [Symbol(kMessage)]: 'Unexpected server response: 200'
+}
+9:47:24 AM [express] GET /api/reports 500 in 69ms :: {"error":"Failed to fetch report files"}
+Attempting to fetch report files from database...
+Detailed error fetching report files: ErrorEvent {
+  [Symbol(kTarget)]: WebSocket {
+    _events: [Object: null prototype] {
+      error: [Function],
+      message: [Function],
+      close: [Function],
+      open: [Function]
+    },
+    _eventsCount: 4,
+    _maxListeners: undefined,
+    _binaryType: 'arraybuffer',
+    _closeCode: 1006,
+    _closeFrameReceived: false,
+    _closeFrameSent: false,
+    _closeMessage: <Buffer >,
+    _closeTimer: null,
+    _errorEmitted: true,
+    _extensions: {},
+    _paused: false,
+    _protocol: '',
+    _readyState: 3,
+    _receiver: null,
+    _sender: null,
+    _socket: null,
+    _bufferedAmount: 0,
+    _isServer: false,
+    _redirects: 0,
+    _autoPong: true,
+    _url: 'wss://localhost/v2',
+    _req: ClientRequest {
+      _events: [Object: null prototype],
+      _eventsCount: 4,
+      _maxListeners: undefined,
+      outputData: [],
+      outputSize: 0,
+      writable: true,
+      destroyed: true,
+      _last: true,
+      chunkedEncoding: false,
+      shouldKeepAlive: true,
+      maxRequestsOnConnectionReached: false,
+      _defaultKeepAlive: true,
+      useChunkedEncodingByDefault: false,
+      sendDate: false,
+      _removedConnection: false,
+      _removedContLen: false,
+      _removedTE: false,
+      strictContentLength: false,
+      _contentLength: 0,
+      _hasBody: true,
+      _trailer: '',
+      finished: true,
+      _headerSent: true,
+      _closed: true,
+      socket: [TLSSocket],
+      _header: 'GET /v2 HTTP/1.1\r\n' +
+        'Sec-WebSocket-Version: 13\r\n' +
+        'Sec-WebSocket-Key: qiEYqCc8Hm7I4+501aQn2A==\r\n' +
+        'Connection: Upgrade\r\n' +
+        'Upgrade: websocket\r\n' +
+        'Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits\r\n' +
+        'Host: localhost\r\n' +
+        '\r\n',
+      _keepAliveTimeout: 0,
+      _onPendingData: [Function: nop],
+      agent: undefined,
+      socketPath: undefined,
+      method: 'GET',
+      maxHeaderSize: undefined,
+      insecureHTTPParser: undefined,
+      joinDuplicateHeaders: undefined,
+      path: '/v2',
+      _ended: true,
+      res: [IncomingMessage],
+      aborted: true,
+      timeoutCb: null,
+      upgradeOrConnect: false,
+      parser: null,
+      maxHeadersCount: null,
+      reusedSocket: false,
+      host: 'localhost',
+      protocol: 'https:',
+      [Symbol(shapeMode)]: false,
+      [Symbol(kCapture)]: false,
+      [Symbol(kBytesWritten)]: 0,
+      [Symbol(kNeedDrain)]: false,
+      [Symbol(corked)]: 0,
+      [Symbol(kOutHeaders)]: [Object: null prototype],
+      [Symbol(errored)]: null,
+      [Symbol(kHighWaterMark)]: 16384,
+      [Symbol(kRejectNonStandardBodyWrites)]: false,
+      [Symbol(kUniqueHeaders)]: null,
+      [Symbol(kAborted)]: true,
+      [Symbol(kError)]: undefined
+    },
+    [Symbol(shapeMode)]: false,
+    [Symbol(kCapture)]: false
+  },
+  [Symbol(kType)]: 'error',
+  [Symbol(kError)]: Error: Unexpected server response: 200
+      at ClientRequest.<anonymous> (C:\Users\HP\OneDrive\Desktop\startproject\Iot_dashboard43\IoTdashboard (13)\IoTdashboard\node_modules\ws\lib\websocket.js:913:7)
+      at ClientRequest.emit (node:events:518:28)
+      at HTTPParser.parserOnIncomingClient (node:_http_client:693:27)
+      at HTTPParser.parserOnHeadersComplete (node:_http_common:119:17)
+      at TLSSocket.socketOnData (node:_http_client:535:22)
+      at TLSSocket.emit (node:events:518:28)
+      at addChunk (node:internal/streams/readable:559:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:510:3)
+      at Readable.push (node:internal/streams/readable:390:5)
+      at TLSWrap.onStreamRead (node:internal/stream_base_commons:190:23),
+  [Symbol(kMessage)]: 'Unexpected server response: 200'
+}
+9:47:25 AM [express] GET /api/reports 500 in 35ms :: {"error":"Failed to fetch report files"}

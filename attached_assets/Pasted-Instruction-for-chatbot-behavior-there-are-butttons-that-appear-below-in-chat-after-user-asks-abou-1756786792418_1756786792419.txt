@@ -1,0 +1,70 @@
+Instruction for chatbot behavior:
+there are butttons that appear below in chat after user asks about information about a particular scheme
+the chatbot should answers queries about water supply schemes.
+Users may ask about specific keywords (these represent categories shown as buttons in the dashboard):
+
+📋 Keywords List
+
+Villages
+
+"Villages with Water"
+
+"Villages No Water"
+
+"Consistent Water"
+
+"Consistent Zero"
+
+"Above 55 LPCD"
+
+"Below 55 LPCD"
+
+"Consistent Above 55"
+
+"Consistent Below 55"
+
+ESR / Sensors
+
+"Optimal Chlorine"
+
+"Below Chlorine"
+
+"Above Chlorine"
+
+"Optimal Pressure"
+
+"Below Pressure"
+
+"Above Pressure"
+
+🔎 Query Handling Rules
+
+Detect Keyword:
+
+If a user’s sentence contains any of the above keywords (case-insensitive, allow partial match), treat that as the main query type.
+
+Scope Detection:
+
+All Regions → If only keyword is present (e.g., "optimal chlorine", "below pressure everywhere") in a sentence no matter how long then fetch list from all regions.
+
+Specific Region → If keyword + a known region/circle/division/subdivision/block name is present (e.g., "optimal chlorine from Nagpur") then fetch list for that region only.
+
+Specific Scheme → If keyword + scheme name and/or scheme ID are present in the sentence (e.g., "optimal chlorine in 105 Villages RRWS" or "optimal chlorine in scheme 1234"), then fetch list for that scheme only.
+
+To confirm scheme match: check that all words from scheme name (ignoring case/extra spaces) are found in the user’s query.
+
+Output:
+
+Display the relevant list of results based on detected keyword and scope.
+
+If no valid match is found → ask user to clarify whether they want info by region or scheme. Example Queries and Expected Behavior
+
+User: "optimal chlorine" → Show list of schemes/villages with optimal chlorine across all regions.
+
+User: "optimal chlorine in Nagpur" → Show list for Nagpur region.
+
+User: "optimal chlorine in 105 villages rrws" → Show list for scheme: 105 Villages RRWS.
+
+User: "below 55 lpcd in scheme 9876" → Show list for scheme with ID 9876.
+
+User: "consistent water in chandrapur" → Show list for Chandrapur region.

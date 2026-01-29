@@ -1,0 +1,633 @@
+PS C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_6\JavaScriptDashboardnew-4 (2)\IoT_dashboard_6> npm run dev               
+
+> rest-express@1.0.0 dev
+> tsx server/index.ts
+
+Loading environment from: C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_6\JavaScriptDashboardnew-4 (2)\IoT_dashboard_6\.env (exists: true)
+PostgreSQL Connection Configuration:
+Host: localhost
+Database: water_scheme_dashboard
+User: postgres
+Password is set: Yes
+Using DATABASE_URL for PostgreSQL connection
+PostgreSQL pool imported from default adapter with DATABASE_URL
+6:56:27 PM [express] serving on port 5000
+Connected to PostgreSQL database
+Found 6 regions and 1 users in database
+Database already contains data, updating region summaries...
+Cleaning up old update records...
+Cleaned up old update records successfully
+Current flow meter values in database:
+Region: Nagpur, Flow Meter: 120, RCA: 121, PT: 66
+Region: Chhatrapati Sambhajinagar, Flow Meter: 136, RCA: 143, PT: 96
+Region: Pune, Flow Meter: 160, RCA: 126, PT: 74
+Region: Konkan, Flow Meter: 11, RCA: 10, PT: 3
+Region: Amravati, Flow Meter: 157, RCA: 114, PT: 116
+Region: Nashik, Flow Meter: 113, RCA: 114, PT: 47
+Calculated totals from regions table: {
+  total_schemes_integrated: '70',
+  fully_completed_schemes: '15',
+  total_villages_integrated: '598',
+  fully_completed_villages: '176',
+  total_esr_integrated: '781',
+  fully_completed_esr: '287',
+  flow_meter_integrated: '697',
+  rca_integrated: '628',
+  pressure_transmitter_integrated: '402'
+}
+Updated summary data for region: Nagpur
+Updated summary data for region: Chhatrapati Sambhajinagar
+Updated summary data for region: Pune
+Updated summary data for region: Konkan
+Updated summary data for region: Amravati
+Updated summary data for region: Nashik
+All region summaries updated successfully
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+6:56:54 PM [express] GET /api/auth/status 200 in 4ms :: {"isAdmin":false}
+Connected to PostgreSQL database
+6:56:59 PM [express] POST /api/auth/login 200 in 87ms :: {"id":1,"username":"admin","role":"admin","…
+6:56:59 PM [express] GET /api/auth/status 200 in 2ms :: {"isLoggedIn":1,"isAdmin":true}
+Fetching today's updates
+Calculating dynamic sum of all regions
+Request params: region=undefined, status=undefined, schemeId=undefined
+Getting all schemes with status=undefined
+No updates found for today (2025-04-06), creating new record
+Error fetching today's updates: error: column "agency" does not exist
+    at C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_6\JavaScriptDashboardnew-4 (2)\IoT_dashboard_6\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async PostgresStorage.getTodayUpdates (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/storage.ts:9:873)        
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/routes.ts:1:3667 {
+  length: 107,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '107',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3666',
+  routine: 'errorMissingColumn'
+}
+Error fetching today's updates: error: column "agency" does not exist
+    at C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_6\JavaScriptDashboardnew-4 (2)\IoT_dashboard_6\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async PostgresStorage.getTodayUpdates (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/storage.ts:9:873)        
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/routes.ts:1:3667 {
+  length: 107,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '107',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3666',
+  routine: 'errorMissingColumn'
+}
+6:57:03 PM [express] GET /api/updates/today 500 in 63ms :: {"message":"Failed to fetch today's updat…
+Connected to PostgreSQL database
+Connected to PostgreSQL database
+Connected to PostgreSQL database
+6:57:03 PM [express] GET /api/regions 200 in 109ms :: [{"region_id":11,"region_name":"Amravati","tot…
+Error fetching schemes: error: column "agency" does not exist
+    at C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_6\JavaScriptDashboardnew-4 (2)\IoT_dashboard_6\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/routes.ts:1:5825 {
+  length: 107,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '107',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3666',
+  routine: 'errorMissingColumn'
+}
+Dynamic region summary calculated: {
+  total_schemes_integrated: '70',
+  fully_completed_schemes: '15',
+  total_villages_integrated: '598',
+  fully_completed_villages: '176',
+  total_esr_integrated: '781',
+  fully_completed_esr: '287',
+  partial_esr: '494',
+  flow_meter_integrated: '697',
+  rca_integrated: '628',
+  pressure_transmitter_integrated: '402'
+}
+6:57:03 PM [express] GET /api/schemes 500 in 118ms :: {"message":"Failed to fetch schemes"}
+6:57:03 PM [express] GET /api/regions/summary 200 in 123ms :: {"total_schemes_integrated":"70","full…
+6:57:07 PM [express] GET /api/auth/status 304 in 0ms :: {"isLoggedIn":1,"isAdmin":true}
+Current flow meter values in database:
+Region: Nagpur, Flow Meter: 120, RCA: 121, PT: 66
+Region: Chhatrapati Sambhajinagar, Flow Meter: 136, RCA: 143, PT: 96
+Region: Pune, Flow Meter: 160, RCA: 126, PT: 74
+Region: Konkan, Flow Meter: 11, RCA: 10, PT: 3
+Region: Amravati, Flow Meter: 157, RCA: 114, PT: 116
+Region: Nashik, Flow Meter: 113, RCA: 114, PT: 47
+Calculated totals from regions table: {
+  total_schemes_integrated: '70',
+  fully_completed_schemes: '15',
+  total_villages_integrated: '598',
+  fully_completed_villages: '176',
+  total_esr_integrated: '781',
+  fully_completed_esr: '287',
+  flow_meter_integrated: '697',
+  rca_integrated: '628',
+  pressure_transmitter_integrated: '402'
+}
+Updated summary data for region: Nagpur
+Updated summary data for region: Chhatrapati Sambhajinagar
+Updated summary data for region: Pune
+Updated summary data for region: Konkan
+Updated summary data for region: Amravati
+Updated summary data for region: Nashik
+All region summaries updated successfully
+6:57:19 PM [express] POST /api/admin/import-csv 200 in 80ms :: {"message":"CSV data imported success…
+Current flow meter values in database:
+Region: Nagpur, Flow Meter: 120, RCA: 121, PT: 66
+Region: Chhatrapati Sambhajinagar, Flow Meter: 136, RCA: 143, PT: 96
+Region: Pune, Flow Meter: 160, RCA: 126, PT: 74
+Region: Konkan, Flow Meter: 11, RCA: 10, PT: 3
+Region: Amravati, Flow Meter: 157, RCA: 114, PT: 116
+Region: Nashik, Flow Meter: 113, RCA: 114, PT: 47
+Calculated totals from regions table: {
+  total_schemes_integrated: '70',
+  fully_completed_schemes: '15',
+  total_villages_integrated: '598',
+  fully_completed_villages: '176',
+  total_esr_integrated: '781',
+  fully_completed_esr: '287',
+  flow_meter_integrated: '697',
+  rca_integrated: '628',
+  pressure_transmitter_integrated: '402'
+}
+Updated summary data for region: Nagpur
+Updated summary data for region: Chhatrapati Sambhajinagar
+Updated summary data for region: Pune
+Updated summary data for region: Konkan
+Updated summary data for region: Amravati
+Updated summary data for region: Nashik
+All region summaries updated successfully
+Fetching today's updates
+No updates found for today (2025-04-06), creating new record
+Error fetching today's updates: error: column "agency" does not exist
+    at C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_6\JavaScriptDashboardnew-4 (2)\IoT_dashboard_6\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async PostgresStorage.getTodayUpdates (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/storage.ts:9:873)        
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/routes.ts:1:8568 {
+  length: 107,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '107',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3666',
+  routine: 'errorMissingColumn'
+}
+Error updating region summaries: error: column "agency" does not exist
+    at C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_6\JavaScriptDashboardnew-4 (2)\IoT_dashboard_6\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async PostgresStorage.getTodayUpdates (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/storage.ts:9:873)        
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/routes.ts:1:8568 {
+  length: 107,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '107',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3666',
+  routine: 'errorMissingColumn'
+}
+6:57:22 PM [express] POST /api/admin/update-region-summaries 500 in 52ms :: {"message":"Failed to up…
+Current flow meter values in database:
+Region: Nagpur, Flow Meter: 120, RCA: 121, PT: 66
+Region: Chhatrapati Sambhajinagar, Flow Meter: 136, RCA: 143, PT: 96
+Region: Pune, Flow Meter: 160, RCA: 126, PT: 74
+Region: Konkan, Flow Meter: 11, RCA: 10, PT: 3
+Region: Amravati, Flow Meter: 157, RCA: 114, PT: 116
+Region: Nashik, Flow Meter: 113, RCA: 114, PT: 47
+Calculated totals from regions table: {
+  total_schemes_integrated: '70',
+  fully_completed_schemes: '15',
+  total_villages_integrated: '598',
+  fully_completed_villages: '176',
+  total_esr_integrated: '781',
+  fully_completed_esr: '287',
+  flow_meter_integrated: '697',
+  rca_integrated: '628',
+  pressure_transmitter_integrated: '402'
+}
+Updated summary data for region: Nagpur
+Updated summary data for region: Chhatrapati Sambhajinagar
+Updated summary data for region: Pune
+Updated summary data for region: Konkan
+Updated summary data for region: Amravati
+Updated summary data for region: Nashik
+All region summaries updated successfully
+Fetching today's updates
+No updates found for today (2025-04-06), creating new record
+Error fetching today's updates: error: column "agency" does not exist
+    at C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_6\JavaScriptDashboardnew-4 (2)\IoT_dashboard_6\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async PostgresStorage.getTodayUpdates (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/storage.ts:9:873)        
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/routes.ts:1:8568 {
+  length: 107,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '107',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3666',
+  routine: 'errorMissingColumn'
+}
+Error updating region summaries: error: column "agency" does not exist
+    at C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_6\JavaScriptDashboardnew-4 (2)\IoT_dashboard_6\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async PostgresStorage.getTodayUpdates (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/storage.ts:9:873)        
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/routes.ts:1:8568 {
+  length: 107,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '107',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3666',
+  routine: 'errorMissingColumn'
+}
+6:57:23 PM [express] POST /api/admin/update-region-summaries 500 in 59ms :: {"message":"Failed to up…
+Connected to PostgreSQL database
+Current flow meter values in database:
+Region: Nagpur, Flow Meter: 120, RCA: 121, PT: 66
+Region: Chhatrapati Sambhajinagar, Flow Meter: 136, RCA: 143, PT: 96
+Region: Pune, Flow Meter: 160, RCA: 126, PT: 74
+Region: Konkan, Flow Meter: 11, RCA: 10, PT: 3
+Region: Amravati, Flow Meter: 157, RCA: 114, PT: 116
+Region: Nashik, Flow Meter: 113, RCA: 114, PT: 47
+Calculated totals from regions table: {
+  total_schemes_integrated: '70',
+  fully_completed_schemes: '15',
+  total_villages_integrated: '598',
+  fully_completed_villages: '176',
+  total_esr_integrated: '781',
+  fully_completed_esr: '287',
+  flow_meter_integrated: '697',
+  rca_integrated: '628',
+  pressure_transmitter_integrated: '402'
+}
+Updated summary data for region: Nagpur
+Updated summary data for region: Chhatrapati Sambhajinagar
+Updated summary data for region: Pune
+Updated summary data for region: Konkan
+Updated summary data for region: Amravati
+Updated summary data for region: Nashik
+All region summaries updated successfully
+Fetching today's updates
+No updates found for today (2025-04-06), creating new record
+Error fetching today's updates: error: column "agency" does not exist
+    at C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_6\JavaScriptDashboardnew-4 (2)\IoT_dashboard_6\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async PostgresStorage.getTodayUpdates (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/storage.ts:9:873)        
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/routes.ts:1:8568 {
+  length: 107,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '107',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3666',
+  routine: 'errorMissingColumn'
+}
+Error updating region summaries: error: column "agency" does not exist
+    at C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_6\JavaScriptDashboardnew-4 (2)\IoT_dashboard_6\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async PostgresStorage.getTodayUpdates (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/storage.ts:9:873)        
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/routes.ts:1:8568 {
+  length: 107,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '107',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3666',
+  routine: 'errorMissingColumn'
+}
+6:57:23 PM [express] POST /api/admin/update-region-summaries 500 in 114ms :: {"message":"Failed to u…
+Connected to PostgreSQL database
+Current flow meter values in database:
+Region: Nagpur, Flow Meter: 120, RCA: 121, PT: 66
+Region: Chhatrapati Sambhajinagar, Flow Meter: 136, RCA: 143, PT: 96
+Region: Pune, Flow Meter: 160, RCA: 126, PT: 74
+Region: Konkan, Flow Meter: 11, RCA: 10, PT: 3
+Region: Amravati, Flow Meter: 157, RCA: 114, PT: 116
+Region: Nashik, Flow Meter: 113, RCA: 114, PT: 47
+Calculated totals from regions table: {
+  total_schemes_integrated: '70',
+  fully_completed_schemes: '15',
+  total_villages_integrated: '598',
+  fully_completed_villages: '176',
+  total_esr_integrated: '781',
+  fully_completed_esr: '287',
+  flow_meter_integrated: '697',
+  rca_integrated: '628',
+  pressure_transmitter_integrated: '402'
+}
+Updated summary data for region: Nagpur
+Updated summary data for region: Chhatrapati Sambhajinagar
+Updated summary data for region: Pune
+Updated summary data for region: Konkan
+Updated summary data for region: Amravati
+Updated summary data for region: Nashik
+All region summaries updated successfully
+Fetching today's updates
+No updates found for today (2025-04-06), creating new record
+Error fetching today's updates: error: column "agency" does not exist
+    at C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_6\JavaScriptDashboardnew-4 (2)\IoT_dashboard_6\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async PostgresStorage.getTodayUpdates (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/storage.ts:9:873)        
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/routes.ts:1:8568 {
+  length: 107,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '107',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3666',
+  routine: 'errorMissingColumn'
+}
+Error updating region summaries: error: column "agency" does not exist
+    at C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_6\JavaScriptDashboardnew-4 (2)\IoT_dashboard_6\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async PostgresStorage.getTodayUpdates (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/storage.ts:9:873)        
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/routes.ts:1:8568 {
+  length: 107,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '107',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3666',
+  routine: 'errorMissingColumn'
+}
+6:57:23 PM [express] POST /api/admin/update-region-summaries 500 in 128ms :: {"message":"Failed to u…
+Connected to PostgreSQL database
+Current flow meter values in database:
+Region: Nagpur, Flow Meter: 120, RCA: 121, PT: 66
+Region: Chhatrapati Sambhajinagar, Flow Meter: 136, RCA: 143, PT: 96
+Region: Pune, Flow Meter: 160, RCA: 126, PT: 74
+Region: Konkan, Flow Meter: 11, RCA: 10, PT: 3
+Region: Amravati, Flow Meter: 157, RCA: 114, PT: 116
+Region: Nashik, Flow Meter: 113, RCA: 114, PT: 47
+Calculated totals from regions table: {
+  total_schemes_integrated: '70',
+  fully_completed_schemes: '15',
+  total_villages_integrated: '598',
+  fully_completed_villages: '176',
+  total_esr_integrated: '781',
+  fully_completed_esr: '287',
+  flow_meter_integrated: '697',
+  rca_integrated: '628',
+  pressure_transmitter_integrated: '402'
+}
+Updated summary data for region: Nagpur
+Updated summary data for region: Chhatrapati Sambhajinagar
+Updated summary data for region: Pune
+Updated summary data for region: Konkan
+Updated summary data for region: Amravati
+Updated summary data for region: Nashik
+All region summaries updated successfully
+Fetching today's updates
+No updates found for today (2025-04-06), creating new record
+Error fetching today's updates: error: column "agency" does not exist
+    at C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_6\JavaScriptDashboardnew-4 (2)\IoT_dashboard_6\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async PostgresStorage.getTodayUpdates (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/storage.ts:9:873)        
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/routes.ts:1:8568 {
+  length: 107,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '107',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3666',
+  routine: 'errorMissingColumn'
+}
+Error updating region summaries: error: column "agency" does not exist
+    at C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_6\JavaScriptDashboardnew-4 (2)\IoT_dashboard_6\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async PostgresStorage.getTodayUpdates (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/storage.ts:9:873)        
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/routes.ts:1:8568 {
+  length: 107,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '107',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3666',
+  routine: 'errorMissingColumn'
+}
+6:57:24 PM [express] POST /api/admin/update-region-summaries 500 in 127ms :: {"message":"Failed to u…
+Connected to PostgreSQL database
+Current flow meter values in database:
+Region: Nagpur, Flow Meter: 120, RCA: 121, PT: 66
+Region: Chhatrapati Sambhajinagar, Flow Meter: 136, RCA: 143, PT: 96
+Region: Pune, Flow Meter: 160, RCA: 126, PT: 74
+Region: Konkan, Flow Meter: 11, RCA: 10, PT: 3
+Region: Amravati, Flow Meter: 157, RCA: 114, PT: 116
+Region: Nashik, Flow Meter: 113, RCA: 114, PT: 47
+Calculated totals from regions table: {
+  total_schemes_integrated: '70',
+  fully_completed_schemes: '15',
+  total_villages_integrated: '598',
+  fully_completed_villages: '176',
+  total_esr_integrated: '781',
+  fully_completed_esr: '287',
+  flow_meter_integrated: '697',
+  rca_integrated: '628',
+  pressure_transmitter_integrated: '402'
+}
+Updated summary data for region: Nagpur
+Updated summary data for region: Chhatrapati Sambhajinagar
+Updated summary data for region: Pune
+Updated summary data for region: Konkan
+Updated summary data for region: Amravati
+Updated summary data for region: Nashik
+All region summaries updated successfully
+Fetching today's updates
+No updates found for today (2025-04-06), creating new record
+Error fetching today's updates: error: column "agency" does not exist
+    at C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_6\JavaScriptDashboardnew-4 (2)\IoT_dashboard_6\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async PostgresStorage.getTodayUpdates (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/storage.ts:9:873)        
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/routes.ts:1:8568 {
+  length: 107,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '107',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3666',
+  routine: 'errorMissingColumn'
+}
+Error updating region summaries: error: column "agency" does not exist
+    at C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_6\JavaScriptDashboardnew-4 (2)\IoT_dashboard_6\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async PostgresStorage.getTodayUpdates (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/storage.ts:9:873)        
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_6/JavaScriptDashboardnew-4%20(2)/IoT_dashboard_6/server/routes.ts:1:8568 {
+  length: 107,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '107',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3666',
+  routine: 'errorMissingColumn'
+}
+6:57:24 PM [express] POST /api/admin/update-region-summaries 500 in 102ms :: {"message":"Failed to u…

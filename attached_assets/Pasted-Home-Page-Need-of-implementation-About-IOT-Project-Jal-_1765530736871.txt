@@ -1,0 +1,259 @@
+Home Page  
+
+Need of implementation / About IOT Project  
+
+ 
+
+Jal Jeevan Mission (JJM) is a flagship initiative launched by the Government of India, aimed at ensuring “Har Ghar Jal” through Functional Household Tap Connections (FHTCs). The mission envisions that every rural household should have access to adequate quantity (55 litres per capita per day - LPCD) of prescribed quality drinking water on a regular basis, at affordable service delivery charges. This initiative seeks to improve the living standards of rural communities by ensuring safe and reliable drinking water supply. 
+
+In Maharashtra, State Water and Sanitation Mission, Water Supply and Sanitation Department, Government of Maharashtra; is implementing JJM across the state. Maharashtra Jeevan Pradhikaran (MJP) and Zilla Parishad (ZP) are playing key roles as implementation agencies for the Jal Jeevan Mission. Considering the need for real-time monitoring, effective management, and transparency in service delivery, the SWSM has initiated the implementation of Internet of Things (IoT) solutions across the state under JJM. 
+
+By implementation of IoT solutions, State Water and Sanitation Mission (SWSM), Maharashtra has significantly enhanced the ability to monitor, manage, and optimize rural water supply schemes under the Jal Jeevan Mission. By integrating smart infrastructure and centralized control, SWSM is ensuring that every home gets clean and reliable water, supporting the goal of 'Har Ghar Jal' in a safe and sustainable way. Primary goal of integrating IoT into the water distribution system is to: 
+
+Monitor water supply schemes effectively 
+
+Ensure adequate quantity and quality 
+
+Streamline operations 
+
+Detect issues such as water shortages or contamination 
+
+Enhance the efficiency and accountability of the rural water supply system 
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------- 
+
+SWSM’s IoT implementation in Maharashtra under the JJM has been divided into two main parts: 
+
+ 
+
+Part I 
+
+Designing, Engineering, Procurement, Supply, Packaging, Transportation & Delivery 
+
+Installation, Testing & Commissioning 
+
+Integration with the Integrated Command and Control Centre (ICCC) established at the State JJM Office, Belapur 
+
+Maintenance of IoT solutions at the village level 
+
+ 
+
+ 
+
+Part II 
+
+Design, implementation, and maintenance of a centralized IoT platform at the state level for monitoring the actual field-level data shared by installed IoT devices at the field level. 
+
+ 
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------- 
+
+ 
+
+SWSM has decided to implement the IoT system in Multi Village Schemes first, and the following is the detail of the MVS schemes coverage: 
+
+ 
+
+Total Multi Village Schemes (MVS): 1,006 
+
+MJP: 389 MVS covering 6,094 villages and 2,613,965 households 
+
+ZP: 617 MVS covering 1,736 villages and 181,609 households 
+
+ 
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------- 
+
+ 
+
+ 
+
+ 
+
+ 
+
+IoT System Architecture Implemented by SWSM is as follows: 
+
+Device Layer 
+
+At the foundation, sensor-enabled devices are deployed across villages to monitor parameters such as: 
+
+Water flow rate 
+
+Pressure 
+
+Chlorine levels 
+
+These devices transmit data via the MQTT protocol to a centralized cloud system. 
+
+ 
+
+Field devices include: 
+
+Residual Chlorine Analysers (RCA) 
+
+Flow Meters 
+
+Pressure Sensors 
+
+ 
+
+Key Features of the IoT devices: 
+
+Flow Meter (FM): 
+
+Flow meters used in JJM schemes are designed for high-precision measurement of water flow, performing reliably across both high and low flow conditions. These flow meters are integrated with the Integrated Command & Control Centre (ICCC), enabling remote access to real-time data for monitoring, troubleshooting, and performance analysis through platforms like AVEVA PI. It uses Modbus and MQTT protocols for reliable communication, even in remote areas with limited infrastructure. System supports regular data logging, facilitating trend analysis and enabling calculation of per capita water supply based on total volume delivered and village population. 
+
+Flow Meter- Flow Tube 
+
+ 
+
+Flow Meter Display 
+
+A blue device with a screen
+
+AI-generated content may be incorrect. 
+
+ 
+
+Residual Chlorine Analyser (RCA): 
+
+Residual Chlorine Analyser (RCA) plays a vital role in monitoring water quality by measuring the concentration of free residual chlorine in the distribution system, typically within the range of 0.2 mg/L to 0.5 mg/L. It uses advanced amperometry sensors to provide accurate and reliable readings. RCAs are equipped with automated data logging features that transmit real-time data to the Integrated Command & Control Centre (ICCC) having AVEVA PI as an application layer, allowing continuous monitoring to ensure chlorination levels remain within safe limits. AVEVA PI system support instant detection of deviations and enable timely corrective action by triggering the incidence to concern authority, thereby enhancing the overall safety and quality of drinking water. 
+
+RCA System 
+
+        A white box with wires and wires
+
+AI-generated content may be incorrect. 
+
+Pressure Sensor: 
+
+Pressure sensors installed at the farthest points or highest elevations of the water distribution network, typically operating in the range of 0.2 to 0.7 Bar, are essential for assessing pressure adequacy at critical locations. These sensors are built to withstand environmental variations such as temperature changes and humidity. The pressure data is integrated into the centralized AVEVA PI System at the Integrated Command and Control Centre (ICCC), enabling real-time monitoring. This data supports automated daily, weekly, and monthly pressure reports, which are used for ongoing analysis, alerts, and operational decision-making.  
+
+Pressure Transmitter -1 
+
+A close-up of a gps device
+
+AI-generated content may be incorrect. 
+
+Pressure Transmitter -2 
+
+A device with a circuit board and wires
+
+AI-generated content may be incorrect. 
+
+ 
+
+Communication Layer 
+
+Data is routed through MQTT adapters acting as the interface between field devices and the backend system 
+
+A load balancer manages the data stream from all villages 
+
+These sensors collect real-time data and transmit it to the centralized cloud server, enabling data analytics and visualization. 
+
+ 
+
+Integrated Command and Control Centre (ICCC) by SWSM:  
+
+To support centralized monitoring, SWSM has established an Integrated Command and Control Centre (ICCC) at the state level in Belapur. ICCC is equipped with the required hardware and visualization, monitoring software application tools.  
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+Application Features are as follows: 
+
+State-wise, region-wise, scheme-wise, and ESR-wise monitoring 
+
+Visualization of key parameters like flow, pressure, and water quality 
+
+Real-time data filtering and dashboards for operational insight 
+
+Anomaly detection and automatic alerts through: 
+
+SMS 
+
+In-app notifications 
+
+Emails 
+
+ 
+
+Escalation Matrix: On detecting issues, alerts are automatically sent to: 
+
+Village-level operators 
+
+Concerned Deputy Engineer and Executive Engineer 
+
+Higher authorities if issues remain unresolved within a defined timeframe 
+
+ 
+
+Current active IoT devices in Maharashtra:   
+
+Total of 3983 IoT sensors have been deployed and integrated with the ICCC by SWSM, covering: 
+
+1238 villages 
+
+1585 Elevated Storage Reservoirs (ESRs) 
+
+Breakdown of Devices are: 
+
+Flow Meters – 1480 
+
+Residual Chlorine Analysers (RCA) – 1445 
+
+Pressure Transmitters – 1058 
+
+ 
+
+Monitoring Dashboards: SWSM has implemented interactive and layered dashboards to facilitate efficient real-time monitoring and decision-making: 
+
+ 
+
+State-Wise Enterprise Realtime Dashboard: High-level monitoring across the entire state 
+
+A computer screen shot of a map 
+
+ 
+
+Region-Wise Dashboard: Focused monitoring for specific regions to identify localized issues 
+
+A screenshot of a computer
+
+AI-generated content may be incorrect. 
+
+ 
+
+Scheme Dashboard: Water consumption tracking and LPCD metrics 
+
+A screenshot of a computer
+
+AI-generated content may be incorrect. 
+
+ 
+
+ESR/MBR Level Dashboard: In-depth insights on individual Elevated Storage Reservoirs 
+
+A screenshot of a computer
+
+AI-generated content may be incorrect. 
+
+ 
+
+ 

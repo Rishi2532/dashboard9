@@ -1,0 +1,50 @@
+Field-by-Field Database Mapping:
+Column A: Region
+•	Table: scheme_status
+•	Field: region
+Column B: Scheme Name
+•	Table: scheme_status
+•	Field: scheme_name
+Column C: Status
+•	Table: scheme_status
+•	Field: fully_completion_c
+Column D: Total Flow Sensor Online
+•	Table: scheme_status
+•	Field: flow_meters_connected
+Column E: No. Sensor Online
+•	Count calculation: Count of ESRs with active flow meters from water_consumption table
+•	Table: water_consumption
+•	Field: Count where online_status = 'Online' AND flow_meter_connected IS NOT NULL
+Column F: 55LPCD Village Achievement
+•	Table: water_scheme_data
+•	Field: count of water_value_day7 for the particular scheme_name
+Column G: No. of ESR
+•	Table: scheme_status
+•	Field: total_number_of_esr
+Column H: Total CL Sensor 
+•	Table: scheme_status
+•	Field: residual_chlorine_analyzer_connected
+Column I: No. CL Sensor Online
+•	Count calculation: Count of active chlorine sensors
+•	Table: communication_status
+•	Field: Count where chlorine_status = 'Online'
+Column J-L: Chlorin Range (0.2-0.5, <0.2 Mg/l, >0.5 Mg/l)
+•	Table: chlorine_data
+•	Fields:
+o	0.2-0.5: count of chlorine_value_day7 in this range for the particular scheme_name
+o	<0.2 Mg/l: count of chlorine_value_day7 in this range for the particular scheme_name
+o	>0.5 Mg/l: count of chlorine_value_day7 in this range for the particular scheme_name
+Column M: Total Pressure Sensor 
+•	Table: scheme_status
+•	Field: pressure_transmitter_connected
+Column N: No Pressure Sensor Online
+•	Count calculation: Count of active pressure sensors
+•	Table: communication_status
+•	Field: Count where pressure_status = 'Online'
+Column O-Q: Pressure (0.7 Bar, 0.2-0.7 Bar, >0.7 Bar)
+•	Table: pressure_data
+•	Fields:
+o	0.7 Bar: count of pressure_value_day7 in this range for particular scheme_name
+o	0.2-0.7 Bar: count of pressure_value_day7 in this range for particular scheme_name
+o	>0.7 Bar: count of pressure_value_day7 in this range for particular scheme_name
+

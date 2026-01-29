@@ -1,0 +1,96 @@
+Update the chatbot so it correctly understands and answers single-word or shorthand queries like:
+
+“fm in nagpur”
+
+“rca in amravati”
+
+“pt in all regions”
+
+“flowmeters in nagpur”
+
+“rca in 20003791”
+
+“fm in bidgaon tarodi wss”
+
+“pt count”
+
+Right now, it only works when I use full phrases (e.g., "how many flow meters…"), but it should also respond when I use short terms.
+
+✅ REQUIRED BEHAVIOR
+✅ 1. When the user asks about FM / RCA / PT / Chlorine for a region
+
+Examples:
+
+“fm in nagpur”
+
+“pt amravati”
+
+“flow meters in all regions”
+
+“chlorine count region wise”
+
+✔ The bot should query the region table
+✔ Use these fields:
+
+flow_meter_integrated
+
+rca_integrated
+
+pressure_transmitter_integrated
+
+✔ If user asks:
+
+Without a region (e.g., “fm in all regions”, “rca count”, “pressure transmitters”) → Sum values across all regions
+
+With a region mentioned → Return data filtered by that region
+
+✅ 2. When the user asks for FM / RCA / PT related to a scheme or scheme ID
+
+Examples:
+
+“rca in 20003791”
+
+“fm count in bidgaon tarodi wss”
+
+“pressure transmitter for 20003811”
+
+✔ The bot should query the scheme_status table
+✔ Use these fields:
+
+flow_meters_connected
+
+residual_chlorine_analyzers_connected
+
+pressure_transmitter_connected
+
+✔ Match using:
+
+scheme_name
+
+OR scheme_id
+
+✅ 3. SHORTCUT WORDS / KEYWORD MAPPING (must work)
+User Term	Map To
+fm, flowmeters, flow meter	flow_meter_integrated / flow_meters_connected
+rca, chlorine, residual chlorine analyzers	rca_integrated / residual_chlorine_analyzers_connected
+pt, pressure, pressure transmitter	pressure_transmitter_integrated / pressure_transmitter_connected
+
+The chatbot should NOT fail if I only write shorthand like “fm in nagpur” or “pt in all regions”.
+
+✅ 4. If no region/scheme is mentioned
+
+Example:
+
+“how many fm?”
+
+“rca total”
+
+“pt count”
+
+✔ Return sum of all values across all regions from the region table.
+
+✅ 5. Keep existing functionality intact — only update intent detection + keyword understanding.
+
+If you need, I can provide example SQL queries too—just tell me.
+
+Let me know if you want this rewritten as a JSON config, system prompt, or code comment.

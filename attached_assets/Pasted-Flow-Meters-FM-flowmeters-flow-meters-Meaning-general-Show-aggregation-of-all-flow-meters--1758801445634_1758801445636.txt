@@ -1,0 +1,81 @@
+Flow Meters (FM / flowmeters / flow meters)
+Meaning (general): Show aggregation of all flow meters integrated.
+Database Field:
+•	region → flow_meter_integrated
+•	scheme_status → flow_meters_connected (when scheme is mentioned)
+Example:
+•	User: “How many flow meters are there?” → Answer from: flow_meter_integrated (sum of all regions).
+•	User: “Flow meters in Nagpur” → Answer from: flow_meter_integrated (Nagpur region).
+•	User: “Flow meters in Bidgaon Tarodi WSS” → Answer from: scheme_status → flow_meters_connected (for that scheme).
+________________________________________
+🔹 Residual Chlorine Analyzers (RCA / CL / cl/chlorine)
+Meaning (general): Show aggregation of all chlorine analyzers integrated.
+Database Field:
+•	region → rca_integrated
+•	scheme_status → residual_chlorine_analyzer_connected (when scheme is mentioned)
+Example:
+
+•	User: “RCA in Nagpur” → Answer from: rca_integrated (Nagpur region).
+•	User: “How many chlorine are there are there?” → Answer from: rca_integrated(sum of all region)
+•	User: “RCA in 20003791” → Answer from: scheme_status → residual_chlorine_analyzer_connected.
+Chlorine Range Handling:
+•	User: “Chlorine 0.2–0.5” → Same as Optimal Chlorine answer .
+•	User: “Chlorine <0.2” → Same as Below Chlorine.
+•	User: “Chlorine >0.5” → Same as Above Chlorine.
+________________________________________
+🔹 Pressure Transmitters (PT / pressure)
+Meaning (general): Show aggregation of all pressure transmitters integrated.
+Database Field:
+•	region → pressure_transmitter_integrated
+•	scheme_status → pressure_transmitter_connected (when scheme is mentioned)
+Example:
+•	User: “Pressure in Nagpur” → Answer from: pressure_transmitter_integrated (Nagpur region).
+•	User: “Pressure in all regions” → Answer from: pressure_transmitter_integrated (sum of all regions).
+•	
+•	User: “Pressure in 20003791” → Answer from: scheme_status → pressure_transmitter_connected.
+Pressure Range Handling:
+•	User: “Pressure 0.2–0.7” → Same as Optimal Pressure.
+•	User: “Pressure <0.2” → Same as Below Pressure.
+•	User: “Pressure >0.7” → Same as Above Pressure.
+________________________________________
+________________________________________
+🔹 ESR (Elevated Service Reservoir)
+Meaning: Show ESR details either by scheme or region.
+Database Field:
+•	scheme_status → total_number_of_esr (for ESR in a scheme)
+•	scheme_status → total_esr_integrated (for integrated ESR in a scheme)
+•	region → total_esr_integrated (if asked generally)
+•	region → fully_completed_esr (if fully completed ESR is asked)
+Example:
+•	User: “ESR in 20003791” → Answer from: total_number_of_esr.
+•	User: “ESR integrated in Bidgaon Tarodi WSS” → Answer from: total_esr_integrated.
+•	User: “ESR integrated in Nagpur” → Answer from: region → total_esr_integrated.
+•	User: “Fully completed ESR in Nagpur” → Answer from: region → fully_completed_esr.
+   4. Example User Prompts and Expected Responses
+
+User: “Flow meters in all regions”
+→ Show total flow meters from all regions.
+
+User: “RCA in Nagpur”
+→ Show residual chlorine analyzers for Nagpur region.
+
+User: “Flow meters in scheme 20003791”
+→ Show flow meters connected in scheme 20003791.
+
+
+
+User: “ESR integrated”
+→ Show total ESR integrated across all regions.
+
+User: “ESR integrated in Nagpur”
+→ Show ESR integrated in Nagpur region only.
+
+User: “Fully completed ESR”
+→ Show fully completed ESR across all regions.
+
+User: “Chlorine between 0.2 and 0.5 in Amravati”
+→ Respond with optimal chlorine for Amravati.
+
+User: “Pressure above 0.7 in Nagpur”
+→ Respond with above pressure values for Nagpur.
+

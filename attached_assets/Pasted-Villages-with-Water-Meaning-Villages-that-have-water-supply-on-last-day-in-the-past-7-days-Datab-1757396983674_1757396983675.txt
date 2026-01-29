@@ -1,0 +1,46 @@
+Villages with Water
+Meaning: Villages that have water supply on last day  in the past 7 days
+Database Fields: water_scheme_data →  water_value_day7 ( > 0)
+                                                                                                                                                                                                                                 
+
+Villages No Water
+Meaning: Villages with zero water supply on last day  
+Database Fields: water_scheme_data →  water_value_day7 = 0   
+
+ Consistent Water                                                                                                                     
+
+Meaning: Villages with continuous water supply for all 7 consecutive days
+Database Fields: water_scheme_data → All water_value_day1 to water_value_day7 > 0
+
+Consistent Zero
+Meaning: Villages with zero water supply consistently for all 7 days
+Database Fields: water_scheme_data → All water_value_day1 to water_value_day7 = 0            
+                                                        
+LPCD (Liters Per Capita per Day) Section:
+Above 55 LPCD
+•	Meaning: Villages where water consumption per person exceeds 55 liters daily (good supply) for last day
+•	Database Fields: water_scheme_data table →  lpcd_value_day7 ≥ 55
+Below 55 LPCD
+•	Meaning: Villages where water consumption per person is less than 55 liters daily (insufficient supply) for last day
+•	Database Fields: water_scheme_data table →  lpcd_value_day7 < 55
+
+Consistent Above 55
+•	Meaning: Villages consistently maintaining above 55 LPCD for all 7 days
+•	Database Fields: water_scheme_data table → All lpcd_value_day1 to lpcd_value_day7 ≥ 55
+Consistent Below 55
+•	Meaning: Villages consistently below 55 LPCD for all 7 days
+•	Database Fields: water_scheme_data table → All lpcd_value_day1 to lpcd_value_day7 < 55
+Optimal Pressure
+•	Meaning: ESRs (Elevated Service Reservoirs) maintaining adequate pressure for proper water distribution.
+•	Database Field: pressure_value_7 in pressure_data table (latest day’s value).
+•	Optimal Range: 0.2 – 0.7 bar.
+________________________________________
+🔹 Below Pressure
+•	Meaning: ESRs with insufficient water pressure, potentially leading to poor supply at consumer endpoints.
+•	Database Field: pressure_value_7 in pressure_data.
+•	Logic: pressure_value_7 < 0.2 bar.
+________________________________________
+🔹 Above Pressure
+•	Meaning: ESRs with excessive pressure, which can damage pipelines and fittings.
+•	Database Field: pressure_value_7 in pressure_data.
+•	Logic: pressure_value_7 > 0.7 bar.

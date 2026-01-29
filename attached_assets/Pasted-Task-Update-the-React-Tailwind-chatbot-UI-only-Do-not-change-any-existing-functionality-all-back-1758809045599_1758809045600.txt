@@ -1,0 +1,69 @@
+Task: Update the React + Tailwind chatbot UI only. Do not change any existing functionality—all backend/API integrations, voice commands, multilingual support, and suggestion buttons must remain fully functional. Only modify the UI and appearance as described below.
+
+UI Requirements:
+
+Partial-Screen Overlay:
+
+Clicking the existing chatbot icon (💬) opens a large overlay that covers most of the viewport (not full-screen).
+
+The overlay should not cover the entire page—leave some visible background around the edges.
+
+Background behind the overlay should be blurred or dimmed (backdrop-blur effect).
+
+Smooth fade-in animation when opening.
+
+Overlay should not scroll the page; only the chat messages inside should scroll.
+
+Header Bar (Top of Overlay):
+
+Display "JJM Assistant" title in an attractive, modern font.
+
+Include a ❌ close button to close the overlay.
+
+Header stays fixed while chat area scrolls.
+
+Scrollable Chat Area:
+
+User messages: right-aligned, blue bubbles.
+
+Bot messages: left-aligned, gray/white bubbles.
+
+Chat area scrolls independently of the header and input area.
+
+Maintain all current message features (buttons, links, attachments) exactly as they are.
+
+Input Area (Bottom of Overlay):
+
+Textbox for typing.
+
+Mic button (must remain fully functional).
+
+Send button.
+
+Language dropdown (keep working as is).
+
+Input area fixed at bottom while chat scrolls above.
+
+Chatbot Icon:
+
+Existing 💬 icon remains fixed at bottom-right of the dashboard.
+
+Clicking toggles the overlay open/close.
+
+Visual Style:
+
+Make the overlay modern, attractive, and “AI-like”.
+
+Use Tailwind classes to give smooth animations, subtle shadows, rounded corners, and a professional look.
+
+Ensure the overlay feels like an AI assistant panel without being obtrusive.
+
+Important Notes:
+
+Do not change any backend logic. Only modify UI, layout, and animations.
+
+The overlay must not scroll the page; only the chat area scrolls.
+
+Avoid covering the full page—leave some visible background, but blur/dim it.
+
+Make it visually appealing, modern, and intuitive for users.

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Water drop background -->
+  <path d="M256 0C194 0 144 95 144 192C144 260 175 320 224 320C224 290 238 270 256 270C274 270 288 290 288 320C337 320 368 260 368 192C368 95 318 0 256 0Z" fill="#0A93E2"/>
+  
+  <!-- Water tank -->
+  <path d="M205 150 C205 120, 307 120, 307 150 L307 270 C307 300, 205 300, 205 270 Z" fill="white" stroke="#0A93E2" stroke-width="8"/>
+  
+  <!-- Tank stand -->
+  <path d="M220 270 L220 310 M292 270 L292 310 M205 310 L307 310" stroke="#0A93E2" stroke-width="8" fill="none"/>
+</svg>

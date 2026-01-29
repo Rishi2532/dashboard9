@@ -1,0 +1,116 @@
+Problems I Faced Earlier
+
+Exact Keyword Matching Only
+
+The chatbot only works if the user types the keyword exactly as stored, e.g. "Optimal Chlorine".
+
+If the user types "optimale chlorine", "optimum chlorine", "chlorine optimal", or "good chlorine", it fails.
+
+This is not user-friendly because people type variations.
+
+Region Detection Fails
+
+If the user asks "optimal chlorine in Nagpur", the chatbot ignores "Nagpur" and always returns results from all regions.
+
+Same happens for "below 55 LPCD in Chandrapur" or "consistent water in Pune".
+
+It cannot correctly detect region names inside a query.
+
+Scheme Detection Fails
+
+If the user asks "optimal chlorine in scheme 1234", the chatbot doesn’t detect scheme IDs.
+
+If the user asks "optimal chlorine in 105 Villages RRWS", it fails unless the scheme name is typed exactly as stored.
+
+Users might type "105 RRWS villages" or "rrws 105 villages" → chatbot should still detect the scheme.
+
+Database Dependency
+
+Schemes and regions are stored in the database, not hardcoded.
+
+I don’t want to update the chatbot manually whenever new schemes or regions are added.
+
+The NLP service should be able to use the latest list of schemes/regions (fetched dynamically or passed in).
+
+Scalability of Queries
+
+Right now, queries are very strict.
+
+Users should be able to ask naturally, like:
+
+"Which schemes in Nagpur have good chlorine levels?"
+
+"Show me schemes below 55 LPCD in scheme 9876"
+
+"Schemes in Chandrapur with consistent water supply"
+
+The chatbot should still map these correctly to the right keyword + scope.
+
+✅ What I Want You to Build
+
+A Python NLP service (FastAPI preferred) that:
+
+Uses fuzzy keyword detection to match against a fixed set of categories:
+
+Villages with Water
+
+Villages No Water
+
+Consistent Water
+
+Consistent Zero
+
+Above 55 LPCD
+
+Below 55 LPCD
+
+Consistent Above 55
+
+Consistent Below 55
+
+Optimal Chlorine
+
+Below Chlorine
+
+Above Chlorine
+
+Optimal Pressure
+
+Below Pressure
+
+Above Pressure
+
+Detects region names inside the user’s query.
+
+Detects scheme IDs (numeric) and scheme names (fuzzy match, not exact).
+
+Returns a structured JSON response like this:
+
+{
+  "keyword": "Optimal Chlorine",
+  "scopeType": "region",
+  "scopeValue": "Nagpur"
+}
+
+
+or
+
+{
+  "keyword": "Below 55 LPCD",
+  "scopeType": "scheme",
+  "scopeValue": {
+    "id": "1234",
+    "name": "105 Villages RRWS"
+  }
+}
+
+
+If no region or scheme is detected, default to:
+
+{
+  "keyword": "Optimal Chlorine",
+  "scopeType": "all"
+}
+
+
+The service should be easy to call from my React frontend via an API endpoint, e.g. /parse.

@@ -1,0 +1,988 @@
+I'll provide the complete code for how the chatbot filters regions and their schemes in the Maharashtra Water Dashboard. Here are all the relevant files and their code:
+
+1. server/routes/ai/openai-routes.ts
+This file handles the OpenAI integration for processing natural language queries:
+
+import { Router, Request, Response } from 'express';
+import { getDB } from '../../db';
+import { regions, schemeStatuses } from '@shared/schema';
+import { OpenAIService } from '../../services/openai-service';
+import { eq, like } from 'drizzle-orm';
+const router = Router();
+const openaiService = new OpenAIService();
+// Process natural language queries
+router.post('/query', async (req: Request, res: Response) => {
+  try {
+    // Get the query from the request body
+    const { query, language = 'en' } = req.body;
+    
+    if (!query) {
+      return res.status(400).json({ error: 'Query is required' });
+    }
+    
+    // Check if OpenAI API key is configured
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(500).json({ 
+        error: 'OpenAI API key not configured',
+        message: 'Please configure the OPENAI_API_KEY environment variable'
+      });
+    }
+    
+    // Process the query with OpenAI to extract intent and parameters
+    const result = await openaiService.processQuery(query, language);
+    
+    // If intent is to filter by region, get the region data
+    if (result.intent === 'filter_by_region' && result.parameters.region) {
+      const db = await getDB();
+      const regionName = result.parameters.region;
+      
+      // Get region information
+      const regionData = await db
+        .select()
+        .from(regions)
+        .where(like(regions.region_name, `%${regionName}%`));
+        
+      // Get schemes for this region
+      const schemeData = await db
+        .select()
+        .from(schemeStatuses)
+        .where(like(schemeStatuses.region, `%${regionName}%`))
+        .limit(10);
+        
+      return res.json({
+        intent: result.intent,
+        parameters: result.parameters,
+        response: {
+          message: `Here's data for ${regionName} region`,
+          regionData: regionData[0] || null,
+          schemeSummary: {
+            total: schemeData.length,
+            completed: schemeData.filter(s => s.fully_completion_scheme_status === 'Fully Completed').length,
+            partial: schemeData.filter(s => s.fully_completion_scheme_status === 'Partial').length
+          },
+          action: 'filter_dashboard',
+          filterData: {
+            regionName: regionName
+          }
+        }
+      });
+    }
+    
+    // Default response for other intents
+    return res.json(result);
+    
+  } catch (error) {
+    console.error('Error processing AI query:', error);
+    res.status(500).json({ error: 'Failed to process query' });
+  }
+});
+// Voice-to-text processing endpoint
+router.post('/speech-to-text', async (req: Request, res: Response) => {
+  try {
+    const { audioData, language = 'en' } = req.body;
+    
+    if (!audioData) {
+      return res.status(400).json({ error: 'Audio data is required' });
+    }
+    
+    // Process speech using OpenAI's whisper model
+    const text = await openaiService.processAudio(audioData, language);
+    
+    return res.json({ text });
+  } catch (error) {
+    console.error('Error processing speech:', error);
+    res.status(500).json({ error: 'Failed to process speech' });
+  }
+});
+export default router;
+2. server/services/openai-service.ts
+This service interfaces with OpenAI's API:
+
+import OpenAI from 'openai';
+export class OpenAIService {
+  private openai: OpenAI;
+  
+  constructor() {
+    // Initialize the OpenAI client with API key from environment variables
+    this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  
+  /**
+   * Process a natural language query to extract intent and parameters
+   */
+  async processQuery(query: string, language: string = 'en') {
+    // Prepare the system prompt with context about the water dashboard
+    const systemPrompt = `
+      You are an assistant for a Maharashtra Water Dashboard. 
+      The dashboard shows data about water infrastructure projects across different regions in Maharashtra.
+      Regions include: Nagpur, Chhatrapati Sambhajinagar, Pune, Konkan, Amravati, Nashik.
+      Extract the intent and parameters from the user's query. Focus on identifying:
+      1. The intent (filter_by_region, show_statistics, compare_regions, etc.)
+      2. Region names mentioned
+      3. Metrics of interest (villages, schemes, ESR tanks, flow meters, etc.)
+      4. Time period if mentioned
+      
+      Return a structured JSON response with 'intent' and 'parameters' fields.
+    `;
+    
+    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    const response = await this.openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: query }
+      ],
+      response_format: { type: "json_object" }
+    });
+    
+    // Parse and return the response
+    try {
+      return JSON.parse(response.choices[0].message.content);
+    } catch (error) {
+      console.error("Error parsing OpenAI response:", error);
+      return {
+        intent: "unknown",
+        parameters: {},
+        rawResponse: response.choices[0].message.content
+      };
+    }
+  }
+  
+  /**
+   * Process audio data to convert speech to text
+   */
+  async processAudio(audioData: string, language: string = 'en') {
+    // Convert base64 audio data to buffer
+    const buffer = Buffer.from(audioData, 'base64');
+    
+    // Create a temporary file (in-memory)
+    const file = new File([buffer], "audio.webm", { type: "audio/webm" });
+    
+    // Process with Whisper API
+    const transcription = await this.openai.audio.transcriptions.create({
+      file: file,
+      model: "whisper-1",
+      language: language
+    });
+    
+    return transcription.text;
+  }
+}
+3. client/src/components/chatbot/ChatbotComponent.tsx
+This component manages the chatbot interface and context:
+
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { MicIcon, SendIcon, XIcon, VolumeIcon, MinimizeIcon } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+// Filter context for sharing filter state between chatbot and dashboard
+interface FilterContextType {
+  selectedRegion: string;
+  setSelectedRegion: (region: string) => void;
+  statusFilter: string;
+  setStatusFilter: (status: string) => void;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+}
+export const FilterContext = createContext<FilterContextType>({
+  selectedRegion: 'all',
+  setSelectedRegion: () => {},
+  statusFilter: 'all',
+  setStatusFilter: () => {},
+  searchQuery: '',
+  setSearchQuery: () => {},
+});
+export const useFilterContext = () => useContext(FilterContext);
+export const FilterContextProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [selectedRegion, setSelectedRegion] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  return (
+    <FilterContext.Provider
+      value={{
+        selectedRegion,
+        setSelectedRegion,
+        statusFilter,
+        setStatusFilter,
+        searchQuery,
+        setSearchQuery,
+      }}
+    >
+      {children}
+    </FilterContext.Provider>
+  );
+};
+// Message type definition
+interface Message {
+  id: string;
+  text: string;
+  isUser: boolean;
+  timestamp: Date;
+}
+const ChatbotComponent: React.FC = () => {
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: '1',
+      text: 'Hello! I am your Water Dashboard Assistant. How can I help you today?',
+      isUser: false,
+      timestamp: new Date(),
+    },
+  ]);
+  
+  const [input, setInput] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [audioChunks, setAudioChunks] = useState<BlobPart[]>([]);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  
+  const { toast } = useToast();
+  const { setSelectedRegion, setStatusFilter, setSearchQuery } = useFilterContext();
+  // Set up speech recognition when the component mounts
+  useEffect(() => {
+    // Check if browser supports the Web Speech API
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      console.warn('Speech recognition not supported');
+      return;
+    }
+  }, []);
+  // Function to send message to the chatbot API
+  const sendMessage = async (text: string) => {
+    if (!text.trim()) return;
+    
+    // Add user message to the chat
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      text,
+      isUser: true,
+      timestamp: new Date(),
+    };
+    
+    setMessages((prev) => [...prev, userMessage]);
+    setInput('');
+    
+    try {
+      // Send the message to the API
+      const response = await fetch('/api/ai/query', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query: text }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to get response from chatbot');
+      }
+      
+      const data = await response.json();
+      
+      // Add bot response to chat
+      const botMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: data.response?.message || 'I could not understand that. Please try again.',
+        isUser: false,
+        timestamp: new Date(),
+      };
+      
+      setMessages((prev) => [...prev, botMessage]);
+      
+      // Check if there's a filter action to perform
+      if (data.response?.action === 'filter_dashboard' && data.response?.filterData) {
+        const { regionName, status, searchTerm } = data.response.filterData;
+        
+        if (regionName) {
+          setSelectedRegion(regionName);
+        }
+        
+        if (status) {
+          setStatusFilter(status);
+        }
+        
+        if (searchTerm) {
+          setSearchQuery(searchTerm);
+        }
+        
+        toast({
+          title: 'Dashboard Updated',
+          description: `Filtered dashboard to show data for ${regionName || 'all regions'}${
+            status ? ` with status: ${status}` : ''
+          }`,
+        });
+      }
+      
+      // Speak the response if speech synthesis is supported
+      if ('speechSynthesis' in window) {
+        speakText(botMessage.text);
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to communicate with the chatbot service',
+        variant: 'destructive',
+      });
+    }
+  };
+  // Function to handle voice recording
+  const toggleRecording = async () => {
+    if (isRecording) {
+      // Stop recording
+      if (mediaRecorder) {
+        mediaRecorder.stop();
+        setIsRecording(false);
+      }
+    } else {
+      try {
+        // Start recording
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const recorder = new MediaRecorder(stream);
+        
+        setAudioChunks([]);
+        
+        recorder.ondataavailable = (e) => {
+          setAudioChunks((chunks) => [...chunks, e.data]);
+        };
+        
+        recorder.onstop = async () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const reader = new FileReader();
+          
+          reader.onloadend = async () => {
+            const base64data = (reader.result as string).split(',')[1];
+            
+            try {
+              // Send audio data to the speech-to-text API
+              const response = await fetch('/api/ai/speech-to-text', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ audioData: base64data }),
+              });
+              
+              if (!response.ok) {
+                throw new Error('Failed to transcribe audio');
+              }
+              
+              const data = await response.json();
+              if (data.text) {
+                setInput(data.text);
+                sendMessage(data.text);
+              }
+            } catch (error) {
+              console.error('Error transcribing audio:', error);
+              toast({
+                title: 'Error',
+                description: 'Failed to transcribe audio',
+                variant: 'destructive',
+              });
+            }
+          };
+          
+          reader.readAsDataURL(audioBlob);
+        };
+        
+        recorder.start();
+        setMediaRecorder(recorder);
+        setIsRecording(true);
+      } catch (error) {
+        console.error('Error accessing microphone:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to access microphone',
+          variant: 'destructive',
+        });
+      }
+    }
+  };
+  // Function to speak text using speech synthesis
+  const speakText = (text: string) => {
+    if (!('speechSynthesis' in window)) return;
+    
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    // Set language to Hindi by default - can be changed based on user preference
+    utterance.lang = 'hi-IN';
+    
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    
+    window.speechSynthesis.speak(utterance);
+  };
+  // Toggle chat minimization
+  const toggleMinimize = () => {
+    setIsMinimized(!isMinimized);
+  };
+  // Stop speaking
+  const stopSpeaking = () => {
+    if ('speechSynthesis' in window && isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
+  };
+  return (
+    <Card
+      className={`fixed bottom-4 right-4 z-50 ${
+        isMinimized ? 'w-16 h-16' : 'w-96 h-96'
+      } shadow-lg transition-all duration-300`}
+    >
+      {isMinimized ? (
+        <Button
+          variant="default"
+          className="w-full h-full rounded-full"
+          onClick={toggleMinimize}
+        >
+          <img src="/chatbot-icon.svg" alt="Chatbot" className="w-10 h-10" />
+        </Button>
+      ) : (
+        <>
+          <CardHeader className="p-3 border-b bg-primary text-primary-foreground rounded-t-lg">
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-sm">Water Dashboard Assistant</CardTitle>
+              <div className="flex gap-2">
+                {isSpeaking && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    onClick={stopSpeaking}
+                  >
+                    <VolumeIcon className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  onClick={toggleMinimize}
+                >
+                  <MinimizeIcon className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0 flex-grow overflow-hidden">
+            <ScrollArea className="h-[calc(100%-4rem)] p-4">
+              {messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`mb-3 ${
+                    message.isUser ? 'text-right' : 'text-left'
+                  }`}
+                >
+                  <div
+                    className={`inline-block px-3 py-2 rounded-lg max-w-[80%] ${
+                      message.isUser
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted'
+                    }`}
+                  >
+                    {message.text}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {message.timestamp.toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </div>
+                </div>
+              ))}
+            </ScrollArea>
+          </CardContent>
+          <CardFooter className="p-3 border-t">
+            <form
+              className="flex items-center w-full gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                sendMessage(input);
+              }}
+            >
+              <Input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Type your message..."
+                className="flex-grow"
+              />
+              <Button
+                type="button"
+                size="icon"
+                variant={isRecording ? 'destructive' : 'outline'}
+                onClick={toggleRecording}
+              >
+                {isRecording ? <XIcon className="h-4 w-4" /> : <MicIcon className="h-4 w-4" />}
+              </Button>
+              <Button type="submit" size="icon" disabled={!input.trim()}>
+                <SendIcon className="h-4 w-4" />
+              </Button>
+            </form>
+          </CardFooter>
+        </>
+      )}
+    </Card>
+  );
+};
+export default ChatbotComponent;
+4. client/src/components/dashboard/region-filter.tsx
+This component allows filtering by region and is updated by the chatbot context:
+
+import { useEffect } from 'react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useFilterContext } from '@/components/chatbot/ChatbotComponent';
+import { Region } from '@/types';
+interface RegionFilterProps {
+  regions: Region[];
+  selectedRegion: string;
+  onSelectRegion: (regionName: string) => void;
+}
+const RegionFilter: React.FC<RegionFilterProps> = ({
+  regions,
+  selectedRegion,
+  onSelectRegion,
+}) => {
+  const { selectedRegion: contextRegion, setSelectedRegion: setContextRegion } = useFilterContext();
+  // Update the filter when context changes (from chatbot)
+  useEffect(() => {
+    if (contextRegion !== selectedRegion) {
+      onSelectRegion(contextRegion);
+    }
+  }, [contextRegion, onSelectRegion, selectedRegion]);
+  // Update the context when manually selected
+  const handleRegionChange = (value: string) => {
+    onSelectRegion(value);
+    setContextRegion(value);
+  };
+  return (
+    <div className="flex items-center space-x-2">
+      <div className="font-medium">Region:</div>
+      <Select value={selectedRegion} onValueChange={handleRegionChange}>
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Select a region" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All Regions</SelectItem>
+          {regions.map((region) => (
+            <SelectItem key={region.region_id} value={region.region_name}>
+              {region.region_name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+};
+export default RegionFilter;
+5. client/src/pages/dashboard.tsx
+Main dashboard page that uses the filter context:
+
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import DashboardLayout from "@/components/dashboard/dashboard-layout";
+import RegionFilter from "@/components/dashboard/region-filter";
+import StatsCards from "@/components/dashboard/stats-cards";
+import RegionComparisonChart from "@/components/dashboard/region-comparison-chart";
+import MaharashtraMap from "@/components/dashboard/maharashtra-map";
+import GISMaharashtraMap from "@/components/dashboard/gis-maharashtra-map";
+import MetricSelector from "@/components/dashboard/metric-selector";
+import DailyUpdates from "@/components/dashboard/daily-updates";
+import SchemeTable from "@/components/dashboard/scheme-table";
+import SchemeDetailsModal from "@/components/dashboard/scheme-details-modal";
+import ChatbotComponent, { FilterContextProvider } from "@/components/chatbot/ChatbotComponent";
+import { Button } from "@/components/ui/button";
+import { Download, RefreshCw } from "lucide-react";
+import { Region, RegionSummary, SchemeStatus } from "@/types";
+import { useToast } from "@/hooks/use-toast";
+import * as XLSX from "xlsx";
+export default function Dashboard() {
+  const [selectedRegion, setSelectedRegion] = useState("all");
+  const [selectedScheme, setSelectedScheme] = useState<SchemeStatus | null>(
+    null,
+  );
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const { toast } = useToast();
+  // Fetch regions data
+  const {
+    data: regions = [],
+    isLoading: isRegionsLoading,
+    refetch: refetchRegions,
+  } = useQuery<Region[]>({
+    queryKey: ["/api/regions"],
+  });
+  // Fetch region summary data (total stats based on selected region)
+  const {
+    data: regionSummary,
+    isLoading: isSummaryLoading,
+    refetch: refetchSummary,
+  } = useQuery<RegionSummary>({
+    queryKey: ["/api/regions/summary", selectedRegion],
+    queryFn: () =>
+      fetch(
+        `/api/regions/summary${selectedRegion !== "all" ? `?region=${selectedRegion}` : ""}`,
+      ).then((res) => res.json()),
+  });
+  // Fetch schemes data with filters
+  const {
+    data: schemes = [],
+    isLoading: isSchemesLoading,
+    refetch: refetchSchemes,
+  } = useQuery<SchemeStatus[]>({
+    queryKey: ["/api/schemes", selectedRegion, statusFilter, searchQuery],
+    queryFn: () => {
+      let url = "/api/schemes";
+      const params = new URLSearchParams();
+      
+      if (selectedRegion !== "all") {
+        params.append("region", selectedRegion);
+      }
+      
+      if (statusFilter !== "all") {
+        params.append("status", statusFilter);
+      }
+      
+      if (searchQuery) {
+        params.append("search", searchQuery);
+      }
+      
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+      
+      return fetch(url).then((res) => res.json());
+    },
+  });
+  // Fetch daily updates
+  const {
+    data: updates = { updates: [], todayTotals: {}, prevTotals: {} },
+    isLoading: isUpdatesLoading,
+    refetch: refetchUpdates,
+  } = useQuery({
+    queryKey: ["/api/updates/daily"],
+  });
+  // Function to handle region selection
+  const handleRegionSelect = (regionName: string) => {
+    setSelectedRegion(regionName);
+  };
+  // Function to handle status filter change
+  const handleStatusFilterChange = (status: string) => {
+    setStatusFilter(status);
+  };
+  // Function to handle search query change
+  const handleSearchQueryChange = (query: string) => {
+    setSearchQuery(query);
+  };
+  // Function to open scheme details modal
+  const handleSchemeClick = (scheme: SchemeStatus) => {
+    setSelectedScheme(scheme);
+    setIsModalOpen(true);
+  };
+  // Function to refresh all data
+  const refreshAllData = () => {
+    refetchRegions();
+    refetchSummary();
+    refetchSchemes();
+    refetchUpdates();
+    
+    toast({
+      title: "Data Refreshed",
+      description: "Dashboard data has been updated",
+    });
+  };
+  // Function to export data to Excel
+  const exportToExcel = () => {
+    try {
+      const wb = XLSX.utils.book_new();
+      
+      // Export schemes data
+      const schemeData = schemes.map((scheme) => ({
+        "Scheme ID": scheme.scheme_id,
+        "Scheme Name": scheme.scheme_name,
+        "Region": scheme.region,
+        "Circle": scheme.circle,
+        "Division": scheme.division,
+        "Villages": scheme.number_of_village,
+        "ESR Integrated": scheme.total_esr_integrated,
+        "Status": scheme.fully_completion_scheme_status,
+      }));
+      
+      const ws = XLSX.utils.json_to_sheet(schemeData);
+      XLSX.utils.book_append_sheet(wb, ws, "Schemes");
+      
+      // Export regions data
+      const regionData = regions.map((region) => ({
+        "Region": region.region_name,
+        "Total ESR": region.total_esr_integrated,
+        "Completed ESR": region.fully_completed_esr,
+        "Schemes": region.total_schemes_integrated,
+        "Completed Schemes": region.fully_completed_schemes,
+        "Villages": region.total_villages_integrated,
+        "Flow Meters": region.flow_meter_integrated,
+      }));
+      
+      const regionsWs = XLSX.utils.json_to_sheet(regionData);
+      XLSX.utils.book_append_sheet(wb, regionsWs, "Regions");
+      
+      // Generate Excel file and download
+      XLSX.writeFile(wb, "maharashtra-water-dashboard.xlsx");
+      
+      toast({
+        title: "Export Successful",
+        description: "Data has been exported to Excel",
+      });
+    } catch (error) {
+      console.error("Export error:", error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to export data to Excel",
+        variant: "destructive",
+      });
+    }
+  };
+  return (
+    <FilterContextProvider>
+      <DashboardLayout>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold">Maharashtra Water Dashboard</h1>
+          <div className="flex items-center gap-2">
+            <RegionFilter
+              regions={regions}
+              selectedRegion={selectedRegion}
+              onSelectRegion={handleRegionSelect}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={refreshAllData}
+              className="ml-2"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={exportToExcel}
+              className="ml-2"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export
+            </Button>
+          </div>
+        </div>
+        {/* Stats Cards */}
+        <StatsCards
+          summary={regionSummary}
+          isLoading={isSummaryLoading}
+          region={selectedRegion}
+        />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+          {/* Maharashtra Map */}
+          <div className="col-span-1">
+            <GISMaharashtraMap
+              regions={regions}
+              selectedRegion={selectedRegion}
+              onRegionSelect={handleRegionSelect}
+            />
+          </div>
+          {/* Region Comparison Chart */}
+          <div className="col-span-1">
+            <RegionComparisonChart
+              regions={regions}
+              isLoading={isRegionsLoading}
+            />
+          </div>
+        </div>
+        {/* Daily Updates Section */}
+        <div className="mt-6">
+          <h2 className="text-xl font-semibold mb-4">Today's Updates</h2>
+          <DailyUpdates data={updates} isLoading={isUpdatesLoading} />
+        </div>
+        {/* Scheme Table */}
+        <div className="mt-6">
+          <SchemeTable
+            schemes={schemes}
+            isLoading={isSchemesLoading}
+            onSchemeClick={handleSchemeClick}
+            statusFilter={statusFilter}
+            onStatusFilterChange={handleStatusFilterChange}
+            searchQuery={searchQuery}
+            onSearchQueryChange={handleSearchQueryChange}
+          />
+        </div>
+        {/* Scheme Details Modal */}
+        {selectedScheme && (
+          <SchemeDetailsModal
+            scheme={selectedScheme}
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+          />
+        )}
+        {/* Chatbot Component */}
+        <ChatbotComponent />
+      </DashboardLayout>
+    </FilterContextProvider>
+  );
+}
+6. client/src/components/dashboard/scheme-table.tsx
+Table component that displays scheme data and reacts to filter changes:
+
+import { useState, useEffect } from "react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { SchemeStatus } from "@/types";
+import { Badge } from "@/components/ui/badge";
+import { useFilterContext } from "@/components/chatbot/ChatbotComponent";
+interface SchemeTableProps {
+  schemes: SchemeStatus[];
+  isLoading: boolean;
+  onSchemeClick: (scheme: SchemeStatus) => void;
+  statusFilter: string;
+  onStatusFilterChange: (status: string) => void;
+  searchQuery: string;
+  onSearchQueryChange: (query: string) => void;
+}
+const SchemeTable: React.FC<SchemeTableProps> = ({
+  schemes,
+  isLoading,
+  onSchemeClick,
+  statusFilter,
+  onStatusFilterChange,
+  searchQuery,
+  onSearchQueryChange,
+}) => {
+  const { statusFilter: contextStatusFilter, setStatusFilter: setContextStatusFilter, searchQuery: contextSearchQuery, setSearchQuery: setContextSearchQuery } = useFilterContext();
+  // Update the filter when context changes (from chatbot)
+  useEffect(() => {
+    if (contextStatusFilter !== statusFilter) {
+      onStatusFilterChange(contextStatusFilter);
+    }
+    
+    if (contextSearchQuery !== searchQuery) {
+      onSearchQueryChange(contextSearchQuery);
+    }
+  }, [contextStatusFilter, statusFilter, onStatusFilterChange, contextSearchQuery, searchQuery, onSearchQueryChange]);
+  // Update context when manually changed
+  const handleStatusChange = (value: string) => {
+    onStatusFilterChange(value);
+    setContextStatusFilter(value);
+  };
+  
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onSearchQueryChange(e.target.value);
+    setContextSearchQuery(e.target.value);
+  };
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <h2 className="text-xl font-semibold">Scheme Status</h2>
+        <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">Status:</span>
+            <Select value={statusFilter} onValueChange={handleStatusChange}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="Fully Completed">Fully Completed</SelectItem>
+                <SelectItem value="Partial">Partial</SelectItem>
+                <SelectItem value="Not Started">Not Started</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Input
+            placeholder="Search schemes..."
+            value={searchQuery}
+            onChange={handleSearchChange}
+            className="w-full md:w-[250px]"
+          />
+        </div>
+      </div>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Scheme ID</TableHead>
+              <TableHead>Scheme Name</TableHead>
+              <TableHead>Region</TableHead>
+              <TableHead>Villages</TableHead>
+              <TableHead>ESR Integrated</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8">
+                  Loading scheme data...
+                </TableCell>
+              </TableRow>
+            ) : schemes.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8">
+                  No schemes found matching the criteria
+                </TableCell>
+              </TableRow>
+            ) : (
+              schemes.map((scheme) => (
+                <TableRow
+                  key={scheme.scheme_id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => onSchemeClick(scheme)}
+                >
+                  <TableCell className="font-medium">{scheme.scheme_id}</TableCell>
+                  <TableCell>{scheme.scheme_name}</TableCell>
+                  <TableCell>{scheme.region}</TableCell>
+                  <TableCell>{scheme.number_of_village || 0}</TableCell>
+                  <TableCell>{scheme.total_esr_integrated || 0}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={
+                        scheme.fully_completion_scheme_status === "Fully Completed"
+                          ? "success"
+                          : scheme.fully_completion_scheme_status === "Partial"
+                          ? "warning"
+                          : "outline"
+                      }
+                    >
+                      {scheme.fully_completion_scheme_status || "Not Started"}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+};
+export default SchemeTable;
+This comprehensive implementation allows the chatbot to filter regions and schemes by:
+
+Using a shared filter context that both the chatbot and dashboard components can access
+Processing natural language queries through OpenAI's API
+Extracting filtering intents and parameters from user messages
+Updating the dashboard filters based on the extracted parameters
+Supporting both text and voice input for accessibility
+Providing feedback to the user when filters are applied

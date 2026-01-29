@@ -1,0 +1,86 @@
+You are helping me improve my chatbot backend.
+The chatbot is already built in React + TypeScript + Postgres, but I need a Python FastAPI service for query understanding (NLP).
+
+Problems I faced earlier:
+
+My current keyword detection works only for exact matches (e.g., “Optimal Chlorine”), but fails for variations like:
+
+“optimale chlorine range”
+
+“good chlorine”
+
+“right chlorine levels”
+
+It works correctly when I ask for all regions, but fails when I specify:
+
+A particular region (e.g., “Nagpur”).
+
+A particular scheme (by name or ID, e.g., “105 RRWS Villages” or scheme_id=123).
+
+I need the chatbot to check if the keyword (e.g., Optimal Chlorine, Villages with Water, Consistent Above 55, etc.) and a region name or scheme name/id are present in the query, then fetch the correct list from the database.
+
+What I want you to build:
+
+A FastAPI microservice with an endpoint like /parse_query.
+
+The service should take a user query string and return:
+
+{
+  "keyword": "Optimal Chlorine",
+  "region": "Nagpur",
+  "scheme": "105 RRWS Villages",
+  "scheme_id": 123
+}
+
+
+Use Sentence Transformers (all-MiniLM-L6-v2) to encode both:
+
+User query
+
+Predefined keywords (the button list) + regions + scheme names from DB.
+
+Use cosine similarity to match query words to the closest keyword/region/scheme.
+
+Add Rapidfuzz as a backup for typos or near-exact matches.
+
+Ensure all words in a scheme name must be present (via embedding or fuzzy match) before confirming it’s that scheme.
+
+Buttons (keywords) to detect:
+
+Villages with Water
+
+Villages No Water
+
+Consistent Water
+
+Consistent Zero
+
+Above 55 LPCD
+
+Below 55 LPCD
+
+Consistent Above 55
+
+Consistent Below 55
+
+Optimal Chlorine
+
+Below Chlorine
+
+Above Chlorine
+
+Optimal Pressure
+
+Below Pressure
+
+Above Pressure
+
+Expected behavior:
+
+If user asks only keyword (e.g., “Optimal Chlorine”) → return all regions.
+
+If user asks keyword + region (e.g., “Optimal Chlorine in Nagpur”) → return that region.
+
+If user asks keyword + scheme name or ID (e.g., “Optimal Chlorine in 105 RRWS Villages” or “scheme 123 Optimal Chlorine”) → return that scheme.
+
+Handle variations and typos with embeddings + fuzzy matching.

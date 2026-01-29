@@ -1,0 +1,39 @@
+Chatbot Query Resolution Priority
+Priority 1: Keyword/Widget Matching ⚡ (FASTEST)
+When: User query matches exact keywords like "optimal chlorine", "fully completed schemes", "above 55 lpcd", etc.
+How: Direct keyword detection using toLowerCase() and includes()
+Response Time: Instant (no AI API call)
+Example: "Show me villages with water" → Triggers VillagesWithWaterWidget
+Benefit: Fast, predictable, widget-based responses with interactive UI
+Priority 2: Enhanced Intent Detection 🎯 (STRUCTURED)
+When: Query doesn't match keywords but has structured intent with entities
+How: OpenAI analyzes and extracts intent + entities (region, scheme, village names)
+Response Time: ~1-2 seconds (one OpenAI API call)
+Example: "Show me comprehensive analysis for scheme 7940695" → Triggers COMPREHENSIVE_SCHEME_ANALYSIS intent
+Benefit: Handles complex structured queries with entity extraction
+Priority 3: Text-to-SQL Fallback 🔍 (FLEXIBLE - NEW!)
+When: Query doesn't match keywords OR enhanced intents
+How: OpenAI receives full database schema, generates SQL, executes query, formats response
+Response Time: ~2-3 seconds (OpenAI generates SQL + database execution)
+Example: "Which region has the most flow meters?" → Generates SQL → Returns conversational answer
+Benefit: Handles ANY question about the database, unlimited flexibility
+📊 Flow Diagram
+User Query
+↓
+┌─────────────────────────────────────┐
+│ Priority 1: Check Keywords │
+│ (optimal chlorine, fully completed) │
+└─────────────────────────────────────┘
+↓ NO MATCH
+┌─────────────────────────────────────┐
+│ Priority 2: Enhanced Intent │
+│ (COMPREHENSIVE_SCHEME_ANALYSIS, │
+│ ESR_WATER_CONSUMPTION, etc.) │
+└─────────────────────────────────────┘
+↓ NO MATCH (intent = FALLBACK)
+┌─────────────────────────────────────┐
+│ Priority 3: Text-to-SQL Fallback │
+│ (OpenAI generates SQL query) │
+└─────────────────────────────────────┘
+↓
+Response to User this will be the priority and look direct database sql querries dont work please fix it . call the architect for review . and keep in mind the priority

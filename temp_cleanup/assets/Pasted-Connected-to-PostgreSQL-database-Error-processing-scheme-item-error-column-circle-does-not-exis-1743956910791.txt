@@ -1,0 +1,130 @@
+Connected to PostgreSQL database
+Error processing scheme item: error: column "circle" does not exist
+    at C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_8\JavaScriptDashboardnew-4 (4)\IoT_dashboard_8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_8/JavaScriptDashboardnew-4%20(4)/IoT_dashboard_8/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async PostgresStorage.getSchemeById (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_8/JavaScriptDashboardnew-4%20(4)/IoT_dashboard_8/server/storage.ts:1:5573)
+    at async updateDatabaseRecords (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_8/JavaScriptDashboardnew-4%20(4)/IoT_dashboard_8/server/routes/admin/import-csv.ts:2:478)
+    at async importCsvHandler (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_8/JavaScriptDashboardnew-4%20(4)/IoT_dashboard_8/server/routes/admin/import-csv.ts:1:722) {
+  length: 106,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '45',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3722',
+  routine: 'errorMissingColumn'
+}
+Connected to PostgreSQL database
+Error processing scheme item: error: column "circle" does not exist
+    at C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_8\JavaScriptDashboardnew-4 (4)\IoT_dashboard_8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_8/JavaScriptDashboardnew-4%20(4)/IoT_dashboard_8/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async PostgresStorage.getSchemeById (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_8/JavaScriptDashboardnew-4%20(4)/IoT_dashboard_8/server/storage.ts:1:5573)
+    at async updateDatabaseRecords (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_8/JavaScriptDashboardnew-4%20(4)/IoT_dashboard_8/server/routes/admin/import-csv.ts:2:478)
+    at async importCsvHandler (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_8/JavaScriptDashboardnew-4%20(4)/IoT_dashboard_8/server/routes/admin/import-csv.ts:1:722) {
+  length: 106,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '45',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3722',
+  routine: 'errorMissingColumn'
+}
+Connected to PostgreSQL database
+Error processing scheme item: error: column "circle" does not exist
+    at C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_8\JavaScriptDashboardnew-4 (4)\IoT_dashboard_8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_8/JavaScriptDashboardnew-4%20(4)/IoT_dashboard_8/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async PostgresStorage.getSchemeById (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_8/JavaScriptDashboardnew-4%20(4)/IoT_dashboard_8/server/storage.ts:1:5573)
+    at async updateDatabaseRecords (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_8/JavaScriptDashboardnew-4%20(4)/IoT_dashboard_8/server/routes/admin/import-csv.ts:2:478)
+    at async importCsvHandler (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_8/JavaScriptDashboardnew-4%20(4)/IoT_dashboard_8/server/routes/admin/import-csv.ts:1:722) {
+  length: 106,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '45',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3722',
+  routine: 'errorMissingColumn'
+}
+Connected to PostgreSQL database
+Error processing scheme item: error: column "circle" does not exist
+    at C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_8\JavaScriptDashboardnew-4 (4)\IoT_dashboard_8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_8/JavaScriptDashboardnew-4%20(4)/IoT_dashboard_8/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async PostgresStorage.getSchemeById (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_8/JavaScriptDashboardnew-4%20(4)/IoT_dashboard_8/server/storage.ts:1:5573)
+    at async updateDatabaseRecords (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_8/JavaScriptDashboardnew-4%20(4)/IoT_dashboard_8/server/routes/admin/import-csv.ts:2:478)
+    at async importCsvHandler (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_8/JavaScriptDashboardnew-4%20(4)/IoT_dashboard_8/server/routes/admin/import-csv.ts:1:722) {
+  length: 106,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '45',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3722',
+  routine: 'errorMissingColumn'
+}
+Connected to PostgreSQL database
+Error processing scheme item: error: column "circle" does not exist
+    at C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_8\JavaScriptDashboardnew-4 (4)\IoT_dashboard_8\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_8/JavaScriptDashboardnew-4%20(4)/IoT_dashboard_8/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async PostgresStorage.getSchemeById (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_8/JavaScriptDashboardnew-4%20(4)/IoT_dashboard_8/server/storage.ts:1:5573)
+    at async updateDatabaseRecords (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_8/JavaScriptDashboardnew-4%20(4)/IoT_dashboard_8/server/routes/admin/import-csv.ts:2:478)
+    at async importCsvHandler (file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_8/JavaScriptDashboardnew-4%20(4)/IoT_dashboard_8/server/routes/admin/import-csv.ts:1:722) {
+  length: 106,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '45',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3722',
+  routine: 'errorMissingColumn'
+}

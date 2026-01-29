@@ -1,0 +1,93 @@
+General Rules
+1.	Always match all words in the sentence with region names, scheme names, village names, or IDs in the database.
+2.	If both region and metric keyword are present, filter results for that region only.
+3.	If no region/village/scheme specified, then show results for all regions combined.
+4.	Handle both names (e.g., Nagpur, Bidgaon Tarodi WSS) and IDs (scheme_id, village_id).
+5.	If a query has multiple possible matches, fetch exact matches only (not partial fuzzy matches).
+________________________________________
+🔹 Query Handling Logic
+1 Flow Meters (Flow Meter / FM)
+Keywords: flow meters, flow meter, fm
+•	All regions:
+→ SUM(flow_meter_integrated) from region table
+•	Specific region (e.g., "Flow meters in Nagpur")
+→ SUM(flow_meter_integrated) for that region in region table
+•	Specific village (e.g., "Flow meters in Bidgaon")
+→ Count of rows in communication_status table where
+flow_meter_connected = "connected" or flow_meter_connected = "Connected"
+and village_name = Bidgaon.
+________________________________________
+🔹 Chlorine Analyzers (Residual Chlorine Analyzers / RCA)
+Keywords: chlorine, chlorine analyzers, residual chlorine analyzers, RCA
+•	All regions:
+→ SUM(rca_integrated) from region table
+•	Specific region (e.g., "Chlorine analyzers in Nagpur")
+→ SUM(rca_integrated) for that region in region table
+•	Specific village (e.g., "Chlorine analyzers in Bidgaon")
+→ Count of rows in communication_status table where
+chlorine_connected = "connected" or chlorine_connected = "Connected"
+and village_name = Bidgaon.
+________________________________________
+🔹 Pressure Transmitters (Pressure / PT)
+Keywords: pressure, pressure transmitters, PT
+•	All regions:
+→ SUM(pressure_trabsmitter_integrated) from region table
+•	Specific region (e.g., "Pressure in Nagpur")
+→ SUM(pressure_trabsmitter_integrated) for that region_name in region table
+•	Specific village (e.g., "Pressure transmitters in Bidgaon")
+→ Count of rows in communication_status table where
+pressure_connected = "connected" or pressure_connected = "Connected"
+and village_name = Bidgaon.
+2. ESRs and Villages
+•	Keyword: ESRs
+•	Fully Completed ESR : fully_completed_esr in region table 
+•	All regions:
+→ SUM(total_esr_integrated) from region table
+
+•	Fully Completed ESR : fully_completed_esr in region table 
+•	All regions : SUM(fully_completed_esr) in region table 
+Specific region: SUM(fully_completed_esr) where region_name = Nagpur in region table 
+•	Specific scheme: fully_completed_esr in scheme_status table for that particular scheme_name
+
+
+
+________________________________________
+3. Summary Statistics
+•	Keyword: summary statistics
+•	→ Show all fields present in the region table (entire row data).
+________________________________________
+4. 
+________________________________________
+5. Export to Excel
+•	Keyword: export ... to Excel
+•	→ Fetch the filtered data as per region/village/scheme query and export results into an Excel file.
+________________________________________
+6. Fully Completed Schemes
+•	Keyword: fully completed schemes
+•	All regions:
+→ Fetch list of schemes from scheme_status table where fully_completion_scheme_status = "Completed" or “connected” or “fully completed” or “Fully Completed” or “Fully completed”
+•	Specific region (e.g., "Fully completed schemes in Nagpur")
+→ Same as above, but filter by region = Nagpur.
+________________________________________
+7. Fully Completed Villages
+•	Keyword: fully completed villages
+•	Specific scheme (e.g., "Fully completed villages in Bidgaon Tarodi WSS")
+→ Fetch list of villages from village table where fully_completion_villages_status = "Completed" and scheme_name = Bidgaon Tarodi WSS.
+•	If scheme_id is given instead of name
+→ Same logic but filter by scheme_id.
+•	This applies for every scheme.
+________________________________________
+🔹 Example Queries & Responses
+1.	User: "Flow meters in all regions"
+→ Return sum of flow_meter_integrated from region table
+2.	User: "ESRs and villages in Nagpur"
+→ Return total_esr_integrated for Nagpur
+3.	User: "Summary statistics"
+→ Return all fields from region table
+4.	User: "Flow meters in Bidgaon"
+→ Return count of flow_meter_connected = connected where village_name = Bidgaon
+5.	User: "Fully completed schemes in Nagpur"
+→ Return all schemes in scheme_status table where fully_completion_scheme_status = Connected and region = Nagpur
+6.	User: "Fully completed villages in Bidgaon Tarodi WSS"
+→ Return all villages from village table where fully_completion_villages_status = Completed and scheme_name = Bidgaon Tarodi WSS
+

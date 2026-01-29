@@ -1,0 +1,14677 @@
+import { useState, useMemo, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import DashboardLayout from "@/components/dashboard/dashboard-layout";
+import Sidebar from "@/components/dashboard/sidebar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
+import {
+  Droplet,
+  RefreshCw,
+  Download,
+  X,
+  Eye,
+  FileDown,
+  BarChart3,
+  Calendar,
+  Building2,
+  TrendingUp,
+  AlertCircle,
+  CheckCircle2,
+  Wifi,
+  WifiOff,
+  Activity,
+  Zap,
+  Users,
+  Home,
+  MapPin,
+  Gauge,
+  ExternalLink,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  LabelList,
+} from "recharts";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+interface RegionalChlorineStats {
+  region: string;
+  totalConnected: number;
+  totalOnline: number;
+  onlineWithWater: number;
+  onlineWithWaterChlorineOptimal: number;
+  onlineWithWaterChlorineAbove: number;
+  onlineWithWaterChlorineBelow: number;
+  onlineWithWaterNoChlorineData: number;
+  onlineWithoutWater: number;
+  onlineWithoutWaterChlorineOptimal: number;
+  onlineWithoutWaterChlorineAbove: number;
+  onlineWithoutWaterChlorineBelow: number;
+  totalOffline: number;
+  offlineSince7Days: number;
+  offlineSince30Days: number;
+  offlineSince3Days: number;
+}
+
+interface SensorDetail {
+  region: string;
+  circle: string;
+  division: string;
+  sub_division: string;
+  block: string;
+  scheme_id: string;
+  scheme_name: string;
+  village_name: string;
+  esr_name: string;
+  chlorine_connected: string;
+  chlorine_status: string;
+  water_value_day1: number | null;
+  water_date_day1: string | null;
+  water_value_day2: number | null;
+  water_date_day2: string | null;
+  water_value_day3: number | null;
+  water_date_day3: string | null;
+  water_value_day4: number | null;
+  water_date_day4: string | null;
+  water_value_day5: number | null;
+  water_date_day5: string | null;
+  water_value_day6: number | null;
+  water_date_day6: string | null;
+  water_value_day7: number | null;
+  water_date_day7: string | null;
+  chlorine_value_1: number | null;
+  chlorine_date_day_1: string | null;
+  chlorine_value_2: number | null;
+  chlorine_date_day_2: string | null;
+  chlorine_value_3: number | null;
+  chlorine_date_day_3: string | null;
+  chlorine_value_4: number | null;
+  chlorine_date_day_4: string | null;
+  chlorine_value_5: number | null;
+  chlorine_date_day_5: string | null;
+  chlorine_value_6: number | null;
+  chlorine_date_day_6: string | null;
+  chlorine_value_7: number | null;
+  chlorine_date_day_7: string | null;
+  dashboard_url?: string;
+  [key: string]: any;
+}
+
+interface ClickedCell {
+  statisticType: string;
+  region: string;
+  label: string;
+}
+
+interface DayWiseBreakdown {
+  days: number;
+  offline: number;
+  below_0_2: number;
+  above_0_5: number;
+  optimal_0_2_0_5: number;
+}
+
+interface DayWiseClickedCell {
+  metric:
+  | "offline"
+  | "below_0_2"
+  | "above_0_5"
+  | "optimal_0_2_0_5"
+  | "above_0_7"
+  | "optimal_0_2_0_7";
+  days: number;
+  label: string;
+}
+
+interface DayWiseSensor {
+  region: string;
+  circle: string;
+  division: string;
+  sub_division: string;
+  block: string;
+  scheme_id: string;
+  scheme_name: string;
+  village_name: string;
+  esr_name: string;
+  chlorine_connected: string;
+  chlorine_status: string;
+  last_seen: string | null;
+  consecutive_days: number;
+  latest_chlorine_value: number | null;
+  latest_chlorine_date: string | null;
+  dashboard_url?: string;
+}
+
+interface DivisionSummary {
+  region: string;
+  division: string;
+  totalVillages: number;
+  villagesWithWater: number;
+  villagesNoWater: number;
+  villagesAbove55: number;
+  villagesBelow55: number;
+}
+
+interface DivisionVillage {
+  region: string;
+  circle: string;
+  division: string;
+  sub_division: string;
+  block: string;
+  scheme_id: string;
+  scheme_name: string;
+  village_name: string;
+  population: number | null;
+  lpcd_value_day7: number | null;
+  water_value_day7: number | null;
+  water_date_day7: string | null;
+  dashboard_url?: string;
+}
+
+interface ClickedDivisionCell {
+  division: string;
+  region: string;
+  metric: "withWater" | "noWater" | "above55" | "below55";
+  label: string;
+}
+
+interface ChlorineDivisionSummary {
+  region: string;
+  division: string;
+  totalRCAs: number;
+  rcasBelow02: number;
+  rcasOptimal: number;
+  rcasAbove05: number;
+}
+
+interface ChlorineDivisionSensor {
+  region: string;
+  circle: string;
+  division: string;
+  sub_division: string;
+  block: string;
+  scheme_id: string;
+  scheme_name: string;
+  village_name: string;
+  esr_name: string;
+  latest_chlorine_value: number | null;
+  latest_chlorine_date: string | null;
+  dashboard_url?: string;
+}
+
+interface ClickedChlorineDivisionCell {
+  division: string;
+  region: string;
+  metric: "below02" | "optimal" | "above05";
+  label: string;
+}
+
+interface RegionComparisonData {
+  region: string;
+  offline: number;
+  below_0_2: number;
+  optimal_0_2_0_5: number;
+  above_0_5: number;
+  consistent_below_0_2: number;
+  consistent_optimal: number;
+  consistent_above_0_5: number;
+  above_55: number;
+  below_55: number;
+  no_water: number;
+  consistent_above_55: number;
+  consistent_below_55: number;
+  consistent_no_water: number;
+}
+
+interface ClickedComparisonCell {
+  category: string;
+  region: string;
+  label: string;
+  isLpcd: boolean;
+  dates?: string[];
+}
+
+interface LPCDRegionalStats {
+  region: string;
+  totalConnected: number;
+  totalOnline: number;
+  totalOffline: number;
+  villagesWithWater: number;
+  villagesAbove55: number;
+  villagesBelow55: number;
+  villagesNoWater: number;
+  below55For3Days: number;
+  below55For7Days: number;
+  below55For30Days: number;
+}
+
+interface LPCDDetailItem {
+  region: string;
+  circle: string;
+  division: string;
+  sub_division: string;
+  block: string;
+  scheme_id: string;
+  scheme_name: string;
+  village_name: string;
+  esr_name?: string;
+  flow_meter_connected?: string;
+  flow_meter_status?: string;
+  population?: number;
+  lpcd_value_day7?: number;
+  water_value_day7?: number;
+  water_date_day7?: string;
+  consecutive_days?: number;
+  dashboard_url?: string;
+}
+
+interface ClickedLPCDCell {
+  statisticType: string;
+  region: string;
+  label: string;
+}
+
+interface SchemeLPCDRegionalStats {
+  region: string;
+  totalSchemes: number;
+  totalPopulation: number;
+  totalVillages: number;
+  schemesAbove55: number;
+  schemesBelow55: number;
+  schemesNoSupply: number;
+  below55For3Days: number;
+  below55For7Days: number;
+  below55For30Days: number;
+}
+
+interface SchemeLPCDDetailItem {
+  region: string;
+  circle: string;
+  division: string;
+  sub_division: string;
+  block: string;
+  scheme_id: string;
+  scheme_name: string;
+  total_population: number;
+  total_villages: number;
+  villages_below_55: number;
+  villages_above_55: number;
+  villages_zero_supply: number;
+  water_value: number | null;
+  lpcd_value: number | null;
+  data_date: string;
+  dashboard_url?: string;
+  consecutive_days?: number;
+}
+
+interface ClickedSchemeLPCDCell {
+  statisticType: string;
+  region: string;
+  label: string;
+}
+
+interface SchemeLPCDDivisionSummary {
+  region: string;
+  division: string;
+  totalSchemes: number;
+  schemesWithWater: number;
+  schemesNoWater: number;
+  schemesAbove55: number;
+  schemesBelow55: number;
+}
+
+interface ClickedSchemeDivisionCell {
+  division: string;
+  region: string;
+  metric: "withWater" | "noWater" | "above55" | "below55";
+  label: string;
+}
+
+interface ClickedSchemeComparisonCell {
+  category: string;
+  region: string;
+  label: string;
+  dates?: string[]; // Enable passing dates for weekly averages
+}
+
+interface ComparisonDetailItem {
+  region: string;
+  circle: string;
+  division: string;
+  sub_division: string;
+  block: string;
+  scheme_id: string;
+  scheme_name: string;
+  village_name: string;
+  esr_name?: string;
+  chlorine_value?: number;
+  chlorine_date?: string;
+  chlorine_status?: string;
+  last_seen?: string;
+  population?: number;
+  lpcd_value?: number;
+  lpcd_date?: string;
+  water_value_day7?: number;
+  water_date_day7?: string;
+  dashboard_url?: string;
+}
+
+const DetailedChlorinePage = () => {
+  const { toast } = useToast();
+  // Main tab: LPCD, Chlorine, or Pressure (LPCD is default)
+  const [mainTab, setMainTab] = useState<"lpcd" | "chlorine" | "pressure">(
+    "lpcd",
+  );
+  // Category sub-tab within each main tab
+  const [categoryTab, setCategoryTab] = useState<string>("overall-comparison");
+  const [clickedCell, setClickedCell] = useState<ClickedCell | null>(null);
+  const [selectedSensor, setSelectedSensor] = useState<SensorDetail | null>(
+    null,
+  );
+  const [selectedRegion, setSelectedRegion] = useState<string>("");
+  const [dayWiseRegion, setDayWiseRegion] = useState<string>("");
+  const [clickedDayWiseCell, setClickedDayWiseCell] =
+    useState<DayWiseClickedCell | null>(null);
+  const [divisionWiseRegion, setDivisionWiseRegion] =
+    useState<string>("All Regions");
+  const [clickedDivisionCell, setClickedDivisionCell] =
+    useState<ClickedDivisionCell | null>(null);
+  const [clickedComparisonCell, setClickedComparisonCell] =
+    useState<ClickedComparisonCell | null>(null);
+  const [clickedChlorineDivisionCell, setClickedChlorineDivisionCell] =
+    useState<ClickedChlorineDivisionCell | null>(null);
+  const [lpcdRegionalRegion, setLpcdRegionalRegion] =
+    useState<string>("All Regions");
+  const [clickedLPCDCell, setClickedLPCDCell] =
+    useState<ClickedLPCDCell | null>(null);
+  const [pressureRegionalRegion, setPressureRegionalRegion] =
+    useState<string>("All Regions");
+  const [clickedPressureCell, setClickedPressureCell] =
+    useState<ClickedCell | null>(null);
+  const [pressureDayWiseRegion, setPressureDayWiseRegion] =
+    useState<string>("All Regions");
+  const [clickedPressureDayWiseCell, setClickedPressureDayWiseCell] =
+    useState<DayWiseClickedCell | null>(null);
+  const [pressureDivisionWiseRegion, setPressureDivisionWiseRegion] =
+    useState<string>("All Regions");
+  const [clickedPressureDivisionCell, setClickedPressureDivisionCell] =
+    useState<ClickedDivisionCell | null>(null);
+  const [clickedPressureComparisonCell, setClickedPressureComparisonCell] =
+    useState<ClickedComparisonCell | null>(null);
+
+  // LPCD sub-tab: Village or Scheme (within LPCD main tab)
+  const [lpcdSubTab, setLpcdSubTab] = useState<"village" | "scheme">("village");
+
+  // Scheme LPCD state variables
+  const [schemeLpcdRegionalRegion, setSchemeLpcdRegionalRegion] =
+    useState<string>("All Regions");
+  const [clickedSchemeLPCDCell, setClickedSchemeLPCDCell] =
+    useState<ClickedSchemeLPCDCell | null>(null);
+  const [schemeLpcdDivisionWiseRegion, setSchemeLpcdDivisionWiseRegion] =
+    useState<string>("All Regions");
+  const [clickedSchemeDivisionCell, setClickedSchemeDivisionCell] =
+    useState<ClickedSchemeDivisionCell | null>(null);
+  const [schemeLpcdDayWiseRegion, setSchemeLpcdDayWiseRegion] =
+    useState<string>("All Regions");
+  const [clickedSchemeDayWiseCell, setClickedSchemeDayWiseCell] =
+    useState<{ metric: string; days: number; region: string; label: string } | null>(null);
+  const [clickedSchemeComparisonCell, setClickedSchemeComparisonCell] =
+    useState<ClickedSchemeComparisonCell | null>(null);
+
+  // Scheme Filter
+  const [schemeFilter, setSchemeFilter] = useState<string>("commissioned");
+
+  // Debug: Log filter changes
+  useEffect(() => {
+    console.log('🔍 [FILTER CHANGED]', { schemeFilter, mainTab });
+  }, [schemeFilter, mainTab]);
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return "N/A";
+    try {
+      const parts = dateStr.split("-");
+      if (parts.length === 3) {
+        return `${parts[0]}-${parts[1]}`;
+      }
+      return dateStr;
+    } catch {
+      return dateStr || "N/A";
+    }
+  };
+
+  // Fetch scheme status data for filtering
+  const { data: schemeStatusData = [] } = useQuery<any[]>({
+    queryKey: ["/api/schemes"],
+    queryFn: async () => {
+      try {
+        const response = await fetch("/api/schemes");
+        if (!response.ok) return [];
+        return response.json();
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  const {
+    data: regionalStats = [],
+    isLoading,
+    error,
+    refetch,
+  } = useQuery<RegionalChlorineStats[]>({
+    queryKey: ["/api/chlorine/regional-stats", schemeFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (schemeFilter !== 'all') {
+        params.append("filterType", schemeFilter);
+      }
+      const queryString = params.toString();
+      const url = `/api/chlorine/regional-stats${queryString ? `?${queryString}` : ""}`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch chlorine regional statistics");
+      return response.json();
+    },
+  });
+
+  // Filter stats based on scheme filter
+  const filteredRegionalStats = useMemo(() => {
+    if (schemeFilter === "all" || !schemeStatusData.length) {
+      return regionalStats;
+    }
+
+    // Get all scheme_ids that are fully completed
+    const fullyCompletedSchemeIds = new Set(
+      schemeStatusData
+        .filter((status) => {
+          const statusValue = String(status.fully_completion_scheme_status || "").toLowerCase();
+          return (
+            statusValue === "fully completed" ||
+            statusValue === "completed" ||
+            statusValue === "fully_completed"
+          );
+        })
+        .map((status) => status.scheme_id)
+    );
+
+    // This would need API support for filtering by scheme list
+    // For now, we'll filter on display by counting only fully completed schemes
+    return regionalStats;
+  }, [regionalStats, schemeFilter, schemeStatusData]);
+
+  const { data: sensorDetails, isLoading: isLoadingDetails } = useQuery<{
+    data: SensorDetail[];
+    count: number;
+  }>({
+    queryKey: [
+      "/api/chlorine/details",
+      clickedCell?.statisticType,
+      clickedCell?.region,
+      schemeFilter,
+    ],
+    enabled: !!clickedCell,
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (clickedCell?.region && clickedCell.region !== "All Regions") {
+        params.append("region", clickedCell.region);
+      }
+
+      if (schemeFilter !== 'all') {
+        params.append("filterType", schemeFilter);
+      }
+
+      const response = await fetch(
+        `/api/chlorine/details/${clickedCell?.statisticType}?${params.toString()}`,
+      );
+
+      if (!response.ok) throw new Error("Failed to fetch sensor details");
+      return response.json();
+    },
+  });
+
+  const { data: dayWiseData, isLoading: isLoadingDayWise } = useQuery<{
+    success: boolean;
+    data: DayWiseBreakdown[];
+    region: string;
+  }>({
+    queryKey: ["/api/chlorine/day-wise-breakdown", dayWiseRegion, schemeFilter],
+    enabled: !!dayWiseRegion,
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (dayWiseRegion && dayWiseRegion !== "All Regions") {
+        params.append("region", dayWiseRegion);
+      }
+
+      if (schemeFilter !== 'all') {
+        params.append("filterType", schemeFilter);
+      }
+
+      const response = await fetch(
+        `/api/chlorine/day-wise-breakdown?${params.toString()}`,
+      );
+
+      if (!response.ok) throw new Error("Failed to fetch day-wise breakdown");
+      return response.json();
+    },
+  });
+
+  const { data: regionComparisonData, isLoading: isLoadingRegionComparison } =
+    useQuery<{
+      success: boolean;
+      data: { [region: string]: DayWiseBreakdown[] };
+    }>({
+      queryKey: ["/api/chlorine/day-wise-breakdown/all-regions", regionalStats.map((stat) => stat.region).join(","), schemeFilter],
+      enabled: regionalStats.length > 0,
+      queryFn: async () => {
+        const regions = regionalStats.map((stat) => stat.region);
+        const grouped: { [region: string]: DayWiseBreakdown[] } = {};
+
+        await Promise.all(
+          regions.map(async (region) => {
+            const params = new URLSearchParams();
+            params.append("region", encodeURIComponent(region));
+            if (schemeFilter !== 'all') {
+              params.append("filterType", schemeFilter);
+            }
+            const response = await fetch(
+              `/api/chlorine/day-wise-breakdown?${params.toString()}`,
+            );
+            if (response.ok) {
+              const data = await response.json();
+              grouped[region] = data.data || [];
+            }
+          }),
+        );
+
+        return { success: true, data: grouped };
+      },
+    });
+
+  const [comparisonCategory, setComparisonCategory] = useState<
+    "offline" | "below_0_2" | "above_0_5" | "optimal_0_2_0_5"
+  >("offline");
+  const [dayWiseSubTab, setDayWiseSubTab] = useState<
+    "single-region" | "region-comparison"
+  >("single-region");
+
+  interface RegionComparisonClickedCell {
+    region: string;
+    day: number;
+    category: "offline" | "below_0_2" | "above_0_5" | "optimal_0_2_0_5";
+    label: string;
+  }
+  const [clickedRegionComparisonCell, setClickedRegionComparisonCell] =
+    useState<RegionComparisonClickedCell | null>(null);
+
+  const {
+    data: regionComparisonSensors,
+    isLoading: isLoadingRegionComparisonSensors,
+  } = useQuery<{
+    success: boolean;
+    data: DayWiseSensor[];
+    count: number;
+  }>({
+    queryKey: [
+      "/api/chlorine/day-wise-sensors",
+      clickedRegionComparisonCell?.category,
+      clickedRegionComparisonCell?.day,
+      clickedRegionComparisonCell?.region,
+    ],
+    enabled: !!clickedRegionComparisonCell,
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (clickedRegionComparisonCell?.region) {
+        params.append("region", clickedRegionComparisonCell.region);
+      }
+      if (schemeFilter !== 'all') {
+        params.append("filterType", schemeFilter);
+      }
+
+      const response = await fetch(
+        `/api/chlorine/day-wise-sensors/${clickedRegionComparisonCell?.category}/${clickedRegionComparisonCell?.day}?${params.toString()}`,
+      );
+
+      if (!response.ok)
+        throw new Error("Failed to fetch region comparison sensors");
+      return response.json();
+    },
+  });
+
+  interface LpcdDayWiseBreakdown {
+    days: number;
+    below_55: number;
+    above_55: number;
+    with_water: number;
+    no_water: number;
+  }
+
+  interface LpcdDayWiseClickedCell {
+    metric: "below_55" | "above_55" | "with_water" | "no_water";
+    days: number;
+    label: string;
+  }
+
+  interface LpcdDayWiseVillage {
+    region: string;
+    circle: string;
+    division: string;
+    sub_division: string;
+    block: string;
+    scheme_id: string;
+    scheme_name: string;
+    village_name: string;
+    population: number | null;
+    latest_lpcd_value: number | null;
+    latest_water_value: number | null;
+    latest_date: string | null;
+    consecutive_days: number;
+    dashboard_url?: string;
+  }
+
+  const [lpcdDayWiseRegion, setLpcdDayWiseRegion] =
+    useState<string>("All Regions");
+  const [lpcdComparisonCategory, setLpcdComparisonCategory] = useState<
+    "below_55" | "above_55" | "with_water" | "no_water"
+  >("below_55");
+  const [clickedLpcdDayWiseCell, setClickedLpcdDayWiseCell] =
+    useState<LpcdDayWiseClickedCell | null>(null);
+
+  interface LpcdRegionComparisonClickedCell {
+    region: string;
+    day: number;
+    category: "below_55" | "above_55" | "with_water" | "no_water";
+    label: string;
+  }
+  const [clickedLpcdRegionComparisonCell, setClickedLpcdRegionComparisonCell] =
+    useState<LpcdRegionComparisonClickedCell | null>(null);
+
+  const { data: lpcdDayWiseData, isLoading: isLoadingLpcdDayWise } = useQuery<{
+    success: boolean;
+    data: LpcdDayWiseBreakdown[];
+    region: string;
+  }>({
+    queryKey: ["/api/chlorine/lpcd/day-wise-breakdown", lpcdDayWiseRegion, schemeFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (lpcdDayWiseRegion && lpcdDayWiseRegion !== "All Regions") {
+        params.append("region", lpcdDayWiseRegion);
+      }
+      if (schemeFilter !== 'all') {
+        params.append("filterType", schemeFilter);
+      }
+      const response = await fetch(
+        `/api/chlorine/lpcd/day-wise-breakdown?${params.toString()}`,
+      );
+      if (!response.ok)
+        throw new Error("Failed to fetch LPCD day-wise breakdown");
+      return response.json();
+    },
+  });
+
+  const {
+    data: lpcdRegionComparisonData,
+    isLoading: isLoadingLpcdRegionComparison,
+  } = useQuery<{
+    success: boolean;
+    data: { [region: string]: LpcdDayWiseBreakdown[] };
+  }>({
+    queryKey: [
+      "/api/chlorine/lpcd/day-wise-breakdown/all-regions",
+      regionalStats.map((stat) => stat.region).join(","),
+      schemeFilter,
+    ],
+    enabled: regionalStats.length > 0,
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (schemeFilter !== 'all') {
+        params.append("filterType", schemeFilter);
+      }
+      const queryString = params.toString();
+      const url = `/api/chlorine/lpcd/day-wise-breakdown/all-regions${queryString ? `?${queryString}` : ""}`;
+      const response = await fetch(url);
+      if (!response.ok)
+        throw new Error(
+          "Failed to fetch LPCD day-wise breakdown for all regions",
+        );
+      return response.json();
+    },
+  });
+
+  const { data: lpcdDayWiseVillages, isLoading: isLoadingLpcdDayWiseVillages } =
+    useQuery<{
+      success: boolean;
+      data: LpcdDayWiseVillage[];
+      count: number;
+    }>({
+      queryKey: [
+        "/api/chlorine/lpcd/day-wise-villages",
+        clickedLpcdDayWiseCell?.metric,
+        clickedLpcdDayWiseCell?.days,
+        lpcdDayWiseRegion,
+        schemeFilter,
+      ],
+      enabled: !!clickedLpcdDayWiseCell,
+      queryFn: async () => {
+        const params = new URLSearchParams();
+        if (lpcdDayWiseRegion && lpcdDayWiseRegion !== "All Regions") {
+          params.append("region", lpcdDayWiseRegion);
+        }
+        if (schemeFilter !== 'all') {
+          params.append("filterType", schemeFilter);
+        }
+        const response = await fetch(
+          `/api/chlorine/lpcd/day-wise-villages/${clickedLpcdDayWiseCell?.metric}/${clickedLpcdDayWiseCell?.days}?${params.toString()}`,
+        );
+        if (!response.ok)
+          throw new Error("Failed to fetch LPCD day-wise villages");
+        return response.json();
+      },
+    });
+
+  const {
+    data: lpcdRegionComparisonVillages,
+    isLoading: isLoadingLpcdRegionComparisonVillages,
+  } = useQuery<{
+    success: boolean;
+    data: LpcdDayWiseVillage[];
+    count: number;
+  }>({
+    queryKey: [
+      "/api/chlorine/lpcd/day-wise-villages",
+      clickedLpcdRegionComparisonCell?.category,
+      clickedLpcdRegionComparisonCell?.day,
+      clickedLpcdRegionComparisonCell?.region,
+      schemeFilter,
+    ],
+    enabled: !!clickedLpcdRegionComparisonCell,
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (clickedLpcdRegionComparisonCell?.region) {
+        params.append("region", clickedLpcdRegionComparisonCell.region);
+      }
+      if (schemeFilter !== 'all') {
+        params.append("filterType", schemeFilter);
+      }
+      const response = await fetch(
+        `/api/chlorine/lpcd/day-wise-villages/${clickedLpcdRegionComparisonCell?.category}/${clickedLpcdRegionComparisonCell?.day}?${params.toString()}`,
+      );
+      if (!response.ok)
+        throw new Error("Failed to fetch LPCD region comparison villages");
+      return response.json();
+    },
+  });
+
+  const { data: dayWiseSensors, isLoading: isLoadingDayWiseSensors } =
+    useQuery<{
+      success: boolean;
+      data: DayWiseSensor[];
+      count: number;
+    }>({
+      queryKey: [
+        "/api/chlorine/day-wise-sensors",
+        clickedDayWiseCell?.metric,
+        clickedDayWiseCell?.days,
+        dayWiseRegion,
+        schemeFilter,
+      ],
+      enabled: !!clickedDayWiseCell,
+      queryFn: async () => {
+        const params = new URLSearchParams();
+        if (dayWiseRegion && dayWiseRegion !== "All Regions") {
+          params.append("region", dayWiseRegion);
+        }
+        if (schemeFilter !== 'all') {
+          params.append("filterType", schemeFilter);
+        }
+
+        const response = await fetch(
+          `/api/chlorine/day-wise-sensors/${clickedDayWiseCell?.metric}/${clickedDayWiseCell?.days}?${params.toString()}`,
+        );
+
+        if (!response.ok) throw new Error("Failed to fetch day-wise sensors");
+        return response.json();
+      },
+    });
+
+  const { data: divisionSummaryData, isLoading: isLoadingDivisionSummary } =
+    useQuery<{
+      success: boolean;
+      data: DivisionSummary[];
+      region: string;
+    }>({
+      queryKey: [
+        "/api/category-data/division-wise-summary",
+        divisionWiseRegion,
+        schemeFilter,
+      ],
+      queryFn: async () => {
+        const params = new URLSearchParams();
+        if (divisionWiseRegion && divisionWiseRegion !== "All Regions") {
+          params.append("region", divisionWiseRegion);
+        }
+        if (schemeFilter !== 'all') {
+          params.append("filterType", schemeFilter);
+        }
+
+        const response = await fetch(
+          `/api/category-data/division-wise-summary?${params.toString()}`,
+        );
+
+        if (!response.ok)
+          throw new Error("Failed to fetch division-wise summary");
+        return response.json();
+      },
+    });
+
+  const { data: divisionVillages, isLoading: isLoadingDivisionVillages } =
+    useQuery<{
+      success: boolean;
+      data: DivisionVillage[];
+      count: number;
+    }>({
+      queryKey: [
+        "/api/category-data/division-villages",
+        clickedDivisionCell?.division,
+        clickedDivisionCell?.region,
+        clickedDivisionCell?.metric,
+        schemeFilter,
+      ],
+      enabled: !!clickedDivisionCell,
+      queryFn: async () => {
+        const params = new URLSearchParams();
+        params.append("division", clickedDivisionCell!.division);
+        if (
+          clickedDivisionCell?.region &&
+          clickedDivisionCell.region !== "All Regions"
+        ) {
+          params.append("region", clickedDivisionCell.region);
+        }
+        params.append("metric", clickedDivisionCell!.metric);
+        if (schemeFilter !== 'all') {
+          params.append("filterType", schemeFilter);
+        }
+
+        const response = await fetch(
+          `/api/category-data/division-villages?${params.toString()}`,
+        );
+
+        if (!response.ok) throw new Error("Failed to fetch division villages");
+        return response.json();
+      },
+    });
+
+  const {
+    data: chlorineDivisionSummaryData,
+    isLoading: isLoadingChlorineDivisionSummary,
+  } = useQuery<{
+    success: boolean;
+    data: ChlorineDivisionSummary[];
+    region: string;
+  }>({
+    queryKey: ["/api/chlorine/division-wise-summary", divisionWiseRegion, schemeFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (divisionWiseRegion && divisionWiseRegion !== "All Regions") {
+        params.append("region", divisionWiseRegion);
+      }
+
+      if (schemeFilter !== 'all') {
+        params.append("filterType", schemeFilter);
+      }
+
+      const response = await fetch(
+        `/api/chlorine/division-wise-summary?${params.toString()}`,
+      );
+
+      if (!response.ok)
+        throw new Error("Failed to fetch chlorine division-wise summary");
+      return response.json();
+    },
+  });
+
+  const {
+    data: chlorineDivisionSensors,
+    isLoading: isLoadingChlorineDivisionSensors,
+  } = useQuery<{
+    success: boolean;
+    data: ChlorineDivisionSensor[];
+    count: number;
+  }>({
+    queryKey: [
+      "/api/chlorine/division-sensors",
+      clickedChlorineDivisionCell?.division,
+      clickedChlorineDivisionCell?.region,
+      clickedChlorineDivisionCell?.metric,
+      schemeFilter,
+    ],
+    enabled: !!clickedChlorineDivisionCell,
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.append("division", clickedChlorineDivisionCell!.division);
+      if (
+        clickedChlorineDivisionCell?.region &&
+        clickedChlorineDivisionCell.region !== "All Regions"
+      ) {
+        params.append("region", clickedChlorineDivisionCell.region);
+      }
+      params.append("metric", clickedChlorineDivisionCell!.metric);
+      if (schemeFilter !== 'all') {
+        params.append("filterType", schemeFilter);
+      }
+
+      const response = await fetch(
+        `/api/chlorine/division-sensors?${params.toString()}`,
+      );
+
+      if (!response.ok)
+        throw new Error("Failed to fetch chlorine division sensors");
+      return response.json();
+    },
+  });
+
+  const { data: overallComparisonData, isLoading: isLoadingOverallComparison } =
+    useQuery<{
+      success: boolean;
+      data: RegionComparisonData[];
+    }>({
+      queryKey: ["/api/chlorine/overall-region-comparison", schemeFilter],
+      queryFn: async () => {
+        const params = new URLSearchParams();
+        if (schemeFilter !== 'all') {
+          params.append("filterType", schemeFilter);
+        }
+        const queryString = params.toString();
+        const url = `/api/chlorine/overall-region-comparison${queryString ? `?${queryString}` : ""}`;
+        const response = await fetch(url);
+        if (!response.ok)
+          throw new Error("Failed to fetch overall region comparison");
+        return response.json();
+      },
+    });
+
+  const { data: comparisonDetails, isLoading: isLoadingComparisonDetails } =
+    useQuery<{
+      success: boolean;
+      data: ComparisonDetailItem[];
+      count: number;
+    }>({
+      queryKey: [
+        "/api/chlorine/overall-region-comparison/details",
+        clickedComparisonCell?.category,
+        clickedComparisonCell?.region,
+        clickedComparisonCell?.dates,
+        schemeFilter,
+      ],
+      enabled: !!clickedComparisonCell,
+      queryFn: async () => {
+        const params = new URLSearchParams();
+        if (clickedComparisonCell?.region && clickedComparisonCell.region !== "All Regions") {
+          params.append("region", clickedComparisonCell.region);
+        }
+        if (clickedComparisonCell?.dates) {
+          params.append("dates", clickedComparisonCell.dates.join(","));
+        }
+        if (schemeFilter !== 'all') {
+          params.append("filterType", schemeFilter);
+        }
+
+        const response = await fetch(
+          `/api/chlorine/overall-region-comparison/details/${clickedComparisonCell?.category}?${params.toString()}`,
+        );
+
+        if (!response.ok) throw new Error("Failed to fetch comparison details");
+        return response.json();
+      },
+    });
+
+  const { data: lpcdRegionalStats, isLoading: isLoadingLPCDRegional } =
+    useQuery<{
+      success: boolean;
+      data: LPCDRegionalStats[];
+    }>({
+      queryKey: ["/api/chlorine/lpcd/regional-stats", schemeFilter],
+      queryFn: async () => {
+        const params = new URLSearchParams();
+        if (schemeFilter !== 'all') {
+          params.append("filterType", schemeFilter);
+        }
+        const queryString = params.toString();
+        const url = `/api/chlorine/lpcd/regional-stats${queryString ? `?${queryString}` : ""}`;
+        const response = await fetch(url);
+        if (!response.ok)
+          throw new Error("Failed to fetch LPCD regional statistics");
+        return response.json();
+      },
+    });
+
+  const { data: lpcdDetails, isLoading: isLoadingLPCDDetails } = useQuery<{
+    success: boolean;
+    data: LPCDDetailItem[];
+    count: number;
+    type: string;
+    region: string;
+  }>({
+    queryKey: [
+      "/api/chlorine/lpcd/details",
+      clickedLPCDCell?.statisticType,
+      clickedLPCDCell?.region,
+      schemeFilter,
+    ],
+    enabled: !!clickedLPCDCell,
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (clickedLPCDCell?.region && clickedLPCDCell.region !== "All Regions") {
+        params.append("region", clickedLPCDCell.region);
+      }
+      if (schemeFilter !== 'all') {
+        params.append("filterType", schemeFilter);
+      }
+
+      const response = await fetch(
+        `/api/chlorine/lpcd/details/${clickedLPCDCell?.statisticType}?${params.toString()}`,
+      );
+
+      if (!response.ok) throw new Error("Failed to fetch LPCD details");
+      return response.json();
+    },
+  });
+
+  // Scheme LPCD Regional Stats Query
+  const { data: schemeLpcdRegionalStats, isLoading: isLoadingSchemeLPCDRegional } =
+    useQuery<{
+      success: boolean;
+      data: SchemeLPCDRegionalStats[];
+      latestDate: string;
+    }>({
+      queryKey: ["/api/chlorine/scheme-lpcd/regional-stats", schemeFilter],
+      enabled: mainTab === "lpcd" && lpcdSubTab === "scheme",
+      queryFn: async () => {
+        const params = new URLSearchParams();
+        if (schemeFilter !== 'all') {
+          params.append("filterType", schemeFilter);
+        }
+        const queryString = params.toString();
+        const url = `/api/chlorine/scheme-lpcd/regional-stats${queryString ? `?${queryString}` : ""}`;
+        const response = await fetch(url);
+        if (!response.ok)
+          throw new Error("Failed to fetch Scheme LPCD regional statistics");
+        return response.json();
+      },
+    });
+
+  // Scheme LPCD Details Query
+  const { data: schemeLpcdDetails, isLoading: isLoadingSchemeLPCDDetails } = useQuery<{
+    success: boolean;
+    data: SchemeLPCDDetailItem[];
+    count: number;
+  }>({
+    queryKey: [
+      "/api/chlorine/scheme-lpcd/details",
+      clickedSchemeLPCDCell?.statisticType,
+      clickedSchemeLPCDCell?.region,
+      schemeFilter,
+    ],
+    enabled: !!clickedSchemeLPCDCell,
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (clickedSchemeLPCDCell?.region && clickedSchemeLPCDCell.region !== "All Regions") {
+        params.append("region", clickedSchemeLPCDCell.region);
+      }
+      if (schemeFilter !== 'all') {
+        params.append("filterType", schemeFilter);
+      }
+
+      const response = await fetch(
+        `/api/chlorine/scheme-lpcd/details/${clickedSchemeLPCDCell?.statisticType}?${params.toString()}`,
+      );
+
+      if (!response.ok) throw new Error("Failed to fetch Scheme LPCD details");
+      return response.json();
+    },
+  });
+
+  // Scheme LPCD Division Summary Query
+  const { data: schemeLpcdDivisionSummary, isLoading: isLoadingSchemeLpcdDivision } =
+    useQuery<{
+      success: boolean;
+      data: SchemeLPCDDivisionSummary[];
+    }>({
+      queryKey: ["/api/chlorine/scheme-lpcd/division-summary", schemeLpcdDivisionWiseRegion, schemeFilter],
+      enabled: mainTab === "lpcd" && lpcdSubTab === "scheme" && categoryTab === "divisionwise",
+      queryFn: async () => {
+        const params = new URLSearchParams();
+        if (schemeLpcdDivisionWiseRegion && schemeLpcdDivisionWiseRegion !== "All Regions") {
+          params.append("region", schemeLpcdDivisionWiseRegion);
+        }
+        if (schemeFilter !== 'all') {
+          params.append("filterType", schemeFilter);
+        }
+        const response = await fetch(`/api/chlorine/scheme-lpcd/division-summary?${params.toString()}`);
+        if (!response.ok) throw new Error("Failed to fetch Scheme LPCD division summary");
+        return response.json();
+      },
+    });
+
+  // Scheme LPCD Division Details Query
+  const { data: schemeLpcdDivisionDetails, isLoading: isLoadingSchemeDivisionDetails } =
+    useQuery<{
+      success: boolean;
+      data: SchemeLPCDDetailItem[];
+      count: number;
+    }>({
+      queryKey: [
+        "/api/chlorine/scheme-lpcd/division-details",
+        clickedSchemeDivisionCell?.division,
+        clickedSchemeDivisionCell?.metric,
+        clickedSchemeDivisionCell?.region,
+        schemeFilter,
+      ],
+      enabled: !!clickedSchemeDivisionCell,
+      queryFn: async () => {
+        const params = new URLSearchParams();
+        if (clickedSchemeDivisionCell?.region && clickedSchemeDivisionCell.region !== "All Regions") {
+          params.append("region", clickedSchemeDivisionCell.region);
+        }
+        if (schemeFilter !== 'all') {
+          params.append("filterType", schemeFilter);
+        }
+        const response = await fetch(
+          `/api/chlorine/scheme-lpcd/division-details/${encodeURIComponent(clickedSchemeDivisionCell?.division || '')}/${clickedSchemeDivisionCell?.metric}?${params.toString()}`,
+        );
+        if (!response.ok) throw new Error("Failed to fetch Scheme LPCD division details");
+        return response.json();
+      },
+    });
+
+  // Scheme LPCD Day-Wise Breakdown Query
+  const { data: schemeLpcdDayWiseData, isLoading: isLoadingSchemeLpcdDayWise } =
+    useQuery<{
+      success: boolean;
+      data: { days: number; below_55: number; above_55: number; no_water: number; with_water: number }[];
+    }>({
+      queryKey: ["/api/chlorine/scheme-lpcd/day-wise-breakdown", schemeLpcdDayWiseRegion, schemeFilter],
+      enabled: mainTab === "lpcd" && lpcdSubTab === "scheme" && categoryTab === "daywise",
+      queryFn: async () => {
+        const params = new URLSearchParams();
+        if (schemeLpcdDayWiseRegion && schemeLpcdDayWiseRegion !== "All Regions") {
+          params.append("region", schemeLpcdDayWiseRegion);
+        }
+        if (schemeFilter !== 'all') {
+          params.append("filterType", schemeFilter);
+        }
+        const response = await fetch(`/api/chlorine/scheme-lpcd/day-wise-breakdown?${params.toString()}`);
+        if (!response.ok) throw new Error("Failed to fetch Scheme LPCD day-wise breakdown");
+        return response.json();
+      },
+    });
+
+  // Weekly LPCD Statistics Query
+  interface WeeklyLPCDStat {
+    region: string;
+    above_55: number;
+    below_55: number;
+    no_water: number;
+  }
+
+  interface WeeklyLPCDStatsResponse {
+    success: boolean;
+    villageStats: WeeklyLPCDStat[];
+    schemeStats: WeeklyLPCDStat[];
+    weekLabel: string;
+    dates: string[];
+  }
+
+  const { data: weeklyLpcdStats, isLoading: isLoadingWeekly, error: weeklyError } = useQuery<WeeklyLPCDStatsResponse>({
+    queryKey: ["/api/chlorine/weekly-lpcd/stats", schemeFilter],
+    queryFn: async () => {
+      console.log("Fetching weekly LPCD stats...");
+      const params = new URLSearchParams();
+      if (schemeFilter !== 'all') {
+        params.append("filterType", schemeFilter);
+      }
+      const response = await fetch(`/api/chlorine/weekly-lpcd/stats?${params.toString()}`);
+      if (!response.ok) throw new Error("Failed to fetch weekly LPCD statistics");
+      const data = await response.json();
+      console.log("Fetched weekly LPCD stats:", data);
+      return data;
+    },
+  });
+
+  // Log the hook state to debug visibility issues
+  console.log("Weekly LPCD Stats Hook State:", { data: weeklyLpcdStats, isLoading: isLoadingWeekly, error: weeklyError });
+
+  // Scheme LPCD Day-Wise Schemes List Query
+  const { data: schemeLpcdDayWiseSchemes, isLoading: isLoadingSchemeDayWiseSchemes } =
+    useQuery<{
+      success: boolean;
+      data: SchemeLPCDDetailItem[];
+      count: number;
+    }>({
+      queryKey: [
+        "/api/chlorine/scheme-lpcd/day-wise-schemes",
+        clickedSchemeDayWiseCell?.metric,
+        clickedSchemeDayWiseCell?.days,
+        clickedSchemeDayWiseCell?.region,
+        schemeFilter,
+      ],
+      enabled: !!clickedSchemeDayWiseCell,
+      queryFn: async () => {
+        const params = new URLSearchParams();
+        if (clickedSchemeDayWiseCell?.region && clickedSchemeDayWiseCell.region !== "All Regions") {
+          params.append("region", clickedSchemeDayWiseCell.region);
+        }
+        if (schemeFilter !== 'all') {
+          params.append("filterType", schemeFilter);
+        }
+        const response = await fetch(
+          `/api/chlorine/scheme-lpcd/day-wise-schemes/${clickedSchemeDayWiseCell?.metric}/${clickedSchemeDayWiseCell?.days}?${params.toString()}`,
+        );
+        if (!response.ok) throw new Error("Failed to fetch Scheme LPCD day-wise schemes");
+        return response.json();
+      },
+    });
+
+  // Scheme LPCD Region Comparison Query
+  const { data: schemeLpcdRegionComparison, isLoading: isLoadingSchemeRegionComparison } =
+    useQuery<{
+      success: boolean;
+      data: { region: string; total_schemes: number; above_55: number; below_55: number; with_water: number; no_water: number }[];
+      latestDate: string;
+    }>({
+      queryKey: ["/api/chlorine/scheme-lpcd/region-comparison", schemeFilter],
+      enabled: mainTab === "lpcd" && lpcdSubTab === "scheme" && categoryTab === "overall-comparison",
+      queryFn: async () => {
+        const params = new URLSearchParams();
+        if (schemeFilter !== 'all') {
+          params.append("filterType", schemeFilter);
+        }
+        const queryString = params.toString();
+        const url = `/api/chlorine/scheme-lpcd/region-comparison${queryString ? `?${queryString}` : ""}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("Failed to fetch Scheme LPCD region comparison");
+        return response.json();
+      },
+    });
+
+  // Scheme LPCD Day-wise All Regions Query
+  const [schemeLpcdComparisonCategory, setSchemeLpcdComparisonCategory] = useState<
+    "below_55" | "above_55" | "with_water" | "no_water"
+  >("below_55");
+
+  const {
+    data: schemeLpcdDayWiseAllRegions,
+    isLoading: isLoadingSchemeLpcdDayWiseAllRegions,
+  } = useQuery<{
+    success: boolean;
+    data: { [region: string]: { days: number; below_55: number; above_55: number; with_water: number; no_water: number }[] };
+  }>({
+    queryKey: ["/api/chlorine/scheme-lpcd/day-wise-breakdown/all-regions", schemeFilter],
+    enabled: mainTab === "lpcd" && lpcdSubTab === "scheme" && categoryTab === "daywise" && dayWiseSubTab === "region-comparison",
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (schemeFilter !== 'all') {
+        params.append("filterType", schemeFilter);
+      }
+      const queryString = params.toString();
+      const url = `/api/chlorine/scheme-lpcd/day-wise-breakdown/all-regions${queryString ? `?${queryString}` : ""}`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch Scheme LPCD day-wise breakdown for all regions");
+      return response.json();
+    },
+  });
+
+  // Scheme LPCD Region Comparison Schemes List Query
+  const { data: schemeLpcdComparisonSchemes, isLoading: isLoadingSchemeComparisonSchemes } =
+    useQuery<{
+      success: boolean;
+      data: SchemeLPCDDetailItem[];
+      count: number;
+    }>({
+      queryKey: [
+        "/api/chlorine/scheme-lpcd/region-comparison-schemes",
+        clickedSchemeComparisonCell?.category,
+        clickedSchemeComparisonCell?.region,
+        schemeFilter,
+      ],
+      enabled: !!clickedSchemeComparisonCell,
+      queryFn: async () => {
+        const params = new URLSearchParams();
+        if (clickedSchemeComparisonCell?.region && clickedSchemeComparisonCell.region !== "All Regions") {
+          params.append("region", clickedSchemeComparisonCell.region);
+        }
+        if (schemeFilter !== 'all') {
+          params.append("filterType", schemeFilter);
+        }
+        if (clickedSchemeComparisonCell?.dates) {
+          params.append("dates", clickedSchemeComparisonCell.dates.join(","));
+        }
+        const response = await fetch(
+          `/api/chlorine/scheme-lpcd/region-comparison-schemes/${clickedSchemeComparisonCell?.category}?${params.toString()}`,
+        );
+        if (!response.ok) throw new Error("Failed to fetch Scheme LPCD comparison schemes");
+        return response.json();
+      },
+    });
+
+  // Pressure Regional Stats Query
+  interface PressureRegionalStats {
+    region: string;
+    totalConnected: number;
+    totalOnline: number;
+    onlineWithWater: number;
+    onlineWithWaterPressureOptimal: number;
+    onlineWithWaterPressureAbove: number;
+    onlineWithWaterPressureBelow: number;
+    onlineWithWaterNoPressureData: number;
+    onlineWithoutWater: number;
+    onlineWithoutWaterPressureOptimal: number;
+    onlineWithoutWaterPressureAbove: number;
+    onlineWithoutWaterPressureBelow: number;
+    totalOffline: number;
+    offlineSince7Days: number;
+    offlineSince30Days: number;
+    offlineSince3Days: number;
+  }
+
+  const {
+    data: pressureRegionalStats = [],
+    isLoading: isLoadingPressureRegional,
+  } = useQuery<PressureRegionalStats[]>({
+    queryKey: ["/api/pressure/regional-stats", schemeFilter],
+    enabled: mainTab === "pressure",
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (schemeFilter !== 'all') {
+        params.append("filterType", schemeFilter);
+      }
+      const queryString = params.toString();
+      const url = `/api/pressure/regional-stats${queryString ? `?${queryString}` : ""}`;
+      const response = await fetch(url);
+      if (!response.ok)
+        throw new Error("Failed to fetch pressure regional statistics");
+      return response.json();
+    },
+  });
+
+  // Pressure Day-Wise Breakdown Query
+  interface PressureDayWiseBreakdown {
+    days: number;
+    offline: number;
+    below_0_2: number;
+    above_0_7: number;
+    optimal_0_2_0_7: number;
+  }
+
+  const { data: pressureDayWiseData, isLoading: isLoadingPressureDayWise } =
+    useQuery<{
+      success: boolean;
+      data: PressureDayWiseBreakdown[];
+      region: string;
+    }>({
+      queryKey: ["/api/pressure/day-wise-breakdown", pressureDayWiseRegion, schemeFilter],
+      enabled: mainTab === "pressure" && !!pressureDayWiseRegion,
+      queryFn: async () => {
+        const params = new URLSearchParams();
+        if (pressureDayWiseRegion && pressureDayWiseRegion !== "All Regions") {
+          params.append("region", pressureDayWiseRegion);
+        }
+        if (schemeFilter !== "all") {
+          params.append("filterType", schemeFilter);
+        }
+        if (schemeFilter === "fully_completed") {
+          params.append("fullyCompleted", "true");
+        }
+        console.log('[Pressure Day-Wise Breakdown] Filter params:', { schemeFilter, params: params.toString() });
+        const response = await fetch(
+          `/api/pressure/day-wise-breakdown?${params.toString()}`,
+        );
+        if (!response.ok)
+          throw new Error("Failed to fetch pressure day-wise breakdown");
+        return response.json();
+      },
+    });
+
+  // Pressure Region Comparison Query (for Day-Wise breakdown all regions view)
+  const {
+    data: pressureRegionComparisonData,
+    isLoading: isLoadingPressureRegionComparison,
+  } = useQuery<{
+    success: boolean;
+    data: { [region: string]: PressureDayWiseBreakdown[] };
+  }>({
+    queryKey: [
+      "/api/pressure/day-wise-breakdown/all-regions",
+      pressureRegionalStats.map((stat) => stat.region).join(","),
+      schemeFilter,
+    ],
+    enabled: mainTab === "pressure" && pressureRegionalStats.length > 0,
+    queryFn: async () => {
+      const regions = pressureRegionalStats.map((stat) => stat.region);
+      const grouped: { [region: string]: PressureDayWiseBreakdown[] } = {};
+
+      await Promise.all(
+        regions.map(async (region) => {
+          const params = new URLSearchParams();
+          params.append("region", encodeURIComponent(region));
+          if (schemeFilter !== "all") {
+            params.append("filterType", schemeFilter);
+          }
+          if (schemeFilter === "fully_completed") {
+            params.append("fullyCompleted", "true");
+          }
+          const response = await fetch(
+            `/api/pressure/day-wise-breakdown?${params.toString()}`,
+          );
+          if (response.ok) {
+            const data = await response.json();
+            grouped[region] = data.data || [];
+          }
+        }),
+      );
+
+      return { success: true, data: grouped };
+    },
+  });
+
+  // Pressure comparison category and clicked cell state
+  const [pressureComparisonCategory, setPressureComparisonCategory] = useState<
+    "offline" | "below_0_2" | "above_0_7" | "optimal_0_2_0_7"
+  >("offline");
+
+  interface PressureRegionComparisonClickedCell {
+    region: string;
+    day: number;
+    category: "offline" | "below_0_2" | "above_0_7" | "optimal_0_2_0_7";
+    label: string;
+  }
+  const [showDailyData, setShowDailyData] = useState<boolean>(false);
+  const [
+    clickedPressureRegionComparisonCell,
+    setClickedPressureRegionComparisonCell,
+  ] = useState<PressureRegionComparisonClickedCell | null>(null);
+
+  // Pressure Region Comparison Sensors Query
+  const {
+    data: pressureRegionComparisonSensors,
+    isLoading: isLoadingPressureRegionComparisonSensors,
+  } = useQuery<{
+    success: boolean;
+    data: any[];
+    count: number;
+  }>({
+    queryKey: [
+      "/api/pressure/day-wise-sensors",
+      clickedPressureRegionComparisonCell?.category,
+      clickedPressureRegionComparisonCell?.day,
+      clickedPressureRegionComparisonCell?.region,
+      schemeFilter,
+    ],
+    enabled: !!clickedPressureRegionComparisonCell,
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (clickedPressureRegionComparisonCell?.region) {
+        params.append("region", clickedPressureRegionComparisonCell.region);
+      }
+      if (schemeFilter !== "all") {
+        params.append("filterType", schemeFilter);
+      }
+      if (schemeFilter === "fully_completed") {
+        params.append("fullyCompleted", "true");
+      }
+
+      const response = await fetch(
+        `/api/pressure/day-wise-sensors/${clickedPressureRegionComparisonCell?.category}/${clickedPressureRegionComparisonCell?.day}?${params.toString()}`,
+      );
+
+      if (!response.ok)
+        throw new Error("Failed to fetch pressure region comparison sensors");
+      return response.json();
+    },
+  });
+
+  interface PressureDivisionSummary {
+    region: string;
+    division: string;
+    totalSensors: number;
+    sensorsBelow02: number;
+    sensorsOptimal: number;
+    sensorsAbove07: number;
+  }
+
+  const { data: pressureDivisionData, isLoading: isLoadingPressureDivision } =
+    useQuery<{
+      success: boolean;
+      data: PressureDivisionSummary[];
+      region: string;
+    }>({
+      queryKey: [
+        "/api/pressure/division-wise-summary",
+        pressureDivisionWiseRegion,
+        schemeFilter,
+      ],
+      enabled: mainTab === "pressure",
+      queryFn: async () => {
+        const params = new URLSearchParams();
+        if (
+          pressureDivisionWiseRegion &&
+          pressureDivisionWiseRegion !== "All Regions"
+        ) {
+          params.append("region", pressureDivisionWiseRegion);
+        }
+        if (schemeFilter !== "all") {
+          params.append("filterType", schemeFilter);
+        }
+        if (schemeFilter === "fully_completed") {
+          params.append("fullyCompleted", "true");
+        }
+        console.log('[Pressure Division Summary] Filter params:', { schemeFilter, params: params.toString() });
+        const response = await fetch(
+          `/api/pressure/division-wise-summary?${params.toString()}`,
+        );
+        if (!response.ok)
+          throw new Error("Failed to fetch pressure division summary");
+        return response.json();
+      },
+    });
+
+  // Pressure Overall Region Comparison Query
+  interface PressureOverallComparison {
+    region: string;
+    offline: number;
+    below_0_2: number;
+    optimal_0_2_0_7: number;
+    above_0_7: number;
+    consistent_below_0_2: number;
+    consistent_optimal: number;
+    consistent_above_0_7: number;
+  }
+
+  const {
+    data: pressureOverallComparison,
+    isLoading: isLoadingPressureComparison,
+  } = useQuery<{
+    success: boolean;
+    data: PressureOverallComparison[];
+  }>({
+    queryKey: ["/api/pressure/overall-region-comparison", schemeFilter],
+    enabled: mainTab === "pressure",
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (schemeFilter !== 'all') {
+        params.append("filterType", schemeFilter);
+      }
+      const queryString = params.toString();
+      const url = `/api/pressure/overall-region-comparison${queryString ? `?${queryString}` : ""}`;
+      const response = await fetch(url);
+      if (!response.ok)
+        throw new Error("Failed to fetch pressure overall comparison");
+      return response.json();
+    },
+  });
+
+  // Pressure Details Query (for clicked cells)
+  const { data: pressureSensorDetails, isLoading: isLoadingPressureDetails } =
+    useQuery<{
+      data: any[];
+      count: number;
+    }>({
+      queryKey: [
+        "/api/pressure/details",
+        clickedPressureCell?.statisticType,
+        clickedPressureCell?.region,
+        schemeFilter,
+      ],
+      enabled: !!clickedPressureCell,
+      queryFn: async () => {
+        const params = new URLSearchParams();
+        if (
+          clickedPressureCell?.region &&
+          clickedPressureCell.region !== "All Regions"
+        ) {
+          params.append("region", clickedPressureCell.region);
+        }
+        if (schemeFilter !== "all") {
+          params.append("filterType", schemeFilter);
+        }
+        if (schemeFilter === "fully_completed") {
+          params.append("fullyCompleted", "true");
+        }
+        const response = await fetch(
+          `/api/pressure/details/${clickedPressureCell?.statisticType}?${params.toString()}`,
+        );
+        if (!response.ok)
+          throw new Error("Failed to fetch pressure sensor details");
+        return response.json();
+      },
+    });
+
+  // Pressure Comparison Details Query (for clicked comparison cells)
+  const {
+    data: pressureComparisonDetails,
+    isLoading: isLoadingPressureComparisonDetails,
+  } = useQuery<{
+    success: boolean;
+    data: any[];
+    count: number;
+    category: string;
+    region: string;
+  }>({
+    queryKey: [
+      "/api/pressure/overall-region-comparison/details",
+      clickedPressureComparisonCell?.category,
+      clickedPressureComparisonCell?.region,
+      schemeFilter,
+    ],
+    enabled: !!clickedPressureComparisonCell,
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (clickedPressureComparisonCell?.region && clickedPressureComparisonCell.region !== "All Regions") {
+        params.append("region", clickedPressureComparisonCell.region);
+      }
+      if (schemeFilter !== "all") {
+        params.append("filterType", schemeFilter);
+      }
+      if (schemeFilter === "fully_completed") {
+        params.append("fullyCompleted", "true");
+      }
+      const response = await fetch(
+        `/api/pressure/overall-region-comparison/details/${clickedPressureComparisonCell?.category}?${params.toString()}`,
+      );
+      if (!response.ok)
+        throw new Error("Failed to fetch pressure comparison details");
+      return response.json();
+    },
+  });
+
+  // Pressure Division Sensors Query (for clicked division cells)
+  const {
+    data: pressureDivisionSensors,
+    isLoading: isLoadingPressureDivisionSensors,
+  } = useQuery<{
+    success: boolean;
+    data: any[];
+    count: number;
+    division: string;
+    metric: string;
+    region: string;
+  }>({
+    queryKey: [
+      "/api/pressure/division-sensors",
+      clickedPressureDivisionCell?.division,
+      clickedPressureDivisionCell?.metric,
+      pressureDivisionWiseRegion,
+      schemeFilter,
+    ],
+    enabled: !!clickedPressureDivisionCell,
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.append("division", clickedPressureDivisionCell?.division || "");
+      params.append("metric", clickedPressureDivisionCell?.metric || "");
+      if (
+        pressureDivisionWiseRegion &&
+        pressureDivisionWiseRegion !== "All Regions"
+      ) {
+        params.append("region", pressureDivisionWiseRegion);
+      }
+      if (schemeFilter !== "all") {
+        params.append("filterType", schemeFilter);
+      }
+      if (schemeFilter === "fully_completed") {
+        params.append("fullyCompleted", "true");
+      }
+      const response = await fetch(
+        `/api/pressure/division-sensors?${params.toString()}`,
+      );
+      if (!response.ok)
+        throw new Error("Failed to fetch pressure division sensors");
+      return response.json();
+    },
+  });
+
+  // Pressure Day-Wise Sensors Query (for clicked day-wise cells)
+  const {
+    data: pressureDayWiseSensors,
+    isLoading: isLoadingPressureDayWiseSensors,
+  } = useQuery<{
+    success: boolean;
+    data: any[];
+    count: number;
+    metric: string;
+    days: number;
+    region: string;
+  }>({
+    queryKey: [
+      "/api/pressure/day-wise-sensors",
+      clickedPressureDayWiseCell?.metric,
+      clickedPressureDayWiseCell?.days,
+      pressureDayWiseRegion,
+      schemeFilter,
+    ],
+    enabled: !!clickedPressureDayWiseCell,
+    queryFn: async () => {
+      const metric = clickedPressureDayWiseCell?.metric || "";
+      const days = clickedPressureDayWiseCell?.days || 1;
+      const params = new URLSearchParams();
+      if (pressureDayWiseRegion && pressureDayWiseRegion !== "All Regions") {
+        params.append("region", pressureDayWiseRegion);
+      }
+      if (schemeFilter !== 'all') {
+        params.append("filterType", schemeFilter);
+      }
+      if (schemeFilter === "fully_completed") {
+        params.append("fullyCompleted", "true");
+      }
+      const response = await fetch(
+        `/api/pressure/day-wise-sensors/${metric}/${days}?${params.toString()}`,
+      );
+      if (!response.ok)
+        throw new Error("Failed to fetch pressure day-wise sensors");
+      return response.json();
+    },
+  });
+
+  // Pressure Regional Totals
+  const pressureRegionalTotals = useMemo(() => {
+    if (!pressureRegionalStats || pressureRegionalStats.length === 0) {
+      return {
+        region: "All Regions",
+        totalConnected: 0,
+        totalOnline: 0,
+        onlineWithWater: 0,
+        onlineWithWaterPressureOptimal: 0,
+        onlineWithWaterPressureAbove: 0,
+        onlineWithWaterPressureBelow: 0,
+        onlineWithWaterNoPressureData: 0,
+        onlineWithoutWater: 0,
+        totalOffline: 0,
+        offlineSince7Days: 0,
+        offlineSince30Days: 0,
+        offlineSince3Days: 0,
+      };
+    }
+
+    return pressureRegionalStats.reduce(
+      (acc, stat) => ({
+        region: "All Regions",
+        totalConnected: acc.totalConnected + stat.totalConnected,
+        totalOnline: acc.totalOnline + stat.totalOnline,
+        onlineWithWater: acc.onlineWithWater + stat.onlineWithWater,
+        onlineWithWaterPressureOptimal:
+          acc.onlineWithWaterPressureOptimal +
+          stat.onlineWithWaterPressureOptimal,
+        onlineWithWaterPressureAbove:
+          acc.onlineWithWaterPressureAbove + stat.onlineWithWaterPressureAbove,
+        onlineWithWaterPressureBelow:
+          acc.onlineWithWaterPressureBelow + stat.onlineWithWaterPressureBelow,
+        onlineWithWaterNoPressureData:
+          acc.onlineWithWaterNoPressureData +
+          stat.onlineWithWaterNoPressureData,
+        onlineWithoutWater: acc.onlineWithoutWater + stat.onlineWithoutWater,
+        totalOffline: acc.totalOffline + stat.totalOffline,
+        offlineSince7Days: acc.offlineSince7Days + stat.offlineSince7Days,
+        offlineSince30Days: acc.offlineSince30Days + stat.offlineSince30Days,
+        offlineSince3Days: acc.offlineSince3Days + stat.offlineSince3Days,
+      }),
+      {
+        region: "All Regions",
+        totalConnected: 0,
+        totalOnline: 0,
+        onlineWithWater: 0,
+        onlineWithWaterPressureOptimal: 0,
+        onlineWithWaterPressureAbove: 0,
+        onlineWithWaterPressureBelow: 0,
+        onlineWithWaterNoPressureData: 0,
+        onlineWithoutWater: 0,
+        totalOffline: 0,
+        offlineSince7Days: 0,
+        offlineSince30Days: 0,
+        offlineSince3Days: 0,
+      },
+    );
+  }, [pressureRegionalStats]);
+
+  // Handle pressure cell clicks
+  const handlePressureCellClick = (
+    statisticType: string,
+    region: string,
+    label: string,
+  ) => {
+    setClickedPressureCell({ statisticType, region, label });
+  };
+
+  const handlePressureComparisonCellClick = (
+    category: string,
+    region: string,
+    label: string,
+  ) => {
+    setClickedPressureComparisonCell({
+      category,
+      region,
+      label,
+      isLpcd: false,
+    });
+  };
+
+  const handlePressureDivisionCellClick = (
+    division: string,
+    region: string,
+    metric:
+      | "withWater"
+      | "noWater"
+      | "above55"
+      | "below55"
+      | "below02"
+      | "optimal"
+      | "above07",
+    label: string,
+  ) => {
+    setClickedPressureDivisionCell({
+      division,
+      region,
+      metric: metric as "withWater" | "noWater" | "above55" | "below55",
+      label,
+    });
+  };
+
+  const handlePressureDayWiseCellClick = (
+    metric:
+      | "offline"
+      | "below_0_2"
+      | "above_0_5"
+      | "optimal_0_2_0_5"
+      | "above_0_7"
+      | "optimal_0_2_0_7",
+    days: number,
+    label: string,
+  ) => {
+    setClickedPressureDayWiseCell({ metric, days, label });
+  };
+
+  const lpcdRegionalTotals = useMemo(() => {
+    if (!lpcdRegionalStats?.data || lpcdRegionalStats.data.length === 0) {
+      return {
+        region: "All Regions",
+        totalConnected: 0,
+        totalOnline: 0,
+        totalOffline: 0,
+        villagesWithWater: 0,
+        villagesAbove55: 0,
+        villagesBelow55: 0,
+        villagesNoWater: 0,
+        below55For3Days: 0,
+        below55For7Days: 0,
+        below55For30Days: 0,
+      };
+    }
+
+    return lpcdRegionalStats.data.reduce(
+      (acc, stat) => ({
+        region: "All Regions",
+        totalConnected: acc.totalConnected + stat.totalConnected,
+        totalOnline: acc.totalOnline + stat.totalOnline,
+        totalOffline: acc.totalOffline + stat.totalOffline,
+        villagesWithWater: acc.villagesWithWater + stat.villagesWithWater,
+        villagesAbove55: acc.villagesAbove55 + stat.villagesAbove55,
+        villagesBelow55: acc.villagesBelow55 + stat.villagesBelow55,
+        villagesNoWater: acc.villagesNoWater + stat.villagesNoWater,
+        below55For3Days: acc.below55For3Days + stat.below55For3Days,
+        below55For7Days: acc.below55For7Days + stat.below55For7Days,
+        below55For30Days: acc.below55For30Days + stat.below55For30Days,
+      }),
+      {
+        region: "All Regions",
+        totalConnected: 0,
+        totalOnline: 0,
+        totalOffline: 0,
+        villagesWithWater: 0,
+        villagesAbove55: 0,
+        villagesBelow55: 0,
+        villagesNoWater: 0,
+        below55For3Days: 0,
+        below55For7Days: 0,
+        below55For30Days: 0,
+      },
+    );
+  }, [lpcdRegionalStats?.data]);
+
+  const handleLPCDCellClick = (
+    statisticType: string,
+    region: string,
+    label: string,
+  ) => {
+    setClickedLPCDCell({ statisticType, region, label });
+  };
+
+  const handleLPCDDownloadExcel = () => {
+    if (!clickedLPCDCell) return;
+
+    const params = new URLSearchParams();
+    if (clickedLPCDCell.region && clickedLPCDCell.region !== "All Regions") {
+      params.append("region", clickedLPCDCell.region);
+    }
+    if (schemeFilter !== 'all') {
+      params.append("filterType", schemeFilter);
+    }
+
+    const url = `/api/chlorine/lpcd/export/${clickedLPCDCell.statisticType}?${params.toString()}`;
+    window.open(url, "_blank");
+  };
+
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load chlorine sensor statistics",
+        variant: "destructive",
+      });
+    }
+  }, [error, toast]);
+
+  useEffect(() => {
+    if (regionalStats && regionalStats.length > 0 && !selectedRegion) {
+      setSelectedRegion("All Regions");
+    }
+  }, [regionalStats, selectedRegion]);
+
+  useEffect(() => {
+    if (regionalStats && regionalStats.length > 0 && !dayWiseRegion) {
+      setDayWiseRegion("All Regions");
+    }
+  }, [regionalStats, dayWiseRegion]);
+
+  const totals = useMemo(() => {
+    if (!regionalStats || regionalStats.length === 0) {
+      return {
+        region: "All Regions",
+        totalConnected: 0,
+        totalOnline: 0,
+        onlineWithWater: 0,
+        onlineWithWaterChlorineOptimal: 0,
+        onlineWithWaterChlorineAbove: 0,
+        onlineWithWaterChlorineBelow: 0,
+        onlineWithWaterNoChlorineData: 0,
+        onlineWithoutWater: 0,
+        onlineWithoutWaterChlorineOptimal: 0,
+        onlineWithoutWaterChlorineAbove: 0,
+        onlineWithoutWaterChlorineBelow: 0,
+        totalOffline: 0,
+        offlineSince7Days: 0,
+        offlineSince30Days: 0,
+        offlineSince3Days: 0,
+      };
+    }
+
+    return regionalStats.reduce(
+      (acc, stat) => ({
+        region: "All Regions",
+        totalConnected: acc.totalConnected + stat.totalConnected,
+        totalOnline: acc.totalOnline + stat.totalOnline,
+        onlineWithWater: acc.onlineWithWater + stat.onlineWithWater,
+        onlineWithWaterChlorineOptimal:
+          acc.onlineWithWaterChlorineOptimal +
+          stat.onlineWithWaterChlorineOptimal,
+        onlineWithWaterChlorineAbove:
+          acc.onlineWithWaterChlorineAbove + stat.onlineWithWaterChlorineAbove,
+        onlineWithWaterChlorineBelow:
+          acc.onlineWithWaterChlorineBelow + stat.onlineWithWaterChlorineBelow,
+        onlineWithWaterNoChlorineData:
+          acc.onlineWithWaterNoChlorineData +
+          stat.onlineWithWaterNoChlorineData,
+        onlineWithoutWater: acc.onlineWithoutWater + stat.onlineWithoutWater,
+        onlineWithoutWaterChlorineOptimal:
+          acc.onlineWithoutWaterChlorineOptimal +
+          stat.onlineWithoutWaterChlorineOptimal,
+        onlineWithoutWaterChlorineAbove:
+          acc.onlineWithoutWaterChlorineAbove +
+          stat.onlineWithoutWaterChlorineAbove,
+        onlineWithoutWaterChlorineBelow:
+          acc.onlineWithoutWaterChlorineBelow +
+          stat.onlineWithoutWaterChlorineBelow,
+        totalOffline: acc.totalOffline + stat.totalOffline,
+        offlineSince7Days: acc.offlineSince7Days + stat.offlineSince7Days,
+        offlineSince30Days: acc.offlineSince30Days + stat.offlineSince30Days,
+        offlineSince3Days: acc.offlineSince3Days + stat.offlineSince3Days,
+      }),
+      {
+        region: "All Regions",
+        totalConnected: 0,
+        totalOnline: 0,
+        onlineWithWater: 0,
+        onlineWithWaterChlorineOptimal: 0,
+        onlineWithWaterChlorineAbove: 0,
+        onlineWithWaterChlorineBelow: 0,
+        onlineWithWaterNoChlorineData: 0,
+        onlineWithoutWater: 0,
+        onlineWithoutWaterChlorineOptimal: 0,
+        onlineWithoutWaterChlorineAbove: 0,
+        onlineWithoutWaterChlorineBelow: 0,
+        totalOffline: 0,
+        offlineSince7Days: 0,
+        offlineSince30Days: 0,
+        offlineSince3Days: 0,
+      },
+    );
+  }, [regionalStats]);
+
+  const handleCellClick = (
+    statisticType: string,
+    region: string,
+    label: string,
+  ) => {
+    setClickedCell({ statisticType, region, label });
+  };
+
+  const handleDownloadExcel = () => {
+    if (!clickedCell) return;
+
+    const params = new URLSearchParams();
+    if (clickedCell.region && clickedCell.region !== "All Regions") {
+      params.append("region", clickedCell.region);
+    }
+
+    const url = `/api/chlorine/export/${clickedCell.statisticType}?${params.toString()}`;
+    window.open(url, "_blank");
+  };
+
+  const renderClickableBadge = (
+    value: number,
+    statisticType: string,
+    region: string,
+    label: string,
+    className: string,
+  ) => (
+    <Badge
+      variant="secondary"
+      className={`${className} cursor-pointer hover:opacity-80 transition-opacity`}
+      onClick={() => handleCellClick(statisticType, region, label)}
+      data-testid={`badge-${statisticType}-${region}`}
+    >
+      {value}
+    </Badge>
+  );
+
+  const renderRegionBar = (stat: RegionalChlorineStats) => {
+    const segments = [
+      {
+        label: "Connected Sensors",
+        statisticType: "connected",
+        value: stat.totalConnected,
+        color: "#3b82f6",
+      },
+      {
+        label: "Online",
+        statisticType: "online",
+        value: stat.totalOnline,
+        color: "#22c55e",
+      },
+      {
+        label: "Online with Water",
+        statisticType: "online-with-water",
+        value: stat.onlineWithWater,
+        color: "#4ade80",
+      },
+      {
+        label: "Optimal Cl (0.2-0.5)",
+        statisticType: "online-with-water-chlorine-optimal",
+        value: stat.onlineWithWaterChlorineOptimal,
+        color: "#14b8a6",
+      },
+      {
+        label: "Above Cl (>0.5)",
+        statisticType: "online-with-water-chlorine-above",
+        value: stat.onlineWithWaterChlorineAbove,
+        color: "#ef4444",
+      },
+      {
+        label: "Below cl (<0.2)",
+        statisticType: "online-with-water-chlorine-below",
+        value: stat.onlineWithWaterChlorineBelow,
+        color: "#ef4444",
+      },
+      {
+        label: "No Data from Sensor",
+        statisticType: "online-with-water-no-chlorine-data",
+        value: stat.onlineWithWaterNoChlorineData,
+        color: "#9ca3af",
+      },
+      {
+        label: "Offline/Data loss",
+        statisticType: "offline",
+        value: stat.totalOffline,
+        color: "#b91c1c",
+      },
+      {
+        label: "Offline > 3 Days",
+        statisticType: "offline-3days",
+        value: stat.offlineSince3Days,
+        color: "#f59e0b",
+      },
+      {
+        label: "Offline > 7 Days",
+        statisticType: "offline-7days",
+        value: stat.offlineSince7Days,
+        color: "#b91c1c",
+      },
+      {
+        label: "Offline > 30 Days",
+        statisticType: "offline-30days",
+        value: stat.offlineSince30Days,
+        color: "#7f1d1d",
+      },
+    ];
+
+    const chartData = segments;
+
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div
+            className="relative overflow-hidden bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+            onClick={() =>
+              handleCellClick("connected", stat.region, "Connected Sensors")
+            }
+            data-testid={`stat-card-connected-${stat.region}`}
+          >
+            <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+            <div className="relative z-10">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                  <Wifi className="h-3.5 w-3.5 text-white" />
+                </div>
+                <span className="!text-[12px] font-medium text-blue-100">
+                  Total Connected
+                </span>
+              </div>
+              <div className="text-2xl font-bold text-white">
+                {stat.totalConnected.toLocaleString()}
+              </div>
+            </div>
+          </div>
+
+          <div
+            className="relative overflow-hidden bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+            onClick={() => handleCellClick("online", stat.region, "Online")}
+            data-testid={`stat-card-online-${stat.region}`}
+          >
+            <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+            <div className="relative z-10">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                  <Activity className="h-3.5 w-3.5 text-white" />
+                </div>
+                <span className="!text-[12px] font-medium text-emerald-100">
+                  Total Online
+                </span>
+              </div>
+              <div className="text-2xl font-bold text-white">
+                {stat.totalOnline.toLocaleString()}
+              </div>
+            </div>
+          </div>
+
+          <div
+            className="relative overflow-hidden bg-gradient-to-br from-teal-500 via-teal-600 to-teal-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+            onClick={() =>
+              handleCellClick(
+                "online-with-water-chlorine-optimal",
+                stat.region,
+                "Optimal Chlorine",
+              )
+            }
+            data-testid={`stat-card-optimal-${stat.region}`}
+          >
+            <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+            <div className="relative z-10">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                </div>
+                <span className="!text-[12px] font-medium text-teal-100">
+                  Optimal Chlorine
+                </span>
+              </div>
+              <div className="text-2xl font-bold text-white">
+                {stat.onlineWithWaterChlorineOptimal.toLocaleString()}
+              </div>
+              <div className="!text-[12px] text-teal-200 mt-0.5">
+                0.2 - 0.5 mg/l
+              </div>
+            </div>
+          </div>
+
+          <div
+            className="relative overflow-hidden bg-gradient-to-br from-red-500 via-red-600 to-red-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+            onClick={() => handleCellClick("offline", stat.region, "Offline")}
+            data-testid={`stat-card-offline-${stat.region}`}
+          >
+            <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+            <div className="relative z-10">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                  <WifiOff className="h-3.5 w-3.5 text-white" />
+                </div>
+                <span className="!text-[12px] font-medium text-red-100">
+                  Offline
+                </span>
+              </div>
+              <div className="text-2xl font-bold text-white">
+                {stat.totalOffline.toLocaleString()}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-900 rounded-lg border-2 border-gray-300 dark:border-gray-600 shadow-md overflow-hidden">
+          <div className="bg-gray-50 dark:bg-gray-800 px-4 py-2.5 border-b border-gray-200 dark:border-gray-700">
+            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-blue-600" />
+              Detailed Breakdown - {stat.region}
+            </h3>
+          </div>
+          <div className="p-4">
+            <div
+              className="w-full"
+              style={{ height: Math.max(chartData.length * 42 + 60, 450) }}
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={chartData}
+                  layout="vertical"
+                  margin={{ top: 10, right: 60, left: 10, bottom: 20 }}
+                  barCategoryGap={2}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#e5e7eb"
+                    vertical={true}
+                    horizontal={false}
+                  />
+                  <XAxis
+                    type="number"
+                    tick={{ fontSize: 12, fill: "#6b7280", fontWeight: 500 }}
+                    axisLine={{ stroke: "#d1d5db" }}
+                    tickLine={{ stroke: "#d1d5db" }}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="label"
+                    width={180}
+                    tick={{ fill: "#374151", fontSize: 13, fontWeight: 500 }}
+                    axisLine={{ stroke: "#d1d5db" }}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "rgba(0, 0, 0, 0.05)" }}
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-white dark:bg-gray-800 px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg">
+                            <p className="font-semibold text-sm text-gray-900 dark:text-white">
+                              {payload[0].payload.label}
+                            </p>
+                            <p className="text-lg font-bold text-blue-600 dark:text-blue-400 mt-1">
+                              {payload[0].value?.toLocaleString()}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                              <Eye className="h-3 w-3" />
+                              Click to view details
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Bar
+                    dataKey="value"
+                    radius={[0, 4, 4, 0]}
+                    cursor="pointer"
+                    barSize={32}
+                  >
+                    {chartData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={entry.color}
+                        onClick={() =>
+                          handleCellClick(
+                            entry.statisticType,
+                            stat.region,
+                            entry.label,
+                          )
+                        }
+                      />
+                    ))}
+                    <LabelList
+                      dataKey="value"
+                      position="right"
+                      formatter={(value: number) => value.toLocaleString()}
+                      style={{ fill: "#374151", fontSize: 13, fontWeight: 700 }}
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderPressureRegionBar = (stat: PressureRegionalStats) => {
+    const segments = [
+      {
+        label: "Connected Sensors",
+        statisticType: "connected",
+        value: stat.totalConnected,
+        color: "#f97316",
+      },
+      {
+        label: "Total Online",
+        statisticType: "online",
+        value: stat.totalOnline,
+        color: "#22c55e",
+      },
+      {
+        label: "With Water",
+        statisticType: "online-with-water",
+        value: stat.onlineWithWater,
+        color: "#3b82f6",
+      },
+      {
+        label: "Optimal Pressure (0.2-0.7)",
+        statisticType: "online-with-water-pressure-optimal",
+        value: stat.onlineWithWaterPressureOptimal,
+        color: "#10b981",
+      },
+      {
+        label: "Below Pressure (<0.2)",
+        statisticType: "online-with-water-pressure-below",
+        value: stat.onlineWithWaterPressureBelow,
+        color: "#ef4444",
+      },
+      {
+        label: "Above Pressure (>0.7)",
+        statisticType: "online-with-water-pressure-above",
+        value: stat.onlineWithWaterPressureAbove,
+        color: "#a855f7",
+      },
+      {
+        label: "No Pressure Data",
+        statisticType: "online-with-water-no-pressure-data",
+        value: stat.onlineWithWaterNoPressureData,
+        color: "#9ca3af",
+      },
+      {
+        label: "Offline/Data Loss",
+        statisticType: "offline",
+        value: stat.totalOffline,
+        color: "#b91c1c",
+      },
+      {
+        label: "Offline > 3 Days",
+        statisticType: "offline-3days",
+        value: stat.offlineSince3Days,
+        color: "#f59e0b",
+      },
+      {
+        label: "Offline > 7 Days",
+        statisticType: "offline-7days",
+        value: stat.offlineSince7Days,
+        color: "#dc2626",
+      },
+      {
+        label: "Offline > 30 Days",
+        statisticType: "offline-30days",
+        value: stat.offlineSince30Days,
+        color: "#7f1d1d",
+      },
+    ];
+
+    const chartData = segments;
+
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div
+            className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+            onClick={() =>
+              handlePressureCellClick(
+                "connected",
+                stat.region,
+                "Connected Pressure Sensors",
+              )
+            }
+            data-testid={`pressure-stat-card-connected-${stat.region}`}
+          >
+            <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+            <div className="relative z-10">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                  <Gauge className="h-3.5 w-3.5 text-white" />
+                </div>
+                <span className="!text-[12px] font-medium text-orange-100">
+                  Total Connected
+                </span>
+              </div>
+              <div className="text-2xl font-bold text-white">
+                {stat.totalConnected.toLocaleString()}
+              </div>
+            </div>
+          </div>
+
+          <div
+            className="relative overflow-hidden bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+            onClick={() =>
+              handlePressureCellClick(
+                "online-with-water-pressure-optimal",
+                stat.region,
+                "Optimal Pressure (0.2-0.7 bar)",
+              )
+            }
+            data-testid={`pressure-stat-card-optimal-${stat.region}`}
+          >
+            <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+            <div className="relative z-10">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                </div>
+                <span className="!text-[12px] font-medium text-emerald-100">
+                  Optimal Pressure
+                </span>
+              </div>
+              <div className="text-2xl font-bold text-white">
+                {stat.onlineWithWaterPressureOptimal.toLocaleString()}
+              </div>
+              <div className="!text-[12px] text-emerald-200 mt-0.5">
+                0.2 - 0.7 bar
+              </div>
+            </div>
+          </div>
+
+          <div
+            className="relative overflow-hidden bg-gradient-to-br from-red-500 via-red-600 to-red-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+            onClick={() =>
+              handlePressureCellClick(
+                "online-with-water-pressure-below",
+                stat.region,
+                "Below Range (<0.2 bar)",
+              )
+            }
+            data-testid={`pressure-stat-card-below-${stat.region}`}
+          >
+            <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+            <div className="relative z-10">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                  <AlertCircle className="h-3.5 w-3.5 text-white" />
+                </div>
+                <span className="!text-[12px] font-medium text-red-100">
+                  Below Range
+                </span>
+              </div>
+              <div className="text-2xl font-bold text-white">
+                {stat.onlineWithWaterPressureBelow.toLocaleString()}
+              </div>
+              <div className="!text-[12px] text-red-200 mt-0.5">
+                &lt;0.2 bar
+              </div>
+            </div>
+          </div>
+
+          <div
+            className="relative overflow-hidden bg-gradient-to-br from-gray-600 via-gray-700 to-gray-800 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+            onClick={() =>
+              handlePressureCellClick("offline", stat.region, "Offline Sensors")
+            }
+            data-testid={`pressure-stat-card-offline-${stat.region}`}
+          >
+            <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+            <div className="relative z-10">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                  <WifiOff className="h-3.5 w-3.5 text-white" />
+                </div>
+                <span className="!text-[12px] font-medium text-gray-100">
+                  Offline
+                </span>
+              </div>
+              <div className="text-2xl font-bold text-white">
+                {stat.totalOffline.toLocaleString()}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-900 rounded-lg border-2 border-orange-300 dark:border-orange-600 shadow-md overflow-hidden">
+          <div className="bg-orange-50 dark:bg-orange-900/30 px-4 py-2.5 border-b border-orange-200 dark:border-orange-700">
+            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-orange-600" />
+              Detailed Breakdown - {stat.region}
+            </h3>
+          </div>
+          <div className="p-4">
+            <div
+              className="w-full"
+              style={{ height: Math.max(chartData.length * 42 + 60, 450) }}
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={chartData}
+                  layout="vertical"
+                  margin={{ top: 10, right: 60, left: 10, bottom: 20 }}
+                  barCategoryGap={2}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#e5e7eb"
+                    vertical={true}
+                    horizontal={false}
+                  />
+                  <XAxis
+                    type="number"
+                    tick={{ fontSize: 12, fill: "#6b7280", fontWeight: 500 }}
+                    axisLine={{ stroke: "#d1d5db" }}
+                    tickLine={{ stroke: "#d1d5db" }}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="label"
+                    width={180}
+                    tick={{ fill: "#374151", fontSize: 13, fontWeight: 500 }}
+                    axisLine={{ stroke: "#d1d5db" }}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "rgba(0, 0, 0, 0.05)" }}
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-white dark:bg-gray-800 px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg">
+                            <p className="font-semibold text-sm text-gray-900 dark:text-white">
+                              {payload[0].payload.label}
+                            </p>
+                            <p className="text-lg font-bold text-orange-600 dark:text-orange-400 mt-1">
+                              {payload[0].value?.toLocaleString()}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                              <Eye className="h-3 w-3" />
+                              Click to view details
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Bar
+                    dataKey="value"
+                    radius={[0, 4, 4, 0]}
+                    cursor="pointer"
+                    barSize={32}
+                  >
+                    {chartData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={entry.color}
+                        onClick={() =>
+                          handlePressureCellClick(
+                            entry.statisticType,
+                            stat.region,
+                            entry.label,
+                          )
+                        }
+                      />
+                    ))}
+                    <LabelList
+                      dataKey="value"
+                      position="right"
+                      formatter={(value: number) => value.toLocaleString()}
+                      style={{ fill: "#374151", fontSize: 13, fontWeight: 700 }}
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <DashboardLayout>
+      <div className="flex h-full">
+        <div className="hidden lg:block">
+          <Sidebar />
+        </div>
+        <div className="flex-1 px-4 sm:px-6 lg:px-8 py-4 overflow-auto">
+          <div className="w-full max-w-[1400px] mx-auto space-y-4">
+            <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 rounded-xl p-4 shadow-lg">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-white/20 backdrop-blur-sm rounded-lg">
+                    <Droplet className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-xl font-bold text-white">
+                      Detailed IoT Statistics Dashboard
+                    </h1>
+                    <p className="text-xs text-blue-100 mt-0.5">
+                      Real-time monitoring and regional breakdown of chlorine
+                      sensor status
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => refetch()}
+                  variant="secondary"
+                  size="sm"
+                  className="bg-white/20 backdrop-blur-sm text-white border-white/30 hover:bg-white/30"
+                  data-testid="button-refresh-stats"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refresh Data
+                </Button>
+              </div>
+            </div>
+
+            {/* Fully Completed Filter Button */}
+            <div className="flex flex-wrap items-center gap-3 mb-4 bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter:</span>
+              <Select value={schemeFilter} onValueChange={setSchemeFilter}>
+                <SelectTrigger className="w-[240px] bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
+                  <SelectValue placeholder="Select Filter" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Schemes</SelectItem>
+                  <SelectItem value="commissioned">Commissioned (Water Supply: Yes)</SelectItem>
+                  <SelectItem value="fully_completed">Fully Completed</SelectItem>
+                  <SelectItem value="in_progress">Partial (In Progress)</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2"></div>
+
+              <Button
+                variant={showDailyData ? "default" : "outline"}
+                onClick={() => setShowDailyData(!showDailyData)}
+                className={`transition-all ${showDailyData ? "bg-indigo-600 hover:bg-indigo-700" : ""}`}
+              >
+                <Calendar className="mr-2 h-4 w-4" />
+                Daily Data
+              </Button>
+            </div>
+
+            {/* Main Tabs: LPCD (default) and Chlorine */}
+            <div className="flex gap-3 mb-4">
+              <button
+                onClick={() => {
+                  setMainTab("lpcd");
+                  setClickedCell(null);
+                  setClickedLPCDCell(null);
+                }}
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-base transition-all ${mainTab === "lpcd"
+                  ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg scale-105"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                  }`}
+                data-testid="main-tab-lpcd"
+              >
+                <Home className="h-5 w-5" />
+                LPCD
+              </button>
+              <button
+                onClick={() => {
+                  setMainTab("chlorine");
+                  setClickedCell(null);
+                  setClickedLPCDCell(null);
+                }}
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-base transition-all ${mainTab === "chlorine"
+                  ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg scale-105"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                  }`}
+                data-testid="main-tab-chlorine"
+              >
+                <Droplet className="h-5 w-5" />
+                CHLORINE
+              </button>
+              <button
+                onClick={() => {
+                  setMainTab("pressure");
+                  setClickedCell(null);
+                  setClickedLPCDCell(null);
+                }}
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-base transition-all ${mainTab === "pressure"
+                  ? "bg-gradient-to-r from-orange-600 to-amber-600 text-white shadow-lg scale-105"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                  }`}
+                data-testid="main-tab-pressure"
+              >
+                <Gauge className="h-5 w-5" />
+                PRESSURE
+              </button>
+            </div>
+
+            {/* Village/Scheme Toggle for LPCD Tab */}
+            {mainTab === "lpcd" && (
+              <div className="flex items-center gap-2 mb-4 bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700 w-fit">
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-400 mr-2">View:</span>
+                <button
+                  onClick={() => {
+                    setLpcdSubTab("village");
+                    setClickedSchemeLPCDCell(null);
+                    setClickedSchemeDivisionCell(null);
+                    setClickedSchemeDayWiseCell(null);
+                    setClickedSchemeComparisonCell(null);
+                  }}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-medium text-sm transition-all ${lpcdSubTab === "village"
+                    ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    }`}
+                  data-testid="lpcd-sub-tab-village"
+                >
+                  <Home className="h-4 w-4" />
+                  Village LPCD
+                </button>
+                <button
+                  onClick={() => {
+                    setLpcdSubTab("scheme");
+                    setClickedLPCDCell(null);
+                  }}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-medium text-sm transition-all ${lpcdSubTab === "scheme"
+                    ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    }`}
+                  data-testid="lpcd-sub-tab-scheme"
+                >
+                  <Building2 className="h-4 w-4" />
+                  Scheme LPCD
+                </button>
+              </div>
+            )}
+
+            {/* Category Sub-Tabs */}
+            <Tabs
+              value={categoryTab}
+              onValueChange={(val) => {
+                setCategoryTab(val);
+                setClickedCell(null);
+                setClickedLPCDCell(null);
+                setClickedDayWiseCell(null);
+                setClickedDivisionCell(null);
+                setClickedComparisonCell(null);
+              }}
+              data-testid="category-tabs"
+            >
+              <TabsList className="w-full md:w-auto bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-1 rounded-lg shadow-sm gap-1">
+                <TabsTrigger
+                  value="overall-comparison"
+                  data-testid="category-tab-overall-comparison"
+                  className={`data-[state=active]:bg-gradient-to-r ${mainTab === "lpcd" ? "data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600" : mainTab === "pressure" ? "data-[state=active]:from-orange-600 data-[state=active]:to-amber-600" : "data-[state=active]:from-blue-600 data-[state=active]:to-cyan-600"} data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-300 px-3 py-2 rounded-md font-medium text-xs`}
+                >
+                  <TrendingUp className="h-3.5 w-3.5 mr-1.5" />
+                  Region Comparison
+                </TabsTrigger>
+                <TabsTrigger
+                  value="divisionwise"
+                  data-testid="category-tab-divisionwise"
+                  className={`data-[state=active]:bg-gradient-to-r ${mainTab === "lpcd" ? "data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600" : mainTab === "pressure" ? "data-[state=active]:from-orange-600 data-[state=active]:to-amber-600" : "data-[state=active]:from-blue-600 data-[state=active]:to-cyan-600"} data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-300 px-3 py-2 rounded-md font-medium text-xs`}
+                >
+                  <Building2 className="h-3.5 w-3.5 mr-1.5" />
+                  Division Summary
+                </TabsTrigger>
+                <TabsTrigger
+                  value="regional"
+                  data-testid="category-tab-regional"
+                  className={`data-[state=active]:bg-gradient-to-r ${mainTab === "lpcd" ? "data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600" : mainTab === "pressure" ? "data-[state=active]:from-orange-600 data-[state=active]:to-amber-600" : "data-[state=active]:from-blue-600 data-[state=active]:to-cyan-600"} data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-300 px-3 py-2 rounded-md font-medium text-xs`}
+                >
+                  <BarChart3 className="h-3.5 w-3.5 mr-1.5" />
+                  Regional Overview
+                </TabsTrigger>
+                <TabsTrigger
+                  value="daywise"
+                  data-testid="category-tab-daywise"
+                  className={`data-[state=active]:bg-gradient-to-r ${mainTab === "lpcd" ? "data-[state=active]:from-emerald-600 data-[state=active]:to-teal-600" : mainTab === "pressure" ? "data-[state=active]:from-orange-600 data-[state=active]:to-amber-600" : "data-[state=active]:from-blue-600 data-[state=active]:to-cyan-600"} data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-300 px-3 py-2 rounded-md font-medium text-xs`}
+                >
+                  <Calendar className="h-3.5 w-3.5 mr-1.5" />
+                  Day-Wise Breakdown
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Regional Statistics Tab Content */}
+              <TabsContent value="regional" className="mt-4">
+                {/* Chlorine Regional Statistics */}
+                {mainTab === "chlorine" && (
+                  <>
+                    <Card
+                      data-testid="card-regional-stats"
+                      className="border-0 shadow-lg rounded-xl overflow-hidden"
+                    >
+                      <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50 dark:from-gray-900 dark:to-blue-950 border-b border-gray-200 dark:border-gray-700 py-3">
+                        <CardTitle className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="p-1.5 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg shadow-sm">
+                              <BarChart3 className="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                              <div className="text-base font-bold text-gray-900 dark:text-white">
+                                Regional RCA Statistics
+                              </div>
+                              <div className="!text-[12px] font-normal text-gray-600 dark:text-gray-400">
+                                Click on the numbers to display the list
+                              </div>
+                            </div>
+                          </div>
+                          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 rounded-lg">
+                            <Zap className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                            <span className="!text-[12px] font-medium text-blue-700 dark:text-blue-300">
+                              Numbers represent{" "}
+                              <span className="font-bold">
+                                Residual Chlorine Analyzers (RCAs)
+                              </span>
+                            </span>
+                          </div>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4">
+                        {isLoading ? (
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                              <Skeleton className="h-20 w-full rounded-lg" />
+                              <Skeleton className="h-20 w-full rounded-lg" />
+                              <Skeleton className="h-20 w-full rounded-lg" />
+                              <Skeleton className="h-20 w-full rounded-lg" />
+                            </div>
+                            <Skeleton className="h-72 w-full rounded-lg" />
+                          </div>
+                        ) : (
+                          <Tabs
+                            value={selectedRegion}
+                            onValueChange={setSelectedRegion}
+                          >
+                            <TabsList className="mb-4 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg flex flex-wrap h-auto gap-1">
+                              <TabsTrigger
+                                key="All Regions"
+                                value="All Regions"
+                                data-testid="tab-all-regions"
+                                className="data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-700 rounded-md px-3 py-1.5 text-xs font-medium transition-all"
+                              >
+                                <MapPin className="h-3 w-3 mr-1" />
+                                All Regions
+                              </TabsTrigger>
+                              {regionalStats.map((stat) => (
+                                <TabsTrigger
+                                  key={stat.region}
+                                  value={stat.region}
+                                  data-testid={`tab-${stat.region}`}
+                                  className="data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-700 rounded-md px-3 py-1.5 text-xs font-medium transition-all"
+                                >
+                                  {stat.region}
+                                </TabsTrigger>
+                              ))}
+                            </TabsList>
+                            <TabsContent key="All Regions" value="All Regions">
+                              {renderRegionBar(totals)}
+                            </TabsContent>
+                            {regionalStats.map((stat) => (
+                              <TabsContent
+                                key={stat.region}
+                                value={stat.region}
+                              >
+                                {renderRegionBar(stat)}
+                              </TabsContent>
+                            ))}
+                          </Tabs>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {clickedCell && (
+                      <Card
+                        className="mt-4 border-0 shadow-lg rounded-xl overflow-hidden"
+                        data-testid="card-sensor-details"
+                      >
+                        <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950 dark:to-purple-950 border-b border-gray-200 dark:border-gray-700 py-2.5">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                            <CardTitle className="flex items-center gap-2">
+                              <div className="p-1.5 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg shadow-sm">
+                                <Droplet className="h-4 w-4 text-white" />
+                              </div>
+                              <div>
+                                <div className="text-sm font-bold text-gray-900 dark:text-white">
+                                  {clickedCell.label}
+                                </div>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 !text-[12px] px-1.5 py-0"
+                                  >
+                                    {clickedCell.region || "All Regions"}
+                                  </Badge>
+                                  <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 !text-[12px] px-1.5 py-0">
+                                    {sensorDetails?.count || 0} sensors
+                                  </Badge>
+                                </div>
+                              </div>
+                            </CardTitle>
+                            <div className="flex gap-1.5">
+                              <Button
+                                onClick={handleDownloadExcel}
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs bg-green-50 border-green-200 text-green-700 hover:bg-green-100 dark:bg-green-950 dark:border-green-800 dark:text-green-400"
+                                data-testid="button-download-excel"
+                              >
+                                <Download className="h-3.5 w-3.5 mr-1" />
+                                Export Excel
+                              </Button>
+                              <Button
+                                onClick={() => setClickedCell(null)}
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                                data-testid="button-close-details"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                          {isLoadingDetails ? (
+                            <div className="space-y-2 p-4">
+                              <Skeleton className="h-10 w-full" />
+                              <Skeleton className="h-10 w-full" />
+                              <Skeleton className="h-10 w-full" />
+                            </div>
+                          ) : sensorDetails && sensorDetails.data.length > 0 ? (
+                            <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-slate-200/60 dark:border-slate-700/60 rounded-xl m-3 shadow-sm">
+                              <Table className="min-w-max">
+                                <TableHeader className="sticky top-0 z-10 bg-slate-800 dark:bg-slate-900">
+                                  <TableRow className="bg-slate-800 dark:bg-slate-900">
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                      Circle
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                      Division
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                      Sub Division
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[90px] border-r border-white/10">
+                                      Scheme ID
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[140px] border-r border-white/10">
+                                      Scheme Name
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                      Village
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                      ESR Name
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                      Status
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[90px] text-center border-r border-white/10">
+                                      Water (
+                                      {sensorDetails?.data?.[0]?.water_date_day7
+                                        ? formatDate(
+                                          sensorDetails.data[0]
+                                            .water_date_day7,
+                                        )
+                                        : "N/A"}
+                                      )
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[90px] text-center border-r border-white/10">
+                                      Chlorine (
+                                      {sensorDetails?.data?.[0]
+                                        ?.chlorine_date_day_7
+                                        ? formatDate(
+                                          sensorDetails.data[0]
+                                            .chlorine_date_day_7,
+                                        )
+                                        : "N/A"}
+                                      )
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                      Dashboard
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-white !px-4 !py-3.5 w-[80px] text-center sticky right-0 bg-indigo-700">
+                                      Actions
+                                    </TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {sensorDetails.data.map((sensor, idx) => (
+                                    <TableRow
+                                      key={`${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}-${idx}`}
+                                      className={`transition-all duration-200 hover:bg-indigo-50/70 dark:hover:bg-indigo-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-slate-50/60 dark:bg-slate-800/40"}`}
+                                      data-testid={`row-sensor-${idx}`}
+                                    >
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60 font-medium">
+                                        {sensor.circle}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
+                                        {sensor.division}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-slate-100/80 dark:border-slate-800/60">
+                                        {sensor.sub_division}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-indigo-600 dark:text-indigo-400 border-r border-slate-100/80 dark:border-slate-800/60">
+                                        {sensor.scheme_id}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-slate-100/80 dark:border-slate-800/60">
+                                        {sensor.scheme_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
+                                        {sensor.village_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-slate-100/80 dark:border-slate-800/60">
+                                        {sensor.esr_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center border-r border-slate-100/80 dark:border-slate-800/60">
+                                        <span
+                                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${sensor.chlorine_status === "Online" ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60 dark:text-emerald-300 ring-1 ring-emerald-200/80 dark:ring-emerald-700/60" : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"}`}
+                                        >
+                                          {sensor.chlorine_status}
+                                        </span>
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
+                                        {sensor.water_value_day7 !== null &&
+                                          sensor.water_value_day7 !==
+                                          undefined ? (
+                                          Number(
+                                            sensor.water_value_day7,
+                                          ).toFixed(2)
+                                        ) : (
+                                          <span className="text-slate-400">
+                                            N/A
+                                          </span>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
+                                        {sensor.chlorine_value_7 !== null &&
+                                          sensor.chlorine_value_7 !==
+                                          undefined ? (
+                                          Number(
+                                            sensor.chlorine_value_7,
+                                          ).toFixed(2)
+                                        ) : (
+                                          <span className="text-slate-400">
+                                            N/A
+                                          </span>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center border-r border-slate-100/80 dark:border-slate-800/60">
+                                        {(sensor as any).dashboard_url ? (
+                                          <a
+                                            href={(sensor as any).dashboard_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center justify-center p-1.5 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:text-indigo-200 dark:hover:bg-indigo-900/50 rounded-full transition-colors"
+                                            title="Open Dashboard"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <ExternalLink className="h-3.5 w-3.5" />
+                                          </a>
+                                        ) : (
+                                          <span className="text-slate-400">-</span>
+                                        )}
+                                      </TableCell>
+                                      <TableCell
+                                        className={`!px-4 !py-3 text-center sticky right-0 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-slate-50/60 dark:bg-slate-800/40"} border-l border-slate-200/80 dark:border-slate-700/60`}
+                                      >
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() =>
+                                            setSelectedSensor(sensor)
+                                          }
+                                          className="h-7 px-3 text-[11px] font-semibold bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-700 hover:from-indigo-100 hover:to-violet-100 dark:from-indigo-950 dark:to-violet-950 dark:text-indigo-300 dark:hover:from-indigo-900 dark:hover:to-violet-900 rounded-lg shadow-sm border border-indigo-200/50 dark:border-indigo-700/50"
+                                          data-testid={`button-view-details-${idx}`}
+                                        >
+                                          <Eye className="h-3 w-3 mr-1" />
+                                          History
+                                        </Button>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          ) : (
+                            <div className="text-center py-8">
+                              <AlertCircle className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                No sensors found for this category
+                              </p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )}
+                  </>
+                )}
+
+                {/* LPCD Regional Statistics Section */}
+                {mainTab === "lpcd" && lpcdSubTab === "village" && (
+                  <>
+                    <Card
+                      data-testid="card-lpcd-regional-stats"
+                      className="border-0 shadow-lg rounded-xl overflow-hidden"
+                    >
+                      <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950 dark:to-teal-950 border-b border-emerald-200 dark:border-emerald-800 py-3">
+                        <CardTitle className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="p-1.5 bg-gradient-to-br from-emerald-500 to-teal-700 rounded-lg shadow-sm">
+                              <Droplet className="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                              <div className="text-base font-bold text-gray-900 dark:text-white">
+                                Village LPCD Regional Statistics
+                              </div>
+                              <div className="!text-[12px] font-normal text-gray-600 dark:text-gray-400">
+                                Click on the numbers to display the list
+                              </div>
+                            </div>
+                          </div>
+                          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 rounded-lg">
+                            <Home className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                            <span className="!text-[12px] font-medium text-emerald-700 dark:text-emerald-300">
+                              Numbers represent{" "}
+                              <span className="font-bold">Villages</span>
+                            </span>
+                          </div>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4">
+                        {isLoadingLPCDRegional ? (
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                              <Skeleton className="h-20 w-full rounded-lg" />
+                              <Skeleton className="h-20 w-full rounded-lg" />
+                              <Skeleton className="h-20 w-full rounded-lg" />
+                              <Skeleton className="h-20 w-full rounded-lg" />
+                            </div>
+                            <Skeleton className="h-72 w-full rounded-lg" />
+                          </div>
+                        ) : (
+                          <Tabs
+                            value={lpcdRegionalRegion}
+                            onValueChange={(val) => {
+                              setLpcdRegionalRegion(val);
+                              setClickedLPCDCell(null);
+                            }}
+                          >
+                            <TabsList className="mb-4 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg flex flex-wrap h-auto gap-1">
+                              <TabsTrigger
+                                key="All Regions"
+                                value="All Regions"
+                                data-testid="lpcd-tab-all-regions"
+                                className="data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-700 rounded-md px-3 py-1.5 text-xs font-medium transition-all"
+                              >
+                                <MapPin className="h-3 w-3 mr-1" />
+                                All Regions
+                              </TabsTrigger>
+                              {lpcdRegionalStats?.data?.map((stat) => (
+                                <TabsTrigger
+                                  key={stat.region}
+                                  value={stat.region}
+                                  data-testid={`lpcd-tab-${stat.region}`}
+                                  className="data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-700 rounded-md px-3 py-1.5 text-xs font-medium transition-all"
+                                >
+                                  {stat.region}
+                                </TabsTrigger>
+                              ))}
+                            </TabsList>
+
+                            {/* All Regions content */}
+                            <TabsContent key="All Regions" value="All Regions">
+                              <div className="space-y-4">
+                                {/* Summary Cards */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                  <div
+                                    className="relative overflow-hidden bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+                                    onClick={() =>
+                                      handleLPCDCellClick(
+                                        "connected",
+                                        "All Regions",
+                                        "Connected Flow Meters",
+                                      )
+                                    }
+                                    data-testid="lpcd-stat-card-connected-all"
+                                  >
+                                    <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+                                    <div className="relative z-10">
+                                      <div className="flex items-center gap-1.5 mb-1.5">
+                                        <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                                          <Wifi className="h-3.5 w-3.5 text-white" />
+                                        </div>
+                                        <span className="!text-[12px] font-medium text-blue-100">
+                                          Connected Flow Meters
+                                        </span>
+                                      </div>
+                                      <div className="text-2xl font-bold text-white">
+                                        {lpcdRegionalTotals.totalConnected.toLocaleString()}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div
+                                    className="relative overflow-hidden bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+                                    onClick={() =>
+                                      handleLPCDCellClick(
+                                        "villages-with-water",
+                                        "All Regions",
+                                        "Villages with Water",
+                                      )
+                                    }
+                                    data-testid="lpcd-stat-card-with-water-all"
+                                  >
+                                    <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+                                    <div className="relative z-10">
+                                      <div className="flex items-center gap-1.5 mb-1.5">
+                                        <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                                          <Droplet className="h-3.5 w-3.5 text-white" />
+                                        </div>
+                                        <span className="!text-[12px] font-medium text-emerald-100">
+                                          Villages with Water
+                                        </span>
+                                      </div>
+                                      <div className="text-2xl font-bold text-white">
+                                        {lpcdRegionalTotals.villagesWithWater.toLocaleString()}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div
+                                    className="relative overflow-hidden bg-gradient-to-br from-teal-500 via-teal-600 to-teal-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+                                    onClick={() =>
+                                      handleLPCDCellClick(
+                                        "villages-above-55",
+                                        "All Regions",
+                                        "Villages >55 LPCD",
+                                      )
+                                    }
+                                    data-testid="lpcd-stat-card-above-55-all"
+                                  >
+                                    <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+                                    <div className="relative z-10">
+                                      <div className="flex items-center gap-1.5 mb-1.5">
+                                        <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                                          <TrendingUp className="h-3.5 w-3.5 text-white" />
+                                        </div>
+                                        <span className="!text-[12px] font-medium text-teal-100">
+                                          &gt;55 LPCD
+                                        </span>
+                                      </div>
+                                      <div className="text-2xl font-bold text-white">
+                                        {lpcdRegionalTotals.villagesAbove55.toLocaleString()}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div
+                                    className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-orange-600 to-orange-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+                                    onClick={() =>
+                                      handleLPCDCellClick(
+                                        "villages-below-55",
+                                        "All Regions",
+                                        "Villages <55 LPCD",
+                                      )
+                                    }
+                                    data-testid="lpcd-stat-card-below-55-all"
+                                  >
+                                    <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+                                    <div className="relative z-10">
+                                      <div className="flex items-center gap-1.5 mb-1.5">
+                                        <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                                          <AlertCircle className="h-3.5 w-3.5 text-white" />
+                                        </div>
+                                        <span className="!text-[12px] font-medium text-orange-100">
+                                          &lt;55 LPCD
+                                        </span>
+                                      </div>
+                                      <div className="text-2xl font-bold text-white">
+                                        {lpcdRegionalTotals.villagesBelow55.toLocaleString()}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Secondary Stats Row */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                  <div
+                                    className="relative overflow-hidden bg-gradient-to-br from-red-500 via-red-600 to-red-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+                                    onClick={() =>
+                                      handleLPCDCellClick(
+                                        "villages-no-water",
+                                        "All Regions",
+                                        "Villages with No Water",
+                                      )
+                                    }
+                                    data-testid="lpcd-stat-card-no-water-all"
+                                  >
+                                    <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+                                    <div className="relative z-10">
+                                      <div className="flex items-center gap-1.5 mb-1.5">
+                                        <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                                          <WifiOff className="h-3.5 w-3.5 text-white" />
+                                        </div>
+                                        <span className="!text-[12px] font-medium text-red-100">
+                                          No Water
+                                        </span>
+                                      </div>
+                                      <div className="text-2xl font-bold text-white">
+                                        {lpcdRegionalTotals.villagesNoWater.toLocaleString()}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div
+                                    className="relative overflow-hidden bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+                                    onClick={() =>
+                                      handleLPCDCellClick(
+                                        "below-55-3days",
+                                        "All Regions",
+                                        "<55 LPCD for 3+ Days",
+                                      )
+                                    }
+                                    data-testid="lpcd-stat-card-below-55-3days-all"
+                                  >
+                                    <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+                                    <div className="relative z-10">
+                                      <div className="flex items-center gap-1.5 mb-1.5">
+                                        <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                                          <Calendar className="h-3.5 w-3.5 text-white" />
+                                        </div>
+                                        <span className="!text-[12px] font-medium text-amber-100">
+                                          &lt;55 for 3+ Days
+                                        </span>
+                                      </div>
+                                      <div className="text-2xl font-bold text-white">
+                                        {lpcdRegionalTotals.below55For3Days.toLocaleString()}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div
+                                    className="relative overflow-hidden bg-gradient-to-br from-rose-500 via-rose-600 to-rose-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+                                    onClick={() =>
+                                      handleLPCDCellClick(
+                                        "below-55-7days",
+                                        "All Regions",
+                                        "<55 LPCD for 7+ Days",
+                                      )
+                                    }
+                                    data-testid="lpcd-stat-card-below-55-7days-all"
+                                  >
+                                    <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+                                    <div className="relative z-10">
+                                      <div className="flex items-center gap-1.5 mb-1.5">
+                                        <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                                          <Calendar className="h-3.5 w-3.5 text-white" />
+                                        </div>
+                                        <span className="!text-[12px] font-medium text-rose-100">
+                                          &lt;55 for 7+ Days
+                                        </span>
+                                      </div>
+                                      <div className="text-2xl font-bold text-white">
+                                        {lpcdRegionalTotals.below55For7Days.toLocaleString()}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div
+                                    className="relative overflow-hidden bg-gradient-to-br from-pink-500 via-pink-600 to-pink-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+                                    onClick={() =>
+                                      handleLPCDCellClick(
+                                        "below-55-30days",
+                                        "All Regions",
+                                        "<55 LPCD for 30+ Days",
+                                      )
+                                    }
+                                    data-testid="lpcd-stat-card-below-55-30days-all"
+                                  >
+                                    <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+                                    <div className="relative z-10">
+                                      <div className="flex items-center gap-1.5 mb-1.5">
+                                        <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                                          <Calendar className="h-3.5 w-3.5 text-white" />
+                                        </div>
+                                        <span className="!text-[12px] font-medium text-pink-100">
+                                          &lt;55 for 30+ Days
+                                        </span>
+                                      </div>
+                                      <div className="text-2xl font-bold text-white">
+                                        {lpcdRegionalTotals.below55For30Days.toLocaleString()}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Bar Chart */}
+                                <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+                                  <div className="h-72">
+                                    <ResponsiveContainer
+                                      width="100%"
+                                      height="100%"
+                                    >
+                                      <BarChart
+                                        data={[
+                                          {
+                                            name: "Connected",
+                                            value:
+                                              lpcdRegionalTotals.totalConnected,
+                                            color: "#3b82f6",
+                                            statisticType: "connected",
+                                            label: "Connected Flow Meters",
+                                          },
+                                          {
+                                            name: "With Water",
+                                            value:
+                                              lpcdRegionalTotals.villagesWithWater,
+                                            color: "#10b981",
+                                            statisticType:
+                                              "villages-with-water",
+                                            label: "Villages with Water",
+                                          },
+                                          {
+                                            name: ">55 LPCD",
+                                            value:
+                                              lpcdRegionalTotals.villagesAbove55,
+                                            color: "#14b8a6",
+                                            statisticType: "villages-above-55",
+                                            label: "Villages >55 LPCD",
+                                          },
+                                          {
+                                            name: "<55 LPCD",
+                                            value:
+                                              lpcdRegionalTotals.villagesBelow55,
+                                            color: "#f97316",
+                                            statisticType: "villages-below-55",
+                                            label: "Villages <55 LPCD",
+                                          },
+                                          {
+                                            name: "No Water",
+                                            value:
+                                              lpcdRegionalTotals.villagesNoWater,
+                                            color: "#ef4444",
+                                            statisticType: "villages-no-water",
+                                            label: "Villages with No Water",
+                                          },
+                                          {
+                                            name: "<55 (3d)",
+                                            value:
+                                              lpcdRegionalTotals.below55For3Days,
+                                            color: "#f59e0b",
+                                            statisticType: "below-55-3days",
+                                            label: "<55 LPCD for 3+ Days",
+                                          },
+                                          {
+                                            name: "<55 (7d)",
+                                            value:
+                                              lpcdRegionalTotals.below55For7Days,
+                                            color: "#f43f5e",
+                                            statisticType: "below-55-7days",
+                                            label: "<55 LPCD for 7+ Days",
+                                          },
+                                          {
+                                            name: "<55 (30d)",
+                                            value:
+                                              lpcdRegionalTotals.below55For30Days,
+                                            color: "#ec4899",
+                                            statisticType: "below-55-30days",
+                                            label: "<55 LPCD for 30+ Days",
+                                          },
+                                        ]}
+                                        layout="vertical"
+                                        margin={{
+                                          top: 5,
+                                          right: 30,
+                                          left: 80,
+                                          bottom: 5,
+                                        }}
+                                      >
+                                        <CartesianGrid
+                                          strokeDasharray="3 3"
+                                          stroke="#e5e7eb"
+                                        />
+                                        <XAxis
+                                          type="number"
+                                          tick={{ fontSize: 11 }}
+                                        />
+                                        <YAxis
+                                          dataKey="name"
+                                          type="category"
+                                          tick={{ fontSize: 11 }}
+                                          width={75}
+                                        />
+                                        <Tooltip />
+                                        <Bar
+                                          dataKey="value"
+                                          radius={[0, 4, 4, 0]}
+                                          cursor="pointer"
+                                          onClick={(data: any) => {
+                                            if (data && data.value > 0) {
+                                              handleLPCDCellClick(
+                                                data.statisticType,
+                                                "All Regions",
+                                                data.label,
+                                              );
+                                            }
+                                          }}
+                                        >
+                                          {[
+                                            {
+                                              name: "Connected",
+                                              value:
+                                                lpcdRegionalTotals.totalConnected,
+                                              color: "#3b82f6",
+                                            },
+                                            {
+                                              name: "With Water",
+                                              value:
+                                                lpcdRegionalTotals.villagesWithWater,
+                                              color: "#10b981",
+                                            },
+                                            {
+                                              name: ">55 LPCD",
+                                              value:
+                                                lpcdRegionalTotals.villagesAbove55,
+                                              color: "#14b8a6",
+                                            },
+                                            {
+                                              name: "<55 LPCD",
+                                              value:
+                                                lpcdRegionalTotals.villagesBelow55,
+                                              color: "#f97316",
+                                            },
+                                            {
+                                              name: "No Water",
+                                              value:
+                                                lpcdRegionalTotals.villagesNoWater,
+                                              color: "#ef4444",
+                                            },
+                                            {
+                                              name: "<55 (3d)",
+                                              value:
+                                                lpcdRegionalTotals.below55For3Days,
+                                              color: "#f59e0b",
+                                            },
+                                            {
+                                              name: "<55 (7d)",
+                                              value:
+                                                lpcdRegionalTotals.below55For7Days,
+                                              color: "#f43f5e",
+                                            },
+                                            {
+                                              name: "<55 (30d)",
+                                              value:
+                                                lpcdRegionalTotals.below55For30Days,
+                                              color: "#ec4899",
+                                            },
+                                          ].map((entry, index) => (
+                                            <Cell
+                                              key={`cell-${index}`}
+                                              fill={entry.color}
+                                              className="hover:opacity-80 transition-opacity"
+                                            />
+                                          ))}
+                                          <LabelList
+                                            dataKey="value"
+                                            position="right"
+                                            fontSize={11}
+                                          />
+                                        </Bar>
+                                      </BarChart>
+                                    </ResponsiveContainer>
+                                  </div>
+                                </div>
+                              </div>
+                            </TabsContent>
+
+                            {/* Individual Region Contents */}
+                            {lpcdRegionalStats?.data?.map((stat) => (
+                              <TabsContent
+                                key={stat.region}
+                                value={stat.region}
+                              >
+                                <div className="space-y-4">
+                                  {/* Summary Cards */}
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    <div
+                                      className="relative overflow-hidden bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+                                      onClick={() =>
+                                        handleLPCDCellClick(
+                                          "connected",
+                                          stat.region,
+                                          "Connected Flow Meters",
+                                        )
+                                      }
+                                      data-testid={`lpcd-stat-card-connected-${stat.region}`}
+                                    >
+                                      <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+                                      <div className="relative z-10">
+                                        <div className="flex items-center gap-1.5 mb-1.5">
+                                          <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                                            <Wifi className="h-3.5 w-3.5 text-white" />
+                                          </div>
+                                          <span className="!text-[12px] font-medium text-blue-100">
+                                            Connected Flow Meters
+                                          </span>
+                                        </div>
+                                        <div className="text-2xl font-bold text-white">
+                                          {stat.totalConnected.toLocaleString()}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div
+                                      className="relative overflow-hidden bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+                                      onClick={() =>
+                                        handleLPCDCellClick(
+                                          "villages-with-water",
+                                          stat.region,
+                                          "Villages with Water",
+                                        )
+                                      }
+                                      data-testid={`lpcd-stat-card-with-water-${stat.region}`}
+                                    >
+                                      <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+                                      <div className="relative z-10">
+                                        <div className="flex items-center gap-1.5 mb-1.5">
+                                          <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                                            <Droplet className="h-3.5 w-3.5 text-white" />
+                                          </div>
+                                          <span className="!text-[12px] font-medium text-emerald-100">
+                                            Villages with Water
+                                          </span>
+                                        </div>
+                                        <div className="text-2xl font-bold text-white">
+                                          {stat.villagesWithWater.toLocaleString()}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div
+                                      className="relative overflow-hidden bg-gradient-to-br from-teal-500 via-teal-600 to-teal-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+                                      onClick={() =>
+                                        handleLPCDCellClick(
+                                          "villages-above-55",
+                                          stat.region,
+                                          "Villages >55 LPCD",
+                                        )
+                                      }
+                                      data-testid={`lpcd-stat-card-above-55-${stat.region}`}
+                                    >
+                                      <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+                                      <div className="relative z-10">
+                                        <div className="flex items-center gap-1.5 mb-1.5">
+                                          <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                                            <TrendingUp className="h-3.5 w-3.5 text-white" />
+                                          </div>
+                                          <span className="!text-[12px] font-medium text-teal-100">
+                                            &gt;55 LPCD
+                                          </span>
+                                        </div>
+                                        <div className="text-2xl font-bold text-white">
+                                          {stat.villagesAbove55.toLocaleString()}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div
+                                      className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-orange-600 to-orange-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+                                      onClick={() =>
+                                        handleLPCDCellClick(
+                                          "villages-below-55",
+                                          stat.region,
+                                          "Villages <55 LPCD",
+                                        )
+                                      }
+                                      data-testid={`lpcd-stat-card-below-55-${stat.region}`}
+                                    >
+                                      <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+                                      <div className="relative z-10">
+                                        <div className="flex items-center gap-1.5 mb-1.5">
+                                          <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                                            <AlertCircle className="h-3.5 w-3.5 text-white" />
+                                          </div>
+                                          <span className="!text-[12px] font-medium text-orange-100">
+                                            &lt;55 LPCD
+                                          </span>
+                                        </div>
+                                        <div className="text-2xl font-bold text-white">
+                                          {stat.villagesBelow55.toLocaleString()}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Secondary Stats Row */}
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    <div
+                                      className="relative overflow-hidden bg-gradient-to-br from-red-500 via-red-600 to-red-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+                                      onClick={() =>
+                                        handleLPCDCellClick(
+                                          "villages-no-water",
+                                          stat.region,
+                                          "Villages with No Water",
+                                        )
+                                      }
+                                      data-testid={`lpcd-stat-card-no-water-${stat.region}`}
+                                    >
+                                      <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+                                      <div className="relative z-10">
+                                        <div className="flex items-center gap-1.5 mb-1.5">
+                                          <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                                            <WifiOff className="h-3.5 w-3.5 text-white" />
+                                          </div>
+                                          <span className="!text-[12px] font-medium text-red-100">
+                                            No Water
+                                          </span>
+                                        </div>
+                                        <div className="text-2xl font-bold text-white">
+                                          {stat.villagesNoWater.toLocaleString()}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div
+                                      className="relative overflow-hidden bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+                                      onClick={() =>
+                                        handleLPCDCellClick(
+                                          "below-55-3days",
+                                          stat.region,
+                                          "<55 LPCD for 3+ Days",
+                                        )
+                                      }
+                                      data-testid={`lpcd-stat-card-below-55-3days-${stat.region}`}
+                                    >
+                                      <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+                                      <div className="relative z-10">
+                                        <div className="flex items-center gap-1.5 mb-1.5">
+                                          <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                                            <Calendar className="h-3.5 w-3.5 text-white" />
+                                          </div>
+                                          <span className="!text-[12px] font-medium text-amber-100">
+                                            &lt;55 for 3+ Days
+                                          </span>
+                                        </div>
+                                        <div className="text-2xl font-bold text-white">
+                                          {stat.below55For3Days.toLocaleString()}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div
+                                      className="relative overflow-hidden bg-gradient-to-br from-rose-500 via-rose-600 to-rose-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+                                      onClick={() =>
+                                        handleLPCDCellClick(
+                                          "below-55-7days",
+                                          stat.region,
+                                          "<55 LPCD for 7+ Days",
+                                        )
+                                      }
+                                      data-testid={`lpcd-stat-card-below-55-7days-${stat.region}`}
+                                    >
+                                      <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+                                      <div className="relative z-10">
+                                        <div className="flex items-center gap-1.5 mb-1.5">
+                                          <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                                            <Calendar className="h-3.5 w-3.5 text-white" />
+                                          </div>
+                                          <span className="!text-[12px] font-medium text-rose-100">
+                                            &lt;55 for 7+ Days
+                                          </span>
+                                        </div>
+                                        <div className="text-2xl font-bold text-white">
+                                          {stat.below55For7Days.toLocaleString()}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div
+                                      className="relative overflow-hidden bg-gradient-to-br from-pink-500 via-pink-600 to-pink-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+                                      onClick={() =>
+                                        handleLPCDCellClick(
+                                          "below-55-30days",
+                                          stat.region,
+                                          "<55 LPCD for 30+ Days",
+                                        )
+                                      }
+                                      data-testid={`lpcd-stat-card-below-55-30days-${stat.region}`}
+                                    >
+                                      <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+                                      <div className="relative z-10">
+                                        <div className="flex items-center gap-1.5 mb-1.5">
+                                          <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                                            <Calendar className="h-3.5 w-3.5 text-white" />
+                                          </div>
+                                          <span className="!text-[12px] font-medium text-pink-100">
+                                            &lt;55 for 30+ Days
+                                          </span>
+                                        </div>
+                                        <div className="text-2xl font-bold text-white">
+                                          {stat.below55For30Days.toLocaleString()}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Bar Chart */}
+                                  <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+                                    <div className="h-72">
+                                      <ResponsiveContainer
+                                        width="100%"
+                                        height="100%"
+                                      >
+                                        <BarChart
+                                          data={[
+                                            {
+                                              name: "Connected",
+                                              value: stat.totalConnected,
+                                              color: "#3b82f6",
+                                              statisticType: "connected",
+                                              label: "Connected Flow Meters",
+                                            },
+                                            {
+                                              name: "With Water",
+                                              value: stat.villagesWithWater,
+                                              color: "#10b981",
+                                              statisticType:
+                                                "villages-with-water",
+                                              label: "Villages with Water",
+                                            },
+                                            {
+                                              name: ">55 LPCD",
+                                              value: stat.villagesAbove55,
+                                              color: "#14b8a6",
+                                              statisticType:
+                                                "villages-above-55",
+                                              label: "Villages >55 LPCD",
+                                            },
+                                            {
+                                              name: "<55 LPCD",
+                                              value: stat.villagesBelow55,
+                                              color: "#f97316",
+                                              statisticType:
+                                                "villages-below-55",
+                                              label: "Villages <55 LPCD",
+                                            },
+                                            {
+                                              name: "No Water",
+                                              value: stat.villagesNoWater,
+                                              color: "#ef4444",
+                                              statisticType:
+                                                "villages-no-water",
+                                              label: "Villages with No Water",
+                                            },
+                                            {
+                                              name: "<55 (3d)",
+                                              value: stat.below55For3Days,
+                                              color: "#f59e0b",
+                                              statisticType: "below-55-3days",
+                                              label: "<55 LPCD for 3+ Days",
+                                            },
+                                            {
+                                              name: "<55 (7d)",
+                                              value: stat.below55For7Days,
+                                              color: "#f43f5e",
+                                              statisticType: "below-55-7days",
+                                              label: "<55 LPCD for 7+ Days",
+                                            },
+                                            {
+                                              name: "<55 (30d)",
+                                              value: stat.below55For30Days,
+                                              color: "#ec4899",
+                                              statisticType: "below-55-30days",
+                                              label: "<55 LPCD for 30+ Days",
+                                            },
+                                          ]}
+                                          layout="vertical"
+                                          margin={{
+                                            top: 5,
+                                            right: 30,
+                                            left: 80,
+                                            bottom: 5,
+                                          }}
+                                        >
+                                          <CartesianGrid
+                                            strokeDasharray="3 3"
+                                            stroke="#e5e7eb"
+                                          />
+                                          <XAxis
+                                            type="number"
+                                            tick={{ fontSize: 11 }}
+                                          />
+                                          <YAxis
+                                            dataKey="name"
+                                            type="category"
+                                            tick={{ fontSize: 11 }}
+                                            width={75}
+                                          />
+                                          <Tooltip />
+                                          <Bar
+                                            dataKey="value"
+                                            radius={[0, 4, 4, 0]}
+                                            cursor="pointer"
+                                            onClick={(data: any) => {
+                                              if (data && data.value > 0) {
+                                                handleLPCDCellClick(
+                                                  data.statisticType,
+                                                  stat.region,
+                                                  data.label,
+                                                );
+                                              }
+                                            }}
+                                          >
+                                            {[
+                                              {
+                                                name: "Connected",
+                                                value: stat.totalConnected,
+                                                color: "#3b82f6",
+                                              },
+                                              {
+                                                name: "With Water",
+                                                value: stat.villagesWithWater,
+                                                color: "#10b981",
+                                              },
+                                              {
+                                                name: ">55 LPCD",
+                                                value: stat.villagesAbove55,
+                                                color: "#14b8a6",
+                                              },
+                                              {
+                                                name: "<55 LPCD",
+                                                value: stat.villagesBelow55,
+                                                color: "#f97316",
+                                              },
+                                              {
+                                                name: "No Water",
+                                                value: stat.villagesNoWater,
+                                                color: "#ef4444",
+                                              },
+                                              {
+                                                name: "<55 (3d)",
+                                                value: stat.below55For3Days,
+                                                color: "#f59e0b",
+                                              },
+                                              {
+                                                name: "<55 (7d)",
+                                                value: stat.below55For7Days,
+                                                color: "#f43f5e",
+                                              },
+                                              {
+                                                name: "<55 (30d)",
+                                                value: stat.below55For30Days,
+                                                color: "#ec4899",
+                                              },
+                                            ].map((entry, index) => (
+                                              <Cell
+                                                key={`cell-${index}`}
+                                                fill={entry.color}
+                                                className="hover:opacity-80 transition-opacity"
+                                              />
+                                            ))}
+                                            <LabelList
+                                              dataKey="value"
+                                              position="right"
+                                              fontSize={11}
+                                            />
+                                          </Bar>
+                                        </BarChart>
+                                      </ResponsiveContainer>
+                                    </div>
+                                  </div>
+                                </div>
+                              </TabsContent>
+                            ))}
+                          </Tabs>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* LPCD Details Card */}
+                    {clickedLPCDCell && (
+                      <Card
+                        className="mt-4 border-0 shadow-lg rounded-xl overflow-hidden"
+                        data-testid="card-lpcd-details"
+                      >
+                        <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950 dark:to-teal-950 border-b border-emerald-200 dark:border-emerald-800 py-2.5">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                            <CardTitle className="flex items-center gap-2">
+                              <div className="p-1.5 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg shadow-sm">
+                                <Droplet className="h-4 w-4 text-white" />
+                              </div>
+                              <div>
+                                <div className="text-sm font-bold text-gray-900 dark:text-white">
+                                  {clickedLPCDCell.label}
+                                </div>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300 !text-[12px] px-1.5 py-0"
+                                  >
+                                    {clickedLPCDCell.region || "All Regions"}
+                                  </Badge>
+                                  <Badge className="bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300 !text-[12px] px-1.5 py-0">
+                                    {lpcdDetails?.count || 0} villages
+                                  </Badge>
+                                </div>
+                              </div>
+                            </CardTitle>
+                            <div className="flex gap-1.5">
+                              <Button
+                                onClick={handleLPCDDownloadExcel}
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs bg-green-50 border-green-200 text-green-700 hover:bg-green-100 dark:bg-green-950 dark:border-green-800 dark:text-green-400"
+                                data-testid="button-lpcd-download-excel"
+                              >
+                                <Download className="h-3.5 w-3.5 mr-1" />
+                                Export Excel
+                              </Button>
+                              <Button
+                                onClick={() => setClickedLPCDCell(null)}
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                                data-testid="button-close-lpcd-details"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                          {isLoadingLPCDDetails ? (
+                            <div className="space-y-2 p-4">
+                              <Skeleton className="h-10 w-full" />
+                              <Skeleton className="h-10 w-full" />
+                              <Skeleton className="h-10 w-full" />
+                            </div>
+                          ) : lpcdDetails && lpcdDetails.data.length > 0 ? (
+                            <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-slate-200/60 dark:border-slate-700/60 rounded-xl m-3 shadow-sm">
+                              <Table className="w-full">
+                                <TableHeader className="sticky top-0 z-10">
+                                  <TableRow className="bg-slate-800 dark:bg-slate-900">
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                      Circle
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                      Division
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                      Sub Division
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[90px] border-r border-white/10">
+                                      Scheme ID
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[140px] border-r border-white/10">
+                                      Scheme Name
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                      Village
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                      Population
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                      LPCD
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                      Water (LL)
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                      Dashboard
+                                    </TableHead>
+                                    {clickedLPCDCell.statisticType.startsWith(
+                                      "below-55-",
+                                    ) && (
+                                        <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center">
+                                          Days &lt;55
+                                        </TableHead>
+                                      )}
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {lpcdDetails.data.map((item, idx) => (
+                                    <TableRow
+                                      key={`${item.scheme_id}-${item.village_name}-${idx}`}
+                                      className={`transition-all duration-200 hover:bg-emerald-50/70 dark:hover:bg-emerald-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-slate-50/60 dark:bg-slate-800/40"}`}
+                                      data-testid={`row-lpcd-${idx}`}
+                                    >
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60 font-medium">
+                                        {item.circle}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
+                                        {item.division}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-slate-100/80 dark:border-slate-800/60">
+                                        {item.sub_division}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-emerald-600 dark:text-emerald-400 border-r border-slate-100/80 dark:border-slate-800/60">
+                                        {item.scheme_id}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-slate-100/80 dark:border-slate-800/60">
+                                        {item.scheme_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
+                                        {item.village_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
+                                        {item.population !== null &&
+                                          item.population !== undefined ? (
+                                          Number(
+                                            item.population,
+                                          ).toLocaleString()
+                                        ) : (
+                                          <span className="text-slate-400">
+                                            N/A
+                                          </span>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium border-r border-slate-100/80 dark:border-slate-800/60">
+                                        {item.lpcd_value_day7 !== null &&
+                                          item.lpcd_value_day7 !== undefined ? (
+                                          <span
+                                            className={
+                                              Number(item.lpcd_value_day7) >= 55
+                                                ? "text-emerald-600 dark:text-emerald-400"
+                                                : "text-orange-600 dark:text-orange-400"
+                                            }
+                                          >
+                                            {Number(
+                                              item.lpcd_value_day7,
+                                            ).toFixed(1)}
+                                          </span>
+                                        ) : (
+                                          <span className="text-slate-400">
+                                            N/A
+                                          </span>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
+                                        {item.water_value_day7 !== null &&
+                                          item.water_value_day7 !== undefined ? (
+                                          Number(item.water_value_day7).toFixed(
+                                            2,
+                                          )
+                                        ) : (
+                                          <span className="text-slate-400">
+                                            N/A
+                                          </span>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center text-[12px] border-r border-slate-100/80 dark:border-slate-800/60">
+                                        {item.dashboard_url ? (
+                                          <a
+                                            href={item.dashboard_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 hover:bg-emerald-200 text-emerald-700 dark:bg-emerald-900/50 dark:hover:bg-emerald-900 dark:text-emerald-300 transition-colors"
+                                            title="Open Dashboard"
+                                          >
+                                            <ExternalLink className="h-3 w-3" />
+                                          </a>
+                                        ) : (
+                                          <span className="text-gray-300 dark:text-gray-700">-</span>
+                                        )}
+                                      </TableCell>
+                                      {clickedLPCDCell.statisticType.startsWith(
+                                        "below-55-",
+                                      ) && (
+                                          <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-bold text-rose-600 dark:text-rose-400">
+                                            {item.consecutive_days || "N/A"}
+                                          </TableCell>
+                                        )}
+                                    </TableRow>
+
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          ) : (
+                            <div className="text-center py-8">
+                              <AlertCircle className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                No villages found for this category
+                              </p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )}
+                  </>
+                )}
+
+                {/* Scheme LPCD Regional Statistics Section */}
+                {mainTab === "lpcd" && lpcdSubTab === "scheme" && (
+                  <>
+                    <Card
+                      data-testid="card-scheme-lpcd-regional-stats"
+                      className="border-0 shadow-lg rounded-xl overflow-hidden"
+                    >
+                      <CardHeader className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950 dark:to-indigo-950 border-b border-purple-200 dark:border-purple-800 py-3">
+                        <CardTitle className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="p-1.5 bg-gradient-to-br from-purple-500 to-indigo-700 rounded-lg shadow-sm">
+                              <Building2 className="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                              <div className="text-base font-bold text-gray-900 dark:text-white">
+                                Scheme LPCD Regional Statistics
+                              </div>
+                              <div className="!text-[12px] font-normal text-gray-600 dark:text-gray-400">
+                                Click on the numbers to display the list
+                              </div>
+                            </div>
+                          </div>
+                          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800 rounded-lg">
+                            <Building2 className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+                            <span className="!text-[12px] font-medium text-purple-700 dark:text-purple-300">
+                              Numbers represent{" "}
+                              <span className="font-bold">Schemes</span>
+                            </span>
+                          </div>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4">
+                        {isLoadingSchemeLPCDRegional ? (
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                              <Skeleton className="h-20 w-full rounded-lg" />
+                              <Skeleton className="h-20 w-full rounded-lg" />
+                              <Skeleton className="h-20 w-full rounded-lg" />
+                              <Skeleton className="h-20 w-full rounded-lg" />
+                            </div>
+                            <Skeleton className="h-72 w-full rounded-lg" />
+                          </div>
+                        ) : (
+                          <Tabs
+                            value={schemeLpcdRegionalRegion}
+                            onValueChange={(val) => {
+                              setSchemeLpcdRegionalRegion(val);
+                              setClickedSchemeLPCDCell(null);
+                            }}
+                          >
+                            <TabsList className="mb-4 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg flex flex-wrap h-auto gap-1">
+                              <TabsTrigger
+                                key="All Regions"
+                                value="All Regions"
+                                data-testid="scheme-lpcd-tab-all-regions"
+                                className="data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-700 rounded-md px-3 py-1.5 text-xs font-medium transition-all"
+                              >
+                                <MapPin className="h-3 w-3 mr-1" />
+                                All Regions
+                              </TabsTrigger>
+                              {schemeLpcdRegionalStats?.data?.map((stat) => (
+                                <TabsTrigger
+                                  key={stat.region}
+                                  value={stat.region}
+                                  data-testid={`scheme-lpcd-tab-${stat.region}`}
+                                  className="data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-gray-700 rounded-md px-3 py-1.5 text-xs font-medium transition-all"
+                                >
+                                  {stat.region}
+                                </TabsTrigger>
+                              ))}
+                            </TabsList>
+
+                            {/* All Regions content */}
+                            <TabsContent key="All Regions" value="All Regions">
+                              <div className="space-y-4">
+                                {/* Summary Cards */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                  <div
+                                    className="relative overflow-hidden bg-gradient-to-br from-purple-500 via-purple-600 to-purple-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+                                    onClick={() =>
+                                      setClickedSchemeLPCDCell({
+                                        statisticType: "totalSchemes",
+                                        region: "All Regions",
+                                        label: "Total Schemes",
+                                      })
+                                    }
+                                    data-testid="scheme-lpcd-stat-card-total-all"
+                                  >
+                                    <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+                                    <div className="relative z-10">
+                                      <div className="flex items-center gap-1.5 mb-1.5">
+                                        <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                                          <Building2 className="h-3.5 w-3.5 text-white" />
+                                        </div>
+                                        <span className="!text-[12px] font-medium text-purple-100">
+                                          Total Schemes
+                                        </span>
+                                      </div>
+                                      <div className="text-2xl font-bold text-white">
+                                        {schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.totalSchemes, 0).toLocaleString() || 0}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div
+                                    className="relative overflow-hidden bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+                                    onClick={() =>
+                                      setClickedSchemeLPCDCell({
+                                        statisticType: "schemesAbove55",
+                                        region: "All Regions",
+                                        label: "Schemes >55 LPCD",
+                                      })
+                                    }
+                                    data-testid="scheme-lpcd-stat-card-above55-all"
+                                  >
+                                    <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+                                    <div className="relative z-10">
+                                      <div className="flex items-center gap-1.5 mb-1.5">
+                                        <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                                          <TrendingUp className="h-3.5 w-3.5 text-white" />
+                                        </div>
+                                        <span className="!text-[12px] font-medium text-emerald-100">
+                                          Schemes &gt;55 LPCD
+                                        </span>
+                                      </div>
+                                      <div className="text-2xl font-bold text-white">
+                                        {schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.schemesAbove55, 0).toLocaleString() || 0}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div
+                                    className="relative overflow-hidden bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+                                    onClick={() =>
+                                      setClickedSchemeLPCDCell({
+                                        statisticType: "schemesBelow55",
+                                        region: "All Regions",
+                                        label: "Schemes <55 LPCD",
+                                      })
+                                    }
+                                    data-testid="scheme-lpcd-stat-card-below55-all"
+                                  >
+                                    <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+                                    <div className="relative z-10">
+                                      <div className="flex items-center gap-1.5 mb-1.5">
+                                        <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                                          <TrendingUp className="h-3.5 w-3.5 text-white rotate-180" />
+                                        </div>
+                                        <span className="!text-[12px] font-medium text-amber-100">
+                                          Schemes &lt;55 LPCD
+                                        </span>
+                                      </div>
+                                      <div className="text-2xl font-bold text-white">
+                                        {schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.schemesBelow55, 0).toLocaleString() || 0}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div
+                                    className="relative overflow-hidden bg-gradient-to-br from-rose-500 via-rose-600 to-rose-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+                                    onClick={() =>
+                                      setClickedSchemeLPCDCell({
+                                        statisticType: "schemesNoSupply",
+                                        region: "All Regions",
+                                        label: "Schemes No Supply",
+                                      })
+                                    }
+                                    data-testid="scheme-lpcd-stat-card-nosupply-all"
+                                  >
+                                    <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+                                    <div className="relative z-10">
+                                      <div className="flex items-center gap-1.5 mb-1.5">
+                                        <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                                          <AlertCircle className="h-3.5 w-3.5 text-white" />
+                                        </div>
+                                        <span className="!text-[12px] font-medium text-rose-100">
+                                          Schemes No Supply
+                                        </span>
+                                      </div>
+                                      <div className="text-2xl font-bold text-white">
+                                        {schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.schemesNoSupply, 0).toLocaleString() || 0}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Horizontal Bar Chart */}
+                                <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+                                  <div className="h-72">
+                                    <ResponsiveContainer
+                                      width="100%"
+                                      height="100%"
+                                    >
+                                      <BarChart
+                                        data={[
+                                          {
+                                            name: "Total Schemes",
+                                            value:
+                                              schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.totalSchemes, 0) || 0,
+                                            color: "#a855f7",
+                                            statisticType: "totalSchemes",
+                                            label: "Total Schemes",
+                                          },
+                                          {
+                                            name: ">55 LPCD",
+                                            value:
+                                              schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.schemesAbove55, 0) || 0,
+                                            color: "#10b981",
+                                            statisticType: "schemesAbove55",
+                                            label: "Schemes >55 LPCD",
+                                          },
+                                          {
+                                            name: "<55 LPCD",
+                                            value:
+                                              schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.schemesBelow55, 0) || 0,
+                                            color: "#f59e0b",
+                                            statisticType: "schemesBelow55",
+                                            label: "Schemes <55 LPCD",
+                                          },
+                                          {
+                                            name: "No Supply",
+                                            value:
+                                              schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.schemesNoSupply, 0) || 0,
+                                            color: "#f43f5e",
+                                            statisticType: "schemesNoSupply",
+                                            label: "Schemes No Supply",
+                                          },
+                                          {
+                                            name: "<55 (3d)",
+                                            value:
+                                              schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.below55For3Days, 0) || 0,
+                                            color: "#f97316",
+                                            statisticType: "below55For3Days",
+                                            label: "<55 LPCD for 3+ Days",
+                                          },
+                                          {
+                                            name: "<55 (7d)",
+                                            value:
+                                              schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.below55For7Days, 0) || 0,
+                                            color: "#ef4444",
+                                            statisticType: "below55For7Days",
+                                            label: "<55 LPCD for 7+ Days",
+                                          },
+                                          {
+                                            name: "<55 (30d)",
+                                            value:
+                                              schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.below55For30Days, 0) || 0,
+                                            color: "#ec4899",
+                                            statisticType: "below55For30Days",
+                                            label: "<55 LPCD for 30+ Days",
+                                          },
+                                        ]}
+                                        layout="vertical"
+                                        margin={{
+                                          top: 5,
+                                          right: 30,
+                                          left: 80,
+                                          bottom: 5,
+                                        }}
+                                      >
+                                        <CartesianGrid
+                                          strokeDasharray="3 3"
+                                          stroke="#e5e7eb"
+                                        />
+                                        <XAxis
+                                          type="number"
+                                          tick={{ fontSize: 11 }}
+                                        />
+                                        <YAxis
+                                          dataKey="name"
+                                          type="category"
+                                          tick={{ fontSize: 11 }}
+                                          width={75}
+                                        />
+                                        <Tooltip />
+                                        <Bar
+                                          dataKey="value"
+                                          radius={[0, 4, 4, 0]}
+                                          cursor="pointer"
+                                          onClick={(data: any) => {
+                                            if (data && data.value > 0) {
+                                              setClickedSchemeLPCDCell({
+                                                statisticType: data.statisticType,
+                                                region: "All Regions",
+                                                label: data.label,
+                                              });
+                                            }
+                                          }}
+                                        >
+                                          {[
+                                            {
+                                              name: "Total Schemes",
+                                              value:
+                                                schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.totalSchemes, 0) || 0,
+                                              color: "#a855f7",
+                                            },
+                                            {
+                                              name: ">55 LPCD",
+                                              value:
+                                                schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.schemesAbove55, 0) || 0,
+                                              color: "#10b981",
+                                            },
+                                            {
+                                              name: "<55 LPCD",
+                                              value:
+                                                schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.schemesBelow55, 0) || 0,
+                                              color: "#f59e0b",
+                                            },
+                                            {
+                                              name: "No Supply",
+                                              value:
+                                                schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.schemesNoSupply, 0) || 0,
+                                              color: "#f43f5e",
+                                            },
+                                            {
+                                              name: "<55 (3d)",
+                                              value:
+                                                schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.below55For3Days, 0) || 0,
+                                              color: "#f97316",
+                                            },
+                                            {
+                                              name: "<55 (7d)",
+                                              value:
+                                                schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.below55For7Days, 0) || 0,
+                                              color: "#ef4444",
+                                            },
+                                            {
+                                              name: "<55 (30d)",
+                                              value:
+                                                schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.below55For30Days, 0) || 0,
+                                              color: "#ec4899",
+                                            },
+                                          ].map((entry, index) => (
+                                            <Cell
+                                              key={`cell-${index}`}
+                                              fill={entry.color}
+                                              className="hover:opacity-80 transition-opacity"
+                                            />
+                                          ))}
+                                          <LabelList
+                                            dataKey="value"
+                                            position="right"
+                                            fontSize={11}
+                                          />
+                                        </Bar>
+                                      </BarChart>
+                                    </ResponsiveContainer>
+                                  </div>
+                                </div>
+                              </div>
+                            </TabsContent>
+
+                            {/* Individual Region Views */}
+                            {schemeLpcdRegionalStats?.data?.map((stat) => (
+                              <TabsContent key={stat.region} value={stat.region}>
+                                <div className="space-y-4">
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    <div
+                                      className="relative overflow-hidden bg-gradient-to-br from-purple-500 via-purple-600 to-purple-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+                                      onClick={() =>
+                                        setClickedSchemeLPCDCell({
+                                          statisticType: "totalSchemes",
+                                          region: stat.region,
+                                          label: `Total Schemes - ${stat.region}`,
+                                        })
+                                      }
+                                    >
+                                      <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+                                      <div className="relative z-10">
+                                        <div className="flex items-center gap-1.5 mb-1.5">
+                                          <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                                            <Building2 className="h-3.5 w-3.5 text-white" />
+                                          </div>
+                                          <span className="!text-[12px] font-medium text-purple-100">
+                                            Total Schemes
+                                          </span>
+                                        </div>
+                                        <div className="text-2xl font-bold text-white">
+                                          {stat.totalSchemes.toLocaleString()}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div
+                                      className="relative overflow-hidden bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+                                      onClick={() =>
+                                        setClickedSchemeLPCDCell({
+                                          statisticType: "schemesAbove55",
+                                          region: stat.region,
+                                          label: `Schemes >55 LPCD - ${stat.region}`,
+                                        })
+                                      }
+                                    >
+                                      <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+                                      <div className="relative z-10">
+                                        <div className="flex items-center gap-1.5 mb-1.5">
+                                          <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                                            <TrendingUp className="h-3.5 w-3.5 text-white" />
+                                          </div>
+                                          <span className="!text-[12px] font-medium text-emerald-100">
+                                            Schemes &gt;55 LPCD
+                                          </span>
+                                        </div>
+                                        <div className="text-2xl font-bold text-white">
+                                          {stat.schemesAbove55.toLocaleString()}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div
+                                      className="relative overflow-hidden bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+                                      onClick={() =>
+                                        setClickedSchemeLPCDCell({
+                                          statisticType: "schemesBelow55",
+                                          region: stat.region,
+                                          label: `Schemes <55 LPCD - ${stat.region}`,
+                                        })
+                                      }
+                                    >
+                                      <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+                                      <div className="relative z-10">
+                                        <div className="flex items-center gap-1.5 mb-1.5">
+                                          <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                                            <TrendingUp className="h-3.5 w-3.5 text-white rotate-180" />
+                                          </div>
+                                          <span className="!text-[12px] font-medium text-amber-100">
+                                            Schemes &lt;55 LPCD
+                                          </span>
+                                        </div>
+                                        <div className="text-2xl font-bold text-white">
+                                          {stat.schemesBelow55.toLocaleString()}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div
+                                      className="relative overflow-hidden bg-gradient-to-br from-rose-500 via-rose-600 to-rose-700 rounded-lg p-3 shadow-md cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+                                      onClick={() =>
+                                        setClickedSchemeLPCDCell({
+                                          statisticType: "schemesNoSupply",
+                                          region: stat.region,
+                                          label: `Schemes No Supply - ${stat.region}`,
+                                        })
+                                      }
+                                    >
+                                      <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-6 -mt-6"></div>
+                                      <div className="relative z-10">
+                                        <div className="flex items-center gap-1.5 mb-1.5">
+                                          <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-md">
+                                            <AlertCircle className="h-3.5 w-3.5 text-white" />
+                                          </div>
+                                          <span className="!text-[12px] font-medium text-rose-100">
+                                            Schemes No Supply
+                                          </span>
+                                        </div>
+                                        <div className="text-2xl font-bold text-white">
+                                          {stat.schemesNoSupply.toLocaleString()}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Horizontal Bar Chart for Individual Region */}
+                                  <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+                                    <div className="h-72">
+                                      <ResponsiveContainer
+                                        width="100%"
+                                        height="100%"
+                                      >
+                                        <BarChart
+                                          data={[
+                                            {
+                                              name: "Total Schemes",
+                                              value: stat.totalSchemes,
+                                              color: "#a855f7",
+                                              statisticType: "totalSchemes",
+                                              label: `Total Schemes - ${stat.region}`,
+                                            },
+                                            {
+                                              name: ">55 LPCD",
+                                              value: stat.schemesAbove55,
+                                              color: "#10b981",
+                                              statisticType: "schemesAbove55",
+                                              label: `Schemes >55 LPCD - ${stat.region}`,
+                                            },
+                                            {
+                                              name: "<55 LPCD",
+                                              value: stat.schemesBelow55,
+                                              color: "#f59e0b",
+                                              statisticType: "schemesBelow55",
+                                              label: `Schemes <55 LPCD - ${stat.region}`,
+                                            },
+                                            {
+                                              name: "No Supply",
+                                              value: stat.schemesNoSupply,
+                                              color: "#f43f5e",
+                                              statisticType: "schemesNoSupply",
+                                              label: `Schemes No Supply - ${stat.region}`,
+                                            },
+                                            {
+                                              name: "<55 (3d)",
+                                              value: stat.below55For3Days,
+                                              color: "#f97316",
+                                              statisticType: "below55For3Days",
+                                              label: `<55 LPCD for 3+ Days - ${stat.region}`,
+                                            },
+                                            {
+                                              name: "<55 (7d)",
+                                              value: stat.below55For7Days,
+                                              color: "#ef4444",
+                                              statisticType: "below55For7Days",
+                                              label: `<55 LPCD for 7+ Days - ${stat.region}`,
+                                            },
+                                            {
+                                              name: "<55 (30d)",
+                                              value: stat.below55For30Days,
+                                              color: "#ec4899",
+                                              statisticType: "below55For30Days",
+                                              label: `<55 LPCD for 30+ Days - ${stat.region}`,
+                                            },
+                                          ]}
+                                          layout="vertical"
+                                          margin={{
+                                            top: 5,
+                                            right: 30,
+                                            left: 80,
+                                            bottom: 5,
+                                          }}
+                                        >
+                                          <CartesianGrid
+                                            strokeDasharray="3 3"
+                                            stroke="#e5e7eb"
+                                          />
+                                          <XAxis
+                                            type="number"
+                                            tick={{ fontSize: 11 }}
+                                          />
+                                          <YAxis
+                                            dataKey="name"
+                                            type="category"
+                                            tick={{ fontSize: 11 }}
+                                            width={75}
+                                          />
+                                          <Tooltip />
+                                          <Bar
+                                            dataKey="value"
+                                            radius={[0, 4, 4, 0]}
+                                            cursor="pointer"
+                                            onClick={(data: any) => {
+                                              if (data && data.value > 0) {
+                                                setClickedSchemeLPCDCell({
+                                                  statisticType: data.statisticType,
+                                                  region: stat.region,
+                                                  label: data.label,
+                                                });
+                                              }
+                                            }}
+                                          >
+                                            {[
+                                              {
+                                                name: "Total Schemes",
+                                                value: stat.totalSchemes,
+                                                color: "#a855f7",
+                                              },
+                                              {
+                                                name: ">55 LPCD",
+                                                value: stat.schemesAbove55,
+                                                color: "#10b981",
+                                              },
+                                              {
+                                                name: "<55 LPCD",
+                                                value: stat.schemesBelow55,
+                                                color: "#f59e0b",
+                                              },
+                                              {
+                                                name: "No Supply",
+                                                value: stat.schemesNoSupply,
+                                                color: "#f43f5e",
+                                              },
+                                              {
+                                                name: "<55 (3d)",
+                                                value: stat.below55For3Days,
+                                                color: "#f97316",
+                                              },
+                                              {
+                                                name: "<55 (7d)",
+                                                value: stat.below55For7Days,
+                                                color: "#ef4444",
+                                              },
+                                              {
+                                                name: "<55 (30d)",
+                                                value: stat.below55For30Days,
+                                                color: "#ec4899",
+                                              },
+                                            ].map((entry, index) => (
+                                              <Cell
+                                                key={`cell-${index}`}
+                                                fill={entry.color}
+                                                className="hover:opacity-80 transition-opacity"
+                                              />
+                                            ))}
+                                            <LabelList
+                                              dataKey="value"
+                                              position="right"
+                                              fontSize={11}
+                                            />
+                                          </Bar>
+                                        </BarChart>
+                                      </ResponsiveContainer>
+                                    </div>
+                                  </div>
+                                </div>
+                              </TabsContent>
+                            ))}
+                          </Tabs>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Scheme LPCD Details Card */}
+                    {clickedSchemeLPCDCell && (
+                      <Card
+                        className="mt-4 border-0 shadow-lg rounded-xl overflow-hidden"
+                        data-testid="card-scheme-lpcd-details"
+                      >
+                        <CardHeader className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950 dark:to-indigo-950 border-b border-purple-200 dark:border-purple-800 py-2.5">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                            <CardTitle className="flex items-center gap-2">
+                              <div className="p-1.5 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg shadow-sm">
+                                <Building2 className="h-4 w-4 text-white" />
+                              </div>
+                              <div>
+                                <div className="text-sm font-bold text-gray-900 dark:text-white">
+                                  {clickedSchemeLPCDCell.label}
+                                </div>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 !text-[12px] px-1.5 py-0"
+                                  >
+                                    {clickedSchemeLPCDCell.region || "All Regions"}
+                                  </Badge>
+                                  <Badge className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 !text-[12px] px-1.5 py-0">
+                                    {schemeLpcdDetails?.count || 0} schemes
+                                  </Badge>
+                                </div>
+                              </div>
+                            </CardTitle>
+                            <div className="flex gap-1.5">
+                              <Button
+                                onClick={() => {
+                                  const params = new URLSearchParams();
+                                  if (clickedSchemeLPCDCell.region && clickedSchemeLPCDCell.region !== "All Regions") {
+                                    params.append("region", clickedSchemeLPCDCell.region);
+                                  }
+                                  if (schemeFilter !== 'all') {
+                                    params.append("filterType", schemeFilter);
+                                  }
+                                  window.open(
+                                    `/api/chlorine/scheme-lpcd/details-export/${clickedSchemeLPCDCell.statisticType}?${params.toString()}`,
+                                    "_blank"
+                                  );
+                                }}
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs bg-green-50 border-green-200 text-green-700 hover:bg-green-100 dark:bg-green-950 dark:border-green-800 dark:text-green-400"
+                                data-testid="button-scheme-lpcd-download-excel"
+                              >
+                                <Download className="h-3.5 w-3.5 mr-1" />
+                                Export Excel
+                              </Button>
+                              <Button
+                                onClick={() => setClickedSchemeLPCDCell(null)}
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                                data-testid="button-close-scheme-lpcd-details"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                          {isLoadingSchemeLPCDDetails ? (
+                            <div className="space-y-2 p-4">
+                              <Skeleton className="h-10 w-full" />
+                              <Skeleton className="h-10 w-full" />
+                              <Skeleton className="h-10 w-full" />
+                            </div>
+                          ) : schemeLpcdDetails && schemeLpcdDetails.data.length > 0 ? (
+                            <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-slate-200/60 dark:border-slate-700/60 rounded-xl m-3 shadow-sm">
+                              <Table className="w-full">
+                                <TableHeader className="sticky top-0 z-10">
+                                  <TableRow className="bg-slate-800 dark:bg-slate-900">
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                      Circle
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                      Division
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                      Sub Division
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[90px] border-r border-white/10">
+                                      Scheme ID
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[140px] border-r border-white/10">
+                                      Scheme Name
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                      Population
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[70px] text-center border-r border-white/10">
+                                      Villages
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                      LPCD
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center">
+                                      Dashboard
+                                    </TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {schemeLpcdDetails.data.map((item, idx) => (
+                                    <TableRow
+                                      key={`${item.scheme_id}-${item.block}-${idx}`}
+                                      className={`transition-all duration-200 hover:bg-purple-50/70 dark:hover:bg-purple-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-slate-50/60 dark:bg-slate-800/40"}`}
+                                      data-testid={`row-scheme-lpcd-${idx}`}
+                                    >
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60 font-medium">
+                                        {item.circle}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
+                                        {item.division}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-slate-100/80 dark:border-slate-800/60">
+                                        {item.sub_division}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-purple-600 dark:text-purple-400 border-r border-slate-100/80 dark:border-slate-800/60">
+                                        {item.scheme_id}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-medium text-slate-800 dark:text-slate-200 border-r border-slate-100/80 dark:border-slate-800/60">
+                                        {item.dashboard_url ? (
+                                          <a
+                                            href={item.dashboard_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-blue-600 hover:underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            {item.scheme_name}
+                                          </a>
+                                        ) : (
+                                          item.scheme_name
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
+                                        {item.total_population?.toLocaleString() || "N/A"}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
+                                        {item.total_villages || "N/A"}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center">
+                                        {item.lpcd_value !== null &&
+                                          item.lpcd_value !== undefined ? (
+                                          <span
+                                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${item.lpcd_value > 55
+                                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300"
+                                              : "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
+                                              }`}
+                                          >
+                                            {Number(item.lpcd_value).toFixed(1)}
+                                          </span>
+                                        ) : (
+                                          <span className="text-slate-400">
+                                            N/A
+                                          </span>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center">
+                                        {item.dashboard_url ? (
+                                          <a
+                                            href={item.dashboard_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300 rounded text-[11px] font-medium"
+                                          >
+                                            <ExternalLink className="h-3 w-3" />
+                                            View
+                                          </a>
+                                        ) : (
+                                          <span className="text-slate-400 text-[11px]">-</span>
+                                        )}
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          ) : (
+                            <div className="text-center py-8">
+                              <AlertCircle className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                No schemes found for this category
+                              </p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )}
+                  </>
+                )}
+
+                {/* Pressure Regional Statistics */}
+                {mainTab === "pressure" && (
+                  <>
+                    <Card
+                      data-testid="card-pressure-regional-stats"
+                      className="border-0 shadow-lg rounded-xl overflow-hidden"
+                    >
+                      <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950 border-b border-orange-200 dark:border-orange-800 py-3">
+                        <CardTitle className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="p-1.5 bg-gradient-to-br from-orange-500 to-amber-700 rounded-lg shadow-sm">
+                              <Gauge className="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                              <div className="text-base font-bold text-gray-900 dark:text-white">
+                                Pressure Regional Statistics
+                              </div>
+                              <div className="!text-[12px] font-normal text-gray-600 dark:text-gray-400">
+                                Click on the numbers to display the list
+                              </div>
+                            </div>
+                          </div>
+                          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 dark:bg-orange-950/50 border border-orange-200 dark:border-orange-800 rounded-lg">
+                            <Gauge className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400" />
+                            <span className="!text-[12px] font-medium text-orange-700 dark:text-orange-300">
+                              Optimal Range:{" "}
+                              <span className="font-bold">0.2 - 0.7 bar</span>
+                            </span>
+                          </div>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4">
+                        {isLoadingPressureRegional ? (
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                              <Skeleton className="h-20 w-full rounded-lg" />
+                              <Skeleton className="h-20 w-full rounded-lg" />
+                              <Skeleton className="h-20 w-full rounded-lg" />
+                              <Skeleton className="h-20 w-full rounded-lg" />
+                            </div>
+                            <Skeleton className="h-72 w-full rounded-lg" />
+                          </div>
+                        ) : (
+                          <Tabs
+                            value={pressureRegionalRegion}
+                            onValueChange={(val) => {
+                              setPressureRegionalRegion(val);
+                              setClickedPressureCell(null);
+                            }}
+                          >
+                            <TabsList className="flex flex-wrap gap-1 bg-transparent mb-4 h-auto">
+                              <TabsTrigger
+                                value="All Regions"
+                                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white data-[state=active]:shadow-md px-3 py-1.5 rounded-lg text-xs font-medium"
+                                data-testid="pressure-tab-all-regions"
+                              >
+                                All Regions
+                              </TabsTrigger>
+                              {pressureRegionalStats.map((stat) => (
+                                <TabsTrigger
+                                  key={stat.region}
+                                  value={stat.region}
+                                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white data-[state=active]:shadow-md px-3 py-1.5 rounded-lg text-xs font-medium"
+                                  data-testid={`pressure-tab-${stat.region}`}
+                                >
+                                  {stat.region}
+                                </TabsTrigger>
+                              ))}
+                            </TabsList>
+
+                            {/* All Regions View */}
+                            <TabsContent value="All Regions">
+                              {renderPressureRegionBar(pressureRegionalTotals)}
+                            </TabsContent>
+                            {/* Individual Region Views */}
+                            {pressureRegionalStats.map((stat) => (
+                              <TabsContent
+                                key={stat.region}
+                                value={stat.region}
+                              >
+                                {renderPressureRegionBar(stat)}
+                              </TabsContent>
+                            ))}
+                          </Tabs>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Pressure Details Card */}
+                    {clickedPressureCell && (
+                      <Card
+                        className="mt-4 border-0 shadow-lg rounded-xl overflow-hidden"
+                        data-testid="card-pressure-details"
+                      >
+                        <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950 border-b border-orange-200 dark:border-orange-800 py-2.5">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                            <CardTitle className="flex items-center gap-2">
+                              <div className="p-1.5 bg-gradient-to-br from-orange-500 to-amber-600 rounded-lg shadow-sm">
+                                <Gauge className="h-4 w-4 text-white" />
+                              </div>
+                              <div>
+                                <div className="text-sm font-bold text-gray-900 dark:text-white">
+                                  {clickedPressureCell.label}
+                                </div>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300 !text-[12px] px-1.5 py-0"
+                                  >
+                                    {clickedPressureCell.region ||
+                                      "All Regions"}
+                                  </Badge>
+                                  <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300 !text-[12px] px-1.5 py-0">
+                                    {pressureSensorDetails?.count || 0} sensors
+                                  </Badge>
+                                </div>
+                              </div>
+                            </CardTitle>
+                            <div className="flex gap-1.5">
+                              <button
+                                onClick={() => {
+                                  const region =
+                                    clickedPressureCell.region === "All Regions"
+                                      ? ""
+                                      : clickedPressureCell.region;
+
+                                  const params = new URLSearchParams();
+                                  if (region) params.append("region", region);
+                                  if (schemeFilter !== 'all') {
+                                    params.append("filterType", schemeFilter);
+                                  }
+                                  if (schemeFilter === "fully_completed") {
+                                    params.append("fullyCompleted", "true");
+                                  }
+
+                                  window.open(
+                                    `/api/pressure/details-export/${clickedPressureCell.statisticType}?${params.toString()}`,
+                                    "_blank",
+                                  );
+                                }}
+                                className="flex items-center gap-1.5 px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors text-xs font-medium shadow-sm"
+                                data-testid="button-export-pressure-regional-excel"
+                              >
+                                <FileDown className="h-3 w-3" />
+                                Excel
+                              </button>
+                              <Button
+                                onClick={() => setClickedPressureCell(null)}
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 hover:bg-red-100 dark:hover:bg-red-900"
+                                data-testid="button-close-pressure-details"
+                              >
+                                <X className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-3">
+                          {isLoadingPressureDetails ? (
+                            <div className="space-y-2">
+                              {[...Array(5)].map((_, i) => (
+                                <Skeleton
+                                  key={i}
+                                  className="h-12 w-full rounded-lg"
+                                />
+                              ))}
+                            </div>
+                          ) : pressureSensorDetails?.data &&
+                            pressureSensorDetails.data.length > 0 ? (
+                            <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-orange-200/60 dark:border-orange-800/60 rounded-xl shadow-sm">
+                              <Table className="table-fixed w-full text-xs min-w-[1000px]">
+                                <TableHeader>
+                                  <TableRow className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950">
+                                    <TableHead className="!px-4 !py-2 font-bold text-orange-800 dark:text-orange-200 w-[100px]">
+                                      Region
+                                    </TableHead>
+                                    <TableHead className="!px-4 !py-2 font-bold text-orange-800 dark:text-orange-200 w-[100px]">
+                                      Division
+                                    </TableHead>
+                                    <TableHead className="!px-4 !py-2 font-bold text-orange-800 dark:text-orange-200 w-[130px]">
+                                      Village
+                                    </TableHead>
+                                    <TableHead className="!px-4 !py-2 font-bold text-orange-800 dark:text-orange-200 w-[120px]">
+                                      ESR
+                                    </TableHead>
+                                    <TableHead className="!px-4 !py-2 font-bold text-orange-800 dark:text-orange-200 text-center w-[100px]">
+                                      Pressure
+                                    </TableHead>
+                                    <TableHead className="!px-4 !py-2 font-bold text-orange-800 dark:text-orange-200 text-center w-[100px]">
+                                      Status
+                                    </TableHead>
+                                    <TableHead className="!px-4 !py-2 font-bold text-orange-800 dark:text-orange-200 text-center w-[100px]">
+                                      Dashboard
+                                    </TableHead>
+                                    <TableHead className="!px-4 !py-2 font-bold text-orange-800 dark:text-orange-200 text-center w-[100px] sticky right-0 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950 z-10 border-l border-orange-200/80 dark:border-orange-800/60">
+                                      Actions
+                                    </TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {pressureSensorDetails.data
+                                    .slice(0, 100)
+                                    .map((item: any, index: number) => (
+                                      <TableRow
+                                        key={index}
+                                        className="hover:bg-orange-50/50 dark:hover:bg-orange-950/30"
+                                      >
+                                        <TableCell className="!px-4 !py-2">
+                                          {item.region}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-2">
+                                          {item.division}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-2">
+                                          {item.village_name}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-2">
+                                          {item.esr_name}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-2 text-center font-mono font-bold">
+                                          {item.pressure_value_7 !== null &&
+                                            item.pressure_value_7 !==
+                                            undefined ? (
+                                            <span
+                                              className={
+                                                Number(item.pressure_value_7) >=
+                                                  0.2 &&
+                                                  Number(item.pressure_value_7) <=
+                                                  0.7
+                                                  ? "text-green-600"
+                                                  : Number(
+                                                    item.pressure_value_7,
+                                                  ) < 0.2
+                                                    ? "text-red-600"
+                                                    : "text-purple-600"
+                                              }
+                                            >
+                                              {Number(
+                                                item.pressure_value_7,
+                                              ).toFixed(2)}{" "}
+                                              bar
+                                            </span>
+                                          ) : (
+                                            <span className="text-slate-400">
+                                              N/A
+                                            </span>
+                                          )}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-2 text-center">
+                                          <Badge
+                                            variant="secondary"
+                                            className={
+                                              item.pressure_status === "Online"
+                                                ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                                                : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
+                                            }
+                                          >
+                                            {item.pressure_status || "Unknown"}
+                                          </Badge>
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-2 text-center">
+                                          {item.dashboard_url ? (
+                                            <a
+                                              href={item.dashboard_url}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="inline-flex items-center justify-center p-1.5 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:text-indigo-200 dark:hover:bg-indigo-900/50 rounded-full transition-colors"
+                                              title="Open Dashboard"
+                                              onClick={(e) => e.stopPropagation()}
+                                            >
+                                              <ExternalLink className="h-3.5 w-3.5" />
+                                            </a>
+                                          ) : (
+                                            <span className="text-slate-400">-</span>
+                                          )}
+                                        </TableCell>
+                                        <TableCell className={`!px-4 !py-2 text-center sticky right-0 ${index % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-orange-50/50 dark:bg-slate-800/60"} border-l border-orange-100/80 dark:border-orange-900/60`}>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setSelectedSensor(item)}
+                                            className="h-7 px-3 text-[11px] font-semibold bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 hover:from-orange-100 hover:to-amber-100 dark:from-orange-950 dark:to-amber-950 dark:text-orange-300 dark:hover:from-orange-900 dark:hover:to-amber-900 rounded-lg shadow-sm border border-orange-200/50 dark:border-orange-700/50"
+                                          >
+                                            <Eye className="h-3 w-3 mr-1" />
+                                            History
+                                          </Button>
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                </TableBody>
+                              </Table>
+                              {pressureSensorDetails.data.length > 100 && (
+                                <p className="text-xs text-center text-gray-500 mt-2">
+                                  Showing first 100 of{" "}
+                                  {pressureSensorDetails.data.length} sensors
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-center py-8">
+                              <AlertCircle className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                No sensors found for this category
+                              </p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )}
+                  </>
+                )}
+              </TabsContent>
+
+              <TabsContent value="daywise" className="mt-4">
+                <div className="space-y-4">
+                  <Card className="border-0 shadow-lg rounded-xl overflow-hidden">
+                    <CardHeader
+                      className={`bg-gradient-to-r ${mainTab === "lpcd" ? "from-emerald-50 to-teal-50 dark:from-emerald-950 dark:to-teal-950 border-emerald-200 dark:border-emerald-800" : mainTab === "pressure" ? "from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950 border-orange-200 dark:border-orange-800" : "from-blue-50 to-cyan-50 dark:from-blue-950 dark:to-cyan-950 border-blue-200 dark:border-blue-800"} border-b py-3`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`p-1.5 bg-gradient-to-br ${mainTab === "lpcd" ? "from-emerald-500 to-teal-600" : mainTab === "pressure" ? "from-orange-500 to-amber-600" : "from-blue-500 to-cyan-600"} rounded-lg shadow-sm`}
+                          >
+                            <Calendar className="h-4 w-4 text-white" />
+                          </div>
+                          <div>
+                            <h2 className="text-base font-bold text-gray-900 dark:text-white">
+                              {mainTab === "lpcd"
+                                ? "LPCD"
+                                : mainTab === "pressure"
+                                  ? "Pressure"
+                                  : "Chlorine"}{" "}
+                              Day-Wise Breakdown
+                            </h2>
+                            <p className="!text-[12px] text-gray-600 dark:text-gray-400">
+                              {mainTab === "lpcd"
+                                ? lpcdSubTab === "scheme"
+                                  ? "Track schemes with consecutive days of low LPCD (<55)"
+                                  : "Track villages with consecutive days of low LPCD (<55)"
+                                : mainTab === "pressure"
+                                  ? "Track sensors with consecutive days of pressure outside optimal range (0.2-0.7 bar)"
+                                  : "Track sensors with consecutive days of issues (offline or chlorine outside optimal range)"}{" "}
+                              - Click on the numbers to display the list
+                            </p>
+                          </div>
+                        </div>
+                        <div
+                          className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 ${mainTab === "lpcd" ? "bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800" : mainTab === "pressure" ? "bg-orange-50 dark:bg-orange-950/50 border-orange-200 dark:border-orange-800" : "bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800"} border rounded-lg`}
+                        >
+                          <Activity
+                            className={`h-3.5 w-3.5 ${mainTab === "lpcd" ? "text-emerald-600 dark:text-emerald-400" : mainTab === "pressure" ? "text-orange-600 dark:text-orange-400" : "text-blue-600 dark:text-blue-400"}`}
+                          />
+                          <span
+                            className={`!text-[12px] font-medium ${mainTab === "lpcd" ? "text-emerald-700 dark:text-emerald-300" : mainTab === "pressure" ? "text-orange-700 dark:text-orange-300" : "text-blue-700 dark:text-blue-300"}`}
+                          >
+                            {mainTab === "lpcd" ? (
+                              <>
+                                Numbers represent{" "}
+                                <span className="font-bold">{lpcdSubTab === "scheme" ? "Schemes" : "Villages"}</span>
+                              </>
+                            ) : mainTab === "pressure" ? (
+                              <>
+                                Numbers represent{" "}
+                                <span className="font-bold">
+                                  Pressure Sensors
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                Numbers represent{" "}
+                                <span className="font-bold">
+                                  Residual Chlorine Analyzers (RCAs)
+                                </span>
+                              </>
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4">
+                      {/* Sub-tab toggle: Single Region vs Region Comparison */}
+                      <div className="flex items-center gap-2 mb-4 p-1 bg-gray-100 dark:bg-gray-800 rounded-lg w-fit">
+                        <button
+                          onClick={() => {
+                            setDayWiseSubTab("single-region");
+                            setClickedRegionComparisonCell(null);
+                            setClickedLpcdRegionComparisonCell(null);
+                          }}
+                          className={`px-4 py-2 rounded-md text-xs font-semibold transition-all ${dayWiseSubTab === "single-region"
+                            ? "bg-white dark:bg-gray-700 text-orange-600 dark:text-orange-400 shadow-sm"
+                            : "text-gray-600 dark:text-gray-400 hover:text-gray-800"
+                            }`}
+                          data-testid="subtab-single-region"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <MapPin className="h-3.5 w-3.5" />
+                            Single Region View
+                          </span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setDayWiseSubTab("region-comparison");
+                            setClickedDayWiseCell(null);
+                            setClickedLpcdDayWiseCell(null);
+                          }}
+                          className={`px-4 py-2 rounded-md text-xs font-semibold transition-all ${dayWiseSubTab === "region-comparison"
+                            ? "bg-white dark:bg-gray-700 text-violet-600 dark:text-violet-400 shadow-sm"
+                            : "text-gray-600 dark:text-gray-400 hover:text-gray-800"
+                            }`}
+                          data-testid="subtab-region-comparison"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <BarChart3 className="h-3.5 w-3.5" />
+                            Region Comparison
+                          </span>
+                        </button>
+                      </div>
+
+                      {dayWiseSubTab === "single-region" &&
+                        mainTab === "chlorine" && (
+                          <>
+                            {/* Region selector for single-region chlorine view */}
+                            <div className="flex flex-wrap gap-1.5 mb-4">
+                              <button
+                                onClick={() => {
+                                  setDayWiseRegion("All Regions");
+                                  setClickedDayWiseCell(null);
+                                }}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${dayWiseRegion === "All Regions"
+                                  ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950"
+                                  }`}
+                                data-testid="tab-daywise-all-regions"
+                              >
+                                <span className="flex items-center gap-1.5">
+                                  <MapPin className="h-3 w-3" />
+                                  All Regions
+                                </span>
+                              </button>
+                              {regionalStats.map((stat) => (
+                                <button
+                                  key={stat.region}
+                                  onClick={() => {
+                                    setDayWiseRegion(stat.region);
+                                    setClickedDayWiseCell(null);
+                                  }}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${dayWiseRegion === stat.region
+                                    ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950"
+                                    }`}
+                                  data-testid={`tab-daywise-${stat.region}`}
+                                >
+                                  {stat.region}
+                                  <span className="ml-1.5 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded-full !text-[12px]">
+                                    {stat.totalConnected}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
+
+                      {dayWiseSubTab === "single-region" &&
+                        mainTab === "lpcd" && lpcdSubTab === "village" && (
+                          <>
+                            {/* Region selector for single-region Village LPCD view */}
+                            <div className="flex flex-wrap gap-1.5 mb-4">
+                              <button
+                                onClick={() => {
+                                  setLpcdDayWiseRegion("All Regions");
+                                  setClickedLpcdDayWiseCell(null);
+                                }}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${lpcdDayWiseRegion === "All Regions"
+                                  ? "bg-gradient-to-r from-cyan-500 to-teal-500 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950"
+                                  }`}
+                                data-testid="tab-daywise-lpcd-all"
+                              >
+                                All Regions
+                              </button>
+                              {regionalStats.map((stat) => (
+                                <button
+                                  key={stat.region}
+                                  onClick={() => {
+                                    setLpcdDayWiseRegion(stat.region);
+                                    setClickedLpcdDayWiseCell(null);
+                                  }}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${lpcdDayWiseRegion === stat.region
+                                    ? "bg-gradient-to-r from-cyan-500 to-teal-500 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950"
+                                    }`}
+                                  data-testid={`tab-daywise-lpcd-${stat.region}`}
+                                >
+                                  {stat.region}
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
+
+                      {dayWiseSubTab === "single-region" &&
+                        mainTab === "chlorine" && (
+                          <>
+                            {isLoadingDayWise ? (
+                              <div className="space-y-3">
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                  <Skeleton className="h-16 rounded-lg" />
+                                  <Skeleton className="h-16 rounded-lg" />
+                                  <Skeleton className="h-16 rounded-lg" />
+                                  <Skeleton className="h-16 rounded-lg" />
+                                </div>
+                                <Skeleton className="h-56 w-full rounded-lg" />
+                              </div>
+                            ) : dayWiseData && dayWiseData.data.length > 0 ? (
+                              <div className="space-y-4">
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                  <div className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950/50 dark:to-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3 shadow-sm">
+                                    <div className="flex items-center gap-1.5 mb-1.5">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></div>
+                                      <span className="!text-[12px] font-medium text-red-700 dark:text-red-400">
+                                        Offline
+                                      </span>
+                                    </div>
+                                    <div className="text-xl font-bold text-red-700 dark:text-red-400">
+                                      {dayWiseData.data.reduce(
+                                        (sum, row) => sum + row.offline,
+                                        0,
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/50 dark:to-orange-900/30 border border-orange-200 dark:border-orange-800 rounded-lg p-3 shadow-sm">
+                                    <div className="flex items-center gap-1.5 mb-1.5">
+                                      <AlertCircle className="h-3 w-3 text-orange-500" />
+                                      <span className="!text-[12px] font-medium text-orange-700 dark:text-orange-400">
+                                        &lt;0.2 mg/l
+                                      </span>
+                                    </div>
+                                    <div className="text-xl font-bold text-orange-700 dark:text-orange-400">
+                                      {dayWiseData.data.reduce(
+                                        (sum, row) => sum + row.below_0_2,
+                                        0,
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="bg-gradient-to-br from-rose-50 to-rose-100 dark:from-rose-950/50 dark:to-rose-900/30 border border-rose-200 dark:border-rose-800 rounded-lg p-3 shadow-sm">
+                                    <div className="flex items-center gap-1.5 mb-1.5">
+                                      <TrendingUp className="h-3 w-3 text-rose-500" />
+                                      <span className="!text-[12px] font-medium text-rose-700 dark:text-rose-400">
+                                        &gt;0.5 mg/l
+                                      </span>
+                                    </div>
+                                    <div className="text-xl font-bold text-rose-700 dark:text-rose-400">
+                                      {dayWiseData.data.reduce(
+                                        (sum, row) => sum + row.above_0_5,
+                                        0,
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/50 dark:to-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3 shadow-sm">
+                                    <div className="flex items-center gap-1.5 mb-1.5">
+                                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                                      <span className="!text-[12px] font-medium text-emerald-700 dark:text-emerald-400">
+                                        Optimal
+                                      </span>
+                                    </div>
+                                    <div className="text-xl font-bold text-emerald-700 dark:text-emerald-400">
+                                      {dayWiseData.data.reduce(
+                                        (sum, row) => sum + row.optimal_0_2_0_5,
+                                        0,
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+                                  <div className="grid grid-cols-[90px_1fr_1fr_1fr_1fr] gap-3 px-3 py-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                                    <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">
+                                      Days
+                                    </div>
+                                    <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
+                                      Offline
+                                    </div>
+                                    <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
+                                      <span className="text-orange-500">
+                                        ⚠
+                                      </span>
+                                      &lt;0.2 mg/l
+                                    </div>
+                                    <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
+                                      <span className="text-rose-500">▲</span>
+                                      &gt;0.5 mg/l
+                                    </div>
+                                    <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
+                                      <CheckCircle2 className="h-2.5 w-2.5 text-emerald-500" />
+                                      Optimal
+                                    </div>
+                                  </div>
+
+                                  <div className="max-h-[320px] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
+                                    {[...dayWiseData.data]
+                                      .sort((a, b) => a.days - b.days)
+                                      .map((row, index) => {
+                                        const maxValue = Math.max(
+                                          ...dayWiseData.data.flatMap((r) => [
+                                            r.offline,
+                                            r.below_0_2,
+                                            r.above_0_5,
+                                            r.optimal_0_2_0_5,
+                                          ]),
+                                        );
+
+                                        return (
+                                          <div
+                                            key={row.days}
+                                            className={`grid grid-cols-[90px_1fr_1fr_1fr_1fr] gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${index % 2 === 0
+                                              ? "bg-white dark:bg-gray-900"
+                                              : "bg-gray-50/50 dark:bg-gray-800/20"
+                                              }`}
+                                            data-testid={`row-day-${row.days}`}
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center shadow-sm">
+                                                <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                                                  {row.days}
+                                                </span>
+                                              </div>
+                                              <span className="!text-[12px] text-gray-500">
+                                                day{row.days > 1 ? "s" : ""}
+                                              </span>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                              <div
+                                                className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                                onClick={() =>
+                                                  row.offline > 0 &&
+                                                  setClickedDayWiseCell({
+                                                    metric: "offline",
+                                                    days: row.days,
+                                                    label: `Offline for ${row.days} day${row.days > 1 ? "s" : ""}`,
+                                                  })
+                                                }
+                                                data-testid={`badge-offline-${row.days}`}
+                                              >
+                                                <div
+                                                  className="h-full bg-gradient-to-r from-red-400 to-red-600 rounded-full transition-all"
+                                                  style={{
+                                                    width: `${maxValue > 0 ? (row.offline / maxValue) * 100 : 0}%`,
+                                                  }}
+                                                ></div>
+                                              </div>
+                                              <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-left tabular-nums">
+                                                {row.offline}
+                                              </span>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                              <div
+                                                className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                                onClick={() =>
+                                                  row.below_0_2 > 0 &&
+                                                  setClickedDayWiseCell({
+                                                    metric: "below_0_2",
+                                                    days: row.days,
+                                                    label: `Chlorine <0.2 for ${row.days} day${row.days > 1 ? "s" : ""}`,
+                                                  })
+                                                }
+                                                data-testid={`badge-below-${row.days}`}
+                                              >
+                                                <div
+                                                  className="h-full bg-gradient-to-r from-orange-400 to-orange-600 rounded-full transition-all"
+                                                  style={{
+                                                    width: `${maxValue > 0 ? (row.below_0_2 / maxValue) * 100 : 0}%`,
+                                                  }}
+                                                ></div>
+                                              </div>
+                                              <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-left tabular-nums">
+                                                {row.below_0_2}
+                                              </span>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                              <div
+                                                className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                                onClick={() =>
+                                                  row.above_0_5 > 0 &&
+                                                  setClickedDayWiseCell({
+                                                    metric: "above_0_5",
+                                                    days: row.days,
+                                                    label: `Chlorine >0.5 for ${row.days} day${row.days > 1 ? "s" : ""}`,
+                                                  })
+                                                }
+                                                data-testid={`badge-above-${row.days}`}
+                                              >
+                                                <div
+                                                  className="h-full bg-gradient-to-r from-rose-400 to-rose-600 rounded-full transition-all"
+                                                  style={{
+                                                    width: `${maxValue > 0 ? (row.above_0_5 / maxValue) * 100 : 0}%`,
+                                                  }}
+                                                ></div>
+                                              </div>
+                                              <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-left tabular-nums">
+                                                {row.above_0_5}
+                                              </span>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                              <div
+                                                className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                                onClick={() =>
+                                                  row.optimal_0_2_0_5 > 0 &&
+                                                  setClickedDayWiseCell({
+                                                    metric: "optimal_0_2_0_5",
+                                                    days: row.days,
+                                                    label: `Optimal chlorine for ${row.days} day${row.days > 1 ? "s" : ""}`,
+                                                  })
+                                                }
+                                                data-testid={`badge-optimal-${row.days}`}
+                                              >
+                                                <div
+                                                  className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full transition-all"
+                                                  style={{
+                                                    width: `${maxValue > 0 ? (row.optimal_0_2_0_5 / maxValue) * 100 : 0}%`,
+                                                  }}
+                                                ></div>
+                                              </div>
+                                              <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-left tabular-nums">
+                                                {row.optimal_0_2_0_5}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="text-center py-8">
+                                <Calendar className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                                <p className="text-sm text-gray-500">
+                                  No day-wise data available
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Chlorine Day-Wise Detail Card */}
+                            {clickedDayWiseCell && (
+                              <Card className="mt-4 border-2 border-orange-200 dark:border-orange-800 shadow-lg">
+                                <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950 border-b border-orange-200 dark:border-orange-800 py-3">
+                                  <CardTitle className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      {/* Icon based on metric */}
+                                      <div className={`p-1.5 bg-gradient-to-br ${clickedDayWiseCell.metric === 'offline' ? 'from-red-500 to-red-700' : clickedDayWiseCell.metric === 'optimal_0_2_0_5' ? 'from-emerald-500 to-emerald-700' : 'from-orange-500 to-amber-700'} rounded-lg shadow-sm`}>
+                                        {clickedDayWiseCell.metric === 'offline' ? (
+                                          <WifiOff className="h-4 w-4 text-white" />
+                                        ) : clickedDayWiseCell.metric === 'optimal_0_2_0_5' ? (
+                                          <CheckCircle2 className="h-4 w-4 text-white" />
+                                        ) : (
+                                          <AlertCircle className="h-4 w-4 text-white" />
+                                        )}
+                                      </div>
+                                      <div>
+                                        <div className="text-base font-bold text-gray-900 dark:text-white">
+                                          {clickedDayWiseCell.label}
+                                        </div>
+                                        <div className="!text-[12px] font-normal text-gray-600 dark:text-gray-400">
+                                          {dayWiseRegion === "All Regions"
+                                            ? "All Regions"
+                                            : dayWiseRegion}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Button
+                                        onClick={() => {
+                                          const params = new URLSearchParams();
+                                          if (dayWiseRegion && dayWiseRegion !== "All Regions") {
+                                            params.append("region", dayWiseRegion);
+                                          }
+                                          if (schemeFilter !== 'all') {
+                                            params.append("filterType", schemeFilter);
+                                          }
+                                          const url = `/api/chlorine/day-wise-sensors-export/${clickedDayWiseCell.metric}/${clickedDayWiseCell.days}?${params.toString()}`;
+                                          window.open(url, "_blank");
+                                        }}
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 px-2 text-[12px] gap-1 hover:bg-green-100 hover:text-green-700 hover:border-green-200 dark:hover:bg-green-900/30 dark:hover:text-green-400 dark:hover:border-green-800"
+                                      >
+                                        <Download className="h-3 w-3" />
+                                        Export
+                                      </Button>
+                                      <Button
+                                        onClick={() =>
+                                          setClickedDayWiseCell(null)
+                                        }
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 w-7 p-0 hover:bg-orange-100 dark:hover:bg-orange-900"
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-4">
+                                  {isLoadingDayWiseSensors ? (
+                                    <div className="space-y-2">
+                                      <Skeleton className="h-10 w-full" />
+                                      <Skeleton className="h-10 w-full" />
+                                      <Skeleton className="h-10 w-full" />
+                                    </div>
+                                  ) : dayWiseSensors?.data &&
+                                    dayWiseSensors.data.length > 0 ? (
+                                    <div className="overflow-x-auto">
+                                      <Table className="min-w-[1000px]">
+                                        <TableHeader>
+                                          <TableRow className="bg-slate-800 dark:bg-slate-900">
+                                            <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
+                                              Region
+                                            </TableHead>
+                                            <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
+                                              Circle
+                                            </TableHead>
+                                            <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
+                                              Division
+                                            </TableHead>
+                                            <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
+                                              Sub Division
+                                            </TableHead>
+                                            <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
+                                              Block
+                                            </TableHead>
+                                            <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
+                                              Scheme ID
+                                            </TableHead>
+                                            <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
+                                              Village
+                                            </TableHead>
+                                            <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
+                                              ESR Name
+                                            </TableHead>
+                                            {clickedDayWiseCell.metric !==
+                                              "offline" && (
+                                                <>
+                                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
+                                                    Chlorine (mg/l)
+                                                  </TableHead>
+                                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
+                                                    Date
+                                                  </TableHead>
+                                                </>
+                                              )}
+                                            <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
+                                              {clickedDayWiseCell.metric ===
+                                                "offline"
+                                                ? "Last Seen"
+                                                : "Consecutive Days"}
+                                            </TableHead>
+                                          </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                          {dayWiseSensors.data.map(
+                                            (sensor: any, index: number) => (
+                                              <TableRow
+                                                key={index}
+                                                className="hover:bg-orange-50 dark:hover:bg-orange-950/30"
+                                              >
+                                                <TableCell className="!px-3 !py-2 text-[12px]">
+                                                  {sensor.region}
+                                                </TableCell>
+                                                <TableCell className="!px-3 !py-2 text-[12px]">
+                                                  {sensor.circle}
+                                                </TableCell>
+                                                <TableCell className="!px-3 !py-2 text-[12px]">
+                                                  {sensor.division}
+                                                </TableCell>
+                                                <TableCell className="!px-3 !py-2 text-[12px]">
+                                                  {sensor.sub_division}
+                                                </TableCell>
+                                                <TableCell className="!px-3 !py-2 text-[12px]">
+                                                  {sensor.block}
+                                                </TableCell>
+                                                <TableCell className="!px-3 !py-2 text-[12px]">
+                                                  {sensor.scheme_id}
+                                                </TableCell>
+                                                <TableCell className="!px-3 !py-2 text-[12px]">
+                                                  {sensor.village_name}
+                                                </TableCell>
+                                                <TableCell className="!px-3 !py-2 text-[12px]">
+                                                  {sensor.esr_name}
+                                                </TableCell>
+                                                {clickedDayWiseCell.metric !==
+                                                  "offline" && (
+                                                    <>
+                                                      <TableCell className="!px-3 !py-2 text-[12px]">
+                                                        {sensor.latest_chlorine_value !==
+                                                          null &&
+                                                          sensor.latest_chlorine_value !==
+                                                          undefined
+                                                          ? Number(
+                                                            sensor.latest_chlorine_value,
+                                                          ).toFixed(2)
+                                                          : "N/A"}
+                                                      </TableCell>
+                                                      <TableCell className="!px-3 !py-2 text-[12px]">
+                                                        {sensor.latest_chlorine_date ||
+                                                          "N/A"}
+                                                      </TableCell>
+                                                    </>
+                                                  )}
+                                                <TableCell className="!px-3 !py-2 text-[12px]">
+                                                  {clickedDayWiseCell.metric ===
+                                                    "offline"
+                                                    ? sensor.last_seen || "N/A"
+                                                    : sensor.consecutive_days ||
+                                                    0}
+                                                </TableCell>
+                                              </TableRow>
+                                            ),
+                                          )}
+                                        </TableBody>
+                                      </Table>
+                                      <div className="mt-3 text-sm text-gray-600 dark:text-gray-400">
+                                        Total: {dayWiseSensors.count}{" "}
+                                        sensor
+                                        {dayWiseSensors.count !== 1
+                                          ? "s"
+                                          : ""}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="text-center py-8">
+                                      <Droplet className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                                      <p className="text-sm text-gray-500">
+                                        No sensors found for this criteria
+                                      </p>
+                                    </div>
+                                  )}
+                                </CardContent>
+                              </Card>
+                            )}
+                          </>
+                        )}
+
+                      {/* Village LPCD Single Region View */}
+                      {dayWiseSubTab === "single-region" &&
+                        mainTab === "lpcd" && lpcdSubTab === "village" && (
+                          <>
+                            {isLoadingLpcdDayWise ? (
+                              <div className="space-y-3">
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                  <Skeleton className="h-16 rounded-lg" />
+                                  <Skeleton className="h-16 rounded-lg" />
+                                  <Skeleton className="h-16 rounded-lg" />
+                                  <Skeleton className="h-16 rounded-lg" />
+                                </div>
+                                <Skeleton className="h-56 w-full rounded-lg" />
+                              </div>
+                            ) : lpcdDayWiseData &&
+                              lpcdDayWiseData.data.length > 0 ? (
+                              <div className="space-y-4">
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                  <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/50 dark:to-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3 shadow-sm">
+                                    <div className="flex items-center gap-1.5 mb-1.5">
+                                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                                      <span className="!text-[12px] font-medium text-emerald-700 dark:text-emerald-400">
+                                        lpcd achieved (Today)
+                                      </span>
+                                    </div>
+                                    <div className="text-xl font-bold text-emerald-700 dark:text-emerald-400">
+                                      {lpcdDayWiseData.data.find(row => row.days === 1)?.above_55 || 0}
+                                    </div>
+                                  </div>
+                                  <div className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950/50 dark:to-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3 shadow-sm">
+                                    <div className="flex items-center gap-1.5 mb-1.5">
+                                      <AlertCircle className="h-3 w-3 text-red-500" />
+                                      <span className="!text-[12px] font-medium text-red-700 dark:text-red-400">
+                                        lpcd not achieved (Today)
+                                      </span>
+                                    </div>
+                                    <div className="text-xl font-bold text-red-700 dark:text-red-400">
+                                      {lpcdDayWiseData.data.find(row => row.days === 1)?.below_55 || 0}
+                                    </div>
+                                  </div>
+
+                                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/50 dark:to-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 shadow-sm">
+                                    <div className="flex items-center gap-1.5 mb-1.5">
+                                      <Droplet className="h-3 w-3 text-blue-500" />
+                                      <span className="!text-[12px] font-medium text-blue-700 dark:text-blue-400">
+                                        Supply of Water (Today)
+                                      </span>
+                                    </div>
+                                    <div className="text-xl font-bold text-blue-700 dark:text-blue-400">
+                                      {lpcdDayWiseData.data.find(row => row.days === 1)?.with_water || 0}
+                                    </div>
+                                  </div>
+
+                                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800/50 dark:to-gray-700/30 border border-gray-200 dark:border-gray-700 rounded-lg p-3 shadow-sm">
+                                    <div className="flex items-center gap-1.5 mb-1.5">
+                                      <WifiOff className="h-3 w-3 text-gray-500" />
+                                      <span className="!text-[12px] font-medium text-gray-700 dark:text-gray-400">
+                                        No Water Supply (Today)
+                                      </span>
+                                    </div>
+                                    <div className="text-xl font-bold text-gray-700 dark:text-gray-400">
+                                      {lpcdDayWiseData.data.find(row => row.days === 1)?.no_water || 0}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+                                  <div className="grid grid-cols-[90px_1fr_1fr_1fr_1fr] gap-3 px-3 py-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                                    <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">
+                                      Days
+                                    </div>
+                                    <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
+                                      <CheckCircle2 className="h-2.5 w-2.5 text-emerald-500" />
+                                      ≥55 LPCD
+                                    </div>
+                                    <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
+                                      <AlertCircle className="h-2.5 w-2.5 text-red-500" />
+                                      &lt;55 LPCD
+                                    </div>
+
+                                    <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
+                                      <Droplet className="h-2.5 w-2.5 text-blue-500" />
+                                      With Water
+                                    </div>
+                                    <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
+                                      <WifiOff className="h-2.5 w-2.5 text-gray-500" />
+                                      No Water
+                                    </div>
+                                  </div>
+
+                                  <div className="max-h-[320px] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
+                                    {[...lpcdDayWiseData.data]
+                                      .sort((a, b) => a.days - b.days)
+                                      .map((row, index) => {
+                                        const maxValue = Math.max(
+                                          ...lpcdDayWiseData.data.flatMap(
+                                            (r) => [
+                                              r.below_55,
+                                              r.above_55,
+                                              r.with_water,
+                                              r.no_water,
+                                            ],
+                                          ),
+                                        );
+
+                                        return (
+                                          <div
+                                            key={row.days}
+                                            className={`grid grid-cols-[90px_1fr_1fr_1fr_1fr] gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${index % 2 === 0
+                                              ? "bg-white dark:bg-gray-900"
+                                              : "bg-gray-50/50 dark:bg-gray-800/20"
+                                              }`}
+                                            data-testid={`row-lpcd-day-${row.days}`}
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center shadow-sm">
+                                                <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                                                  {row.days}
+                                                </span>
+                                              </div>
+                                              <span className="!text-[12px] text-gray-500">
+                                                day{row.days > 1 ? "s" : ""}
+                                              </span>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                              <div
+                                                className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                                onClick={() =>
+                                                  row.above_55 > 0 &&
+                                                  setClickedLpcdDayWiseCell({
+                                                    metric: "above_55",
+                                                    days: row.days,
+                                                    label: `≥55 LPCD for ${row.days} day${row.days > 1 ? "s" : ""}`,
+                                                  })
+                                                }
+                                                data-testid={`badge-lpcd-above55-${row.days}`}
+                                              >
+                                                <div
+                                                  className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full transition-all"
+                                                  style={{
+                                                    width: `${maxValue > 0 ? (row.above_55 / maxValue) * 100 : 0}%`,
+                                                  }}
+                                                ></div>
+                                              </div>
+                                              <span className="text-xs font-semibold text-gray-900 dark:text-white w-6 text-right tabular-nums">
+                                                {row.above_55}
+                                              </span>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                              <div
+                                                className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                                onClick={() =>
+                                                  row.below_55 > 0 &&
+                                                  setClickedLpcdDayWiseCell({
+                                                    metric: "below_55",
+                                                    days: row.days,
+                                                    label: `<55 LPCD for ${row.days} day${row.days > 1 ? "s" : ""}`,
+                                                  })
+                                                }
+                                                data-testid={`badge-lpcd-below55-${row.days}`}
+                                              >
+                                                <div
+                                                  className="h-full bg-gradient-to-r from-red-400 to-red-600 rounded-full transition-all"
+                                                  style={{
+                                                    width: `${maxValue > 0 ? (row.below_55 / maxValue) * 100 : 0}%`,
+                                                  }}
+                                                ></div>
+                                              </div>
+                                              <span className="text-xs font-semibold text-gray-900 dark:text-white w-6 text-right tabular-nums">
+                                                {row.below_55}
+                                              </span>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                              <div
+                                                className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                                onClick={() =>
+                                                  row.with_water > 0 &&
+                                                  setClickedLpcdDayWiseCell({
+                                                    metric: "with_water",
+                                                    days: row.days,
+                                                    label: `With water for ${row.days} day${row.days > 1 ? "s" : ""}`,
+                                                  })
+                                                }
+                                                data-testid={`badge-lpcd-withwater-${row.days}`}
+                                              >
+                                                <div
+                                                  className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all"
+                                                  style={{
+                                                    width: `${maxValue > 0 ? (row.with_water / maxValue) * 100 : 0}%`,
+                                                  }}
+                                                ></div>
+                                              </div>
+                                              <span className="text-xs font-semibold text-gray-900 dark:text-white w-6 text-right tabular-nums">
+                                                {row.with_water}
+                                              </span>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                              <div
+                                                className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                                onClick={() =>
+                                                  row.no_water > 0 &&
+                                                  setClickedLpcdDayWiseCell({
+                                                    metric: "no_water",
+                                                    days: row.days,
+                                                    label: `No water for ${row.days} day${row.days > 1 ? "s" : ""}`,
+                                                  })
+                                                }
+                                                data-testid={`badge-lpcd-nowater-${row.days}`}
+                                              >
+                                                <div
+                                                  className="h-full bg-gradient-to-r from-gray-400 to-gray-600 rounded-full transition-all"
+                                                  style={{
+                                                    width: `${maxValue > 0 ? (row.no_water / maxValue) * 100 : 0}%`,
+                                                  }}
+                                                ></div>
+                                              </div>
+                                              <span className="text-xs font-semibold text-gray-900 dark:text-white w-6 text-right tabular-nums">
+                                                {row.no_water}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="text-center py-8">
+                                <Calendar className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                                <p className="text-sm text-gray-500">
+                                  No LPCD day-wise data available
+                                </p>
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                      {/* Scheme LPCD Single Region View - Region Selector */}
+                      {dayWiseSubTab === "single-region" &&
+                        mainTab === "lpcd" && lpcdSubTab === "scheme" && (
+                          <>
+                            <div className="flex flex-wrap gap-1.5 mb-4">
+                              <button
+                                onClick={() => {
+                                  setSchemeLpcdDayWiseRegion("All Regions");
+                                  setClickedSchemeDayWiseCell(null);
+                                }}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${schemeLpcdDayWiseRegion === "All Regions"
+                                  ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950"
+                                  }`}
+                                data-testid="tab-daywise-scheme-lpcd-all"
+                              >
+                                All Regions
+                              </button>
+                              {schemeLpcdRegionalStats?.data?.map((stat) => (
+                                <button
+                                  key={stat.region}
+                                  onClick={() => {
+                                    setSchemeLpcdDayWiseRegion(stat.region);
+                                    setClickedSchemeDayWiseCell(null);
+                                  }}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${schemeLpcdDayWiseRegion === stat.region
+                                    ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950"
+                                    }`}
+                                  data-testid={`tab-daywise-scheme-lpcd-${stat.region}`}
+                                >
+                                  {stat.region}
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
+
+                      {/* Scheme LPCD Single Region View - Data Display */}
+                      {dayWiseSubTab === "single-region" &&
+                        mainTab === "lpcd" && lpcdSubTab === "scheme" && (
+                          <>
+                            {isLoadingSchemeLpcdDayWise ? (
+                              <div className="space-y-3">
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                  <Skeleton className="h-16 rounded-lg" />
+                                  <Skeleton className="h-16 rounded-lg" />
+                                  <Skeleton className="h-16 rounded-lg" />
+                                  <Skeleton className="h-16 rounded-lg" />
+                                </div>
+                                <Skeleton className="h-56 w-full rounded-lg" />
+                              </div>
+                            ) : schemeLpcdDayWiseData &&
+                              schemeLpcdDayWiseData.data?.length > 0 ? (
+                              <div className="space-y-4">
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                  <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/50 dark:to-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3 shadow-sm">
+                                    <div className="flex items-center gap-1.5 mb-1.5">
+                                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                                      <span className="!text-[12px] font-medium text-emerald-700 dark:text-emerald-400">
+                                        Schemes &gt;55 LPCD (Today)
+                                      </span>
+                                    </div>
+                                    <div className="text-xl font-bold text-emerald-700 dark:text-emerald-400">
+                                      {schemeLpcdDayWiseData.data.find(row => row.days === 1)?.above_55 || 0}
+                                    </div>
+                                  </div>
+                                  <div className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950/50 dark:to-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3 shadow-sm">
+                                    <div className="flex items-center gap-1.5 mb-1.5">
+                                      <AlertCircle className="h-3 w-3 text-red-500" />
+                                      <span className="!text-[12px] font-medium text-red-700 dark:text-red-400">
+                                        Schemes &lt;55 LPCD (Today)
+                                      </span>
+                                    </div>
+                                    <div className="text-xl font-bold text-red-700 dark:text-red-400">
+                                      {schemeLpcdDayWiseData.data.find(row => row.days === 1)?.below_55 || 0}
+                                    </div>
+                                  </div>
+
+                                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/50 dark:to-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 shadow-sm">
+                                    <div className="flex items-center gap-1.5 mb-1.5">
+                                      <Droplet className="h-3 w-3 text-blue-500" />
+                                      <span className="!text-[12px] font-medium text-blue-700 dark:text-blue-400">
+                                        Schemes with Water (Today)
+                                      </span>
+                                    </div>
+                                    <div className="text-xl font-bold text-blue-700 dark:text-blue-400">
+                                      {schemeLpcdDayWiseData.data.find(row => row.days === 1)?.with_water || 0}
+                                    </div>
+                                  </div>
+
+                                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950/50 dark:to-gray-900/30 border border-gray-200 dark:border-gray-800 rounded-lg p-3 shadow-sm">
+                                    <div className="flex items-center gap-1.5 mb-1.5">
+                                      <AlertCircle className="h-3 w-3 text-gray-500" />
+                                      <span className="!text-[12px] font-medium text-gray-700 dark:text-gray-400">
+                                        Schemes No Water (Today)
+                                      </span>
+                                    </div>
+                                    <div className="text-xl font-bold text-gray-700 dark:text-gray-400">
+                                      {schemeLpcdDayWiseData.data.find(row => row.days === 1)?.no_water || 0}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+                                  <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2 bg-gray-50 dark:bg-gray-800">
+                                    <Calendar className="h-4 w-4 text-purple-500" />
+                                    <span className="font-semibold text-sm text-gray-800 dark:text-gray-200">
+                                      Scheme LPCD Day-wise Breakdown
+                                    </span>
+                                    <span className="!text-[12px] text-gray-500">
+                                      ({schemeLpcdDayWiseData.data.length} days of data)
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-3 px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                                    <div className="w-24 shrink-0 text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
+                                      Days
+                                    </div>
+                                    <div className="flex-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 text-center">
+                                      ≥55 LPCD
+                                    </div>
+                                    <div className="flex-1 text-xs font-bold text-red-600 dark:text-red-400 text-center">
+                                      &lt;55 LPCD
+                                    </div>
+                                    <div className="flex-1 text-xs font-bold text-blue-600 dark:text-blue-400 text-center">
+                                      With Water
+                                    </div>
+                                    <div className="flex-1 text-xs font-bold text-gray-600 dark:text-gray-400 text-center">
+                                      No Water
+                                    </div>
+                                  </div>
+                                  <div className="p-3 space-y-1.5 max-h-[400px] overflow-y-auto">
+                                    {schemeLpcdDayWiseData.data
+                                      .sort((a, b) => a.days - b.days)
+                                      .map((row) => {
+                                        const maxValue = Math.max(
+                                          ...schemeLpcdDayWiseData.data.flatMap((d) => [
+                                            d.above_55 || 0,
+                                            d.below_55 || 0,
+                                            d.with_water || 0,
+                                            d.no_water || 0,
+                                          ]),
+                                        );
+
+                                        return (
+                                          <div
+                                            key={`scheme-daywise-${row.days}`}
+                                            className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                                            data-testid={`row-scheme-daywise-${row.days}`}
+                                          >
+                                            <div className="w-24 shrink-0 text-xs font-medium text-gray-700 dark:text-gray-300">
+                                              {row.days === 1
+                                                ? "Today"
+                                                : `${row.days} days ago`}
+                                            </div>
+
+                                            <div className="flex-1 flex items-center gap-2">
+                                              <div
+                                                className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                                onClick={() =>
+                                                  (row.above_55 || 0) > 0 &&
+                                                  setClickedSchemeDayWiseCell({
+                                                    metric: "above_55",
+                                                    days: row.days,
+                                                    region: schemeLpcdDayWiseRegion,
+                                                    label: `Schemes >55 LPCD for ${row.days} day${row.days > 1 ? "s" : ""}`,
+                                                  })
+                                                }
+                                                data-testid={`badge-scheme-above55-${row.days}`}
+                                              >
+                                                <div
+                                                  className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full transition-all"
+                                                  style={{
+                                                    width: `${maxValue > 0 ? ((row.above_55 || 0) / maxValue) * 100 : 0}%`,
+                                                  }}
+                                                ></div>
+                                              </div>
+                                              <span className="text-xs font-semibold text-gray-900 dark:text-white w-6 text-right tabular-nums">
+                                                {row.above_55 || 0}
+                                              </span>
+                                            </div>
+
+                                            <div className="flex-1 flex items-center gap-2">
+                                              <div
+                                                className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                                onClick={() =>
+                                                  (row.below_55 || 0) > 0 &&
+                                                  setClickedSchemeDayWiseCell({
+                                                    metric: "below_55",
+                                                    days: row.days,
+                                                    region: schemeLpcdDayWiseRegion,
+                                                    label: `Schemes <55 LPCD for ${row.days} day${row.days > 1 ? "s" : ""}`,
+                                                  })
+                                                }
+                                                data-testid={`badge-scheme-below55-${row.days}`}
+                                              >
+                                                <div
+                                                  className="h-full bg-gradient-to-r from-red-400 to-red-600 rounded-full transition-all"
+                                                  style={{
+                                                    width: `${maxValue > 0 ? ((row.below_55 || 0) / maxValue) * 100 : 0}%`,
+                                                  }}
+                                                ></div>
+                                              </div>
+                                              <span className="text-xs font-semibold text-gray-900 dark:text-white w-6 text-right tabular-nums">
+                                                {row.below_55 || 0}
+                                              </span>
+                                            </div>
+
+                                            <div className="flex-1 flex items-center gap-2">
+                                              <div
+                                                className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                                onClick={() =>
+                                                  (row.with_water || 0) > 0 &&
+                                                  setClickedSchemeDayWiseCell({
+                                                    metric: "with_water",
+                                                    days: row.days,
+                                                    region: schemeLpcdDayWiseRegion,
+                                                    label: `Schemes with water for ${row.days} day${row.days > 1 ? "s" : ""}`,
+                                                  })
+                                                }
+                                                data-testid={`badge-scheme-withwater-${row.days}`}
+                                              >
+                                                <div
+                                                  className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all"
+                                                  style={{
+                                                    width: `${maxValue > 0 ? ((row.with_water || 0) / maxValue) * 100 : 0}%`,
+                                                  }}
+                                                ></div>
+                                              </div>
+                                              <span className="text-xs font-semibold text-gray-900 dark:text-white w-6 text-right tabular-nums">
+                                                {row.with_water || 0}
+                                              </span>
+                                            </div>
+
+                                            <div className="flex-1 flex items-center gap-2">
+                                              <div
+                                                className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                                onClick={() =>
+                                                  (row.no_water || 0) > 0 &&
+                                                  setClickedSchemeDayWiseCell({
+                                                    metric: "no_water",
+                                                    days: row.days,
+                                                    region: schemeLpcdDayWiseRegion,
+                                                    label: `Schemes without water for ${row.days} day${row.days > 1 ? "s" : ""}`,
+                                                  })
+                                                }
+                                                data-testid={`badge-scheme-nowater-${row.days}`}
+                                              >
+                                                <div
+                                                  className="h-full bg-gradient-to-r from-gray-400 to-gray-600 rounded-full transition-all"
+                                                  style={{
+                                                    width: `${maxValue > 0 ? ((row.no_water || 0) / maxValue) * 100 : 0}%`,
+                                                  }}
+                                                ></div>
+                                              </div>
+                                              <span className="text-xs font-semibold text-gray-900 dark:text-white w-6 text-right tabular-nums">
+                                                {row.no_water || 0}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="text-center py-8">
+                                <Calendar className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                                <p className="text-sm text-gray-500">
+                                  No scheme LPCD day-wise data available
+                                </p>
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                      {/* Pressure Single Region View */}
+                      {dayWiseSubTab === "single-region" &&
+                        mainTab === "pressure" && (
+                          <>
+                            {/* Region selector for single-region pressure view */}
+                            <div className="flex flex-wrap gap-1.5 mb-4">
+                              <button
+                                onClick={() => {
+                                  setPressureDayWiseRegion("All Regions");
+                                  setClickedPressureDayWiseCell(null);
+                                }}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${pressureDayWiseRegion === "All Regions"
+                                  ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950"
+                                  }`}
+                                data-testid="tab-pressure-daywise-all"
+                              >
+                                <span className="flex items-center gap-1.5">
+                                  <MapPin className="h-3 w-3" />
+                                  All Regions
+                                </span>
+                              </button>
+                              {pressureRegionalStats.map((stat) => (
+                                <button
+                                  key={stat.region}
+                                  onClick={() => {
+                                    setPressureDayWiseRegion(stat.region);
+                                    setClickedPressureDayWiseCell(null);
+                                  }}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${pressureDayWiseRegion === stat.region
+                                    ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950"
+                                    }`}
+                                  data-testid={`tab-pressure-daywise-${stat.region}`}
+                                >
+                                  {stat.region}
+                                  <span className="ml-1.5 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded-full !text-[12px]">
+                                    {stat.totalConnected}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+
+                            {isLoadingPressureDayWise ? (
+                              <div className="space-y-3">
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                  <Skeleton className="h-16 rounded-lg" />
+                                  <Skeleton className="h-16 rounded-lg" />
+                                  <Skeleton className="h-16 rounded-lg" />
+                                  <Skeleton className="h-16 rounded-lg" />
+                                </div>
+                                <Skeleton className="h-56 w-full rounded-lg" />
+                              </div>
+                            ) : pressureDayWiseData &&
+                              pressureDayWiseData.data.length > 0 ? (
+                              <div className="space-y-4">
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                  <div className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950/50 dark:to-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3 shadow-sm">
+                                    <div className="flex items-center gap-1.5 mb-1.5">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></div>
+                                      <span className="!text-[12px] font-medium text-red-700 dark:text-red-400">
+                                        Offline
+                                      </span>
+                                    </div>
+                                    <div className="text-xl font-bold text-red-700 dark:text-red-400">
+                                      {pressureDayWiseData.data.reduce(
+                                        (sum, row) => sum + row.offline,
+                                        0,
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/50 dark:to-orange-900/30 border border-orange-200 dark:border-orange-800 rounded-lg p-3 shadow-sm">
+                                    <div className="flex items-center gap-1.5 mb-1.5">
+                                      <AlertCircle className="h-3 w-3 text-orange-500" />
+                                      <span className="!text-[12px] font-medium text-orange-700 dark:text-orange-400">
+                                        &lt;0.2 bar
+                                      </span>
+                                    </div>
+                                    <div className="text-xl font-bold text-orange-700 dark:text-orange-400">
+                                      {pressureDayWiseData.data.reduce(
+                                        (sum, row) => sum + row.below_0_2,
+                                        0,
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950/50 dark:to-purple-900/30 border border-purple-200 dark:border-purple-800 rounded-lg p-3 shadow-sm">
+                                    <div className="flex items-center gap-1.5 mb-1.5">
+                                      <TrendingUp className="h-3 w-3 text-purple-500" />
+                                      <span className="!text-[12px] font-medium text-purple-700 dark:text-purple-400">
+                                        &gt;0.7 bar
+                                      </span>
+                                    </div>
+                                    <div className="text-xl font-bold text-purple-700 dark:text-purple-400">
+                                      {pressureDayWiseData.data.reduce(
+                                        (sum, row) => sum + row.above_0_7,
+                                        0,
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/50 dark:to-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3 shadow-sm">
+                                    <div className="flex items-center gap-1.5 mb-1.5">
+                                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                                      <span className="!text-[12px] font-medium text-emerald-700 dark:text-emerald-400">
+                                        Optimal (0.2-0.7)
+                                      </span>
+                                    </div>
+                                    <div className="text-xl font-bold text-emerald-700 dark:text-emerald-400">
+                                      {pressureDayWiseData.data.reduce(
+                                        (sum, row) => sum + row.optimal_0_2_0_7,
+                                        0,
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+                                  <div className="grid grid-cols-[90px_1fr_1fr_1fr_1fr] gap-3 px-3 py-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                                    <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">
+                                      Days
+                                    </div>
+                                    <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
+                                      Offline
+                                    </div>
+                                    <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
+                                      <span className="text-orange-500">
+                                        ⚠
+                                      </span>
+                                      &lt;0.2 bar
+                                    </div>
+                                    <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
+                                      <span className="text-purple-500">▲</span>
+                                      &gt;0.7 bar
+                                    </div>
+                                    <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
+                                      <CheckCircle2 className="h-2.5 w-2.5 text-emerald-500" />
+                                      Optimal
+                                    </div>
+                                  </div>
+
+                                  <div className="max-h-[320px] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
+                                    {[...pressureDayWiseData.data]
+                                      .sort((a, b) => a.days - b.days)
+                                      .map((row, index) => {
+                                        const maxValue = Math.max(
+                                          ...pressureDayWiseData.data.flatMap(
+                                            (r) => [
+                                              r.offline,
+                                              r.below_0_2,
+                                              r.above_0_7,
+                                              r.optimal_0_2_0_7,
+                                            ],
+                                          ),
+                                        );
+
+                                        return (
+                                          <div
+                                            key={row.days}
+                                            className={`grid grid-cols-[90px_1fr_1fr_1fr_1fr] gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${index % 2 === 0
+                                              ? "bg-white dark:bg-gray-900"
+                                              : "bg-gray-50/50 dark:bg-gray-800/20"
+                                              }`}
+                                            data-testid={`row-pressure-day-${row.days}`}
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center shadow-sm">
+                                                <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                                                  {row.days}
+                                                </span>
+                                              </div>
+                                              <span className="!text-[12px] text-gray-500">
+                                                day{row.days > 1 ? "s" : ""}
+                                              </span>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                              <div
+                                                className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                                onClick={() =>
+                                                  row.offline > 0 &&
+                                                  setClickedPressureDayWiseCell(
+                                                    {
+                                                      metric: "offline",
+                                                      days: row.days,
+                                                      label: `Offline for ${row.days} day${row.days > 1 ? "s" : ""}`,
+                                                    },
+                                                  )
+                                                }
+                                                data-testid={`badge-pressure-offline-${row.days}`}
+                                              >
+                                                <div
+                                                  className="h-full bg-gradient-to-r from-red-400 to-red-600 rounded-full transition-all"
+                                                  style={{
+                                                    width: `${maxValue > 0 ? (row.offline / maxValue) * 100 : 0}%`,
+                                                  }}
+                                                ></div>
+                                              </div>
+                                              <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-left tabular-nums">
+                                                {row.offline}
+                                              </span>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                              <div
+                                                className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                                onClick={() =>
+                                                  row.below_0_2 > 0 &&
+                                                  setClickedPressureDayWiseCell(
+                                                    {
+                                                      metric: "below_0_2",
+                                                      days: row.days,
+                                                      label: `Pressure <0.2 bar for ${row.days} day${row.days > 1 ? "s" : ""}`,
+                                                    },
+                                                  )
+                                                }
+                                                data-testid={`badge-pressure-below-${row.days}`}
+                                              >
+                                                <div
+                                                  className="h-full bg-gradient-to-r from-orange-400 to-orange-600 rounded-full transition-all"
+                                                  style={{
+                                                    width: `${maxValue > 0 ? (row.below_0_2 / maxValue) * 100 : 0}%`,
+                                                  }}
+                                                ></div>
+                                              </div>
+                                              <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-left tabular-nums">
+                                                {row.below_0_2}
+                                              </span>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                              <div
+                                                className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                                onClick={() =>
+                                                  row.above_0_7 > 0 &&
+                                                  setClickedPressureDayWiseCell(
+                                                    {
+                                                      metric: "above_0_7",
+                                                      days: row.days,
+                                                      label: `Pressure >0.7 bar for ${row.days} day${row.days > 1 ? "s" : ""}`,
+                                                    },
+                                                  )
+                                                }
+                                                data-testid={`badge-pressure-above-${row.days}`}
+                                              >
+                                                <div
+                                                  className="h-full bg-gradient-to-r from-purple-400 to-purple-600 rounded-full transition-all"
+                                                  style={{
+                                                    width: `${maxValue > 0 ? (row.above_0_7 / maxValue) * 100 : 0}%`,
+                                                  }}
+                                                ></div>
+                                              </div>
+                                              <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-left tabular-nums">
+                                                {row.above_0_7}
+                                              </span>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                              <div
+                                                className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                                onClick={() =>
+                                                  row.optimal_0_2_0_7 > 0 &&
+                                                  setClickedPressureDayWiseCell(
+                                                    {
+                                                      metric: "optimal_0_2_0_7",
+                                                      days: row.days,
+                                                      label: `Optimal pressure for ${row.days} day${row.days > 1 ? "s" : ""}`,
+                                                    },
+                                                  )
+                                                }
+                                                data-testid={`badge-pressure-optimal-${row.days}`}
+                                              >
+                                                <div
+                                                  className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full transition-all"
+                                                  style={{
+                                                    width: `${maxValue > 0 ? (row.optimal_0_2_0_7 / maxValue) * 100 : 0}%`,
+                                                  }}
+                                                ></div>
+                                              </div>
+                                              <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-left tabular-nums">
+                                                {row.optimal_0_2_0_7}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="text-center py-8">
+                                <Calendar className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                                <p className="text-sm text-gray-500">
+                                  No pressure day-wise data available
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Pressure Day-Wise Detail Card */}
+                            {clickedPressureDayWiseCell && (
+                              <Card className="mt-4 border-2 border-orange-200 dark:border-orange-800 shadow-lg">
+                                <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950 border-b border-orange-200 dark:border-orange-800 py-3">
+                                  <CardTitle className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <div className="p-1.5 bg-gradient-to-br from-orange-500 to-amber-700 rounded-lg shadow-sm">
+                                        <Gauge className="h-4 w-4 text-white" />
+                                      </div>
+                                      <div>
+                                        <div className="text-base font-bold text-gray-900 dark:text-white">
+                                          {clickedPressureDayWiseCell.label}
+                                        </div>
+                                        <div className="!text-[12px] font-normal text-gray-600 dark:text-gray-400">
+                                          {pressureDayWiseRegion === "All Regions"
+                                            ? "All Regions"
+                                            : pressureDayWiseRegion}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Button
+                                        onClick={() => {
+                                          const params = new URLSearchParams();
+                                          if (pressureDayWiseRegion && pressureDayWiseRegion !== "All Regions") {
+                                            params.append("region", pressureDayWiseRegion);
+                                          }
+                                          if (schemeFilter !== 'all') {
+                                            params.append("filterType", schemeFilter);
+                                          }
+                                          if (schemeFilter === "fully_completed") {
+                                            params.append("fullyCompleted", "true");
+                                          }
+                                          const url = `/api/pressure/day-wise-sensors-export/${clickedPressureDayWiseCell.metric}/${clickedPressureDayWiseCell.days}?${params.toString()}`;
+                                          window.open(url, "_blank");
+                                        }}
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 px-2 text-[12px] gap-1 hover:bg-green-100 hover:text-green-700 hover:border-green-200 dark:hover:bg-green-900/30 dark:hover:text-green-400 dark:hover:border-green-800"
+                                      >
+                                        <Download className="h-3 w-3" />
+                                        Export
+                                      </Button>
+                                      <Button
+                                        onClick={() =>
+                                          setClickedPressureDayWiseCell(null)
+                                        }
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 w-7 p-0 hover:bg-orange-100 dark:hover:bg-orange-900"
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-4">
+                                  {isLoadingPressureDayWiseSensors ? (
+                                    <div className="space-y-2">
+                                      <Skeleton className="h-10 w-full" />
+                                      <Skeleton className="h-10 w-full" />
+                                      <Skeleton className="h-10 w-full" />
+                                    </div>
+                                  ) : pressureDayWiseSensors?.data &&
+                                    pressureDayWiseSensors.data.length > 0 ? (
+                                    <div className="overflow-x-auto">
+                                      <Table className="min-w-[1000px]">
+                                        <TableHeader>
+                                          <TableRow className="bg-slate-800 dark:bg-slate-900">
+                                            <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
+                                              Region
+                                            </TableHead>
+                                            <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
+                                              Circle
+                                            </TableHead>
+                                            <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
+                                              Division
+                                            </TableHead>
+                                            <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
+                                              Sub Division
+                                            </TableHead>
+                                            <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
+                                              Block
+                                            </TableHead>
+                                            <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
+                                              Scheme ID
+                                            </TableHead>
+                                            <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
+                                              Village
+                                            </TableHead>
+                                            <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
+                                              ESR Name
+                                            </TableHead>
+                                            {clickedPressureDayWiseCell.metric !==
+                                              "offline" && (
+                                                <>
+                                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
+                                                    Pressure (bar)
+                                                  </TableHead>
+                                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
+                                                    Date
+                                                  </TableHead>
+                                                </>
+                                              )}
+                                            <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
+                                              {clickedPressureDayWiseCell.metric ===
+                                                "offline"
+                                                ? "Last Seen"
+                                                : "Consecutive Days"}
+                                            </TableHead>
+                                          </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                          {pressureDayWiseSensors.data.map(
+                                            (sensor: any, index: number) => (
+                                              <TableRow
+                                                key={index}
+                                                className="hover:bg-orange-50 dark:hover:bg-orange-950/30"
+                                              >
+                                                <TableCell className="!px-3 !py-2 text-[12px]">
+                                                  {sensor.region}
+                                                </TableCell>
+                                                <TableCell className="!px-3 !py-2 text-[12px]">
+                                                  {sensor.circle}
+                                                </TableCell>
+                                                <TableCell className="!px-3 !py-2 text-[12px]">
+                                                  {sensor.division}
+                                                </TableCell>
+                                                <TableCell className="!px-3 !py-2 text-[12px]">
+                                                  {sensor.sub_division}
+                                                </TableCell>
+                                                <TableCell className="!px-3 !py-2 text-[12px]">
+                                                  {sensor.block}
+                                                </TableCell>
+                                                <TableCell className="!px-3 !py-2 text-[12px]">
+                                                  {sensor.scheme_id}
+                                                </TableCell>
+                                                <TableCell className="!px-3 !py-2 text-[12px]">
+                                                  {sensor.village_name}
+                                                </TableCell>
+                                                <TableCell className="!px-3 !py-2 text-[12px]">
+                                                  {sensor.esr_name}
+                                                </TableCell>
+                                                {clickedPressureDayWiseCell.metric !==
+                                                  "offline" && (
+                                                    <>
+                                                      <TableCell className="!px-3 !py-2 text-[12px]">
+                                                        {sensor.latest_pressure_value !==
+                                                          null &&
+                                                          sensor.latest_pressure_value !==
+                                                          undefined
+                                                          ? Number(
+                                                            sensor.latest_pressure_value,
+                                                          ).toFixed(2)
+                                                          : "N/A"}
+                                                      </TableCell>
+                                                      <TableCell className="!px-3 !py-2 text-[12px]">
+                                                        {sensor.latest_pressure_date ||
+                                                          "N/A"}
+                                                      </TableCell>
+                                                    </>
+                                                  )}
+                                                <TableCell className="!px-3 !py-2 text-[12px]">
+                                                  {clickedPressureDayWiseCell.metric ===
+                                                    "offline"
+                                                    ? sensor.last_seen || "N/A"
+                                                    : sensor.consecutive_days ||
+                                                    0}
+                                                </TableCell>
+                                              </TableRow>
+                                            ),
+                                          )}
+                                        </TableBody>
+                                      </Table>
+                                      <div className="mt-3 text-sm text-gray-600 dark:text-gray-400">
+                                        Total: {pressureDayWiseSensors.count}{" "}
+                                        sensor
+                                        {pressureDayWiseSensors.count !== 1
+                                          ? "s"
+                                          : ""}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="text-center py-8">
+                                      <Gauge className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                                      <p className="text-sm text-gray-500">
+                                        No sensors found for this criteria
+                                      </p>
+                                    </div>
+                                  )}
+                                </CardContent>
+                              </Card>
+                            )}
+                          </>
+                        )}
+
+
+                      {/* Chlorine Region Comparison View */}
+                      {dayWiseSubTab === "region-comparison" &&
+                        mainTab === "chlorine" && (
+                          <>
+                            {/* Category Tabs */}
+                            <div className="flex flex-wrap gap-2 mb-4">
+                              <button
+                                onClick={() => setComparisonCategory("offline")}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${comparisonCategory === "offline"
+                                  ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-red-300"
+                                  }`}
+                                data-testid="tab-comparison-offline"
+                              >
+                                <span className="flex items-center gap-1.5">
+                                  <div className="w-2 h-2 rounded-full bg-red-400"></div>
+                                  Offline
+                                </span>
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setComparisonCategory("below_0_2")
+                                }
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${comparisonCategory === "below_0_2"
+                                  ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-orange-300"
+                                  }`}
+                                data-testid="tab-comparison-below"
+                              >
+                                <span className="flex items-center gap-1.5">
+                                  <AlertCircle className="h-3 w-3 text-orange-400" />
+                                  &lt;0.2 mg/l
+                                </span>
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setComparisonCategory("above_0_5")
+                                }
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${comparisonCategory === "above_0_5"
+                                  ? "bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-rose-300"
+                                  }`}
+                                data-testid="tab-comparison-above"
+                              >
+                                <span className="flex items-center gap-1.5">
+                                  <TrendingUp className="h-3 w-3 text-rose-400" />
+                                  &gt;0.5 mg/l
+                                </span>
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setComparisonCategory("optimal_0_2_0_5")
+                                }
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${comparisonCategory === "optimal_0_2_0_5"
+                                  ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-emerald-300"
+                                  }`}
+                                data-testid="tab-comparison-optimal"
+                              >
+                                <span className="flex items-center gap-1.5">
+                                  <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                                  Optimal (0.2-0.5)
+                                </span>
+                              </button>
+                            </div>
+
+                            {isLoadingRegionComparison ? (
+                              <div className="space-y-3">
+                                <Skeleton className="h-64 w-full rounded-lg" />
+                              </div>
+                            ) : regionComparisonData &&
+                              Object.keys(regionComparisonData.data).length >
+                              0 ? (
+                              <div className="overflow-x-auto rounded-xl border-2 border-blue-200 dark:border-blue-800 shadow-lg">
+                                <Table>
+                                  <TableHeader className="sticky top-0 z-10">
+                                    <TableRow className="bg-gradient-to-r from-blue-600 via-cyan-600 to-blue-700">
+                                      <TableHead className="font-bold text-xs uppercase tracking-wide !px-4 !py-3 text-center text-white border-r border-blue-500/50 min-w-[70px]">
+                                        Days
+                                      </TableHead>
+                                      {Object.keys(
+                                        regionComparisonData.data,
+                                      ).map((region) => (
+                                        <TableHead
+                                          key={region}
+                                          className="font-bold text-xs uppercase tracking-wide !px-4 !py-3 text-center text-white border-r border-blue-500/30 last:border-r-0 min-w-[110px]"
+                                        >
+                                          {region}
+                                        </TableHead>
+                                      ))}
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {Array.from(
+                                      { length: 30 },
+                                      (_, i) => i + 1,
+                                    ).map((day) => {
+                                      const regions = Object.keys(
+                                        regionComparisonData.data,
+                                      );
+                                      const maxValueForDay = Math.max(
+                                        ...regions.map((region) => {
+                                          const dayData =
+                                            regionComparisonData.data[
+                                              region
+                                            ]?.find((d) => d.days === day);
+                                          return dayData
+                                            ? dayData[comparisonCategory]
+                                            : 0;
+                                        }),
+                                      );
+
+                                      return (
+                                        <TableRow
+                                          key={day}
+                                          className={`transition-colors hover:bg-blue-50 dark:hover:bg-blue-950/30 ${day % 2 === 0 ? "bg-slate-50 dark:bg-slate-900/50" : "bg-white dark:bg-slate-900"}`}
+                                          data-testid={`row-comparison-day-${day}`}
+                                        >
+                                          <TableCell className="!px-4 !py-2.5 text-center bg-blue-50 dark:bg-blue-950/40 border-r border-blue-100 dark:border-blue-900">
+                                            <div className="w-8 h-8 mx-auto rounded-lg bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-md">
+                                              <span className="text-xs font-bold text-white">
+                                                {day}
+                                              </span>
+                                            </div>
+                                          </TableCell>
+                                          {regions.map((region) => {
+                                            const dayData =
+                                              regionComparisonData.data[
+                                                region
+                                              ]?.find((d) => d.days === day);
+                                            const value = dayData
+                                              ? dayData[comparisonCategory]
+                                              : 0;
+                                            const barWidth =
+                                              maxValueForDay > 0
+                                                ? (value / maxValueForDay) * 100
+                                                : 0;
+
+                                            const colorClass =
+                                              comparisonCategory === "offline"
+                                                ? "from-red-400 to-red-600"
+                                                : comparisonCategory ===
+                                                  "below_0_2"
+                                                  ? "from-orange-400 to-orange-600"
+                                                  : comparisonCategory ===
+                                                    "above_0_5"
+                                                    ? "from-rose-400 to-rose-600"
+                                                    : "from-emerald-400 to-emerald-600";
+
+                                            const getCategoryLabel = () => {
+                                              if (
+                                                comparisonCategory === "offline"
+                                              )
+                                                return "Offline";
+                                              if (
+                                                comparisonCategory ===
+                                                "below_0_2"
+                                              )
+                                                return "<0.2 mg/l";
+                                              if (
+                                                comparisonCategory ===
+                                                "above_0_5"
+                                              )
+                                                return ">0.5 mg/l";
+                                              return "Optimal";
+                                            };
+
+                                            return (
+                                              <TableCell
+                                                key={region}
+                                                className="!px-3 !py-2"
+                                              >
+                                                <div
+                                                  className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-all"
+                                                  onClick={() =>
+                                                    value > 0 &&
+                                                    setClickedRegionComparisonCell(
+                                                      {
+                                                        region,
+                                                        day,
+                                                        category:
+                                                          comparisonCategory,
+                                                        label: `${getCategoryLabel()} for ${day} day${day > 1 ? "s" : ""} - ${region}`,
+                                                      },
+                                                    )
+                                                  }
+                                                  data-testid={`cell-comparison-${region}-${day}`}
+                                                >
+                                                  <div className="flex-1 h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden min-w-[40px]">
+                                                    <div
+                                                      className={`h-full bg-gradient-to-r ${colorClass} rounded-full transition-all`}
+                                                      style={{
+                                                        width: `${barWidth}%`,
+                                                      }}
+                                                    ></div>
+                                                  </div>
+                                                  <span className="text-xs font-semibold text-gray-900 dark:text-white w-6 text-right tabular-nums">
+                                                    {value}
+                                                  </span>
+                                                </div>
+                                              </TableCell>
+                                            );
+                                          })}
+                                        </TableRow>
+                                      );
+                                    })}
+                                    {/* Totals Row */}
+                                    <TableRow className="bg-gradient-to-r from-blue-100 via-cyan-100 to-blue-100 dark:from-blue-900/60 dark:via-cyan-900/60 dark:to-blue-900/60 font-bold border-t-2 border-blue-300 dark:border-blue-700">
+                                      <TableCell className="!px-4 !py-3 text-center bg-blue-200/50 dark:bg-blue-900/50 border-r border-blue-200 dark:border-blue-800">
+                                        <div className="w-10 h-8 mx-auto rounded-lg bg-gradient-to-br from-blue-600 to-cyan-700 flex items-center justify-center shadow-md">
+                                          <span className="text-[10px] font-bold text-white uppercase">
+                                            Total
+                                          </span>
+                                        </div>
+                                      </TableCell>
+                                      {Object.keys(
+                                        regionComparisonData.data,
+                                      ).map((region) => {
+                                        const total =
+                                          regionComparisonData.data[
+                                            region
+                                          ]?.reduce(
+                                            (sum, d) =>
+                                              sum + d[comparisonCategory],
+                                            0,
+                                          ) || 0;
+                                        const maxTotal = Math.max(
+                                          ...Object.keys(
+                                            regionComparisonData.data,
+                                          ).map(
+                                            (r) =>
+                                              regionComparisonData.data[
+                                                r
+                                              ]?.reduce(
+                                                (sum, d) =>
+                                                  sum + d[comparisonCategory],
+                                                0,
+                                              ) || 0,
+                                          ),
+                                        );
+                                        const barWidth =
+                                          maxTotal > 0
+                                            ? (total / maxTotal) * 100
+                                            : 0;
+
+                                        const colorClass =
+                                          comparisonCategory === "offline"
+                                            ? "from-red-500 to-red-700"
+                                            : comparisonCategory === "below_0_2"
+                                              ? "from-orange-500 to-orange-700"
+                                              : comparisonCategory ===
+                                                "above_0_5"
+                                                ? "from-rose-500 to-rose-700"
+                                                : "from-emerald-500 to-emerald-700";
+
+                                        return (
+                                          <TableCell
+                                            key={region}
+                                            className="!px-4 !py-3"
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              <div className="flex-1 h-5 bg-blue-100 dark:bg-blue-900/50 rounded-lg overflow-hidden min-w-[50px] border border-blue-200/50 dark:border-blue-800/50">
+                                                <div
+                                                  className={`h-full bg-gradient-to-r ${colorClass} rounded-lg transition-all shadow-sm`}
+                                                  style={{
+                                                    width: `${barWidth}%`,
+                                                  }}
+                                                ></div>
+                                              </div>
+                                              <span className="text-sm font-bold text-blue-900 dark:text-blue-100 w-10 text-right tabular-nums">
+                                                {total}
+                                              </span>
+                                            </div>
+                                          </TableCell>
+                                        );
+                                      })}
+                                    </TableRow>
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            ) : (
+                              <div className="text-center py-8">
+                                <BarChart3 className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                                <p className="text-sm text-gray-500">
+                                  No comparison data available
+                                </p>
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                      {/* LPCD Region Comparison View - Village */}
+                      {dayWiseSubTab === "region-comparison" &&
+                        mainTab === "lpcd" && lpcdSubTab === "village" && (
+                          <>
+                            {/* LPCD Category Tabs */}
+                            <div className="flex flex-wrap gap-2 mb-4">
+                              <button
+                                onClick={() =>
+                                  setLpcdComparisonCategory("below_55")
+                                }
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${lpcdComparisonCategory === "below_55"
+                                  ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-red-300"
+                                  }`}
+                                data-testid="tab-lpcd-comparison-below55"
+                              >
+                                <span className="flex items-center gap-1.5">
+                                  <AlertCircle className="h-3 w-3 text-red-400" />
+                                  &lt;55 LPCD
+                                </span>
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setLpcdComparisonCategory("above_55")
+                                }
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${lpcdComparisonCategory === "above_55"
+                                  ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-emerald-300"
+                                  }`}
+                                data-testid="tab-lpcd-comparison-above55"
+                              >
+                                <span className="flex items-center gap-1.5">
+                                  <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                                  ≥55 LPCD
+                                </span>
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setLpcdComparisonCategory("with_water")
+                                }
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${lpcdComparisonCategory === "with_water"
+                                  ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-blue-300"
+                                  }`}
+                                data-testid="tab-lpcd-comparison-withwater"
+                              >
+                                <span className="flex items-center gap-1.5">
+                                  <Droplet className="h-3 w-3 text-blue-400" />
+                                  With Water
+                                </span>
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setLpcdComparisonCategory("no_water")
+                                }
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${lpcdComparisonCategory === "no_water"
+                                  ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-400"
+                                  }`}
+                                data-testid="tab-lpcd-comparison-nowater"
+                              >
+                                <span className="flex items-center gap-1.5">
+                                  <WifiOff className="h-3 w-3 text-gray-400" />
+                                  No Water
+                                </span>
+                              </button>
+                            </div>
+
+                            {isLoadingLpcdRegionComparison ? (
+                              <div className="space-y-3">
+                                <Skeleton className="h-64 w-full rounded-lg" />
+                              </div>
+                            ) : lpcdRegionComparisonData &&
+                              Object.keys(lpcdRegionComparisonData.data)
+                                .length > 0 ? (
+                              <div className="overflow-x-auto rounded-xl border-2 border-teal-200 dark:border-teal-800 shadow-lg">
+                                <Table>
+                                  <TableHeader className="sticky top-0 z-10">
+                                    <TableRow className="bg-gradient-to-r from-teal-600 via-cyan-600 to-teal-700">
+                                      <TableHead className="font-bold text-xs uppercase tracking-wide !px-4 !py-3 text-center text-white border-r border-teal-500/50 min-w-[70px]">
+                                        Days
+                                      </TableHead>
+                                      {Object.keys(
+                                        lpcdRegionComparisonData.data,
+                                      ).map((region) => (
+                                        <TableHead
+                                          key={region}
+                                          className="font-bold text-xs uppercase tracking-wide !px-4 !py-3 text-center text-white border-r border-teal-500/30 last:border-r-0 min-w-[110px]"
+                                        >
+                                          {region}
+                                        </TableHead>
+                                      ))}
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {Array.from(
+                                      { length: 30 },
+                                      (_, i) => i + 1,
+                                    ).map((day) => {
+                                      const regions = Object.keys(
+                                        lpcdRegionComparisonData.data,
+                                      );
+                                      const maxValueForDay = Math.max(
+                                        ...regions.map((region) => {
+                                          const dayData =
+                                            lpcdRegionComparisonData.data[
+                                              region
+                                            ]?.find((d) => d.days === day);
+                                          return dayData
+                                            ? dayData[lpcdComparisonCategory]
+                                            : 0;
+                                        }),
+                                      );
+
+                                      return (
+                                        <TableRow
+                                          key={day}
+                                          className={`transition-colors hover:bg-teal-50 dark:hover:bg-teal-950/30 ${day % 2 === 0 ? "bg-slate-50 dark:bg-slate-900/50" : "bg-white dark:bg-slate-900"}`}
+                                          data-testid={`row-lpcd-comparison-day-${day}`}
+                                        >
+                                          <TableCell className="!px-4 !py-2.5 text-center bg-teal-50 dark:bg-teal-950/40 border-r border-teal-100 dark:border-teal-900">
+                                            <div className="w-8 h-8 mx-auto rounded-lg bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-md">
+                                              <span className="text-xs font-bold text-white">
+                                                {day}
+                                              </span>
+                                            </div>
+                                          </TableCell>
+                                          {regions.map((region) => {
+                                            const dayData =
+                                              lpcdRegionComparisonData.data[
+                                                region
+                                              ]?.find((d) => d.days === day);
+                                            const value = dayData
+                                              ? dayData[lpcdComparisonCategory]
+                                              : 0;
+                                            const barWidth =
+                                              maxValueForDay > 0
+                                                ? (value / maxValueForDay) * 100
+                                                : 0;
+
+                                            const colorClass =
+                                              lpcdComparisonCategory ===
+                                                "below_55"
+                                                ? "from-red-400 to-red-600"
+                                                : lpcdComparisonCategory ===
+                                                  "above_55"
+                                                  ? "from-emerald-400 to-emerald-600"
+                                                  : lpcdComparisonCategory ===
+                                                    "with_water"
+                                                    ? "from-blue-400 to-blue-600"
+                                                    : "from-gray-400 to-gray-600";
+
+                                            const getCategoryLabel = () => {
+                                              if (
+                                                lpcdComparisonCategory ===
+                                                "below_55"
+                                              )
+                                                return "<55 LPCD";
+                                              if (
+                                                lpcdComparisonCategory ===
+                                                "above_55"
+                                              )
+                                                return "≥55 LPCD";
+                                              if (
+                                                lpcdComparisonCategory ===
+                                                "with_water"
+                                              )
+                                                return "With Water";
+                                              return "No Water";
+                                            };
+
+                                            return (
+                                              <TableCell
+                                                key={region}
+                                                className="!px-3 !py-2"
+                                              >
+                                                <div
+                                                  className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-all"
+                                                  onClick={() =>
+                                                    value > 0 &&
+                                                    setClickedLpcdRegionComparisonCell(
+                                                      {
+                                                        region,
+                                                        day,
+                                                        category:
+                                                          lpcdComparisonCategory,
+                                                        label: `${getCategoryLabel()} for ${day} day${day > 1 ? "s" : ""} - ${region}`,
+                                                      },
+                                                    )
+                                                  }
+                                                  data-testid={`cell-lpcd-comparison-${region}-${day}`}
+                                                >
+                                                  <div className="flex-1 h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden min-w-[40px]">
+                                                    <div
+                                                      className={`h-full bg-gradient-to-r ${colorClass} rounded-full transition-all`}
+                                                      style={{
+                                                        width: `${barWidth}%`,
+                                                      }}
+                                                    ></div>
+                                                  </div>
+                                                  <span className="text-xs font-semibold text-gray-900 dark:text-white w-6 text-right tabular-nums">
+                                                    {value}
+                                                  </span>
+                                                </div>
+                                              </TableCell>
+                                            );
+                                          })}
+                                        </TableRow>
+                                      );
+                                    })}
+                                    {/* Totals Row */}
+                                    <TableRow className="bg-gradient-to-r from-teal-100 via-cyan-100 to-teal-100 dark:from-teal-900/60 dark:via-cyan-900/60 dark:to-teal-900/60 font-bold border-t-2 border-teal-300 dark:border-teal-700">
+                                      <TableCell className="!px-4 !py-3 text-center bg-teal-200/50 dark:bg-teal-900/50 border-r border-teal-200 dark:border-teal-800">
+                                        <div className="w-10 h-8 mx-auto rounded-lg bg-gradient-to-br from-teal-600 to-cyan-700 flex items-center justify-center shadow-md">
+                                          <span className="text-[10px] font-bold text-white uppercase">
+                                            Total
+                                          </span>
+                                        </div>
+                                      </TableCell>
+                                      {Object.keys(
+                                        lpcdRegionComparisonData.data,
+                                      ).map((region) => {
+                                        const total =
+                                          lpcdRegionComparisonData.data[
+                                            region
+                                          ]?.reduce(
+                                            (sum, d) =>
+                                              sum + d[lpcdComparisonCategory],
+                                            0,
+                                          ) || 0;
+                                        const maxTotal = Math.max(
+                                          ...Object.keys(
+                                            lpcdRegionComparisonData.data,
+                                          ).map(
+                                            (r) =>
+                                              lpcdRegionComparisonData.data[
+                                                r
+                                              ]?.reduce(
+                                                (sum, d) =>
+                                                  sum +
+                                                  d[lpcdComparisonCategory],
+                                                0,
+                                              ) || 0,
+                                          ),
+                                        );
+                                        const barWidth =
+                                          maxTotal > 0
+                                            ? (total / maxTotal) * 100
+                                            : 0;
+
+                                        const colorClass =
+                                          lpcdComparisonCategory === "below_55"
+                                            ? "from-red-500 to-red-700"
+                                            : lpcdComparisonCategory ===
+                                              "above_55"
+                                              ? "from-emerald-500 to-emerald-700"
+                                              : lpcdComparisonCategory ===
+                                                "with_water"
+                                                ? "from-blue-500 to-blue-700"
+                                                : "from-gray-500 to-gray-700";
+
+                                        return (
+                                          <TableCell
+                                            key={region}
+                                            className="!px-4 !py-3 cursor-pointer hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors"
+                                            onClick={() =>
+                                              total > 0 &&
+                                              setClickedLpcdRegionComparisonCell({
+                                                region,
+                                                day: 1,
+                                                category: lpcdComparisonCategory,
+                                                label: `Total (All Regions) - ${lpcdComparisonCategory === "below_55" ? "<55 LPCD" :
+                                                  lpcdComparisonCategory === "above_55" ? "≥55 LPCD" :
+                                                    lpcdComparisonCategory === "with_water" ? "With Water" : "No Water"
+                                                  } - ${region}`,
+                                              })
+                                            }
+                                          >
+                                            <div
+                                              className="flex items-center gap-2"
+                                            >
+                                              <div className="flex-1 h-5 bg-teal-100 dark:bg-teal-900/50 rounded-lg overflow-hidden min-w-[50px] border border-teal-200/50 dark:border-teal-800/50">
+                                                <div
+                                                  className={`h-full bg-gradient-to-r ${colorClass} rounded-lg transition-all shadow-sm`}
+                                                  style={{
+                                                    width: `${barWidth}%`,
+                                                  }}
+                                                ></div>
+                                              </div>
+                                              <span className="text-sm font-bold text-teal-900 dark:text-teal-100 w-10 text-right tabular-nums">
+                                                {total}
+                                              </span>
+                                            </div>
+                                          </TableCell>
+                                        );
+                                      })}
+                                    </TableRow>
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            ) : (
+                              <div className="text-center py-8">
+                                <BarChart3 className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                                <p className="text-sm text-gray-500">
+                                  No LPCD comparison data available
+                                </p>
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                      {/* LPCD Region Comparison View - Scheme */}
+                      {dayWiseSubTab === "region-comparison" &&
+                        mainTab === "lpcd" && lpcdSubTab === "scheme" && (
+                          <>
+                            {/* Scheme LPCD Category Tabs */}
+                            <div className="flex flex-wrap gap-2 mb-4">
+                              <button
+                                onClick={() =>
+                                  setSchemeLpcdComparisonCategory("below_55")
+                                }
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${schemeLpcdComparisonCategory === "below_55"
+                                  ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-red-300"
+                                  }`}
+                                data-testid="tab-scheme-lpcd-comparison-below55"
+                              >
+                                <span className="flex items-center gap-1.5">
+                                  <AlertCircle className="h-3 w-3 text-red-400" />
+                                  &lt;55 LPCD
+                                </span>
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setSchemeLpcdComparisonCategory("above_55")
+                                }
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${schemeLpcdComparisonCategory === "above_55"
+                                  ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-emerald-300"
+                                  }`}
+                                data-testid="tab-scheme-lpcd-comparison-above55"
+                              >
+                                <span className="flex items-center gap-1.5">
+                                  <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                                  ≥55 LPCD
+                                </span>
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setSchemeLpcdComparisonCategory("with_water")
+                                }
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${schemeLpcdComparisonCategory === "with_water"
+                                  ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-blue-300"
+                                  }`}
+                                data-testid="tab-scheme-lpcd-comparison-withwater"
+                              >
+                                <span className="flex items-center gap-1.5">
+                                  <Droplet className="h-3 w-3 text-blue-400" />
+                                  With Water
+                                </span>
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setSchemeLpcdComparisonCategory("no_water")
+                                }
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${schemeLpcdComparisonCategory === "no_water"
+                                  ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-400"
+                                  }`}
+                                data-testid="tab-scheme-lpcd-comparison-nowater"
+                              >
+                                <span className="flex items-center gap-1.5">
+                                  <WifiOff className="h-3 w-3 text-gray-400" />
+                                  No Water
+                                </span>
+                              </button>
+                            </div>
+
+                            {isLoadingSchemeLpcdDayWiseAllRegions ? (
+                              <div className="space-y-3">
+                                <Skeleton className="h-64 w-full rounded-lg" />
+                              </div>
+                            ) : schemeLpcdDayWiseAllRegions &&
+                              Object.keys(schemeLpcdDayWiseAllRegions.data || {}).length > 0 ? (
+                              <div className="overflow-x-auto rounded-xl border-2 border-emerald-200 dark:border-emerald-800 shadow-lg">
+                                <Table>
+                                  <TableHeader className="sticky top-0 z-10">
+                                    <TableRow className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700">
+                                      <TableHead className="font-bold text-xs uppercase tracking-wide !px-4 !py-3 text-center text-white border-r border-emerald-500/50 min-w-[70px]">
+                                        Days
+                                      </TableHead>
+                                      {Object.keys(schemeLpcdDayWiseAllRegions.data).map((region) => (
+                                        <TableHead
+                                          key={region}
+                                          className="font-bold text-xs uppercase tracking-wide !px-4 !py-3 text-center text-white border-r border-emerald-500/30 last:border-r-0 min-w-[110px]"
+                                        >
+                                          {region}
+                                        </TableHead>
+                                      ))}
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {Array.from({ length: 30 }, (_, i) => i + 1).map((day) => {
+                                      const regions = Object.keys(schemeLpcdDayWiseAllRegions.data);
+                                      const maxValueForDay = Math.max(
+                                        ...regions.map((region) => {
+                                          const dayData = schemeLpcdDayWiseAllRegions.data[region]?.find((d) => d.days === day);
+                                          return dayData ? dayData[schemeLpcdComparisonCategory] : 0;
+                                        }),
+                                      );
+
+                                      return (
+                                        <TableRow
+                                          key={day}
+                                          className={`transition-colors hover:bg-emerald-50 dark:hover:bg-emerald-950/30 ${day % 2 === 0 ? "bg-slate-50 dark:bg-slate-900/50" : "bg-white dark:bg-slate-900"}`}
+                                          data-testid={`row-scheme-lpcd-comparison-day-${day}`}
+                                        >
+                                          <TableCell className="!px-4 !py-2.5 text-center bg-emerald-50 dark:bg-emerald-950/40 border-r border-emerald-100 dark:border-emerald-900">
+                                            <div className="w-8 h-8 mx-auto rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-md">
+                                              <span className="text-xs font-bold text-white">
+                                                {day}
+                                              </span>
+                                            </div>
+                                          </TableCell>
+                                          {regions.map((region) => {
+                                            const dayData = schemeLpcdDayWiseAllRegions.data[region]?.find((d) => d.days === day);
+                                            const value = dayData ? dayData[schemeLpcdComparisonCategory] : 0;
+                                            const barWidth = maxValueForDay > 0 ? (value / maxValueForDay) * 100 : 0;
+
+                                            const colorClass =
+                                              schemeLpcdComparisonCategory === "below_55"
+                                                ? "from-red-400 to-red-600"
+                                                : schemeLpcdComparisonCategory === "above_55"
+                                                  ? "from-emerald-400 to-emerald-600"
+                                                  : schemeLpcdComparisonCategory === "with_water"
+                                                    ? "from-blue-400 to-blue-600"
+                                                    : "from-gray-400 to-gray-600";
+
+                                            const getCategoryLabel = () => {
+                                              if (schemeLpcdComparisonCategory === "below_55") return "<55 LPCD";
+                                              if (schemeLpcdComparisonCategory === "above_55") return "≥55 LPCD";
+                                              if (schemeLpcdComparisonCategory === "with_water") return "With Water";
+                                              return "No Water";
+                                            };
+
+                                            const getMetric = () => {
+                                              if (schemeLpcdComparisonCategory === "below_55") return "below55";
+                                              if (schemeLpcdComparisonCategory === "above_55") return "above55";
+                                              if (schemeLpcdComparisonCategory === "with_water") return "above55";
+                                              return "noSupply";
+                                            };
+
+                                            return (
+                                              <TableCell
+                                                key={region}
+                                                className="!px-2 !py-1.5"
+                                                data-testid={`cell-scheme-lpcd-comparison-${region}-${day}`}
+                                              >
+                                                <div
+                                                  className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-all"
+                                                  onClick={() =>
+                                                    value > 0 &&
+                                                    setClickedSchemeDayWiseCell({
+                                                      metric: getMetric(),
+                                                      days: day,
+                                                      region: region,
+                                                      label: `Schemes ${getCategoryLabel()} for ${day} day${day > 1 ? "s" : ""} - ${region}`,
+                                                    })
+                                                  }
+                                                >
+                                                  <div className="flex-1 h-3 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden min-w-[30px]">
+                                                    <div
+                                                      className={`h-full bg-gradient-to-r ${colorClass} rounded-full transition-all`}
+                                                      style={{ width: `${barWidth}%` }}
+                                                    ></div>
+                                                  </div>
+                                                  <span className="text-xs font-bold text-gray-700 dark:text-gray-300 w-6 text-right tabular-nums">
+                                                    {value}
+                                                  </span>
+                                                </div>
+                                              </TableCell>
+                                            );
+                                          })}
+                                        </TableRow>
+                                      );
+                                    })}
+                                    {/* Totals Row */}
+                                    <TableRow className="bg-gradient-to-r from-emerald-100 via-teal-100 to-emerald-100 dark:from-emerald-900/60 dark:via-teal-900/60 dark:to-emerald-900/60 font-bold border-t-2 border-emerald-300 dark:border-emerald-700">
+                                      <TableCell className="!px-4 !py-3 text-center bg-emerald-200/50 dark:bg-emerald-900/50 border-r border-emerald-200 dark:border-emerald-800">
+                                        <div className="w-10 h-8 mx-auto rounded-lg bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center shadow-md">
+                                          <span className="text-[10px] font-bold text-white uppercase">
+                                            Total
+                                          </span>
+                                        </div>
+                                      </TableCell>
+                                      {Object.keys(schemeLpcdDayWiseAllRegions.data).map((region) => {
+                                        const total = schemeLpcdDayWiseAllRegions.data[region]?.reduce(
+                                          (sum, d) => sum + d[schemeLpcdComparisonCategory],
+                                          0,
+                                        ) || 0;
+                                        const maxTotal = Math.max(
+                                          ...Object.keys(schemeLpcdDayWiseAllRegions.data).map(
+                                            (r) => schemeLpcdDayWiseAllRegions.data[r]?.reduce(
+                                              (sum, d) => sum + d[schemeLpcdComparisonCategory],
+                                              0,
+                                            ) || 0,
+                                          ),
+                                        );
+                                        const barWidth = maxTotal > 0 ? (total / maxTotal) * 100 : 0;
+
+                                        const colorClass =
+                                          schemeLpcdComparisonCategory === "below_55"
+                                            ? "from-red-500 to-red-700"
+                                            : schemeLpcdComparisonCategory === "above_55"
+                                              ? "from-emerald-500 to-emerald-700"
+                                              : schemeLpcdComparisonCategory === "with_water"
+                                                ? "from-blue-500 to-blue-700"
+                                                : "from-gray-500 to-gray-700";
+
+                                        return (
+                                          <TableCell key={region} className="!px-4 !py-3">
+                                            <div className="flex items-center gap-2">
+                                              <div className="flex-1 h-5 bg-emerald-100 dark:bg-emerald-900/50 rounded-lg overflow-hidden min-w-[50px] border border-emerald-200/50 dark:border-emerald-800/50">
+                                                <div
+                                                  className={`h-full bg-gradient-to-r ${colorClass} rounded-lg transition-all shadow-sm`}
+                                                  style={{ width: `${barWidth}%` }}
+                                                ></div>
+                                              </div>
+                                              <span className="text-sm font-bold text-emerald-900 dark:text-emerald-100 w-10 text-right tabular-nums">
+                                                {total}
+                                              </span>
+                                            </div>
+                                          </TableCell>
+                                        );
+                                      })}
+                                    </TableRow>
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            ) : (
+                              <div className="text-center py-8">
+                                <BarChart3 className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                                <p className="text-sm text-gray-500">
+                                  No scheme LPCD comparison data available
+                                </p>
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                      {/* LPCD Region Comparison (Village) Details Card */}
+                      {clickedLpcdRegionComparisonCell && (
+                        <Card className="border-0 shadow-lg rounded-xl overflow-hidden mt-4" data-testid="card-lpcd-region-comparison-details">
+                          <CardHeader className="bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-950 dark:to-cyan-950 border-b border-teal-200 dark:border-teal-800 py-2.5">
+                            <div className="flex items-center justify-between">
+                              <CardTitle className="flex items-center gap-2">
+                                <div className="p-1.5 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-lg shadow-sm">
+                                  <Droplet className="h-4 w-4 text-white" />
+                                </div>
+                                <div>
+                                  <div className="text-sm font-bold text-gray-900 dark:text-white">
+                                    {clickedLpcdRegionComparisonCell.label}
+                                  </div>
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    <Badge className="bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-400 !text-[12px] px-1.5 py-0">
+                                      {clickedLpcdRegionComparisonCell.region}
+                                    </Badge>
+                                    <Badge
+                                      variant="secondary"
+                                      className="!text-[12px] px-1.5 py-0"
+                                    >
+                                      {lpcdDayWiseVillages?.count || 0} villages
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </CardTitle>
+                              <div className="flex gap-1.5">
+                                <button
+                                  onClick={() => {
+                                    // If it's a "Total" row click (implied by day === 1 for this context when summing totals), use the multi-sheet export
+                                    // OR stricter check: if label contains "Total"
+                                    const isTotal = clickedLpcdRegionComparisonCell.label.includes("Total");
+
+                                    if (isTotal) {
+                                      const params = new URLSearchParams();
+                                      if (clickedLpcdRegionComparisonCell.region && clickedLpcdRegionComparisonCell.region !== "All Regions") {
+                                        params.append("region", clickedLpcdRegionComparisonCell.region);
+                                      }
+                                      if (schemeFilter !== 'all') {
+                                        params.append("filterType", schemeFilter);
+                                      }
+                                      window.open(`/api/chlorine/lpcd/region-comparison-total-export?${params.toString()}`, "_blank");
+                                    } else {
+                                      const params = new URLSearchParams();
+                                      if (clickedLpcdRegionComparisonCell.region && clickedLpcdRegionComparisonCell.region !== "All Regions") {
+                                        params.append("region", clickedLpcdRegionComparisonCell.region);
+                                      }
+                                      if (schemeFilter !== 'all') {
+                                        params.append("filterType", schemeFilter);
+                                      }
+                                      window.open(
+                                        `/api/chlorine/lpcd/day-wise-villages-export/${clickedLpcdRegionComparisonCell.category}/${clickedLpcdRegionComparisonCell.day}?${params.toString()}`,
+                                        "_blank",
+                                      );
+                                    }
+                                  }}
+                                  className="flex items-center gap-1.5 px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors text-xs font-medium shadow-sm"
+                                  data-testid="button-export-lpcd-comparison-excel"
+                                >
+                                  <FileDown className="h-3 w-3" />
+                                  Excel
+                                </button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() =>
+                                    setClickedLpcdRegionComparisonCell(null)
+                                  }
+                                  className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                                  data-testid="button-close-lpcd-comparison-details"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="p-0">
+                            {isLoadingLpcdDayWiseVillages ? (
+                              <div className="space-y-2 p-5">
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
+                              </div>
+                            ) : lpcdDayWiseVillages && lpcdDayWiseVillages.data.length > 0 ? (
+                              <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-teal-200/60 dark:border-teal-800/60 rounded-xl m-3 shadow-sm">
+                                <Table className="min-w-max">
+                                  <TableHeader className="sticky top-0 z-10">
+                                    <TableRow className="bg-teal-800 dark:bg-teal-900">
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                        Region
+                                      </TableHead>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                        Division
+                                      </TableHead>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-4 !py-3.5 w-[90px] border-r border-white/10">
+                                        Scheme ID
+                                      </TableHead>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-4 !py-3.5 w-[140px] border-r border-white/10">
+                                        Scheme Name
+                                      </TableHead>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                        Village
+                                      </TableHead>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                        LPCD
+                                      </TableHead>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                        Water (LL)
+                                      </TableHead>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-4 !py-3.5 w-[90px] text-center border-r border-white/10">
+                                        Date
+                                      </TableHead>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-4 !py-3.5 w-[70px] text-center">
+                                        Days
+                                      </TableHead>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-4 !py-3.5 w-[80px] text-center border-l border-white/10">
+                                        Dashboard
+                                      </TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {lpcdDayWiseVillages.data.map((vehicle: any, idx: number) => (
+                                      <TableRow
+                                        key={`${vehicle.scheme_id}-${vehicle.village_name}-${idx}`}
+                                        className={`transition-all duration-200 hover:bg-teal-50/70 dark:hover:bg-teal-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-teal-50/40 dark:bg-teal-950/20"}`}
+                                      >
+                                        <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-teal-100/80 dark:border-teal-900/60 font-medium">
+                                          {vehicle.region}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-teal-100/80 dark:border-teal-900/60">
+                                          {vehicle.division}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-teal-700 dark:text-teal-400 border-r border-teal-100/80 dark:border-teal-900/60">
+                                          {vehicle.scheme_id}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-teal-100/80 dark:border-teal-900/60">
+                                          {vehicle.scheme_name}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-teal-100/80 dark:border-teal-900/60">
+                                          {vehicle.village_name}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-teal-100/80 dark:border-teal-900/60">
+                                          {vehicle.latest_lpcd_value ? Number(vehicle.latest_lpcd_value).toFixed(2) : "N/A"}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-teal-100/80 dark:border-teal-900/60">
+                                          {vehicle.latest_water_value ? Number(vehicle.latest_water_value).toFixed(2) : "N/A"}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-center text-[12px] text-slate-600 dark:text-slate-400 border-r border-teal-100/80 dark:border-teal-900/60">
+                                          {vehicle.latest_date}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-center">
+                                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm bg-gradient-to-r from-teal-100 to-cyan-100 text-teal-800 dark:from-teal-900/60 dark:to-cyan-900/60 dark:text-teal-300 ring-1 ring-teal-200/80 dark:ring-teal-700/60">
+                                            {vehicle.consecutive_days} day{vehicle.consecutive_days > 1 ? "s" : ""}
+                                          </span>
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-center border-l border-teal-100/80 dark:border-teal-900/60">
+                                          {vehicle.dashboard_url && (
+                                            <a
+                                              href={vehicle.dashboard_url}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors shadow-sm"
+                                              title="Open Dashboard"
+                                              onClick={(e) => e.stopPropagation()}
+                                            >
+                                              <ExternalLink className="h-3.5 w-3.5" />
+                                            </a>
+                                          )}
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            ) : (
+                              <div className="text-center py-12">
+                                <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                                <p className="text-gray-500">No villages found</p>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      )}
+                      {/* Pressure Region Comparison View */}
+                      {dayWiseSubTab === "region-comparison" &&
+                        mainTab === "pressure" && (
+                          <>
+                            {/* Pressure Category Tabs */}
+                            <div className="flex flex-wrap gap-2 mb-4">
+                              <button
+                                onClick={() =>
+                                  setPressureComparisonCategory("offline")
+                                }
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${pressureComparisonCategory === "offline"
+                                  ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-400"
+                                  }`}
+                                data-testid="tab-pressure-comparison-offline"
+                              >
+                                <span className="flex items-center gap-1.5">
+                                  <WifiOff className="h-3 w-3 text-gray-400" />
+                                  Offline
+                                </span>
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setPressureComparisonCategory("below_0_2")
+                                }
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${pressureComparisonCategory === "below_0_2"
+                                  ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-red-300"
+                                  }`}
+                                data-testid="tab-pressure-comparison-below"
+                              >
+                                <span className="flex items-center gap-1.5">
+                                  <AlertCircle className="h-3 w-3 text-red-400" />
+                                  &lt;0.2 bar
+                                </span>
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setPressureComparisonCategory("above_0_7")
+                                }
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${pressureComparisonCategory === "above_0_7"
+                                  ? "bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-purple-300"
+                                  }`}
+                                data-testid="tab-pressure-comparison-above"
+                              >
+                                <span className="flex items-center gap-1.5">
+                                  <TrendingUp className="h-3 w-3 text-purple-400" />
+                                  &gt;0.7 bar
+                                </span>
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setPressureComparisonCategory(
+                                    "optimal_0_2_0_7",
+                                  )
+                                }
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${pressureComparisonCategory ===
+                                  "optimal_0_2_0_7"
+                                  ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-emerald-300"
+                                  }`}
+                                data-testid="tab-pressure-comparison-optimal"
+                              >
+                                <span className="flex items-center gap-1.5">
+                                  <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                                  Optimal (0.2-0.7)
+                                </span>
+                              </button>
+                            </div>
+
+                            {isLoadingPressureRegionComparison ? (
+                              <div className="space-y-3">
+                                <Skeleton className="h-64 w-full rounded-lg" />
+                              </div>
+                            ) : pressureRegionComparisonData &&
+                              Object.keys(pressureRegionComparisonData.data)
+                                .length > 0 ? (
+                              <div className="overflow-x-auto rounded-xl border-2 border-orange-200 dark:border-orange-800 shadow-lg">
+                                <Table>
+                                  <TableHeader className="sticky top-0 z-10">
+                                    <TableRow className="bg-gradient-to-r from-orange-600 via-amber-600 to-orange-700">
+                                      <TableHead className="font-bold text-xs uppercase tracking-wide !px-4 !py-3 text-center text-white border-r border-orange-500/50 min-w-[70px]">
+                                        Days
+                                      </TableHead>
+                                      {Object.keys(
+                                        pressureRegionComparisonData.data,
+                                      ).map((region) => (
+                                        <TableHead
+                                          key={region}
+                                          className="font-bold text-xs uppercase tracking-wide !px-4 !py-3 text-center text-white border-r border-orange-500/30 last:border-r-0 min-w-[110px]"
+                                        >
+                                          {region}
+                                        </TableHead>
+                                      ))}
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {Array.from(
+                                      { length: 30 },
+                                      (_, i) => i + 1,
+                                    ).map((day) => {
+                                      const regions = Object.keys(
+                                        pressureRegionComparisonData.data,
+                                      );
+                                      const maxValueForDay = Math.max(
+                                        ...regions.map((region) => {
+                                          const dayData =
+                                            pressureRegionComparisonData.data[
+                                              region
+                                            ]?.find((d) => d.days === day);
+                                          return dayData
+                                            ? dayData[
+                                            pressureComparisonCategory
+                                            ]
+                                            : 0;
+                                        }),
+                                      );
+
+                                      return (
+                                        <TableRow
+                                          key={day}
+                                          className={`transition-colors hover:bg-orange-50 dark:hover:bg-orange-950/30 ${day % 2 === 0 ? "bg-slate-50 dark:bg-slate-900/50" : "bg-white dark:bg-slate-900"}`}
+                                        >
+                                          <TableCell className="!px-4 !py-2.5 text-center bg-orange-50 dark:bg-orange-950/40 border-r border-orange-100 dark:border-orange-900">
+                                            <div className="w-8 h-8 mx-auto rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-md">
+                                              <span className="text-xs font-bold text-white">
+                                                {day}
+                                              </span>
+                                            </div>
+                                          </TableCell>
+                                          {regions.map((region) => {
+                                            const dayData =
+                                              pressureRegionComparisonData.data[
+                                                region
+                                              ]?.find((d) => d.days === day);
+                                            const value = dayData
+                                              ? dayData[
+                                              pressureComparisonCategory
+                                              ]
+                                              : 0;
+                                            const barWidth =
+                                              maxValueForDay > 0
+                                                ? (value / maxValueForDay) * 100
+                                                : 0;
+
+                                            const colorClass =
+                                              pressureComparisonCategory ===
+                                                "offline"
+                                                ? "from-gray-500 to-gray-700"
+                                                : pressureComparisonCategory ===
+                                                  "below_0_2"
+                                                  ? "from-red-500 to-red-700"
+                                                  : pressureComparisonCategory ===
+                                                    "above_0_7"
+                                                    ? "from-purple-500 to-purple-700"
+                                                    : "from-emerald-500 to-emerald-700";
+
+                                            return (
+                                              <TableCell
+                                                key={region}
+                                                className={`!px-2 !py-1.5 cursor-pointer hover:bg-orange-100/50 dark:hover:bg-orange-900/30 transition-colors ${value > 0 ? "hover:scale-[1.02]" : ""}`}
+                                                onClick={() => {
+                                                  if (value > 0) {
+                                                    setClickedPressureRegionComparisonCell(
+                                                      {
+                                                        region,
+                                                        day,
+                                                        category:
+                                                          pressureComparisonCategory,
+                                                        label: `${pressureComparisonCategory === "offline" ? "Offline" : pressureComparisonCategory === "below_0_2" ? "<0.2 bar" : pressureComparisonCategory === "above_0_7" ? ">0.7 bar" : "Optimal"} for ${day} day${day > 1 ? "s" : ""} - ${region}`,
+                                                      },
+                                                    );
+                                                  }
+                                                }}
+                                              >
+                                                <div className="flex items-center gap-1.5">
+                                                  <div className="flex-1 h-3 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden min-w-[30px]">
+                                                    <div
+                                                      className={`h-full bg-gradient-to-r ${colorClass} rounded-full transition-all`}
+                                                      style={{
+                                                        width: `${barWidth}%`,
+                                                      }}
+                                                    ></div>
+                                                  </div>
+                                                  <span className="text-xs font-bold text-gray-700 dark:text-gray-300 w-6 text-right tabular-nums">
+                                                    {value}
+                                                  </span>
+                                                </div>
+                                              </TableCell>
+                                            );
+                                          })}
+                                        </TableRow>
+                                      );
+                                    })}
+                                    {/* Totals Row */}
+                                    <TableRow className="bg-gradient-to-r from-orange-100 via-amber-100 to-orange-100 dark:from-orange-900/60 dark:via-amber-900/60 dark:to-orange-900/60 font-bold border-t-2 border-orange-300 dark:border-orange-700">
+                                      <TableCell className="!px-4 !py-3 text-center bg-orange-200/50 dark:bg-orange-900/50 border-r border-orange-200 dark:border-orange-800">
+                                        <div className="w-10 h-8 mx-auto rounded-lg bg-gradient-to-br from-orange-600 to-amber-700 flex items-center justify-center shadow-md">
+                                          <span className="text-[10px] font-bold text-white uppercase">
+                                            Total
+                                          </span>
+                                        </div>
+                                      </TableCell>
+                                      {Object.keys(
+                                        pressureRegionComparisonData.data,
+                                      ).map((region) => {
+                                        const total =
+                                          pressureRegionComparisonData.data[
+                                            region
+                                          ]?.reduce(
+                                            (sum, d) =>
+                                              sum +
+                                              d[pressureComparisonCategory],
+                                            0,
+                                          ) || 0;
+                                        const maxTotal = Math.max(
+                                          ...Object.keys(
+                                            pressureRegionComparisonData.data,
+                                          ).map(
+                                            (r) =>
+                                              pressureRegionComparisonData.data[
+                                                r
+                                              ]?.reduce(
+                                                (sum, d) =>
+                                                  sum +
+                                                  d[pressureComparisonCategory],
+                                                0,
+                                              ) || 0,
+                                          ),
+                                        );
+                                        const barWidth =
+                                          maxTotal > 0
+                                            ? (total / maxTotal) * 100
+                                            : 0;
+
+                                        const colorClass =
+                                          pressureComparisonCategory ===
+                                            "offline"
+                                            ? "from-gray-500 to-gray-700"
+                                            : pressureComparisonCategory ===
+                                              "below_0_2"
+                                              ? "from-red-500 to-red-700"
+                                              : pressureComparisonCategory ===
+                                                "above_0_7"
+                                                ? "from-purple-500 to-purple-700"
+                                                : "from-emerald-500 to-emerald-700";
+
+                                        return (
+                                          <TableCell
+                                            key={region}
+                                            className="!px-4 !py-3"
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              <div className="flex-1 h-5 bg-orange-100 dark:bg-orange-900/50 rounded-lg overflow-hidden min-w-[50px] border border-orange-200/50 dark:border-orange-800/50">
+                                                <div
+                                                  className={`h-full bg-gradient-to-r ${colorClass} rounded-lg transition-all shadow-sm`}
+                                                  style={{
+                                                    width: `${barWidth}%`,
+                                                  }}
+                                                ></div>
+                                              </div>
+                                              <span className="text-sm font-bold text-orange-900 dark:text-orange-100 w-10 text-right tabular-nums">
+                                                {total}
+                                              </span>
+                                            </div>
+                                          </TableCell>
+                                        );
+                                      })}
+                                    </TableRow>
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            ) : (
+                              <div className="text-center py-8">
+                                <BarChart3 className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                                <p className="text-sm text-gray-500">
+                                  No pressure comparison data available
+                                </p>
+                              </div>
+                            )}
+                          </>
+                        )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Pressure Region Comparison Clicked Sensor List */}
+                  {clickedPressureRegionComparisonCell && (
+                    <Card className="border-0 shadow-lg rounded-xl overflow-hidden">
+                      <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950 border-b border-orange-200 dark:border-orange-800 py-2.5">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2">
+                            <div className="p-1.5 bg-gradient-to-br from-orange-500 to-amber-600 rounded-lg shadow-sm">
+                              <Gauge className="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                              <div className="text-sm font-bold text-gray-900 dark:text-white">
+                                {clickedPressureRegionComparisonCell.label}
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <Badge className="bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-400 !text-[12px] px-1.5 py-0">
+                                  {clickedPressureRegionComparisonCell.region}
+                                </Badge>
+                                <Badge
+                                  variant="secondary"
+                                  className="!text-[12px] px-1.5 py-0"
+                                >
+                                  {pressureRegionComparisonSensors?.count || 0}{" "}
+                                  sensors
+                                </Badge>
+                              </div>
+                            </div>
+                          </CardTitle>
+                          <div className="flex gap-1.5">
+                            <button
+                              onClick={() => {
+                                window.open(
+                                  `/api/pressure/day-wise-sensors-export/${clickedPressureRegionComparisonCell.category}/${clickedPressureRegionComparisonCell.day}?region=${encodeURIComponent(clickedPressureRegionComparisonCell.region)}`,
+                                  "_blank",
+                                );
+                              }}
+                              className="flex items-center gap-1.5 px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors text-xs font-medium shadow-sm"
+                              data-testid="button-export-pressure-comparison-excel"
+                            >
+                              <FileDown className="h-3 w-3" />
+                              Excel
+                            </button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                setClickedPressureRegionComparisonCell(null)
+                              }
+                              className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                              data-testid="button-close-pressure-comparison-details"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        {isLoadingPressureRegionComparisonSensors ? (
+                          <div className="space-y-2 p-5">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                          </div>
+                        ) : pressureRegionComparisonSensors &&
+                          pressureRegionComparisonSensors.data.length > 0 ? (
+                          <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-orange-200/60 dark:border-orange-800/60 rounded-xl m-3 shadow-sm">
+                            <Table className="min-w-max">
+                              <TableHeader className="sticky top-0 z-10">
+                                <TableRow className="bg-orange-800 dark:bg-orange-900">
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Region
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Division
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[90px] border-r border-white/10">
+                                    Scheme ID
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[140px] border-r border-white/10">
+                                    Scheme Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Village
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    ESR Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                    Status
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                    Pressure(bar)
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[90px] text-center border-r border-white/10">
+                                    Date
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[70px] text-center">
+                                    Days
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[80px] text-center border-l border-white/10">
+                                    Dashboard
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {pressureRegionComparisonSensors.data.map(
+                                  (sensor: any, idx: number) => (
+                                    <TableRow
+                                      key={`${sensor.scheme_id}-${sensor.village_name}-${idx}`}
+                                      className={`transition-all duration-200 hover:bg-orange-50/70 dark:hover:bg-orange-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-orange-50/40 dark:bg-orange-950/20"}`}
+                                      data-testid={`row-pressure-comparison-sensor-${idx}`}
+                                    >
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60 font-medium">
+                                        {sensor.region}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.division}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-orange-600 dark:text-orange-400 border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.scheme_id}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.scheme_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.village_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.esr_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center border-r border-orange-100/80 dark:border-orange-900/60">
+                                        <span
+                                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${sensor.pressure_status === "Online" ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60 dark:text-emerald-300 ring-1 ring-emerald-200/80 dark:ring-emerald-700/60" : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"}`}
+                                        >
+                                          {sensor.pressure_status || "Offline"}
+                                        </span>
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.latest_pressure_value !==
+                                          null ? (
+                                          <span
+                                            className={`${sensor.latest_pressure_value >=
+                                              0.2 &&
+                                              sensor.latest_pressure_value <=
+                                              0.7
+                                              ? "text-emerald-600 dark:text-emerald-400"
+                                              : sensor.latest_pressure_value <
+                                                0.2
+                                                ? "text-red-600 dark:text-red-400"
+                                                : "text-purple-600 dark:text-purple-400"
+                                              }`}
+                                          >
+                                            {Number(
+                                              sensor.latest_pressure_value,
+                                            ).toFixed(2)}
+                                          </span>
+                                        ) : (
+                                          <span className="text-slate-400">
+                                            N/A
+                                          </span>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center text-[12px] text-slate-600 dark:text-slate-400 border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {formatDate(
+                                          sensor.latest_pressure_date,
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center">
+                                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm bg-gradient-to-r from-orange-100 to-amber-100 text-orange-800 dark:from-orange-900/60 dark:to-amber-900/60 dark:text-orange-300 ring-1 ring-orange-200/80 dark:ring-orange-700/60">
+                                          {sensor.consecutive_days} day
+                                          {sensor.consecutive_days > 1
+                                            ? "s"
+                                            : ""}
+                                        </span>
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center border-l border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.dashboard_url && (
+                                          <a
+                                            href={sensor.dashboard_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors shadow-sm"
+                                            title="Open Dashboard"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <ExternalLink className="h-3.5 w-3.5" />
+                                          </a>
+                                        )}
+                                      </TableCell>
+                                    </TableRow>
+                                  ),
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        ) : (
+                          <div className="text-center py-12">
+                            <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-500">No sensors found</p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {clickedDayWiseCell && (
+                    <Card className="border-0 shadow-lg rounded-xl overflow-hidden">
+                      <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950 dark:to-orange-950 border-b border-amber-200 dark:border-amber-800 py-2.5">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2">
+                            <div className="p-1.5 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg shadow-sm">
+                              <Activity className="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                              <div className="text-sm font-bold text-gray-900 dark:text-white">
+                                {clickedDayWiseCell.label}
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-400 !text-[12px] px-1.5 py-0">
+                                  {dayWiseRegion}
+                                </Badge>
+                                <Badge
+                                  variant="secondary"
+                                  className="!text-[12px] px-1.5 py-0"
+                                >
+                                  {dayWiseSensors?.count || 0} sensors
+                                </Badge>
+                              </div>
+                            </div>
+                          </CardTitle>
+                          <div className="flex gap-1.5">
+                            <button
+                              onClick={() => {
+                                const region =
+                                  dayWiseRegion === "All Regions"
+                                    ? ""
+                                    : dayWiseRegion;
+                                window.open(
+                                  `/api/chlorine/day-wise-sensors-export/${clickedDayWiseCell.metric}/${clickedDayWiseCell.days}?region=${encodeURIComponent(region)}`,
+                                  "_blank",
+                                );
+                              }}
+                              className="flex items-center gap-1.5 px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors text-xs font-medium shadow-sm"
+                              data-testid="button-export-daywise-excel"
+                            >
+                              <FileDown className="h-3 w-3" />
+                              Excel
+                            </button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setClickedDayWiseCell(null)}
+                              className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                              data-testid="button-close-daywise-details"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        {isLoadingDayWiseSensors ? (
+                          <div className="space-y-2 p-5">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                          </div>
+                        ) : dayWiseSensors && dayWiseSensors.data.length > 0 ? (
+                          <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-amber-200/60 dark:border-amber-800/60 rounded-xl m-3 shadow-sm">
+                            <Table className="min-w-max">
+                              <TableHeader className="sticky top-0 z-10 bg-amber-800 dark:bg-amber-900">
+                                <TableRow className="bg-amber-800 dark:bg-amber-900">
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Region
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Division
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[90px] border-r border-white/10">
+                                    Scheme ID
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[140px] border-r border-white/10">
+                                    Scheme Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Village
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    ESR Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                    Status
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                    Chlorine(mg/l)
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[90px] text-center border-r border-white/10">
+                                    Date
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[70px] text-center">
+                                    Days
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[80px] text-center border-l border-white/10">
+                                    Dashboard
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {dayWiseSensors.data.map((sensor, idx) => (
+                                  <TableRow
+                                    key={`${sensor.scheme_id}-${sensor.village_name}-${idx}`}
+                                    className={`transition-all duration-200 hover:bg-amber-50/70 dark:hover:bg-amber-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-orange-50/40 dark:bg-orange-950/20"}`}
+                                    data-testid={`row-daywise-sensor-${idx}`}
+                                  >
+                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-amber-100/80 dark:border-amber-900/60 font-medium">
+                                      {sensor.region}
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-amber-100/80 dark:border-amber-900/60">
+                                      {sensor.division}
+                                    </TableCell>
+
+                                    <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-amber-700 dark:text-amber-400 border-r border-amber-100/80 dark:border-amber-900/60">
+                                      {sensor.scheme_id}
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-amber-100/80 dark:border-amber-900/60">
+                                      {sensor.scheme_name}
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-amber-100/80 dark:border-amber-900/60">
+                                      {sensor.village_name}
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-amber-100/80 dark:border-amber-900/60">
+                                      {sensor.esr_name}
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-center border-r border-amber-100/80 dark:border-amber-900/60">
+                                      <span
+                                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${sensor.chlorine_status === "Online" ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60 dark:text-emerald-300 ring-1 ring-emerald-200/80 dark:ring-emerald-700/60" : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"}`}
+                                      >
+                                        {sensor.chlorine_status}
+                                      </span>
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-amber-100/80 dark:border-amber-900/60">
+                                      {sensor.latest_chlorine_value !== null ? (
+                                        Number(
+                                          sensor.latest_chlorine_value,
+                                        ).toFixed(2)
+                                      ) : (
+                                        <span className="text-slate-400">
+                                          N/A
+                                        </span>
+                                      )}
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-center text-[12px] text-slate-600 dark:text-slate-400 border-r border-amber-100/80 dark:border-amber-900/60">
+                                      {formatDate(sensor.latest_chlorine_date)}
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-center">
+                                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm bg-gradient-to-r from-amber-100 to-orange-100 text-amber-800 dark:from-amber-900/60 dark:to-orange-900/60 dark:text-amber-300 ring-1 ring-amber-200/80 dark:ring-amber-700/60">
+                                        {sensor.consecutive_days} day
+                                        {sensor.consecutive_days > 1 ? "s" : ""}
+                                      </span>
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-center border-l border-amber-100/80 dark:border-amber-900/60">
+                                      {sensor.dashboard_url && (
+                                        <a
+                                          href={sensor.dashboard_url}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors shadow-sm"
+                                          title="Open Dashboard"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <ExternalLink className="h-3.5 w-3.5" />
+                                        </a>
+                                      )}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        ) : (
+                          <div className="text-center py-12">
+                            <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-500">No sensors found</p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Pressure Day-Wise Clicked Sensor List */}
+                  {clickedPressureDayWiseCell && (
+                    <Card className="border-0 shadow-lg rounded-xl overflow-hidden">
+                      <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950 border-b border-orange-200 dark:border-orange-800 py-2.5">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2">
+                            <div className="p-1.5 bg-gradient-to-br from-orange-500 to-amber-600 rounded-lg shadow-sm">
+                              <Gauge className="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                              <div className="text-sm font-bold text-gray-900 dark:text-white">
+                                {clickedPressureDayWiseCell.label}
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <Badge className="bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-400 !text-[12px] px-1.5 py-0">
+                                  {pressureDayWiseRegion}
+                                </Badge>
+                                <Badge
+                                  variant="secondary"
+                                  className="!text-[12px] px-1.5 py-0"
+                                >
+                                  {pressureDayWiseSensors?.count || 0} sensors
+                                </Badge>
+                              </div>
+                            </div>
+                          </CardTitle>
+                          <div className="flex gap-1.5">
+                            <button
+                              onClick={() => {
+                                const params = new URLSearchParams();
+                                if (pressureDayWiseRegion && pressureDayWiseRegion !== "All Regions") {
+                                  params.append("region", pressureDayWiseRegion);
+                                }
+                                if (schemeFilter !== 'all') {
+                                  params.append("filterType", schemeFilter);
+                                }
+                                if (schemeFilter === "fully_completed") {
+                                  params.append("fullyCompleted", "true");
+                                }
+                                window.open(
+                                  `/api/pressure/day-wise-sensors-export/${clickedPressureDayWiseCell.metric}/${clickedPressureDayWiseCell.days}?${params.toString()}`,
+                                  "_blank",
+                                );
+                              }}
+                              className="flex items-center gap-1.5 px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors text-xs font-medium shadow-sm"
+                              data-testid="button-export-pressure-daywise-excel"
+                            >
+                              <FileDown className="h-3 w-3" />
+                              Excel
+                            </button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                setClickedPressureDayWiseCell(null)
+                              }
+                              className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                              data-testid="button-close-pressure-daywise-details"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        {isLoadingPressureDayWiseSensors ? (
+                          <div className="space-y-2 p-5">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                          </div>
+                        ) : pressureDayWiseSensors &&
+                          pressureDayWiseSensors.data.length > 0 ? (
+                          <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-orange-200/60 dark:border-orange-800/60 rounded-xl m-3 shadow-sm">
+                            <Table className="min-w-max">
+                              <TableHeader className="sticky top-0 z-10">
+                                <TableRow className="bg-orange-800 dark:bg-orange-900">
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Region
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Division
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[90px] border-r border-white/10">
+                                    Scheme ID
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[140px] border-r border-white/10">
+                                    Scheme Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Village
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    ESR Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                    Status
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                    Pressure(bar)
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[90px] text-center border-r border-white/10">
+                                    Date
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[70px] text-center">
+                                    Days
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[80px] text-center border-l border-white/10">
+                                    Dashboard
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {pressureDayWiseSensors.data.map(
+                                  (sensor: any, idx: number) => (
+                                    <TableRow
+                                      key={`${sensor.scheme_id}-${sensor.village_name}-${idx}`}
+                                      className={`transition-all duration-200 hover:bg-orange-50/70 dark:hover:bg-orange-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-orange-50/40 dark:bg-orange-950/20"}`}
+                                      data-testid={`row-pressure-daywise-sensor-${idx}`}
+                                    >
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60 font-medium">
+                                        {sensor.region}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.division}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-orange-700 dark:text-orange-400 border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.scheme_id}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.scheme_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.village_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.esr_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center border-r border-orange-100/80 dark:border-orange-900/60">
+                                        <span
+                                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${sensor.pressure_status === "Online" ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60 dark:text-emerald-300 ring-1 ring-emerald-200/80 dark:ring-emerald-700/60" : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"}`}
+                                        >
+                                          {sensor.pressure_status}
+                                        </span>
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.latest_pressure_value !==
+                                          null ? (
+                                          <span
+                                            className={
+                                              Number(
+                                                sensor.latest_pressure_value,
+                                              ) >= 0.2 &&
+                                                Number(
+                                                  sensor.latest_pressure_value,
+                                                ) <= 0.7
+                                                ? "text-green-600"
+                                                : Number(
+                                                  sensor.latest_pressure_value,
+                                                ) < 0.2
+                                                  ? "text-red-600"
+                                                  : "text-purple-600"
+                                            }
+                                          >
+                                            {Number(
+                                              sensor.latest_pressure_value,
+                                            ).toFixed(2)}{" "}
+                                            bar
+                                          </span>
+                                        ) : (
+                                          <span className="text-slate-400">
+                                            N/A
+                                          </span>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center text-[12px] text-slate-600 dark:text-slate-400 border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {formatDate(
+                                          sensor.latest_pressure_date,
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center">
+                                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm bg-gradient-to-r from-orange-100 to-amber-100 text-orange-800 dark:from-orange-900/60 dark:to-amber-900/60 dark:text-orange-300 ring-1 ring-orange-200/80 dark:ring-orange-700/60">
+                                          {sensor.consecutive_days} day
+                                          {sensor.consecutive_days > 1
+                                            ? "s"
+                                            : ""}
+                                        </span>
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center border-l border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.dashboard_url && (
+                                          <a
+                                            href={sensor.dashboard_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors shadow-sm"
+                                            title="Open Dashboard"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <ExternalLink className="h-3.5 w-3.5" />
+                                          </a>
+                                        )}
+                                      </TableCell>
+                                    </TableRow>
+                                  ),
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        ) : (
+                          <div className="text-center py-12">
+                            <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-500">No sensors found</p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Region Comparison Clicked Sensor List */}
+                  {clickedRegionComparisonCell && (
+                    <Card className="border-0 shadow-lg rounded-xl overflow-hidden">
+                      <CardHeader className="bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-950 dark:to-purple-950 border-b border-violet-200 dark:border-violet-800 py-2.5">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2">
+                            <div className="p-1.5 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg shadow-sm">
+                              <BarChart3 className="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                              <div className="text-sm font-bold text-gray-900 dark:text-white">
+                                {clickedRegionComparisonCell.label}
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <Badge className="bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-400 !text-[12px] px-1.5 py-0">
+                                  {clickedRegionComparisonCell.region}
+                                </Badge>
+                                <Badge
+                                  variant="secondary"
+                                  className="!text-[12px] px-1.5 py-0"
+                                >
+                                  {regionComparisonSensors?.count || 0} sensors
+                                </Badge>
+                              </div>
+                            </div>
+                          </CardTitle>
+                          <div className="flex gap-1.5">
+                            <button
+                              onClick={() => {
+                                window.open(
+                                  `/api/chlorine/day-wise-sensors-export/${clickedRegionComparisonCell.category}/${clickedRegionComparisonCell.day}?region=${encodeURIComponent(clickedRegionComparisonCell.region)}`,
+                                  "_blank",
+                                );
+                              }}
+                              className="flex items-center gap-1.5 px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors text-xs font-medium shadow-sm"
+                              data-testid="button-export-comparison-excel"
+                            >
+                              <FileDown className="h-3 w-3" />
+                              Excel
+                            </button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                setClickedRegionComparisonCell(null)
+                              }
+                              className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                              data-testid="button-close-comparison-details"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        {isLoadingRegionComparisonSensors ? (
+                          <div className="space-y-2 p-5">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                          </div>
+                        ) : regionComparisonSensors &&
+                          regionComparisonSensors.data.length > 0 ? (
+                          <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-violet-200/60 dark:border-violet-800/60 rounded-xl m-3 shadow-sm">
+                            <Table className="min-w-[1000px]">
+                              <TableHeader className="sticky top-0 z-10">
+                                <TableRow className="bg-violet-800 dark:bg-violet-900">
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Region
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Division
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[90px] border-r border-white/10">
+                                    Scheme ID
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[140px] border-r border-white/10">
+                                    Scheme Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Village
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    ESR Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                    Status
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                    Chlorine
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[90px] text-center border-r border-white/10">
+                                    Date
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[70px] text-center border-r border-white/10">
+                                    Days
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[80px] text-center">
+                                    Dashboard
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {regionComparisonSensors.data.map(
+                                  (sensor, idx) => (
+                                    <TableRow
+                                      key={`${sensor.scheme_id}-${sensor.village_name}-${idx}`}
+                                      className={`transition-all duration-200 hover:bg-violet-50/70 dark:hover:bg-violet-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-purple-50/40 dark:bg-purple-950/20"}`}
+                                      data-testid={`row-comparison-sensor-${idx}`}
+                                    >
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-violet-100/80 dark:border-violet-900/60 font-medium">
+                                        {sensor.region}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-violet-100/80 dark:border-violet-900/60">
+                                        {sensor.division}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-violet-600 dark:text-violet-400 border-r border-violet-100/80 dark:border-violet-900/60">
+                                        {sensor.scheme_id}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-violet-100/80 dark:border-violet-900/60">
+                                        {sensor.scheme_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-violet-100/80 dark:border-violet-900/60">
+                                        {sensor.village_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-violet-100/80 dark:border-violet-900/60">
+                                        {sensor.esr_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center border-r border-violet-100/80 dark:border-violet-900/60">
+                                        <span
+                                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${sensor.chlorine_status === "Online" ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60 dark:text-emerald-300 ring-1 ring-emerald-200/80 dark:ring-emerald-700/60" : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"}`}
+                                        >
+                                          {sensor.chlorine_status}
+                                        </span>
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-violet-100/80 dark:border-violet-900/60">
+                                        {sensor.latest_chlorine_value !==
+                                          null ? (
+                                          Number(
+                                            sensor.latest_chlorine_value,
+                                          ).toFixed(2)
+                                        ) : (
+                                          <span className="text-slate-400">
+                                            N/A
+                                          </span>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center text-[12px] text-slate-600 dark:text-slate-400 border-r border-violet-100/80 dark:border-violet-900/60">
+                                        {formatDate(
+                                          sensor.latest_chlorine_date,
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center border-r border-violet-100/80 dark:border-violet-900/60">
+                                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm bg-gradient-to-r from-violet-100 to-purple-100 text-violet-800 dark:from-violet-900/60 dark:to-purple-900/60 dark:text-violet-300 ring-1 ring-violet-200/80 dark:ring-violet-700/60">
+                                          {sensor.consecutive_days} day
+                                          {sensor.consecutive_days > 1
+                                            ? "s"
+                                            : ""}
+                                        </span>
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center">
+                                        {sensor.dashboard_url && (
+                                          <a
+                                            href={sensor.dashboard_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors shadow-sm"
+                                            title="Open Dashboard"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <ExternalLink className="h-3.5 w-3.5" />
+                                          </a>
+                                        )}
+                                      </TableCell>
+                                    </TableRow>
+                                  ),
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        ) : (
+                          <div className="text-center py-12">
+                            <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-500">No sensors found</p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* LPCD Day-Wise Clicked Sensor List */}
+                  {clickedLpcdDayWiseCell && (
+                    <Card className="border-0 shadow-lg rounded-xl overflow-hidden">
+                      <CardHeader className="bg-gradient-to-r from-cyan-50 to-teal-50 dark:from-cyan-950 dark:to-teal-950 border-b border-cyan-200 dark:border-cyan-800 py-2.5">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2">
+                            <div className="p-1.5 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-lg shadow-sm">
+                              <Home className="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                              <div className="!text-[12px] font-bold text-gray-900 dark:text-white">
+                                {clickedLpcdDayWiseCell.label}
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <Badge className="bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-400 !text-[12px] px-1.5 py-0">
+                                  {lpcdDayWiseRegion}
+                                </Badge>
+                                <Badge
+                                  variant="secondary"
+                                  className="!text-[12px] px-1.5 py-0"
+                                >
+                                  {lpcdDayWiseVillages?.data?.length || 0} villages
+                                </Badge>
+                              </div>
+                            </div>
+                          </CardTitle>
+                          <div className="flex gap-1.5">
+                            <button
+                              onClick={() => {
+                                const region =
+                                  lpcdDayWiseRegion === "All Regions"
+                                    ? ""
+                                    : lpcdDayWiseRegion;
+                                const params = new URLSearchParams();
+                                params.append("region", region);
+                                if (schemeFilter !== 'all') {
+                                  params.append("filterType", schemeFilter);
+                                }
+                                window.open(
+                                  `/api/chlorine/lpcd/day-wise-villages-export/${clickedLpcdDayWiseCell.metric}/${clickedLpcdDayWiseCell.days}?${params.toString()}`,
+                                  "_blank",
+                                );
+                              }}
+                              className="flex items-center gap-1.5 px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors !text-[12px] font-medium shadow-sm"
+                              data-testid="button-export-lpcd-daywise-excel"
+                            >
+                              <FileDown className="h-3 w-3" />
+                              Excel
+                            </button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setClickedLpcdDayWiseCell(null)}
+                              className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                              data-testid="button-close-lpcd-daywise-details"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        {isLoadingLpcdDayWiseVillages ? (
+                          <div className="space-y-2 p-5">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                          </div>
+                        ) : lpcdDayWiseVillages &&
+                          lpcdDayWiseVillages.data.length > 0 ? (
+                          <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-cyan-200/60 dark:border-cyan-800/60 rounded-xl m-3 shadow-sm">
+                            <Table className="min-w-max">
+                              <TableHeader className="sticky top-0 z-10">
+                                <TableRow className="bg-cyan-800 dark:bg-cyan-900">
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Region
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Division
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[90px] border-r border-white/10">
+                                    Scheme ID
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[140px] border-r border-white/10">
+                                    Scheme Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Village
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                    LPCD
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[70px] text-center">
+                                    Days
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[80px] text-center border-l border-white/10">
+                                    Dashboard
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {lpcdDayWiseVillages.data.map(
+                                  (sensor: LpcdDayWiseVillage, idx: number) => (
+                                    <TableRow
+                                      key={idx}
+                                      className={`transition-all duration-200 hover:bg-cyan-50/70 dark:hover:bg-cyan-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-teal-50/40 dark:bg-teal-950/20"}`}
+                                      data-testid={`row-lpcd-sensor-${idx}`}
+                                    >
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-cyan-100/80 dark:border-cyan-900/60 font-medium">
+                                        {sensor.region}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-cyan-100/80 dark:border-cyan-900/60">
+                                        {sensor.division}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-cyan-700 dark:text-cyan-400 border-r border-cyan-100/80 dark:border-cyan-900/60">
+                                        {sensor.scheme_id}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-cyan-100/80 dark:border-cyan-900/60">
+                                        {sensor.scheme_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-cyan-100/80 dark:border-cyan-900/60">
+                                        {sensor.village_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-cyan-100/80 dark:border-cyan-900/60">
+                                        {sensor.latest_lpcd_value !== null ? (
+                                          Number(
+                                            sensor.latest_lpcd_value,
+                                          ).toFixed(2)
+                                        ) : (
+                                          <span className="text-slate-400">
+                                            N/A
+                                          </span>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center">
+                                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm bg-gradient-to-r from-cyan-100 to-teal-100 text-cyan-800 dark:from-cyan-900/60 dark:to-teal-900/60 dark:text-cyan-300 ring-1 ring-cyan-200/80 dark:ring-cyan-700/60">
+                                          {sensor.consecutive_days} day
+                                          {sensor.consecutive_days > 1
+                                            ? "s"
+                                            : ""}
+                                        </span>
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center border-l border-cyan-100/80 dark:border-cyan-900/60">
+                                        {(sensor as any).dashboard_url ? (
+                                          <a
+                                            href={(sensor as any).dashboard_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center justify-center p-1.5 text-cyan-600 hover:text-cyan-800 hover:bg-cyan-50 dark:text-cyan-400 dark:hover:text-cyan-200 dark:hover:bg-cyan-900/50 rounded-full transition-colors"
+                                            title="Open Dashboard"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <ExternalLink className="h-3.5 w-3.5" />
+                                          </a>
+                                        ) : (
+                                          <span className="text-slate-400">-</span>
+                                        )}
+                                      </TableCell>
+                                    </TableRow>
+                                  ),
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        ) : (
+                          <div className="text-center py-12">
+                            <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-500">No villages found</p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Scheme LPCD Day-Wise Clicked Scheme List */}
+                  {clickedSchemeDayWiseCell && (
+                    <Card className="border-0 shadow-lg rounded-xl overflow-hidden" data-testid="card-scheme-lpcd-daywise-details">
+                      <CardHeader className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950 dark:to-indigo-950 border-b border-purple-200 dark:border-purple-800 py-2.5">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2">
+                            <div className="p-1.5 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg shadow-sm">
+                              <Building2 className="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                              <div className="!text-[12px] font-bold text-gray-900 dark:text-white">
+                                {clickedSchemeDayWiseCell.label}
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-400 !text-[12px] px-1.5 py-0">
+                                  {schemeLpcdDayWiseRegion}
+                                </Badge>
+                                <Badge
+                                  variant="secondary"
+                                  className="!text-[12px] px-1.5 py-0"
+                                >
+                                  {schemeLpcdDayWiseSchemes?.data?.length || 0} schemes
+                                </Badge>
+                              </div>
+                            </div>
+                          </CardTitle>
+                          <div className="flex gap-1.5">
+                            <button
+                              onClick={() => {
+                                const params = new URLSearchParams();
+                                if (schemeLpcdDayWiseRegion && schemeLpcdDayWiseRegion !== "All Regions") {
+                                  params.append("region", schemeLpcdDayWiseRegion);
+                                }
+                                if (schemeFilter !== 'all') {
+                                  params.append("filterType", schemeFilter);
+                                }
+                                window.open(
+                                  `/api/chlorine/scheme-lpcd/day-wise-schemes-export/${clickedSchemeDayWiseCell.metric}/${clickedSchemeDayWiseCell.days}?${params.toString()}`,
+                                  "_blank",
+                                );
+                              }}
+                              className="flex items-center gap-1.5 px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors !text-[12px] font-medium shadow-sm"
+                              data-testid="button-export-scheme-daywise-excel"
+                            >
+                              <FileDown className="h-3 w-3" />
+                              Excel
+                            </button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setClickedSchemeDayWiseCell(null)}
+                              className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                              data-testid="button-close-scheme-daywise-details"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        {isLoadingSchemeDayWiseSchemes ? (
+                          <div className="space-y-2 p-5">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                          </div>
+                        ) : schemeLpcdDayWiseSchemes &&
+                          schemeLpcdDayWiseSchemes.data?.length > 0 ? (
+                          <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-purple-200/60 dark:border-purple-800/60 rounded-xl m-3 shadow-sm">
+                            <Table className="w-full">
+                              <TableHeader className="sticky top-0 z-10">
+                                <TableRow className="bg-purple-800 dark:bg-purple-900">
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Region
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Division
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[90px] border-r border-white/10">
+                                    Scheme ID
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[140px] border-r border-white/10">
+                                    Scheme Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Block
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                    LPCD
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[70px] text-center">
+                                    Days
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[80px] text-center">
+                                    Dashboard
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {schemeLpcdDayWiseSchemes.data.map(
+                                  (scheme: any, idx: number) => (
+                                    <TableRow
+                                      key={`scheme-daywise-${scheme.scheme_id}-${idx}`}
+                                      className={`transition-all duration-200 hover:bg-purple-50/70 dark:hover:bg-purple-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-indigo-50/40 dark:bg-indigo-950/20"}`}
+                                      data-testid={`row-scheme-daywise-${idx}`}
+                                    >
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 font-medium">
+                                        {scheme.region}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60">
+                                        {scheme.division}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-purple-700 dark:text-purple-400 border-r border-purple-100/80 dark:border-purple-900/60">
+                                        {scheme.scheme_id}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-purple-100/80 dark:border-purple-900/60">
+                                        {scheme.dashboard_url ? (
+                                          <a
+                                            href={scheme.dashboard_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-600 hover:underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            {scheme.scheme_name}
+                                          </a>
+                                        ) : (
+                                          scheme.scheme_name
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60">
+                                        {scheme.block}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60">
+                                        {scheme.latest_lpcd_value !== null && scheme.latest_lpcd_value !== undefined ? (
+                                          Number(scheme.latest_lpcd_value).toFixed(2)
+                                        ) : (
+                                          <span className="text-slate-400">
+                                            N/A
+                                          </span>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center">
+                                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-800 dark:from-purple-900/60 dark:to-indigo-900/60 dark:text-purple-300 ring-1 ring-purple-200/80 dark:ring-purple-700/60">
+                                          {scheme.consecutive_days || clickedSchemeDayWiseCell.days} day
+                                          {(scheme.consecutive_days || clickedSchemeDayWiseCell.days) > 1
+                                            ? "s"
+                                            : ""}
+                                        </span>
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center">
+                                        {scheme.dashboard_url ? (
+                                          <a
+                                            href={scheme.dashboard_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center justify-center p-1.5 text-purple-600 hover:text-purple-800 hover:bg-purple-50 dark:text-purple-400 dark:hover:text-purple-200 dark:hover:bg-purple-900/50 rounded-full transition-colors"
+                                            title="Open Dashboard"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <ExternalLink className="h-3.5 w-3.5" />
+                                          </a>
+                                        ) : (
+                                          <span className="text-slate-400">-</span>
+                                        )}
+                                      </TableCell>
+                                    </TableRow>
+                                  ),
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        ) : (
+                          <div className="text-center py-12">
+                            <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-500">No schemes found</p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* LPCD Region Comparison Clicked Sensor List */}
+                  {clickedLpcdRegionComparisonCell && (
+                    <Card className="border-0 shadow-lg rounded-xl overflow-hidden">
+                      <CardHeader className="bg-gradient-to-r from-cyan-50 to-teal-50 dark:from-cyan-950 dark:to-teal-950 border-b border-cyan-200 dark:border-cyan-800 py-2.5">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2">
+                            <div className="p-1.5 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-lg shadow-sm">
+                              <BarChart3 className="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                              <div className="!text-[12px] font-bold text-gray-900 dark:text-white">
+                                {clickedLpcdRegionComparisonCell.label}
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <Badge className="bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-400 !text-[12px] px-1.5 py-0">
+                                  {clickedLpcdRegionComparisonCell.region}
+                                </Badge>
+                                <Badge
+                                  variant="secondary"
+                                  className="!text-[12px] px-1.5 py-0"
+                                >
+                                  {lpcdRegionComparisonVillages?.count || 0}{" "}
+                                  villages
+                                </Badge>
+                              </div>
+                            </div>
+                          </CardTitle>
+                          <div className="flex gap-1.5">
+                            <button
+                              onClick={() => {
+                                window.open(
+                                  `/api/chlorine/lpcd/day-wise-villages-export/${clickedLpcdRegionComparisonCell.category}/${clickedLpcdRegionComparisonCell.day}?region=${encodeURIComponent(clickedLpcdRegionComparisonCell.region)}`,
+                                  "_blank",
+                                );
+                              }}
+                              className="flex items-center gap-1.5 px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors !text-[12px] font-medium shadow-sm"
+                              data-testid="button-export-lpcd-comparison-excel"
+                            >
+                              <FileDown className="h-3 w-3" />
+                              Excel
+                            </button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                setClickedLpcdRegionComparisonCell(null)
+                              }
+                              className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                              data-testid="button-close-lpcd-comparison-details"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        {isLoadingLpcdRegionComparisonVillages ? (
+                          <div className="space-y-2 p-5">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                          </div>
+                        ) : lpcdRegionComparisonVillages &&
+                          lpcdRegionComparisonVillages.data.length > 0 ? (
+                          <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-teal-200/60 dark:border-teal-800/60 rounded-xl m-3 shadow-sm">
+                            <Table className="w-full">
+                              <TableHeader className="sticky top-0 z-10">
+                                <TableRow className="bg-teal-800 dark:bg-teal-900">
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Region
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Division
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-4 !py-3.5 w-[90px] border-r border-white/10">
+                                    Scheme ID
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-4 !py-3.5 w-[140px] border-r border-white/10">
+                                    Scheme Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Village
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                    LPCD
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-4 !py-3.5 w-[70px] text-center">
+                                    Days
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-4 !py-3.5 w-[80px] text-center">
+                                    Dashboard
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {lpcdRegionComparisonVillages.data.map(
+                                  (sensor: LpcdDayWiseVillage, idx: number) => (
+                                    <TableRow
+                                      key={idx}
+                                      className={`transition-all duration-200 hover:bg-teal-50/70 dark:hover:bg-teal-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-cyan-50/40 dark:bg-cyan-950/20"}`}
+                                      data-testid={`row-lpcd-comparison-sensor-${idx}`}
+                                    >
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-teal-100/80 dark:border-teal-900/60 font-medium">
+                                        {sensor.region}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-teal-100/80 dark:border-teal-900/60">
+                                        {sensor.division}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-teal-700 dark:text-teal-400 border-r border-teal-100/80 dark:border-teal-900/60">
+                                        {sensor.scheme_id}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-teal-100/80 dark:border-teal-900/60">
+                                        {(sensor as any).dashboard_url ? (
+                                          <a
+                                            href={(sensor as any).dashboard_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-600 hover:underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            {sensor.scheme_name}
+                                          </a>
+                                        ) : (
+                                          sensor.scheme_name
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-teal-100/80 dark:border-teal-900/60">
+                                        {sensor.village_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-teal-100/80 dark:border-teal-900/60">
+                                        {sensor.latest_lpcd_value !== null ? (
+                                          Number(
+                                            sensor.latest_lpcd_value,
+                                          ).toFixed(2)
+                                        ) : (
+                                          <span className="text-slate-400">
+                                            N/A
+                                          </span>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center">
+                                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm bg-gradient-to-r from-teal-100 to-cyan-100 text-teal-800 dark:from-teal-900/60 dark:to-cyan-900/60 dark:text-teal-300 ring-1 ring-teal-200/80 dark:ring-teal-700/60">
+                                          {sensor.consecutive_days} day
+                                          {sensor.consecutive_days > 1
+                                            ? "s"
+                                            : ""}
+                                        </span>
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center">
+                                        {(sensor as any).dashboard_url ? (
+                                          <a
+                                            href={(sensor as any).dashboard_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center justify-center p-1.5 text-teal-600 hover:text-teal-800 hover:bg-teal-50 dark:text-teal-400 dark:hover:text-teal-200 dark:hover:bg-teal-900/50 rounded-full transition-colors"
+                                            title="Open Dashboard"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <ExternalLink className="h-3.5 w-3.5" />
+                                          </a>
+                                        ) : (
+                                          <span className="text-slate-400">-</span>
+                                        )}
+                                      </TableCell>
+                                    </TableRow>
+                                  ),
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        ) : (
+                          <div className="text-center py-12">
+                            <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-500">No villages found</p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="divisionwise" className="mt-4">
+                <div className="space-y-4">
+                  <Card className="border-0 shadow-lg rounded-xl overflow-hidden">
+                    <CardHeader
+                      className={`bg-gradient-to-r ${mainTab === "lpcd" ? "from-emerald-50 to-teal-50 dark:from-emerald-950 dark:to-teal-950 border-emerald-200 dark:border-emerald-800" : mainTab === "pressure" ? "from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950 border-orange-200 dark:border-orange-800" : "from-blue-50 to-cyan-50 dark:from-blue-950 dark:to-cyan-950 border-blue-200 dark:border-blue-800"} border-b py-3`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`p-1.5 bg-gradient-to-br ${mainTab === "lpcd" ? "from-emerald-500 to-teal-600" : mainTab === "pressure" ? "from-orange-500 to-amber-600" : "from-blue-500 to-cyan-600"} rounded-lg shadow-sm`}
+                          >
+                            <Building2 className="h-4 w-4 text-white" />
+                          </div>
+                          <div>
+                            <h2 className="text-base font-bold text-gray-900 dark:text-white">
+                              {mainTab === "lpcd"
+                                ? "LPCD"
+                                : mainTab === "pressure"
+                                  ? "Pressure"
+                                  : "Chlorine"}{" "}
+                              Division-Wise Summary
+                            </h2>
+                            <p className="!text-[12px] text-gray-600 dark:text-gray-400">
+                              Click on the numbers to display the list
+                            </p>
+                          </div>
+                        </div>
+                        <div
+                          className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 ${mainTab === "lpcd" ? "bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800" : mainTab === "pressure" ? "bg-orange-50 dark:bg-orange-950/50 border-orange-200 dark:border-orange-800" : "bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800"} border rounded-lg`}
+                        >
+                          <Home
+                            className={`h-3.5 w-3.5 ${mainTab === "lpcd" ? "text-emerald-600 dark:text-emerald-400" : mainTab === "pressure" ? "text-orange-600 dark:text-orange-400" : "text-blue-600 dark:text-blue-400"}`}
+                          />
+                          <span
+                            className={`!text-[12px] font-medium ${mainTab === "lpcd" ? "text-emerald-700 dark:text-emerald-300" : mainTab === "pressure" ? "text-orange-700 dark:text-orange-300" : "text-blue-700 dark:text-blue-300"}`}
+                          >
+                            Numbers represent{" "}
+                            <span className="font-bold">
+                              {mainTab === "lpcd"
+                                ? "Villages"
+                                : mainTab === "pressure"
+                                  ? "Pressure Sensors"
+                                  : "RCAs"}
+                            </span>{" "}
+                            in each category
+                          </span>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4">
+                      <div className="flex flex-wrap gap-1.5 mb-4">
+                        <button
+                          onClick={() => {
+                            setDivisionWiseRegion("All Regions");
+                            setPressureDivisionWiseRegion("All Regions");
+                            setSchemeLpcdDivisionWiseRegion("All Regions");
+                            setClickedDivisionCell(null);
+                            setClickedPressureDivisionCell(null);
+                            setClickedSchemeDivisionCell(null);
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${divisionWiseRegion === "All Regions"
+                            ? `bg-gradient-to-r ${mainTab === "lpcd" ? "from-emerald-500 to-teal-500" : mainTab === "pressure" ? "from-orange-500 to-amber-500" : "from-blue-500 to-cyan-500"} text-white shadow-md`
+                            : `bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 ${mainTab === "lpcd" ? "hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950" : mainTab === "pressure" ? "hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950" : "hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950"}`
+                            }`}
+                          data-testid="tab-divisionwise-all-regions"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <MapPin className="h-3 w-3" />
+                            All Regions
+                          </span>
+                        </button>
+                        {regionalStats.map((stat) => (
+                          <button
+                            key={stat.region}
+                            onClick={() => {
+                              setDivisionWiseRegion(stat.region);
+                              setPressureDivisionWiseRegion(stat.region);
+                              setSchemeLpcdDivisionWiseRegion(stat.region);
+                              setClickedDivisionCell(null);
+                              setClickedChlorineDivisionCell(null);
+                              setClickedPressureDivisionCell(null);
+                              setClickedSchemeDivisionCell(null);
+                            }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${divisionWiseRegion === stat.region
+                              ? `bg-gradient-to-r ${mainTab === "lpcd" ? "from-emerald-500 to-teal-500" : mainTab === "pressure" ? "from-orange-500 to-amber-500" : "from-blue-500 to-cyan-500"} text-white shadow-md`
+                              : `bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 ${mainTab === "lpcd" ? "hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950" : mainTab === "pressure" ? "hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950" : "hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950"}`
+                              }`}
+                            data-testid={`tab-divisionwise-${stat.region}`}
+                          >
+                            {stat.region}
+                          </button>
+                        ))}
+                      </div>
+
+                      {mainTab === "lpcd" && lpcdSubTab === "village" &&
+                        (isLoadingDivisionSummary ? (
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                              <Skeleton className="h-20 rounded-xl" />
+                              <Skeleton className="h-20 rounded-xl" />
+                              <Skeleton className="h-20 rounded-xl" />
+                              <Skeleton className="h-20 rounded-xl" />
+                            </div>
+                            <Skeleton className="h-64 w-full rounded-xl" />
+                          </div>
+                        ) : divisionSummaryData &&
+                          divisionSummaryData.data.length > 0 ? (
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                              <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950/50 dark:to-slate-900/30 border border-slate-200 dark:border-slate-800 rounded-lg p-3 shadow-sm">
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                  <Building2 className="h-3.5 w-3.5 text-slate-500" />
+                                  <span className="!text-[12px] font-medium text-slate-600 dark:text-slate-400">
+                                    Total Divisions
+                                  </span>
+                                </div>
+                                <div className="text-xl font-bold text-slate-700 dark:text-slate-300">
+                                  {divisionSummaryData.data.length}
+                                </div>
+                              </div>
+
+                              <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/50 dark:to-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3 shadow-sm">
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                  <Droplet className="h-3.5 w-3.5 text-emerald-500" />
+                                  <span className="!text-[12px] font-medium text-emerald-600 dark:text-emerald-400">
+                                    Supply of water
+                                  </span>
+                                </div>
+                                <div className="text-xl font-bold text-emerald-700 dark:text-emerald-400">
+                                  {divisionSummaryData.data
+                                    .reduce(
+                                      (sum, d) => sum + d.villagesWithWater,
+                                      0,
+                                    )
+                                    .toLocaleString()}
+                                </div>
+                              </div>
+
+                              <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/50 dark:to-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 shadow-sm">
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                  <TrendingUp className="h-3.5 w-3.5 text-blue-500" />
+                                  <span className="!text-[12px] font-medium text-blue-600 dark:text-blue-400">
+                                    lpcd achieved
+                                  </span>
+                                </div>
+                                <div className="text-xl font-bold text-blue-700 dark:text-blue-400">
+                                  {divisionSummaryData.data
+                                    .reduce(
+                                      (sum, d) => sum + d.villagesAbove55,
+                                      0,
+                                    )
+                                    .toLocaleString()}
+                                </div>
+                              </div>
+
+                              <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/50 dark:to-orange-900/30 border border-orange-200 dark:border-orange-800 rounded-lg p-3 shadow-sm">
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                  <AlertCircle className="h-3.5 w-3.5 text-orange-500" />
+                                  <span className="!text-[12px] font-medium text-orange-600 dark:text-orange-400">
+                                    lpcd not achieved
+                                  </span>
+                                </div>
+                                <div className="text-xl font-bold text-orange-700 dark:text-orange-400">
+                                  {divisionSummaryData.data
+                                    .reduce(
+                                      (sum, d) => sum + d.villagesBelow55,
+                                      0,
+                                    )
+                                    .toLocaleString()}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+                              <div className="grid grid-cols-[180px_1fr_1fr_1fr_1fr] gap-3 px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                                <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">
+                                  Division
+                                </div>
+                                <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                                  With Water
+                                </div>
+                                <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
+                                  No Water
+                                </div>
+                                <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                                  &gt;55 LPCD
+                                </div>
+                                <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+                                  &lt;55 LPCD
+                                </div>
+                              </div>
+
+                              <div className="max-h-[400px] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
+                                {divisionSummaryData.data.map(
+                                  (division, index) => {
+                                    const maxValue = Math.max(
+                                      ...divisionSummaryData.data.flatMap(
+                                        (d) => [
+                                          d.villagesWithWater,
+                                          d.villagesNoWater,
+                                          d.villagesAbove55,
+                                          d.villagesBelow55,
+                                        ],
+                                      ),
+                                    );
+
+                                    return (
+                                      <div
+                                        key={`${division.region}-${division.division}-${index}`}
+                                        className={`grid grid-cols-[180px_1fr_1fr_1fr_1fr] gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${index % 2 === 0
+                                          ? "bg-white dark:bg-gray-900"
+                                          : "bg-gray-50/50 dark:bg-gray-800/20"
+                                          }`}
+                                        data-testid={`row-division-${index}`}
+                                      >
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="font-medium text-xs text-gray-900 dark:text-white">
+                                            {division.division}
+                                          </span>
+                                          <span className="!text-[12px] text-gray-500 bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded">
+                                            {division.totalVillages}
+                                          </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                          <div
+                                            className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                            onClick={() =>
+                                              division.villagesWithWater > 0 &&
+                                              setClickedDivisionCell({
+                                                division: division.division,
+                                                region: division.region,
+                                                metric: "withWater",
+                                                label: `Villages with Water - ${division.division}`,
+                                              })
+                                            }
+                                            data-testid={`button-withwater-${index}`}
+                                          >
+                                            <div
+                                              className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full"
+                                              style={{
+                                                width: `${maxValue > 0 ? (division.villagesWithWater / maxValue) * 100 : 0}%`,
+                                              }}
+                                            ></div>
+                                          </div>
+                                          <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-right tabular-nums">
+                                            {division.villagesWithWater}
+                                          </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                          <div
+                                            className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                            onClick={() =>
+                                              division.villagesNoWater > 0 &&
+                                              setClickedDivisionCell({
+                                                division: division.division,
+                                                region: division.region,
+                                                metric: "noWater",
+                                                label: `Villages without Water - ${division.division}`,
+                                              })
+                                            }
+                                            data-testid={`button-nowater-${index}`}
+                                          >
+                                            <div
+                                              className="h-full bg-gradient-to-r from-red-400 to-red-600 rounded-full"
+                                              style={{
+                                                width: `${maxValue > 0 ? (division.villagesNoWater / maxValue) * 100 : 0}%`,
+                                              }}
+                                            ></div>
+                                          </div>
+                                          <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-right tabular-nums">
+                                            {division.villagesNoWater}
+                                          </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                          <div
+                                            className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                            onClick={() =>
+                                              division.villagesAbove55 > 0 &&
+                                              setClickedDivisionCell({
+                                                division: division.division,
+                                                region: division.region,
+                                                metric: "above55",
+                                                label: `Villages >55 LPCD - ${division.division}`,
+                                              })
+                                            }
+                                            data-testid={`button-above55-${index}`}
+                                          >
+                                            <div
+                                              className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full"
+                                              style={{
+                                                width: `${maxValue > 0 ? (division.villagesAbove55 / maxValue) * 100 : 0}%`,
+                                              }}
+                                            ></div>
+                                          </div>
+                                          <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-right tabular-nums">
+                                            {division.villagesAbove55}
+                                          </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                          <div
+                                            className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                            onClick={() =>
+                                              division.villagesBelow55 > 0 &&
+                                              setClickedDivisionCell({
+                                                division: division.division,
+                                                region: division.region,
+                                                metric: "below55",
+                                                label: `Villages <55 LPCD - ${division.division}`,
+                                              })
+                                            }
+                                            data-testid={`button-below55-${index}`}
+                                          >
+                                            <div
+                                              className="h-full bg-gradient-to-r from-orange-400 to-orange-600 rounded-full"
+                                              style={{
+                                                width: `${maxValue > 0 ? (division.villagesBelow55 / maxValue) * 100 : 0}%`,
+                                              }}
+                                            ></div>
+                                          </div>
+                                          <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-right tabular-nums">
+                                            {division.villagesBelow55}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    );
+                                  },
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <Building2 className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                            <p className="text-sm text-gray-500">
+                              No division data available for{" "}
+                              {divisionWiseRegion}
+                            </p>
+                          </div>
+                        ))}
+
+                      {clickedDivisionCell && (
+                        <Card className="border-0 shadow-lg rounded-xl overflow-hidden">
+                          <CardHeader className="bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-950 dark:to-green-950 border-b border-emerald-200 dark:border-emerald-800 py-2.5">
+                            <div className="flex items-center justify-between">
+                              <CardTitle className="flex items-center gap-2">
+                                <div className="p-1.5 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg shadow-sm">
+                                  <Home className="h-4 w-4 text-white" />
+                                </div>
+                                <div>
+                                  <div className="text-sm font-bold text-gray-900 dark:text-white">
+                                    {clickedDivisionCell.label}
+                                  </div>
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-400 !text-[12px] px-1.5 py-0">
+                                      {clickedDivisionCell.region}
+                                    </Badge>
+                                    <Badge
+                                      variant="secondary"
+                                      className="!text-[12px] px-1.5 py-0"
+                                    >
+                                      {divisionVillages?.count || 0} villages
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </CardTitle>
+                              <div className="flex gap-1.5">
+                                {divisionVillages &&
+                                  divisionVillages.data.length > 0 && (
+                                    <button
+                                      onClick={() => {
+                                        const params = new URLSearchParams();
+                                        params.append("division", clickedDivisionCell.division);
+                                        const region =
+                                          clickedDivisionCell.region === "All Regions"
+                                            ? ""
+                                            : clickedDivisionCell.region;
+                                        if (region) params.append("region", region);
+                                        params.append("metric", clickedDivisionCell.metric);
+                                        if (schemeFilter !== 'all') {
+                                          params.append("filterType", schemeFilter);
+                                        }
+                                        window.open(
+                                          `/api/category-data/division-villages/export?${params.toString()}`,
+                                          "_blank",
+                                        );
+                                      }}
+                                      className="flex items-center gap-1.5 px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors text-xs font-medium shadow-sm"
+                                      data-testid="button-export-villages-excel"
+                                    >
+                                      <FileDown className="h-3 w-3" />
+                                      Excel
+                                    </button>
+                                  )}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setClickedDivisionCell(null)}
+                                  className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                                  data-testid="button-close-division-details"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="p-0">
+                            {isLoadingDivisionVillages ? (
+                              <div className="space-y-2 p-5">
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
+                              </div>
+                            ) : divisionVillages &&
+                              divisionVillages.data.length > 0 ? (
+                              <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-emerald-200/60 dark:border-emerald-800/60 rounded-xl m-3">
+                                <Table className="table-fixed w-full">
+                                  <TableHeader className="sticky top-0 z-10">
+                                    <TableRow className="bg-emerald-800 dark:bg-emerald-900">
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-emerald-50 !px-4 !py-3.5 w-[130px] border-r border-white/10">
+                                        Village Name
+                                      </TableHead>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-emerald-50 !px-4 !py-3.5 w-[180px] border-r border-white/10">
+                                        Scheme Name
+                                      </TableHead>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-emerald-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                        Block
+                                      </TableHead>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-emerald-50 !px-4 !py-3.5 w-[80px] border-r border-white/10 text-center">
+                                        Dashboard
+                                      </TableHead>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-emerald-50 !px-4 !py-3.5 text-center w-[100px] border-r border-white/10">
+                                        Population
+                                      </TableHead>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-emerald-50 !px-4 !py-3.5 text-center w-[80px] border-r border-white/10">
+                                        LPCD
+                                      </TableHead>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-emerald-50 !px-4 !py-3.5 text-center w-[100px]">
+                                        Water Supply
+                                      </TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {divisionVillages.data.map(
+                                      (village, idx) => (
+                                        <TableRow
+                                          key={`${village.scheme_id}-${village.village_name}-${idx}`}
+                                          className={`transition-all duration-150 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-green-50/50 dark:bg-green-950/20"}`}
+                                          data-testid={`row-division-village-${idx}`}
+                                        >
+                                          <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-emerald-100 dark:border-emerald-900 truncate">
+                                            {village.village_name}
+                                          </TableCell>
+                                          <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-emerald-100 dark:border-emerald-900 truncate">
+                                            {village.scheme_name}
+                                          </TableCell>
+                                          <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-emerald-100 dark:border-emerald-900 truncate">
+                                            {village.block}
+                                          </TableCell>
+                                          <TableCell className="!px-4 !py-3 text-center border-r border-emerald-100 dark:border-emerald-900">
+                                            {village.dashboard_url && (
+                                              <a
+                                                href={village.dashboard_url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors"
+                                                title="Open Dashboard"
+                                                onClick={(e) => e.stopPropagation()}
+                                              >
+                                                <ExternalLink className="h-4 w-4" />
+                                              </a>
+                                            )}
+                                          </TableCell>
+                                          <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-emerald-100 dark:border-emerald-900">
+                                            {village.population?.toLocaleString() || (
+                                              <span className="text-slate-400">
+                                                N/A
+                                              </span>
+                                            )}
+                                          </TableCell>
+                                          <TableCell className="!px-4 !py-3 text-center border-r border-emerald-100 dark:border-emerald-900">
+                                            <span
+                                              className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold ${village.lpcd_value_day7 !== null && village.lpcd_value_day7 >= 55 ? "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400 ring-1 ring-blue-200 dark:ring-blue-800" : "bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-400 ring-1 ring-orange-200 dark:ring-orange-800"}`}
+                                            >
+                                              {village.lpcd_value_day7 !== null
+                                                ? Number(
+                                                  village.lpcd_value_day7,
+                                                ).toFixed(1)
+                                                : "N/A"}
+                                            </span>
+                                          </TableCell>
+                                          <TableCell className="!px-4 !py-3 text-center">
+                                            <span
+                                              className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold ${village.water_value_day7 !== null && village.water_value_day7 > 0 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400 ring-1 ring-emerald-200 dark:ring-emerald-800" : "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400 ring-1 ring-red-200 dark:ring-red-800"}`}
+                                            >
+                                              {village.water_value_day7 !==
+                                                null &&
+                                                village.water_value_day7 > 0
+                                                ? "With Water"
+                                                : "No Water"}
+                                            </span>
+                                          </TableCell>
+                                        </TableRow>
+                                      ),
+                                    )}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            ) : (
+                              <div className="text-center py-12">
+                                <Home className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                                <p className="text-gray-500">
+                                  No villages found for this category
+                                </p>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* Scheme LPCD Division Summary */}
+                      {mainTab === "lpcd" && lpcdSubTab === "scheme" &&
+                        (isLoadingSchemeLpcdDivision ? (
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                              <Skeleton className="h-20 rounded-xl" />
+                              <Skeleton className="h-20 rounded-xl" />
+                              <Skeleton className="h-20 rounded-xl" />
+                              <Skeleton className="h-20 rounded-xl" />
+                            </div>
+                            <Skeleton className="h-64 w-full rounded-xl" />
+                          </div>
+                        ) : schemeLpcdDivisionSummary &&
+                          schemeLpcdDivisionSummary.data?.length > 0 ? (
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                              <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950/50 dark:to-purple-900/30 border border-purple-200 dark:border-purple-800 rounded-lg p-3 shadow-sm">
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                  <Building2 className="h-3.5 w-3.5 text-purple-500" />
+                                  <span className="!text-[12px] font-medium text-purple-600 dark:text-purple-400">
+                                    Total Divisions
+                                  </span>
+                                </div>
+                                <div className="text-xl font-bold text-purple-700 dark:text-purple-300">
+                                  {schemeLpcdDivisionSummary.data.length}
+                                </div>
+                              </div>
+
+                              <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/50 dark:to-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3 shadow-sm">
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                  <Droplet className="h-3.5 w-3.5 text-emerald-500" />
+                                  <span className="!text-[12px] font-medium text-emerald-600 dark:text-emerald-400">
+                                    Schemes With Water
+                                  </span>
+                                </div>
+                                <div className="text-xl font-bold text-emerald-700 dark:text-emerald-400">
+                                  {schemeLpcdDivisionSummary.data
+                                    .reduce((sum, d) => sum + d.schemesWithWater, 0)
+                                    .toLocaleString()}
+                                </div>
+                              </div>
+
+                              <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/50 dark:to-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 shadow-sm">
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                  <TrendingUp className="h-3.5 w-3.5 text-blue-500" />
+                                  <span className="!text-[12px] font-medium text-blue-600 dark:text-blue-400">
+                                    Schemes &gt;55 LPCD
+                                  </span>
+                                </div>
+                                <div className="text-xl font-bold text-blue-700 dark:text-blue-400">
+                                  {schemeLpcdDivisionSummary.data
+                                    .reduce((sum, d) => sum + d.schemesAbove55, 0)
+                                    .toLocaleString()}
+                                </div>
+                              </div>
+
+                              <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/50 dark:to-orange-900/30 border border-orange-200 dark:border-orange-800 rounded-lg p-3 shadow-sm">
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                  <AlertCircle className="h-3.5 w-3.5 text-orange-500" />
+                                  <span className="!text-[12px] font-medium text-orange-600 dark:text-orange-400">
+                                    Schemes &lt;55 LPCD
+                                  </span>
+                                </div>
+                                <div className="text-xl font-bold text-orange-700 dark:text-orange-400">
+                                  {schemeLpcdDivisionSummary.data
+                                    .reduce((sum, d) => sum + d.schemesBelow55, 0)
+                                    .toLocaleString()}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+                              <div className="grid grid-cols-[180px_1fr_1fr_1fr_1fr] gap-3 px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                                <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">
+                                  Division
+                                </div>
+                                <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                                  With Water
+                                </div>
+                                <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
+                                  No Water
+                                </div>
+                                <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                                  &gt;55 LPCD
+                                </div>
+                                <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+                                  &lt;55 LPCD
+                                </div>
+                              </div>
+
+                              <div className="max-h-[400px] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
+                                {schemeLpcdDivisionSummary.data.map((division, index) => {
+                                  const maxValue = Math.max(
+                                    ...schemeLpcdDivisionSummary.data.flatMap((d) => [
+                                      d.schemesWithWater,
+                                      d.schemesNoWater,
+                                      d.schemesAbove55,
+                                      d.schemesBelow55,
+                                    ]),
+                                  );
+
+                                  return (
+                                    <div
+                                      key={`scheme-${division.region}-${division.division}-${index}`}
+                                      className={`grid grid-cols-[180px_1fr_1fr_1fr_1fr] gap-3 px-4 py-2 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-colors ${index % 2 === 0
+                                        ? "bg-white dark:bg-gray-900"
+                                        : "bg-gray-50/50 dark:bg-gray-800/20"
+                                        }`}
+                                      data-testid={`row-scheme-division-${index}`}
+                                    >
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="font-medium text-xs text-gray-900 dark:text-white">
+                                          {division.division}
+                                        </span>
+                                        <span className="!text-[12px] text-gray-500 bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded">
+                                          {division.totalSchemes}
+                                        </span>
+                                      </div>
+
+                                      <div className="flex items-center gap-2">
+                                        <div
+                                          className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                          onClick={() =>
+                                            division.schemesWithWater > 0 &&
+                                            setClickedSchemeDivisionCell({
+                                              division: division.division,
+                                              region: division.region,
+                                              metric: "withWater",
+                                              label: `Schemes with Water - ${division.division}`,
+                                            })
+                                          }
+                                          data-testid={`button-scheme-withwater-${index}`}
+                                        >
+                                          <div
+                                            className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full"
+                                            style={{
+                                              width: `${maxValue > 0 ? (division.schemesWithWater / maxValue) * 100 : 0}%`,
+                                            }}
+                                          ></div>
+                                        </div>
+                                        <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-right tabular-nums">
+                                          {division.schemesWithWater}
+                                        </span>
+                                      </div>
+
+                                      <div className="flex items-center gap-2">
+                                        <div
+                                          className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                          onClick={() =>
+                                            division.schemesNoWater > 0 &&
+                                            setClickedSchemeDivisionCell({
+                                              division: division.division,
+                                              region: division.region,
+                                              metric: "noWater",
+                                              label: `Schemes without Water - ${division.division}`,
+                                            })
+                                          }
+                                          data-testid={`button-scheme-nowater-${index}`}
+                                        >
+                                          <div
+                                            className="h-full bg-gradient-to-r from-red-400 to-red-600 rounded-full"
+                                            style={{
+                                              width: `${maxValue > 0 ? (division.schemesNoWater / maxValue) * 100 : 0}%`,
+                                            }}
+                                          ></div>
+                                        </div>
+                                        <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-right tabular-nums">
+                                          {division.schemesNoWater}
+                                        </span>
+                                      </div>
+
+                                      <div className="flex items-center gap-2">
+                                        <div
+                                          className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                          onClick={() =>
+                                            division.schemesAbove55 > 0 &&
+                                            setClickedSchemeDivisionCell({
+                                              division: division.division,
+                                              region: division.region,
+                                              metric: "above55",
+                                              label: `Schemes >55 LPCD - ${division.division}`,
+                                            })
+                                          }
+                                          data-testid={`button-scheme-above55-${index}`}
+                                        >
+                                          <div
+                                            className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full"
+                                            style={{
+                                              width: `${maxValue > 0 ? (division.schemesAbove55 / maxValue) * 100 : 0}%`,
+                                            }}
+                                          ></div>
+                                        </div>
+                                        <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-right tabular-nums">
+                                          {division.schemesAbove55}
+                                        </span>
+                                      </div>
+
+                                      <div className="flex items-center gap-2">
+                                        <div
+                                          className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                          onClick={() =>
+                                            division.schemesBelow55 > 0 &&
+                                            setClickedSchemeDivisionCell({
+                                              division: division.division,
+                                              region: division.region,
+                                              metric: "below55",
+                                              label: `Schemes <55 LPCD - ${division.division}`,
+                                            })
+                                          }
+                                          data-testid={`button-scheme-below55-${index}`}
+                                        >
+                                          <div
+                                            className="h-full bg-gradient-to-r from-orange-400 to-orange-600 rounded-full"
+                                            style={{
+                                              width: `${maxValue > 0 ? (division.schemesBelow55 / maxValue) * 100 : 0}%`,
+                                            }}
+                                          ></div>
+                                        </div>
+                                        <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-right tabular-nums">
+                                          {division.schemesBelow55}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <Building2 className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                            <p className="text-sm text-gray-500">
+                              No scheme division data available
+                            </p>
+                          </div>
+                        ))}
+
+                      {/* Scheme LPCD Division Details Card */}
+                      {clickedSchemeDivisionCell && (
+                        <Card
+                          className="mt-4 border-0 shadow-lg rounded-xl overflow-hidden"
+                          data-testid="card-scheme-division-details"
+                        >
+                          <CardHeader className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950 dark:to-indigo-950 border-b border-purple-200 dark:border-purple-800 py-2.5">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                              <CardTitle className="flex items-center gap-2">
+                                <div className="p-1.5 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg shadow-sm">
+                                  <Building2 className="h-4 w-4 text-white" />
+                                </div>
+                                <div>
+                                  <div className="text-sm font-bold text-gray-900 dark:text-white">
+                                    {clickedSchemeDivisionCell.label}
+                                  </div>
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    <Badge
+                                      variant="secondary"
+                                      className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 !text-[12px] px-1.5 py-0"
+                                    >
+                                      {clickedSchemeDivisionCell.division}
+                                    </Badge>
+                                    <Badge className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 !text-[12px] px-1.5 py-0">
+                                      {schemeLpcdDivisionDetails?.count || 0} schemes
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </CardTitle>
+                              <div className="flex gap-1.5">
+                                <Button
+                                  onClick={() => {
+                                    const params = new URLSearchParams();
+                                    if (clickedSchemeDivisionCell.region && clickedSchemeDivisionCell.region !== "All Regions") {
+                                      params.append("region", clickedSchemeDivisionCell.region);
+                                    }
+                                    if (schemeFilter !== 'all') {
+                                      params.append("filterType", schemeFilter);
+                                    }
+                                    window.open(
+                                      `/api/chlorine/scheme-lpcd/division-details-export/${encodeURIComponent(clickedSchemeDivisionCell.division)}/${clickedSchemeDivisionCell.metric}?${params.toString()}`,
+                                      "_blank"
+                                    );
+                                  }}
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-xs bg-green-50 border-green-200 text-green-700 hover:bg-green-100 dark:bg-green-950 dark:border-green-800 dark:text-green-400"
+                                  data-testid="button-scheme-division-download-excel"
+                                >
+                                  <Download className="h-3.5 w-3.5 mr-1" />
+                                  Export Excel
+                                </Button>
+                                <Button
+                                  onClick={() => setClickedSchemeDivisionCell(null)}
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                                  data-testid="button-close-scheme-division-details"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="p-0">
+                            {isLoadingSchemeDivisionDetails ? (
+                              <div className="space-y-2 p-4">
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
+                              </div>
+                            ) : schemeLpcdDivisionDetails && schemeLpcdDivisionDetails.data?.length > 0 ? (
+                              <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-slate-200/60 dark:border-slate-700/60 rounded-xl m-3 shadow-sm">
+                                <Table className="w-full">
+                                  <TableHeader className="sticky top-0 z-10">
+                                    <TableRow className="bg-slate-800 dark:bg-slate-900">
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                        Circle
+                                      </TableHead>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                        Sub Division
+                                      </TableHead>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] border-r border-white/10 text-center">
+                                        Dashboard
+                                      </TableHead>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[90px] border-r border-white/10">
+                                        Scheme ID
+                                      </TableHead>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[140px] border-r border-white/10">
+                                        Scheme Name
+                                      </TableHead>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                        Population
+                                      </TableHead>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[70px] text-center border-r border-white/10">
+                                        Villages
+                                      </TableHead>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center">
+                                        LPCD
+                                      </TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {schemeLpcdDivisionDetails.data.map((item, idx) => (
+                                      <TableRow
+                                        key={`scheme-div-${item.scheme_id}-${item.block}-${idx}`}
+                                        className={`transition-all duration-200 hover:bg-purple-50/70 dark:hover:bg-purple-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-slate-50/60 dark:bg-slate-800/40"}`}
+                                        data-testid={`row-scheme-div-detail-${idx}`}
+                                      >
+                                        <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60 font-medium">
+                                          {item.circle}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-slate-100/80 dark:border-slate-800/60">
+                                          {item.sub_division}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-slate-100/80 dark:border-slate-800/60 text-center">
+                                          {item.dashboard_url && (
+                                            <a
+                                              href={item.dashboard_url}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors"
+                                              title="Open Dashboard"
+                                              onClick={(e) => e.stopPropagation()}
+                                            >
+                                              <ExternalLink className="h-4 w-4" />
+                                            </a>
+                                          )}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-purple-600 dark:text-purple-400 border-r border-slate-100/80 dark:border-slate-800/60">
+                                          {item.scheme_id}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-[12px] font-medium text-slate-800 dark:text-slate-200 border-r border-slate-100/80 dark:border-slate-800/60">
+                                          {item.scheme_name}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
+                                          {item.total_population?.toLocaleString() || "N/A"}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
+                                          {item.total_villages || "N/A"}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-center">
+                                          {item.lpcd_value !== null && item.lpcd_value !== undefined ? (
+                                            <span
+                                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${Number(item.lpcd_value) > 55
+                                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300"
+                                                : "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
+                                                }`}
+                                            >
+                                              {Number(item.lpcd_value).toFixed(1)}
+                                            </span>
+                                          ) : (
+                                            <span className="text-slate-400">N/A</span>
+                                          )}
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            ) : (
+                              <div className="text-center py-12">
+                                <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                                <p className="text-gray-500">No schemes found for this category</p>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {mainTab === "chlorine" &&
+                        (isLoadingChlorineDivisionSummary ? (
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                              <Skeleton className="h-20 rounded-xl" />
+                              <Skeleton className="h-20 rounded-xl" />
+                              <Skeleton className="h-20 rounded-xl" />
+                              <Skeleton className="h-20 rounded-xl" />
+                            </div>
+                            <Skeleton className="h-64 w-full rounded-xl" />
+                          </div>
+                        ) : chlorineDivisionSummaryData &&
+                          chlorineDivisionSummaryData.data.length > 0 ? (
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                              <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950/50 dark:to-slate-900/30 border border-slate-200 dark:border-slate-800 rounded-lg p-3 shadow-sm">
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                  <Building2 className="h-3.5 w-3.5 text-slate-500" />
+                                  <span className="!text-[12px] font-medium text-slate-600 dark:text-slate-400">
+                                    Total Divisions
+                                  </span>
+                                </div>
+                                <div className="text-xl font-bold text-slate-700 dark:text-slate-300">
+                                  {chlorineDivisionSummaryData.data.length}
+                                </div>
+                              </div>
+
+                              <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/50 dark:to-orange-900/30 border border-orange-200 dark:border-orange-800 rounded-lg p-3 shadow-sm cursor-pointer hover:bg-orange-100 dark:hover:bg-orange-800/40 transition-colors"
+                                onClick={() => {
+                                  // Find the division with max RCAs to open implicitly or just scroll to list? 
+                                  // Actually, this is the summary card. Let's make it not clickable or maybe drill down to all divisions?
+                                  // The requirement is "Chlorine Division Summary: Convert the "Total RCAs" badge in the division list".
+                                  // This is the SUMMARY CARD above the list. The requirement says "badge in the division list". 
+                                  // Let's check the list rendering below. 
+                                }}>
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                  <AlertCircle className="h-3.5 w-3.5 text-orange-500" />
+                                  <span className="!text-[12px] font-medium text-orange-600 dark:text-orange-400">
+                                    Below 0.2 mg/l
+                                  </span>
+                                </div>
+                                <div className="text-xl font-bold text-orange-700 dark:text-orange-400">
+                                  {chlorineDivisionSummaryData.data
+                                    .reduce((sum, d) => sum + d.rcasBelow02, 0)
+                                    .toLocaleString()}
+                                </div>
+                              </div>
+
+                              <div className="bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-950/50 dark:to-teal-900/30 border border-teal-200 dark:border-teal-800 rounded-lg p-3 shadow-sm">
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                  <CheckCircle2 className="h-3.5 w-3.5 text-teal-500" />
+                                  <span className="!text-[12px] font-medium text-teal-600 dark:text-teal-400">
+                                    Optimal (0.2-0.5)
+                                  </span>
+                                </div>
+                                <div className="text-xl font-bold text-teal-700 dark:text-teal-400">
+                                  {chlorineDivisionSummaryData.data
+                                    .reduce((sum, d) => sum + d.rcasOptimal, 0)
+                                    .toLocaleString()}
+                                </div>
+                              </div>
+
+                              <div className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950/50 dark:to-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3 shadow-sm">
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                  <AlertCircle className="h-3.5 w-3.5 text-red-500" />
+                                  <span className="!text-[12px] font-medium text-red-600 dark:text-red-400">
+                                    Above 0.5 mg/l
+                                  </span>
+                                </div>
+                                <div className="text-xl font-bold text-red-700 dark:text-red-400">
+                                  {chlorineDivisionSummaryData.data
+                                    .reduce((sum, d) => sum + d.rcasAbove05, 0)
+                                    .toLocaleString()}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+                              <div className="grid grid-cols-[180px_1fr_1fr_1fr] gap-3 px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                                <div className="text-sm font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">
+                                  Division
+                                </div>
+                                <div className="text-sm font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+                                  Below 0.2 mg/l
+                                </div>
+                                <div className="text-sm font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-teal-500"></div>
+                                  Optimal
+                                </div>
+                                <div className="text-sm font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
+                                  Above 0.5 mg/l
+                                </div>
+                              </div>
+
+                              <div className="max-h-[400px] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
+                                {chlorineDivisionSummaryData.data.map(
+                                  (division, index) => {
+                                    const maxValue = Math.max(
+                                      ...chlorineDivisionSummaryData.data.flatMap(
+                                        (d) => [
+                                          d.rcasBelow02,
+                                          d.rcasOptimal,
+                                          d.rcasAbove05,
+                                        ],
+                                      ),
+                                    );
+
+                                    return (
+                                      <div
+                                        key={`${division.region}-${division.division}-${index}`}
+                                        className={`grid grid-cols-[180px_1fr_1fr_1fr] gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${index % 2 === 0
+                                          ? "bg-white dark:bg-gray-900"
+                                          : "bg-gray-50/50 dark:bg-gray-800/20"
+                                          }`}
+                                        data-testid={`row-chlorine-division-${index}`}
+                                      >
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="font-medium text-sm text-gray-900 dark:text-white">
+                                            {division.division}
+                                          </span>
+                                          <span
+                                            className="!text-[12px] text-gray-500 bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                                            onClick={() =>
+                                              setClickedChlorineDivisionCell({
+                                                division: division.division,
+                                                region: division.region,
+                                                metric: "all_sensors",
+                                                label: `Total RCAs - ${division.division}`,
+                                              })
+                                            }
+                                          >
+                                            {division.totalRCAs}
+                                          </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                          <div
+                                            className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                            onClick={() =>
+                                              division.rcasBelow02 > 0 &&
+                                              setClickedChlorineDivisionCell({
+                                                division: division.division,
+                                                region: division.region,
+                                                metric: "below02",
+                                                label: `RCAs Below 0.2 mg/l - ${division.division}`,
+                                              })
+                                            }
+                                            data-testid={`button-chlorine-below02-${index}`}
+                                          >
+                                            <div
+                                              className="h-full bg-gradient-to-r from-orange-400 to-orange-600 rounded-full"
+                                              style={{
+                                                width: `${maxValue > 0 ? (division.rcasBelow02 / maxValue) * 100 : 0}%`,
+                                              }}
+                                            ></div>
+                                          </div>
+                                          <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-right tabular-nums">
+                                            {division.rcasBelow02}
+                                          </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                          <div
+                                            className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                            onClick={() =>
+                                              division.rcasOptimal > 0 &&
+                                              setClickedChlorineDivisionCell({
+                                                division: division.division,
+                                                region: division.region,
+                                                metric: "optimal",
+                                                label: `RCAs Optimal (0.2-0.5) - ${division.division}`,
+                                              })
+                                            }
+                                            data-testid={`button-chlorine-optimal-${index}`}
+                                          >
+                                            <div
+                                              className="h-full bg-gradient-to-r from-teal-400 to-teal-600 rounded-full"
+                                              style={{
+                                                width: `${maxValue > 0 ? (division.rcasOptimal / maxValue) * 100 : 0}%`,
+                                              }}
+                                            ></div>
+                                          </div>
+                                          <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-right tabular-nums">
+                                            {division.rcasOptimal}
+                                          </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                          <div
+                                            className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                            onClick={() =>
+                                              division.rcasAbove05 > 0 &&
+                                              setClickedChlorineDivisionCell({
+                                                division: division.division,
+                                                region: division.region,
+                                                metric: "above05",
+                                                label: `RCAs Above 0.5 mg/l - ${division.division}`,
+                                              })
+                                            }
+                                            data-testid={`button-chlorine-above05-${index}`}
+                                          >
+                                            <div
+                                              className="h-full bg-gradient-to-r from-red-400 to-red-600 rounded-full"
+                                              style={{
+                                                width: `${maxValue > 0 ? (division.rcasAbove05 / maxValue) * 100 : 0}%`,
+                                              }}
+                                            ></div>
+                                          </div>
+                                          <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-right tabular-nums">
+                                            {division.rcasAbove05}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    );
+                                  },
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <Building2 className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                            <p className="text-sm text-gray-500">
+                              No chlorine division data available for{" "}
+                              {divisionWiseRegion}
+                            </p>
+                          </div>
+                        ))}
+                    </CardContent>
+                  </Card>
+
+                  {clickedChlorineDivisionCell && (
+                    <Card className="mt-4 border-0 shadow-lg rounded-xl overflow-hidden">
+                      <CardHeader className="bg-gradient-to-r from-teal-50 to-emerald-50 dark:from-teal-950 dark:to-emerald-950 border-b border-teal-200 dark:border-teal-800 py-2.5">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2">
+                            <div className="p-1.5 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-lg shadow-sm">
+                              <Activity className="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                              <div className="!text-[12px] font-bold text-gray-900 dark:text-white">
+                                {clickedChlorineDivisionCell.label}
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <Badge className="bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-400 !text-[12px] px-1.5 py-0">
+                                  {clickedChlorineDivisionCell.region}
+                                </Badge>
+                                <Badge
+                                  variant="secondary"
+                                  className="!text-[12px] px-1.5 py-0"
+                                >
+                                  {chlorineDivisionSensors?.count || 0} RCAs
+                                </Badge>
+                              </div>
+                            </div>
+                          </CardTitle>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const params = new URLSearchParams({
+                                  division:
+                                    clickedChlorineDivisionCell.division,
+                                  metric: clickedChlorineDivisionCell.metric,
+                                  region: clickedChlorineDivisionCell.region,
+                                });
+                                window.open(
+                                  `/api/chlorine/division-sensors-export?${params.toString()}`,
+                                  "_blank",
+                                );
+                              }}
+                              className="h-7 px-2 text-[10px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200"
+                              data-testid="button-export-chlorine-division-excel"
+                            >
+                              <Download className="h-3 w-3 mr-1" />
+                              Excel
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                setClickedChlorineDivisionCell(null)
+                              }
+                              className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                              data-testid="button-close-chlorine-division-details"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        {isLoadingChlorineDivisionSensors ? (
+                          <div className="space-y-2 p-5">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                          </div>
+                        ) : chlorineDivisionSensors &&
+                          chlorineDivisionSensors.data.length > 0 ? (
+                          <div className="overflow-x-auto max-h-[400px] border border-teal-200/60 dark:border-teal-800/60 rounded-xl m-3 shadow-sm">
+                            <Table className="table-fixed w-full min-w-[1000px]">
+                              <TableHeader className="sticky top-0 z-10">
+                                <TableRow className="bg-teal-800 dark:bg-teal-900">
+                                  <TableHead className="font-semibold text-sm uppercase tracking-wider text-teal-50 !px-3 !py-3.5 w-[80px] border-r border-white/10">
+                                    Region
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-3 !py-3.5 w-[80px] border-r border-white/10">
+                                    Division
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-3 !py-3.5 w-[80px] border-r border-white/10 text-center">
+                                    Dashboard
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-3 !py-3.5 w-[80px] border-r border-white/10">
+                                    Scheme ID
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-3 !py-3.5 w-[180px] border-r border-white/10">
+                                    Scheme Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-3 !py-3.5 w-[100px] border-r border-white/10">
+                                    Village
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-3 !py-3.5 w-[100px] border-r border-white/10">
+                                    ESR Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-3 !py-3.5 text-center w-[100px]">
+                                    Chlorine (mg/l)
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {chlorineDivisionSensors.data.map(
+                                  (sensor, idx) => (
+                                    <TableRow
+                                      key={`${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}-${idx}`}
+                                      className={`transition-all duration-200 hover:bg-teal-50/70 dark:hover:bg-teal-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-teal-50/40 dark:bg-teal-950/20"}`}
+                                      data-testid={`row-chlorine-division-sensor-${idx}`}
+                                    >
+                                      <TableCell className="!px-3 !py-2.5 text-sm text-slate-700 dark:text-slate-300 truncate border-r border-teal-100/80 dark:border-teal-900/60">
+                                        {sensor.region}
+                                      </TableCell>
+                                      <TableCell className="!px-3 !py-2.5 !text-[12px] text-slate-700 dark:text-slate-300 truncate border-r border-teal-100/80 dark:border-teal-900/60">
+                                        {sensor.division}
+                                      </TableCell>
+                                      <TableCell className="!px-3 !py-2.5 !text-[12px] text-slate-700 dark:text-slate-300 truncate border-r border-teal-100/80 dark:border-teal-900/60 text-center">
+                                        {sensor.dashboard_url && (
+                                          <a
+                                            href={sensor.dashboard_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors"
+                                            title="Open Dashboard"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <ExternalLink className="h-4 w-4" />
+                                          </a>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-3 !py-2.5 !text-[12px] font-mono font-semibold text-teal-700 dark:text-teal-400 truncate border-r border-teal-100/80 dark:border-teal-900/60">
+                                        {sensor.scheme_id}
+                                      </TableCell>
+                                      <TableCell className="!px-3 !py-2.5 !text-[12px] font-semibold text-slate-800 dark:text-slate-200 truncate border-r border-teal-100/80 dark:border-teal-900/60">
+                                        {sensor.dashboard_url ? (
+                                          <a
+                                            href={sensor.dashboard_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-blue-600 hover:underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            {sensor.scheme_name}
+                                          </a>
+                                        ) : (
+                                          sensor.scheme_name
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-3 !py-2.5 !text-[12px] text-slate-700 dark:text-slate-300 truncate border-r border-teal-100/80 dark:border-teal-900/60">
+                                        {sensor.village_name}
+                                      </TableCell>
+                                      <TableCell className="!px-3 !py-2.5 !text-[12px] text-slate-600 dark:text-slate-400 truncate border-r border-teal-100/80 dark:border-teal-900/60">
+                                        {sensor.esr_name}
+                                      </TableCell>
+                                      <TableCell className="!px-3 !py-2.5 text-center text-sm">
+                                        <Badge
+                                          className={`text-[10px] ${sensor.latest_chlorine_value !==
+                                            null &&
+                                            sensor.latest_chlorine_value >=
+                                            0.2 &&
+                                            sensor.latest_chlorine_value <= 0.5
+                                            ? "bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-400"
+                                            : sensor.latest_chlorine_value !==
+                                              null &&
+                                              sensor.latest_chlorine_value <
+                                              0.2
+                                              ? "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-400"
+                                              : sensor.latest_chlorine_value !==
+                                                null &&
+                                                sensor.latest_chlorine_value >
+                                                0.5
+                                                ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-400"
+                                                : "bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-400"
+                                            }`}
+                                        >
+                                          {sensor.latest_chlorine_value !== null
+                                            ? Number(
+                                              sensor.latest_chlorine_value,
+                                            ).toFixed(2)
+                                            : "N/A"}
+                                        </Badge>
+                                      </TableCell>
+                                    </TableRow>
+                                  ),
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        ) : (
+                          <div className="text-center py-12">
+                            <Activity className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-500">
+                              No RCAs found for this category
+                            </p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Pressure Division Summary */}
+                  {mainTab === "pressure" && (
+                    <Card
+                      className="border-0 shadow-lg rounded-xl overflow-hidden"
+                      data-testid="card-pressure-division-summary"
+                    >
+                      <CardContent className="p-4">
+                        {isLoadingPressureDivision ? (
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                              <Skeleton className="h-20 rounded-xl" />
+                              <Skeleton className="h-20 rounded-xl" />
+                              <Skeleton className="h-20 rounded-xl" />
+                              <Skeleton className="h-20 rounded-xl" />
+                            </div>
+                            <Skeleton className="h-64 w-full rounded-xl" />
+                          </div>
+                        ) : pressureDivisionData &&
+                          pressureDivisionData.data &&
+                          pressureDivisionData.data.length > 0 ? (
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                              <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950/50 dark:to-slate-900/30 border border-slate-200 dark:border-slate-800 rounded-lg p-3 shadow-sm">
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                  <Building2 className="h-3.5 w-3.5 text-slate-500" />
+                                  <span className="!text-[12px] font-medium text-slate-600 dark:text-slate-400">
+                                    Total Divisions
+                                  </span>
+                                </div>
+                                <div className="text-xl font-bold text-slate-700 dark:text-slate-300">
+                                  {pressureDivisionData.data.length}
+                                </div>
+                              </div>
+                              <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/50 dark:to-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-3 shadow-sm">
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                                  <span className="!text-[12px] font-medium text-green-600 dark:text-green-400">
+                                    Optimal (0.2-0.7)
+                                  </span>
+                                </div>
+                                <div className="text-xl font-bold text-green-700 dark:text-green-400">
+                                  {pressureDivisionData.data
+                                    .reduce(
+                                      (
+                                        sum: number,
+                                        d: PressureDivisionSummary,
+                                      ) => sum + (d.sensorsOptimal || 0),
+                                      0,
+                                    )
+                                    .toLocaleString()}
+                                </div>
+                              </div>
+                              <div className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950/50 dark:to-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3 shadow-sm">
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                  <AlertCircle className="h-3.5 w-3.5 text-red-500" />
+                                  <span className="!text-[12px] font-medium text-red-600 dark:text-red-400">
+                                    Below (&lt;0.2)
+                                  </span>
+                                </div>
+                                <div className="text-xl font-bold text-red-700 dark:text-red-400">
+                                  {pressureDivisionData.data
+                                    .reduce(
+                                      (
+                                        sum: number,
+                                        d: PressureDivisionSummary,
+                                      ) => sum + (d.sensorsBelow02 || 0),
+                                      0,
+                                    )
+                                    .toLocaleString()}
+                                </div>
+                              </div>
+                              <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950/50 dark:to-purple-900/30 border border-purple-200 dark:border-purple-800 rounded-lg p-3 shadow-sm">
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                  <TrendingUp className="h-3.5 w-3.5 text-purple-500" />
+                                  <span className="!text-[12px] font-medium text-purple-600 dark:text-purple-400">
+                                    Above (&gt;0.7)
+                                  </span>
+                                </div>
+                                <div className="text-xl font-bold text-purple-700 dark:text-purple-400">
+                                  {pressureDivisionData.data
+                                    .reduce(
+                                      (
+                                        sum: number,
+                                        d: PressureDivisionSummary,
+                                      ) => sum + (d.sensorsAbove07 || 0),
+                                      0,
+                                    )
+                                    .toLocaleString()}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="bg-white dark:bg-gray-900 rounded-lg border border-orange-200 dark:border-orange-700 overflow-hidden shadow-sm">
+                              <div className="grid grid-cols-[180px_1fr_1fr_1fr] gap-3 px-4 py-2.5 bg-orange-50 dark:bg-orange-900/30 border-b border-orange-200 dark:border-orange-700">
+                                <div className="text-sm font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">
+                                  Division
+                                </div>
+                                <div className="text-sm font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                                  Optimal (0.2-0.7)
+                                </div>
+                                <div className="text-sm font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
+                                  Below (&lt;0.2)
+                                </div>
+                                <div className="text-sm font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-purple-500"></div>
+                                  Above (&gt;0.7)
+                                </div>
+                              </div>
+
+                              <div className="max-h-[400px] overflow-y-auto divide-y divide-orange-100 dark:divide-orange-800/50">
+                                {pressureDivisionData.data.map(
+                                  (
+                                    division: PressureDivisionSummary,
+                                    index: number,
+                                  ) => {
+                                    const maxValue = Math.max(
+                                      ...pressureDivisionData.data.flatMap(
+                                        (d: PressureDivisionSummary) => [
+                                          d.sensorsOptimal || 0,
+                                          d.sensorsBelow02 || 0,
+                                          d.sensorsAbove07 || 0,
+                                        ],
+                                      ),
+                                    );
+
+                                    return (
+                                      <div
+                                        key={`${division.region}-${division.division}-${index}`}
+                                        className={`grid grid-cols-[180px_1fr_1fr_1fr] gap-3 px-4 py-2 hover:bg-orange-50 dark:hover:bg-orange-950/30 transition-colors ${index % 2 === 0
+                                          ? "bg-white dark:bg-gray-900"
+                                          : "bg-orange-50/30 dark:bg-orange-900/10"
+                                          }`}
+                                        data-testid={`row-pressure-division-${index}`}
+                                      >
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="font-medium text-sm text-gray-900 dark:text-white">
+                                            {division.division}
+                                          </span>
+                                          <span
+                                            className="!text-[12px] text-gray-500 bg-orange-100 dark:bg-orange-900/50 px-1 py-0.5 rounded cursor-pointer hover:bg-orange-200 dark:hover:bg-orange-800 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                                            onClick={() =>
+                                              handlePressureDivisionCellClick(
+                                                division.division,
+                                                division.region,
+                                                "all_sensors" as any, // Cast to any because 'all_sensors' might not be in the type definition yet
+                                                `Total Pressure Sensors - ${division.division}`
+                                              )
+                                            }
+                                          >
+                                            {division.totalSensors}
+                                          </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-right tabular-nums">
+                                            {division.sensorsOptimal || 0}
+                                          </span>
+                                          <div
+                                            className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                            onClick={() =>
+                                              (division.sensorsOptimal || 0) >
+                                              0 &&
+                                              handlePressureDivisionCellClick(
+                                                division.division,
+                                                division.region,
+                                                "optimal" as any,
+                                                `Optimal Pressure - ${division.division}`,
+                                              )
+                                            }
+                                            data-testid={`button-pressure-optimal-${index}`}
+                                          >
+                                            <div
+                                              className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full"
+                                              style={{
+                                                width: `${maxValue > 0 ? ((division.sensorsOptimal || 0) / maxValue) * 100 : 0}%`,
+                                              }}
+                                            ></div>
+                                          </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-right tabular-nums">
+                                            {division.sensorsBelow02 || 0}
+                                          </span>
+                                          <div
+                                            className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                            onClick={() =>
+                                              (division.sensorsBelow02 || 0) >
+                                              0 &&
+                                              handlePressureDivisionCellClick(
+                                                division.division,
+                                                division.region,
+                                                "below02" as any,
+                                                `Below 0.2 bar - ${division.division}`,
+                                              )
+                                            }
+                                            data-testid={`button-pressure-below-${index}`}
+                                          >
+                                            <div
+                                              className="h-full bg-gradient-to-r from-red-400 to-red-600 rounded-full"
+                                              style={{
+                                                width: `${maxValue > 0 ? ((division.sensorsBelow02 || 0) / maxValue) * 100 : 0}%`,
+                                              }}
+                                            ></div>
+                                          </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-right tabular-nums">
+                                            {division.sensorsAbove07 || 0}
+                                          </span>
+                                          <div
+                                            className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                            onClick={() =>
+                                              (division.sensorsAbove07 || 0) >
+                                              0 &&
+                                              handlePressureDivisionCellClick(
+                                                division.division,
+                                                division.region,
+                                                "above07" as any,
+                                                `Above 0.7 bar - ${division.division}`,
+                                              )
+                                            }
+                                            data-testid={`button-pressure-above-${index}`}
+                                          >
+                                            <div
+                                              className="h-full bg-gradient-to-r from-purple-400 to-purple-600 rounded-full"
+                                              style={{
+                                                width: `${maxValue > 0 ? ((division.sensorsAbove07 || 0) / maxValue) * 100 : 0}%`,
+                                              }}
+                                            ></div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  },
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-12">
+                            <Gauge className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-500">
+                              No pressure division data available
+                            </p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Pressure Division Detail Card */}
+                  {clickedPressureDivisionCell && mainTab === "pressure" && (
+                    <Card className="mt-4 border-0 shadow-lg rounded-xl overflow-hidden">
+                      <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950 border-b border-orange-200 dark:border-orange-800 py-2.5">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2">
+                            <div className="p-1.5 bg-gradient-to-br from-orange-500 to-amber-600 rounded-lg shadow-sm">
+                              <Gauge className="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                              <div className="!text-[12px] font-bold text-gray-900 dark:text-white">
+                                {clickedPressureDivisionCell.label}
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <Badge className="bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-400 !text-[12px] px-1.5 py-0">
+                                  {clickedPressureDivisionCell.division}
+                                </Badge>
+                                <Badge
+                                  variant="secondary"
+                                  className="!text-[12px] px-1.5 py-0"
+                                >
+                                  {pressureDivisionSensors?.count || 0} Sensors
+                                </Badge>
+                              </div>
+                            </div>
+                          </CardTitle>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const params = new URLSearchParams({
+                                  division:
+                                    clickedPressureDivisionCell.division,
+                                  metric: clickedPressureDivisionCell.metric,
+                                  region: pressureDivisionWiseRegion || "",
+                                });
+                                window.open(
+                                  `/api/pressure/division-sensors-export?${params.toString()}`,
+                                  "_blank",
+                                );
+                              }}
+                              className="h-7 px-2 text-[10px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200"
+                              data-testid="button-export-pressure-division-excel"
+                            >
+                              <Download className="h-3 w-3 mr-1" />
+                              Excel
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                setClickedPressureDivisionCell(null)
+                              }
+                              className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                              data-testid="button-close-pressure-division-details"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        {isLoadingPressureDivisionSensors ? (
+                          <div className="space-y-2 p-5">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                          </div>
+                        ) : pressureDivisionSensors &&
+                          pressureDivisionSensors.data &&
+                          pressureDivisionSensors.data.length > 0 ? (
+                          <div className="overflow-x-auto max-h-[400px] border border-orange-200/60 dark:border-orange-800/60 rounded-xl m-3 shadow-sm">
+                            <Table className="table-fixed w-full min-w-[1000px]">
+                              <TableHeader className="sticky top-0 z-10">
+                                <TableRow className="bg-orange-800 dark:bg-orange-900">
+                                  <TableHead className="font-semibold text-sm uppercase tracking-wider text-orange-50 !px-3 !py-3.5 w-[80px] border-r border-white/10">
+                                    Region
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-3 !py-3.5 w-[80px] border-r border-white/10">
+                                    Division
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-3 !py-3.5 w-[80px] border-r border-white/10 text-center">
+                                    Dashboard
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-3 !py-3.5 w-[80px] border-r border-white/10">
+                                    Scheme ID
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-3 !py-3.5 w-[180px] border-r border-white/10">
+                                    Scheme Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-3 !py-3.5 w-[100px] border-r border-white/10">
+                                    Village
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-3 !py-3.5 w-[100px] border-r border-white/10">
+                                    ESR Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-3 !py-3.5 text-center w-[100px]">
+                                    Pressure (bar)
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {pressureDivisionSensors.data.map(
+                                  (sensor: any, idx: number) => (
+                                    <TableRow
+                                      key={`${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}-${idx}`}
+                                      className={`transition-all duration-200 hover:bg-orange-50/70 dark:hover:bg-orange-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-orange-50/40 dark:bg-orange-950/20"}`}
+                                      data-testid={`row-pressure-division-sensor-${idx}`}
+                                    >
+                                      <TableCell className="!px-3 !py-2.5 text-sm text-slate-700 dark:text-slate-300 truncate border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.region}
+                                      </TableCell>
+                                      <TableCell className="!px-3 !py-2.5 !text-[12px] text-slate-700 dark:text-slate-300 truncate border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.division}
+                                      </TableCell>
+                                      <TableCell className="!px-3 !py-2.5 !text-[12px] text-slate-700 dark:text-slate-300 truncate border-r border-orange-100/80 dark:border-orange-900/60 text-center">
+                                        {sensor.dashboard_url && (
+                                          <a
+                                            href={sensor.dashboard_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors"
+                                            title="Open Dashboard"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <ExternalLink className="h-4 w-4" />
+                                          </a>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-3 !py-2.5 !text-[12px] font-mono font-semibold text-orange-700 dark:text-orange-400 truncate border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.scheme_id}
+                                      </TableCell>
+                                      <TableCell className="!px-3 !py-2.5 !text-[12px] font-semibold text-slate-800 dark:text-slate-200 truncate border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.dashboard_url ? (
+                                          <a
+                                            href={sensor.dashboard_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-blue-600 hover:underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            {sensor.scheme_name}
+                                          </a>
+                                        ) : (
+                                          sensor.scheme_name
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-3 !py-2.5 !text-[12px] text-slate-700 dark:text-slate-300 truncate border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.village_name}
+                                      </TableCell>
+                                      <TableCell className="!px-3 !py-2.5 !text-[12px] text-slate-600 dark:text-slate-400 truncate border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.esr_name}
+                                      </TableCell>
+                                      <TableCell className="!px-3 !py-2.5 text-center text-sm">
+                                        <Badge
+                                          className={`text-[10px] ${sensor.latest_pressure_value !==
+                                            null &&
+                                            sensor.latest_pressure_value >=
+                                            0.2 &&
+                                            sensor.latest_pressure_value <= 0.7
+                                            ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-400"
+                                            : sensor.latest_pressure_value !==
+                                              null &&
+                                              sensor.latest_pressure_value <
+                                              0.2
+                                              ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-400"
+                                              : sensor.latest_pressure_value !==
+                                                null &&
+                                                sensor.latest_pressure_value >
+                                                0.7
+                                                ? "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-400"
+                                                : "bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-400"
+                                            }`}
+                                        >
+                                          {sensor.latest_pressure_value !== null
+                                            ? Number(
+                                              sensor.latest_pressure_value,
+                                            ).toFixed(2)
+                                            : "N/A"}
+                                        </Badge>
+                                      </TableCell>
+                                    </TableRow>
+                                  ),
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        ) : (
+                          <div className="text-center py-12">
+                            <Gauge className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-500">
+                              No sensors found for this category
+                            </p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="overall-comparison" className="mt-4">
+                <div className="space-y-4">
+                  <Card
+                    data-testid="card-overall-comparison"
+                    className="border border-gray-200 dark:border-gray-700 shadow-sm rounded-lg overflow-hidden bg-white dark:bg-gray-900"
+                  >
+                    <CardHeader
+                      className={`bg-gradient-to-r ${mainTab === "lpcd" ? "from-emerald-50 to-teal-50 dark:from-emerald-950 dark:to-teal-950" : mainTab === "pressure" ? "from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950" : "from-blue-50 to-cyan-50 dark:from-blue-950 dark:to-cyan-950"} py-2 px-4 border-b border-gray-200 dark:border-gray-700`}
+                    >
+                      <CardTitle className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-gray-200">
+                          <TrendingUp
+                            className={`h-4 w-4 ${mainTab === "lpcd" ? "text-emerald-600" : mainTab === "pressure" ? "text-orange-600" : "text-blue-600"}`}
+                          />
+                          {mainTab === "lpcd"
+                            ? "LPCD"
+                            : mainTab === "pressure"
+                              ? "Pressure"
+                              : "Chlorine"}{" "}
+                          Overall Region Comparison
+                        </div>
+                        <p className="!text-[12px] font-normal text-gray-600 dark:text-gray-400">
+                          Click on the numbers to display the list
+                        </p>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      {isLoadingOverallComparison ? (
+                        <div className="p-4">
+                          <Skeleton className="h-48 w-full" />
+                        </div>
+                      ) : overallComparisonData &&
+                        overallComparisonData.data?.length > 0 ? (
+                        <div className="overflow-x-auto p-4">
+                          {/* Village LPCD Statistics Section */}
+                          {mainTab === "lpcd" && lpcdSubTab === "village" && (
+                            <>
+                              <div className="rounded-xl border-2 border-violet-200 dark:border-violet-800 overflow-hidden shadow-sm">
+                                <div className="bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-2.5 flex items-center gap-2">
+                                  <Home className="h-4 w-4 text-white" />
+                                  <span className="text-white font-semibold text-sm tracking-wide">
+                                    LPCD STATISTICS (Villages)
+                                  </span>
+                                </div>
+
+                                {/* Header Row */}
+                                <div
+                                  className="grid border-b-2 border-violet-200 dark:border-violet-800"
+                                  style={{
+                                    gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
+                                  }}
+                                >
+                                  <div className="bg-violet-50 dark:bg-violet-950 px-3 py-3 font-semibold text-[16px] text-violet-800 dark:text-violet-200 border-r-2 border-violet-200 dark:border-violet-800 flex flex-col justify-center">
+                                    <div>Weekly Avg</div>
+                                    <div className="text-[10px] font-normal text-violet-600 dark:text-violet-300 mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]" title={weeklyLpcdStats?.weekLabel}>
+                                      {weeklyLpcdStats?.weekLabel || "Loading..."}
+                                    </div>
+                                  </div>
+                                  {overallComparisonData.data.map(
+                                    (regionData, idx) => (
+                                      <div
+                                        key={`lpcd-header-${regionData.region}`}
+                                        className="bg-violet-50 dark:bg-violet-950 px-2 py-3 text-center font-bold text-[16px] text-violet-800 dark:text-violet-200 border-r border-violet-200 dark:border-violet-800"
+                                      >
+                                        {regionData.region}
+                                      </div>
+                                    ),
+                                  )}
+                                  <div className="bg-violet-100 dark:bg-violet-900 px-2 py-3 text-center font-bold text-xs text-violet-900 dark:text-violet-100">
+                                    TOTAL
+                                  </div>
+                                </div>
+
+                                {/* Current Day Metrics */}
+                                <div className="bg-white dark:bg-gray-900">
+
+                                  {/* Weekly Average Rows */}
+                                  {[
+                                    { key: 'above_55', label: '>55 LPCD', color: 'bg-emerald-400' },
+                                    { key: 'below_55', label: '<55 LPCD', color: 'bg-orange-400' },
+                                    { key: 'no_water', label: 'No Water', color: 'bg-gray-400' },
+                                  ].map((cat) => {
+                                    const villageStats = weeklyLpcdStats?.villageStats || [];
+                                    const weekLabel = weeklyLpcdStats?.weekLabel || "Loading...";
+
+                                    return (
+                                      <div
+                                        key={`weekly-village-overall-${cat.key}`}
+                                        className="grid border-b border-indigo-100 dark:border-indigo-900 bg-indigo-50/30 dark:bg-indigo-950/20"
+                                        style={{
+                                          gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
+                                        }}
+                                      >
+                                        <div className="px-3 py-2.5 text-xs font-medium text-indigo-700 dark:text-indigo-300 border-r-2 border-indigo-200 dark:border-indigo-800 flex flex-col justify-center bg-indigo-50 dark:bg-indigo-950/40 sticky left-0 z-10">
+                                          <div className="flex items-center">
+                                            <span className={`w-1.5 h-1.5 rounded-full ${cat.color} mr-1.5`}></span>
+                                            <span className="text-[14px] font-extrabold">{cat.label}</span>
+                                          </div>
+                                        </div>
+                                        {overallComparisonData.data.map((regionData) => {
+                                          const regionStat = villageStats.find(s => s.region === regionData.region);
+                                          const value = regionStat ? (regionStat as any)[cat.key] : 0;
+
+                                          return (
+                                            <div
+                                              key={`weekly-val-${cat.key}-${regionData.region}`}
+                                              className="px-2 py-2.5 flex items-center justify-center border-r border-indigo-100 dark:border-indigo-900"
+                                            >
+                                              <button
+                                                onClick={() =>
+                                                  value > 0 &&
+                                                  setClickedComparisonCell({
+                                                    category: `weekly_${cat.key}`,
+                                                    region: regionData.region,
+                                                    label: `Weekly Avg ${cat.label} - ${regionData.region}`,
+                                                    isLpcd: true,
+                                                    dates: weeklyLpcdStats?.dates
+                                                  })
+                                                }
+                                                className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${value > 0 ? `${cat.key === 'no_water' ? 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800' : cat.key === 'below_55' ? 'text-gray-700 dark:text-gray-300 hover:bg-orange-200 dark:hover:bg-orange-800' : 'text-gray-700 dark:text-gray-300 hover:bg-emerald-200 dark:hover:bg-emerald-800'} cursor-pointer shadow-sm` : "text-gray-400 dark:text-gray-600"}`}
+                                              >
+                                                {value}
+                                              </button>
+                                            </div>
+                                          );
+                                        })}
+                                        <div className="px-2 py-2.5 flex items-center justify-center bg-indigo-50/50 dark:bg-indigo-950/30">
+                                          <button
+                                            onClick={() =>
+                                              villageStats.reduce((sum, s) => sum + ((s as any)[cat.key] || 0), 0) > 0 &&
+                                              setClickedComparisonCell({
+                                                category: `weekly_${cat.key}`,
+                                                region: "All Regions",
+                                                label: `Weekly Avg ${cat.label} - All Regions`,
+                                                isLpcd: true,
+                                                dates: weeklyLpcdStats?.dates
+                                              })
+                                            }
+                                            className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${villageStats.reduce((sum, s) => sum + ((s as any)[cat.key] || 0), 0) > 0
+                                              ? `${cat.key === 'no_water'
+                                                ? 'text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                                : cat.key === 'below_55'
+                                                  ? 'text-orange-800 dark:text-orange-200 bg-orange-100 dark:bg-orange-900/40 hover:bg-orange-200 dark:hover:bg-orange-800'
+                                                  : 'text-emerald-800 dark:text-emerald-200 bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 dark:hover:bg-emerald-800'
+                                              } cursor-pointer shadow-sm`
+                                              : "text-indigo-800 dark:text-indigo-200"
+                                              }`}
+                                          >
+                                            {villageStats.reduce((sum, s) => sum + ((s as any)[cat.key] || 0), 0)}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+
+
+                                  {/* Current Day TOTAL Row - Placed after current day metrics */}
+                                  <div
+                                    className="grid bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-950/50 dark:to-purple-950/50 border-b-2 border-violet-200 dark:border-violet-800"
+                                    style={{
+                                      gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
+                                    }}
+                                  >
+                                    <div className="px-3 py-2.5 text-xl font-bold text-violet-700 dark:text-violet-300 border-r-2 border-volet-200 dark:border-violet-800 flex items-center">
+                                      <span className="w-2 h-2 rounded-full bg-violet-400 mr-2"></span>
+                                      Total
+                                    </div>
+                                    {overallComparisonData.data.map(
+                                      (regionData, idx) => {
+                                        const currentDayTotal =
+                                          regionData.above_55 +
+                                          regionData.below_55 +
+                                          regionData.no_water;
+                                        return (
+                                          <div
+                                            key={`lpcd-current-total-${regionData.region}`}
+                                            className="px-2 py-2.5 flex items-center justify-center border-r border-violet-200 dark:border-violet-800"
+                                          >
+                                            <button
+                                              onClick={() =>
+                                                setClickedComparisonCell({
+                                                  category: "all_villages",
+                                                  region: regionData.region,
+                                                  label: `All Villages - ${regionData.region}`,
+                                                  isLpcd: true,
+                                                })
+                                              }
+                                              className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-violet-100 dark:bg-violet-900 text-dark-700 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-800 transition-colors"
+                                            >
+                                              {currentDayTotal}
+                                            </button>
+                                          </div>
+                                        );
+                                      },
+                                    )}
+                                    <div className="px-2 py-2.5 flex items-center justify-center bg-violet-100/50 dark:bg-violet-950/50">
+                                      <button
+                                        onClick={() =>
+                                          setClickedComparisonCell({
+                                            category: "all_villages",
+                                            region: "All Regions",
+                                            label: "All Villages - All Regions",
+                                            isLpcd: true,
+                                          })
+                                        }
+                                        className="min-w-[40px] px-2 py-1 rounded-md text-sm font-bold bg-violet-200 dark:bg-violet-800 text-dark-800 dark:text-violet-200 hover:bg-violet-300 dark:hover:bg-violet-700 transition-colors"
+                                      >
+                                        {overallComparisonData.data.reduce(
+                                          (sum, r) =>
+                                            sum +
+                                            r.above_55 +
+                                            r.below_55 +
+                                            r.no_water,
+                                          0,
+                                        )}
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {showDailyData && (
+                                <>
+                                  <div className="h-8"></div>
+
+                                  <div className="rounded-xl border-2 border-violet-200 dark:border-violet-800 overflow-hidden shadow-sm">
+                                    <div className="bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-2.5 flex items-center gap-2">
+                                      <Home className="h-4 w-4 text-white" />
+                                      <span className="text-white font-semibold text-sm tracking-wide">
+                                        LPCD DETAILED STATISTICS (Villages)
+                                      </span>
+                                    </div>
+
+                                    {/* Header Row */}
+                                    <div
+                                      className="grid border-b-2 border-violet-200 dark:border-violet-800"
+                                      style={{
+                                        gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
+                                      }}
+                                    >
+                                      <div className="bg-violet-50 dark:bg-violet-950 px-3 py-3 font-semibold text-[14px] text-violet-800 dark:text-violet-200 border-r-2 border-violet-200 dark:border-violet-800 flex items-center">
+                                        Metric
+                                      </div>
+                                      {overallComparisonData.data.map(
+                                        (regionData, idx) => (
+                                          <div
+                                            key={`lpcd-header-detailed-${regionData.region}`}
+                                            className="bg-violet-50 dark:bg-violet-950 px-2 py-3 text-center font-bold text-xs text-violet-800 dark:text-violet-200 border-r border-violet-200 dark:border-violet-800"
+                                          >
+                                            {regionData.region}
+                                          </div>
+                                        ),
+                                      )}
+                                      <div className="bg-violet-100 dark:bg-violet-900 px-2 py-3 text-center font-bold text-[14px]text-violet-900 dark:text-violet-100">
+                                        TOTAL
+                                      </div>
+                                    </div>
+
+                                    <div className="bg-white dark:bg-gray-900">
+                                      {/* >55 LPCD (Good) Row */}
+                                      <div
+                                        className="grid border-b border-violet-100 dark:border-violet-900 hover:bg-violet-50/50 dark:hover:bg-violet-950/30 transition-colors"
+                                        style={{
+                                          gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
+                                        }}
+                                      >
+                                        <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-violet-200 dark:border-violet-800 flex items-center">
+                                          <span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+                                          &gt;55 LPCD (Good)
+                                        </div>
+                                        {overallComparisonData.data.map(
+                                          (regionData, idx) => (
+                                            <div
+                                              key={`above55-${regionData.region}`}
+                                              className="px-2 py-2.5 flex items-center justify-center border-r border-violet-100 dark:border-violet-900"
+                                            >
+                                              <button
+                                                onClick={() =>
+                                                  regionData.above_55 > 0 &&
+                                                  setClickedComparisonCell({
+                                                    category: "above_55",
+                                                    region: regionData.region,
+                                                    label: `Villages >55 LPCD - ${regionData.region}`,
+                                                    isLpcd: true,
+                                                  })
+                                                }
+                                                className={`min-w-[40px] px-2 py-1 rounded-md text-sm font-bold transition-all ${regionData.above_55 > 0 ? "bg-green-100 dark:bg-green-900/40 text-dark-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                                data-testid={`btn-above55-${regionData.region}`}
+                                              >
+                                                {regionData.above_55}
+                                              </button>
+                                            </div>
+                                          ),
+                                        )}
+                                        <div className="px-2 py-2.5 flex items-center justify-center bg-violet-50/50 dark:bg-violet-950/30">
+                                          <button
+                                            onClick={() =>
+                                              overallComparisonData.data.reduce((sum, r) => sum + r.above_55, 0) > 0 &&
+                                              setClickedComparisonCell({
+                                                category: "above_55",
+                                                region: "All Regions",
+                                                label: "Villages >55 LPCD - All Regions",
+                                                isLpcd: true,
+                                              })
+                                            }
+                                            className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${overallComparisonData.data.reduce((sum, r) => sum + r.above_55, 0) > 0 ? "bg-green-200 dark:bg-green-800 text-dark-800 dark:text-green-200 hover:bg-green-300 dark:hover:bg-green-700 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                          >
+                                            {overallComparisonData.data.reduce(
+                                              (sum, r) => sum + r.above_55,
+                                              0,
+                                            )}
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      {/* <55 LPCD Row */}
+                                      <div
+                                        className="grid border-b border-violet-100 dark:border-violet-900 hover:bg-violet-50/50 dark:hover:bg-violet-950/30 transition-colors"
+                                        style={{
+                                          gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
+                                        }}
+                                      >
+                                        <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-violet-200 dark:border-violet-800 flex items-center">
+                                          <span className="w-2 h-2 rounded-full bg-red-500 mr-2"></span>
+                                          &lt;55 LPCD
+                                        </div>
+                                        {overallComparisonData.data.map(
+                                          (regionData, idx) => (
+                                            <div
+                                              key={`below55-${regionData.region}`}
+                                              className="px-2 py-2.5 flex items-center justify-center border-r border-violet-100 dark:border-violet-900"
+                                            >
+                                              <button
+                                                onClick={() =>
+                                                  regionData.below_55 > 0 &&
+                                                  setClickedComparisonCell({
+                                                    category: "below_55",
+                                                    region: regionData.region,
+                                                    label: `Villages <55 LPCD - ${regionData.region}`,
+                                                    isLpcd: true,
+                                                  })
+                                                }
+                                                className={`min-w-[40px] px-2 py-1 rounded-md text-sm font-bold transition-all ${regionData.below_55 > 0 ? "bg-red-100 dark:bg-red-900/40 text-dark-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                                data-testid={`btn-below55-${regionData.region}`}
+                                              >
+                                                {regionData.below_55}
+                                              </button>
+                                            </div>
+                                          ),
+                                        )}
+                                        <div className="px-2 py-2.5 flex items-center justify-center bg-violet-50/50 dark:bg-violet-950/30">
+                                          <button
+                                            onClick={() =>
+                                              overallComparisonData.data.reduce((sum, r) => sum + r.below_55, 0) > 0 &&
+                                              setClickedComparisonCell({
+                                                category: "below_55",
+                                                region: "All Regions",
+                                                label: "Villages <55 LPCD - All Regions",
+                                                isLpcd: true,
+                                              })
+                                            }
+                                            className={`min-w-[40px] px-2 py-1 rounded-md text-sm font-bold transition-all ${overallComparisonData.data.reduce((sum, r) => sum + r.below_55, 0) > 0 ? "bg-red-200 dark:bg-red-800 text-dark-800 dark:text-red-200 hover:bg-red-300 dark:hover:bg-red-700 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                          >
+                                            {overallComparisonData.data.reduce(
+                                              (sum, r) => sum + r.below_55,
+                                              0,
+                                            )}
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      {/* No Water Row */}
+                                      <div
+                                        className="grid border-b border-violet-100 dark:border-violet-900 hover:bg-violet-50/50 dark:hover:bg-violet-950/30 transition-colors"
+                                        style={{
+                                          gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
+                                        }}
+                                      >
+                                        <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-violet-200 dark:border-violet-800 flex items-center">
+                                          <span className="w-2 h-2 rounded-full bg-rose-500 mr-2"></span>
+                                          No Water
+                                        </div>
+                                        {overallComparisonData.data.map(
+                                          (regionData, idx) => (
+                                            <div
+                                              key={`nowater-${regionData.region}`}
+                                              className="px-2 py-2.5 flex items-center justify-center border-r border-violet-100 dark:border-violet-900"
+                                            >
+                                              <button
+                                                onClick={() =>
+                                                  regionData.no_water > 0 &&
+                                                  setClickedComparisonCell({
+                                                    category: "no_water",
+                                                    region: regionData.region,
+                                                    label: `Villages No Water - ${regionData.region}`,
+                                                    isLpcd: true,
+                                                  })
+                                                }
+                                                className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${regionData.no_water > 0 ? "bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-400 hover:bg-rose-200 dark:hover:bg-rose-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                                data-testid={`btn-nowater-${regionData.region}`}
+                                              >
+                                                {regionData.no_water}
+                                              </button>
+                                            </div>
+                                          ),
+                                        )}
+                                        <div className="px-2 py-2.5 flex items-center justify-center bg-violet-50/50 dark:bg-violet-950/30">
+                                          <button
+                                            onClick={() =>
+                                              overallComparisonData.data.reduce((sum, r) => sum + r.no_water, 0) > 0 &&
+                                              setClickedComparisonCell({
+                                                category: "no_water",
+                                                region: "All Regions",
+                                                label: "Villages No Water - All Regions",
+                                                isLpcd: true,
+                                              })
+                                            }
+                                            className={`min-w-[40px] px-2 py-1 rounded-md text-sm font-bold transition-all ${overallComparisonData.data.reduce((sum, r) => sum + r.no_water, 0) > 0 ? "bg-rose-200 dark:bg-rose-800 text-rose-800 dark:text-rose-200 hover:bg-rose-300 dark:hover:bg-rose-700 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                          >
+                                            {overallComparisonData.data.reduce(
+                                              (sum, r) => sum + r.no_water,
+                                              0,
+                                            )}
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      {/* 7-Day Consistent Section Header */}
+                                      <div className="bg-violet-100 dark:bg-violet-900/50 px-4 py-1.5 border-b-2 border-violet-200 dark:border-violet-800">
+                                        <span className="!text-[12px] font-bold text-violet-700 dark:text-violet-300 uppercase tracking-wider">
+                                          7-Day Consistent
+                                        </span>
+                                      </div>
+
+
+
+                                      {/* Consistent >55 LPCD Row */}
+                                      <div
+                                        className="grid border-b border-violet-100 dark:border-violet-900 hover:bg-violet-50/50 dark:hover:bg-violet-950/30 transition-colors"
+                                        style={{
+                                          gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
+                                        }}
+                                      >
+                                        <div className="px-3 py-2.5 text-[14px] font-medium text-gray-600 dark:text-gray-400 border-r-2 border-violet-200 dark:border-violet-800 flex items-center pl-6">
+                                          <span className="w-1.5 h-1.5 rounded-full bg-green-400 mr-2"></span>
+                                          &gt;55 LPCD
+                                        </div>
+                                        {overallComparisonData.data.map(
+                                          (regionData, idx) => (
+                                            <div
+                                              key={`cons-above55-${regionData.region}`}
+                                              className="px-2 py-2.5 flex items-center justify-center border-r border-violet-100 dark:border-violet-900"
+                                            >
+                                              <button
+                                                onClick={() =>
+                                                  regionData.consistent_above_55 >
+                                                  0 &&
+                                                  setClickedComparisonCell({
+                                                    category: "consistent_above_55",
+                                                    region: regionData.region,
+                                                    label: `Consistent >55 LPCD (7 days) - ${regionData.region}`,
+                                                    isLpcd: true,
+                                                  })
+                                                }
+                                                className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${regionData.consistent_above_55 > 0 ? "bg-green-100 dark:bg-green-900/40 text-dark-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                                data-testid={`btn-cons-above55-${regionData.region}`}
+                                              >
+                                                {regionData.consistent_above_55}
+                                              </button>
+                                            </div>
+                                          ),
+                                        )}
+                                        <div className="px-2 py-2.5 flex items-center justify-center bg-violet-50/50 dark:bg-violet-950/30">
+                                          <button
+                                            onClick={() =>
+                                              overallComparisonData.data.reduce((sum, r) => sum + r.consistent_above_55, 0) > 0 &&
+                                              setClickedComparisonCell({
+                                                category: "consistent_above_55",
+                                                region: "All Regions",
+                                                label: "Consistent >55 LPCD (7 days) - All Regions",
+                                                isLpcd: true,
+                                              })
+                                            }
+                                            className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${overallComparisonData.data.reduce((sum, r) => sum + r.consistent_above_55, 0) > 0 ? "bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200 hover:bg-green-300 dark:hover:bg-green-700 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                          >
+                                            {overallComparisonData.data.reduce(
+                                              (sum, r) => sum + r.consistent_above_55,
+                                              0,
+                                            )}
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      {/* Consistent <55 LPCD Row */}
+                                      <div
+                                        className="grid border-b-2 border-violet-200 dark:border-violet-800 hover:bg-violet-50/50 dark:hover:bg-violet-950/30 transition-colors"
+                                        style={{
+                                          gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
+                                        }}
+                                      >
+                                        <div className="px-3 py-2.5 text-[14px] font-medium text-gray-600 dark:text-gray-400 border-r-2 border-violet-200 dark:border-violet-800 flex items-center pl-6">
+                                          <span className="w-1.5 h-1.5 rounded-full bg-red-400 mr-2"></span>
+                                          &lt;55 LPCD
+                                        </div>
+                                        {overallComparisonData.data.map(
+                                          (regionData, idx) => (
+                                            <div
+                                              key={`cons-below55-${regionData.region}`}
+                                              className="px-2 py-2.5 flex items-center justify-center border-r border-violet-100 dark:border-violet-900"
+                                            >
+                                              <button
+                                                onClick={() =>
+                                                  regionData.consistent_below_55 >
+                                                  0 &&
+                                                  setClickedComparisonCell({
+                                                    category: "consistent_below_55",
+                                                    region: regionData.region,
+                                                    label: `Consistent <55 LPCD (7 days) - ${regionData.region}`,
+                                                    isLpcd: true,
+                                                  })
+                                                }
+                                                className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${regionData.consistent_below_55 > 0 ? "bg-red-100 dark:bg-red-900/40 text-dark-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                                data-testid={`btn-cons-below55-${regionData.region}`}
+                                              >
+                                                {regionData.consistent_below_55}
+                                              </button>
+                                            </div>
+                                          ),
+                                        )}
+                                        <div className="px-2 py-2.5 flex items-center justify-center bg-violet-50/50 dark:bg-violet-950/30">
+                                          <button
+                                            onClick={() =>
+                                              overallComparisonData.data.reduce((sum, r) => sum + r.consistent_below_55, 0) > 0 &&
+                                              setClickedComparisonCell({
+                                                category: "consistent_below_55",
+                                                region: "All Regions",
+                                                label: "Consistent <55 LPCD (7 days) - All Regions",
+                                                isLpcd: true,
+                                              })
+                                            }
+                                            className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${overallComparisonData.data.reduce((sum, r) => sum + r.consistent_below_55, 0) > 0 ? "bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200 hover:bg-red-300 dark:hover:bg-red-700 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                          >
+                                            {overallComparisonData.data.reduce(
+                                              (sum, r) => sum + r.consistent_below_55,
+                                              0,
+                                            )}
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      {/* Consistent No Water Row */}
+                                      <div
+                                        className="grid border-b border-violet-100 dark:border-violet-900 hover:bg-violet-50/50 dark:hover:bg-violet-950/30 transition-colors"
+                                        style={{
+                                          gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
+                                        }}
+                                      >
+                                        <div className="px-3 py-2.5 text-[14px] font-medium text-gray-600 dark:text-gray-400 border-r-2 border-violet-200 dark:border-violet-800 flex items-center pl-6">
+                                          <span className="w-1.5 h-1.5 rounded-full bg-rose-400 mr-2"></span>
+                                          No Water
+                                        </div>
+                                        {overallComparisonData.data.map(
+                                          (regionData, idx) => (
+                                            <div
+                                              key={`consistent-nowater-${regionData.region}`}
+                                              className="px-2 py-2.5 flex items-center justify-center border-r border-violet-100 dark:border-violet-900"
+                                            >
+                                              <button
+                                                onClick={() =>
+                                                  regionData.consistent_no_water > 0 &&
+                                                  setClickedComparisonCell({
+                                                    category: "consistent_no_water",
+                                                    region: regionData.region,
+                                                    label: `Consistent No Water (7 Days) - ${regionData.region}`,
+                                                    isLpcd: true,
+                                                  })
+                                                }
+                                                className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${regionData.consistent_no_water > 0 ? "bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/40 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                                data-testid={`btn-consistent-nowater-${regionData.region}`}
+                                              >
+                                                {regionData.consistent_no_water}
+                                              </button>
+                                            </div>
+                                          ),
+                                        )}
+                                        <div className="px-2 py-2.5 flex items-center justify-center bg-violet-50/50 dark:bg-violet-950/30">
+                                          <button
+                                            onClick={() =>
+                                              overallComparisonData.data.reduce((sum, r) => sum + r.consistent_no_water, 0) > 0 &&
+                                              setClickedComparisonCell({
+                                                category: "consistent_no_water",
+                                                region: "All Regions",
+                                                label: "Consistent No Water (7 Days) - All Regions",
+                                                isLpcd: true,
+                                              })
+                                            }
+                                            className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${overallComparisonData.data.reduce((sum, r) => sum + r.consistent_no_water, 0) > 0 ? "bg-rose-100 dark:bg-rose-800 text-rose-700 dark:text-rose-200 hover:bg-rose-200 dark:hover:bg-rose-700 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                          >
+                                            {overallComparisonData.data.reduce(
+                                              (sum, r) =>
+                                                sum + r.consistent_no_water,
+                                              0,
+                                            )}
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      {/* 7-Day Consistent TOTAL Row */}
+                                      <div
+                                        className="grid bg-gradient-to-r from-violet-100 to-purple-100 dark:from-violet-900/50 dark:to-purple-900/50"
+                                        style={{
+                                          gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
+                                        }}
+                                      >
+                                        <div className="px-3 py-2.5 text-[12px] font-bold text-violet-800 dark:text-violet-200 border-r-2 border-violet-200 dark:border-violet-800 flex items-center">
+                                          <span className="w-2 h-2 rounded-full bg-violet-500 mr-2"></span>
+                                          7-Day Consistent Total
+                                        </div>
+                                        {overallComparisonData.data.map(
+                                          (regionData, idx) => {
+                                            const consistentTotal =
+                                              regionData.consistent_above_55 +
+                                              regionData.consistent_below_55 +
+                                              regionData.consistent_no_water;
+                                            return (
+                                              <div
+                                                key={`lpcd-consistent-total-${regionData.region}`}
+                                                className="px-2 py-2.5 flex items-center justify-center border-r border-violet-200 dark:border-violet-800"
+                                              >
+                                                <span className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-violet-200 dark:bg-violet-800 text-dark-800 dark:text-violet-200">
+                                                  {consistentTotal}
+                                                </span>
+                                              </div>
+                                            );
+                                          },
+                                        )}
+                                        <div className="px-2 py-2.5 flex items-center justify-center bg-violet-200/50 dark:bg-violet-800/50">
+                                          <span className="min-w-[40px] px-2 py-1 rounded-md text-sm font-bold bg-violet-300 dark:bg-violet-700 text-dark-900 dark:text-violet-100">
+                                            {overallComparisonData.data.reduce(
+                                              (sum, r) =>
+                                                sum +
+                                                r.consistent_above_55 +
+                                                r.consistent_below_55 +
+                                                r.consistent_no_water,
+                                              0,
+                                            )}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+                            </>
+                          )}
+
+                          {/* Scheme LPCD Statistics Section */}
+                          {mainTab === "lpcd" && lpcdSubTab === "scheme" && (
+                            isLoadingSchemeRegionComparison ? (
+                              <div className="p-4">
+                                <Skeleton className="h-48 w-full" />
+                              </div>
+                            ) : schemeLpcdRegionComparison?.data?.length > 0 ? (
+                              <>
+                                <div className="rounded-xl border-2 border-purple-200 dark:border-purple-800 overflow-hidden shadow-sm">
+                                  <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2.5 flex items-center gap-2">
+                                    <Building2 className="h-4 w-4 text-white" />
+                                    <span className="text-white font-semibold text-sm tracking-wide">
+                                      SCHEME LPCD STATISTICS
+                                    </span>
+                                  </div>
+
+                                  {/* Header Row */}
+                                  <div
+                                    className="grid border-b-2 border-purple-200 dark:border-purple-800"
+                                    style={{
+                                      gridTemplateColumns: `180px repeat(${(schemeLpcdRegionComparison?.data?.length || 0) + 1}, 1fr)`,
+                                    }}
+                                  >
+                                    <div className="bg-purple-50 dark:bg-purple-950 px-3 py-3 font-semibold text-[14px] text-purple-800 dark:text-purple-200 border-r-2 border-purple-200 dark:border-purple-800 flex flex-col justify-center">
+                                      <div>Weekly Avg</div>
+                                      <div className="text-[10px] font-normal text-purple-600 dark:text-purple-300 mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]" title={weeklyLpcdStats?.weekLabel}>
+                                        {weeklyLpcdStats?.weekLabel || "Loading..."}
+                                      </div>
+                                    </div>
+                                    {schemeLpcdRegionComparison?.data?.map((regionData) => (
+                                      <div
+                                        key={`scheme-lpcd-header-${regionData.region}`}
+                                        className="bg-purple-50 dark:bg-purple-950 px-2 py-3 text-center font-bold text-[14px] text-purple-800 dark:text-purple-200 border-r border-purple-200 dark:border-purple-800"
+                                      >
+                                        {regionData.region}
+                                      </div>
+                                    ))}
+                                    <div className="bg-purple-100 dark:bg-purple-900 px-2 py-3 text-center font-bold text-[14px] text-purple-900 dark:text-purple-100">
+                                      TOTAL
+                                    </div>
+                                  </div>
+
+                                  {/* Current Day Metrics */}
+                                  <div className="bg-white dark:bg-gray-900">
+
+                                    {/* Weekly Average Rows */}
+                                    {[
+                                      { key: 'above_55', label: '>55 LPCD', color: 'bg-emerald-400' },
+                                      { key: 'below_55', label: '<55 LPCD', color: 'bg-orange-400' },
+                                      { key: 'no_water', label: 'No Water', color: 'bg-gray-400' },
+                                    ].map((cat) => {
+                                      const schemeStats = weeklyLpcdStats?.schemeStats || [];
+                                      const weekLabel = weeklyLpcdStats?.weekLabel || "Loading...";
+
+                                      return (
+                                        <div
+                                          key={`weekly-scheme-overall-${cat.key}`}
+                                          className="grid border-b border-indigo-100 dark:border-indigo-900 bg-indigo-50/30 dark:bg-indigo-950/20"
+                                          style={{
+                                            gridTemplateColumns: `180px repeat(${schemeLpcdRegionComparison.data.length + 1}, 1fr)`,
+                                          }}
+                                        >
+                                          <div className="px-3 py-2.5 text-[14px] font-medium text-indigo-700 dark:text-indigo-300 border-r-2 border-indigo-200 dark:border-indigo-800 flex flex-col justify-center bg-indigo-50 dark:bg-indigo-950/40 sticky left-0 z-10">
+                                            <div className="flex items-center">
+                                              <span className={`w-1.5 h-1.5 rounded-full ${cat.color} mr-1.5`}></span>
+                                              <span className="text-[11px] font-extrabold">{cat.label}</span>
+                                            </div>
+                                          </div>
+                                          {schemeLpcdRegionComparison.data.map((regionData) => {
+                                            const regionStat = schemeStats.find(s => s.region === regionData.region);
+                                            const value = regionStat ? (regionStat as any)[cat.key] : 0;
+                                            return (
+                                              <div
+                                                key={`weekly-scheme-val-${cat.key}-${regionData.region}`}
+                                                className="px-2 py-2.5 flex items-center justify-center border-r border-indigo-100 dark:border-indigo-900"
+                                              >
+                                                <button
+                                                  onClick={() =>
+                                                    value > 0 &&
+                                                    setClickedSchemeComparisonCell({
+                                                      category: `weekly_${cat.key}`,
+                                                      region: regionData.region,
+                                                      label: `Weekly Avg (${cat.label}) - ${regionData.region}`,
+                                                      dates: weeklyLpcdStats?.dates
+                                                    })
+                                                  }
+                                                  className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${value > 0
+                                                    ? "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-900/60 cursor-pointer shadow-sm"
+                                                    : "text-gray-400 dark:text-gray-600"
+                                                    }`}
+                                                >
+                                                  {value}
+                                                </button>
+                                              </div>
+                                            );
+                                          })}
+                                          <div className="px-2 py-2.5 flex items-center justify-center bg-indigo-50/50 dark:bg-indigo-950/30">
+                                            <button
+                                              onClick={() =>
+                                                schemeStats.reduce((sum, s) => sum + ((s as any)[cat.key] || 0), 0) > 0 &&
+                                                setClickedSchemeComparisonCell({
+                                                  category: `weekly_${cat.key}`,
+                                                  region: "All Regions",
+                                                  label: `Weekly Avg (${cat.label}) - All Regions`,
+                                                  dates: weeklyLpcdStats?.dates
+                                                })
+                                              }
+                                              className={`font-bold text-[16px] px-2 py-1 rounded-md transition-all ${schemeStats.reduce((sum, s) => sum + ((s as any)[cat.key] || 0), 0) > 0
+                                                ? "bg-indigo-300 dark:bg-indigo-700 text-indigo-900 dark:text-indigo-100 hover:bg-indigo-400 dark:hover:bg-indigo-600 cursor-pointer"
+                                                : "text-indigo-800 dark:text-indigo-200"
+                                                }`}
+                                            >
+                                              {schemeStats.reduce((sum, s) => sum + ((s as any)[cat.key] || 0), 0)}
+                                            </button>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+
+                                    {/* Total Schemes Row */}
+                                    <div
+                                      className="grid border-b border-purple-100 dark:border-purple-900 hover:bg-purple-50/50 dark:hover:bg-purple-950/30 transition-colors"
+                                      style={{
+                                        gridTemplateColumns: `180px repeat(${schemeLpcdRegionComparison.data.length + 1}, 1fr)`,
+                                      }}
+                                    >
+                                      <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-purple-200 dark:border-purple-800 flex items-center">
+                                        <span className="w-2 h-2 rounded-full bg-purple-500 mr-2"></span>
+                                        Total Schemes
+                                      </div>
+                                      {schemeLpcdRegionComparison.data.map((regionData) => (
+                                        <div
+                                          key={`scheme-total-${regionData.region}`}
+                                          className="px-2 py-2.5 flex items-center justify-center border-r border-purple-100 dark:border-purple-900"
+                                        >
+                                          <button
+                                            onClick={() =>
+                                              setClickedSchemeComparisonCell({
+                                                category: "total_schemes",
+                                                region: regionData.region,
+                                                label: `Total Schemes - ${regionData.region}`,
+                                              })
+                                            }
+                                            className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/60 transition-colors"
+                                          >
+                                            {regionData.total_schemes}
+                                          </button>
+                                        </div>
+                                      ))}
+                                      <div className="px-2 py-2.5 flex items-center justify-center bg-purple-50/50 dark:bg-purple-950/30">
+                                        <button
+                                          onClick={() =>
+                                            setClickedSchemeComparisonCell({
+                                              category: "total_schemes",
+                                              region: "All Regions",
+                                              label: "Total Schemes - All Regions",
+                                            })
+                                          }
+                                          className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-200 hover:bg-purple-300 dark:hover:bg-purple-700 transition-colors"
+                                        >
+                                          {schemeLpcdRegionComparison.data.reduce((sum, r) => sum + r.total_schemes, 0)}
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                  </div>
+                                </div>
+
+                                {showDailyData && (
+                                  <>
+                                    <div className="h-8"></div>
+
+                                    <div className="rounded-xl border-2 border-purple-200 dark:border-purple-800 overflow-hidden shadow-sm">
+                                      <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2.5 flex items-center gap-2">
+                                        <Building2 className="h-4 w-4 text-white" />
+                                        <span className="text-white font-semibold text-sm tracking-wide">
+                                          SCHEME LPCD DETAILED STATISTICS
+                                        </span>
+                                      </div>
+
+                                      {/* Header Row */}
+                                      <div
+                                        className="grid border-b-2 border-purple-200 dark:border-purple-800"
+                                        style={{
+                                          gridTemplateColumns: `180px repeat(${schemeLpcdRegionComparison.data.length + 1}, 1fr)`,
+                                        }}
+                                      >
+                                        <div className="bg-purple-50 dark:bg-purple-950 px-3 py-3 font-semibold text-[14px] text-purple-800 dark:text-purple-200 border-r-2 border-purple-200 dark:border-purple-800 flex items-center">
+                                          Weekly Avg
+                                        </div>
+                                        {schemeLpcdRegionComparison.data.map((regionData) => (
+                                          <div
+                                            key={`scheme-lpcd-header-detailed-${regionData.region}`}
+                                            className="bg-purple-50 dark:bg-purple-950 px-2 py-3 text-center font-bold text-[14px] text-purple-800 dark:text-purple-200 border-r border-purple-200 dark:border-purple-800"
+                                          >
+                                            {regionData.region}
+                                          </div>
+                                        ))}
+                                        <div className="bg-purple-100 dark:bg-purple-900 px-2 py-3 text-center font-bold text-[14px] text-purple-900 dark:text-purple-100">
+                                          TOTAL
+                                        </div>
+                                      </div>
+
+                                      <div className="bg-white dark:bg-gray-900">
+                                        {/* >55 LPCD (Good) Row */}
+                                        <div
+                                          className="grid border-b border-purple-100 dark:border-purple-900 hover:bg-purple-50/50 dark:hover:bg-purple-950/30 transition-colors"
+                                          style={{
+                                            gridTemplateColumns: `180px repeat(${schemeLpcdRegionComparison.data.length + 1}, 1fr)`,
+                                          }}
+                                        >
+                                          <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-purple-200 dark:border-purple-800 flex items-center">
+                                            <span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+                                            &gt;55 LPCD (Good)
+                                          </div>
+                                          {schemeLpcdRegionComparison.data.map((regionData) => (
+                                            <div
+                                              key={`scheme-above55-${regionData.region}`}
+                                              className="px-2 py-2.5 flex items-center justify-center border-r border-purple-100 dark:border-purple-900"
+                                            >
+                                              <button
+                                                onClick={() =>
+                                                  regionData.above_55 > 0 &&
+                                                  setClickedSchemeComparisonCell({
+                                                    category: "above_55",
+                                                    region: regionData.region,
+                                                    label: `Schemes >55 LPCD - ${regionData.region}`,
+                                                  })
+                                                }
+                                                className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${regionData.above_55 > 0 ? "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                                data-testid={`btn-scheme-above55-${regionData.region}`}
+                                              >
+                                                {regionData.above_55}
+                                              </button>
+                                            </div>
+                                          ))}
+                                          <div className="px-2 py-2.5 flex items-center justify-center bg-purple-50/50 dark:bg-purple-950/30">
+                                            <button
+                                              onClick={() =>
+                                                setClickedSchemeComparisonCell({
+                                                  category: "above_55",
+                                                  region: "All Regions",
+                                                  label: "Schemes >55 LPCD - All Regions",
+                                                })
+                                              }
+                                              className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200 hover:bg-green-300 dark:hover:bg-green-700 transition-colors"
+                                            >
+                                              {schemeLpcdRegionComparison.data.reduce((sum, r) => sum + r.above_55, 0)}
+                                            </button>
+                                          </div>
+                                        </div>
+
+                                        {/* <55 LPCD Row */}
+                                        <div
+                                          className="grid border-b border-purple-100 dark:border-purple-900 hover:bg-purple-50/50 dark:hover:bg-purple-950/30 transition-colors"
+                                          style={{
+                                            gridTemplateColumns: `180px repeat(${schemeLpcdRegionComparison.data.length + 1}, 1fr)`,
+                                          }}
+                                        >
+                                          <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-purple-200 dark:border-purple-800 flex items-center">
+                                            <span className="w-2 h-2 rounded-full bg-red-500 mr-2"></span>
+                                            &lt;55 LPCD
+                                          </div>
+                                          {schemeLpcdRegionComparison.data.map((regionData) => (
+                                            <div
+                                              key={`scheme-below55-${regionData.region}`}
+                                              className="px-2 py-2.5 flex items-center justify-center border-r border-purple-100 dark:border-purple-900"
+                                            >
+                                              <button
+                                                onClick={() =>
+                                                  regionData.below_55 > 0 &&
+                                                  setClickedSchemeComparisonCell({
+                                                    category: "below_55",
+                                                    region: regionData.region,
+                                                    label: `Schemes <55 LPCD - ${regionData.region}`,
+                                                  })
+                                                }
+                                                className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${regionData.below_55 > 0 ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                                data-testid={`btn-scheme-below55-${regionData.region}`}
+                                              >
+                                                {regionData.below_55}
+                                              </button>
+                                            </div>
+                                          ))}
+                                          <div className="px-2 py-2.5 flex items-center justify-center bg-purple-50/50 dark:bg-purple-950/30">
+                                            <button
+                                              onClick={() =>
+                                                setClickedSchemeComparisonCell({
+                                                  category: "below_55",
+                                                  region: "All Regions",
+                                                  label: "Schemes <55 LPCD - All Regions",
+                                                })
+                                              }
+                                              className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200 hover:bg-red-300 dark:hover:bg-red-700 transition-colors"
+                                            >
+                                              {schemeLpcdRegionComparison.data.reduce((sum, r) => sum + r.below_55, 0)}
+                                            </button>
+                                          </div>
+                                        </div>
+
+                                        {/* With Water Row */}
+                                        <div
+                                          className="grid border-b border-purple-100 dark:border-purple-900 hover:bg-purple-50/50 dark:hover:bg-purple-950/30 transition-colors"
+                                          style={{
+                                            gridTemplateColumns: `180px repeat(${schemeLpcdRegionComparison.data.length + 1}, 1fr)`,
+                                          }}
+                                        >
+                                          <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-purple-200 dark:border-purple-800 flex items-center">
+                                            <span className="w-2 h-2 rounded-full bg-blue-500 mr-2"></span>
+                                            With Water
+                                          </div>
+                                          {schemeLpcdRegionComparison.data.map((regionData) => (
+                                            <div
+                                              key={`scheme-withwater-${regionData.region}`}
+                                              className="px-2 py-2.5 flex items-center justify-center border-r border-purple-100 dark:border-purple-900"
+                                            >
+                                              <button
+                                                onClick={() =>
+                                                  regionData.with_water > 0 &&
+                                                  setClickedSchemeComparisonCell({
+                                                    category: "with_water",
+                                                    region: regionData.region,
+                                                    label: `Schemes with Water - ${regionData.region}`,
+                                                  })
+                                                }
+                                                className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${regionData.with_water > 0 ? "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                                data-testid={`btn-scheme-withwater-${regionData.region}`}
+                                              >
+                                                {regionData.with_water}
+                                              </button>
+                                            </div>
+                                          ))}
+                                          <div className="px-2 py-2.5 flex items-center justify-center bg-purple-50/50 dark:bg-purple-950/30">
+                                            <button
+                                              onClick={() =>
+                                                setClickedSchemeComparisonCell({
+                                                  category: "with_water",
+                                                  region: "All Regions",
+                                                  label: "Schemes with Water - All Regions",
+                                                })
+                                              }
+                                              className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200 hover:bg-blue-300 dark:hover:bg-blue-700 transition-colors"
+                                            >
+                                              {schemeLpcdRegionComparison.data.reduce((sum, r) => sum + r.with_water, 0)}
+                                            </button>
+                                          </div>
+                                        </div>
+
+                                        {/* No Water Row */}
+                                        <div
+                                          className="grid hover:bg-purple-50/50 dark:hover:bg-purple-950/30 transition-colors"
+                                          style={{
+                                            gridTemplateColumns: `180px repeat(${schemeLpcdRegionComparison.data.length + 1}, 1fr)`,
+                                          }}
+                                        >
+                                          <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-purple-200 dark:border-purple-800 flex items-center">
+                                            <span className="w-2 h-2 rounded-full bg-gray-500 mr-2"></span>
+                                            No Water
+                                          </div>
+                                          {schemeLpcdRegionComparison.data.map((regionData) => (
+                                            <div
+                                              key={`scheme-nowater-${regionData.region}`}
+                                              className="px-2 py-2.5 flex items-center justify-center border-r border-purple-100 dark:border-purple-900"
+                                            >
+                                              <button
+                                                onClick={() =>
+                                                  regionData.no_water > 0 &&
+                                                  setClickedSchemeComparisonCell({
+                                                    category: "no_water",
+                                                    region: regionData.region,
+                                                    label: `Schemes without Water - ${regionData.region}`,
+                                                  })
+                                                }
+                                                className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${regionData.no_water > 0 ? "bg-gray-100 dark:bg-gray-900/40 text-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                                data-testid={`btn-scheme-nowater-${regionData.region}`}
+                                              >
+                                                {regionData.no_water}
+                                              </button>
+                                            </div>
+                                          ))}
+                                          <div className="px-2 py-2.5 flex items-center justify-center bg-purple-50/50 dark:bg-purple-950/30">
+                                            <button
+                                              onClick={() =>
+                                                setClickedSchemeComparisonCell({
+                                                  category: "no_water",
+                                                  region: "All Regions",
+                                                  label: "Schemes without Water - All Regions",
+                                                })
+                                              }
+                                              className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
+                                            >
+                                              {schemeLpcdRegionComparison.data.reduce((sum, r) => sum + r.no_water, 0)}
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </>
+                                )}
+                              </>
+                            ) : (
+                              <div className="text-center py-12">
+                                <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                                <p className="text-gray-500">
+                                  No scheme LPCD comparison data available
+                                </p>
+                              </div>
+                            )
+                          )}
+
+                          {/* Scheme LPCD Comparison Details Card */}
+                          {clickedSchemeComparisonCell && mainTab === "lpcd" && lpcdSubTab === "scheme" && (
+                            <Card className="mt-4 border-0 shadow-lg rounded-xl overflow-hidden">
+                              <CardHeader className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950 dark:to-indigo-950 border-b border-purple-200 dark:border-purple-800 py-2.5">
+                                <div className="flex items-center justify-between">
+                                  <CardTitle className="flex items-center gap-2">
+                                    <div className="p-1.5 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg shadow-sm">
+                                      <Building2 className="h-4 w-4 text-white" />
+                                    </div>
+                                    <div>
+                                      <div className="!text-[12px] font-bold text-gray-900 dark:text-white">
+                                        {clickedSchemeComparisonCell.label}
+                                      </div>
+                                      <div className="flex items-center gap-1.5 mt-0.5">
+                                        <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-400 !text-[12px] px-1.5 py-0">
+                                          {clickedSchemeComparisonCell.region}
+                                        </Badge>
+                                        <Badge
+                                          variant="secondary"
+                                          className="!text-[12px] px-1.5 py-0"
+                                        >
+                                          {schemeLpcdComparisonSchemes?.count || 0} Schemes
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                  </CardTitle>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        const params = new URLSearchParams({
+                                          region: clickedSchemeComparisonCell.region,
+                                          dates: weeklyLpcdStats?.dates?.join(',') || ''
+                                        });
+                                        if (schemeFilter !== 'all') {
+                                          params.append("filterType", schemeFilter);
+                                        }
+                                        // The route is /api/chlorine/scheme-lpcd/region-comparison-schemes-export/:category/:day
+                                        // "day" is not relevant for "weekly_" categories, so we pass a placeholder "0"
+                                        window.open(
+                                          `/api/chlorine/scheme-lpcd/region-comparison-schemes-export/weekly_${clickedSchemeComparisonCell.category}/0?${params.toString()}`,
+                                          "_blank",
+                                        );
+                                      }}
+                                      className="h-7 px-2 text-[10px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200"
+                                    >
+                                      <Download className="h-3 w-3 mr-1" />
+                                      Excel
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() =>
+                                        setClickedSchemeComparisonCell(null)
+                                      }
+                                      className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                                    >
+                                      <X className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </CardHeader>
+                              <CardContent className="p-0">
+                                {isLoadingSchemeComparisonSchemes ? (
+                                  <div className="space-y-2 p-5">
+                                    <Skeleton className="h-10 w-full" />
+                                    <Skeleton className="h-10 w-full" />
+                                    <Skeleton className="h-10 w-full" />
+                                  </div>
+                                ) : schemeLpcdComparisonSchemes &&
+                                  schemeLpcdComparisonSchemes.data &&
+                                  schemeLpcdComparisonSchemes.data.length > 0 ? (
+                                  <div className="overflow-x-auto max-h-[400px] border border-purple-200/60 dark:border-purple-800/60 rounded-xl m-3 shadow-sm">
+                                    <Table className="table-fixed w-full min-w-[1200px]">
+                                      <TableHeader className="sticky top-0 z-10">
+                                        <TableRow className="bg-purple-800 dark:bg-purple-900">
+                                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-3 !py-3.5 w-[100px] border-r border-white/10">Circle</TableHead>
+                                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-3 !py-3.5 w-[100px] border-r border-white/10">Division</TableHead>
+                                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-3 !py-3.5 w-[120px] border-r border-white/10">Scheme ID</TableHead>
+                                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-3 !py-3.5 w-[200px] border-r border-white/10">Scheme Name</TableHead>
+                                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-3 !py-3.5 w-[80px] border-r border-white/10 text-right">Pop.</TableHead>
+                                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-3 !py-3.5 w-[80px] border-r border-white/10 text-center">Villages</TableHead>
+                                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-3 !py-3.5 w-[80px] border-r border-white/10 text-center">&lt;55</TableHead>
+                                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-3 !py-3.5 w-[80px] border-r border-white/10 text-center">&gt;55</TableHead>
+                                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-3 !py-3.5 w-[80px] border-r border-white/10 text-center">No Supply</TableHead>
+                                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-3 !py-3.5 w-[80px] border-r border-white/10 text-center">LPCD</TableHead>
+                                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-3 !py-3.5 w-[100px] text-center">Date</TableHead>
+                                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-3 !py-3.5 w-[80px] text-center">Dashboard</TableHead>
+                                        </TableRow>
+                                      </TableHeader>
+                                      <TableBody>
+                                        {schemeLpcdComparisonSchemes.data.map((item, idx) => (
+                                          <TableRow
+                                            key={`${item.scheme_id}-${idx}`}
+                                            className={`transition-all duration-200 hover:bg-purple-50/70 dark:hover:bg-purple-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-purple-50/40 dark:bg-purple-950/20"}`}
+                                          >
+                                            <TableCell className="!px-3 !py-2.5 !text-[12px] truncate border-r border-purple-100/80 dark:border-purple-900/60">{item.circle}</TableCell>
+                                            <TableCell className="!px-3 !py-2.5 !text-[12px] truncate border-r border-purple-100/80 dark:border-purple-900/60">{item.division}</TableCell>
+                                            <TableCell className="!px-3 !py-2.5 !text-[12px] font-mono font-semibold text-purple-700 dark:text-purple-400 truncate border-r border-purple-100/80 dark:border-purple-900/60">{item.scheme_id}</TableCell>
+                                            <TableCell className="!px-3 !py-2.5 !text-[12px] font-semibold text-slate-800 dark:text-slate-200 truncate border-r border-purple-100/80 dark:border-purple-900/60" title={item.scheme_name}>{item.scheme_name}</TableCell>
+                                            <TableCell className="!px-3 !py-2.5 !text-[12px] text-right border-r border-purple-100/80 dark:border-purple-900/60">{item.total_population?.toLocaleString()}</TableCell>
+                                            <TableCell className="!px-3 !py-2.5 !text-[12px] text-center border-r border-purple-100/80 dark:border-purple-900/60">{item.total_villages}</TableCell>
+                                            <TableCell className="!px-3 !py-2.5 !text-[12px] text-center font-semibold text-red-600 border-r border-purple-100/80 dark:border-purple-900/60">{item.villages_below_55}</TableCell>
+                                            <TableCell className="!px-3 !py-2.5 !text-[12px] text-center font-semibold text-green-600 border-r border-purple-100/80 dark:border-purple-900/60">{item.villages_above_55}</TableCell>
+                                            <TableCell className="!px-3 !py-2.5 !text-[12px] text-center font-semibold text-gray-500 border-r border-purple-100/80 dark:border-purple-900/60">{item.villages_zero_supply}</TableCell>
+                                            <TableCell className="!px-3 !py-2.5 !text-[12px] text-center flex items-center justify-center border-r border-purple-100/80 dark:border-purple-900/60">
+                                              <Badge className={`text-[10px] ${!item.lpcd_value ? "bg-gray-100 text-gray-600" :
+                                                item.lpcd_value > 55 ? "bg-green-100 text-green-700" :
+                                                  "bg-red-100 text-red-700"
+                                                }`}>
+                                                {item.lpcd_value ? Number(item.lpcd_value).toFixed(2) : "N/A"}
+                                              </Badge>
+                                            </TableCell>
+                                            <TableCell className="!px-3 !py-2.5 !text-[12px] text-center whitespace-nowrap">
+                                              {formatDate(item.data_date as string)}
+                                            </TableCell>
+                                            <TableCell className="!px-3 !py-2.5 !text-[12px] text-center">
+                                              {item.dashboard_url ? (
+                                                <a
+                                                  href={item.dashboard_url}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-700 dark:bg-purple-900/50 dark:hover:bg-purple-900 dark:text-purple-300 transition-colors"
+                                                  title="Open Dashboard"
+                                                >
+                                                  <ExternalLink className="h-3 w-3" />
+                                                </a>
+                                              ) : (
+                                                <span className="text-gray-300 dark:text-gray-700">-</span>
+                                              )}
+                                            </TableCell>
+                                          </TableRow>
+                                        ))}
+                                      </TableBody>
+                                    </Table>
+                                  </div>
+                                ) : (
+                                  <div className="text-center py-12">
+                                    <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                                    <p className="text-gray-500">
+                                      No detailed scheme data found
+                                    </p>
+                                  </div>
+                                )}
+                              </CardContent>
+                            </Card>
+                          )}
+
+                          {/* Chlorine Statistics Section */}
+                          {mainTab === "chlorine" && (
+                            <div className="rounded-xl border-2 border-cyan-200 dark:border-cyan-800 overflow-hidden shadow-sm">
+                              <div className="bg-gradient-to-r from-blue-500 to-cyan-500 px-4 py-2.5 flex items-center gap-2">
+                                <Droplet className="h-4 w-4 text-white" />
+                                <span className="text-white font-semibold text-sm tracking-wide">
+                                  CHLORINE STATISTICS
+                                </span>
+                              </div>
+
+                              {/* Header Row */}
+                              <div
+                                className="grid border-b-2 border-cyan-200 dark:border-cyan-800"
+                                style={{
+                                  gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
+                                }}
+                              >
+                                <div className="bg-cyan-50 dark:bg-cyan-950 px-3 py-3 font-semibold text-[14px] text-cyan-800 dark:text-cyan-200 border-r-2 border-cyan-200 dark:border-cyan-800 flex items-center">
+                                  Metric
+                                </div>
+                                {overallComparisonData.data.map(
+                                  (regionData, idx) => (
+                                    <div
+                                      key={regionData.region}
+                                      className="bg-cyan-50 dark:bg-cyan-950 px-2 py-3 text-center font-bold text-[14px] text-cyan-800 dark:text-cyan-200 border-r border-cyan-200 dark:border-cyan-800"
+                                    >
+                                      {regionData.region}
+                                    </div>
+                                  ),
+                                )}
+                                <div className="bg-cyan-100 dark:bg-cyan-900 px-2 py-3 text-center font-bold text-[14px] text-cyan-900 dark:text-cyan-100">
+                                  TOTAL
+                                </div>
+                              </div>
+
+                              {/* Current Day Metrics */}
+                              <div className="bg-white dark:bg-gray-900">
+                                {/* Offline Row */}
+                                <div
+                                  className="grid border-b border-cyan-100 dark:border-cyan-900 hover:bg-cyan-50/50 dark:hover:bg-cyan-950/30 transition-colors"
+                                  style={{
+                                    gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
+                                  }}
+                                >
+                                  <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-cyan-200 dark:border-cyan-800 flex items-center">
+                                    <span className="w-2 h-2 rounded-full bg-gray-400 mr-2"></span>
+                                    Offline/No Data
+                                  </div>
+                                  {overallComparisonData.data.map(
+                                    (regionData, idx) => (
+                                      <div
+                                        key={`offline-${regionData.region}`}
+                                        className="px-2 py-2.5 flex items-center justify-center border-r border-cyan-100 dark:border-cyan-900"
+                                      >
+                                        <button
+                                          onClick={() =>
+                                            regionData.offline > 0 &&
+                                            setClickedComparisonCell({
+                                              category: "offline",
+                                              region: regionData.region,
+                                              label: `Offline ESRs - ${regionData.region}`,
+                                              isLpcd: false,
+                                            })
+                                          }
+                                          className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${regionData.offline > 0 ? "bg-red-100 dark:bg-red-900/40 text-dark-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                          data-testid={`btn-offline-${regionData.region}`}
+                                        >
+                                          {regionData.offline}
+                                        </button>
+                                      </div>
+                                    ),
+                                  )}
+                                  <div className="px-2 py-2.5 flex items-center justify-center bg-cyan-50/50 dark:bg-cyan-950/30">
+                                    <button
+                                      onClick={() =>
+                                        setClickedComparisonCell({
+                                          category: "offline",
+                                          region: "All Regions",
+                                          label: "Offline ESRs - All Regions",
+                                          isLpcd: false,
+                                        })
+                                      }
+                                      className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-gray-200 dark:bg-gray-700 text-dark-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                                    >
+                                      {overallComparisonData.data.reduce(
+                                        (sum, r) => sum + r.offline,
+                                        0,
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* <0.2 mg/l Row */}
+                                <div
+                                  className="grid border-b border-cyan-100 dark:border-cyan-900 hover:bg-cyan-50/50 dark:hover:bg-cyan-950/30 transition-colors"
+                                  style={{
+                                    gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
+                                  }}
+                                >
+                                  <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-cyan-200 dark:border-cyan-800 flex items-center">
+                                    <span className="w-2 h-2 rounded-full bg-red-500 mr-2"></span>
+                                    &lt;0.2 mg/l
+                                  </div>
+                                  {overallComparisonData.data.map(
+                                    (regionData, idx) => (
+                                      <div
+                                        key={`below-${regionData.region}`}
+                                        className="px-2 py-2.5 flex items-center justify-center border-r border-cyan-100 dark:border-cyan-900"
+                                      >
+                                        <button
+                                          onClick={() =>
+                                            regionData.below_0_2 > 0 &&
+                                            setClickedComparisonCell({
+                                              category: "below_0_2",
+                                              region: regionData.region,
+                                              label: `Chlorine <0.2 mg/l - ${regionData.region}`,
+                                              isLpcd: false,
+                                            })
+                                          }
+                                          className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${regionData.below_0_2 > 0 ? "bg-red-100 dark:bg-red-900/40 text-dark-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                          data-testid={`btn-below-${regionData.region}`}
+                                        >
+                                          {regionData.below_0_2}
+                                        </button>
+                                      </div>
+                                    ),
+                                  )}
+                                  <div className="px-2 py-2.5 flex items-center justify-center bg-cyan-50/50 dark:bg-cyan-950/30">
+                                    <button
+                                      onClick={() =>
+                                        setClickedComparisonCell({
+                                          category: "below_0_2",
+                                          region: "All Regions",
+                                          label: "Chlorine <0.2 mg/l - All Regions",
+                                          isLpcd: false,
+                                        })
+                                      }
+                                      className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-red-200 dark:bg-red-800 text-dark-800 dark:text-red-200 hover:bg-red-300 dark:hover:bg-red-700 transition-colors"
+                                    >
+                                      {overallComparisonData.data.reduce(
+                                        (sum, r) => sum + r.below_0_2,
+                                        0,
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* 0.2-0.5 mg/l (Optimal) Row */}
+                                <div
+                                  className="grid border-b border-cyan-100 dark:border-cyan-900 hover:bg-cyan-50/50 dark:hover:bg-cyan-950/30 transition-colors"
+                                  style={{
+                                    gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
+                                  }}
+                                >
+                                  <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-cyan-200 dark:border-cyan-800 flex items-center">
+                                    <span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+                                    0.2-0.5 mg/l (Optimal)
+                                  </div>
+                                  {overallComparisonData.data.map(
+                                    (regionData, idx) => (
+                                      <div
+                                        key={`optimal-${regionData.region}`}
+                                        className="px-2 py-2.5 flex items-center justify-center border-r border-cyan-100 dark:border-cyan-900"
+                                      >
+                                        <button
+                                          onClick={() =>
+                                            regionData.optimal_0_2_0_5 > 0 &&
+                                            setClickedComparisonCell({
+                                              category: "optimal_0_2_0_5",
+                                              region: regionData.region,
+                                              label: `Chlorine 0.2-0.5 mg/l - ${regionData.region}`,
+                                              isLpcd: false,
+                                            })
+                                          }
+                                          className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${regionData.optimal_0_2_0_5 > 0 ? "bg-green-100 dark:bg-green-900/40 text-dark-700 dark:text-dark-400 hover:bg-green-200 dark:hover:bg-green-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                          data-testid={`btn-optimal-${regionData.region}`}
+                                        >
+                                          {regionData.optimal_0_2_0_5}
+                                        </button>
+                                      </div>
+                                    ),
+                                  )}
+                                  <div className="px-2 py-2.5 flex items-center justify-center bg-cyan-50/50 dark:bg-cyan-950/30">
+                                    <button
+                                      onClick={() =>
+                                        setClickedComparisonCell({
+                                          category: "optimal_0_2_0_5",
+                                          region: "All Regions",
+                                          label: "Chlorine 0.2-0.5 mg/l - All Regions",
+                                          isLpcd: false,
+                                        })
+                                      }
+                                      className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-green-200 dark:bg-green-800 text-dark-800 dark:text-green-200 hover:bg-green-300 dark:hover:bg-green-700 transition-colors"
+                                    >
+                                      {overallComparisonData.data.reduce(
+                                        (sum, r) => sum + r.optimal_0_2_0_5,
+                                        0,
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* >0.5 mg/l Row */}
+                                <div
+                                  className="grid border-b border-cyan-100 dark:border-cyan-900 hover:bg-cyan-50/50 dark:hover:bg-cyan-950/30 transition-colors"
+                                  style={{
+                                    gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
+                                  }}
+                                >
+                                  <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-cyan-200 dark:border-cyan-800 flex items-center">
+                                    <span className="w-2 h-2 rounded-full bg-blue-500 mr-2"></span>
+                                    &gt;0.5 mg/l
+                                  </div>
+                                  {overallComparisonData.data.map(
+                                    (regionData, idx) => (
+                                      <div
+                                        key={`above-${regionData.region}`}
+                                        className="px-2 py-2.5 flex items-center justify-center border-r border-cyan-100 dark:border-cyan-900"
+                                      >
+                                        <button
+                                          onClick={() =>
+                                            regionData.above_0_5 > 0 &&
+                                            setClickedComparisonCell({
+                                              category: "above_0_5",
+                                              region: regionData.region,
+                                              label: `Chlorine >0.5 mg/l - ${regionData.region}`,
+                                              isLpcd: false,
+                                            })
+                                          }
+                                          className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${regionData.above_0_5 > 0 ? "bg-blue-100 dark:bg-blue-900/40 text-dark-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                          data-testid={`btn-above-${regionData.region}`}
+                                        >
+                                          {regionData.above_0_5}
+                                        </button>
+                                      </div>
+                                    ),
+                                  )}
+                                  <div className="px-2 py-2.5 flex items-center justify-center bg-cyan-50/50 dark:bg-cyan-950/30">
+                                    <button
+                                      onClick={() =>
+                                        setClickedComparisonCell({
+                                          category: "above_0_5",
+                                          region: "All Regions",
+                                          label: "Chlorine >0.5 mg/l - All Regions",
+                                          isLpcd: false,
+                                        })
+                                      }
+                                      className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-blue-200 dark:bg-blue-800 text-dark-800 dark:text-blue-200 hover:bg-blue-300 dark:hover:bg-blue-700 transition-colors"
+                                    >
+                                      {overallComparisonData.data.reduce(
+                                        (sum, r) => sum + r.above_0_5,
+                                        0,
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Current Day TOTAL Row - Placed after current day metrics */}
+                                <div
+                                  className="grid bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-950/50 dark:to-blue-950/50 border-b-2 border-cyan-200 dark:border-cyan-800"
+                                  style={{
+                                    gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
+                                  }}
+                                >
+                                  <div className="px-3 py-2.5 text-[14px] font-bold text-cyan-700 dark:text-cyan-300 border-r-2 border-cyan-200 dark:border-cyan-800 flex items-center">
+                                    <span className="w-2 h-2 rounded-full bg-cyan-400 mr-2"></span>
+                                    Total
+                                  </div>
+                                  {overallComparisonData.data.map(
+                                    (regionData, idx) => {
+                                      const currentDayTotal =
+                                        regionData.offline +
+                                        regionData.below_0_2 +
+                                        regionData.optimal_0_2_0_5 +
+                                        regionData.above_0_5;
+                                      return (
+                                        <div
+                                          key={`chlorine-current-total-${regionData.region}`}
+                                          className="px-2 py-2.5 flex items-center justify-center border-r border-cyan-200 dark:border-cyan-800"
+                                        >
+                                          <button
+                                            onClick={() =>
+                                              currentDayTotal > 0 &&
+                                              setClickedComparisonCell({
+                                                category: "all_sensors",
+                                                region: regionData.region,
+                                                label: `Total Sensors - ${regionData.region}`,
+                                                isLpcd: false,
+                                              })
+                                            }
+                                            className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-cyan-100 dark:bg-cyan-900 text-dark-700 dark:text-cyan-300 hover:bg-cyan-200 dark:hover:bg-cyan-800 transition-colors"
+                                          >
+                                            {currentDayTotal}
+                                          </button>
+                                        </div>
+                                      );
+                                    },
+                                  )}
+                                  <div className="px-2 py-2.5 flex items-center justify-center bg-cyan-100/50 dark:bg-cyan-900/50">
+                                    <button
+                                      onClick={() =>
+                                        setClickedComparisonCell({
+                                          category: "all_sensors",
+                                          region: "All Regions",
+                                          label: "Total Sensors - All Regions",
+                                          isLpcd: false,
+                                        })
+                                      }
+                                      className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-cyan-200 dark:bg-cyan-800 text-dark-800 dark:text-cyan-200 hover:bg-cyan-300 dark:hover:bg-cyan-700 transition-colors"
+                                    >
+                                      {overallComparisonData.data.reduce(
+                                        (sum, r) =>
+                                          sum +
+                                          r.offline +
+                                          r.below_0_2 +
+                                          r.optimal_0_2_0_5 +
+                                          r.above_0_5,
+                                        0,
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* 7-Day Consistent Section Header */}
+                                <div className="bg-cyan-100 dark:bg-cyan-900/50 px-4 py-1.5 border-b-2 border-cyan-200 dark:border-cyan-800">
+                                  <span className="!text-[12px] font-bold text-cyan-700 dark:text-cyan-300 uppercase tracking-wider">
+                                    7-Day Consistent
+                                  </span>
+                                </div>
+
+                                {/* Consistent <0.2 mg/l Row */}
+                                <div
+                                  className="grid border-b border-cyan-100 dark:border-cyan-900 hover:bg-cyan-50/50 dark:hover:bg-cyan-950/30 transition-colors"
+                                  style={{
+                                    gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
+                                  }}
+                                >
+                                  <div className="px-3 py-2.5 text-xs font-medium text-gray-600 dark:text-gray-400 border-r-2 border-cyan-200 dark:border-cyan-800 flex items-center pl-6">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 mr-2"></span>
+                                    &lt;0.2 mg/l
+                                  </div>
+                                  {overallComparisonData.data.map(
+                                    (regionData, idx) => (
+                                      <div
+                                        key={`cons-below-${regionData.region}`}
+                                        className="px-2 py-2.5 flex items-center justify-center border-r border-cyan-100 dark:border-cyan-900"
+                                      >
+                                        <button
+                                          onClick={() =>
+                                            regionData.consistent_below_0_2 >
+                                            0 &&
+                                            setClickedComparisonCell({
+                                              category: "consistent_below_0_2",
+                                              region: regionData.region,
+                                              label: `Consistent <0.2 mg/l (7 days) - ${regionData.region}`,
+                                              isLpcd: false,
+                                            })
+                                          }
+                                          className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${regionData.consistent_below_0_2 > 0 ? "bg-red-100 dark:bg-red-900/40 text-dark-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                          data-testid={`btn-cons-below-${regionData.region}`}
+                                        >
+                                          {regionData.consistent_below_0_2}
+                                        </button>
+                                      </div>
+                                    ),
+                                  )}
+                                  <div className="px-2 py-2.5 flex items-center justify-center bg-cyan-50/50 dark:bg-cyan-950/30">
+                                    <button
+                                      onClick={() =>
+                                        setClickedComparisonCell({
+                                          category: "consistent_below_0_2",
+                                          region: "All Regions",
+                                          label: "Consistent <0.2 mg/l (7 days) - All Regions",
+                                          isLpcd: false,
+                                        })
+                                      }
+                                      className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-red-200 dark:bg-red-800 text-dark-800 dark:text-red-200 hover:bg-red-300 dark:hover:bg-red-700 transition-colors"
+                                    >
+                                      {overallComparisonData.data.reduce(
+                                        (sum, r) =>
+                                          sum + r.consistent_below_0_2,
+                                        0,
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Consistent 0.2-0.5 mg/l Row */}
+                                <div
+                                  className="grid border-b border-cyan-100 dark:border-cyan-900 hover:bg-cyan-50/50 dark:hover:bg-cyan-950/30 transition-colors"
+                                  style={{
+                                    gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
+                                  }}
+                                >
+                                  <div className="px-3 py-2.5 text-xs font-medium text-gray-600 dark:text-gray-400 border-r-2 border-cyan-200 dark:border-cyan-800 flex items-center pl-6">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 mr-2"></span>
+                                    0.2-0.5 mg/l
+                                  </div>
+                                  {overallComparisonData.data.map(
+                                    (regionData, idx) => (
+                                      <div
+                                        key={`cons-optimal-${regionData.region}`}
+                                        className="px-2 py-2.5 flex items-center justify-center border-r border-cyan-100 dark:border-cyan-900"
+                                      >
+                                        <button
+                                          onClick={() =>
+                                            regionData.consistent_optimal > 0 &&
+                                            setClickedComparisonCell({
+                                              category: "consistent_optimal",
+                                              region: regionData.region,
+                                              label: `Consistent 0.2-0.5 mg/l (7 days) - ${regionData.region}`,
+                                              isLpcd: false,
+                                            })
+                                          }
+                                          className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${regionData.consistent_optimal > 0 ? "bg-green-100 dark:bg-green-900/40 text-dark-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                          data-testid={`btn-cons-optimal-${regionData.region}`}
+                                        >
+                                          {regionData.consistent_optimal}
+                                        </button>
+                                      </div>
+                                    ),
+                                  )}
+                                  <div className="px-2 py-2.5 flex items-center justify-center bg-cyan-50/50 dark:bg-cyan-950/30">
+                                    <button
+                                      onClick={() =>
+                                        setClickedComparisonCell({
+                                          category: "consistent_optimal",
+                                          region: "All Regions",
+                                          label: "Consistent 0.2-0.5 mg/l (7 days) - All Regions",
+                                          isLpcd: false,
+                                        })
+                                      }
+                                      className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-green-200 dark:bg-green-800 text-dark-800 dark:text-green-200 hover:bg-green-300 dark:hover:bg-green-700 transition-colors"
+                                    >
+                                      {overallComparisonData.data.reduce(
+                                        (sum, r) => sum + r.consistent_optimal,
+                                        0,
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Consistent >0.5 mg/l Row */}
+                                <div
+                                  className="grid border-b-2 border-cyan-200 dark:border-cyan-800 hover:bg-cyan-50/50 dark:hover:bg-cyan-950/30 transition-colors"
+                                  style={{
+                                    gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
+                                  }}
+                                >
+                                  <div className="px-3 py-2.5 text-xs font-medium text-gray-600 dark:text-gray-400 border-r-2 border-cyan-200 dark:border-cyan-800 flex items-center pl-6">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mr-2"></span>
+                                    &gt;0.5 mg/l
+                                  </div>
+                                  {overallComparisonData.data.map(
+                                    (regionData, idx) => (
+                                      <div
+                                        key={`cons-above-${regionData.region}`}
+                                        className="px-2 py-2.5 flex items-center justify-center border-r border-cyan-100 dark:border-cyan-900"
+                                      >
+                                        <button
+                                          onClick={() =>
+                                            regionData.consistent_above_0_5 >
+                                            0 &&
+                                            setClickedComparisonCell({
+                                              category: "consistent_above_0_5",
+                                              region: regionData.region,
+                                              label: `Consistent >0.5 mg/l (7 days) - ${regionData.region}`,
+                                              isLpcd: false,
+                                            })
+                                          }
+                                          className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${regionData.consistent_above_0_5 > 0 ? "bg-blue-100 dark:bg-blue-900/40 text-dark-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                          data-testid={`btn-cons-above-${regionData.region}`}
+                                        >
+                                          {regionData.consistent_above_0_5}
+                                        </button>
+                                      </div>
+                                    ),
+                                  )}
+                                  <div className="px-2 py-2.5 flex items-center justify-center bg-cyan-50/50 dark:bg-cyan-950/30">
+                                    <button
+                                      onClick={() =>
+                                        setClickedComparisonCell({
+                                          category: "consistent_above_0_5",
+                                          region: "All Regions",
+                                          label: "Consistent >0.5 mg/l (7 days) - All Regions",
+                                          isLpcd: false,
+                                        })
+                                      }
+                                      className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-blue-200 dark:bg-blue-800 text-dark-800 dark:text-blue-200 hover:bg-blue-300 dark:hover:bg-blue-700 transition-colors"
+                                    >
+                                      {overallComparisonData.data.reduce(
+                                        (sum, r) =>
+                                          sum + r.consistent_above_0_5,
+                                        0,
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* 7-Day Consistent TOTAL Row */}
+                                <div
+                                  className="grid bg-gradient-to-r from-cyan-100 to-blue-100 dark:from-cyan-900/50 dark:to-blue-900/50"
+                                  style={{
+                                    gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
+                                  }}
+                                >
+                                  <div className="px-3 py-2.5 text-[14px] font-bold text-cyan-800 dark:text-cyan-200 border-r-2 border-cyan-200 dark:border-cyan-800 flex items-center">
+                                    <span className="w-2 h-2 rounded-full bg-cyan-500 mr-2"></span>
+                                    7-Day Consistent Total
+                                  </div>
+                                  {overallComparisonData.data.map(
+                                    (regionData, idx) => {
+                                      const consistentTotal =
+                                        regionData.consistent_below_0_2 +
+                                        regionData.consistent_optimal +
+                                        regionData.consistent_above_0_5;
+                                      return (
+                                        <div
+                                          key={`chlorine-consistent-total-${regionData.region}`}
+                                          className="px-2 py-2.5 flex items-center justify-center border-r border-cyan-200 dark:border-cyan-800"
+                                        >
+                                          <button
+                                            onClick={() =>
+                                              consistentTotal > 0 &&
+                                              setClickedComparisonCell({
+                                                category: "consistent_all",
+                                                region: regionData.region,
+                                                label: `7-Day Consistent Total - ${regionData.region}`,
+                                                isLpcd: false
+                                              })
+                                            }
+                                            className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${consistentTotal > 0
+                                              ? "bg-cyan-200 dark:bg-cyan-800 text-dark-800 dark:text-cyan-200 hover:bg-cyan-300 dark:hover:bg-cyan-700 cursor-pointer"
+                                              : "text-gray-400 dark:text-gray-600"
+                                              }`}
+                                          >
+                                            {consistentTotal}
+                                          </button>
+                                        </div>
+                                      );
+                                    },
+                                  )}
+                                  <div className="px-2 py-2.5 flex items-center justify-center bg-cyan-200/50 dark:bg-cyan-800/50">
+                                    <button
+                                      onClick={() =>
+                                        setClickedComparisonCell({
+                                          category: "consistent_all",
+                                          region: "All Regions",
+                                          label: "7-Day Consistent Total - All Regions",
+                                          isLpcd: false
+                                        })
+                                      }
+                                      className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-cyan-300 dark:bg-cyan-700 text-dark-900 dark:text-cyan-100 hover:bg-cyan-400 dark:hover:bg-cyan-600 transition-colors"
+                                    >
+                                      {overallComparisonData.data.reduce(
+                                        (sum, r) =>
+                                          sum +
+                                          r.consistent_below_0_2 +
+                                          r.consistent_optimal +
+                                          r.consistent_above_0_5,
+                                        0,
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Pressure Statistics Section */}
+                          {mainTab === "pressure" && (
+                            <div className="rounded-xl border-2 border-orange-200 dark:border-orange-800 overflow-hidden shadow-sm">
+                              <div className="bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-2.5 flex items-center gap-2">
+                                <Gauge className="h-4 w-4 text-white" />
+                                <span className="text-white font-semibold text-sm tracking-wide">
+                                  PRESSURE STATISTICS (Sensors)
+                                </span>
+                              </div>
+
+                              {isLoadingPressureComparison ? (
+                                <div className="p-4">
+                                  <Skeleton className="h-48 w-full" />
+                                </div>
+                              ) : pressureOverallComparison &&
+                                pressureOverallComparison.data &&
+                                pressureOverallComparison.data.length > 0 ? (
+                                <>
+                                  <div
+                                    className="grid border-b-2 border-orange-200 dark:border-orange-800"
+                                    style={{
+                                      gridTemplateColumns: `180px repeat(${pressureOverallComparison.data.length + 1}, 1fr)`,
+                                    }}
+                                  >
+                                    <div className="bg-orange-50 dark:bg-orange-950 px-3 py-3 font-semibold text-[14px] text-orange-800 dark:text-orange-200 border-r-2 border-orange-200 dark:border-orange-800 flex items-center">
+                                      Metric
+                                    </div>
+                                    {pressureOverallComparison.data.map(
+                                      (regionData: any) => (
+                                        <div
+                                          key={`pressure-header-${regionData.region}`}
+                                          className="bg-orange-50 dark:bg-orange-950 px-2 py-3 text-center font-bold text-[14px] text-orange-800 dark:text-orange-200 border-r border-orange-200 dark:border-orange-800"
+                                        >
+                                          {regionData.region}
+                                        </div>
+                                      ),
+                                    )}
+                                    <div className="bg-orange-100 dark:bg-orange-900 px-2 py-3 text-center font-bold text-[14px] text-orange-900 dark:text-orange-100">
+                                      TOTAL
+                                    </div>
+                                  </div>
+
+                                  <div className="bg-white dark:bg-gray-900">
+                                    <div
+                                      className="grid border-b border-orange-100 dark:border-orange-900 hover:bg-orange-50/50 dark:hover:bg-orange-950/30 transition-colors"
+                                      style={{
+                                        gridTemplateColumns: `180px repeat(${pressureOverallComparison.data.length + 1}, 1fr)`,
+                                      }}
+                                    >
+                                      <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-orange-200 dark:border-orange-800 flex items-center">
+                                        <span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+                                        Optimal (0.2-0.7 bar)
+                                      </div>
+                                      {pressureOverallComparison.data.map(
+                                        (regionData: any) => (
+                                          <div
+                                            key={`optimal-${regionData.region}`}
+                                            className="px-2 py-2.5 flex items-center justify-center border-r border-orange-100 dark:border-orange-900"
+                                          >
+                                            <button
+                                              onClick={() =>
+                                                (regionData.optimal_0_2_0_7 ||
+                                                  0) > 0 &&
+                                                handlePressureComparisonCellClick(
+                                                  "optimal_0_2_0_7",
+                                                  regionData.region,
+                                                  `Optimal Pressure (0.2-0.7 bar) - ${regionData.region}`,
+                                                )
+                                              }
+                                              className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${(regionData.optimal_0_2_0_7 || 0) > 0 ? "bg-green-100 dark:bg-green-900/40 text-gray-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                            >
+                                              {regionData.optimal_0_2_0_7 || 0}
+                                            </button>
+                                          </div>
+                                        ),
+                                      )}
+                                      <div className="px-2 py-2.5 flex items-center justify-center bg-orange-50/50 dark:bg-orange-950/30">
+                                        <button
+                                          onClick={() =>
+                                            handlePressureComparisonCellClick(
+                                              "optimal_0_2_0_7",
+                                              "All Regions",
+                                              "Optimal Pressure (0.2-0.7 bar) - All Regions",
+                                            )
+                                          }
+                                          className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-green-200 dark:bg-green-800 text-gray-800 dark:text-green-200 hover:bg-green-300 dark:hover:bg-green-700 transition-colors"
+                                        >
+                                          {pressureOverallComparison.data.reduce(
+                                            (sum: number, r: any) =>
+                                              sum + (r.optimal_0_2_0_7 || 0),
+                                            0,
+                                          )}
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    <div
+                                      className="grid border-b border-orange-100 dark:border-orange-900 hover:bg-orange-50/50 dark:hover:bg-orange-950/30 transition-colors"
+                                      style={{
+                                        gridTemplateColumns: `180px repeat(${pressureOverallComparison.data.length + 1}, 1fr)`,
+                                      }}
+                                    >
+                                      <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-orange-200 dark:border-orange-800 flex items-center">
+                                        <span className="w-2 h-2 rounded-full bg-red-500 mr-2"></span>
+                                        Below (&lt;0.2 bar)
+                                      </div>
+                                      {pressureOverallComparison.data.map(
+                                        (regionData: any) => (
+                                          <div
+                                            key={`below-${regionData.region}`}
+                                            className="px-2 py-2.5 flex items-center justify-center border-r border-orange-100 dark:border-orange-900"
+                                          >
+                                            <button
+                                              onClick={() =>
+                                                (regionData.below_0_2 || 0) >
+                                                0 &&
+                                                handlePressureComparisonCellClick(
+                                                  "below_0_2",
+                                                  regionData.region,
+                                                  `Below 0.2 bar - ${regionData.region}`,
+                                                )
+                                              }
+                                              className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${(regionData.below_0_2 || 0) > 0 ? "bg-red-100 dark:bg-red-900/40 text-gray-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                            >
+                                              {regionData.below_0_2 || 0}
+                                            </button>
+                                          </div>
+                                        ),
+                                      )}
+                                      <div className="px-2 py-2.5 flex items-center justify-center bg-orange-50/50 dark:bg-orange-950/30">
+                                        <button
+                                          onClick={() =>
+                                            handlePressureComparisonCellClick(
+                                              "below_0_2",
+                                              "All Regions",
+                                              "Pressure Below 0.2 bar - All Regions",
+                                            )
+                                          }
+                                          className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-red-200 dark:bg-red-800 text-gray-800 dark:text-red-200 hover:bg-red-300 dark:hover:bg-red-700 transition-colors"
+                                        >
+                                          {pressureOverallComparison.data.reduce(
+                                            (sum: number, r: any) =>
+                                              sum + (r.below_0_2 || 0),
+                                            0,
+                                          )}
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    <div
+                                      className="grid border-b border-orange-100 dark:border-orange-900 hover:bg-orange-50/50 dark:hover:bg-orange-950/30 transition-colors"
+                                      style={{
+                                        gridTemplateColumns: `180px repeat(${pressureOverallComparison.data.length + 1}, 1fr)`,
+                                      }}
+                                    >
+                                      <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-orange-200 dark:border-orange-800 flex items-center">
+                                        <span className="w-2 h-2 rounded-full bg-purple-500 mr-2"></span>
+                                        Above (&gt;0.7 bar)
+                                      </div>
+                                      {pressureOverallComparison.data.map(
+                                        (regionData: any) => (
+                                          <div
+                                            key={`above-${regionData.region}`}
+                                            className="px-2 py-2.5 flex items-center justify-center border-r border-orange-100 dark:border-orange-900"
+                                          >
+                                            <button
+                                              onClick={() =>
+                                                (regionData.above_0_7 || 0) >
+                                                0 &&
+                                                handlePressureComparisonCellClick(
+                                                  "above_0_7",
+                                                  regionData.region,
+                                                  `Above 0.7 bar - ${regionData.region}`,
+                                                )
+                                              }
+                                              className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${(regionData.above_0_7 || 0) > 0 ? "bg-purple-100 dark:bg-purple-900/40 text-gray-700 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                            >
+                                              {regionData.above_0_7 || 0}
+                                            </button>
+                                          </div>
+                                        ),
+                                      )}
+                                      <div className="px-2 py-2.5 flex items-center justify-center bg-orange-50/50 dark:bg-orange-950/30">
+                                        <button
+                                          onClick={() =>
+                                            handlePressureComparisonCellClick(
+                                              "above_0_7",
+                                              "All Regions",
+                                              "Pressure Above 0.7 bar - All Regions",
+                                            )
+                                          }
+                                          className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-purple-200 dark:bg-purple-800 text-gray-800 dark:text-purple-200 hover:bg-purple-300 dark:hover:bg-purple-700 transition-colors"
+                                        >
+                                          {pressureOverallComparison.data.reduce(
+                                            (sum: number, r: any) =>
+                                              sum + (r.above_0_7 || 0),
+                                            0,
+                                          )}
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    <div
+                                      className="grid border-b border-orange-100 dark:border-orange-900 hover:bg-orange-50/50 dark:hover:bg-orange-950/30 transition-colors"
+                                      style={{
+                                        gridTemplateColumns: `180px repeat(${pressureOverallComparison.data.length + 1}, 1fr)`,
+                                      }}
+                                    >
+                                      <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-orange-200 dark:border-orange-800 flex items-center">
+                                        <span className="w-2 h-2 rounded-full bg-gray-400 mr-2"></span>
+                                        Offline/No Data
+                                      </div>
+                                      {pressureOverallComparison.data.map(
+                                        (regionData: any) => (
+                                          <div
+                                            key={`offline-${regionData.region}`}
+                                            className="px-2 py-2.5 flex items-center justify-center border-r border-orange-100 dark:border-orange-900"
+                                          >
+                                            <button
+                                              onClick={() =>
+                                                (regionData.offline || 0) > 0 &&
+                                                handlePressureComparisonCellClick(
+                                                  "offline",
+                                                  regionData.region,
+                                                  `Offline Sensors - ${regionData.region}`,
+                                                )
+                                              }
+                                              className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${(regionData.offline || 0) > 0 ? "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                            >
+                                              {regionData.offline || 0}
+                                            </button>
+                                          </div>
+                                        ),
+                                      )}
+                                      <div className="px-2 py-2.5 flex items-center justify-center bg-orange-50/50 dark:bg-orange-950/30">
+                                        <button
+                                          onClick={() =>
+                                            handlePressureComparisonCellClick(
+                                              "offline",
+                                              "All Regions",
+                                              "Offline Pressure Sensors - All Regions",
+                                            )
+                                          }
+                                          className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                                        >
+                                          {pressureOverallComparison.data.reduce(
+                                            (sum: number, r: any) =>
+                                              sum + (r.offline || 0),
+                                            0,
+                                          )}
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    {/* Current Day TOTAL Row */}
+                                    <div
+                                      className="grid bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/50 dark:to-amber-950/50 border-b-2 border-orange-200 dark:border-orange-800"
+                                      style={{
+                                        gridTemplateColumns: `180px repeat(${pressureOverallComparison.data.length + 1}, 1fr)`,
+                                      }}
+                                    >
+                                      <div className="px-3 py-2.5 text-[14px] font-bold text-orange-700 dark:text-orange-300 border-r-2 border-orange-200 dark:border-orange-800 flex items-center">
+                                        <span className="w-2 h-2 rounded-full bg-orange-400 mr-2"></span>
+                                        Total
+                                      </div>
+                                      {pressureOverallComparison.data.map(
+                                        (regionData: any) => {
+                                          const currentDayTotal =
+                                            (regionData.offline || 0) +
+                                            (regionData.below_0_2 || 0) +
+                                            (regionData.optimal_0_2_0_7 || 0) +
+                                            (regionData.above_0_7 || 0);
+                                          return (
+                                            <div
+                                              key={`pressure-current-total-${regionData.region}`}
+                                              className="px-2 py-2.5 flex items-center justify-center border-r border-orange-200 dark:border-orange-800"
+                                            >
+                                              <button
+                                                onClick={() =>
+                                                  handlePressureComparisonCellClick(
+                                                    "all_sensors",
+                                                    regionData.region,
+                                                    `Total Sensors - ${regionData.region}`,
+                                                  )
+                                                }
+                                                className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-orange-100 dark:bg-orange-900 text-gray-700 dark:text-orange-300 hover:bg-orange-200 dark:hover:bg-orange-800 transition-colors"
+                                                data-testid={`text-pressure-current-total-${regionData.region}`}
+                                              >
+                                                {currentDayTotal}
+                                              </button>
+                                            </div>
+                                          );
+                                        },
+                                      )}
+                                      <div className="px-2 py-2.5 flex items-center justify-center bg-orange-100/50 dark:bg-orange-900/50">
+                                        <button
+                                          onClick={() =>
+                                            handlePressureComparisonCellClick(
+                                              "all_sensors",
+                                              "All Regions",
+                                              "Total Sensors - All Regions",
+                                            )
+                                          }
+                                          className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-orange-200 dark:bg-orange-800 text-gray-800 dark:text-orange-200 hover:bg-orange-300 dark:hover:bg-orange-700 transition-colors"
+                                          data-testid="text-pressure-current-total-all"
+                                        >
+                                          {pressureOverallComparison.data.reduce(
+                                            (sum: number, r: any) =>
+                                              sum +
+                                              (r.offline || 0) +
+                                              (r.below_0_2 || 0) +
+                                              (r.optimal_0_2_0_7 || 0) +
+                                              (r.above_0_7 || 0),
+                                            0,
+                                          )}
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    {/* 7-Day Consistent Section Header */}
+                                    <div className="bg-orange-100 dark:bg-orange-900/50 px-4 py-1.5 border-b-2 border-orange-200 dark:border-orange-800">
+                                      <span className="!text-[12px] font-bold text-orange-700 dark:text-orange-300 uppercase tracking-wider">
+                                        7-Day Consistent
+                                      </span>
+                                    </div>
+
+                                    {/* Consistent <0.2 bar Row */}
+                                    <div
+                                      className="grid border-b border-orange-100 dark:border-orange-900 hover:bg-orange-50/50 dark:hover:bg-orange-950/30 transition-colors"
+                                      style={{
+                                        gridTemplateColumns: `180px repeat(${pressureOverallComparison.data.length + 1}, 1fr)`,
+                                      }}
+                                    >
+                                      <div className="px-3 py-2.5 text-[14px] font-medium text-gray-600 dark:text-gray-400 border-r-2 border-orange-200 dark:border-orange-800 flex items-center pl-6">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-red-400 mr-2"></span>
+                                        &lt;0.2 bar
+                                      </div>
+                                      {pressureOverallComparison.data.map(
+                                        (regionData: any) => (
+                                          <div
+                                            key={`cons-below-${regionData.region}`}
+                                            className="px-2 py-2.5 flex items-center justify-center border-r border-orange-100 dark:border-orange-900"
+                                          >
+                                            <button
+                                              onClick={() =>
+                                                (regionData.consistent_below_0_2 ||
+                                                  0) > 0 &&
+                                                handlePressureComparisonCellClick(
+                                                  "consistent_below_0_2",
+                                                  regionData.region,
+                                                  `Consistent <0.2 bar (7 days) - ${regionData.region}`,
+                                                )
+                                              }
+                                              className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${(regionData.consistent_below_0_2 || 0) > 0 ? "bg-red-100 dark:bg-red-900/40 text-gray-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                              data-testid={`btn-pressure-cons-below-${regionData.region}`}
+                                            >
+                                              {regionData.consistent_below_0_2 ||
+                                                0}
+                                            </button>
+                                          </div>
+                                        ),
+                                      )}
+                                      <div className="px-2 py-2.5 flex items-center justify-center bg-orange-50/50 dark:bg-orange-950/30">
+                                        <button
+                                          onClick={() =>
+                                            handlePressureComparisonCellClick(
+                                              "consistent_below_0_2",
+                                              "All Regions",
+                                              "Consistent Pressure <0.2 bar (7 days) - All Regions",
+                                            )
+                                          }
+                                          className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-red-200 dark:bg-red-800 text-gray-800 dark:text-red-200 hover:bg-red-300 dark:hover:bg-red-700 transition-colors"
+                                        >
+                                          {pressureOverallComparison.data.reduce(
+                                            (sum: number, r: any) =>
+                                              sum +
+                                              (r.consistent_below_0_2 || 0),
+                                            0,
+                                          )}
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    {/* Consistent 0.2-0.7 bar (Optimal) Row */}
+                                    <div
+                                      className="grid border-b border-orange-100 dark:border-orange-900 hover:bg-orange-50/50 dark:hover:bg-orange-950/30 transition-colors"
+                                      style={{
+                                        gridTemplateColumns: `180px repeat(${pressureOverallComparison.data.length + 1}, 1fr)`,
+                                      }}
+                                    >
+                                      <div className="px-3 py-2.5 text-[14px] font-medium text-gray-600 dark:text-gray-400 border-r-2 border-orange-200 dark:border-orange-800 flex items-center pl-6">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-green-400 mr-2"></span>
+                                        0.2-0.7 bar
+                                      </div>
+                                      {pressureOverallComparison.data.map(
+                                        (regionData: any) => (
+                                          <div
+                                            key={`cons-optimal-${regionData.region}`}
+                                            className="px-2 py-2.5 flex items-center justify-center border-r border-orange-100 dark:border-orange-900"
+                                          >
+                                            <button
+                                              onClick={() =>
+                                                (regionData.consistent_optimal ||
+                                                  0) > 0 &&
+                                                handlePressureComparisonCellClick(
+                                                  "consistent_optimal",
+                                                  regionData.region,
+                                                  `Consistent 0.2-0.7 bar (7 days) - ${regionData.region}`,
+                                                )
+                                              }
+                                              className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${(regionData.consistent_optimal || 0) > 0 ? "bg-green-100 dark:bg-green-900/40 text-gray-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                              data-testid={`btn-pressure-cons-optimal-${regionData.region}`}
+                                            >
+                                              {regionData.consistent_optimal ||
+                                                0}
+                                            </button>
+                                          </div>
+                                        ),
+                                      )}
+                                      <div className="px-2 py-2.5 flex items-center justify-center bg-orange-50/50 dark:bg-orange-950/30">
+                                        <button
+                                          onClick={() =>
+                                            handlePressureComparisonCellClick(
+                                              "consistent_optimal",
+                                              "All Regions",
+                                              "Consistent Optimal Pressure (0.2-0.7 bar) (7 days) - All Regions",
+                                            )
+                                          }
+                                          className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-green-200 dark:bg-green-800 text-gray-800 dark:text-green-200 hover:bg-green-300 dark:hover:bg-green-700 transition-colors"
+                                        >
+                                          {pressureOverallComparison.data.reduce(
+                                            (sum: number, r: any) =>
+                                              sum + (r.consistent_optimal || 0),
+                                            0,
+                                          )}
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    {/* Consistent >0.7 bar Row */}
+                                    <div
+                                      className="grid border-b-2 border-orange-200 dark:border-orange-800 hover:bg-orange-50/50 dark:hover:bg-orange-950/30 transition-colors"
+                                      style={{
+                                        gridTemplateColumns: `180px repeat(${pressureOverallComparison.data.length + 1}, 1fr)`,
+                                      }}
+                                    >
+                                      <div className="px-3 py-2.5 text-[14px] font-medium text-gray-600 dark:text-gray-400 border-r-2 border-orange-200 dark:border-orange-800 flex items-center pl-6">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-purple-400 mr-2"></span>
+                                        &gt;0.7 bar
+                                      </div>
+                                      {pressureOverallComparison.data.map(
+                                        (regionData: any) => (
+                                          <div
+                                            key={`cons-above-${regionData.region}`}
+                                            className="px-2 py-2.5 flex items-center justify-center border-r border-orange-100 dark:border-orange-900"
+                                          >
+                                            <button
+                                              onClick={() =>
+                                                (regionData.consistent_above_0_7 ||
+                                                  0) > 0 &&
+                                                handlePressureComparisonCellClick(
+                                                  "consistent_above_0_7",
+                                                  regionData.region,
+                                                  `Consistent >0.7 bar (7 days) - ${regionData.region}`,
+                                                )
+                                              }
+                                              className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${(regionData.consistent_above_0_7 || 0) > 0 ? "bg-purple-100 dark:bg-gray-900/40 text-purple-700 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                              data-testid={`btn-pressure-cons-above-${regionData.region}`}
+                                            >
+                                              {regionData.consistent_above_0_7 ||
+                                                0}
+                                            </button>
+                                          </div>
+                                        ),
+                                      )}
+                                      <div className="px-2 py-2.5 flex items-center justify-center bg-orange-50/50 dark:bg-orange-950/30">
+                                        <button
+                                          onClick={() =>
+                                            handlePressureComparisonCellClick(
+                                              "consistent_above_0_7",
+                                              "All Regions",
+                                              "Consistent Pressure >0.7 bar (7 days) - All Regions",
+                                            )
+                                          }
+                                          className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-purple-200 dark:bg-purple-800 text-gray-800 dark:text-purple-200 hover:bg-purple-300 dark:hover:bg-purple-700 transition-colors"
+                                        >
+                                          {pressureOverallComparison.data.reduce(
+                                            (sum: number, r: any) =>
+                                              sum +
+                                              (r.consistent_above_0_7 || 0),
+                                            0,
+                                          )}
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    {/* 7-Day Consistent TOTAL Row */}
+                                    <div
+                                      className="grid bg-gradient-to-r from-orange-100 to-amber-100 dark:from-orange-900/50 dark:to-amber-900/50"
+                                      style={{
+                                        gridTemplateColumns: `180px repeat(${pressureOverallComparison.data.length + 1}, 1fr)`,
+                                      }}
+                                    >
+                                      <div className="px-3 py-2.5 text-[14px] font-bold text-orange-800 dark:text-orange-200 border-r-2 border-orange-200 dark:border-orange-800 flex items-center">
+                                        <span className="w-2 h-2 rounded-full bg-orange-500 mr-2"></span>
+                                        7-Day Consistent Total
+                                      </div>
+                                      {pressureOverallComparison.data.map(
+                                        (regionData: any) => {
+                                          const consistentTotal =
+                                            (regionData.consistent_below_0_2 ||
+                                              0) +
+                                            (regionData.consistent_optimal ||
+                                              0) +
+                                            (regionData.consistent_above_0_7 ||
+                                              0);
+                                          return (
+                                            <div
+                                              key={`pressure-consistent-total-${regionData.region}`}
+                                              className="px-2 py-2.5 flex items-center justify-center border-r border-orange-200 dark:border-orange-800"
+                                            >
+                                              <button
+                                                onClick={() =>
+                                                  handlePressureComparisonCellClick(
+                                                    "consistent_all",
+                                                    regionData.region,
+                                                    `7-Day Consistent Total - ${regionData.region}`,
+                                                  )
+                                                }
+                                                className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-orange-200 dark:bg-orange-800 text-orange-800 dark:text-orange-200 hover:bg-orange-300 dark:hover:bg-orange-700 transition-colors"
+                                                data-testid={`text-pressure-7day-total-${regionData.region}`}
+                                              >
+                                                {consistentTotal}
+                                              </button>
+                                            </div>
+                                          );
+                                        },
+                                      )}
+                                      <div className="px-2 py-2.5 flex items-center justify-center bg-orange-200/50 dark:bg-orange-800/50">
+                                        <button
+                                          onClick={() =>
+                                            handlePressureComparisonCellClick(
+                                              "consistent_all",
+                                              "All Regions",
+                                              "7-Day Consistent Total - All Regions",
+                                            )
+                                          }
+                                          className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-orange-300 dark:bg-orange-700 text-gray-900 dark:text-orange-100 hover:bg-orange-400 dark:hover:bg-orange-600 transition-colors"
+                                          data-testid="text-pressure-7day-total-all"
+                                        >
+                                          {pressureOverallComparison.data.reduce(
+                                            (sum: number, r: any) =>
+                                              sum +
+                                              (r.consistent_below_0_2 || 0) +
+                                              (r.consistent_optimal || 0) +
+                                              (r.consistent_above_0_7 || 0),
+                                            0,
+                                          )}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="text-center py-8">
+                                  <Gauge className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                                  <p className="text-gray-500 text-sm">
+                                    No pressure comparison data available
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8">
+                          <TrendingUp className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                          <p className="text-gray-500 text-sm">
+                            No comparison data available
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {clickedComparisonCell && (
+                    <Card className="border-0 shadow-lg rounded-xl overflow-hidden">
+                      <CardHeader className="bg-gradient-to-r from-purple-50 to-violet-50 dark:from-purple-950 dark:to-violet-950 border-b border-purple-200 dark:border-purple-800 py-2.5">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2">
+                            <div className="p-1.5 bg-gradient-to-br from-purple-500 to-violet-600 rounded-lg shadow-sm">
+                              {clickedComparisonCell.isLpcd ? (
+                                <Home className="h-4 w-4 text-white" />
+                              ) : (
+                                <Droplet className="h-4 w-4 text-white" />
+                              )}
+                            </div>
+                            <div>
+                              <div className="text-sm font-bold text-gray-900 dark:text-white">
+                                {clickedComparisonCell.label}
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-400 !text-[12px] px-1.5 py-0">
+                                  {clickedComparisonCell.region}
+                                </Badge>
+                                <Badge
+                                  variant="secondary"
+                                  className="!text-[12px] px-1.5 py-0"
+                                >
+                                  {comparisonDetails?.count || 0}{" "}
+                                  {clickedComparisonCell.isLpcd
+                                    ? "villages"
+                                    : "ESRs"}
+                                </Badge>
+                              </div>
+                            </div>
+                          </CardTitle>
+                          <div className="flex gap-1.5">
+                            {comparisonDetails &&
+                              comparisonDetails.data.length > 0 && (
+                                <button
+                                  onClick={() => {
+                                    const params = new URLSearchParams();
+                                    if (clickedComparisonCell.region && clickedComparisonCell.region !== "All Regions")
+                                      params.append("region", clickedComparisonCell.region);
+                                    if (clickedComparisonCell.dates)
+                                      params.append("dates", clickedComparisonCell.dates.join(","));
+                                    if (schemeFilter !== 'all') {
+                                      params.append("filterType", schemeFilter);
+                                    }
+
+                                    const url = `/api/chlorine/overall-region-comparison/export/${clickedComparisonCell.category}?${params.toString()}`;
+                                    window.open(url, "_blank");
+                                  }}
+                                  className="flex items-center gap-1.5 px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors text-xs font-medium shadow-sm"
+                                  data-testid="button-export-comparison-excel"
+                                >
+                                  <FileDown className="h-3 w-3" />
+                                  Excel
+                                </button>
+                              )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setClickedComparisonCell(null)}
+                              className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                              data-testid="button-close-comparison-details"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        {isLoadingComparisonDetails ? (
+                          <div className="space-y-2 p-5">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                          </div>
+                        ) : comparisonDetails &&
+                          comparisonDetails.data.length > 0 ? (
+                          <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-purple-200/60 dark:border-purple-800/60 rounded-xl m-3 shadow-sm">
+                            <Table className="table-fixed w-full min-w-[1000px]">
+                              <TableHeader className="sticky top-0 z-10">
+                                <TableRow className="bg-purple-800 dark:bg-purple-900">
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[130px] border-r border-white/10">
+                                    Village Name
+                                  </TableHead>
+                                  {!clickedComparisonCell.isLpcd && (
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                      ESR Name
+                                    </TableHead>
+                                  )}
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[180px] border-r border-white/10">
+                                    Scheme Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[90px] border-r border-white/10">
+                                    Division
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Block
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[100px] border-r border-white/10 text-center">
+                                    Dashboard
+                                  </TableHead>
+                                  {clickedComparisonCell.isLpcd ? (
+                                    <>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 text-center w-[100px] border-r border-white/10">
+                                        Population
+                                      </TableHead>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 text-center w-[80px]">
+                                        LPCD
+                                      </TableHead>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 text-center w-[100px]">
+                                        {clickedComparisonCell.category ===
+                                          "offline"
+                                          ? "Status"
+                                          : "Chlorine (mg/l)"}
+                                      </TableHead>
+                                    </>
+                                  )}
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {comparisonDetails.data.map((item, idx) => (
+                                  <TableRow
+                                    key={`${item.scheme_id}-${item.village_name}-${idx}`}
+                                    className={`transition-all duration-200 hover:bg-purple-50/70 dark:hover:bg-purple-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-indigo-50/40 dark:bg-indigo-950/20"}`}
+                                    data-testid={`row-comparison-${idx}`}
+                                  >
+                                    <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
+                                      {item.village_name}
+                                    </TableCell>
+                                    {!clickedComparisonCell.isLpcd && (
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
+                                        {item.esr_name || (
+                                          <span className="text-slate-400">
+                                            N/A
+                                          </span>
+                                        )}
+                                      </TableCell>
+                                    )}
+                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
+                                      {item.dashboard_url ? (
+                                        <a
+                                          href={item.dashboard_url}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="text-blue-600 hover:underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          {item.scheme_name}
+                                        </a>
+                                      ) : (
+                                        item.scheme_name
+                                      )}
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
+                                      {item.division}
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
+                                      {item.block}
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-purple-100/80 dark:border-purple-900/60 truncate text-center">
+                                      {item.dashboard_url && (
+                                        <a
+                                          href={item.dashboard_url}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors"
+                                          title="Open Dashboard"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <ExternalLink className="h-4 w-4" />
+                                        </a>
+                                      )}
+                                    </TableCell>
+                                    {clickedComparisonCell.isLpcd ? (
+                                      <>
+                                        <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60">
+                                          {item.population?.toLocaleString() || (
+                                            <span className="text-slate-400">
+                                              N/A
+                                            </span>
+                                          )}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3">
+                                          <span
+                                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${item.lpcd_value !== undefined && item.lpcd_value >= 55 ? "bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 dark:from-blue-900/60 dark:to-indigo-900/60 dark:text-blue-300 ring-1 ring-blue-200/80 dark:ring-blue-700/60" : "bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 dark:from-orange-900/60 dark:to-amber-900/60 dark:text-orange-300 ring-1 ring-orange-200/80 dark:ring-orange-700/60"}`}
+                                          >
+                                            {item.lpcd_value !== undefined
+                                              ? Number(item.lpcd_value).toFixed(
+                                                2,
+                                              )
+                                              : "N/A"}
+                                          </span>
+                                        </TableCell>
+                                      </>
+                                    ) : (
+                                      <TableCell className="!px-4 !py-3 text-center">
+                                        {clickedComparisonCell.category ===
+                                          "offline" ? (
+                                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60">
+                                            {item.chlorine_status}
+                                          </span>
+                                        ) : (
+                                          <span
+                                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${item.chlorine_value !== undefined && item.chlorine_value >= 0.2 && item.chlorine_value <= 0.5 ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60 dark:text-emerald-300 ring-1 ring-emerald-200/80 dark:ring-emerald-700/60" : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"}`}
+                                          >
+                                            {item.chlorine_value !== undefined
+                                              ? Number(
+                                                item.chlorine_value,
+                                              ).toFixed(2)
+                                              : "N/A"}
+                                          </span>
+                                        )}
+                                      </TableCell>
+                                    )}
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        ) : (
+                          <div className="text-center py-12">
+                            {clickedComparisonCell.isLpcd ? (
+                              <Home className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                            ) : (
+                              <Droplet className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                            )}
+                            <p className="text-gray-500">
+                              No{" "}
+                              {clickedComparisonCell.isLpcd
+                                ? "villages"
+                                : "ESRs"}{" "}
+                              found for this category
+                            </p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Scheme LPCD Region Comparison Details Card */}
+                  {clickedSchemeComparisonCell && (
+                    <Card className="mt-4 border-0 shadow-lg rounded-xl overflow-hidden" data-testid="card-scheme-lpcd-comparison-details">
+                      <CardHeader className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950 dark:to-indigo-950 border-b border-purple-200 dark:border-purple-800 py-2.5">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2">
+                            <div className="p-1.5 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg shadow-sm">
+                              <Building2 className="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                              <div className="text-sm font-bold text-gray-900 dark:text-white">
+                                {clickedSchemeComparisonCell.label}
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-400 !text-[12px] px-1.5 py-0">
+                                  {clickedSchemeComparisonCell.region}
+                                </Badge>
+                                <Badge
+                                  variant="secondary"
+                                  className="!text-[12px] px-1.5 py-0"
+                                >
+                                  {schemeLpcdComparisonSchemes?.count || 0} schemes
+                                </Badge>
+                              </div>
+                            </div>
+                          </CardTitle>
+                          <div className="flex gap-1.5">
+                            {schemeLpcdComparisonSchemes &&
+                              schemeLpcdComparisonSchemes.data?.length > 0 && (
+                                <button
+                                  onClick={() => {
+                                    const params = new URLSearchParams();
+                                    if (clickedSchemeComparisonCell.region && clickedSchemeComparisonCell.region !== "All Regions") {
+                                      params.append("region", clickedSchemeComparisonCell.region);
+                                    }
+                                    if (clickedSchemeComparisonCell.dates) {
+                                      params.append("dates", clickedSchemeComparisonCell.dates.join(","));
+                                    }
+                                    if (schemeFilter !== 'all') {
+                                      params.append("filterType", schemeFilter);
+                                    }
+                                    window.open(
+                                      `/api/chlorine/scheme-lpcd/region-comparison-schemes-export/${clickedSchemeComparisonCell.category}/7?${params.toString()}`,
+                                      "_blank",
+                                    );
+                                  }}
+                                  className="flex items-center gap-1.5 px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors text-xs font-medium shadow-sm"
+                                  data-testid="button-export-scheme-comparison-excel"
+                                >
+                                  <FileDown className="h-3 w-3" />
+                                  Excel
+                                </button>
+                              )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setClickedSchemeComparisonCell(null)}
+                              className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                              data-testid="button-close-scheme-comparison-details"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        {isLoadingSchemeComparisonSchemes ? (
+                          <div className="space-y-2 p-5">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                          </div>
+                        ) : schemeLpcdComparisonSchemes &&
+                          schemeLpcdComparisonSchemes.data?.length > 0 ? (
+                          <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-purple-200/60 dark:border-purple-800/60 rounded-xl m-3 shadow-sm">
+                            <Table className="table-fixed w-full min-w-[1000px]">
+                              <TableHeader className="sticky top-0 z-10">
+                                <TableRow className="bg-purple-800 dark:bg-purple-900">
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[180px] border-r border-white/10">
+                                    Scheme Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Region
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Division
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Block
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[100px] border-r border-white/10 text-center">
+                                    Dashboard
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 text-center w-[100px] border-r border-white/10">
+                                    Population
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 text-center w-[80px]">
+                                    LPCD
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {schemeLpcdComparisonSchemes.data.map((item: any, idx: number) => (
+                                  <TableRow
+                                    key={`scheme-comp-${item.scheme_id}-${idx}`}
+                                    className={`transition-all duration-200 hover:bg-purple-50/70 dark:hover:bg-purple-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-indigo-50/40 dark:bg-indigo-950/20"}`}
+                                    data-testid={`row-scheme-comparison-${idx}`}
+                                  >
+                                    <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
+                                      {item.dashboard_url ? (
+                                        <a
+                                          href={item.dashboard_url}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="text-blue-600 hover:underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          {item.scheme_name}
+                                        </a>
+                                      ) : (
+                                        item.scheme_name
+                                      )}
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
+                                      {item.region}
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
+                                      {item.division}
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
+                                      {item.block}
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-purple-100/80 dark:border-purple-900/60 truncate text-center">
+                                      {item.dashboard_url && (
+                                        <a
+                                          href={item.dashboard_url}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors"
+                                          title="Open Dashboard"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <ExternalLink className="h-4 w-4" />
+                                        </a>
+                                      )}
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 text-center border-r border-purple-100/80 dark:border-purple-900/60">
+                                      {item.total_population?.toLocaleString() || (
+                                        <span className="text-slate-400">N/A</span>
+                                      )}
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-center">
+                                      <span
+                                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${item.lpcd_value !== undefined && item.lpcd_value >= 55 ? "bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 dark:from-blue-900/60 dark:to-indigo-900/60 dark:text-blue-300 ring-1 ring-blue-200/80 dark:ring-blue-700/60" : "bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 dark:from-orange-900/60 dark:to-amber-900/60 dark:text-orange-300 ring-1 ring-orange-200/80 dark:ring-orange-700/60"}`}
+                                      >
+                                        {item.lpcd_value !== undefined
+                                          ? Number(item.lpcd_value).toFixed(1)
+                                          : "N/A"}
+                                      </span>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        ) : (
+                          <div className="text-center py-12">
+                            <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-500">
+                              No schemes found for this category
+                            </p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Pressure Comparison Details Card */}
+                  {clickedPressureComparisonCell && (
+                    <Card className="mt-4 border-0 shadow-lg rounded-xl overflow-hidden">
+                      <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950 border-b border-orange-200 dark:border-orange-800 py-2.5">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2">
+                            <div className="p-1.5 bg-gradient-to-br from-orange-500 to-amber-600 rounded-lg shadow-sm">
+                              <Gauge className="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                              <div className="text-sm font-bold text-gray-900 dark:text-white">
+                                {clickedPressureComparisonCell.label}
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <Badge className="bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-400 !text-[12px] px-1.5 py-0">
+                                  {clickedPressureComparisonCell.region}
+                                </Badge>
+                                <Badge
+                                  variant="secondary"
+                                  className="!text-[12px] px-1.5 py-0"
+                                >
+                                  {pressureComparisonDetails?.count || 0}{" "}
+                                  Sensors
+                                </Badge>
+                              </div>
+                            </div>
+                          </CardTitle>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const params = new URLSearchParams();
+                                if (clickedPressureComparisonCell.region) {
+                                  params.append("region", clickedPressureComparisonCell.region);
+                                }
+                                if (schemeFilter !== "all") {
+                                  params.append("filterType", schemeFilter);
+                                }
+                                if (schemeFilter === "fully_completed") {
+                                  params.append("fullyCompleted", "true");
+                                }
+                                window.open(
+                                  `/api/pressure/overall-region-comparison/details-export/${clickedPressureComparisonCell.category}?${params.toString()}`,
+                                  "_blank",
+                                );
+                              }}
+                              className="h-7 px-2 text-[10px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200"
+                              data-testid="button-export-pressure-comparison-excel"
+                            >
+                              <Download className="h-3 w-3 mr-1" />
+                              Excel
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                setClickedPressureComparisonCell(null)
+                              }
+                              className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                              data-testid="button-close-pressure-comparison-details"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        {isLoadingPressureComparisonDetails ? (
+                          <div className="space-y-2 p-5">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                          </div>
+                        ) : pressureComparisonDetails &&
+                          pressureComparisonDetails.data &&
+                          pressureComparisonDetails.data.length > 0 ? (
+                          <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-orange-200/60 dark:border-orange-800/60 rounded-xl m-3 shadow-sm">
+                            <Table className="table-fixed w-full min-w-[1000px]">
+                              <TableHeader className="sticky top-0 z-10">
+                                <TableRow className="bg-orange-800 dark:bg-orange-900">
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Region
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Division
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[130px] border-r border-white/10">
+                                    Village
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    ESR Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[180px] border-r border-white/10">
+                                    Scheme Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10 text-center">
+                                    Dashboard
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 text-center w-[100px]">
+                                    Pressure (bar)
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {pressureComparisonDetails.data.map(
+                                  (item: any, idx: number) => (
+                                    <TableRow
+                                      key={`${item.scheme_id}-${item.village_name}-${idx}`}
+                                      className={`transition-all duration-200 hover:bg-orange-50/70 dark:hover:bg-orange-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-orange-50/40 dark:bg-orange-950/20"}`}
+                                      data-testid={`row-pressure-comparison-${idx}`}
+                                    >
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60 truncate">
+                                        {item.region}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60 truncate">
+                                        {item.division}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-orange-100/80 dark:border-orange-900/60 truncate">
+                                        {item.village_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-orange-100/80 dark:border-orange-900/60 truncate">
+                                        {item.esr_name || (
+                                          <span className="text-slate-400">
+                                            N/A
+                                          </span>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60 truncate">
+                                        {item.dashboard_url ? (
+                                          <a
+                                            href={item.dashboard_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-blue-600 hover:underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            {item.scheme_name}
+                                          </a>
+                                        ) : (
+                                          item.scheme_name
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-orange-100/80 dark:border-orange-900/60 truncate text-center">
+                                        {item.dashboard_url && (
+                                          <a
+                                            href={item.dashboard_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors"
+                                            title="Open Dashboard"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <ExternalLink className="h-4 w-4" />
+                                          </a>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center">
+                                        <span
+                                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${item.pressure_value !== null &&
+                                            item.pressure_value !== undefined &&
+                                            item.pressure_value >= 0.2 &&
+                                            item.pressure_value <= 0.7
+                                            ? "bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 dark:from-green-900/60 dark:to-emerald-900/60 dark:text-green-300 ring-1 ring-green-200/80 dark:ring-green-700/60"
+                                            : item.pressure_value !== null &&
+                                              item.pressure_value !==
+                                              undefined &&
+                                              item.pressure_value < 0.2
+                                              ? "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"
+                                              : item.pressure_value !==
+                                                null &&
+                                                item.pressure_value !==
+                                                undefined &&
+                                                item.pressure_value > 0.7
+                                                ? "bg-gradient-to-r from-purple-50 to-violet-50 text-purple-700 dark:from-purple-900/60 dark:to-violet-900/60 dark:text-purple-300 ring-1 ring-purple-200/80 dark:ring-purple-700/60"
+                                                : "bg-gradient-to-r from-gray-50 to-slate-50 text-gray-700 dark:from-gray-800/60 dark:to-slate-800/60 dark:text-gray-300 ring-1 ring-gray-200/80 dark:ring-gray-700/60"
+                                            }`}
+                                        >
+                                          {item.pressure_value !== null &&
+                                            item.pressure_value !== undefined
+                                            ? Number(
+                                              item.pressure_value,
+                                            ).toFixed(2)
+                                            : "N/A"}
+                                        </span>
+                                      </TableCell>
+                                    </TableRow>
+                                  ),
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        ) : (
+                          <div className="text-center py-12">
+                            <Gauge className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-500">
+                              No sensors found for this category
+                            </p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div >
+      </div >
+
+      {
+        selectedSensor && (
+          <Dialog
+            open={!!selectedSensor}
+            onOpenChange={(open) => !open && setSelectedSensor(null)}
+          >
+            <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto rounded-2xl">
+              <DialogHeader className="text-center pb-4 border-b">
+                <DialogTitle className="flex items-center justify-center gap-3 text-lg font-bold">
+                  <div className="p-2 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl">
+                    <Droplet className="h-5 w-5 text-white" />
+                  </div>
+                  {mainTab === "pressure" ? "7-Day Pressure History" : "7-Day Water Supply & Chlorine History"}
+                  {selectedSensor.dashboard_url && (
+                    <a
+                      href={selectedSensor.dashboard_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="ml-2 inline-flex items-center justify-center px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors text-sm font-medium"
+                      title="Open Dashboard"
+                    >
+                      <ExternalLink className="h-4 w-4 mr-1.5" />
+                      Dashboard
+                    </a>
+                  )}
+                </DialogTitle>
+                <DialogDescription>
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+                      <span className="text-gray-500 text-xs">Scheme</span>
+                      <p className="font-medium text-gray-900 dark:text-white truncate">
+                        {selectedSensor.scheme_name}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+                      <span className="text-gray-500 text-xs">Village</span>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        {selectedSensor.village_name}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+                      <span className="text-gray-500 text-xs">ESR</span>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        {selectedSensor.esr_name}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+                      <span className="text-gray-500 text-xs">Region</span>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        {selectedSensor.region}
+                      </p>
+                    </div>
+                  </div>
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="mt-4 border border-slate-200/60 dark:border-slate-700/60 rounded-xl overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-800 dark:bg-slate-900">
+                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 text-center !px-4 !py-3.5 w-[80px] border-r border-white/10">
+                        Day
+                      </TableHead>
+                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 text-center !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                        Date
+                      </TableHead>
+                      {mainTab === "pressure" ? (
+                        <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 text-center !px-4 !py-3.5 w-[120px]">
+                          Pressure (bar)
+                        </TableHead>
+                      ) : (
+                        <>
+                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 text-center !px-4 !py-3.5 w-[120px] border-r border-white/10">
+                            Water Supply
+                          </TableHead>
+                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 text-center !px-4 !py-3.5 w-[120px]">
+                            Chlorine (mg/l)
+                          </TableHead>
+                        </>
+                      )}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {[1, 2, 3, 4, 5, 6, 7].map((day) => {
+                      const waterKey = `water_value_day${day}` as keyof SensorDetail;
+                      const waterDateKey = `water_date_day${day}` as keyof SensorDetail;
+                      const chlorineKey = `chlorine_value_${day}` as keyof SensorDetail;
+                      const pressureKey = `pressure_value_${day}` as keyof SensorDetail;
+                      const pressureDateKey = `pressure_date_day_${day}` as keyof SensorDetail;
+
+                      const dateValue = mainTab === "pressure"
+                        ? (selectedSensor[pressureDateKey] || selectedSensor[waterDateKey])
+                        : selectedSensor[waterDateKey];
+
+                      return (
+                        <TableRow
+                          key={day}
+                          className={`transition-all duration-200 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 ${day % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-slate-50/60 dark:bg-slate-800/40"}`}
+                        >
+                          <TableCell className="font-bold text-center !px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
+                            Day {day}
+                          </TableCell>
+                          <TableCell className="text-center !px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-slate-100/80 dark:border-slate-800/60">
+                            {formatDate(dateValue as string | null)}
+                          </TableCell>
+                          {mainTab === "pressure" ? (
+                            <TableCell className="text-center !px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
+                              {selectedSensor[pressureKey] !== null &&
+                                selectedSensor[pressureKey] !== undefined ? (
+                                Number(selectedSensor[pressureKey]).toFixed(2)
+                              ) : (
+                                <span className="text-slate-400">N/A</span>
+                              )}
+                            </TableCell>
+                          ) : (
+                            <>
+                              <TableCell className="text-center !px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
+                                {selectedSensor[waterKey] !== null &&
+                                  selectedSensor[waterKey] !== undefined ? (
+                                  Number(selectedSensor[waterKey]).toFixed(2)
+                                ) : (
+                                  <span className="text-slate-400">N/A</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center !px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300">
+                                {selectedSensor[chlorineKey] !== null &&
+                                  selectedSensor[chlorineKey] !== undefined ? (
+                                  Number(selectedSensor[chlorineKey]).toFixed(2)
+                                ) : (
+                                  <span className="text-slate-400">N/A</span>
+                                )}
+                              </TableCell>
+                            </>
+                          )}
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </DialogContent>
+          </Dialog >
+        )
+      }
+    </DashboardLayout >
+  );
+};
+
+export default DetailedChlorinePage;

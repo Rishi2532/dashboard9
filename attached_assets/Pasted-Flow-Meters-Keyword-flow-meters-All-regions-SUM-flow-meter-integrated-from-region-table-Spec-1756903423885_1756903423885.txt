@@ -1,0 +1,83 @@
+Flow Meters
+
+Keyword: flow meters
+
+All regions:
+→ SUM(flow_meter_integrated) from region table
+
+Specific region (e.g., "Flow meters in Nagpur")
+→ SUM(flow_meter_integrated) for that region in region table
+
+Specific village (e.g., "Flow meters in Bidgaon")
+→ Count of rows in communication_status table where flow_meter_connected = "connected" and village_name = Bidgaon.
+
+2. ESRs and Villages
+
+Keyword: ESRs
+
+Specific region (e.g., "Nagpur")
+→ Value of total_esr_integrated in region table for Nagpur
+
+All regions:
+→ SUM(total_esr_integrated) from region table
+
+3. Summary Statistics
+
+Keyword: summary statistics
+
+→ Show all fields present in the region table (entire row data).
+
+4. Chlorine Analyzers
+
+Keyword: chlorine analyzers
+
+All regions:
+→ SUM(rca_integrated) from region table
+
+5. Export to Excel
+
+Keyword: export ... to Excel
+
+→ Fetch the filtered data as per region/village/scheme query and export results into an Excel file.
+
+6. Fully Completed Schemes
+
+Keyword: fully completed schemes
+
+All regions:
+→ Fetch list of schemes from scheme_status table where fully_completion_scheme_status = "Connected".
+
+Specific region (e.g., "Fully completed schemes in Nagpur")
+→ Same as above, but filter by region = Nagpur.
+
+7. Fully Completed Villages
+
+Keyword: fully completed villages
+
+Specific scheme (e.g., "Fully completed villages in Bidgaon Tarodi WSS")
+→ Fetch list of villages from village table where fully_completion_villages_status = "Completed" and scheme_name = Bidgaon Tarodi WSS.
+
+If scheme_id is given instead of name
+→ Same logic but filter by scheme_id.
+
+This applies for every scheme.
+
+🔹 Example Queries & Responses
+
+User: "Flow meters in all regions"
+→ Return sum of flow_meter_integrated from region table
+
+User: "ESRs and villages in Nagpur"
+→ Return total_esr_integrated for Nagpur
+
+User: "Summary statistics"
+→ Return all fields from region table
+
+User: "Flow meters in Bidgaon"
+→ Return count of flow_meter_connected = connected where village_name = Bidgaon
+
+User: "Fully completed schemes in Nagpur"
+→ Return all schemes in scheme_status table where fully_completion_scheme_status = Connected and region = Nagpur
+
+User: "Fully completed villages in Bidgaon Tarodi WSS"
+→ Return all villages from village table where fully_completion_villages_status = Completed and scheme_name = Bidgaon Tarodi WSS

@@ -1,0 +1,58 @@
+ <div className="border border-gray-200 bg-sky-50 rounded-2xl px-4 py-4 shadow-sm w-full sm:w-auto">
+            <h2 className="text-center font-semibold text-sm sm:text-base mb-4">
+              MJP Civil Status
+            </h2>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <Select
+                value={commissionedFilter}
+                onValueChange={(value) => {
+                  setCommissionedFilter(value);
+                  setCurrentPage(1);
+                  if (
+                    value === "No" &&
+                    fullyCompletedFilter === "Fully Completed"
+                  ) {
+                    setFullyCompletedFilter("In Progress");
+                  }
+                }}
+              >
+                <SelectTrigger className="w-full sm:w-52 h-9 sm:h-10 lg:h-11 text-xs sm:text-sm lg:text-base">
+                  <SelectValue placeholder="Commissioned" />
+                </SelectTrigger>
+                <SelectContent className="text-xs sm:text-sm lg:text-base">
+                  <SelectItem value="all">Scheme Readiness</SelectItem>
+                  <SelectItem value="Yes">Commissioned</SelectItem>
+                  <SelectItem value="No">Not Commissioned</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={fullyCompletedFilter}
+                onValueChange={(value) => {
+                  setFullyCompletedFilter(value);
+                  setCurrentPage(1);
+                  if (
+                    value === "Fully Completed" &&
+                    commissionedFilter !== "Yes"
+                  ) {
+                    setCommissionedFilter("Yes");
+                  }
+                }}
+              >
+                <SelectTrigger className="w-full sm:w-52 h-9 sm:h-10 lg:h-11 text-xs sm:text-sm lg:text-base">
+                  <SelectValue placeholder="Fully Completed" />
+                </SelectTrigger>
+                <SelectContent className="text-xs sm:text-sm lg:text-base">
+                  <SelectItem value="all">Scheme Status</SelectItem>
+                  <SelectItem
+                    value="Fully Completed"
+                    disabled={commissionedFilter === "No"}
+                  >
+                    Fully Completed
+                  </SelectItem>
+                  <SelectItem value="In Progress">In Progress</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>

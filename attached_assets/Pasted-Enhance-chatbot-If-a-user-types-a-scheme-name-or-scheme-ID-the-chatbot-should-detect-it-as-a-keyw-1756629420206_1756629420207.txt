@@ -1,0 +1,111 @@
+Enhance chatbot.
+
+If a user types a scheme name or scheme ID, the chatbot should detect it as a keyword and fetch all related information from the database. The chatbot should respond with a structured summary containing the following details (pulled from the respective tables and fields):
+
+Scheme Information (from scheme_status table):
+
+Region the scheme belongs to.
+
+Completion status:
+
+If fully_completion_scheme_status = "Completed" → show as Fully Completed.
+
+If fully_completion_scheme_status = "In Progress" → show as In Progress.
+
+Number of villages in the scheme (number_of_village).
+
+Number of villages integrated (total_villages_integrated).
+
+Number of fully completed villages (fully_completed_villages).
+
+Number of partial villages (partial_villages).
+
+Number of ESR in scheme (total_number_ofesr).
+
+Number of ESR integrated (total_esr_integrated).
+
+Number of fully completed ESR (no_fully_completed_esr).
+
+Number of meters, residual chlorine analyzers, and pressure transmitters (flow_meters_connected, residual_chlorine_analysers_connnected, pressure_transmitters_connected).
+
+Village Water Supply Data (from water_scheme_data table):
+
+Villages receiving water = count of villages where water_value_day7 > 0.
+
+Villages with no water = count of villages where water_value_day7 = 0.
+
+Villages with consistent water supply = count of villages where all water_value_day1 → water_value_day7 > 0.
+
+Villages with consistent zero water = count where all water_value_day1 → water_value_day7 = 0.
+
+Villages with above 55 LPCD = count where lpcd_value_day7 > 55.
+
+Villages with below 55 LPCD = count where lpcd_value_day7 < 55.
+
+Villages consistently above 55 LPCD = count where all lpcd_value_day1 → lpcd_value_day7 > 55.
+
+Villages consistently below 55 LPCD = count where all lpcd_value_day1 → lpcd_value_day7 < 55.
+
+Sensor Data (from chlorine_table and pressure_table):
+
+For chlorine sensors (chlorine_value_day7):
+
+Optimal range = 0.2 – 0.5
+
+Below = < 0.2
+
+Above = > 0.5
+
+For pressure sensors (pressure_value_day7):
+
+Optimal range = 0.2 – 0.7
+
+Below = < 0.2
+
+Above = > 0.7
+
+Also calculate consistent ranges for chlorine and pressure:
+
+Consistent Optimal = all 7 days within optimal range.
+
+Consistent Below = all 7 days below range.
+
+Consistent Above = all 7 days above range.
+
+Interactive Tabs / Buttons in Chatbot UI:
+After showing the summary, the chatbot should display clickable buttons/tabs for deeper insights:
+
+Villages:
+
+Show Fully Completed Villages (from village table where fully_completion_village_status = "Completed").
+
+Show Partial Villages (from village table where fully_completion_village_status = "In Progress").
+
+Show Villages with Water.
+
+Show Villages with No Water.
+
+Show Consistent Water Villages.
+
+Show Consistent Zero Water Villages.
+
+Show Villages Above 55 LPCD.
+
+Show Villages Below 55 LPCD.
+
+Show Villages Consistently Above 55 LPCD.
+
+Show Villages Consistently Below 55 LPCD.
+
+ESR / Sensors:
+
+Show ESR with Optimal / Below / Above Chlorine levels.
+
+Show ESR with Optimal / Below / Above Pressure levels.
+
+Show ESR with Consistent Optimal / Below / Above Chlorine.
+
+Show ESR with Consistent Optimal / Below / Above Pressure.
+
+Excel Export:
+Add a “Download Excel” button. Clicking it should generate and download an Excel report containing all the above information for that scheme, extracted from all related tables (scheme_status, water_scheme_data, village, chlorine_table, pressure_table).

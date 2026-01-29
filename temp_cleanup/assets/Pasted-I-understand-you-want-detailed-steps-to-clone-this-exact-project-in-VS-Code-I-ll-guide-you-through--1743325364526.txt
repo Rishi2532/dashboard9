@@ -1,0 +1,1104 @@
+I understand you want detailed steps to clone this exact project in VS Code. I'll guide you through the entire process step by step, providing full code for each file you need to modify.
+Complete Step-by-Step Guide to Clone IoT_Dashboard in VS Code
+Step 1: Initial Setup
+1.	Open VS Code
+2.	Go to File > Open Folder and select your IoT_Dashboard folder where you extracted the ZIP file
+Step 2: Create the .env File
+1.	Right-click on the project root folder in VS Code
+2.	Select "New File"
+3.	Name it .env
+4.	Paste this content (update with your PostgreSQL password):
+DATABASE_URL=postgres://postgres:YourPassword@localhost:5432/water_scheme_dashboard
+PGHOST=localhost
+PGPORT=5432
+PGUSER=postgres
+PGPASSWORD=YourPassword
+PGDATABASE=water_scheme_dashboard
+Step 3: Install Dependencies
+Open VS Code's integrated terminal (Terminal > New Terminal) and run:
+npm install
+Step 4: Ensure Client Directory Structure is Correct
+Check that your client directory has this structure:
+•	client/
+o	src/
+	components/
+	pages/
+	hooks/
+	lib/
+	types/
+o	index.html
+If client/index.html doesn't exist, create it with this content:
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <title>Water Scheme Dashboard</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+Step 5: Check and Update Key Files
+Let's start with the most critical files:
+shared/schema.ts
+Make sure this file has the following content:
+import { pgTable, serial, text, integer } from "drizzle-orm/pg-core";
+import { createInsertSchema, createSelectSchema } from "drizzle-zod";
+import { z } from "zod";
+ 
+// Users schema
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+  email: text("email"),
+  role: text("role"),
+});
+ 
+export const insertUserSchema = createInsertSchema(users).pick({
+  username: true,
+  password: true,
+  email: true,
+  role: true,
+});
+ 
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type User = typeof users.$inferSelect;
+ 
+// Regions schema
+export const regions = pgTable("region", {
+  region_id: serial("region_id").primaryKey(),
+  region_name: text("region_name").notNull(),
+  total_esr_integrated: integer("total_esr_integrated"),
+  fully_completed_esr: integer("fully_completed_esr"),
+  partial_esr: integer("partial_esr"),
+  total_villages_integrated: integer("total_villages_integrated"),
+  fully_completed_villages: integer("fully_completed_villages"),
+  total_schemes_integrated: integer("total_schemes_integrated"),
+  fully_completed_schemes: integer("fully_completed_schemes"),
+});
+ 
+export const insertRegionSchema = createInsertSchema(regions)
+  .omit({ region_id: true });
+ 
+export type InsertRegion = z.infer<typeof insertRegionSchema>;
+export type Region = typeof regions.$inferSelect;
+ 
+// Scheme status schema
+export const schemeStatuses = pgTable("scheme_status", {
+  scheme_id: serial("scheme_id").primaryKey(),
+  scheme_name: text("scheme_name").notNull(),
+  region_name: text("region_name").notNull(),
+  agency: text("agency"),
+  total_villages_in_scheme: integer("total_villages_in_scheme"),
+  total_esr_in_scheme: integer("total_esr_in_scheme"),
+  villages_integrated_on_iot: integer("villages_integrated_on_iot"),
+  fully_completed_villages: integer("fully_completed_villages"),
+  esr_request_received: integer("esr_request_received"),
+  esr_integrated_on_iot: integer("esr_integrated_on_iot"),
+  fully_completed_esr: integer("fully_completed_esr"),
+  balance_for_fully_completion: integer("balance_for_fully_completion"),
+  fm_integrated: integer("fm_integrated"),
+  rca_integrated: integer("rca_integrated"),
+  pt_integrated: integer("pt_integrated"),
+  scheme_completion_status: text("scheme_completion_status"),
+});
+ 
+export const insertSchemeStatusSchema = createInsertSchema(schemeStatuses)
+  .omit({ scheme_id: true });
+ 
+export type InsertSchemeStatus = z.infer<typeof insertSchemeStatusSchema>;
+export type SchemeStatus = typeof schemeStatuses.$inferSelect;
+drizzle.config.ts
+Ensure it contains:
+import type { Config } from "drizzle-kit";
+import * as dotenv from "dotenv";
+dotenv.config();
+ 
+export default {
+  schema: "./shared/schema.ts",
+  out: "./drizzle",
+  driver: "pg",
+  dbCredentials: {
+    connectionString: process.env.DATABASE_URL!,
+  },
+} satisfies Config;
+server/db.ts
+Update this file with:
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
+import { regions, schemeStatuses } from "../shared/schema";
+import { sql, eq } from "drizzle-orm";
+import { storage } from "./storage";
+ 
+// Initialize a single database connection
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+ 
+export async function getDB() {
+  return drizzle(pool);
+}
+ 
+export async function updateRegionSummaries() {
+  try {
+    console.log("Database already contains data, updating region summaries...");
+    const db = await getDB();
+    
+    // Get all regions
+    const allRegions = await db.select().from(regions);
+    
+    for (const region of allRegions) {
+      const regionSchemes = await db.select().from(schemeStatuses).where(eq(schemeStatuses.region_name, region.region_name));
+      
+      // Calculate summary data
+      const total_schemes_integrated = regionSchemes.length;
+      const fully_completed_schemes = regionSchemes.filter(scheme => scheme.scheme_completion_status === 'Fully-Completed').length;
+      
+      let total_villages_integrated = 0;
+      let fully_completed_villages = 0;
+      let total_esr_integrated = 0;
+      let fully_completed_esr = 0;
+      let partial_esr = 0;
+      
+      regionSchemes.forEach(scheme => {
+        total_villages_integrated += scheme.villages_integrated_on_iot || 0;
+        fully_completed_villages += scheme.fully_completed_villages || 0;
+        total_esr_integrated += scheme.esr_integrated_on_iot || 0;
+        fully_completed_esr += scheme.fully_completed_esr || 0;
+      });
+      
+      partial_esr = total_esr_integrated - fully_completed_esr;
+      
+      // Update region with calculated data
+      await db.update(regions)
+        .set({
+          total_schemes_integrated,
+          fully_completed_schemes,
+          total_villages_integrated,
+          fully_completed_villages,
+          total_esr_integrated,
+          fully_completed_esr,
+          partial_esr
+        })
+        .where(eq(regions.region_name, region.region_name));
+      
+      console.log(`Updated summary data for region: ${region.region_name}`);
+    }
+    
+    console.log("All region summaries updated successfully");
+  } catch (error) {
+    console.error("Error updating region summaries:", error);
+  }
+}
+ 
+export async function initializeDatabase() {
+  try {
+    const db = await getDB();
+    
+    // Check if there's any data in the regions table
+    const regionsCount = await db.select({ count: sql`count(*)` }).from(regions);
+    const count = parseInt(regionsCount[0].count.toString());
+    
+    if (count > 0) {
+      console.log(`Found ${count} regions in database`);
+      // Update region summaries
+      await updateRegionSummaries();
+    } else {
+      console.log("No data found in database, initializing with sample data...");
+      await resetRegionData();
+    }
+    
+  } catch (error) {
+    console.error("Error initializing database:", error);
+  }
+}
+ 
+export async function resetRegionData() {
+  try {
+    const db = await getDB();
+    
+    // Sample regions data
+    const regionsData = [
+      {
+        region_name: 'Nagpur',
+        total_esr_integrated: 0,
+        fully_completed_esr: 0,
+        partial_esr: 0,
+        total_villages_integrated: 0,
+        fully_completed_villages: 0,
+        total_schemes_integrated: 0,
+        fully_completed_schemes: 0
+      },
+      {
+        region_name: 'Chhatrapati Sambhajinagar',
+        total_esr_integrated: 0,
+        fully_completed_esr: 0,
+        partial_esr: 0,
+        total_villages_integrated: 0,
+        fully_completed_villages: 0,
+        total_schemes_integrated: 0,
+        fully_completed_schemes: 0
+      },
+      {
+        region_name: 'Pune',
+        total_esr_integrated: 0,
+        fully_completed_esr: 0,
+        partial_esr: 0,
+        total_villages_integrated: 0,
+        fully_completed_villages: 0,
+        total_schemes_integrated: 0,
+        fully_completed_schemes: 0
+      },
+      {
+        region_name: 'Konkan',
+        total_esr_integrated: 0,
+        fully_completed_esr: 0,
+        partial_esr: 0,
+        total_villages_integrated: 0,
+        fully_completed_villages: 0,
+        total_schemes_integrated: 0,
+        fully_completed_schemes: 0
+      },
+      {
+        region_name: 'Amravati',
+        total_esr_integrated: 0,
+        fully_completed_esr: 0,
+        partial_esr: 0,
+        total_villages_integrated: 0,
+        fully_completed_villages: 0,
+        total_schemes_integrated: 0,
+        fully_completed_schemes: 0
+      },
+      {
+        region_name: 'Nashik',
+        total_esr_integrated: 0,
+        fully_completed_esr: 0,
+        partial_esr: 0,
+        total_villages_integrated: 0,
+        fully_completed_villages: 0,
+        total_schemes_integrated: 0,
+        fully_completed_schemes: 0
+      }
+    ];
+    
+    // Insert regions
+    for (const region of regionsData) {
+      await storage.createRegion(region);
+    }
+    
+    // Sample schemes data
+    const schemesData = [
+      {
+        scheme_name: '105 villages Regional WSS',
+        region_name: 'Nagpur',
+        agency: 'MJP',
+        total_villages_in_scheme: 105,
+        total_esr_in_scheme: 20,
+        villages_integrated_on_iot: 95,
+        fully_completed_villages: 80,
+        esr_request_received: 20,
+        esr_integrated_on_iot: 18,
+        fully_completed_esr: 15,
+        balance_for_fully_completion: 3,
+        fm_integrated: 18,
+        rca_integrated: 15,
+        pt_integrated: 16,
+        scheme_completion_status: 'Partial'
+      },
+      {
+        scheme_name: 'Amravati City WSS',
+        region_name: 'Amravati',
+        agency: 'MJP',
+        total_villages_in_scheme: 1,
+        total_esr_in_scheme: 15,
+        villages_integrated_on_iot: 1,
+        fully_completed_villages: 1,
+        esr_request_received: 15,
+        esr_integrated_on_iot: 12,
+        fully_completed_esr: 10,
+        balance_for_fully_completion: 5,
+        fm_integrated: 12,
+        rca_integrated: 10,
+        pt_integrated: 10,
+        scheme_completion_status: 'Partial'
+      },
+      {
+        scheme_name: 'Akola City WSS',
+        region_name: 'Amravati',
+        agency: 'MJP',
+        total_villages_in_scheme: 1,
+        total_esr_in_scheme: 18,
+        villages_integrated_on_iot: 1,
+        fully_completed_villages: 1,
+        esr_request_received: 18,
+        esr_integrated_on_iot: 15,
+        fully_completed_esr: 12,
+        balance_for_fully_completion: 6,
+        fm_integrated: 15,
+        rca_integrated: 12,
+        pt_integrated: 14,
+        scheme_completion_status: 'Partial'
+      },
+      {
+        scheme_name: 'Pusad Regional WSS',
+        region_name: 'Amravati',
+        agency: 'MJP',
+        total_villages_in_scheme: 22,
+        total_esr_in_scheme: 12,
+        villages_integrated_on_iot: 20,
+        fully_completed_villages: 15,
+        esr_request_received: 12,
+        esr_integrated_on_iot: 10,
+        fully_completed_esr: 8,
+        balance_for_fully_completion: 4,
+        fm_integrated: 10,
+        rca_integrated: 8,
+        pt_integrated: 9,
+        scheme_completion_status: 'Partial'
+      },
+      {
+        scheme_name: 'Parbhani City WSS',
+        region_name: 'Chhatrapati Sambhajinagar',
+        agency: 'MJP',
+        total_villages_in_scheme: 1,
+        total_esr_in_scheme: 10,
+        villages_integrated_on_iot: 1,
+        fully_completed_villages: 1,
+        esr_request_received: 10,
+        esr_integrated_on_iot: 8,
+        fully_completed_esr: 6,
+        balance_for_fully_completion: 4,
+        fm_integrated: 8,
+        rca_integrated: 6,
+        pt_integrated: 7,
+        scheme_completion_status: 'Partial'
+      },
+      {
+        scheme_name: 'Hingoli Rural WSS',
+        region_name: 'Chhatrapati Sambhajinagar',
+        agency: 'ZP',
+        total_villages_in_scheme: 12,
+        total_esr_in_scheme: 8,
+        villages_integrated_on_iot: 10,
+        fully_completed_villages: 8,
+        esr_request_received: 8,
+        esr_integrated_on_iot: 6,
+        fully_completed_esr: 5,
+        balance_for_fully_completion: 3,
+        fm_integrated: 6,
+        rca_integrated: 5,
+        pt_integrated: 5,
+        scheme_completion_status: 'Partial'
+      },
+      {
+        scheme_name: 'Ratnagiri City WSS',
+        region_name: 'Konkan',
+        agency: 'MJP',
+        total_villages_in_scheme: 1,
+        total_esr_in_scheme: 8,
+        villages_integrated_on_iot: 1,
+        fully_completed_villages: 1,
+        esr_request_received: 8,
+        esr_integrated_on_iot: 6,
+        fully_completed_esr: 5,
+        balance_for_fully_completion: 3,
+        fm_integrated: 6,
+        rca_integrated: 5,
+        pt_integrated: 6,
+        scheme_completion_status: 'Partial'
+      },
+      {
+        scheme_name: 'Sindhudurg Rural WSS',
+        region_name: 'Konkan',
+        agency: 'ZP',
+        total_villages_in_scheme: 15,
+        total_esr_in_scheme: 12,
+        villages_integrated_on_iot: 12,
+        fully_completed_villages: 10,
+        esr_request_received: 12,
+        esr_integrated_on_iot: 10,
+        fully_completed_esr: 8,
+        balance_for_fully_completion: 4,
+        fm_integrated: 10,
+        rca_integrated: 8,
+        pt_integrated: 9,
+        scheme_completion_status: 'Partial'
+      },
+      {
+        scheme_name: 'Pune City WSS',
+        region_name: 'Pune',
+        agency: 'PMC',
+        total_villages_in_scheme: 1,
+        total_esr_in_scheme: 25,
+        villages_integrated_on_iot: 1,
+        fully_completed_villages: 1,
+        esr_request_received: 25,
+        esr_integrated_on_iot: 22,
+        fully_completed_esr: 20,
+        balance_for_fully_completion: 5,
+        fm_integrated: 22,
+        rca_integrated: 20,
+        pt_integrated: 21,
+        scheme_completion_status: 'Partial'
+      },
+      {
+        scheme_name: 'Solapur Regional WSS',
+        region_name: 'Pune',
+        agency: 'MJP',
+        total_villages_in_scheme: 28,
+        total_esr_in_scheme: 15,
+        villages_integrated_on_iot: 25,
+        fully_completed_villages: 20,
+        esr_request_received: 15,
+        esr_integrated_on_iot: 12,
+        fully_completed_esr: 10,
+        balance_for_fully_completion: 5,
+        fm_integrated: 12,
+        rca_integrated: 10,
+        pt_integrated: 11,
+        scheme_completion_status: 'Partial'
+      },
+      {
+        scheme_name: 'Nashik City WSS',
+        region_name: 'Nashik',
+        agency: 'NMC',
+        total_villages_in_scheme: 1,
+        total_esr_in_scheme: 20,
+        villages_integrated_on_iot: 1,
+        fully_completed_villages: 1,
+        esr_request_received: 20,
+        esr_integrated_on_iot: 18,
+        fully_completed_esr: 15,
+        balance_for_fully_completion: 5,
+        fm_integrated: 18,
+        rca_integrated: 15,
+        pt_integrated: 16,
+        scheme_completion_status: 'Partial'
+      },
+      {
+        scheme_name: 'Jalgaon Regional WSS',
+        region_name: 'Nashik',
+        agency: 'MJP',
+        total_villages_in_scheme: 35,
+        total_esr_in_scheme: 18,
+        villages_integrated_on_iot: 30,
+        fully_completed_villages: 25,
+        esr_request_received: 18,
+        esr_integrated_on_iot: 15,
+        fully_completed_esr: 12,
+        balance_for_fully_completion: 6,
+        fm_integrated: 15,
+        rca_integrated: 12,
+        pt_integrated: 14,
+        scheme_completion_status: 'Partial'
+      },
+      {
+        scheme_name: 'Wardha Regional WSS',
+        region_name: 'Nagpur',
+        agency: 'MJP',
+        total_villages_in_scheme: 18,
+        total_esr_in_scheme: 10,
+        villages_integrated_on_iot: 15,
+        fully_completed_villages: 12,
+        esr_request_received: 10,
+        esr_integrated_on_iot: 8,
+        fully_completed_esr: 6,
+        balance_for_fully_completion: 4,
+        fm_integrated: 8,
+        rca_integrated: 6,
+        pt_integrated: 7,
+        scheme_completion_status: 'Partial'
+      },
+      {
+        scheme_name: 'Nagpur City WSS',
+        region_name: 'Nagpur',
+        agency: 'NMC',
+        total_villages_in_scheme: 1,
+        total_esr_in_scheme: 22,
+        villages_integrated_on_iot: 1,
+        fully_completed_villages: 1,
+        esr_request_received: 22,
+        esr_integrated_on_iot: 20,
+        fully_completed_esr: 18,
+        balance_for_fully_completion: 4,
+        fm_integrated: 20,
+        rca_integrated: 18,
+        pt_integrated: 19,
+        scheme_completion_status: 'Fully-Completed'
+      }
+    ];
+    
+    // Insert schemes
+    for (const scheme of schemesData) {
+      await storage.createScheme(scheme);
+    }
+    
+    console.log("Sample data inserted successfully");
+    
+    // Now update the region summaries
+    await updateRegionSummaries();
+    
+  } catch (error) {
+    console.error("Error resetting region data:", error);
+  }
+}
+server/storage.ts
+Update with this content:
+import { drizzle } from "drizzle-orm/node-postgres";
+import { sql, eq, and } from "drizzle-orm";
+import { Pool } from "pg";
+import {
+  users, regions, schemeStatuses,
+  User, Region, SchemeStatus,
+  InsertUser, InsertRegion, InsertSchemeStatus
+} from "../shared/schema";
+ 
+export interface IStorage {
+  // User operations (from original schema)
+  getUser(id: number): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+ 
+  // Region operations
+  getAllRegions(): Promise<Region[]>;
+  getRegionByName(regionName: string): Promise<Region | undefined>;
+  getRegionSummary(regionName?: string): Promise<any>;
+  createRegion(region: InsertRegion): Promise<Region>;
+  updateRegion(region: Region): Promise<Region>;
+ 
+  // Scheme operations
+  getAllSchemes(statusFilter?: string): Promise<SchemeStatus[]>;
+  getSchemesByRegion(
+    regionName: string,
+    statusFilter?: string,
+  ): Promise<SchemeStatus[]>;
+  getSchemeById(schemeId: number): Promise<SchemeStatus | undefined>;
+  createScheme(scheme: InsertSchemeStatus): Promise<SchemeStatus>;
+  updateScheme(scheme: SchemeStatus): Promise<SchemeStatus>;
+  deleteScheme(schemeId: number): Promise<boolean>;
+}
+ 
+export class PostgresStorage implements IStorage {
+  private db: any;
+  private initialized: Promise<void>;
+ 
+  constructor() {
+    this.initialized = this.initializeDb();
+  }
+ 
+  private async initializeDb() {
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+    });
+    
+    this.db = drizzle(pool);
+  }
+ 
+  private async ensureInitialized() {
+    await this.initialized;
+  }
+ 
+  async getUser(id: number): Promise<User | undefined> {
+    await this.ensureInitialized();
+    const result = await this.db.select().from(users).where(eq(users.id, id));
+    return result[0];
+  }
+ 
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    await this.ensureInitialized();
+    const result = await this.db.select().from(users).where(eq(users.username, username));
+    return result[0];
+  }
+ 
+  async createUser(insertUser: InsertUser): Promise<User> {
+    await this.ensureInitialized();
+    const result = await this.db.insert(users).values(insertUser).returning();
+    return result[0];
+  }
+ 
+  async getAllRegions(): Promise<Region[]> {
+    await this.ensureInitialized();
+    return await this.db.select().from(regions);
+  }
+ 
+  async getRegionByName(regionName: string): Promise<Region | undefined> {
+    await this.ensureInitialized();
+    const result = await this.db.select().from(regions).where(eq(regions.region_name, regionName));
+    return result[0];
+  }
+ 
+  async getRegionSummary(regionName?: string): Promise<any> {
+    await this.ensureInitialized();
+    
+    let query;
+    
+    if (regionName) {
+      // Get summary for specific region
+      query = this.db.select({
+        total_schemes_integrated: regions.total_schemes_integrated,
+        fully_completed_schemes: regions.fully_completed_schemes,
+        total_villages_integrated: regions.total_villages_integrated,
+        fully_completed_villages: regions.fully_completed_villages,
+        total_esr_integrated: regions.total_esr_integrated,
+        fully_completed_esr: regions.fully_completed_esr
+      }).from(regions).where(eq(regions.region_name, regionName));
+      
+      const result = await query;
+      return result[0];
+    } else {
+      // Get total summary for all regions
+      query = this.db.select({
+        total_schemes_integrated: sql`SUM(${regions.total_schemes_integrated})`,
+        fully_completed_schemes: sql`SUM(${regions.fully_completed_schemes})`,
+        total_villages_integrated: sql`SUM(${regions.total_villages_integrated})`,
+        fully_completed_villages: sql`SUM(${regions.fully_completed_villages})`,
+        total_esr_integrated: sql`SUM(${regions.total_esr_integrated})`,
+        fully_completed_esr: sql`SUM(${regions.fully_completed_esr})`
+      }).from(regions);
+      
+      const result = await query;
+      return result[0];
+    }
+  }
+ 
+  async createRegion(region: InsertRegion): Promise<Region> {
+    await this.ensureInitialized();
+    const result = await this.db.insert(regions).values(region).returning();
+    return result[0];
+  }
+ 
+  async updateRegion(region: Region): Promise<Region> {
+    await this.ensureInitialized();
+    const result = await this.db.update(regions)
+      .set(region)
+      .where(eq(regions.region_id, region.region_id))
+      .returning();
+    return result[0];
+  }
+ 
+  async getAllSchemes(statusFilter?: string): Promise<SchemeStatus[]> {
+    await this.ensureInitialized();
+    
+    let query = this.db.select().from(schemeStatuses);
+    
+    if (statusFilter && statusFilter !== 'All') {
+      query = query.where(eq(schemeStatuses.scheme_completion_status, statusFilter));
+    }
+    
+    return await query;
+  }
+ 
+  async getSchemesByRegion(
+    regionName: string,
+    statusFilter?: string,
+  ): Promise<SchemeStatus[]> {
+    await this.ensureInitialized();
+    
+    let query = this.db.select().from(schemeStatuses)
+      .where(eq(schemeStatuses.region_name, regionName));
+    
+    if (statusFilter && statusFilter !== 'All') {
+      query = query.where(eq(schemeStatuses.scheme_completion_status, statusFilter));
+    }
+    
+    return await query;
+  }
+ 
+  async getSchemeById(schemeId: number): Promise<SchemeStatus | undefined> {
+    await this.ensureInitialized();
+    const result = await this.db.select().from(schemeStatuses)
+      .where(eq(schemeStatuses.scheme_id, schemeId));
+    return result[0];
+  }
+ 
+  async createScheme(scheme: InsertSchemeStatus): Promise<SchemeStatus> {
+    await this.ensureInitialized();
+    const result = await this.db.insert(schemeStatuses).values(scheme).returning();
+    return result[0];
+  }
+ 
+  async updateScheme(scheme: SchemeStatus): Promise<SchemeStatus> {
+    await this.ensureInitialized();
+    const result = await this.db.update(schemeStatuses)
+      .set(scheme)
+      .where(eq(schemeStatuses.scheme_id, scheme.scheme_id))
+      .returning();
+    return result[0];
+  }
+ 
+  async deleteScheme(schemeId: number): Promise<boolean> {
+    await this.ensureInitialized();
+    const result = await this.db.delete(schemeStatuses)
+      .where(eq(schemeStatuses.scheme_id, schemeId))
+      .returning();
+    return result.length > 0;
+  }
+}
+ 
+export const storage = new PostgresStorage();
+server/routes.ts
+Update with:
+import { Express, Request, Response } from "express";
+import { initializeDatabase } from "./db";
+import { storage } from "./storage";
+import { z } from "zod";
+import { insertRegionSchema, insertSchemeStatusSchema } from "../shared/schema";
+import { createServer } from "http";
+ 
+// Initialize the database when the server starts
+initializeDatabase();
+ 
+export async function registerRoutes(app: Express) {
+  const server = createServer(app);
+ 
+  // API health check
+  app.get("/api/health", (_req: Request, res: Response) => {
+    res.json({ status: "ok" });
+  });
+ 
+  // Get all regions
+  app.get("/api/regions", async (_req: Request, res: Response) => {
+    try {
+      const regions = await storage.getAllRegions();
+      res.json(regions);
+    } catch (error) {
+      console.error("Error fetching regions:", error);
+      res.status(500).json({ error: "Failed to fetch regions" });
+    }
+  });
+ 
+  // Get region by name
+  app.get("/api/regions/:name", async (req: Request, res: Response) => {
+    try {
+      const regionName = req.params.name;
+      const region = await storage.getRegionByName(regionName);
+      
+      if (!region) {
+        return res.status(404).json({ error: "Region not found" });
+      }
+      
+      res.json(region);
+    } catch (error) {
+      console.error("Error fetching region:", error);
+      res.status(500).json({ error: "Failed to fetch region" });
+    }
+  });
+ 
+  // Get region summary
+  app.get("/api/region/summary", async (req: Request, res: Response) => {
+    try {
+      const regionName = req.query.region as string | undefined;
+      const summary = await storage.getRegionSummary(regionName);
+      res.json(summary);
+    } catch (error) {
+      console.error("Error fetching region summary:", error);
+      res.status(500).json({ error: "Failed to fetch region summary" });
+    }
+  });
+ 
+  // Create a new region
+  app.post("/api/regions", async (req: Request, res: Response) => {
+    try {
+      const regionData = insertRegionSchema.parse(req.body);
+      const newRegion = await storage.createRegion(regionData);
+      res.status(201).json(newRegion);
+    } catch (error) {
+      console.error("Error creating region:", error);
+      
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid region data", details: error.errors });
+      }
+      
+      res.status(500).json({ error: "Failed to create region" });
+    }
+  });
+ 
+  // Update a region
+  app.put("/api/regions/:id", async (req: Request, res: Response) => {
+    try {
+      const region_id = parseInt(req.params.id);
+      const regionData = req.body;
+      
+      // Get the existing region first
+      const existingRegions = await storage.getAllRegions();
+      const existingRegion = existingRegions.find(r => r.region_id === region_id);
+      
+      if (!existingRegion) {
+        return res.status(404).json({ error: "Region not found" });
+      }
+      
+      // Merge existing data with updates
+      const updatedRegion = { ...existingRegion, ...regionData };
+      
+      const result = await storage.updateRegion(updatedRegion);
+      res.json(result);
+    } catch (error) {
+      console.error("Error updating region:", error);
+      res.status(500).json({ error: "Failed to update region" });
+    }
+  });
+ 
+  // Get all schemes
+  app.get("/api/schemes", async (req: Request, res: Response) => {
+    try {
+      const statusFilter = req.query.status as string | undefined;
+      const regionName = req.query.region as string | undefined;
+      
+      let schemes;
+      if (regionName) {
+        schemes = await storage.getSchemesByRegion(regionName, statusFilter);
+      } else {
+        schemes = await storage.getAllSchemes(statusFilter);
+      }
+      
+      res.json(schemes);
+    } catch (error) {
+      console.error("Error fetching schemes:", error);
+      res.status(500).json({ error: "Failed to fetch schemes" });
+    }
+  });
+ 
+  // Get scheme by ID
+  app.get("/api/schemes/:id", async (req: Request, res: Response) => {
+    try {
+      const schemeId = parseInt(req.params.id);
+      const scheme = await storage.getSchemeById(schemeId);
+      
+      if (!scheme) {
+        return res.status(404).json({ error: "Scheme not found" });
+      }
+      
+      res.json(scheme);
+    } catch (error) {
+      console.error("Error fetching scheme:", error);
+      res.status(500).json({ error: "Failed to fetch scheme" });
+    }
+  });
+ 
+  // Create a new scheme
+  app.post("/api/schemes", async (req: Request, res: Response) => {
+    try {
+      const schemeData = insertSchemeStatusSchema.parse(req.body);
+      const newScheme = await storage.createScheme(schemeData);
+      res.status(201).json(newScheme);
+    } catch (error) {
+      console.error("Error creating scheme:", error);
+      
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid scheme data", details: error.errors });
+      }
+      
+      res.status(500).json({ error: "Failed to create scheme" });
+    }
+  });
+ 
+  // Update a scheme
+  app.put("/api/schemes/:id", async (req: Request, res: Response) => {
+    try {
+      const scheme_id = parseInt(req.params.id);
+      const schemeData = req.body;
+      
+      // Get the existing scheme first
+      const existingScheme = await storage.getSchemeById(scheme_id);
+      
+      if (!existingScheme) {
+        return res.status(404).json({ error: "Scheme not found" });
+      }
+      
+      // Merge existing data with updates
+      const updatedScheme = { ...existingScheme, ...schemeData };
+      
+      const result = await storage.updateScheme(updatedScheme);
+      res.json(result);
+    } catch (error) {
+      console.error("Error updating scheme:", error);
+      res.status(500).json({ error: "Failed to update scheme" });
+    }
+  });
+ 
+  // Delete a scheme
+  app.delete("/api/schemes/:id", async (req: Request, res: Response) => {
+    try {
+      const schemeId = parseInt(req.params.id);
+      const success = await storage.deleteScheme(schemeId);
+      
+      if (!success) {
+        return res.status(404).json({ error: "Scheme not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting scheme:", error);
+      res.status(500).json({ error: "Failed to delete scheme" });
+    }
+  });
+ 
+  return server;
+}
+server/index.ts
+Update with:
+import express, { type Request, Response, NextFunction } from "express";
+import { registerRoutes } from "./routes";
+import { setupVite, serveStatic, log } from "./vite";
+import * as dotenv from "dotenv";
+dotenv.config();
+ 
+const app = express();
+ 
+// Middleware for JSON and URL-encoded bodies
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+ 
+// Setting CORS headers
+app.use((req: Request, res: Response, next: NextFunction) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
+ 
+// Register API routes
+const serverPromise = registerRoutes(app);
+ 
+let server: any;
+ 
+// Setup Vite for development
+(async () => {
+  try {
+    server = await serverPromise;
+    
+    // In development, serve Vite for the frontend
+    if (process.env.NODE_ENV !== "production") {
+      await setupVite(app, server);
+    } else {
+      // In production, serve static files
+      serveStatic(app);
+    }
+ 
+    // Global error handler
+    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+      console.error(err.stack);
+      res.status(500).json({ error: "Internal Server Error", message: err.message });
+    });
+ 
+    // ALWAYS serve the app on port 5000
+    // this serves both the API and the client.
+    // It is the only port that is not firewalled.
+    const port = 5000;
+    server.listen({
+      port,
+      host: "0.0.0.0",
+      reusePort: true,
+    }, () => {
+      log(`Server running at http://localhost:${port}`);
+      log(`API endpoints available at http://localhost:${port}/api/`);
+      log(`Frontend available at http://localhost:${port}/`);
+    });
+  } catch (error) {
+    console.error("Failed to start server:", error);
+    process.exit(1);
+  }
+})();
+Step 6: Create VS Code Launch Configuration
+1.	Create a folder called .vscode in the root:
+mkdir -p .vscode
+2.	Inside this folder, create a file named launch.json:
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Launch Water Dashboard",
+      "skipFiles": ["<node_internals>/**"],
+      "program": "${workspaceFolder}/server/index.ts",
+      "runtimeArgs": ["-r", "tsx/cjs"],
+      "outFiles": ["${workspaceFolder}/**/*.js"],
+      "env": {
+        "DATABASE_URL": "postgres://postgres:YourPassword@localhost:5432/water_scheme_dashboard",
+        "PGHOST": "localhost",
+        "PGPORT": "5432",
+        "PGUSER": "postgres",
+        "PGPASSWORD": "YourPassword",
+        "PGDATABASE": "water_scheme_dashboard",
+        "NODE_ENV": "development"
+      }
+    }
+  ]
+}
+Replace YourPassword with your actual PostgreSQL password.
+Step 7: Create a Database Test Script
+Create a file named test-db.js in the project root:
+const { Pool } = require('pg');
+require('dotenv').config();
+ 
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL
+});
+ 
+async function testConnection() {
+  try {
+    const client = await pool.connect();
+    console.log('✅ Successfully connected to PostgreSQL!');
+    
+    const regionResult = await client.query('SELECT COUNT(*) FROM region');
+    console.log(`Found ${regionResult.rows[0].count} regions in database`);
+    
+    const schemeResult = await client.query('SELECT COUNT(*) FROM scheme_status');
+    console.log(`Found ${schemeResult.rows[0].count} schemes in database`);
+    
+    client.release();
+    await pool.end();
+    
+    return true;
+  } catch (error) {
+    console.error('❌ Database connection error:', error.message);
+    return false;
+  }
+}
+ 
+testConnection();
+Step 8: Start the Application
+In VS Code terminal, run:
+npm run dev
+This should start the server and you should be able to access the application at http://localhost:5000.
+Step 9: Troubleshooting Common Issues
+If you encounter any of these common issues, try these solutions:
+Database Connection Issues
+1.	Verify PostgreSQL is running:
+# On Windows
+net start postgresql
+ 
+# On Mac
+brew services list
+brew services start postgresql
+ 
+# On Linux
+sudo systemctl status postgresql
+sudo systemctl start postgresql
+2.	Check the .env file has correct credentials
+3.	Test database connection with test-db.js:
+node test-db.js
+Port Already in Use
+If port 5000 is already in use:
+# On Windows
+netstat -ano | findstr :5000
+taskkill /PID <PID> /F
+ 
+# On Mac/Linux
+lsof -i :5000
+kill -9 <PID>
+Or change the port in server/index.ts to another port like 3000.
+Other Common Issues
+1.	If you have module not found errors:
+npm install
+2.	If you need TypeScript/TSX globally:
+npm install -g tsx typescript
+3.	If frontend isn't loading correctly, check Vite server output in console for errors
+This detailed guide should help you clone the exact project in VS Code. Let me know if you encounter any specific issues during the process!

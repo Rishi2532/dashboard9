@@ -1,0 +1,126 @@
+et’s break down how a zoomable sunburst graph actually works, step by step, in your Infrastructure Monitoring context.
+
+✅ 1️⃣ Basic Principle
+A sunburst graph visualizes hierarchical data in a radial (circular) layout:
+
+The center circle is the top-most level (Maharashtra).
+
+The first ring shows the next level (Regions).
+
+The second ring shows what’s inside each region (Schemes).
+
+The third ring shows what’s inside each scheme (Villages).
+
+Optionally, you can keep adding rings for ESRs and Sensors.
+
+So visually, the depth = how far out you go from the center.
+And size/color = some property of that node (like population, status, LPCD).
+
+✅ 2️⃣ How Zooming Works
+Without Zooming:
+All levels are shown at once — the whole tree is visible. If you have hundreds of villages, the outer rings can get very crowded.
+
+With Zooming:
+When you click on any slice (e.g., Nagpur Region):
+
+That slice becomes the new root → the clicked part moves to the center.
+
+Only its children are redrawn as new rings.
+
+This filters out everything not related to that branch → declutters your view.
+
+You can keep clicking deeper: Region → Scheme → Village → ESR → Sensors.
+
+Zoom Out:
+Click the center or a breadcrumb to go back up the hierarchy.
+
+✅ 3️⃣ How the Data Connects
+Each slice is linked to:
+
+Its parent (Region → Scheme → Village)
+
+Its children (Scheme → Villages, Village → ESRs)
+
+Its properties:
+
+e.g., Status (Completed/In Progress) → color.
+
+Population → size.
+
+LPCD category → color shade.
+
+Sensor status → icons or shading.
+
+When you click a slice, the graph updates dynamically to show only that part of the tree, recalculating the new rings and labels.
+
+✅ 4️⃣ How It Helps in Your Case
+For Maharashtra’s water monitoring:
+✅ At the Region level: you instantly see how many schemes are Completed vs In Progress.
+
+✅ Zoom into Schemes: see which schemes have more incomplete villages.
+
+✅ Zoom into Villages: see LPCD status: Above 55 / Below 55 / Zero supply.
+
+✅ Zoom into ESR/Sensors: check chlorine & pressure health and sensor connectivity.
+
+It’s a clear drill-down from macro to micro: State → Region → Scheme → Village → ESR → Sensor.
+
+✅ 5️⃣ What Happens Behind the Scenes
+Under the hood:
+
+The data is structured like a tree (JSON).
+
+A partition layout calculates how to split the circle into slices.
+
+The chart uses angular size (arc) to represent quantity, like village count or population.
+
+Colors are assigned based on status categories.
+
+When you click, the chart animates the focus to the new root — no reload, just smooth transitions.
+
+✅ 6️⃣ Example in Action
+Imagine you click:
+
+Pune Region → the circle zooms in, now you see only Pune’s 17 schemes.
+
+Click Scheme 2 → zooms into its villages.
+
+Hover over a Village slice → tooltip shows:
+
+yaml
+Copy
+Edit
+Village Name: XYZ
+Population: 1,200
+LPCD: 42 (Below 55)
+Chlorine Level: 0.3 mg/L (Normal)
+Pressure: 0.5 bar (Normal)
+See red slices? Those might be Below 55 LPCD.
+
+Click the breadcrumb or center to go back up.
+
+✅ 7️⃣ Why Use It?
+🔍 Key benefits:
+
+See big-picture performance at the state/region level.
+
+Drill down to find weak spots (low LPCD, offline sensors).
+
+Very intuitive for non-technical managers.
+
+Easy to integrate into a real-time dashboard.
+
+✅ Putting It Together
+In short:
+
+Hierarchy: From Region to Sensor.
+
+Slice size: Number of villages/population.
+
+Slice color: Status (Completed/In Progress, LPCD bands, Chlorine/Pressure level).
+
+Click: Focus on a branch.
+
+Zoom: Explore deeper.
+
+Result: One chart, multiple levels of insight.

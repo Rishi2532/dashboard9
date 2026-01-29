@@ -1,0 +1,90 @@
+{
+  "village": [
+    {
+      "date": "29-Dec",
+      "lpcd": "68.72"
+    },
+    {
+      "date": "01-Jan",
+      "lpcd": "NaN"
+    },
+    {
+      "date": "01-Jan",
+      "lpcd": "NaN"
+    },
+    {
+      "date": "01-Jan",
+      "lpcd": "90.95"
+    },
+    {
+      "date": "01-Jan",
+      "lpcd": "90.95"
+    },
+    {
+      "date": "02-Jan",
+      "lpcd": "NaN"
+    },
+    {
+      "date": "02-Jan",
+      "lpcd": "87.43"
+    },
+    {
+      "date": "02-Jan",
+      "lpcd": "87.43"
+    },
+    {
+      "date": "02-Jan",
+      "lpcd": "NaN"
+    },
+    {
+      "date": "03-Jan",
+      "lpcd": "73.04"
+    },
+    {
+      "date": "03-Jan",
+      "lpcd": "73.04"
+    },
+    {
+      "date": "03-Jan",
+      "lpcd": "NaN"
+    },
+    {
+      "date": "03-Jan",
+      "lpcd": "NaN"
+    },
+    {
+      "date": "04-Jan",
+      "lpcd": "NaN"
+    },
+    {
+      "date": "04-Jan",
+      "lpcd": "33.89"
+    },
+    {
+      "date": "04-Jan",
+      "lpcd": "33.89"
+    }
+  ],
+  "scheme": [
+    {
+      "date": "29-Dec",
+      "lpcd": "83.56"
+    },
+    {
+      "date": "01-Jan",
+      "lpcd": "112.88"
+    },
+    {
+      "date": "02-Jan",
+      "lpcd": "100.24"
+    },
+    {
+      "date": "03-Jan",
+      "lpcd": "80.84"
+    },
+    {
+      "date": "04-Jan",
+      "lpcd": "54.88"
+    }
+  ]
+}

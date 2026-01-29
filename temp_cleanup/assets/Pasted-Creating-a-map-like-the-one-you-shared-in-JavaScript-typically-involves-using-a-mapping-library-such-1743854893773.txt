@@ -1,0 +1,108 @@
+Creating a map like the one you shared in JavaScript typically involves using a mapping library such as Leaflet.js or D3.js combined with a custom GeoJSON file of Maharashtra's district boundaries.
+
+Since the uploaded image is a static map (not interactive and without coordinates), to replicate this map exactly (colors, labels, pins, districts, and regions), you'd either:
+
+🔧 Approach 1: Interactive Map with Leaflet.js + GeoJSON
+Here’s a basic starting point using Leaflet.js and GeoJSON. You’ll need:
+
+A GeoJSON file with Maharashtra district boundaries.
+
+A mapping of districts to their respective regions (color-coded).
+
+Custom markers (for pins like in your image).
+
+✅ JavaScript (Leaflet.js) Setup:
+html
+Copy
+Edit
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Maharashtra Regional Map</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+  <style>
+    #map { height: 100vh; }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+<script>
+  const map = L.map('map').setView([19.7515, 75.7139], 6); // Centered on Maharashtra
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 10,
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(map);
+
+  // Region colors
+  const regionColors = {
+    "Amaravati": "#f8b9b4",
+    "Nagpur": "#f3ce91",
+    "Chhatrapati Sambhaji Nagar": "#beb9f0",
+    "Nashik": "#f6e66e",
+    "Pune": "#9bd191",
+    "Konkan": "#76757c"
+  };
+
+  function style(feature) {
+    return {
+      fillColor: regionColors[feature.properties.region],
+      weight: 2,
+      opacity: 1,
+      color: '#333',
+      fillOpacity: 0.8
+    };
+  }
+
+  // Load GeoJSON (You need a GeoJSON file with district boundaries)
+  fetch('maharashtra_districts.geojson')
+    .then(response => response.json())
+    .then(data => {
+      L.geoJson(data, {
+        style: style,
+        onEachFeature: function (feature, layer) {
+          layer.bindPopup(`<strong>${feature.properties.district}</strong><br>Region: ${feature.properties.region}`);
+        }
+      }).addTo(map);
+    });
+
+  // Add Region Pins
+  const pins = [
+    { name: "Nagpur", lat: 21.1458, lon: 79.0882 },
+    { name: "Amravati", lat: 20.9374, lon: 77.7796 },
+    { name: "Chhatrapati Sambhajinagar", lat: 19.8762, lon: 75.3433 },
+    { name: "Nashik", lat: 19.9975, lon: 73.7898 },
+    { name: "Pune", lat: 18.5204, lon: 73.8567 },
+    { name: "Ratnagiri", lat: 16.9902, lon: 73.3120 }
+  ];
+
+  pins.forEach(pin => {
+    L.marker([pin.lat, pin.lon]).addTo(map)
+      .bindPopup(`<strong>${pin.name}</strong>`);
+  });
+</script>
+
+</body>
+</html>
+🧩 You’ll Need:
+maharashtra_districts.geojson – This file should include all district boundaries and a region property per district (e.g., region: "Konkan").
+
+Optionally replace L.marker with a custom icon if you want the pin symbol like in the image.
+
+💡 Want a Static Image Only?
+If you don't need interaction and just want a static vector map, you can recreate it using SVG + CSS, or generate it in design software and embed it in HTML.
+
+Would you like me to generate or help you create the GeoJSON file based on the regions in the image?
+
+
+
+
+
+
+
+

@@ -1,0 +1,25 @@
+| scheme_status Table Field                      | Excel Sheet Column Name                         |
+|------------------------------------------------|--------------------------------------------------|
+| Sr_No                                          | Sr No.                                          |
+| Region                                         | Region                                          |
+| Circle                                         | Circle                                          |
+| Division                                       | Division                                        |
+| Sub_Division                                   | Sub Division                                    |
+| Block                                          | Block                                           |
+| Scheme_ID                                      | Scheme ID                                       |
+| Scheme_Name                                    | Scheme Name                                     |
+| Number_of_Village                              | Number of Village                              |
+| Total_Villages_Integrated                      | Total Villages Integrated                      |
+| No_of_Functional_Village                       | No. of Functional Village                      |
+| No_of_Partial_Village                          | No. of Partial Village                         |
+| No_of_Non_Functional_Village                   | No. of Non- Functional Village                 |
+| Fully_Completed_Villages                       | Fully Completed Villages                       |
+| Total_Number_of_ESR                            | Total Number of ESR                            |
+| Scheme_Functional_Status                       | Scheme Functional Status                       |
+| Total_ESR_Integrated                           | Total ESR Integrated                           |
+| No_Fully_Completed_ESR                         | No. Fully Completed ESR                        |
+| Balance_to_Complete_ESR                        | Balance to Complete ESR                        |
+| Flow_Meters_Connected                          | Flow Meters Connected                          |
+| Pressure_Transmitter_Connected                 | Pressure Transmitter Connected                 |
+| Residual_Chlorine_Analyzer_Connected           | Residual Chlorine Analyzer Connected           |
+| Fully_completion_Scheme_Status                 | Fully completion Scheme Status                 |

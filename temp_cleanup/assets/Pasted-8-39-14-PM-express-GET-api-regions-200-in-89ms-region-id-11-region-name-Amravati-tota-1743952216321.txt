@@ -1,0 +1,54 @@
+8:39:14 PM [express] GET /api/regions 200 in 89ms :: [{"region_id":11,"region_name":"Amravati","tota…
+8:39:14 PM [express] GET /api/updates/today 500 in 91ms :: {"message":"Failed to fetch today's updat…
+Connected to PostgreSQL database
+Error fetching schemes: error: column "functional_villages" does not exist
+    at C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_7\JavaScriptDashboardnew-4 (3)\IoT_dashboard_7\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_7/JavaScriptDashboardnew-4%20(3)/IoT_dashboard_7/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_7/JavaScriptDashboardnew-4%20(3)/IoT_dashboard_7/server/routes.ts:1:5825 {
+  length: 120,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '186',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3666',
+  routine: 'errorMissingColumn'
+}
+8:39:14 PM [express] GET /api/schemes 500 in 100ms :: {"message":"Failed to fetch schemes"}
+8:39:19 PM [express] GET /api/regions/summary 200 in 3ms :: {"total_schemes_integrated":14,"fully_co…
+Request params: region=Nashik, status=undefined, schemeId=undefined
+Filtering for region=Nashik, status=undefined
+Error fetching schemes: error: column "functional_villages" does not exist
+    at C:\Users\HP\OneDrive\Desktop\startproject\IoT_dashboard_7\JavaScriptDashboardnew-4 (3)\IoT_dashboard_7\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_7/JavaScriptDashboardnew-4%20(3)/IoT_dashboard_7/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async file:///C:/Users/HP/OneDrive/Desktop/startproject/IoT_dashboard_7/JavaScriptDashboardnew-4%20(3)/IoT_dashboard_7/server/routes.ts:1:5622 {
+  length: 120,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '186',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3666',
+  routine: 'errorMissingColumn'
+}
+8:39:19 PM [express] GET /api/schemes 500 in 8ms :: {"message":"Failed to fetch schemes"}
