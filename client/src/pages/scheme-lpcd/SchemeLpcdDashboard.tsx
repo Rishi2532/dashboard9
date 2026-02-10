@@ -63,6 +63,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { SchemeHistoricalDataChart } from "@/components/dashboard/SchemeHistoricalDataChart";
 import { Pagination } from "@/components/ui/pagination";
 import ExcelJS from "exceljs";
+import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
 
 // Types
 export interface SchemeLpcdData {
@@ -145,6 +146,10 @@ const SchemeLpcdDashboard = () => {
 
   // Filter state - moved before useEffect hooks
   const [selectedRegion, setSelectedRegion] = useState<string>("all");
+  const [selectedCircle, setSelectedCircle] = useState<string>("all");
+  const [selectedDivision, setSelectedDivision] = useState<string>("all");
+  const [selectedSubdivision, setSelectedSubdivision] = useState<string>("all");
+  const [selectedBlock, setSelectedBlock] = useState<string>("all");
   const [currentFilter, setCurrentFilter] = useState<LpcdRange>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [showCharts, setShowCharts] = useState<boolean>(true);
@@ -170,17 +175,76 @@ const SchemeLpcdDashboard = () => {
   });
   const [isExportingHistorical, setIsExportingHistorical] = useState(false);
 
+  // Fetch cascading filter options
+  const { data: filterOptions } = useQuery({
+    queryKey: [
+      "/api/schemes/filters",
+      selectedRegion,
+      selectedCircle,
+      selectedDivision,
+      selectedSubdivision,
+    ],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedRegion !== "all") params.append("region", selectedRegion);
+      if (selectedCircle !== "all") params.append("circle", selectedCircle);
+      if (selectedDivision !== "all") params.append("division", selectedDivision);
+      if (selectedSubdivision !== "all")
+        params.append("subdivision", selectedSubdivision);
+
+      const response = await fetch(`/api/schemes/filters?${params.toString()}`);
+      if (!response.ok) throw new Error("Failed to fetch filter options");
+      return response.json();
+    },
+  });
+
   // Track page visit on component mount
   useEffect(() => {
     trackPageVisit("Scheme LPCD Dashboard");
   }, [trackPageVisit]);
+
+  // Cascading Filter Handlers
+  const handleRegionChange = (value: string) => {
+    setSelectedRegion(value);
+    setSelectedCircle("all");
+    setSelectedDivision("all");
+    setSelectedSubdivision("all");
+    setSelectedBlock("all");
+    setPage(1);
+  };
+
+  const handleCircleChange = (value: string) => {
+    setSelectedCircle(value);
+    setSelectedDivision("all");
+    setSelectedSubdivision("all");
+    setSelectedBlock("all");
+    setPage(1);
+  };
+
+  const handleDivisionChange = (value: string) => {
+    setSelectedDivision(value);
+    setSelectedSubdivision("all");
+    setSelectedBlock("all");
+    setPage(1);
+  };
+
+  const handleSubdivisionChange = (value: string) => {
+    setSelectedSubdivision(value);
+    setSelectedBlock("all");
+    setPage(1);
+  };
+
+  const handleBlockChange = (value: string) => {
+    setSelectedBlock(value);
+    setPage(1);
+  };
 
   // Listen for region filter changes and export commands from chatbot
   useEffect(() => {
     const handleRegionFilterChange = (event: CustomEvent) => {
       const { region } = event.detail;
       console.log("Scheme LPCD Dashboard received region filter:", region);
-      setSelectedRegion(region === "all" ? "all" : region);
+      handleRegionChange(region === "all" ? "all" : region);
     };
 
     const handleChatbotExcelExport = (event: CustomEvent) => {
@@ -241,7 +305,14 @@ const SchemeLpcdDashboard = () => {
         (window as any).triggerDashboardExport = undefined;
       }
     };
-  }, [selectedRegion, currentFilter]);
+  }, [
+    selectedRegion,
+    selectedCircle,
+    selectedDivision,
+    selectedSubdivision,
+    selectedBlock,
+    currentFilter,
+  ]);
 
   // Fetch all scheme LPCD data
   const {
@@ -250,13 +321,27 @@ const SchemeLpcdDashboard = () => {
     error: schemesError,
     refetch,
   } = useQuery<SchemeLpcdData[]>({
-    queryKey: ["/api/scheme-lpcd-data", selectedRegion],
+    queryKey: [
+      "/api/scheme-lpcd-data",
+      selectedRegion,
+      selectedCircle,
+      selectedDivision,
+      selectedSubdivision,
+      selectedBlock,
+    ],
     queryFn: async () => {
       const params = new URLSearchParams();
 
-      if (selectedRegion && selectedRegion !== "all") {
+      if (selectedRegion && selectedRegion !== "all")
         params.append("region", selectedRegion);
-      }
+      if (selectedCircle && selectedCircle !== "all")
+        params.append("circle", selectedCircle);
+      if (selectedDivision && selectedDivision !== "all")
+        params.append("division", selectedDivision);
+      if (selectedSubdivision && selectedSubdivision !== "all")
+        params.append("subdivision", selectedSubdivision);
+      if (selectedBlock && selectedBlock !== "all")
+        params.append("block", selectedBlock);
 
       const queryString = params.toString();
       const url = `/api/scheme-lpcd-data${queryString ? `?${queryString}` : ""}`;
@@ -283,13 +368,27 @@ const SchemeLpcdDashboard = () => {
   // Fetch scheme status data for filtering
   const { data: schemeStatusData = [], isLoading: isLoadingSchemeStatus } =
     useQuery<any[]>({
-      queryKey: ["/api/schemes", selectedRegion],
+      queryKey: [
+        "/api/schemes",
+        selectedRegion,
+        selectedCircle,
+        selectedDivision,
+        selectedSubdivision,
+        selectedBlock,
+      ],
       queryFn: async () => {
         const params = new URLSearchParams();
 
-        if (selectedRegion && selectedRegion !== "all") {
+        if (selectedRegion && selectedRegion !== "all")
           params.append("region", selectedRegion);
-        }
+        if (selectedCircle && selectedCircle !== "all")
+          params.append("circle", selectedCircle);
+        if (selectedDivision && selectedDivision !== "all")
+          params.append("division", selectedDivision);
+        if (selectedSubdivision && selectedSubdivision !== "all")
+          params.append("subdivision", selectedSubdivision);
+        if (selectedBlock && selectedBlock !== "all")
+          params.append("block", selectedBlock);
 
         const queryString = params.toString();
         const url = `/api/schemes${queryString ? `?${queryString}` : ""}`;
@@ -312,13 +411,27 @@ const SchemeLpcdDashboard = () => {
     totalCount: number;
     region: string;
   }>({
-    queryKey: ["/api/schemes/counts", selectedRegion],
+    queryKey: [
+      "/api/schemes/counts",
+      selectedRegion,
+      selectedCircle,
+      selectedDivision,
+      selectedSubdivision,
+      selectedBlock,
+    ],
     queryFn: async () => {
       const params = new URLSearchParams();
 
-      if (selectedRegion && selectedRegion !== "all") {
+      if (selectedRegion && selectedRegion !== "all")
         params.append("region", selectedRegion);
-      }
+      if (selectedCircle && selectedCircle !== "all")
+        params.append("circle", selectedCircle);
+      if (selectedDivision && selectedDivision !== "all")
+        params.append("division", selectedDivision);
+      if (selectedSubdivision && selectedSubdivision !== "all")
+        params.append("subdivision", selectedSubdivision);
+      if (selectedBlock && selectedBlock !== "all")
+        params.append("block", selectedBlock);
 
       const queryString = params.toString();
       const url = `/api/schemes/counts${queryString ? `?${queryString}` : ""}`;
@@ -855,7 +968,7 @@ const SchemeLpcdDashboard = () => {
       if (!isNaN(parsedDate.getTime())) {
         // Use the actual year from the date, or fallback to current year if it's 2001 (legacy)
         if (parsedDate.getFullYear() === 2001) {
-            parsedDate.setFullYear(currentYear);
+          parsedDate.setFullYear(currentYear);
         }
         return parsedDate.toLocaleDateString();
       }
@@ -1094,7 +1207,7 @@ const SchemeLpcdDashboard = () => {
       const start = new Date(historicalStartDate);
       const end = new Date(historicalEndDate);
       const daysDifference = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-      
+
       if (daysDifference > 90) {
         toast({
           title: "Date Range Too Large",
@@ -1151,12 +1264,27 @@ const SchemeLpcdDashboard = () => {
   // Fetch water scheme data to calculate population correctly
   const { data: waterSchemeData = [], isLoading: isLoadingWaterData } =
     useQuery<any[]>({
-      queryKey: ["/api/water-scheme-data", selectedRegion],
+      queryKey: [
+        "/api/water-scheme-data",
+        selectedRegion,
+        selectedCircle,
+        selectedDivision,
+        selectedSubdivision,
+        selectedBlock,
+      ],
       queryFn: async () => {
         const params = new URLSearchParams();
-        if (selectedRegion && selectedRegion !== "all") {
+        if (selectedRegion && selectedRegion !== "all")
           params.append("region", selectedRegion);
-        }
+        if (selectedCircle && selectedCircle !== "all")
+          params.append("circle", selectedCircle);
+        if (selectedDivision && selectedDivision !== "all")
+          params.append("division", selectedDivision);
+        if (selectedSubdivision && selectedSubdivision !== "all")
+          params.append("subdivision", selectedSubdivision);
+        if (selectedBlock && selectedBlock !== "all")
+          params.append("block", selectedBlock);
+
         const queryString = params.toString();
         const url = `/api/water-scheme-data${queryString ? `?${queryString}` : ""}`;
         const response = await fetch(url);
@@ -1324,11 +1452,10 @@ const SchemeLpcdDashboard = () => {
                 ].map(({ range, label }) => (
                   <div
                     key={range}
-                    className={`flex justify-between items-center text-sm p-2 rounded cursor-pointer transition-colors ${
-                      range === "above80"
-                        ? "bg-orange-100 hover:bg-orange-200"
-                        : "hover:bg-green-100"
-                    }`}
+                    className={`flex justify-between items-center text-sm p-2 rounded cursor-pointer transition-colors ${range === "above80"
+                      ? "bg-orange-100 hover:bg-orange-200"
+                      : "hover:bg-green-100"
+                      }`}
                     onClick={() => handleLpcdRangeFilter(range)}
                   >
                     <span
@@ -1345,7 +1472,7 @@ const SchemeLpcdDashboard = () => {
                     >
                       {
                         detailedStats.lpcdRanges[
-                          range as keyof typeof detailedStats.lpcdRanges
+                        range as keyof typeof detailedStats.lpcdRanges
                         ]
                       }
                     </span>
@@ -1403,7 +1530,7 @@ const SchemeLpcdDashboard = () => {
                     <span className="font-medium text-yellow-800">
                       {
                         detailedStats.lpcdRanges[
-                          range as keyof typeof detailedStats.lpcdRanges
+                        range as keyof typeof detailedStats.lpcdRanges
                         ]
                       }
                     </span>
@@ -1544,7 +1671,28 @@ const SchemeLpcdDashboard = () => {
             })}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+
+        <div className="bg-blue-50/50 p-6 rounded-xl border border-blue-100 shadow-sm mb-8">
+          <div className="flex items-center gap-2 mb-4 text-blue-800">
+            <Filter className="h-5 w-5" />
+            <h3 className="font-semibold text-lg">Geographical Filters</h3>
+          </div>
+          <GeographicalFilters
+            selectedRegion={selectedRegion}
+            selectedCircle={selectedCircle}
+            selectedDivision={selectedDivision}
+            selectedSubdivision={selectedSubdivision}
+            selectedBlock={selectedBlock}
+            onRegionChange={handleRegionChange}
+            onCircleChange={handleCircleChange}
+            onDivisionChange={handleDivisionChange}
+            onSubdivisionChange={handleSubdivisionChange}
+            onBlockChange={handleBlockChange}
+            filters={filterOptions}
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 mb-6">
           <div className="relative w-64">
             <Input
               type="search"
@@ -1565,19 +1713,6 @@ const SchemeLpcdDashboard = () => {
               </button>
             )}
           </div>
-          <Select value={selectedRegion} onValueChange={setSelectedRegion}>
-            <SelectTrigger className="w-[180px] bg-white border border-blue-200 shadow-sm">
-              <SelectValue placeholder="All Regions" />
-            </SelectTrigger>
-            <SelectContent className="border border-blue-100">
-              <SelectItem value="all">All Regions</SelectItem>
-              {regionsData.map((region) => (
-                <SelectItem key={region.region_id} value={region.region_name}>
-                  {region.region_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
 
           {/* Commissioned Status Filter */}
           <Select
@@ -1855,13 +1990,12 @@ const SchemeLpcdDashboard = () => {
                             </TableCell>
                             <TableCell>
                               <Badge
-                                className={`${
-                                  scheme.water_supply === "Yes"
-                                    ? "bg-blue-100 text-blue-800 hover:bg-blue-200"
-                                    : scheme.mjp_commissioned === "Yes"
-                                      ? "bg-green-100 text-green-800 hover:bg-green-200"
-                                      : "bg-amber-100 text-amber-800 hover:bg-amber-200"
-                                }`}
+                                className={`${scheme.water_supply === "Yes"
+                                  ? "bg-blue-100 text-blue-800 hover:bg-blue-200"
+                                  : scheme.mjp_commissioned === "Yes"
+                                    ? "bg-green-100 text-green-800 hover:bg-green-200"
+                                    : "bg-amber-100 text-amber-800 hover:bg-amber-200"
+                                  }`}
                               >
                                 {scheme.water_supply === "Yes"
                                   ? "Water Supply"
@@ -1974,7 +2108,7 @@ const SchemeLpcdDashboard = () => {
                                             </span>{" "}
                                             {lpcdValue !== null
                                               ? Number(lpcdValue).toFixed(2) +
-                                                "L"
+                                              "L"
                                               : "N/A"}
                                           </p>
                                           <p>

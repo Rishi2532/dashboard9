@@ -5,6 +5,8 @@ import fs from "fs";
 // Load environment variables from .env file first
 dotenv.config();
 console.log("📄 Loaded .env file");
+
+
 console.log(`   GMAIL_USER: ${process.env.GMAIL_USER ? 'SET (' + process.env.GMAIL_USER + ')' : 'NOT SET'}`);
 console.log(`   GMAIL_PASSWORD: ${process.env.GMAIL_PASSWORD ? 'SET (length: ' + process.env.GMAIL_PASSWORD.length + ')' : 'NOT SET'}`);
 
@@ -20,14 +22,14 @@ const isReplit = process.env.REPL_ID || process.env.REPLIT;
 if (isReplit) {
   console.log("Replit environment detected!");
   console.log(`DATABASE_URL available: ${process.env.DATABASE_URL ? 'Yes' : 'No'}`);
-  
+
   // Debug: Check what individual components are available
   console.log(`PGHOST available: ${process.env.PGHOST ? 'Yes' : 'No'}`);
   console.log(`PGUSER available: ${process.env.PGUSER ? 'Yes' : 'No'}`);
   console.log(`PGPASSWORD available: ${process.env.PGPASSWORD ? 'Yes' : 'No'}`);
   console.log(`PGDATABASE available: ${process.env.PGDATABASE ? 'Yes' : 'No'}`);
   console.log(`PGPORT available: ${process.env.PGPORT ? 'Yes' : 'No'}`);
-  
+
   // If DATABASE_URL is not set but individual components are available, construct it
   if (!process.env.DATABASE_URL && process.env.PGHOST && process.env.PGUSER && process.env.PGPASSWORD && process.env.PGDATABASE) {
     console.log("Constructing DATABASE_URL from individual Replit components...");
@@ -131,7 +133,7 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port ${port}`);
-      
+
       // Initialize data cleanup after server starts
       setTimeout(() => {
         initializeDataCleanup().catch(console.error);

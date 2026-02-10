@@ -62,7 +62,7 @@ import {
   type InsertMqttTopicConfiguration,
 } from "@shared/schema";
 import { getDB, initializeDatabase } from "./db";
-import { eq, sql, and, ilike, inArray } from "drizzle-orm";
+import { eq, sql, and, ilike, inArray, isNotNull } from "drizzle-orm";
 import { parse } from "csv-parse";
 import { v4 as uuidv4 } from "uuid";
 
@@ -83,6 +83,10 @@ declare global {
 // Filter type for water scheme data queries
 export interface WaterSchemeDataFilter {
   region?: string;
+  circle?: string;
+  division?: string;
+  subDivision?: string;
+  block?: string;
   minLpcd?: number;
   maxLpcd?: number;
   zeroSupplyForWeek?: boolean;
@@ -91,31 +95,64 @@ export interface WaterSchemeDataFilter {
 // Filter type for chlorine data queries
 export interface ChlorineDataFilter {
   region?: string;
+  circle?: string;
+  division?: string;
+  subDivision?: string;
+  block?: string;
   minChlorine?: number;
   maxChlorine?: number;
   chlorineRange?:
-    | "below_0.2"
-    | "between_0.2_0.5"
-    | "above_0.5"
-    | "consistent_zero"
-    | "consistent_below"
-    | "consistent_optimal"
-    | "consistent_above";
+  | "below_0.2"
+  | "between_0.2_0.5"
+  | "above_0.5"
+  | "consistent_zero"
+  | "consistent_below"
+  | "consistent_optimal"
+  | "consistent_above";
+}
+
+export interface ChlorineFilterOptions {
+  regions: string[];
+  circles: string[];
+  divisions: string[];
+  subdivisions: string[];
+  blocks: string[];
 }
 
 export interface PressureDataFilter {
   schemeIds?: string[];
   region?: string;
+  circle?: string;
+  division?: string;
+  subDivision?: string;
+  subdivision?: string;
+  block?: string;
   minPressure?: number;
   maxPressure?: number;
   pressureRange?:
-    | "below_0.2"
-    | "between_0.2_0.7"
-    | "above_0.7"
-    | "consistent_zero"
-    | "consistent_below"
-    | "consistent_optimal"
-    | "consistent_above";
+  | "below_0.2"
+  | "between_0.2_0.7"
+  | "above_0.7"
+  | "consistent_zero"
+  | "consistent_below"
+  | "consistent_optimal"
+  | "consistent_above";
+}
+
+export interface PressureFilterOptions {
+  regions: string[];
+  circles: string[];
+  divisions: string[];
+  subdivisions: string[];
+  blocks: string[];
+}
+
+export interface WaterConsumptionFilterOptions {
+  regions: string[];
+  circles: string[];
+  divisions: string[];
+  subdivisions: string[];
+  blocks: string[];
 }
 
 // Interface for storage operations
@@ -169,11 +206,19 @@ export interface IStorage {
   getAllSchemes(
     statusFilter?: string,
     schemeId?: string,
+    circle?: string,
+    division?: string,
+    subDivision?: string,
+    block?: string,
   ): Promise<SchemeStatus[]>;
   getSchemesByRegion(
     regionName: string,
     statusFilter?: string,
     schemeId?: string,
+    circle?: string,
+    division?: string,
+    subDivision?: string,
+    block?: string,
   ): Promise<SchemeStatus[]>;
   getSchemeById(schemeId: string): Promise<SchemeStatus | undefined>;
   getSchemeByIdAndBlock(
@@ -285,7 +330,7 @@ export interface IStorage {
   }>;
 
   // Chlorine Dashboard operations
-  getChlorineDashboardStats(regionName?: string): Promise<{
+  getChlorineDashboardStats(filter?: ChlorineDataFilter): Promise<{
     totalSensors: number;
     belowRangeSensors: number;
     optimalRangeSensors: number;
@@ -296,7 +341,7 @@ export interface IStorage {
     consistentAboveRangeSensors: number;
     noWaterSensors: number;
   }>;
-  getChlorineSensorsWithNoWater(regionName?: string): Promise<{
+  getChlorineSensorsWithNoWater(filter?: ChlorineDataFilter): Promise<{
     totalNoWaterSensors: number;
     noWaterSensors: Array<{
       region: string;
@@ -313,7 +358,7 @@ export interface IStorage {
       chlorine_connected: string | null;
     }>;
   }>;
-  getChlorineSensorsWithWater(regionName?: string): Promise<{
+  getChlorineSensorsWithWater(filter?: ChlorineDataFilter): Promise<{
     totalWithWaterSensors: number;
     withWaterSensors: Array<{
       region: string;
@@ -330,6 +375,9 @@ export interface IStorage {
       chlorine_connected: string | null;
     }>;
   }>;
+  getChlorineFilterOptions(filter: ChlorineDataFilter): Promise<ChlorineFilterOptions>;
+  getPressureFilterOptions(filter: PressureDataFilter): Promise<PressureFilterOptions>;
+  getWaterConsumptionFilterOptions(filter?: any): Promise<WaterConsumptionFilterOptions>;
   getRegionalChlorineStats(fullyCompletedSchemeIds?: Set<string>): Promise<
     Array<{
       region: string;
@@ -441,7 +489,7 @@ export interface IStorage {
   }>;
 
   // Pressure Dashboard operations
-  getPressureDashboardStats(regionName?: string, schemeIds?: string[]): Promise<{
+  getPressureDashboardStats(filter?: any, schemeIds?: string[]): Promise<{
     totalSensors: number;
     belowRangeSensors: number;
     optimalRangeSensors: number;
@@ -489,7 +537,7 @@ export interface IStorage {
 
   // Water Consumption operations
   getAllWaterConsumption(): Promise<WaterConsumption[]>;
-  getAllWaterConsumptionWithSchemeStatus(): Promise<any[]>;
+  getAllWaterConsumptionWithSchemeStatus(filter?: any): Promise<any[]>;
   getWaterConsumptionByScheme(
     schemeId: string,
     block?: string,
@@ -1505,6 +1553,22 @@ export class PostgresStorage implements IStorage {
           query = query.where(eq(chlorineData.region, filter.region));
         }
 
+        if (filter.circle && filter.circle !== "all") {
+          query = query.where(eq(chlorineData.circle, filter.circle));
+        }
+
+        if (filter.division && filter.division !== "all") {
+          query = query.where(eq(chlorineData.division, filter.division));
+        }
+
+        if (filter.subDivision && filter.subDivision !== "all") {
+          query = query.where(eq(chlorineData.sub_division, filter.subDivision));
+        }
+
+        if (filter.block && filter.block !== "all") {
+          query = query.where(eq(chlorineData.block, filter.block));
+        }
+
         if (filter.chlorineRange) {
           switch (filter.chlorineRange) {
             case "below_0.2":
@@ -2194,12 +2258,12 @@ export class PostgresStorage implements IStorage {
         .where(
           sql`(${chlorineData.scheme_id}, ${chlorineData.village_name}, ${chlorineData.esr_name}) IN 
               (${sql.join(
-                recordsToProcess.map(
-                  (r) =>
-                    sql`(${r.scheme_id}, ${r.village_name}, ${r.esr_name})`,
-                ),
-                sql`, `,
-              )})`,
+            recordsToProcess.map(
+              (r) =>
+                sql`(${r.scheme_id}, ${r.village_name}, ${r.esr_name})`,
+            ),
+            sql`, `,
+          )})`,
         );
 
       // Create a lookup map for existing records
@@ -2879,7 +2943,7 @@ export class PostgresStorage implements IStorage {
 
   // Dashboard statistics for chlorine data
   // Get sensors with no water by cross-referencing chlorine data with water consumption
-  async getChlorineSensorsWithNoWater(regionName?: string): Promise<{
+  async getChlorineSensorsWithNoWater(filter?: ChlorineDataFilter): Promise<{
     totalNoWaterSensors: number;
     noWaterSensors: Array<{
       region: string;
@@ -2902,11 +2966,29 @@ export class PostgresStorage implements IStorage {
     try {
       console.log("Finding chlorine sensors with no water...");
 
-      // Base SQL query to match chlorine sensors with water consumption data
-      const baseConditions =
-        regionName && regionName !== "all"
-          ? sql`cs.region = ${regionName}`
-          : sql`1 = 1`;
+      // Build conditions dynamically using sql chunks
+      const conditions = [sql`1 = 1`];
+
+      if (filter) {
+        if (filter.region && filter.region !== "all") {
+          conditions.push(sql`cs.region = ${filter.region}`);
+        }
+        if (filter.circle && filter.circle !== "all") {
+          conditions.push(sql`cs.circle = ${filter.circle}`);
+        }
+        if (filter.division && filter.division !== "all") {
+          conditions.push(sql`cs.division = ${filter.division}`);
+        }
+        if (filter.subDivision && filter.subDivision !== "all") {
+          conditions.push(sql`cs.sub_division = ${filter.subDivision}`);
+        }
+        if (filter.block && filter.block !== "all") {
+          conditions.push(sql`cs.block = ${filter.block}`);
+        }
+      }
+
+      // Combine conditions with AND
+      const combinedConditions = sql.join(conditions, sql` AND `);
 
       const query = sql`
         SELECT 
@@ -2934,7 +3016,7 @@ export class PostgresStorage implements IStorage {
           cs.village_name = wc.village_name AND
           cs.esr_name = wc.esr_name
         )
-        WHERE ${baseConditions}
+        WHERE ${combinedConditions}
           AND cs.chlorine_connected = 'Connected'
           AND cs.chlorine_status = 'Online'
           AND (
@@ -2983,7 +3065,7 @@ export class PostgresStorage implements IStorage {
     }
   }
 
-  async getChlorineSensorsWithWater(regionName?: string): Promise<{
+  async getChlorineSensorsWithWater(filter?: ChlorineDataFilter): Promise<{
     totalWithWaterSensors: number;
     withWaterSensors: Array<{
       region: string;
@@ -3006,11 +3088,29 @@ export class PostgresStorage implements IStorage {
     try {
       console.log("Finding chlorine sensors with water...");
 
-      // Base SQL query to match chlorine sensors with water consumption data
-      const baseConditions =
-        regionName && regionName !== "all"
-          ? sql`cs.region = ${regionName}`
-          : sql`1 = 1`;
+      // Build conditions dynamically using sql chunks
+      const conditions = [sql`1 = 1`];
+
+      if (filter) {
+        if (filter.region && filter.region !== "all") {
+          conditions.push(sql`cs.region = ${filter.region}`);
+        }
+        if (filter.circle && filter.circle !== "all") {
+          conditions.push(sql`cs.circle = ${filter.circle}`);
+        }
+        if (filter.division && filter.division !== "all") {
+          conditions.push(sql`cs.division = ${filter.division}`);
+        }
+        if (filter.subDivision && filter.subDivision !== "all") {
+          conditions.push(sql`cs.sub_division = ${filter.subDivision}`);
+        }
+        if (filter.block && filter.block !== "all") {
+          conditions.push(sql`cs.block = ${filter.block}`);
+        }
+      }
+
+      // Combine conditions with AND
+      const combinedConditions = sql.join(conditions, sql` AND `);
 
       const query = sql`
         SELECT 
@@ -3038,7 +3138,7 @@ export class PostgresStorage implements IStorage {
           cs.village_name = wc.village_name AND
           cs.esr_name = wc.esr_name
         )
-        WHERE ${baseConditions}
+        WHERE ${combinedConditions}
           AND cs.chlorine_connected = 'Connected'
           AND cs.chlorine_status = 'Online'
           AND wc.water_value_day7 IS NOT NULL 
@@ -3085,6 +3185,253 @@ export class PostgresStorage implements IStorage {
     }
   }
 
+  async getChlorineFilterOptions(filter: ChlorineDataFilter): Promise<ChlorineFilterOptions> {
+    const db = await this.ensureInitialized();
+
+    // Regions (always all accessible regions)
+    const regionsResult = await db
+      .selectDistinct({ value: communicationStatus.region })
+      .from(communicationStatus)
+      .where(isNotNull(communicationStatus.region))
+      .orderBy(communicationStatus.region);
+
+    // Circles (filtered by region)
+    let circlesQuery = db
+      .selectDistinct({ value: communicationStatus.circle })
+      .from(communicationStatus)
+      .where(isNotNull(communicationStatus.circle));
+
+    if (filter.region && filter.region !== 'all') {
+      circlesQuery.where(eq(communicationStatus.region, filter.region));
+    }
+    const circlesResult = await circlesQuery.orderBy(communicationStatus.circle);
+
+    // Divisions (filtered by region + circle)
+    let divisionsQuery = db
+      .selectDistinct({ value: communicationStatus.division })
+      .from(communicationStatus)
+      .where(isNotNull(communicationStatus.division));
+
+    if (filter.region && filter.region !== 'all') {
+      divisionsQuery.where(eq(communicationStatus.region, filter.region));
+    }
+    if (filter.circle && filter.circle !== 'all') {
+      divisionsQuery.where(eq(communicationStatus.circle, filter.circle));
+    }
+    const divisionsResult = await divisionsQuery.orderBy(communicationStatus.division);
+
+    // Subdivisions (filtered by region + circle + division)
+    let subDivisionsQuery = db
+      .selectDistinct({ value: communicationStatus.sub_division })
+      .from(communicationStatus)
+      .where(isNotNull(communicationStatus.sub_division));
+
+    if (filter.region && filter.region !== 'all') {
+      subDivisionsQuery.where(eq(communicationStatus.region, filter.region));
+    }
+    if (filter.circle && filter.circle !== 'all') {
+      subDivisionsQuery.where(eq(communicationStatus.circle, filter.circle));
+    }
+    if (filter.division && filter.division !== 'all') {
+      subDivisionsQuery.where(eq(communicationStatus.division, filter.division));
+    }
+    const subDivisionsResult = await subDivisionsQuery.orderBy(communicationStatus.sub_division);
+
+    // Blocks (filtered by all above)
+    let blocksQuery = db
+      .selectDistinct({ value: communicationStatus.block })
+      .from(communicationStatus)
+      .where(isNotNull(communicationStatus.block));
+
+    if (filter.region && filter.region !== 'all') {
+      blocksQuery.where(eq(communicationStatus.region, filter.region));
+    }
+    if (filter.circle && filter.circle !== 'all') {
+      blocksQuery.where(eq(communicationStatus.circle, filter.circle));
+    }
+    if (filter.division && filter.division !== 'all') {
+      blocksQuery.where(eq(communicationStatus.division, filter.division));
+    }
+    const subDivision = filter.subDivision || filter.subdivision;
+    if (subDivision && subDivision !== 'all') {
+      blocksQuery.where(eq(communicationStatus.sub_division, subDivision));
+    }
+    const blocksResult = await blocksQuery.orderBy(communicationStatus.block);
+
+    return {
+      regions: regionsResult.map((r: any) => r.value).filter(Boolean),
+      circles: circlesResult.map((r: any) => r.value).filter(Boolean),
+      divisions: divisionsResult.map((r: any) => r.value).filter(Boolean),
+      subdivisions: subDivisionsResult.map((r: any) => r.value).filter(Boolean),
+      blocks: blocksResult.map((r: any) => r.value).filter(Boolean),
+    };
+  }
+
+  async getPressureFilterOptions(filter: PressureDataFilter): Promise<PressureFilterOptions> {
+    const db = await this.ensureInitialized();
+
+    // Regions (always all accessible regions)
+    const regionsResult = await db
+      .selectDistinct({ value: communicationStatus.region })
+      .from(communicationStatus)
+      .where(isNotNull(communicationStatus.region))
+      .orderBy(communicationStatus.region);
+
+    // Circles (filtered by region)
+    let circlesQuery = db
+      .selectDistinct({ value: communicationStatus.circle })
+      .from(communicationStatus)
+      .where(isNotNull(communicationStatus.circle));
+
+    if (filter.region && filter.region !== 'all') {
+      circlesQuery.where(eq(communicationStatus.region, filter.region));
+    }
+    const circlesResult = await circlesQuery.orderBy(communicationStatus.circle);
+
+    // Divisions (filtered by region + circle)
+    let divisionsQuery = db
+      .selectDistinct({ value: communicationStatus.division })
+      .from(communicationStatus)
+      .where(isNotNull(communicationStatus.division));
+
+    if (filter.region && filter.region !== 'all') {
+      divisionsQuery.where(eq(communicationStatus.region, filter.region));
+    }
+    if (filter.circle && filter.circle !== 'all') {
+      divisionsQuery.where(eq(communicationStatus.circle, filter.circle));
+    }
+    const divisionsResult = await divisionsQuery.orderBy(communicationStatus.division);
+
+    // Subdivisions (filtered by region + circle + division)
+    let subDivisionsQuery = db
+      .selectDistinct({ value: communicationStatus.sub_division })
+      .from(communicationStatus)
+      .where(isNotNull(communicationStatus.sub_division));
+
+    if (filter.region && filter.region !== 'all') {
+      subDivisionsQuery.where(eq(communicationStatus.region, filter.region));
+    }
+    if (filter.circle && filter.circle !== 'all') {
+      subDivisionsQuery.where(eq(communicationStatus.circle, filter.circle));
+    }
+    if (filter.division && filter.division !== 'all') {
+      subDivisionsQuery.where(eq(communicationStatus.division, filter.division));
+    }
+    const subDivisionsResult = await subDivisionsQuery.orderBy(communicationStatus.sub_division);
+
+    // Blocks (filtered by all above)
+    let blocksQuery = db
+      .selectDistinct({ value: communicationStatus.block })
+      .from(communicationStatus)
+      .where(isNotNull(communicationStatus.block));
+
+    if (filter.region && filter.region !== 'all') {
+      blocksQuery.where(eq(communicationStatus.region, filter.region));
+    }
+    if (filter.circle && filter.circle !== 'all') {
+      blocksQuery.where(eq(communicationStatus.circle, filter.circle));
+    }
+    if (filter.division && filter.division !== 'all') {
+      blocksQuery.where(eq(communicationStatus.division, filter.division));
+    }
+    const subDivision = filter.subDivision || filter.subdivision;
+    if (subDivision && subDivision !== 'all') {
+      blocksQuery.where(eq(communicationStatus.sub_division, subDivision));
+    }
+    const blocksResult = await blocksQuery.orderBy(communicationStatus.block);
+
+    return {
+      regions: regionsResult.map((r: any) => r.value).filter(Boolean),
+      circles: circlesResult.map((r: any) => r.value).filter(Boolean),
+      divisions: divisionsResult.map((r: any) => r.value).filter(Boolean),
+      subdivisions: subDivisionsResult.map((r: any) => r.value).filter(Boolean),
+      blocks: blocksResult.map((r: any) => r.value).filter(Boolean),
+    };
+  }
+
+  async getWaterConsumptionFilterOptions(filter?: any): Promise<WaterConsumptionFilterOptions> {
+    const db = await this.ensureInitialized();
+
+    // Regions (always all accessible regions)
+    const regionsResult = await db
+      .selectDistinct({ value: communicationStatus.region })
+      .from(communicationStatus)
+      .where(isNotNull(communicationStatus.region))
+      .orderBy(communicationStatus.region);
+
+    // Circles (filtered by region)
+    let circlesQuery = db
+      .selectDistinct({ value: communicationStatus.circle })
+      .from(communicationStatus)
+      .where(isNotNull(communicationStatus.circle));
+
+    if (filter?.region && filter.region !== 'all') {
+      circlesQuery = circlesQuery.where(eq(communicationStatus.region, filter.region));
+    }
+    const circlesResult = await circlesQuery.orderBy(communicationStatus.circle);
+
+    // Divisions (filtered by region and circle)
+    let divisionsQuery = db
+      .selectDistinct({ value: communicationStatus.division })
+      .from(communicationStatus)
+      .where(isNotNull(communicationStatus.division));
+
+    if (filter?.region && filter.region !== 'all') {
+      divisionsQuery = divisionsQuery.where(eq(communicationStatus.region, filter.region));
+    }
+    if (filter?.circle && filter.circle !== 'all') {
+      divisionsQuery = divisionsQuery.where(eq(communicationStatus.circle, filter.circle));
+    }
+    const divisionsResult = await divisionsQuery.orderBy(communicationStatus.division);
+
+    // Subdivisions (filtered by region, circle, and division)
+    let subDivisionsQuery = db
+      .selectDistinct({ value: communicationStatus.sub_division })
+      .from(communicationStatus)
+      .where(isNotNull(communicationStatus.sub_division));
+
+    if (filter?.region && filter.region !== 'all') {
+      subDivisionsQuery = subDivisionsQuery.where(eq(communicationStatus.region, filter.region));
+    }
+    if (filter?.circle && filter.circle !== 'all') {
+      subDivisionsQuery = subDivisionsQuery.where(eq(communicationStatus.circle, filter.circle));
+    }
+    if (filter?.division && filter.division !== 'all') {
+      subDivisionsQuery = subDivisionsQuery.where(eq(communicationStatus.division, filter.division));
+    }
+    const subDivisionsResult = await subDivisionsQuery.orderBy(communicationStatus.sub_division);
+
+    // Blocks (filtered by region, circle, division, and subdivision)
+    let blocksQuery = db
+      .selectDistinct({ value: communicationStatus.block })
+      .from(communicationStatus)
+      .where(isNotNull(communicationStatus.block));
+
+    if (filter?.region && filter.region !== 'all') {
+      blocksQuery = blocksQuery.where(eq(communicationStatus.region, filter.region));
+    }
+    if (filter?.circle && filter.circle !== 'all') {
+      blocksQuery = blocksQuery.where(eq(communicationStatus.circle, filter.circle));
+    }
+    if (filter?.division && filter.division !== 'all') {
+      blocksQuery = blocksQuery.where(eq(communicationStatus.division, filter.division));
+    }
+    const subDivision = filter?.subDivision || filter?.subdivision;
+    if (subDivision && subDivision !== 'all') {
+      blocksQuery = blocksQuery.where(eq(communicationStatus.sub_division, subDivision));
+    }
+    const blocksResult = await blocksQuery.orderBy(communicationStatus.block);
+
+    return {
+      regions: regionsResult.map((r: any) => r.value).filter(Boolean),
+      circles: circlesResult.map((r: any) => r.value).filter(Boolean),
+      divisions: divisionsResult.map((r: any) => r.value).filter(Boolean),
+      subdivisions: subDivisionsResult.map((r: any) => r.value).filter(Boolean),
+      blocks: blocksResult.map((r: any) => r.value).filter(Boolean),
+    };
+  }
+
+
   async getRegionalChlorineStats(fullyCompletedSchemeIds?: Set<string>): Promise<
     Array<{
       region: string;
@@ -3110,7 +3457,7 @@ export class PostgresStorage implements IStorage {
 
     try {
       console.log("Calculating regional chlorine sensor statistics...");
-      
+
       const schemeFilter = fullyCompletedSchemeIds && fullyCompletedSchemeIds.size > 0
         ? sql`AND cs.scheme_id = ANY(${Array.from(fullyCompletedSchemeIds)})`
         : sql``;
@@ -3265,7 +3612,7 @@ export class PostgresStorage implements IStorage {
           const onlineWithWaterChlorineOptimal = Number(row.online_with_water_chlorine_optimal) || 0;
           const onlineWithWaterChlorineAbove = Number(row.online_with_water_chlorine_above) || 0;
           const onlineWithWaterChlorineBelow = Number(row.online_with_water_chlorine_below) || 0;
-          
+
           // Calculate no chlorine data: online with water sensors that have no chlorine reading
           const sumRanges = onlineWithWaterChlorineOptimal + onlineWithWaterChlorineAbove + onlineWithWaterChlorineBelow;
           const onlineWithWaterNoChlorineData = Math.max(onlineWithWater - sumRanges, 0);
@@ -3320,12 +3667,12 @@ export class PostgresStorage implements IStorage {
       );
 
       const regionFilter = regionName
-        ? (regionName.toLowerCase().includes('chhatrapati') 
-            ? sql`AND (cs.region ILIKE '%Chhatrapati%' OR cs.region ILIKE 'Aurangabad%')`
-            : sql`AND cs.region ILIKE ${'%' + regionName + '%'}`
-          )
+        ? (regionName.toLowerCase().includes('chhatrapati')
+          ? sql`AND (cs.region ILIKE '%Chhatrapati%' OR cs.region ILIKE 'Aurangabad%')`
+          : sql`AND cs.region ILIKE ${'%' + regionName + '%'}`
+        )
         : sql``;
-      
+
       const schemeFilter = fullyCompletedSchemeIds && fullyCompletedSchemeIds.size > 0
         ? sql.raw(`AND cs.scheme_id IN (${Array.from(fullyCompletedSchemeIds).map(id => `'${id}'`).join(',')})`)
         : sql``;
@@ -3476,12 +3823,12 @@ export class PostgresStorage implements IStorage {
               END
             ) <= CURRENT_DATE
             AND ch.chlorine_value IS NOT NULL
-            ${regionName 
-              ? (regionName.toLowerCase().includes('chhatrapati')
-                  ? sql`AND (ch.region ILIKE '%Chhatrapati%' OR ch.region ILIKE 'Aurangabad%')`
-                  : sql`AND ch.region ILIKE ${'%' + regionName + '%'}`
-                )
-              : sql``}
+            ${regionName
+          ? (regionName.toLowerCase().includes('chhatrapati')
+            ? sql`AND (ch.region ILIKE '%Chhatrapati%' OR ch.region ILIKE 'Aurangabad%')`
+            : sql`AND ch.region ILIKE ${'%' + regionName + '%'}`
+          )
+          : sql``}
             ${schemeHistoryFilter}
         ),
         deduped_history AS (
@@ -3647,9 +3994,9 @@ export class PostgresStorage implements IStorage {
 
       const regionFilter = regionName
         ? (regionName.toLowerCase().includes('chhatrapati')
-            ? sql`AND (cs.region ILIKE '%Chhatrapati%' OR cs.region ILIKE 'Aurangabad%')`
-            : sql`AND cs.region ILIKE ${'%' + regionName + '%'}`
-          )
+          ? sql`AND (cs.region ILIKE '%Chhatrapati%' OR cs.region ILIKE 'Aurangabad%')`
+          : sql`AND cs.region ILIKE ${'%' + regionName + '%'}`
+        )
         : sql``;
 
       const schemeFilter = fullyCompletedSchemeIds && fullyCompletedSchemeIds.size > 0
@@ -3718,8 +4065,8 @@ export class PostgresStorage implements IStorage {
           metric === "below_0_2"
             ? sql`ch.chlorine_value < 0.2`
             : metric === "above_0_5"
-            ? sql`ch.chlorine_value > 0.5`
-            : sql`ch.chlorine_value >= 0.2 AND ch.chlorine_value <= 0.5`;
+              ? sql`ch.chlorine_value > 0.5`
+              : sql`ch.chlorine_value >= 0.2 AND ch.chlorine_value <= 0.5`;
 
         const query = sql`
           WITH ranked_history AS (
@@ -3955,17 +4302,17 @@ export class PostgresStorage implements IStorage {
     // Common filters
     const regionFilter = regionName
       ? (regionName.toLowerCase().includes('chhatrapati')
-          ? sql`AND (cs.region ILIKE '%Chhatrapati%' OR cs.region ILIKE 'Aurangabad%')`
-          : sql`AND cs.region ILIKE ${'%' + regionName + '%'}`
-        )
+        ? sql`AND (cs.region ILIKE '%Chhatrapati%' OR cs.region ILIKE 'Aurangabad%')`
+        : sql`AND cs.region ILIKE ${'%' + regionName + '%'}`
+      )
       : sql``;
     const schemeFilter =
       fullyCompletedSchemeIds && fullyCompletedSchemeIds.size > 0
         ? sql.raw(
-            `AND cs.scheme_id IN (${Array.from(fullyCompletedSchemeIds)
-              .map((id) => `'${id}'`)
-              .join(",")})`,
-          )
+          `AND cs.scheme_id IN (${Array.from(fullyCompletedSchemeIds)
+            .map((id) => `'${id}'`)
+            .join(",")})`,
+        )
         : sql``;
 
     try {
@@ -4032,15 +4379,15 @@ export class PostgresStorage implements IStorage {
         const schemeHistoryFilter =
           fullyCompletedSchemeIds && fullyCompletedSchemeIds.size > 0
             ? sql.raw(
-                `AND ph.scheme_id IN (${Array.from(fullyCompletedSchemeIds)
-                  .map((id) => `'${id}'`)
-                  .join(",")})`,
-              )
+              `AND ph.scheme_id IN (${Array.from(fullyCompletedSchemeIds)
+                .map((id) => `'${id}'`)
+                .join(",")})`,
+            )
             : sql``;
-        
+
         const regionHistoryFilter = regionName
-            ? sql`AND ph.region = ${regionName}`
-            : sql``;
+          ? sql`AND ph.region = ${regionName}`
+          : sql``;
 
         const query = sql`
           WITH ranked_history AS (
@@ -4131,12 +4478,11 @@ export class PostgresStorage implements IStorage {
               -- Determine if this row meets the criteria
               -- Determine if this row meets the criteria
               CASE 
-                WHEN ${
-                  metric === 'below_0_2' ? sql`AVG(ph.pressure_value) < 0.2` :
-                  metric === 'above_0_7' ? sql`AVG(ph.pressure_value) > 0.7` :
-                  metric === 'optimal_0_2_0_7' ? sql`AVG(ph.pressure_value) >= 0.2 AND AVG(ph.pressure_value) <= 0.7` :
-                  sql`0`
-                } THEN 1 
+                WHEN ${metric === 'below_0_2' ? sql`AVG(ph.pressure_value) < 0.2` :
+            metric === 'above_0_7' ? sql`AVG(ph.pressure_value) > 0.7` :
+              metric === 'optimal_0_2_0_7' ? sql`AVG(ph.pressure_value) >= 0.2 AND AVG(ph.pressure_value) <= 0.7` :
+                sql`0`
+          } THEN 1 
                 ELSE 0 
               END as meets_condition
             FROM pressure_history ph
@@ -4283,17 +4629,17 @@ export class PostgresStorage implements IStorage {
 
       const regionFilter = regionName && regionName !== "All Regions"
         ? (regionName.toLowerCase().includes('chhatrapati')
-            ? sql`AND (cs.region ILIKE '%Chhatrapati%' OR cs.region ILIKE 'Aurangabad%')`
-            : sql`AND cs.region ILIKE ${'%' + regionName + '%'}`
-          )
+          ? sql`AND (cs.region ILIKE '%Chhatrapati%' OR cs.region ILIKE 'Aurangabad%')`
+          : sql`AND cs.region ILIKE ${'%' + regionName + '%'}`
+        )
         : sql``;
 
       // Filter for history table (ph)
       const historyRegionFilter = regionName && regionName !== "All Regions"
         ? (regionName.toLowerCase().includes('chhatrapati')
-            ? sql`AND (ph.region ILIKE '%Chhatrapati%' OR ph.region ILIKE 'Aurangabad%')`
-            : sql`AND ph.region ILIKE ${'%' + regionName + '%'}`
-          )
+          ? sql`AND (ph.region ILIKE '%Chhatrapati%' OR ph.region ILIKE 'Aurangabad%')`
+          : sql`AND ph.region ILIKE ${'%' + regionName + '%'}`
+        )
         : sql``;
 
       const schemeFilter = fullyCompletedSchemeIds && fullyCompletedSchemeIds.size > 0
@@ -4516,15 +4862,15 @@ export class PostgresStorage implements IStorage {
 
       // Handle empty set (NO_MATCHES case)
       if (fullyCompletedSchemeIds && fullyCompletedSchemeIds.size === 0) {
-           // If we have a filter but no IDs matched, then no results should avail.
-           // However, if the Set is passed as undefined/null, we show all.
-           // If it is passed as empty set (meaning filter was applied but 0 found), we should probably block.
-           // BUT, usually we pass undefined if 'all'.
-           // Let's assume if Set is provided but empty, it might mean "match nothing".
-           // But looking at other functions, we usually pass undefined if no filter.
-           // If schemeFilter string is empty, it means no filter.
+        // If we have a filter but no IDs matched, then no results should avail.
+        // However, if the Set is passed as undefined/null, we show all.
+        // If it is passed as empty set (meaning filter was applied but 0 found), we should probably block.
+        // BUT, usually we pass undefined if 'all'.
+        // Let's assume if Set is provided but empty, it might mean "match nothing".
+        // But looking at other functions, we usually pass undefined if no filter.
+        // If schemeFilter string is empty, it means no filter.
       }
-      
+
       const query = sql`
         WITH village_averages AS (
           SELECT 
@@ -4800,7 +5146,7 @@ export class PostgresStorage implements IStorage {
     }
   }
 
-  async getChlorineDashboardStats(regionName?: string): Promise<{
+  async getChlorineDashboardStats(filter?: ChlorineDataFilter): Promise<{
     totalSensors: number;
     belowRangeSensors: number;
     optimalRangeSensors: number;
@@ -4817,9 +5163,33 @@ export class PostgresStorage implements IStorage {
     try {
       console.log("Fetching chlorine dashboard stats...");
 
-      // Base conditions - filter by region if specified and not 'all'
-      const regionCondition =
-        regionName && regionName !== "all" ? regionName : undefined;
+      // Base conditions array
+      const conditions: any[] = [];
+
+      if (filter) {
+        if (filter.region && filter.region !== "all") {
+          conditions.push(eq(chlorineData.region, filter.region));
+        }
+        if (filter.circle && filter.circle !== "all") {
+          conditions.push(eq(chlorineData.circle, filter.circle));
+        }
+        if (filter.division && filter.division !== "all") {
+          conditions.push(eq(chlorineData.division, filter.division));
+        }
+        if (filter.subDivision && filter.subDivision !== "all") {
+          conditions.push(eq(chlorineData.sub_division, filter.subDivision));
+        }
+        if (filter.block && filter.block !== "all") {
+          conditions.push(eq(chlorineData.block, filter.block));
+        }
+      }
+
+      // Helper to combine conditions with AND
+      const whereClause = (extraCondition?: any) => {
+        const allConditions = [...conditions];
+        if (extraCondition) allConditions.push(extraCondition);
+        return allConditions.length > 0 ? and(...allConditions) : undefined;
+      };
 
       // Get total count - all sensors with chlorine data
       const totalResult = await db
@@ -4827,11 +5197,7 @@ export class PostgresStorage implements IStorage {
           count: sql<number>`count(DISTINCT ${chlorineData.scheme_id} || '_' || ${chlorineData.village_name} || '_' || ${chlorineData.esr_name})`,
         })
         .from(chlorineData)
-        .where(
-          regionCondition
-            ? eq(chlorineData.region, regionCondition)
-            : undefined,
-        );
+        .where(whereClause());
 
       const totalSensors = Number(totalResult[0]?.count || 0);
       console.log("Total sensors with water:", totalSensors);
@@ -4843,10 +5209,7 @@ export class PostgresStorage implements IStorage {
         })
         .from(chlorineData)
         .where(
-          and(
-            regionCondition
-              ? eq(chlorineData.region, regionCondition)
-              : undefined,
+          whereClause(
             sql`${chlorineData.chlorine_value_7} < 0.2 AND ${chlorineData.chlorine_value_7} >= 0`,
           ),
         );
@@ -4861,10 +5224,7 @@ export class PostgresStorage implements IStorage {
         })
         .from(chlorineData)
         .where(
-          and(
-            regionCondition
-              ? eq(chlorineData.region, regionCondition)
-              : undefined,
+          whereClause(
             sql`${chlorineData.chlorine_value_7} >= 0.2 AND ${chlorineData.chlorine_value_7} <= 0.5`,
           ),
         );
@@ -4878,14 +5238,7 @@ export class PostgresStorage implements IStorage {
           count: sql<number>`count(DISTINCT ${chlorineData.scheme_id} || '_' || ${chlorineData.village_name} || '_' || ${chlorineData.esr_name})`,
         })
         .from(chlorineData)
-        .where(
-          and(
-            regionCondition
-              ? eq(chlorineData.region, regionCondition)
-              : undefined,
-            sql`${chlorineData.chlorine_value_7} > 0.5`,
-          ),
-        );
+        .where(whereClause(sql`${chlorineData.chlorine_value_7} > 0.5`));
 
       const aboveRangeSensors = Number(aboveRangeResult[0]?.count || 0);
       console.log("Above range sensors with water:", aboveRangeSensors);
@@ -4897,10 +5250,7 @@ export class PostgresStorage implements IStorage {
         })
         .from(chlorineData)
         .where(
-          and(
-            regionCondition
-              ? eq(chlorineData.region, regionCondition)
-              : undefined,
+          whereClause(
             sql`${chlorineData.chlorine_value_1} = 0 AND 
                 ${chlorineData.chlorine_value_2} = 0 AND 
                 ${chlorineData.chlorine_value_3} = 0 AND 
@@ -4921,10 +5271,7 @@ export class PostgresStorage implements IStorage {
         })
         .from(chlorineData)
         .where(
-          and(
-            regionCondition
-              ? eq(chlorineData.region, regionCondition)
-              : undefined,
+          whereClause(
             sql`${chlorineData.chlorine_value_1} > 0 AND ${chlorineData.chlorine_value_1} < 0.2 AND 
                 ${chlorineData.chlorine_value_2} > 0 AND ${chlorineData.chlorine_value_2} < 0.2 AND 
                 ${chlorineData.chlorine_value_3} > 0 AND ${chlorineData.chlorine_value_3} < 0.2 AND 
@@ -4950,10 +5297,7 @@ export class PostgresStorage implements IStorage {
         })
         .from(chlorineData)
         .where(
-          and(
-            regionCondition
-              ? eq(chlorineData.region, regionCondition)
-              : undefined,
+          whereClause(
             sql`${chlorineData.chlorine_value_1} >= 0.2 AND ${chlorineData.chlorine_value_1} <= 0.5 AND 
                 ${chlorineData.chlorine_value_2} >= 0.2 AND ${chlorineData.chlorine_value_2} <= 0.5 AND 
                 ${chlorineData.chlorine_value_3} >= 0.2 AND ${chlorineData.chlorine_value_3} <= 0.5 AND 
@@ -4961,7 +5305,6 @@ export class PostgresStorage implements IStorage {
                 ${chlorineData.chlorine_value_5} >= 0.2 AND ${chlorineData.chlorine_value_5} <= 0.5 AND 
                 ${chlorineData.chlorine_value_6} >= 0.2 AND ${chlorineData.chlorine_value_6} <= 0.5 AND 
                 ${chlorineData.chlorine_value_7} >= 0.2 AND ${chlorineData.chlorine_value_7} <= 0.5`,
-            sql`${waterSchemeData.water_value_day7} > 0`,
           ),
         );
 
@@ -4973,25 +5316,14 @@ export class PostgresStorage implements IStorage {
         consistentOptimalSensors,
       );
 
-      // Get sensors with consistently above range readings (>0.5) for 7 days - only from villages with water supply
+      // Get sensors with consistently above range readings (>0.5) for 7 days
       const consistentAboveRangeResult = await db
         .select({
           count: sql<number>`count(DISTINCT ${chlorineData.scheme_id} || '_' || ${chlorineData.village_name} || '_' || ${chlorineData.esr_name})`,
         })
         .from(chlorineData)
-        .leftJoin(
-          waterSchemeData,
-          and(
-            eq(chlorineData.scheme_id, waterSchemeData.scheme_id),
-            eq(chlorineData.village_name, waterSchemeData.village_name),
-            eq(chlorineData.esr_name, waterSchemeData.esr_name),
-          ),
-        )
         .where(
-          and(
-            regionCondition
-              ? eq(chlorineData.region, regionCondition)
-              : undefined,
+          whereClause(
             sql`${chlorineData.chlorine_value_1} > 0.5 AND 
                 ${chlorineData.chlorine_value_2} > 0.5 AND 
                 ${chlorineData.chlorine_value_3} > 0.5 AND 
@@ -4999,7 +5331,6 @@ export class PostgresStorage implements IStorage {
                 ${chlorineData.chlorine_value_5} > 0.5 AND 
                 ${chlorineData.chlorine_value_6} > 0.5 AND 
                 ${chlorineData.chlorine_value_7} > 0.5`,
-            sql`${waterSchemeData.water_value_day7} > 0`,
           ),
         );
 
@@ -5011,24 +5342,9 @@ export class PostgresStorage implements IStorage {
         consistentAboveRangeSensors,
       );
 
-      // Get no water sensors count - temporarily handle data type issues
-      let noWaterSensors = 0;
-      try {
-        const noWaterResult =
-          await this.getChlorineSensorsWithNoWater(regionName);
-        noWaterSensors = noWaterResult.totalNoWaterSensors;
-        console.log("No water sensors:", noWaterSensors);
-      } catch (error) {
-        console.error(
-          "Skipping no water sensors calculation due to data type error:",
-          error,
-        );
-        // For now, return a reasonable default based on connected sensors - user mentioned 751 in screenshot
-        noWaterSensors =
-          regionName && regionName !== "all"
-            ? Math.floor(totalSensors * 0.3)
-            : 751;
-      }
+      // For no water sensors, we'll use the separate method which we'll also update
+      const noWaterResult = await this.getChlorineSensorsWithNoWater(filter);
+      const noWaterSensors = noWaterResult.totalNoWaterSensors;
 
       console.log("Dashboard stats:", {
         totalSensors,
@@ -5173,12 +5489,12 @@ export class PostgresStorage implements IStorage {
             let year = currentYear;
             const tempDate = new Date(year, monthIndex, parseInt(day));
             const now = new Date();
-             
+
             // If date is more than 6 months in future, assume last year
             if (tempDate.getTime() - now.getTime() > 180 * 24 * 60 * 60 * 1000) {
-               year = currentYear - 1;
+              year = currentYear - 1;
             }
-            
+
             return new Date(year, monthIndex, parseInt(day));
           }
         }
@@ -5443,19 +5759,36 @@ export class PostgresStorage implements IStorage {
           conditions.push(eq(communicationStatus.region, filter.region));
         }
 
+        if (filter.circle && filter.circle !== "all") {
+          conditions.push(eq(communicationStatus.circle, filter.circle));
+        }
+
+        if (filter.division && filter.division !== "all") {
+          conditions.push(eq(communicationStatus.division, filter.division));
+        }
+
+        const subDivision = filter.subDivision || filter.subdivision;
+        if (subDivision && subDivision !== "all") {
+          conditions.push(eq(communicationStatus.sub_division, subDivision));
+        }
+
+        if (filter.block && filter.block !== "all") {
+          conditions.push(eq(communicationStatus.block, filter.block));
+        }
+
         if (filter.pressureRange) {
           switch (filter.pressureRange) {
-             case "below_0.2":
-               conditions.push(sql`pressure_data.pressure_value_7 < 0.2 AND pressure_data.pressure_value_7 >= 0`);
-               break;
-             case "between_0.2_0.7":
-               conditions.push(sql`pressure_data.pressure_value_7 >= 0.2 AND pressure_data.pressure_value_7 <= 0.7`);
-               break;
-             case "above_0.7":
-               conditions.push(sql`pressure_data.pressure_value_7 > 0.7`);
-               break;
-             case "consistent_zero":
-               conditions.push(sql`
+            case "below_0.2":
+              conditions.push(sql`pressure_data.pressure_value_7 < 0.2 AND pressure_data.pressure_value_7 >= 0`);
+              break;
+            case "between_0.2_0.7":
+              conditions.push(sql`pressure_data.pressure_value_7 >= 0.2 AND pressure_data.pressure_value_7 <= 0.7`);
+              break;
+            case "above_0.7":
+              conditions.push(sql`pressure_data.pressure_value_7 > 0.7`);
+              break;
+            case "consistent_zero":
+              conditions.push(sql`
                  COALESCE(pressure_data.number_of_consistent_zero_value_in_pressure, 0) = 7 OR
                  (
                    (pressure_data.pressure_value_1 = 0 OR pressure_data.pressure_value_1 IS NULL) AND
@@ -5467,9 +5800,9 @@ export class PostgresStorage implements IStorage {
                    (pressure_data.pressure_value_7 = 0 OR pressure_data.pressure_value_7 IS NULL)
                  )
                `);
-               break;
-             case "consistent_below":
-               conditions.push(sql`
+              break;
+            case "consistent_below":
+              conditions.push(sql`
                  (
                    (pressure_data.pressure_value_1 < 0.2 AND pressure_data.pressure_value_1 > 0) AND
                    (pressure_data.pressure_value_2 < 0.2 AND pressure_data.pressure_value_2 > 0) AND
@@ -5480,9 +5813,9 @@ export class PostgresStorage implements IStorage {
                    (pressure_data.pressure_value_7 < 0.2 AND pressure_data.pressure_value_7 > 0)
                  )
                `);
-               break;
-             case "consistent_optimal":
-               conditions.push(sql`
+              break;
+            case "consistent_optimal":
+              conditions.push(sql`
                  (
                    (pressure_data.pressure_value_1 >= 0.2 AND pressure_data.pressure_value_1 <= 0.7) AND
                    (pressure_data.pressure_value_2 >= 0.2 AND pressure_data.pressure_value_2 <= 0.7) AND
@@ -5493,9 +5826,9 @@ export class PostgresStorage implements IStorage {
                    (pressure_data.pressure_value_7 >= 0.2 AND pressure_data.pressure_value_7 <= 0.7)
                  )
                `);
-               break;
-             case "consistent_above":
-               conditions.push(sql`
+              break;
+            case "consistent_above":
+              conditions.push(sql`
                  (
                    (pressure_data.pressure_value_1 > 0.7) AND
                    (pressure_data.pressure_value_2 > 0.7) AND
@@ -5506,15 +5839,15 @@ export class PostgresStorage implements IStorage {
                    (pressure_data.pressure_value_7 > 0.7)
                  )
                `);
-               break;
+              break;
           }
         } else {
-           if (filter.minPressure !== undefined) {
-             conditions.push(sql`pressure_data.pressure_value_7 >= ${filter.minPressure}`);
-           }
-           if (filter.maxPressure !== undefined) {
-             conditions.push(sql`pressure_data.pressure_value_7 <= ${filter.maxPressure}`);
-           }
+          if (filter.minPressure !== undefined) {
+            conditions.push(sql`pressure_data.pressure_value_7 >= ${filter.minPressure}`);
+          }
+          if (filter.maxPressure !== undefined) {
+            conditions.push(sql`pressure_data.pressure_value_7 <= ${filter.maxPressure}`);
+          }
         }
       }
 
@@ -5529,7 +5862,7 @@ export class PostgresStorage implements IStorage {
         scheme_name: communicationStatus.scheme_name,
         village_name: communicationStatus.village_name,
         esr_name: communicationStatus.esr_name,
-        
+
         // Pressure data fields (mapped from pd)
         pressure_value_1: pressureData.pressure_value_1,
         pressure_value_2: pressureData.pressure_value_2,
@@ -5538,7 +5871,7 @@ export class PostgresStorage implements IStorage {
         pressure_value_5: pressureData.pressure_value_5,
         pressure_value_6: pressureData.pressure_value_6,
         pressure_value_7: pressureData.pressure_value_7,
-        
+
         pressure_date_day_1: pressureData.pressure_date_day_1,
         pressure_date_day_2: pressureData.pressure_date_day_2,
         pressure_date_day_3: pressureData.pressure_date_day_3,
@@ -5546,21 +5879,21 @@ export class PostgresStorage implements IStorage {
         pressure_date_day_5: pressureData.pressure_date_day_5,
         pressure_date_day_6: pressureData.pressure_date_day_6,
         pressure_date_day_7: pressureData.pressure_date_day_7,
-        
+
         number_of_consistent_zero_value_in_pressure: pressureData.number_of_consistent_zero_value_in_pressure,
         pressure_less_than_02_bar: pressureData.pressure_less_than_02_bar,
         pressure_between_02_07_bar: pressureData.pressure_between_02_07_bar,
         pressure_greater_than_07_bar: pressureData.pressure_greater_than_07_bar,
         dashboard_url: pressureData.dashboard_url
       })
-      .from(communicationStatus)
-      .leftJoin(pressureData, sql`
+        .from(communicationStatus)
+        .leftJoin(pressureData, sql`
         ${communicationStatus.scheme_id} = ${pressureData.scheme_id} AND 
         ${communicationStatus.village_name} = ${pressureData.village_name} AND 
         ${communicationStatus.esr_name} = ${pressureData.esr_name}
       `)
-      .where(and(...conditions));
-      
+        .where(and(...conditions));
+
       return result as PressureData[]; // Cast to match expected return type
 
     } catch (error) {
@@ -5706,7 +6039,7 @@ export class PostgresStorage implements IStorage {
   }
 
   // Dashboard statistics for pressure data
-  async getPressureDashboardStats(regionName?: string, schemeIds?: string[]): Promise<{
+  async getPressureDashboardStats(filter?: any, schemeIds?: string[]): Promise<{
     totalSensors: number;
     belowRangeSensors: number;
     optimalRangeSensors: number;
@@ -5723,9 +6056,32 @@ export class PostgresStorage implements IStorage {
     try {
       console.log("Fetching pressure dashboard stats...");
 
-      // Base conditions - filter by region if specified and not 'all'
-      const regionCondition =
-        regionName && regionName !== "all" ? regionName : undefined;
+      // Build filter conditions array
+      const buildFilterConditions = () => {
+        const conditions: any[] = [];
+
+        if (filter?.region && filter.region !== "all") {
+          conditions.push(eq(pressureData.region, filter.region));
+        }
+        if (filter?.circle && filter.circle !== "all") {
+          conditions.push(eq(pressureData.circle, filter.circle));
+        }
+        if (filter?.division && filter.division !== "all") {
+          conditions.push(eq(pressureData.division, filter.division));
+        }
+        const subDivision = filter?.subDivision || filter?.subdivision;
+        if (subDivision && subDivision !== "all") {
+          conditions.push(eq(pressureData.sub_division, subDivision));
+        }
+        if (filter?.block && filter.block !== "all") {
+          conditions.push(eq(pressureData.block, filter.block));
+        }
+        if (schemeIds && schemeIds.length > 0) {
+          conditions.push(inArray(pressureData.scheme_id, schemeIds));
+        }
+
+        return conditions;
+      };
 
       // Get total count - only sensors from villages with water supply
       const totalResult = await db
@@ -5743,12 +6099,7 @@ export class PostgresStorage implements IStorage {
         )
         .where(
           and(
-            regionCondition
-              ? eq(pressureData.region, regionCondition)
-              : undefined,
-            schemeIds && schemeIds.length > 0
-              ? inArray(pressureData.scheme_id, schemeIds)
-              : undefined,
+            ...buildFilterConditions(),
             sql`${waterSchemeData.water_value_day7} > 0`,
           ),
         );
@@ -5772,12 +6123,7 @@ export class PostgresStorage implements IStorage {
         )
         .where(
           and(
-            regionCondition
-              ? eq(pressureData.region, regionCondition)
-              : undefined,
-            schemeIds && schemeIds.length > 0
-              ? inArray(pressureData.scheme_id, schemeIds)
-              : undefined,
+            ...buildFilterConditions(),
             sql`${pressureData.pressure_value_7} < 0.2 AND ${pressureData.pressure_value_7} >= 0`,
             sql`${waterSchemeData.water_value_day7} > 0`,
           ),
@@ -5802,12 +6148,7 @@ export class PostgresStorage implements IStorage {
         )
         .where(
           and(
-            regionCondition
-              ? eq(pressureData.region, regionCondition)
-              : undefined,
-            schemeIds && schemeIds.length > 0
-              ? inArray(pressureData.scheme_id, schemeIds)
-              : undefined,
+            ...buildFilterConditions(),
             sql`${pressureData.pressure_value_7} >= 0.2 AND ${pressureData.pressure_value_7} <= 0.7`,
             sql`${waterSchemeData.water_value_day7} > 0`,
           ),
@@ -5832,12 +6173,7 @@ export class PostgresStorage implements IStorage {
         )
         .where(
           and(
-            regionCondition
-              ? eq(pressureData.region, regionCondition)
-              : undefined,
-            schemeIds && schemeIds.length > 0
-              ? inArray(pressureData.scheme_id, schemeIds)
-              : undefined,
+            ...buildFilterConditions(),
             sql`${pressureData.pressure_value_7} > 0.7`,
             sql`${waterSchemeData.water_value_day7} > 0`,
           ),
@@ -5862,12 +6198,7 @@ export class PostgresStorage implements IStorage {
         )
         .where(
           and(
-            regionCondition
-              ? eq(pressureData.region, regionCondition)
-              : undefined,
-            schemeIds && schemeIds.length > 0
-              ? inArray(pressureData.scheme_id, schemeIds)
-              : undefined,
+            ...buildFilterConditions(),
             sql`${pressureData.pressure_value_1} = 0 AND 
                 ${pressureData.pressure_value_2} = 0 AND 
                 ${pressureData.pressure_value_3} = 0 AND 
@@ -7313,10 +7644,9 @@ export class PostgresStorage implements IStorage {
         } catch (recordError) {
           console.error(`Error processing row ${rowNumber}:`, recordError);
           errors.push(
-            `Row ${rowNumber}: ${
-              recordError instanceof Error
-                ? recordError.message
-                : String(recordError)
+            `Row ${rowNumber}: ${recordError instanceof Error
+              ? recordError.message
+              : String(recordError)
             }`,
           );
         }
@@ -7348,12 +7678,31 @@ export class PostgresStorage implements IStorage {
   }
 
   // Get all water consumption data with scheme status information
-  async getAllWaterConsumptionWithSchemeStatus(): Promise<any[]> {
+  async getAllWaterConsumptionWithSchemeStatus(filter?: any): Promise<any[]> {
     try {
       const db = await getDB();
 
+      // Build filter conditions
+      const conditions: any[] = [];
+      if (filter?.region && filter.region !== "all") {
+        conditions.push(eq(waterConsumption.region, filter.region));
+      }
+      if (filter?.circle && filter.circle !== "all") {
+        conditions.push(eq(waterConsumption.circle, filter.circle));
+      }
+      if (filter?.division && filter.division !== "all") {
+        conditions.push(eq(waterConsumption.division, filter.division));
+      }
+      const subDivision = filter?.subDivision || filter?.subdivision;
+      if (subDivision && subDivision !== "all") {
+        conditions.push(eq(waterConsumption.sub_division, subDivision));
+      }
+      if (filter?.block && filter.block !== "all") {
+        conditions.push(eq(waterConsumption.block, filter.block));
+      }
+
       // Use proper LEFT JOIN to get scheme status data
-      const result = await db
+      let query = db
         .select({
           // Water consumption fields
           region: waterConsumption.region,
@@ -7404,6 +7753,13 @@ export class PostgresStorage implements IStorage {
             eq(schemeStatuses.block, waterConsumption.block),
           ),
         );
+
+      // Apply filters if any
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
+      }
+
+      const result = await query;
 
       return result;
     } catch (error) {
@@ -7667,9 +8023,9 @@ export class PostgresStorage implements IStorage {
         const change =
           previous > 0
             ? {
-                change: current - previous,
-                changePercent: ((current - previous) / previous) * 100,
-              }
+              change: current - previous,
+              changePercent: ((current - previous) / previous) * 100,
+            }
             : null;
 
         return { totalPopulation: current, change };
@@ -7693,9 +8049,9 @@ export class PostgresStorage implements IStorage {
         const change =
           previous > 0
             ? {
-                change: current - previous,
-                changePercent: ((current - previous) / previous) * 100,
-              }
+              change: current - previous,
+              changePercent: ((current - previous) / previous) * 100,
+            }
             : null;
 
         return { totalPopulation: current, change };
@@ -7788,15 +8144,34 @@ export class PostgresStorage implements IStorage {
     return result.length > 0 ? result[0] : undefined;
   }
 
-  async getRegionSummary(regionName?: string): Promise<any> {
+  async getRegionSummary(
+    regionName?: string,
+    circle?: string,
+    division?: string,
+    subdivision?: string,
+    block?: string,
+  ): Promise<any> {
     const db = await this.ensureInitialized();
 
-    if (regionName) {
-      // If region is specified, get summary for that region
+    let filteredSchemeCount = 0;
+
+    if (regionName && regionName !== "all") {
+      // Get filtered scheme count from scheme_status table for specific region
+      const schemes = await this.getConsolidatedSchemesByRegion(
+        regionName,
+        undefined,
+        undefined,
+        circle,
+        division,
+        subdivision,
+        block,
+      );
+      filteredSchemeCount = schemes.length;
+
+      // Use data directly from the regions table
       const region = await this.getRegionByName(regionName);
       if (!region) return null;
 
-      // Use data directly from the regions table
       return {
         total_schemes_integrated: region.total_schemes_integrated || 0,
         fully_completed_schemes: region.fully_completed_schemes || 0,
@@ -7809,8 +8184,20 @@ export class PostgresStorage implements IStorage {
         rca_integrated: region.rca_integrated || 0,
         pressure_transmitter_integrated:
           region.pressure_transmitter_integrated || 0,
+        filtered_scheme_count: filteredSchemeCount, // Add the filtered count
       };
     } else {
+      // Get all schemes count from scheme_status table
+      const schemes = await this.getAllSchemes(
+        undefined,
+        undefined,
+        circle,
+        division,
+        subdivision,
+        block,
+      );
+      filteredSchemeCount = schemes.length;
+
       // Always dynamically calculate the sum of all regions instead of using global_summary
       console.log("Calculating dynamic sum of all regions");
 
@@ -7832,7 +8219,7 @@ export class PostgresStorage implements IStorage {
       // Log the dynamically calculated summary for debugging
       console.log("Dynamic region summary calculated:", result[0]);
 
-      return result[0];
+      return { ...result[0], filtered_scheme_count: filteredSchemeCount }; // Add the filtered count
     }
   }
 
@@ -7918,6 +8305,10 @@ export class PostgresStorage implements IStorage {
   async getAllSchemes(
     statusFilter?: string,
     schemeId?: string,
+    circle?: string,
+    division?: string,
+    subDivision?: string,
+    block?: string,
   ): Promise<SchemeStatus[]> {
     const db = await this.ensureInitialized();
 
@@ -7956,6 +8347,20 @@ export class PostgresStorage implements IStorage {
       }
     }
 
+    // Apply geographic filters
+    if (circle && circle !== "all") {
+      query = query.where(eq(schemeStatuses.circle, circle));
+    }
+    if (division && division !== "all") {
+      query = query.where(eq(schemeStatuses.division, division));
+    }
+    if (subDivision && subDivision !== "all") {
+      query = query.where(eq(schemeStatuses.sub_division, subDivision));
+    }
+    if (block && block !== "all") {
+      query = query.where(eq(schemeStatuses.block, block));
+    }
+
     const result = await query.orderBy(
       schemeStatuses.region,
       schemeStatuses.scheme_name,
@@ -7972,9 +8377,20 @@ export class PostgresStorage implements IStorage {
   async getConsolidatedSchemes(
     statusFilter?: string,
     schemeId?: string,
+    circle?: string,
+    division?: string,
+    subDivision?: string,
+    block?: string,
   ): Promise<SchemeStatus[]> {
     // First, get all schemes using the existing method
-    const allSchemes = await this.getAllSchemes(statusFilter, schemeId);
+    const allSchemes = await this.getAllSchemes(
+      statusFilter,
+      schemeId,
+      circle,
+      division,
+      subDivision,
+      block,
+    );
 
     // Create a map to group schemes by name
     const schemeMap = new Map<
@@ -8079,6 +8495,10 @@ export class PostgresStorage implements IStorage {
     regionName: string,
     statusFilter?: string,
     schemeId?: string,
+    circle?: string,
+    division?: string,
+    subDivision?: string,
+    block?: string,
   ): Promise<SchemeStatus[]> {
     const db = await this.ensureInitialized();
 
@@ -8120,6 +8540,20 @@ export class PostgresStorage implements IStorage {
       }
     }
 
+    // Apply geographic filters
+    if (circle && circle !== "all") {
+      query = query.where(eq(schemeStatuses.circle, circle));
+    }
+    if (division && division !== "all") {
+      query = query.where(eq(schemeStatuses.division, division));
+    }
+    if (subDivision && subDivision !== "all") {
+      query = query.where(eq(schemeStatuses.sub_division, subDivision));
+    }
+    if (block && block !== "all") {
+      query = query.where(eq(schemeStatuses.block, block));
+    }
+
     const result = await query.orderBy(schemeStatuses.scheme_name);
 
     // Apply agency mapping to all schemes by region
@@ -8134,12 +8568,20 @@ export class PostgresStorage implements IStorage {
     regionName: string,
     statusFilter?: string,
     schemeId?: string,
+    circle?: string,
+    division?: string,
+    subDivision?: string,
+    block?: string,
   ): Promise<SchemeStatus[]> {
     // First, get all schemes for the region using the existing method
     const regionSchemes = await this.getSchemesByRegion(
       regionName,
       statusFilter,
       schemeId,
+      circle,
+      division,
+      subDivision,
+      block,
     );
 
     // Create a map to group schemes by name
@@ -8564,39 +9006,39 @@ export class PostgresStorage implements IStorage {
         no_of_functional_village:
           schemeStatusData.length > 0
             ? schemeStatusData[0].no_of_functional_village ||
-              Math.max(1, Math.round(total_villages_integrated * 0.65))
+            Math.max(1, Math.round(total_villages_integrated * 0.65))
             : Math.max(1, Math.round(total_villages_integrated * 0.65)),
         no_of_partial_village:
           schemeStatusData.length > 0
             ? schemeStatusData[0].no_of_partial_village ||
-              Math.max(1, Math.round(total_villages_integrated * 0.35))
+            Math.max(1, Math.round(total_villages_integrated * 0.35))
             : Math.max(1, Math.round(total_villages_integrated * 0.35)),
         no_of_non_functional_village:
           schemeStatusData.length > 0
             ? schemeStatusData[0].no_of_non_functional_village ||
-              number_of_village - total_villages_integrated
+            number_of_village - total_villages_integrated
             : number_of_village - total_villages_integrated,
         balance_to_complete_esr:
           schemeStatusData.length > 0
             ? schemeStatusData[0].balance_to_complete_esr ||
-              total_number_of_esr - total_esr_integrated
+            total_number_of_esr - total_esr_integrated
             : total_number_of_esr - total_esr_integrated,
 
         // Use database values for these fields if available, otherwise calculate them
         flow_meters_connected:
           schemeStatusData.length > 0
             ? schemeStatusData[0].flow_meters_connected ||
-              Math.max(1, Math.round(total_villages_integrated * 0.8))
+            Math.max(1, Math.round(total_villages_integrated * 0.8))
             : Math.max(1, Math.round(total_villages_integrated * 0.8)),
         pressure_transmitter_connected:
           schemeStatusData.length > 0
             ? schemeStatusData[0].pressure_transmitter_connected ||
-              Math.max(1, Math.round(total_villages_integrated * 0.6))
+            Math.max(1, Math.round(total_villages_integrated * 0.6))
             : Math.max(1, Math.round(total_villages_integrated * 0.6)),
         residual_chlorine_analyzer_connected:
           schemeStatusData.length > 0
             ? schemeStatusData[0].residual_chlorine_analyzer_connected ||
-              Math.max(1, Math.round(total_villages_integrated * 0.6))
+            Math.max(1, Math.round(total_villages_integrated * 0.6))
             : Math.max(1, Math.round(total_villages_integrated * 0.6)),
 
         // Match status values with your data
@@ -8631,7 +9073,7 @@ export class PostgresStorage implements IStorage {
             total_villages_integrated: waterData.totalVillages,
             fully_completed_villages: Math.floor(
               waterData.aboveFiftyFiveLpcdCount ||
-                waterData.totalVillages * 0.7,
+              waterData.totalVillages * 0.7,
             ),
           };
         }
@@ -9037,7 +9479,7 @@ export class PostgresStorage implements IStorage {
               .where(
                 and(
                   eq(schemeStatuses.scheme_id, scheme.scheme_id),
-                  scheme.block 
+                  scheme.block
                     ? eq(schemeStatuses.block, scheme.block)
                     : sql`${schemeStatuses.block} IS NULL`
                 )
@@ -9058,7 +9500,7 @@ export class PostgresStorage implements IStorage {
 
           // Generate dashboard URL
           const dashboardUrl = this.generateDashboardUrl(scheme);
-          
+
           // Merge new values with existing values, preserving existing when new is undefined
           const mergedScheme = {
             scheme_id: scheme.scheme_id,
@@ -9091,8 +9533,8 @@ export class PostgresStorage implements IStorage {
             water_supply: getStringOrExisting(scheme.water_supply, existingRecord?.water_supply),
           };
 
-          if (scheme.water_supply) {
-             console.log(`[Storage Debug] Upserting scheme ${mergedScheme.scheme_id} with water_supply:`, mergedScheme.water_supply);
+          if (mergedScheme.water_supply) {
+            console.log(`[Storage Debug] Upserting scheme ${mergedScheme.scheme_id} with water_supply:`, mergedScheme.water_supply);
           }
 
           try {
@@ -9172,23 +9614,34 @@ export class PostgresStorage implements IStorage {
     const db = await this.ensureInitialized();
     let query = db.select().from(waterSchemeData);
 
-    console.log("Filter received:", filter); // Debug log
+    const conditions = [];
 
     if (filter) {
-      // Apply region filter if provided and not 'all'
       if (filter.region && filter.region !== "all") {
-        query = query.where(eq(waterSchemeData.region, filter.region));
+        conditions.push(eq(waterSchemeData.region, filter.region));
+      }
+      if (filter.circle && filter.circle !== "all") {
+        conditions.push(eq(waterSchemeData.circle, filter.circle));
+      }
+      if (filter.division && filter.division !== "all") {
+        conditions.push(eq(waterSchemeData.division, filter.division));
+      }
+      if (filter.subDivision && filter.subDivision !== "all") {
+        conditions.push(eq(waterSchemeData.sub_division, filter.subDivision));
+      }
+      if (filter.block && filter.block !== "all") {
+        conditions.push(eq(waterSchemeData.block, filter.block));
       }
 
-      // Apply LPCD filters if provided
+      if (filter.zeroSupplyForWeek) {
+        conditions.push(eq(waterSchemeData.consistent_zero_lpcd_for_a_week, 1));
+      }
+
       if (filter.minLpcd !== undefined) {
         // Apply minimum LPCD filter
-        // Make sure to use the most recent day with data (try day7, then day6, etc.)
         const minLpcdValue = parseFloat(filter.minLpcd.toString());
-        console.log("minLpcdValue:", minLpcdValue); // Debug log
 
-        // Important fix: FIRST exclude all records that have zero LPCDs for the entire week
-        // This is the key change that fixes the filtering issue
+        // Exclude all records that have zero LPCDs for the entire week
         query = query.where(
           sql`(${waterSchemeData.consistent_zero_lpcd_for_a_week} = 0 OR ${waterSchemeData.consistent_zero_lpcd_for_a_week} IS NULL)`,
         );
@@ -10454,7 +10907,7 @@ export class PostgresStorage implements IStorage {
       // OPTIMIZATION: Identify entries for batch operations
       const recordsToUpdate: Partial<InsertWaterSchemeData>[] = [];
       const recordsToInsert: Partial<InsertWaterSchemeData>[] = [];
-      const entriesToDelete: { scheme_id: string; village_name: string }[] = [];
+      const entriesToDelete: { scheme_id: string; village_name: string; block?: string | null }[] = [];
 
       // Process records for insert/update
       for (const [key, record] of recordsMap.entries()) {
@@ -10494,7 +10947,7 @@ export class PostgresStorage implements IStorage {
             db.delete(waterSchemeData).where(
               sql`${waterSchemeData.scheme_id} = ${entry.scheme_id} AND 
                     ${waterSchemeData.village_name} = ${entry.village_name} AND
-                    ${waterSchemeData.block} = ${entry.block}`,
+                    ${waterSchemeData.block} IS NOT DISTINCT FROM ${entry.block}`,
             ),
           );
 
@@ -10651,7 +11104,7 @@ export class PostgresStorage implements IStorage {
             db.update(waterSchemeData).set(record as Partial<WaterSchemeData>)
               .where(sql`${waterSchemeData.scheme_id} = ${record.scheme_id} AND 
                          ${waterSchemeData.village_name} = ${record.village_name} AND
-                         ${waterSchemeData.block} = ${record.block}`),
+                         ${waterSchemeData.block} IS NOT DISTINCT FROM ${record.block}`),
           );
 
           // Execute all updates in parallel
@@ -10671,7 +11124,7 @@ export class PostgresStorage implements IStorage {
                   .set(record as Partial<WaterSchemeData>)
                   .where(sql`${waterSchemeData.scheme_id} = ${record.scheme_id} AND 
                              ${waterSchemeData.village_name} = ${record.village_name} AND
-                             ${waterSchemeData.block} = ${record.block}`);
+                             ${waterSchemeData.block} IS NOT DISTINCT FROM ${record.block}`);
                 updated++;
               } catch (individualError) {
                 errors.push(
@@ -12267,16 +12720,16 @@ export class PostgresStorage implements IStorage {
         esr_name: row.esr_name || "",
         measurement_date: ((dateStr: string) => {
           if (!dateStr) return "";
-          
+
           // Check for DD/MM/YYYY format and convert to YYYY-MM-DD
           if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
             const [day, month, year] = dateStr.split('/');
             return `${year}-${month}-${day}`;
           }
-          
+
           // Check for DD-Mon format (e.g., 29-Dec) and infer year
           if (/^\d{2}-[A-Za-z]{3}$/.test(dateStr) && row.uploaded_at) {
-            const months: {[key: string]: number} = {
+            const months: { [key: string]: number } = {
               'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
               'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
             };
@@ -12285,17 +12738,17 @@ export class PostgresStorage implements IStorage {
             if (monthIndex !== undefined) {
               const uploadDate = new Date(row.uploaded_at);
               let year = uploadDate.getFullYear();
-              
+
               // If data month is > upload month, it's from previous year
               if (monthIndex > uploadDate.getMonth()) {
                 year = year - 1;
               }
-              
+
               const monthNum = (monthIndex + 1).toString().padStart(2, '0');
               return `${year}-${monthNum}-${day}`;
             }
           }
-          
+
           return dateStr;
         })(row.measurement_date || ""),
         pressure_value: parseFloat(row.pressure_value?.toString() || "0"),
@@ -12660,14 +13113,14 @@ export class PostgresStorage implements IStorage {
         scheme_info:
           records.length > 0
             ? {
-                scheme_id: records[0].scheme_id,
-                scheme_name: records[0].scheme_name,
-                region: records[0].region,
-                circle: records[0].circle,
-                division: records[0].division,
-                sub_division: records[0].sub_division,
-                block: records[0].block,
-              }
+              scheme_id: records[0].scheme_id,
+              scheme_name: records[0].scheme_name,
+              region: records[0].region,
+              circle: records[0].circle,
+              division: records[0].division,
+              sub_division: records[0].sub_division,
+              block: records[0].block,
+            }
             : null,
         esrs: filteredRecords.map((record) => ({
           id: record.id,
@@ -12803,7 +13256,7 @@ export class PostgresStorage implements IStorage {
                 // Preserve existing last_seen value for offline/N/A chlorine devices
                 updateData.last_seen = existingRecord[0].last_seen;
               }
-              
+
               // Only update pressure_last_seen if new pressure_status is ONLINE (case-insensitive)
               const newPressureStatus = communicationRecord.pressure_status;
               if (newPressureStatus?.trim().toUpperCase() === "ONLINE") {
@@ -13060,3 +13513,4 @@ export class PostgresStorage implements IStorage {
 }
 
 export const storage = new PostgresStorage();
+

@@ -24,11 +24,43 @@ const upload = multer({
   },
 });
 
+// Get water consumption filter options
+router.get("/filters", async (req, res) => {
+  try {
+    const { region, circle, division, subDivision, subdivision, block } = req.query;
+
+    const filter: any = {};
+    if (region) filter.region = region as string;
+    if (circle) filter.circle = circle as string;
+    if (division) filter.division = division as string;
+    // Handle both camelCase and lowercase subdivision param
+    const subDivParam = (subDivision || subdivision) as string | undefined;
+    if (subDivParam) filter.subDivision = subDivParam;
+    if (block) filter.block = block as string;
+
+    const filterOptions = await storage.getWaterConsumptionFilterOptions(filter);
+    res.json(filterOptions);
+  } catch (error) {
+    console.error("Error getting water consumption filter options:", error);
+    res.status(500).json({ error: "Failed to get filter options" });
+  }
+});
+
 // Get all water consumption data with scheme status information
 router.get("/", async (req, res) => {
   try {
+    const { region, circle, division, subdivision, block } = req.query;
+
+    // Build filter object
+    const filter: any = {};
+    if (region) filter.region = region as string;
+    if (circle) filter.circle = circle as string;
+    if (division) filter.division = division as string;
+    if (subdivision) filter.subdivision = subdivision as string;
+    if (block) filter.block = block as string;
+
     const waterConsumptionData =
-      await storage.getAllWaterConsumptionWithSchemeStatus();
+      await storage.getAllWaterConsumptionWithSchemeStatus(filter);
     res.json(waterConsumptionData);
   } catch (error) {
     console.error("Error fetching water consumption data:", error);
@@ -193,8 +225,8 @@ router.get('/historical', async (req, res) => {
     const { startDate, endDate, region, countOnly } = req.query;
 
     if (!startDate || !endDate) {
-      return res.status(400).json({ 
-        error: 'startDate and endDate are required parameters (format: YYYY-MM-DD)' 
+      return res.status(400).json({
+        error: 'startDate and endDate are required parameters (format: YYYY-MM-DD)'
       });
     }
 
@@ -217,8 +249,12 @@ router.get('/historical', async (req, res) => {
             AND data_date NOT LIKE '31-Jun%'
             AND data_date NOT LIKE '31-Sep%'
             AND data_date NOT LIKE '31-Nov%'
-            AND TO_DATE(data_date || '-' || EXTRACT(YEAR FROM uploaded_at), 'DD-Mon-YYYY') 
-                BETWEEN TO_DATE('${startDate}', 'YYYY-MM-DD') 
+            AND (
+              CASE
+                WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
+                ELSE TO_DATE(data_date || '-' || EXTRACT(YEAR FROM uploaded_at), 'DD-Mon-YYYY')
+              END
+            ) BETWEEN TO_DATE('${startDate}', 'YYYY-MM-DD') 
                 AND TO_DATE('${endDate}', 'YYYY-MM-DD')
         `;
 
@@ -228,9 +264,9 @@ router.get('/historical', async (req, res) => {
 
         const countResult = await db.execute(countQuery);
         const count = parseInt(countResult.rows[0].total);
-        
+
         console.log(`📈 Count result: ${count} records in date range`);
-        
+
         return res.json({ count });
       }
 
@@ -263,14 +299,18 @@ router.get('/historical', async (req, res) => {
           AND data_date NOT LIKE '31-Jun%'
           AND data_date NOT LIKE '31-Sep%'
           AND data_date NOT LIKE '31-Nov%'
-          AND TO_DATE(data_date || '-' || 
+          AND (
             CASE 
-              WHEN EXTRACT(MONTH FROM TO_DATE(data_date, 'DD-Mon')) > EXTRACT(MONTH FROM uploaded_at) 
-              THEN EXTRACT(YEAR FROM uploaded_at) - 1
-              ELSE EXTRACT(YEAR FROM uploaded_at)
-            END, 
-            'DD-Mon-YYYY') 
-              BETWEEN TO_DATE('${startDate}', 'YYYY-MM-DD') 
+              WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
+              ELSE TO_DATE(data_date || '-' || 
+                CASE 
+                  WHEN EXTRACT(MONTH FROM TO_DATE(data_date, 'DD-Mon')) > EXTRACT(MONTH FROM uploaded_at) 
+                  THEN EXTRACT(YEAR FROM uploaded_at) - 1
+                  ELSE EXTRACT(YEAR FROM uploaded_at)
+                END, 
+                'DD-Mon-YYYY')
+            END
+          ) BETWEEN TO_DATE('${startDate}', 'YYYY-MM-DD') 
               AND TO_DATE('${endDate}', 'YYYY-MM-DD')
       `;
 
@@ -302,19 +342,19 @@ router.get('/historical', async (req, res) => {
 // Download historical water consumption data with date range filtering
 router.get('/download/water-consumption-history', async (req, res) => {
   try {
-    const { 
-      startDate, 
-      endDate, 
-      region, 
-      scheme_id, 
+    const {
+      startDate,
+      endDate,
+      region,
+      scheme_id,
       village_name,
       esr_name,
-      format = 'xlsx' 
+      format = 'xlsx'
     } = req.query;
 
     if (!startDate || !endDate) {
-      return res.status(400).json({ 
-        error: 'startDate and endDate are required parameters (format: YYYY-MM-DD)' 
+      return res.status(400).json({
+        error: 'startDate and endDate are required parameters (format: YYYY-MM-DD)'
       });
     }
 
@@ -416,7 +456,7 @@ router.get('/download/water-consumption-history', async (req, res) => {
       // Group data by ESR and collect all unique dates
       result.rows.forEach((row: any) => {
         const esrKey = `${row.scheme_id}|${row.village_name}|${row.esr_name}`;
-        
+
         if (!esrMap.has(esrKey)) {
           esrMap.set(esrKey, {
             region: row.region || '',
@@ -469,7 +509,7 @@ router.get('/download/water-consumption-history', async (req, res) => {
         'Scheme ID', 'Scheme Name', 'Village Name', 'ESR Name',
         'ESR Capacity (m³)', 'Flow Rate (m³)'
       ];
-      
+
       // Add date columns to headers
       sortedDates.forEach(date => {
         headers.push(date);

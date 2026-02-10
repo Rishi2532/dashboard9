@@ -16,24 +16,24 @@ const router = express.Router();
 // Helper to get filtered scheme IDs based on filterType
 async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: any) {
   const activeFilter = filterType || (fullyCompleted === "true" ? "fully_completed" : undefined);
-  
+
   if (!activeFilter || activeFilter === 'all') {
     return null; // No filter needed
   }
 
   let condition;
   if (activeFilter === 'commissioned') {
-      condition = sql`LOWER(${schemeStatuses.water_supply}) = 'yes'`;
+    condition = sql`LOWER(${schemeStatuses.water_supply}) = 'yes'`;
   } else if (activeFilter === 'fully_completed') {
-      condition = sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('completed', 'fully-completed', 'fully completed', 'functionally completed')`;
+    condition = sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('completed', 'fully-completed', 'fully completed', 'functionally completed')`;
   } else if (activeFilter === 'partial' || activeFilter === 'in_progress') {
-      condition = sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('in progress', 'partial', 'ongoing')`;
+    condition = sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('in progress', 'partial', 'ongoing')`;
   }
 
   if (condition) {
     const rows = await db.select({ scheme_id: schemeStatuses.scheme_id })
-       .from(schemeStatuses)
-       .where(condition);
+      .from(schemeStatuses)
+      .where(condition);
     const ids = rows.map((r: any) => r.scheme_id);
     return ids.length > 0 ? ids : ['NO_MATCHES'];
   }
@@ -46,7 +46,7 @@ function getLastCompletedISOWeekInfo() {
   const day = today.getDay(); // 0-6 (Sun-Sat)
   const diff = today.getDate() - (day === 0 ? 6 : day - 1) - 7; // Monday of last week
   const lastMonday = new Date(today.setDate(diff));
-  
+
   const dates: string[] = [];
   for (let i = 0; i < 7; i++) {
     const d = new Date(lastMonday);
@@ -80,17 +80,17 @@ router.get("/weekly-lpcd/stats", async (req, res) => {
     console.log(`Weekly LPCD Stats Request for: ${weekInfo.weekNum}`, { fullyCompleted, filterType });
 
     const db = await getDB();
-    
+
     // Get filtered scheme IDs
     const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
     let fullyCompletedSchemeIds: Set<string> | undefined;
-    
+
     if (filteredIds) {
-       // If filter returns NO_MATCHES string array, keep it as empty set or special handling
-       // For simple set passing:
-       fullyCompletedSchemeIds = new Set(filteredIds);
+      // If filter returns NO_MATCHES string array, keep it as empty set or special handling
+      // For simple set passing:
+      fullyCompletedSchemeIds = new Set(filteredIds);
     }
-    
+
     const [villageStats, schemeStats] = await Promise.all([
       storage.getVillageWeeklyStats(weekInfo.dates, fullyCompletedSchemeIds),
       storage.getSchemeWeeklyStats(weekInfo.dates, fullyCompletedSchemeIds)
@@ -125,36 +125,70 @@ const requireAdmin = (req: express.Request, res: express.Response, next: express
   next();
 };
 
+// Get chlorine filter options
+router.get("/filters", async (req, res) => {
+  try {
+    const { region, circle, division, subDivision, subdivision, block } = req.query;
+
+    const filter: any = {};
+    if (region) filter.region = region as string;
+    if (circle) filter.circle = circle as string;
+    if (division) filter.division = division as string;
+    // Handle both camelCase and lowercase subdivision param
+    const subDivParam = (subDivision || subdivision) as string | undefined;
+    if (subDivParam) filter.subDivision = subDivParam;
+    if (block) filter.block = block as string;
+
+    const options = await storage.getChlorineFilterOptions(filter);
+    res.json(options);
+  } catch (error) {
+    console.error("Error fetching chlorine filter options:", error);
+    res.status(500).json({ error: "Failed to fetch filter options" });
+  }
+});
+
 // Get all chlorine data with optional filters
 router.get("/", async (req, res) => {
   try {
-    const { region, chlorineRange, minChlorine, maxChlorine } = req.query;
-    
+    const { region, circle, division, subDivision, block, chlorineRange, minChlorine, maxChlorine } = req.query;
+
     console.log("Chlorine API Request Filters:", {
       region,
+      circle,
+      division,
+      subDivision,
+      block,
       chlorineRange,
       minChlorine,
       maxChlorine
     });
-    
+
     interface ChlorineFilter {
       region?: string;
+      circle?: string;
+      division?: string;
+      subDivision?: string;
+      block?: string;
       chlorineRange?: 'below_0.2' | 'between_0.2_0.5' | 'above_0.5' | 'consistent_zero' | 'consistent_below' | 'consistent_optimal' | 'consistent_above';
       minChlorine?: number;
       maxChlorine?: number;
     }
-    
+
     const filter: ChlorineFilter = {};
     if (region) filter.region = region as string;
+    if (circle) filter.circle = circle as string;
+    if (division) filter.division = division as string;
+    if (subDivision) filter.subDivision = subDivision as string;
+    if (block) filter.block = block as string;
     if (chlorineRange) filter.chlorineRange = chlorineRange as any;
     if (minChlorine) filter.minChlorine = parseFloat(minChlorine as string);
     if (maxChlorine) filter.maxChlorine = parseFloat(maxChlorine as string);
-    
+
     console.log("Applied filter object:", filter);
-    
+
     const chlorineData = await storage.getAllChlorineData(filter);
     console.log(`Returning ${chlorineData.length} chlorine records after filtering`);
-    
+
     // For debugging - log a sample of the first few data points to see what's returned
     if (chlorineData.length > 0) {
       const sampleData = chlorineData.slice(0, Math.min(3, chlorineData.length)).map(item => ({
@@ -166,7 +200,7 @@ router.get("/", async (req, res) => {
       }));
       console.log("Sample data:", sampleData);
     }
-    
+
     res.json(chlorineData);
   } catch (error) {
     console.error("Error getting chlorine data:", error);
@@ -178,13 +212,13 @@ router.get("/", async (req, res) => {
 router.get("/historical", async (req, res) => {
   try {
     const { startDate, endDate, region, scheme_id, village_name, esr_name } = req.query;
-    
+
     if (!startDate || !endDate) {
-      return res.status(400).json({ 
-        error: "Both startDate and endDate are required. Format: YYYY-MM-DD or DD-MM-YYYY" 
+      return res.status(400).json({
+        error: "Both startDate and endDate are required. Format: YYYY-MM-DD or DD-MM-YYYY"
       });
     }
-    
+
     console.log("Historical Chlorine Data Request:", {
       startDate,
       endDate,
@@ -193,7 +227,7 @@ router.get("/historical", async (req, res) => {
       village_name,
       esr_name
     });
-    
+
     // Use the new chlorine_history table-based method
     const historicalData = await storage.getChlorineHistoricalDataByDateRange(
       startDate as string,
@@ -202,17 +236,17 @@ router.get("/historical", async (req, res) => {
       scheme_id as string,
       village_name as string
     );
-    
+
     // Filter by ESR name if specified
     let filteredData = historicalData;
     if (esr_name) {
-      filteredData = historicalData.filter(record => 
+      filteredData = historicalData.filter(record =>
         record.esr_name === esr_name
       );
     }
-    
+
     console.log(`Returning ${filteredData.length} historical chlorine records`);
-    
+
     res.json({
       success: true,
       count: filteredData.length,
@@ -229,7 +263,7 @@ router.get("/historical", async (req, res) => {
     });
   } catch (error) {
     console.error("Error getting historical chlorine data:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to get historical chlorine data",
       details: error instanceof Error ? error.message : String(error)
     });
@@ -239,8 +273,16 @@ router.get("/historical", async (req, res) => {
 // Get dashboard statistics for chlorine data
 router.get("/dashboard-stats", async (req, res) => {
   try {
-    const { region } = req.query;
-    const stats = await storage.getChlorineDashboardStats(region as string | undefined);
+    const { region, circle, division, subDivision, block } = req.query;
+
+    const filter: any = {};
+    if (region) filter.region = region as string;
+    if (circle) filter.circle = circle as string;
+    if (division) filter.division = division as string;
+    if (subDivision) filter.subDivision = subDivision as string;
+    if (block) filter.block = block as string;
+
+    const stats = await storage.getChlorineDashboardStats(filter);
     res.json(stats);
   } catch (error) {
     console.error("Error getting chlorine dashboard stats:", error);
@@ -251,11 +293,18 @@ router.get("/dashboard-stats", async (req, res) => {
 // Get chlorine sensors with no water (cross-referenced with water consumption)
 router.get("/no-water-sensors", async (req, res) => {
   try {
-    const { region } = req.query;
-    console.log("Fetching chlorine sensors with no water for region:", region);
-    
-    const result = await storage.getChlorineSensorsWithNoWater(region as string | undefined);
-    
+    const { region, circle, division, subDivision, block } = req.query;
+    console.log("Fetching chlorine sensors with no water for filters:", { region, circle, division, subDivision, block });
+
+    const filter: any = {};
+    if (region) filter.region = region as string;
+    if (circle) filter.circle = circle as string;
+    if (division) filter.division = division as string;
+    if (subDivision) filter.subDivision = subDivision as string;
+    if (block) filter.block = block as string;
+
+    const result = await storage.getChlorineSensorsWithNoWater(filter);
+
     res.json({
       success: true,
       data: result,
@@ -263,7 +312,7 @@ router.get("/no-water-sensors", async (req, res) => {
     });
   } catch (error) {
     console.error("Error getting chlorine sensors with no water:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to get chlorine sensors with no water",
       details: error instanceof Error ? error.message : String(error)
     });
@@ -273,11 +322,18 @@ router.get("/no-water-sensors", async (req, res) => {
 // Get chlorine sensors with water (cross-referenced with water consumption)
 router.get("/with-water-sensors", async (req, res) => {
   try {
-    const { region } = req.query;
-    console.log("Fetching chlorine sensors with water for region:", region);
-    
-    const result = await storage.getChlorineSensorsWithWater(region as string | undefined);
-    
+    const { region, circle, division, subDivision, block } = req.query;
+    console.log("Fetching chlorine sensors with water for filters:", { region, circle, division, subDivision, block });
+
+    const filter: any = {};
+    if (region) filter.region = region as string;
+    if (circle) filter.circle = circle as string;
+    if (division) filter.division = division as string;
+    if (subDivision) filter.subDivision = subDivision as string;
+    if (block) filter.block = block as string;
+
+    const result = await storage.getChlorineSensorsWithWater(filter);
+
     res.json({
       success: true,
       data: result,
@@ -285,7 +341,7 @@ router.get("/with-water-sensors", async (req, res) => {
     });
   } catch (error) {
     console.error("Error getting chlorine sensors with water:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to get chlorine sensors with water",
       details: error instanceof Error ? error.message : String(error)
     });
@@ -325,16 +381,16 @@ router.get("/regional-stats", async (req, res) => {
       const regions = regionsResult.rows.map((row: { region: string }) => row.region);
 
       console.log(`Found ${regions.length} regions to process`);
-/*
-- [ ] Verification
-    - [x] Compare UI counts with Export counts for various metrics.
-    - [x] Confirm Excel file content reflects January 2026 data correctly.
-    - [x] Update walkthrough.
-- [/] Village LPCD Weekly Average Verification
-    - [/] Investigate week average calculation logic.
-    - [ ] Run verification script for Amravati region (29-Dec to 04-Jan).
-    - [ ] Compare database result with UI value (265).
-*/
+      /*
+      - [ ] Verification
+          - [x] Compare UI counts with Export counts for various metrics.
+          - [x] Confirm Excel file content reflects January 2026 data correctly.
+          - [x] Update walkthrough.
+      - [/] Village LPCD Weekly Average Verification
+          - [/] Investigate week average calculation logic.
+          - [ ] Run verification script for Amravati region (29-Dec to 04-Jan).
+          - [ ] Compare database result with UI value (265).
+      */
       // Calculate statistics for each region
       const regionalStats = await Promise.all(
         regions.map(async (region: string) => {
@@ -484,7 +540,7 @@ router.get("/regional-stats", async (req, res) => {
     }
   } catch (error) {
     console.error("Error getting regional chlorine sensor statistics:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to get regional chlorine sensor statistics",
       details: error instanceof Error ? error.message : String(error)
     });
@@ -496,17 +552,17 @@ router.get("/division-wise-summary", async (req, res) => {
   try {
     const { region, fullyCompleted, filterType } = req.query;
     console.log(`Fetching chlorine division-wise summary for region: ${region || 'all'}`, { fullyCompleted, filterType });
-    
+
     const db = await getDB();
-    
+
     // Get filtered scheme IDs if filter is enabled
     let schemeIdFilter = "";
     const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
-    
+
     if (filteredIds) {
       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
-         // No matches, return empty result
-         return res.json({
+        // No matches, return empty result
+        return res.json({
           success: true,
           data: [],
           region: region || 'All Regions'
@@ -515,7 +571,7 @@ router.get("/division-wise-summary", async (req, res) => {
       const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
       schemeIdFilter = `AND scheme_id IN (${ids})`;
     }
-    
+
     // Build SQL query to aggregate chlorine data by division
     const result = await db.execute(sql`
       SELECT 
@@ -541,15 +597,15 @@ router.get("/division-wise-summary", async (req, res) => {
       GROUP BY region, division
       ORDER BY region, division
     `);
-    
+
     // Transform the result
-    const divisionSummary = result.rows.map((row: { 
-      region: string | null; 
-      division: string | null; 
-      total_rcas: string | number; 
-      below_0_2: string | number; 
-      optimal: string | number; 
-      above_0_5: string | number; 
+    const divisionSummary = result.rows.map((row: {
+      region: string | null;
+      division: string | null;
+      total_rcas: string | number;
+      below_0_2: string | number;
+      optimal: string | number;
+      above_0_5: string | number;
     }) => ({
       region: row.region || "",
       division: row.division || "Unknown",
@@ -558,7 +614,7 @@ router.get("/division-wise-summary", async (req, res) => {
       rcasOptimal: parseInt(row.optimal as string) || 0,
       rcasAbove05: parseInt(row.above_0_5 as string) || 0,
     }));
-    
+
     res.json({
       success: true,
       data: divisionSummary,
@@ -566,7 +622,7 @@ router.get("/division-wise-summary", async (req, res) => {
     });
   } catch (error) {
     console.error("Error getting chlorine division-wise summary:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to get chlorine division-wise summary",
       details: error instanceof Error ? error.message : String(error)
     });
@@ -577,23 +633,23 @@ router.get("/division-wise-summary", async (req, res) => {
 router.get("/division-sensors", async (req, res) => {
   try {
     const { region, division, metric, fullyCompleted, filterType } = req.query;
-    
+
     if (!division) {
       return res.status(400).json({
         error: "Division parameter is required"
       });
     }
-    
+
     console.log(`Fetching chlorine sensors for division: ${division}, metric: ${metric}, region: ${region || 'all'}`, { fullyCompleted, filterType });
-    
+
     const db = await getDB();
-    
+
     // Get filtered scheme IDs if filter is enabled
     let schemeIdFilter = "";
     const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
-    
+
     if (filteredIds) {
-       if (filteredIds[0] === 'NO_MATCHES') {
+      if (filteredIds[0] === 'NO_MATCHES') {
         return res.json({
           success: true,
           data: [],
@@ -606,7 +662,7 @@ router.get("/division-sensors", async (req, res) => {
       const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
       schemeIdFilter = `AND scheme_id IN (${ids})`;
     }
-    
+
     // Build the WHERE clause based on metric
     let metricCondition;
     switch (metric) {
@@ -622,11 +678,11 @@ router.get("/division-sensors", async (req, res) => {
       default:
         metricCondition = sql``;
     }
-    
-    const regionCondition = region && region !== 'All Regions' 
-      ? sql`AND LOWER(cd.region) = LOWER(${region})` 
+
+    const regionCondition = region && region !== 'All Regions'
+      ? sql`AND LOWER(cd.region) = LOWER(${region})`
       : sql``;
-    
+
     // Updated query with alias 'cd' and joining scheme_status
     // Note: We use sql.raw for schemeIdFilter but we need to ensure it uses the alias if it contains column references
     // schemeIdFilter usually is "AND scheme_id IN (...)" -> "AND cd.scheme_id IN (...)"
@@ -654,7 +710,7 @@ router.get("/division-sensors", async (req, res) => {
       ${sql.raw(schemeIdFilterAliased)}
       ORDER BY cd.region, cd.division, cd.village_name
     `);
-    
+
     res.json({
       success: true,
       data: result.rows,
@@ -665,7 +721,7 @@ router.get("/division-sensors", async (req, res) => {
     });
   } catch (error) {
     console.error("Error getting chlorine sensors by division:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to get chlorine sensors",
       details: error instanceof Error ? error.message : String(error)
     });
@@ -676,15 +732,15 @@ router.get("/division-sensors", async (req, res) => {
 router.get("/division-sensors-export", async (req, res) => {
   try {
     const { region, division, metric, fullyCompleted, filterType } = req.query;
-    
+
     if (!division) {
       return res.status(400).json({
         error: "Division parameter is required"
       });
     }
-    
+
     console.log(`Exporting chlorine sensors for division: ${division}, metric: ${metric}, region: ${region || 'all'}`, { fullyCompleted, filterType });
-    
+
     const db = await getDB();
 
     // Get filtered scheme IDs if filter is enabled
@@ -694,7 +750,7 @@ router.get("/division-sensors-export", async (req, res) => {
       const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
       schemeIdFilter = `AND scheme_id IN (${ids})`;
     }
-    
+
     // Build the WHERE clause based on metric
     let metricCondition;
     let metricLabel = '';
@@ -715,11 +771,11 @@ router.get("/division-sensors-export", async (req, res) => {
         metricCondition = sql``;
         metricLabel = 'All';
     }
-    
-    const regionCondition = region && region !== 'All Regions' 
-      ? sql`AND LOWER(region) = LOWER(${region})` 
+
+    const regionCondition = region && region !== 'All Regions'
+      ? sql`AND LOWER(region) = LOWER(${region})`
       : sql``;
-    
+
     const result = await db.execute(sql`
       SELECT 
         region,
@@ -742,11 +798,11 @@ router.get("/division-sensors-export", async (req, res) => {
       ${sql.raw(schemeIdFilter)}
       ORDER BY region, division, village_name
     `);
-    
+
     // Create Excel workbook
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Division Chlorine Sensors');
-    
+
     // Add headers
     worksheet.columns = [
       { header: 'Region', key: 'region', width: 20 },
@@ -762,7 +818,7 @@ router.get("/division-sensors-export", async (req, res) => {
       { header: 'Date', key: 'chlorine_date_day_7', width: 15 },
       { header: 'Dashboard Link', key: 'dashboard_url', width: 40 },
     ];
-    
+
     // Style header row
     worksheet.getRow(1).font = { bold: true };
     worksheet.getRow(1).fill = {
@@ -771,7 +827,7 @@ router.get("/division-sensors-export", async (req, res) => {
       fgColor: { argb: 'FF4F81BD' }
     };
     worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    
+
     // Add data rows
     result.rows.forEach((row: {
       region: string;
@@ -801,7 +857,7 @@ router.get("/division-sensors-export", async (req, res) => {
         dashboard_url: (row as any).dashboard_url || '',
       });
     });
-    
+
     // Set response headers
     // Sanitize filename to remove invalid characters (like <, >, spaces, parens)
     const sanitizedLabel = metricLabel.replace(/[^a-zA-Z0-9-_]/g, '_');
@@ -809,12 +865,12 @@ router.get("/division-sensors-export", async (req, res) => {
     const fileName = `${sanitizedLabel}_${sanitizedRegion}_${new Date().toISOString().split('T')[0]}.xlsx`;
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-    
+
     await workbook.xlsx.write(res);
     res.end();
   } catch (error) {
     console.error("Error exporting chlorine sensors by division:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to export chlorine sensors",
       details: error instanceof Error ? error.message : String(error)
     });
@@ -826,16 +882,16 @@ router.get("/day-wise-breakdown", async (req, res) => {
   try {
     const { region, fullyCompleted, filterType } = req.query;
     console.log(`Fetching day-wise breakdown for region: "${region || 'all'}" (type: ${typeof region})`, { fullyCompleted, filterType });
-    
+
     const db = await getDB();
     const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
     const filteredSchemeIds = filteredIds ? new Set(filteredIds as string[]) : undefined;
-    
+
     const breakdown = await storage.getChlorineDayWiseBreakdown(
       region as string | undefined,
       filteredSchemeIds
     );
-    
+
     res.json({
       success: true,
       data: breakdown,
@@ -843,7 +899,7 @@ router.get("/day-wise-breakdown", async (req, res) => {
     });
   } catch (error) {
     console.error("Error getting day-wise breakdown:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to get day-wise breakdown",
       details: error instanceof Error ? error.message : String(error)
     });
@@ -855,21 +911,21 @@ router.get("/day-wise-sensors/:metric/:days", async (req, res) => {
   try {
     const { metric, days } = req.params;
     const { region, fullyCompleted, filterType } = req.query;
-    
+
     console.log(`Fetching sensors for metric: ${metric}, days: ${days}, region: ${region || 'all'}`, { fullyCompleted, filterType });
-    
+
     // Validate metric
     if (!['offline', 'below_0_2', 'above_0_5', 'optimal_0_2_0_5'].includes(metric)) {
-      return res.status(400).json({ 
-        error: "Invalid metric. Must be 'offline', 'below_0_2', 'above_0_5', or 'optimal_0_2_0_5'" 
+      return res.status(400).json({
+        error: "Invalid metric. Must be 'offline', 'below_0_2', 'above_0_5', or 'optimal_0_2_0_5'"
       });
     }
-    
+
     // Validate days
     const daysNum = parseInt(days);
     if (isNaN(daysNum) || daysNum < 1 || daysNum > 30) {
-      return res.status(400).json({ 
-        error: "Invalid days. Must be a number between 1 and 30" 
+      return res.status(400).json({
+        error: "Invalid days. Must be a number between 1 and 30"
       });
     }
 
@@ -878,7 +934,7 @@ router.get("/day-wise-sensors/:metric/:days", async (req, res) => {
     const filteredSchemeIds = filteredIds ? new Set(filteredIds as string[]) : undefined;
 
     const regionName = region === 'All Regions' ? undefined : (region as string);
-      
+
     // Use the robust storage method which handles:
     // 1. DD-Mon-YYYY parsed with year logic
     // 2. Excel serial dates
@@ -901,7 +957,7 @@ router.get("/day-wise-sensors/:metric/:days", async (req, res) => {
     });
   } catch (error) {
     console.error("Error getting sensors by day-wise criteria:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to get sensors",
       details: error instanceof Error ? error.message : String(error)
     });
@@ -915,28 +971,28 @@ router.get(["/day-wise-sensors-export/:metric/:days", "/day-wise-sensors-export"
     if (!metric) metric = req.query.metric as string;
     if (!days) days = req.query.days as string;
     const { region, fullyCompleted, filterType } = req.query;
-    
+
     console.log(`Exporting sensors for metric: ${metric}, days: ${days}, region: ${region || 'all'}`, { fullyCompleted, filterType });
-    
+
     // Validate metric
     if (!['offline', 'below_0_2', 'above_0_5', 'optimal_0_2_0_5'].includes(metric)) {
-      return res.status(400).json({ 
-        error: "Invalid metric. Must be 'offline', 'below_0_2', 'above_0_5', or 'optimal_0_2_0_5'" 
+      return res.status(400).json({
+        error: "Invalid metric. Must be 'offline', 'below_0_2', 'above_0_5', or 'optimal_0_2_0_5'"
       });
     }
-    
+
     // Validate days
     const daysNum = parseInt(days);
     if (isNaN(daysNum) || daysNum < 1 || daysNum > 30) {
-      return res.status(400).json({ 
-        error: "Invalid days. Must be a number between 1 and 30" 
+      return res.status(400).json({
+        error: "Invalid days. Must be a number between 1 and 30"
       });
     }
 
     const db = await getDB();
     const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
     const filteredSchemeIds = filteredIds ? new Set(filteredIds as string[]) : undefined;
-    
+
     // Use the storage method which has all the correct logic (deduplication, >= filtering, etc.)
     const sensors = await storage.getChlorineSensorsByDayWiseCriteria(
       metric as "below_0_2" | "optimal_0_2_0_5" | "above_0_5" | "offline",
@@ -944,15 +1000,15 @@ router.get(["/day-wise-sensors-export/:metric/:days", "/day-wise-sensors-export"
       region as string | undefined,
       filteredSchemeIds
     );
-    
 
 
 
-    
+
+
     // Create Excel workbook
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Day-Wise Sensors');
-    
+
     // Define metric label
     let metricLabel = '';
     if (metric === 'offline') {
@@ -964,7 +1020,7 @@ router.get(["/day-wise-sensors-export/:metric/:days", "/day-wise-sensors-export"
     } else {
       metricLabel = `Chlorine 0.2-0.5 (Optimal) for ${daysNum} consecutive days`;
     }
-    
+
     // Add headers
     worksheet.columns = [
       { header: 'Region', key: 'region', width: 20 },
@@ -982,7 +1038,7 @@ router.get(["/day-wise-sensors-export/:metric/:days", "/day-wise-sensors-export"
       { header: 'Latest Chlorine Date', key: 'latest_chlorine_date', width: 22 },
       { header: 'Dashboard Link', key: 'dashboard_url', width: 40 },
     ];
-    
+
     // Style header row
     worksheet.getRow(1).font = { bold: true };
     worksheet.getRow(1).fill = {
@@ -991,7 +1047,7 @@ router.get(["/day-wise-sensors-export/:metric/:days", "/day-wise-sensors-export"
       fgColor: { argb: 'FF4472C4' }
     };
     worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    
+
     // Add data rows
     sensors.forEach((sensor: any) => {
       worksheet.addRow({
@@ -1011,7 +1067,7 @@ router.get(["/day-wise-sensors-export/:metric/:days", "/day-wise-sensors-export"
         dashboard_url: sensor.dashboard_url || '',
       });
     });
-    
+
     // Set response headers
     // Sanitize filename to remove invalid characters (like <, >, spaces, parens)
     const sanitizedLabel = metricLabel.replace(/[^a-zA-Z0-9-_]/g, '_');
@@ -1019,13 +1075,13 @@ router.get(["/day-wise-sensors-export/:metric/:days", "/day-wise-sensors-export"
     const fileName = `${sanitizedLabel}_${sanitizedRegion}_${new Date().toISOString().split('T')[0]}.xlsx`;
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-    
+
     // Write to response
     await workbook.xlsx.write(res);
     res.end();
   } catch (error) {
     console.error("Error exporting day-wise sensors:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to export sensors",
       details: error instanceof Error ? error.message : String(error)
     });
@@ -1037,14 +1093,14 @@ router.get("/details/:statisticType", async (req, res) => {
   try {
     const { statisticType } = req.params;
     const { region, fullyCompleted, filterType } = req.query;
-    
+
     console.log(`Fetching detailed ${statisticType} sensors for region: ${region} filterType: ${filterType || fullyCompleted}`);
-    
+
     const db = await getDB();
-    
+
     // Build filters array
     const filters = [];
-    
+
     // Add region filter if specified
     if (region) {
       filters.push(sql`cs.region = ${region}`);
@@ -1053,22 +1109,22 @@ router.get("/details/:statisticType", async (req, res) => {
     // Add scheme filter
     const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
     if (filteredIds) {
-       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
-           return res.json({
-               success: true,
-               type: statisticType,
-               region: region || 'all',
-               count: 0,
-               data: []
-           });
-       }
-       const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
-       filters.push(sql`cs.scheme_id IN (${sql.raw(ids)})`);
+      if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
+        return res.json({
+          success: true,
+          type: statisticType,
+          region: region || 'all',
+          count: 0,
+          data: []
+        });
+      }
+      const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
+      filters.push(sql`cs.scheme_id IN (${sql.raw(ids)})`);
     }
-    
+
     // Base connected filter
     filters.push(sql`cs.chlorine_connected = 'Connected'`);
-    
+
     // Add statistic-specific filters
     switch (statisticType) {
       case 'connected':
@@ -1154,7 +1210,7 @@ router.get("/details/:statisticType", async (req, res) => {
       default:
         return res.status(400).json({ error: "Invalid statistic type" });
     }
-    
+
     // Build the complete query
     const query = sql`
       SELECT 
@@ -1226,9 +1282,9 @@ router.get("/details/:statisticType", async (req, res) => {
       )
       WHERE ${sql.join(filters, sql` AND `)}
     `;
-    
+
     const result = await db.execute(query);
-    
+
     res.json({
       success: true,
       type: statisticType,
@@ -1238,7 +1294,7 @@ router.get("/details/:statisticType", async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching sensor details:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to fetch sensor details",
       details: error instanceof Error ? error.message : String(error)
     });
@@ -1249,13 +1305,13 @@ router.get("/details/:statisticType", async (req, res) => {
 router.get("/export/historical", async (req, res) => {
   try {
     const { startDate, endDate, region, scheme_id, village_name, esr_name } = req.query;
-    
+
     if (!startDate || !endDate) {
-      return res.status(400).json({ 
-        error: "Both startDate and endDate are required. Format: YYYY-MM-DD" 
+      return res.status(400).json({
+        error: "Both startDate and endDate are required. Format: YYYY-MM-DD"
       });
     }
-    
+
     console.log("Exporting Chlorine Historical Data:", {
       startDate,
       endDate,
@@ -1264,7 +1320,7 @@ router.get("/export/historical", async (req, res) => {
       village_name,
       esr_name
     });
-    
+
     // Get historical data using the existing method
     const historicalData = await storage.getChlorineHistoricalDataByDateRange(
       startDate as string,
@@ -1273,25 +1329,25 @@ router.get("/export/historical", async (req, res) => {
       scheme_id as string,
       village_name as string
     );
-    
+
     // Filter by ESR name if specified
     let filteredData = historicalData;
     if (esr_name) {
-      filteredData = historicalData.filter(record => 
+      filteredData = historicalData.filter(record =>
         record.esr_name === esr_name
       );
     }
-    
+
     if (filteredData.length === 0) {
-      return res.status(404).json({ 
-        error: "No chlorine data found for the specified date range and filters" 
+      return res.status(404).json({
+        error: "No chlorine data found for the specified date range and filters"
       });
     }
-    
+
     // Transform data for Excel export - clean format as specified
     // Group by ESR and create date-wise columns (one column per date)
     const esrMap = new Map();
-    
+
     // Helper function to format date for column headers
     const formatDateForColumn = (dateStr: string): string => {
       // Handle different date formats and convert to a standard display format
@@ -1304,42 +1360,42 @@ router.get("/export/historical", async (req, res) => {
       }
       return dateStr; // fallback to original string
     };
-    
+
     // Helper function to parse various date formats (same as in storage)
     const parseDate = (dateStr: string): Date | null => {
       if (!dateStr) return null;
       dateStr = dateStr.toString().trim();
-      
+
       // Handle YYYY-MM-DD format
       if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
         const [year, month, day] = dateStr.split("-").map(Number);
         return new Date(year, month - 1, day);
       }
-      
+
       // Handle DD-MMM-YY format (e.g., "03-Jun-25")
       if (/^\d{1,2}-[A-Za-z]{3}-\d{2}$/.test(dateStr)) {
         const [day, month, year] = dateStr.split('-');
         const fullYear = parseInt(year) + 2000; // Assume 20xx
-        const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 
-                           'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+        const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun',
+          'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
         const monthIndex = monthNames.indexOf(month.toLowerCase());
         if (monthIndex !== -1) {
           return new Date(fullYear, monthIndex, parseInt(day));
         }
       }
-      
+
       // Handle DD-MMM-YYYY format (e.g., "31-Jul-2025")
       if (/^\d{1,2}-[A-Za-z]{3}-\d{4}$/.test(dateStr)) {
         const [day, month, year] = dateStr.split('-');
         const fullYear = parseInt(year);
-        const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 
-                           'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+        const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun',
+          'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
         const monthIndex = monthNames.indexOf(month.toLowerCase());
         if (monthIndex !== -1) {
           return new Date(fullYear, monthIndex, parseInt(day));
         }
       }
-      
+
       // Handle Excel numeric date format
       if (/^\d+\.?\d*$/.test(dateStr)) {
         const daysSince1900 = parseFloat(dateStr);
@@ -1362,29 +1418,29 @@ router.get("/export/historical", async (req, res) => {
           let year = currentYear;
           const tempDate = new Date(year, monthIndex, parseInt(day));
           const now = new Date();
-            
+
           // If date is more than 6 months in future, assume last year
           if (tempDate.getTime() - now.getTime() > 180 * 24 * 60 * 60 * 1000) {
-              year = currentYear - 1;
+            year = currentYear - 1;
           }
-          
+
           return new Date(year, monthIndex, parseInt(day));
         }
       }
-      
+
       return null;
     };
-    
+
     // Generate ALL dates in the range (not just dates with data)
     const generateDateRange = (start: string, end: string): string[] => {
       // Parse using local time components to match parseDate behavior
       const [startYear, startMonth, startDay] = start.split('-').map(Number);
       const [endYear, endMonth, endDay] = end.split('-').map(Number);
-      
+
       const startDate = new Date(startYear, startMonth - 1, startDay);
       const endDate = new Date(endYear, endMonth - 1, endDay);
       const dates = [];
-      
+
       const currentDate = new Date(startDate);
       while (currentDate <= endDate) {
         const year = currentDate.getFullYear();
@@ -1393,22 +1449,22 @@ router.get("/export/historical", async (req, res) => {
         dates.push(`${year}-${month}-${day}`);
         currentDate.setDate(currentDate.getDate() + 1);
       }
-      
+
       return dates;
     };
-    
+
     // Get complete date range in ascending order
     const sortedDates = generateDateRange(startDate as string, endDate as string);
-    
+
     // Also collect dates that exist in data for comparison
     const dataDateSet = new Set<string>();
     filteredData.forEach(record => {
       const formattedDate = formatDateForColumn(record.chlorine_date);
       dataDateSet.add(formattedDate);
     });
-    
+
     console.log(`Sorted dates for export: ${sortedDates.slice(0, 5).join(', ')}...`);
-    
+
     // Log sample data to understand what values we're working with
     const sampleRecords = filteredData.slice(0, 5);
     console.log('Sample chlorine records:', sampleRecords.map(r => ({
@@ -1418,10 +1474,10 @@ router.get("/export/historical", async (req, res) => {
       chlorine_value: r.chlorine_value,
       chlorine_date: r.chlorine_date
     })));
-    
+
     filteredData.forEach(record => {
       const esrKey = `${record.scheme_id}_${record.village_name}_${record.esr_name}`;
-      
+
       if (!esrMap.has(esrKey)) {
         const baseData: any = {
           'Scheme ID': record.scheme_id,
@@ -1434,15 +1490,15 @@ router.get("/export/historical", async (req, res) => {
           'Sub Division': record.sub_division,
           'Block': record.block
         };
-        
+
         // Initialize all date columns with null values in sorted order
         sortedDates.forEach(date => {
           baseData[date] = null;
         });
-        
+
         esrMap.set(esrKey, baseData);
       }
-      
+
       // Add chlorine value for the specific date
       const formattedDate = formatDateForColumn(record.chlorine_date);
       const esrData = esrMap.get(esrKey);
@@ -1459,20 +1515,20 @@ router.get("/export/historical", async (req, res) => {
         }
       }
     });
-    
+
     // Create workbook and worksheet using ExcelJS
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("Chlorine Historical Data");
-    
+
     // Build header row
     const headerRow = [
       'Scheme ID', 'Scheme Name', 'Village Name', 'ESR Name',
       'Region', 'Circle', 'Division', 'Sub Division', 'Block',
       ...sortedDates
     ];
-    
+
     worksheet.addRow(headerRow);
-    
+
     // Add data rows
     Array.from(esrMap.values()).forEach((row: { [key: string]: any }) => {
       const dataRow = [
@@ -1489,7 +1545,7 @@ router.get("/export/historical", async (req, res) => {
       ];
       worksheet.addRow(dataRow);
     });
-    
+
     // Style header row with sky blue background
     const headerRowObj = worksheet.getRow(1);
     headerRowObj.eachCell((cell) => {
@@ -1507,7 +1563,7 @@ router.get("/export/historical", async (req, res) => {
         right: { style: 'thin' }
       };
     });
-    
+
     // Set column widths
     worksheet.columns = [
       { width: 12 },  // Scheme ID
@@ -1521,22 +1577,22 @@ router.get("/export/historical", async (req, res) => {
       { width: 15 },  // Block
       ...sortedDates.map(() => ({ width: 12 })) // Date columns
     ];
-    
+
     // Generate Excel buffer
     const excelBuffer = await workbook.xlsx.writeBuffer();
-    
+
     // Set response headers for file download
     const fileName = `Chlorine_Data_${region || 'all'}_${scheme_id || 'all'}_${new Date().toISOString().split('T')[0]}_${Date.now()}.xlsx`;
-    
+
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
-    
+
     console.log(`Exporting ${esrMap.size} ESRs with historical chlorine data to Excel`);
-    
+
     res.send(excelBuffer);
   } catch (error) {
     console.error("Error exporting chlorine historical data:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to export chlorine historical data",
       details: error instanceof Error ? error.message : String(error)
     });
@@ -1548,14 +1604,14 @@ router.get("/export/:statisticType", async (req, res) => {
   try {
     const { statisticType } = req.params;
     const { region, fullyCompleted, filterType } = req.query;
-    
+
     console.log(`Exporting ${statisticType} sensors to Excel for region: ${region} filterType: ${filterType || fullyCompleted}`);
-    
+
     const db = await getDB();
-    
+
     // Build filters array
     const filters = [];
-    
+
     // Add region filter if specified
     if (region) {
       filters.push(sql`cs.region = ${region}`);
@@ -1564,19 +1620,19 @@ router.get("/export/:statisticType", async (req, res) => {
     // Add scheme filter
     const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
     if (filteredIds) {
-       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
-           // Return empty excel? Or handle graceful exit.
-           // For simplicity, let query run with empty result condition
-           filters.push(sql`1=0`); 
-       } else {
-           const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
-           filters.push(sql`cs.scheme_id IN (${sql.raw(ids)})`);
-       }
+      if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
+        // Return empty excel? Or handle graceful exit.
+        // For simplicity, let query run with empty result condition
+        filters.push(sql`1=0`);
+      } else {
+        const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
+        filters.push(sql`cs.scheme_id IN (${sql.raw(ids)})`);
+      }
     }
-    
+
     // Base connected filter
     filters.push(sql`cs.chlorine_connected = 'Connected'`);
-    
+
     // Add statistic-specific filters
     switch (statisticType) {
       case 'connected':
@@ -1660,7 +1716,7 @@ router.get("/export/:statisticType", async (req, res) => {
       default:
         return res.status(400).json({ error: "Invalid statistic type" });
     }
-    
+
     // Build the complete query with ORDER BY
     const query = sql`
       SELECT 
@@ -1732,26 +1788,26 @@ router.get("/export/:statisticType", async (req, res) => {
       WHERE ${sql.join(filters, sql` AND `)}
       ORDER BY cs.region, cs.scheme_name, cs.village_name, cs.esr_name
     `;
-    
+
     const result = await db.execute(query);
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "No data found for export" });
     }
-    
+
     // Create Excel file
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("Chlorine Sensors");
-    
+
     // Get actual dates from first row for headers
     const firstRow = result.rows[0] as any;
-    const waterDate = firstRow.water_date_day7 
+    const waterDate = firstRow.water_date_day7
       ? new Date(firstRow.water_date_day7).toISOString().split('T')[0]
       : 'Day 7';
     const chlorineDate = firstRow.chlorine_date_day_7
       ? new Date(firstRow.chlorine_date_day_7).toISOString().split('T')[0]
       : 'Day 7';
-    
+
     // Add headers with actual dates
     worksheet.columns = [
       { header: 'Region', key: 'region', width: 20 },
@@ -1767,7 +1823,7 @@ router.get("/export/:statisticType", async (req, res) => {
       { header: `Water Value (${waterDate})`, key: 'water_value_day7', width: 25 },
       { header: `Chlorine Value (${chlorineDate})`, key: 'chlorine_value_7', width: 25 },
     ];
-    
+
     // Add data rows
     // Add data rows
     result.rows.forEach((row: {
@@ -1799,7 +1855,7 @@ router.get("/export/:statisticType", async (req, res) => {
         chlorine_value_7: row.chlorine_value_7,
       });
     });
-    
+
     // Style header row
     worksheet.getRow(1).font = { bold: true };
     worksheet.getRow(1).fill = {
@@ -1807,22 +1863,22 @@ router.get("/export/:statisticType", async (req, res) => {
       pattern: 'solid',
       fgColor: { argb: 'FFE0E0E0' }
     };
-    
+
     // Generate filename
     const timestamp = new Date().toISOString().split('T')[0];
     const regionText = region ? `_${region}` : '_All';
     const filename = `Chlorine_${statisticType}${regionText}_${timestamp}.xlsx`;
-    
+
     // Set response headers
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    
+
     // Write to response
     await workbook.xlsx.write(res);
     res.end();
   } catch (error) {
     console.error("Error exporting sensor details:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to export sensor details",
       details: error instanceof Error ? error.message : String(error)
     });
@@ -1834,27 +1890,27 @@ router.get("/export/:statisticType", async (req, res) => {
 router.get("/:schemeId/:villageName/:esrName", async (req, res, next) => {
   try {
     const { schemeId, villageName, esrName } = req.params;
-    
+
     // Skip this route if it matches patterns for other routes
     // Let Express continue to more specific routes
     if (schemeId === 'overall-region-comparison' || schemeId === 'lpcd' || schemeId === 'day-wise-breakdown' || schemeId === 'day-wise-sensors' || schemeId === 'day-wise-sensors-export' || schemeId === 'regional-stats' || schemeId === 'details' || schemeId === 'dashboard-stats' || schemeId === 'with-water-sensors' || schemeId === 'no-water-sensors' || schemeId === 'division-wise-summary' || schemeId === 'division-sensors' || schemeId === 'division-sensors-export' || schemeId === 'scheme-lpcd') {
       return next();
     }
-    
+
     // URL decode parameters since they might contain spaces or special characters
     const decodedVillageName = decodeURIComponent(villageName);
     const decodedEsrName = decodeURIComponent(esrName);
-    
+
     const chlorineData = await storage.getChlorineDataByCompositeKey(
       schemeId,
       decodedVillageName,
       decodedEsrName
     );
-    
+
     if (!chlorineData) {
       return res.status(404).json({ error: "Chlorine data not found" });
     }
-    
+
     res.json(chlorineData);
   } catch (error) {
     console.error("Error getting chlorine data record:", error);
@@ -1866,10 +1922,10 @@ router.get("/:schemeId/:villageName/:esrName", async (req, res, next) => {
 router.post("/", requireAdmin, async (req, res) => {
   try {
     const data = req.body;
-    
+
     // Validate data with Zod
     const validatedData = insertChlorineDataSchema.parse(data);
-    
+
     const result = await storage.createChlorineData(validatedData);
     res.status(201).json(result);
   } catch (error) {
@@ -1887,21 +1943,21 @@ router.put("/:schemeId/:villageName/:esrName", requireAdmin, async (req, res) =>
   try {
     const { schemeId, villageName, esrName } = req.params;
     const data = req.body;
-    
+
     // URL decode parameters
     const decodedVillageName = decodeURIComponent(villageName);
     const decodedEsrName = decodeURIComponent(esrName);
-    
+
     // Validate data with Zod
     const validatedData = updateChlorineDataSchema.parse(data);
-    
+
     const result = await storage.updateChlorineData(
       schemeId,
       decodedVillageName,
       decodedEsrName,
       validatedData
     );
-    
+
     res.json(result);
   } catch (error) {
     if (error instanceof ZodError) {
@@ -1917,17 +1973,17 @@ router.put("/:schemeId/:villageName/:esrName", requireAdmin, async (req, res) =>
 router.delete("/:schemeId/:villageName/:esrName", requireAdmin, async (req, res) => {
   try {
     const { schemeId, villageName, esrName } = req.params;
-    
+
     // URL decode parameters
     const decodedVillageName = decodeURIComponent(villageName);
     const decodedEsrName = decodeURIComponent(esrName);
-    
+
     const success = await storage.deleteChlorineData(
       schemeId,
       decodedVillageName,
       decodedEsrName
     );
-    
+
     if (success) {
       res.status(204).send();
     } else {
@@ -1945,7 +2001,7 @@ router.post("/import/excel", requireAdmin, upload.single("file"), async (req, re
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
-    
+
     const result = await storage.importChlorineDataFromExcel(req.file.buffer);
     res.json(result);
   } catch (error) {
@@ -1960,44 +2016,44 @@ router.post("/import/csv", requireAdmin, upload.single("file"), async (req, res)
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
-    
+
     console.log("CSV Import - File received:", {
       originalname: req.file.originalname,
       mimetype: req.file.mimetype,
       size: req.file.size,
       encoding: req.file.encoding
     });
-    
+
     // Check if file is empty
     if (req.file.size === 0) {
       return res.status(400).json({ error: "Uploaded file is empty" });
     }
-    
+
     // Log a preview of the file content for debugging
     const filePreview = req.file.buffer.toString('utf8').substring(0, 200);
     console.log("CSV content preview:", filePreview);
-    
+
     // Process CSV file with improved error handling and retry functionality
     try {
       // Use retry functionality for the import operation
       const result = await executeWithRetry(async () => {
         return storage.importChlorineDataFromCSV(req.file!.buffer);
       }, 5, 2000); // 5 retries with 2 second initial delay (with exponential backoff)
-      
+
       console.log("CSV import completed successfully with retry support:", result);
       res.json(result);
     } catch (importError: any) {
       console.error("Detailed CSV import error (after retries):", importError);
       // Send detailed error to client
-      res.status(500).json({ 
-        error: "Failed to import chlorine data from CSV after multiple retry attempts", 
+      res.status(500).json({
+        error: "Failed to import chlorine data from CSV after multiple retry attempts",
         details: importError.message || String(importError),
         preview: filePreview
       });
     }
   } catch (error: any) {
     console.error("Error in CSV upload route:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to process CSV file upload",
       details: error.message || String(error)
     });
@@ -2008,15 +2064,15 @@ router.post("/import/csv", requireAdmin, upload.single("file"), async (req, res)
 router.get("/history", async (req, res) => {
   try {
     const { startDate, endDate, region, scheme, village } = req.query;
-    
+
     if (!startDate || !endDate) {
-      return res.status(400).json({ 
-        error: "Both startDate and endDate are required" 
+      return res.status(400).json({
+        error: "Both startDate and endDate are required"
       });
     }
-    
+
     console.log(`Fetching chlorine historical data from ${startDate} to ${endDate}`);
-    
+
     const historicalData = await storage.getChlorineHistoricalDataByDateRange(
       startDate as string,
       endDate as string,
@@ -2024,14 +2080,14 @@ router.get("/history", async (req, res) => {
       scheme as string,
       village as string
     );
-    
+
     console.log(`Returning ${historicalData.length} historical chlorine records`);
     res.json(historicalData);
   } catch (error: any) {
     console.error("Error fetching chlorine historical data:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to fetch historical chlorine data",
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -2040,28 +2096,28 @@ router.get("/history", async (req, res) => {
 router.get("/history/summary", async (req, res) => {
   try {
     const { startDate, endDate, region } = req.query;
-    
+
     if (!startDate || !endDate) {
-      return res.status(400).json({ 
-        error: "Both startDate and endDate are required" 
+      return res.status(400).json({
+        error: "Both startDate and endDate are required"
       });
     }
-    
+
     console.log(`Generating chlorine historical summary from ${startDate} to ${endDate}`);
-    
+
     const summary = await storage.getChlorineHistoricalSummaryByDateRange(
       startDate as string,
       endDate as string,
       region as string
     );
-    
+
     console.log("Historical summary generated:", summary);
     res.json(summary);
   } catch (error: any) {
     console.error("Error generating chlorine historical summary:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to generate historical summary",
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -2071,15 +2127,15 @@ router.get("/history/esr/:schemeId/:villageName/:esrName", async (req, res) => {
   try {
     const { schemeId, villageName, esrName } = req.params;
     const { startDate, endDate } = req.query;
-    
+
     if (!startDate || !endDate) {
-      return res.status(400).json({ 
-        error: "Both startDate and endDate are required" 
+      return res.status(400).json({
+        error: "Both startDate and endDate are required"
       });
     }
-    
+
     console.log(`Fetching ESR historical data for ${esrName} from ${startDate} to ${endDate}`);
-    
+
     const esrHistory = await storage.getChlorineHistoricalDataForESR(
       schemeId,
       villageName,
@@ -2087,14 +2143,14 @@ router.get("/history/esr/:schemeId/:villageName/:esrName", async (req, res) => {
       startDate as string,
       endDate as string
     );
-    
+
     console.log(`Returning ${esrHistory.length} daily records for ESR ${esrName}`);
     res.json(esrHistory);
   } catch (error: any) {
     console.error("Error fetching ESR historical data:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to fetch ESR historical data",
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -2122,10 +2178,10 @@ router.get('/esrs/filtered', async (req, res) => {
         WHERE (w.water_value_day1 > 0 OR w.water_value_day2 > 0 OR w.water_value_day3 > 0 OR 
                w.water_value_day4 > 0 OR w.water_value_day5 > 0 OR w.water_value_day6 > 0 OR w.water_value_day7 > 0)
       `;
-      
+
       const sensorsWithWater = await client.query(sensorsWithWaterQuery);
       const sensorKeys = new Set(
-        sensorsWithWater.rows.map(row => 
+        sensorsWithWater.rows.map(row =>
           `${row.region}|${row.circle}|${row.division}|${row.sub_division}|${row.block}|${row.village_name}|${row.esr_name}`
         )
       );
@@ -2188,7 +2244,7 @@ router.get('/esrs/filtered', async (req, res) => {
 
       console.log('Executing chlorine query:', query);
       const result = await client.query(query, queryParams);
-      
+
       // Filter to only include sensors with water data
       const filteredData = result.rows.filter(row => {
         const key = `${row.region}|${row.circle}|${row.division}|${row.sub_division}|${row.block}|${row.village_name}|${row.esr_name}`;
@@ -2196,7 +2252,7 @@ router.get('/esrs/filtered', async (req, res) => {
       });
 
       console.log(`Found ${filteredData.length} chlorine ESRs matching criteria (with water)`);
-      
+
       res.json({
         success: true,
         data: filteredData,
@@ -2221,21 +2277,21 @@ router.get('/esrs/filtered', async (req, res) => {
 router.get("/overall-region-comparison", async (req, res) => {
   try {
     const { fullyCompleted, filterType } = req.query;
-    
+
     // Get filtered scheme IDs if filter is enabled
     let schemeIdFilter = "";
     const db = await getDB();
     const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
-    
+
     if (filteredIds) {
-       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
-           // Handle no matches? 
-           // For simple string replacement in query, we can put NO_MATCHES which will yield 0 results
-       }
-       const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
-       schemeIdFilter = `AND scheme_id IN (${ids})`;
+      if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
+        // Handle no matches? 
+        // For simple string replacement in query, we can put NO_MATCHES which will yield 0 results
+      }
+      const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
+      schemeIdFilter = `AND scheme_id IN (${ids})`;
     }
-    
+
     const pool = new pg.Pool({
       connectionString: process.env.DATABASE_URL,
     });
@@ -2412,15 +2468,15 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
     try {
       let query = '';
       const params: any[] = [];
-      
+
       const db = await getDB();
       const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
       let schemeIdFilterGeneric = "";
-      
+
       if (filteredIds) {
         if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
-           // Handle no matches by returning empty result immediately
-           return res.json({ success: true, data: [], count: 0 });
+          // Handle no matches by returning empty result immediately
+          return res.json({ success: true, data: [], count: 0 });
         }
         console.log(`[DEBUG Details] Applied filter with ${filteredIds.length} scheme IDs`);
         const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
@@ -2430,30 +2486,30 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
       }
 
       if (category.startsWith('weekly_')) {
-          if (!dates) {
-             return res.status(400).json({ success: false, error: "Dates required for weekly comparison" });
-          }
-          const dateList = (dates as string).split(',');
-          const metric = category.replace('weekly_', '');
-          
-          let havingCondition = '';
-          if (metric === 'above_55') {
-             havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) >= 55';
-          } else if (metric === 'below_55') {
-             havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 0 AND (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) < 55';
-          } else if (metric === 'no_water') {
-             havingCondition = '((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) IS NULL OR (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) = 0)';
-          }
+        if (!dates) {
+          return res.status(400).json({ success: false, error: "Dates required for weekly comparison" });
+        }
+        const dateList = (dates as string).split(',');
+        const metric = category.replace('weekly_', '');
 
-          let paramIndex = 1;
-          const regionFilter = region ? `AND region = $${paramIndex++}` : '';
-          if (region) params.push(region);
-          
-          const dateParams = dateList.map((_, i) => `$${paramIndex++}`).join(',');
-          params.push(...dateList);
+        let havingCondition = '';
+        if (metric === 'above_55') {
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) >= 55';
+        } else if (metric === 'below_55') {
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 0 AND (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) < 55';
+        } else if (metric === 'no_water') {
+          havingCondition = '((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) IS NULL OR (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) = 0)';
+        }
 
-          // We need to fetch details similar to other cases but aggregated
-          query = `
+        let paramIndex = 1;
+        const regionFilter = region ? `AND region = $${paramIndex++}` : '';
+        if (region) params.push(region);
+
+        const dateParams = dateList.map((_, i) => `$${paramIndex++}`).join(',');
+        params.push(...dateList);
+
+        // We need to fetch details similar to other cases but aggregated
+        query = `
             WITH weekly_data AS (
                 SELECT 
                     region, circle, division, sub_division, block,
@@ -2507,9 +2563,9 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
             ${schemeIdFilterGeneric.replace('scheme_id', 'cs.scheme_id')}
             ORDER BY cs.region, cs.division, cs.village_name
           `;
-          if (region) params.push(region);
-          break;
-        
+            if (region) params.push(region);
+            break;
+
           case 'below_0_2':
             query = `
               SELECT 
@@ -2527,8 +2583,8 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
             if (region) params.push(region);
             break;
 
-        case 'optimal_0_2_0_5':
-          query = `
+          case 'optimal_0_2_0_5':
+            query = `
             SELECT 
               cd.region, cd.circle, cd.division, cd.sub_division, cd.block,
               cd.scheme_id, cd.scheme_name, cd.village_name, cd.esr_name,
@@ -2540,11 +2596,11 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
             ${schemeIdFilterGeneric.replace('scheme_id', 'cd.scheme_id')}
             ORDER BY cd.region, cd.division, cd.village_name
           `;
-          if (region) params.push(region);
-          break;
+            if (region) params.push(region);
+            break;
 
-        case 'above_0_5':
-          query = `
+          case 'above_0_5':
+            query = `
             SELECT 
               cd.region, cd.circle, cd.division, cd.sub_division, cd.block,
               cd.scheme_id, cd.scheme_name, cd.village_name, cd.esr_name,
@@ -2556,11 +2612,11 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
             ${schemeIdFilterGeneric.replace('scheme_id', 'cd.scheme_id')}
             ORDER BY cd.region, cd.division, cd.village_name
           `;
-          if (region) params.push(region);
-          break;
+            if (region) params.push(region);
+            break;
 
-        case 'consistent_below_0_2':
-          query = `
+          case 'consistent_below_0_2':
+            query = `
             SELECT 
               cd.region, cd.circle, cd.division, cd.sub_division, cd.block,
               cd.scheme_id, cd.scheme_name, cd.village_name, cd.esr_name,
@@ -2578,11 +2634,11 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
             ${schemeIdFilterGeneric.replace('scheme_id', 'cd.scheme_id')}
             ORDER BY cd.region, cd.division, cd.village_name
           `;
-          if (region) params.push(region);
-          break;
+            if (region) params.push(region);
+            break;
 
-        case 'consistent_optimal':
-          query = `
+          case 'consistent_optimal':
+            query = `
             SELECT 
               cd.region, cd.circle, cd.division, cd.sub_division, cd.block,
               cd.scheme_id, cd.scheme_name, cd.village_name, cd.esr_name,
@@ -2600,11 +2656,11 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
             ${schemeIdFilterGeneric.replace('scheme_id', 'cd.scheme_id')}
             ORDER BY cd.region, cd.division, cd.village_name
           `;
-          if (region) params.push(region);
-          break;
+            if (region) params.push(region);
+            break;
 
-        case 'consistent_above_0_5':
-          query = `
+          case 'consistent_above_0_5':
+            query = `
             SELECT 
               cd.region, cd.circle, cd.division, cd.sub_division, cd.block,
               cd.scheme_id, cd.scheme_name, cd.village_name, cd.esr_name,
@@ -2622,11 +2678,11 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
             ${schemeIdFilterGeneric.replace('scheme_id', 'cd.scheme_id')}
             ORDER BY cd.region, cd.division, cd.village_name
           `;
-          if (region) params.push(region);
-          break;
+            if (region) params.push(region);
+            break;
 
-        case 'all_sensors':
-          query = `
+          case 'all_sensors':
+            query = `
             SELECT 
               cs.region, cs.circle, cs.division, cs.sub_division, cs.block,
               cs.scheme_id, cs.scheme_name, cs.village_name, cs.esr_name,
@@ -2645,11 +2701,11 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
             ${schemeIdFilterGeneric.replace('scheme_id', 'cs.scheme_id')}
             ORDER BY cs.region, cs.division, cs.village_name
           `;
-          if (region) params.push(region);
-          break;
+            if (region) params.push(region);
+            break;
 
-        case 'above_55':
-          query = `
+          case 'above_55':
+            query = `
             SELECT 
               ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
               ws.scheme_id, ws.scheme_name, ws.village_name,
@@ -2662,11 +2718,11 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
             ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
             ORDER BY ws.region, ws.division, ws.village_name
           `;
-          if (region) params.push(region);
-          break;
+            if (region) params.push(region);
+            break;
 
-        case 'below_55':
-          query = `
+          case 'below_55':
+            query = `
             SELECT 
               ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
               ws.scheme_id, ws.scheme_name, ws.village_name,
@@ -2680,11 +2736,11 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
             ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
             ORDER BY ws.region, ws.division, ws.village_name
           `;
-          if (region) params.push(region);
-          break;
+            if (region) params.push(region);
+            break;
 
-        case 'consistent_above_55':
-          query = `
+          case 'consistent_above_55':
+            query = `
             SELECT 
               ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
               ws.scheme_id, ws.scheme_name, ws.village_name,
@@ -2704,11 +2760,11 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
             ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
             ORDER BY ws.region, ws.division, ws.village_name
           `;
-          if (region) params.push(region);
-          break;
+            if (region) params.push(region);
+            break;
 
-        case 'consistent_below_55':
-          query = `
+          case 'consistent_below_55':
+            query = `
             SELECT 
               ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
               ws.scheme_id, ws.scheme_name, ws.village_name,
@@ -2727,11 +2783,11 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
             ${region ? 'AND ws.region = $1' : ''}
             ORDER BY ws.region, ws.division, ws.village_name
           `;
-          if (region) params.push(region);
-          break;
+            if (region) params.push(region);
+            break;
 
-        case 'no_water':
-          query = `
+          case 'no_water':
+            query = `
             SELECT 
               ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
               ws.scheme_id, ws.scheme_name, ws.village_name,
@@ -2745,11 +2801,11 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
             ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
             ORDER BY ws.region, ws.division, ws.village_name
           `;
-          if (region) params.push(region);
-          break;
+            if (region) params.push(region);
+            break;
 
-        case 'all_villages':
-          query = `
+          case 'all_villages':
+            query = `
             SELECT 
               ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
               ws.scheme_id, ws.scheme_name, ws.village_name,
@@ -2763,11 +2819,11 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
             ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
             ORDER BY ws.region, ws.division, ws.village_name
           `;
-          if (region) params.push(region);
-          break;
+            if (region) params.push(region);
+            break;
 
-        case 'consistent_no_water':
-          query = `
+          case 'consistent_no_water':
+            query = `
             SELECT 
               ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
               ws.scheme_id, ws.scheme_name, ws.village_name,
@@ -2787,11 +2843,11 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
             ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
             ORDER BY ws.region, ws.division, ws.village_name
           `;
-          if (region) params.push(region);
-          break;
+            if (region) params.push(region);
+            break;
 
-        case 'consistent_all':
-          query = `
+          case 'consistent_all':
+            query = `
             SELECT 
               ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
               ws.scheme_id, ws.scheme_name, ws.village_name,
@@ -2838,12 +2894,12 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
             ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
             ORDER BY ws.region, ws.division, ws.village_name
           `;
-          if (region) params.push(region);
-          break;
+            if (region) params.push(region);
+            break;
 
-      default:
-          return res.status(400).json({ error: 'Invalid category' });
-      } // end switch
+          default:
+            return res.status(400).json({ error: 'Invalid category' });
+        } // end switch
       } // end else
 
       const result = await client.query(query, params);
@@ -2874,14 +2930,14 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
   try {
     const { category } = req.params;
     let { region, dates, fullyCompleted, filterType } = req.query; // Add filterType
-    
+
     // Sanitize region if it equals "All Regions"
     if (region === 'All Regions') {
       region = undefined;
     }
-    
+
     console.log(`Exporting region comparison details for category: ${category}, region: ${region}, dates: ${dates}, filterType: ${filterType || fullyCompleted}`);
-    
+
     const pool = new pg.Pool({
       connectionString: process.env.DATABASE_URL,
     });
@@ -2891,22 +2947,22 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
     try {
       let query = '';
       let params: any[] = [];
-      
+
       const db = await getDB();
       const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
       let schemeIdFilterGeneric = "";
-      
+
       if (filteredIds) {
         if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
-           // Handle no matches by returning empty result immediately
-           const worksheet = workbook.addWorksheet('Details');
-           worksheet.columns = [{ header: 'Message', key: 'message', width: 30 }];
-           worksheet.addRow({ message: 'No data matches the selected filters.' });
-           res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-           res.setHeader('Content-Disposition', `attachment; filename=chlorine-details-export.xlsx`);
-           await workbook.xlsx.write(res);
-           res.end();
-           return;
+          // Handle no matches by returning empty result immediately
+          const worksheet = workbook.addWorksheet('Details');
+          worksheet.columns = [{ header: 'Message', key: 'message', width: 30 }];
+          worksheet.addRow({ message: 'No data matches the selected filters.' });
+          res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+          res.setHeader('Content-Disposition', `attachment; filename=chlorine-details-export.xlsx`);
+          await workbook.xlsx.write(res);
+          res.end();
+          return;
         }
         console.log(`[DEBUG Export] Applied filter with ${filteredIds.length} scheme IDs`);
         const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
@@ -2918,30 +2974,30 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
       let isLpcdCategory = ['above_55', 'below_55', 'consistent_above_55', 'consistent_below_55', 'no_water', 'all_villages', 'consistent_no_water', 'consistent_all'].includes(category) || category.startsWith('weekly_');
 
       if (category.startsWith('weekly_')) {
-          if (!dates) {
-             return res.status(400).json({ success: false, error: "Dates required for weekly comparison export" });
-          }
-          const dateList = (dates as string).split(',');
-          const metric = category.replace('weekly_', '');
-          
-          let havingCondition = '';
-          if (metric === 'above_55') {
-             havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) >= 55';
-          } else if (metric === 'below_55') {
-             havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 0 AND (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) < 55';
-          } else if (metric === 'no_water') {
-             havingCondition = '((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) IS NULL OR (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) = 0)';
-          }
+        if (!dates) {
+          return res.status(400).json({ success: false, error: "Dates required for weekly comparison export" });
+        }
+        const dateList = (dates as string).split(',');
+        const metric = category.replace('weekly_', '');
 
-          let paramIndex = 1;
-          const regionFilter = region ? `AND region = $${paramIndex++}` : '';
-          if (region) params.push(region);
-          
-          const dateParams = dateList.map((_, i) => `$${paramIndex++}`).join(',');
-          params.push(...dateList);
+        let havingCondition = '';
+        if (metric === 'above_55') {
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) >= 55';
+        } else if (metric === 'below_55') {
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 0 AND (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) < 55';
+        } else if (metric === 'no_water') {
+          havingCondition = '((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) IS NULL OR (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) = 0)';
+        }
 
-          // Use water_scheme_data_history for weekly
-           query = `
+        let paramIndex = 1;
+        const regionFilter = region ? `AND region = $${paramIndex++}` : '';
+        if (region) params.push(region);
+
+        const dateParams = dateList.map((_, i) => `$${paramIndex++}`).join(',');
+        params.push(...dateList);
+
+        // Use water_scheme_data_history for weekly
+        query = `
             WITH weekly_data AS (
                 SELECT 
                     region, circle, division, sub_division, block,
@@ -2973,9 +3029,9 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
             ORDER BY region, division, village_name
           `;
       } else {
-      switch (category) {
-        case 'all_sensors':
-          query = `
+        switch (category) {
+          case 'all_sensors':
+            query = `
             SELECT 
               cs.region, cs.circle, cs.division, cs.sub_division, cs.block,
               cs.scheme_id, cs.scheme_name, cs.village_name, cs.esr_name,
@@ -2994,11 +3050,11 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
             ${schemeIdFilterGeneric.replace('scheme_id', 'cs.scheme_id')}
             ORDER BY cs.region, cs.division, cs.village_name
           `;
-          if (region) params.push(region);
-          break;
+            if (region) params.push(region);
+            break;
 
-        case 'offline':
-          query = `
+          case 'offline':
+            query = `
             SELECT 
               cs.region, cs.circle, cs.division, cs.sub_division, cs.block,
               cs.scheme_id, cs.scheme_name, cs.village_name, cs.esr_name,
@@ -3012,17 +3068,17 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
             ${schemeIdFilterGeneric.replace('scheme_id', 'cs.scheme_id')}
             ORDER BY cs.region, cs.division, cs.village_name
           `;
-          if (region) params.push(region);
-          break;
+            if (region) params.push(region);
+            break;
 
-        case 'below_0_2':
-        case 'optimal_0_2_0_5':
-        case 'above_0_5':
-        case 'consistent_below_0_2':
-        case 'consistent_optimal':
-        case 'consistent_above_0_5':
-          const chlorineCondition = getChlorineCondition(category);
-          query = `
+          case 'below_0_2':
+          case 'optimal_0_2_0_5':
+          case 'above_0_5':
+          case 'consistent_below_0_2':
+          case 'consistent_optimal':
+          case 'consistent_above_0_5':
+            const chlorineCondition = getChlorineCondition(category);
+            query = `
             SELECT 
               cd.region, cd.circle, cd.division, cd.sub_division, cd.block,
               cd.scheme_id, cd.scheme_name, cd.village_name, cd.esr_name,
@@ -3034,16 +3090,16 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
             ${schemeIdFilterGeneric.replace('scheme_id', 'cd.scheme_id')}
             ORDER BY cd.region, cd.division, cd.village_name
           `;
-          if (region) params.push(region);
-          break;
+            if (region) params.push(region);
+            break;
 
-        case 'above_55':
-        case 'below_55':
-        case 'consistent_above_55':
-        case 'consistent_below_55':
-        case 'no_water':
-          const lpcdCondition = getLpcdCondition(category);
-          query = `
+          case 'above_55':
+          case 'below_55':
+          case 'consistent_above_55':
+          case 'consistent_below_55':
+          case 'no_water':
+            const lpcdCondition = getLpcdCondition(category);
+            query = `
             SELECT 
               ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
               ws.scheme_id, ws.scheme_name, ws.village_name,
@@ -3056,11 +3112,11 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
             ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
             ORDER BY ws.region, ws.division, ws.village_name
           `;
-          if (region) params.push(region);
-          break;
+            if (region) params.push(region);
+            break;
 
-        case 'all_villages':
-          query = `
+          case 'all_villages':
+            query = `
             SELECT 
               ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
               ws.scheme_id, ws.scheme_name, ws.village_name,
@@ -3074,11 +3130,11 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
             ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
             ORDER BY ws.region, ws.division, ws.village_name
           `;
-          if (region) params.push(region);
-          break;
+            if (region) params.push(region);
+            break;
 
-        case 'consistent_no_water':
-          query = `
+          case 'consistent_no_water':
+            query = `
             SELECT 
               ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
               ws.scheme_id, ws.scheme_name, ws.village_name,
@@ -3098,11 +3154,11 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
             ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
             ORDER BY ws.region, ws.division, ws.village_name
           `;
-          if (region) params.push(region);
-          break;
+            if (region) params.push(region);
+            break;
 
-        case 'consistent_all':
-          query = `
+          case 'consistent_all':
+            query = `
             SELECT 
               ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
               ws.scheme_id, ws.scheme_name, ws.village_name,
@@ -3149,12 +3205,12 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
             ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
             ORDER BY ws.region, ws.division, ws.village_name
           `;
-          if (region) params.push(region);
-          break;
+            if (region) params.push(region);
+            break;
 
-        default:
-          return res.status(400).json({ error: 'Invalid category' });
-      }
+          default:
+            return res.status(400).json({ error: 'Invalid category' });
+        }
       }
 
       const result = await client.query(query, params);
@@ -3421,21 +3477,21 @@ router.get("/lpcd/day-wise-breakdown/all-regions", async (req, res) => {
 
     if (activeFilter && activeFilter !== 'all') {
       const db = await getDB();
-      
+
       let condition = sql`1=1`;
       if (activeFilter === 'commissioned') {
-         condition = sql`${schemeStatuses.water_supply} = 'Yes'`;
+        condition = sql`${schemeStatuses.water_supply} = 'Yes'`;
       } else if (activeFilter === 'fully_completed') {
-         condition = sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('completed', 'fully-completed', 'fully completed')`;
+        condition = sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('completed', 'fully-completed', 'fully completed')`;
       } else if (activeFilter === 'partial') {
-         condition = sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) = 'in progress'`;
+        condition = sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) = 'in progress'`;
       }
 
       const filteredSchemeIds = (await db
         .select({ scheme_id: schemeStatuses.scheme_id })
         .from(schemeStatuses)
         .where(condition)).map((r: { scheme_id: string }) => r.scheme_id);
-      
+
       if (filteredSchemeIds.length > 0) {
         const ids = filteredSchemeIds.map((id: string) => `'${id}'`).join(',');
         schemeIdFilter = `AND wh.scheme_id IN (${ids})`;
@@ -3461,6 +3517,7 @@ router.get("/lpcd/day-wise-breakdown/all-regions", async (req, res) => {
             lpcd_value::numeric as lpcd_value,
             data_date,
             CASE 
+              WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
                 CASE
@@ -3544,7 +3601,7 @@ router.get("/lpcd/day-wise-breakdown/all-regions", async (req, res) => {
       `;
 
       const result = await client.query(query);
-      
+
       // Group results by region
       const allRegionData: { [region: string]: any[] } = {};
       result.rows.forEach((row: any) => {
@@ -3589,7 +3646,7 @@ router.get("/lpcd/day-wise-breakdown", async (req, res) => {
     let schemeIdFilter = "";
     const db = await getDB();
     const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
-    
+
     if (filteredIds) {
       const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
       schemeIdFilter = `AND wh.scheme_id IN (${ids})`;
@@ -3614,6 +3671,7 @@ router.get("/lpcd/day-wise-breakdown", async (req, res) => {
             lpcd_value::numeric as lpcd_value,
             data_date,
             CASE 
+              WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
                 CASE
@@ -3752,7 +3810,7 @@ router.get("/lpcd/day-wise-villages/:metric/:days", async (req, res) => {
   try {
     const { metric, days } = req.params;
     const { region, fullyCompleted, filterType } = req.query;
-    
+
     console.log(`Fetching villages for LPCD metric: ${metric}, days: ${days}, region: ${region || 'all'}`, { fullyCompleted, filterType });
 
     if (!['below_55', 'above_55', 'with_water', 'no_water'].includes(metric)) {
@@ -3772,7 +3830,7 @@ router.get("/lpcd/day-wise-villages/:metric/:days", async (req, res) => {
     let schemeIdFilter = "";
     const db = await getDB();
     const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
-    
+
     if (filteredIds) {
       const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
       schemeIdFilter = `AND wh.scheme_id IN (${ids})`;
@@ -3789,8 +3847,8 @@ router.get("/lpcd/day-wise-villages/:metric/:days", async (req, res) => {
       if (region && region !== 'All Regions') params.push(region);
 
       const metricFlag = metric === 'below_55' ? 'is_below_55' :
-                         metric === 'above_55' ? 'is_above_55' :
-                         metric === 'with_water' ? 'has_water' : 'no_water';
+        metric === 'above_55' ? 'is_above_55' :
+          metric === 'with_water' ? 'has_water' : 'no_water';
 
       // OPTIMIZED: Use window functions for consecutive day calculation
       const query = `
@@ -3800,6 +3858,7 @@ router.get("/lpcd/day-wise-villages/:metric/:days", async (req, res) => {
             scheme_id, village_name, region, circle, division, sub_division, block, scheme_name,
             population, lpcd_value::numeric as lpcd_value, water_value, data_date,
             CASE 
+              WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
                 CASE
@@ -3916,7 +3975,7 @@ router.get("/lpcd/day-wise-villages-export/:metric/:days", async (req, res) => {
     let schemeIdFilter = "";
     const db = await getDB();
     const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
-    
+
     if (filteredIds) {
       const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
       schemeIdFilter = `AND wh.scheme_id IN (${ids})`;
@@ -3933,9 +3992,9 @@ router.get("/lpcd/day-wise-villages-export/:metric/:days", async (req, res) => {
       if (region && region !== 'All Regions') params.push(region);
 
       const metricFlag = metric === 'below_55' ? 'is_below_55' :
-                         metric === 'above_55' ? 'is_above_55' :
-                         metric === 'with_water' ? 'has_water' : 'no_water';
-      
+        metric === 'above_55' ? 'is_above_55' :
+          metric === 'with_water' ? 'has_water' : 'no_water';
+
       // OPTIMIZED: Use window functions for consecutive day calculation (SAME AS LIST VIEW)
       const query = `
         WITH 
@@ -3944,6 +4003,7 @@ router.get("/lpcd/day-wise-villages-export/:metric/:days", async (req, res) => {
             scheme_id, village_name, region, circle, division, sub_division, block, scheme_name,
             population, lpcd_value::numeric as lpcd_value, water_value, data_date,
             CASE 
+              WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
                 CASE
@@ -4068,7 +4128,7 @@ router.get("/lpcd/day-wise-villages-export/:metric/:days", async (req, res) => {
       const sanitizedLabel = rawLabel.replace(/[^a-zA-Z0-9-_]/g, '_');
       const sanitizedRegion = (String(region) || 'All').replace(/[^a-zA-Z0-9-_]/g, '_');
       const fileName = `${sanitizedLabel}_${sanitizedRegion}_${new Date().toISOString().split('T')[0]}.xlsx`;
-      
+
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
 
@@ -4100,7 +4160,7 @@ router.get("/lpcd/region-comparison-total-export", async (req, res) => {
     const client = await pool.connect();
 
     const workbook = new ExcelJS.Workbook();
-    
+
     // Metrics to export
     const metrics = [
       { key: 'below_55', label: 'Below 55 LPCD', sheetName: '<55 LPCD' },
@@ -4114,7 +4174,7 @@ router.get("/lpcd/region-comparison-total-export", async (req, res) => {
       let schemeIdFilter = "";
       const db = await getDB();
       const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
-      
+
       if (filteredIds) {
         const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
         schemeIdFilter = `AND wh.scheme_id IN (${ids})`;
@@ -4122,16 +4182,16 @@ router.get("/lpcd/region-comparison-total-export", async (req, res) => {
 
       for (const metricObj of metrics) {
         const { key: metric, label, sheetName } = metricObj;
-        
+
         // Query logic reused from day-wise-villages, enforcing days=1 to get current status snapshot
         const regionFilter = region && region !== 'All Regions' ? `AND wh.region = $1` : '';
         const params: any[] = [];
         if (region && region !== 'All Regions') params.push(region);
 
         const metricFlag = metric === 'below_55' ? 'is_below_55' :
-                           metric === 'above_55' ? 'is_above_55' :
-                           metric === 'with_water' ? 'has_water' : 'no_water';
-        
+          metric === 'above_55' ? 'is_above_55' :
+            metric === 'with_water' ? 'has_water' : 'no_water';
+
         // Using strict >= 1 day consecutive logic which effectively means "current status for today/latest"
         const query = `
           WITH 
@@ -4140,7 +4200,8 @@ router.get("/lpcd/region-comparison-total-export", async (req, res) => {
               scheme_id, village_name, region, circle, division, sub_division, block, scheme_name,
               population, lpcd_value::numeric as lpcd_value, water_value, data_date,
               CASE 
-                WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
+                WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
+              WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
                 WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
                   CASE
                     WHEN TO_DATE(data_date || '-' || TO_CHAR(COALESCE(uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY') > (COALESCE(uploaded_at, CURRENT_DATE) + interval '1 month')
@@ -4206,7 +4267,7 @@ router.get("/lpcd/region-comparison-total-export", async (req, res) => {
         `;
 
         const result = await client.query(query, params);
-        
+
         // Add worksheet
         const worksheet = workbook.addWorksheet(sheetName);
         worksheet.columns = [
@@ -4249,7 +4310,7 @@ router.get("/lpcd/region-comparison-total-export", async (req, res) => {
       }
 
       const fileName = `LPCD_Region_Comparison_Total_${(String(region) || 'All').replace(/[^a-zA-Z0-9-_]/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
-      
+
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
 
@@ -4287,13 +4348,13 @@ router.get("/lpcd/regional-stats", async (req, res) => {
       let schemeIdFilterCS = "";
       const db = await getDB();
       const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
-      
+
       if (filteredIds) {
         if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
-           // Handle no matches
+          // Handle no matches
         }
         const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
-        schemeIdFilterWS = `AND ws.scheme_id IN (${ids})`; 
+        schemeIdFilterWS = `AND ws.scheme_id IN (${ids})`;
         schemeIdFilterCS = `AND cs.scheme_id IN (${ids})`;
       }
 
@@ -4443,17 +4504,17 @@ router.get("/lpcd/details/:statisticType", async (req, res) => {
       let schemeIdFilterGeneric = "";
       const db = await getDB();
       const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
-      
+
       if (filteredIds) {
         if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
-           // Return empty result immediately?
-           return res.json({
+          // Return empty result immediately?
+          return res.json({
             success: true,
             type: statisticType,
             region: region || 'all',
             count: 0,
             data: []
-           });
+          });
         }
         const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
         schemeIdFilterWS = `AND ws.scheme_id IN (${ids})`;
@@ -4468,18 +4529,18 @@ router.get("/lpcd/details/:statisticType", async (req, res) => {
       const regionFilterWS = region && region !== 'All Regions' ? `AND ws.region = $${paramIndex}` : '';
       const regionFilterCS = region && region !== 'All Regions' ? `AND cs.region = $${paramIndex}` : '';
       const regionFilterGeneric = region && region !== 'All Regions' ? `AND region = $${paramIndex}` : '';
-      
+
       // We need to advance paramIndex only if we use it, but since we pushed region to params, we can use $1
       if (region && region !== 'All Regions') {
-          params.push(region);
-          paramIndex++; 
+        params.push(region);
+        paramIndex++;
       }
-      
+
       // NOTE: In original code, $paramIndex++ was used inside string template, which is evaluated immediately.
       // But paramIndex variable only increments once per expression if strict?
       // Actually original code was `AND ws.region = $${paramIndex++}`.
       // Since I just use $1 if region exists, I can simplify.
-      
+
       const regionParam = region && region !== 'All Regions' ? '$1' : '';
 
       switch (statisticType) {
@@ -4569,8 +4630,8 @@ router.get("/lpcd/details/:statisticType", async (req, res) => {
         case 'below-55-3days':
         case 'below-55-7days':
         case 'below-55-30days':
-          const daysThreshold = statisticType === 'below-55-3days' ? 3 : 
-                                statisticType === 'below-55-7days' ? 7 : 30;
+          const daysThreshold = statisticType === 'below-55-3days' ? 3 :
+            statisticType === 'below-55-7days' ? 7 : 30;
           query = `
             WITH history_stats AS (
               SELECT 
@@ -4649,19 +4710,19 @@ router.get("/lpcd/export/:statisticType", async (req, res) => {
       let schemeIdFilterGeneric = "";
       const db = await getDB();
       const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
-      
+
       if (filteredIds) {
         if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
-           // Return empty excel?
-           // Just use a false filter
-           schemeIdFilterWS = "AND 1=0";
-           schemeIdFilterCS = "AND 1=0";
-           schemeIdFilterGeneric = "AND 1=0";
+          // Return empty excel?
+          // Just use a false filter
+          schemeIdFilterWS = "AND 1=0";
+          schemeIdFilterCS = "AND 1=0";
+          schemeIdFilterGeneric = "AND 1=0";
         } else {
-            const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
-            schemeIdFilterWS = `AND ws.scheme_id IN (${ids})`;
-            schemeIdFilterCS = `AND cs.scheme_id IN (${ids})`;
-            schemeIdFilterGeneric = `AND scheme_id IN (${ids})`;
+          const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
+          schemeIdFilterWS = `AND ws.scheme_id IN (${ids})`;
+          schemeIdFilterCS = `AND cs.scheme_id IN (${ids})`;
+          schemeIdFilterGeneric = `AND scheme_id IN (${ids})`;
         }
       }
 
@@ -4671,10 +4732,10 @@ router.get("/lpcd/export/:statisticType", async (req, res) => {
 
       // region params
       if (region && region !== 'All Regions') {
-          params.push(region);
-          paramIndex++; 
+        params.push(region);
+        paramIndex++;
       }
-      
+
       const regionParam = region && region !== 'All Regions' ? '$1' : '';
 
       const statisticLabels: { [key: string]: string } = {
@@ -4739,8 +4800,8 @@ router.get("/lpcd/export/:statisticType", async (req, res) => {
         case 'below-55-3days':
         case 'below-55-7days':
         case 'below-55-30days':
-          const daysThreshold = statisticType === 'below-55-3days' ? 3 : 
-                                statisticType === 'below-55-7days' ? 7 : 30;
+          const daysThreshold = statisticType === 'below-55-3days' ? 3 :
+            statisticType === 'below-55-7days' ? 7 : 30;
           query = `
             WITH history_stats AS (
               SELECT 
@@ -4897,10 +4958,10 @@ router.get("/scheme-lpcd/regional-stats", async (req, res) => {
       let schemeIdFilter = "";
       const db = await getDB();
       const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
-      
+
       if (filteredIds) {
         if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
-           // No matches
+          // No matches
         }
         const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
         schemeIdFilter = `AND scheme_id IN (${ids})`;
@@ -4917,6 +4978,7 @@ router.get("/scheme-lpcd/regional-stats", async (req, res) => {
           WHERE region IS NOT NULL
           ORDER BY region, scheme_id, block, 
             CASE 
+              WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
                 CASE
@@ -5043,10 +5105,10 @@ router.get("/scheme-lpcd/details/:statisticType", async (req, res) => {
       let schemeIdFilter = "";
       const db = await getDB();
       const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
-      
+
       if (filteredIds) {
         if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
-           // No matches
+          // No matches
         }
         const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
         schemeIdFilter = `AND sldh.scheme_id IN (${ids})`;
@@ -5056,8 +5118,8 @@ router.get("/scheme-lpcd/details/:statisticType", async (req, res) => {
       const params: any[] = [];
       let paramIndex = 1;
 
-      const regionFilter = region && region !== 'All Regions' 
-        ? `AND sldh.region = $${paramIndex++}` 
+      const regionFilter = region && region !== 'All Regions'
+        ? `AND sldh.region = $${paramIndex++}`
         : '';
       if (region && region !== 'All Regions') params.push(region);
 
@@ -5078,6 +5140,7 @@ router.get("/scheme-lpcd/details/:statisticType", async (req, res) => {
           ${schemeIdFilter}
         ORDER BY sldh.region, sldh.scheme_id, sldh.block, 
           CASE 
+            WHEN sldh.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN sldh.data_date::date
             WHEN sldh.data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(sldh.data_date, 'DD-Mon-YY')
             WHEN sldh.data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
               CASE
@@ -5129,10 +5192,10 @@ router.get("/scheme-lpcd/details/:statisticType", async (req, res) => {
         case 'below55For3Days': // Renamed from 'below-55-3days' to match existing frontend calls
         case 'below55For7Days': // Renamed from 'below-55-7days' to match existing frontend calls
         case 'below55For30Days': // Renamed from 'below-55-30days' to match existing frontend calls
-          const daysThreshold = statisticType === 'below55For3Days' ? 3 : 
-                                statisticType === 'below55For7Days' ? 7 : 30;
-          
-           query = `
+          const daysThreshold = statisticType === 'below55For3Days' ? 3 :
+            statisticType === 'below55For7Days' ? 7 : 30;
+
+          query = `
             WITH history_stats AS (
               SELECT 
                 region, scheme_id, scheme_name, block, total_population,
@@ -5221,10 +5284,10 @@ router.get("/scheme-lpcd/details-export/:statisticType", async (req, res) => {
       let schemeIdFilter = "";
       const db = await getDB();
       const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
-      
+
       if (filteredIds) {
         if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
-           // No matches
+          // No matches
         }
         const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
         schemeIdFilter = `AND scheme_id IN (${ids})`;
@@ -5234,8 +5297,8 @@ router.get("/scheme-lpcd/details-export/:statisticType", async (req, res) => {
       const params: any[] = [];
       let paramIndex = 1;
 
-      const regionFilter = region && region !== 'All Regions' 
-        ? `AND region = $${paramIndex++}` 
+      const regionFilter = region && region !== 'All Regions'
+        ? `AND region = $${paramIndex++}`
         : '';
       if (region && region !== 'All Regions') params.push(region);
 
@@ -5391,7 +5454,7 @@ router.get("/scheme-lpcd/division-summary", async (req, res) => {
       let schemeIdFilter = "";
       const db = await getDB();
       const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
-      
+
       if (filteredIds) {
         const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
         schemeIdFilter = `AND scheme_id IN (${ids})`;
@@ -5399,8 +5462,8 @@ router.get("/scheme-lpcd/division-summary", async (req, res) => {
 
       const params: any[] = [];
       let paramIndex = 1;
-      const regionFilter = region && region !== 'All Regions' 
-        ? `AND region = $${paramIndex++}` 
+      const regionFilter = region && region !== 'All Regions'
+        ? `AND region = $${paramIndex++}`
         : '';
       if (region && region !== 'All Regions') params.push(region);
 
@@ -5414,6 +5477,7 @@ router.get("/scheme-lpcd/division-summary", async (req, res) => {
             ${schemeIdFilter}
           ORDER BY region, scheme_id, block, 
             CASE 
+              WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
                 CASE
@@ -5497,7 +5561,7 @@ router.get("/scheme-lpcd/division-details/:division/:metric", async (req, res) =
       let schemeIdFilter = '';
       const db = await getDB();
       const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
-      
+
       if (filteredIds) {
         const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
         schemeIdFilter = `AND scheme_id IN (${ids})`;
@@ -5505,8 +5569,8 @@ router.get("/scheme-lpcd/division-details/:division/:metric", async (req, res) =
 
       const params: any[] = [division];
       let paramIndex = 2;
-      const regionFilter = region && region !== 'All Regions' 
-        ? `AND region = $${paramIndex++}` 
+      const regionFilter = region && region !== 'All Regions'
+        ? `AND region = $${paramIndex++}`
         : '';
       if (region && region !== 'All Regions') params.push(region);
 
@@ -5540,6 +5604,7 @@ router.get("/scheme-lpcd/division-details/:division/:metric", async (req, res) =
             ${schemeIdFilter}
           ORDER BY region, scheme_id, block, 
             CASE 
+              WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
                 CASE
@@ -5582,12 +5647,12 @@ router.get("/scheme-lpcd/division-details/:division/:metric", async (req, res) =
         })),
         count: result.rows.length
       });
-      
+
       // DEBUG: Log first few rows to check URL sources
       if (result.rows.length > 0 && result.rows[0].history_url !== undefined) {
-        console.log(`DEBUG: Validation of LPCD DETAILS dashboard_url sources for ${statisticType} (First 5 rows):`);
+        console.log(`DEBUG: Validation of LPCD DETAILS dashboard_url sources for ${metric} (First 5 rows):`);
         result.rows.slice(0, 5).forEach((r: any) => {
-           console.log(`Scheme: ${r.scheme_id}, History: '${r.history_url}', Status: '${r.status_url}' => Selected: '${r.dashboard_url}'`);
+          console.log(`Scheme: ${r.scheme_id}, History: '${r.history_url}', Status: '${r.status_url}' => Selected: '${r.dashboard_url}'`);
         });
       }
     } finally {
@@ -5622,7 +5687,7 @@ router.get("/scheme-lpcd/division-details-export/:division/:metric", async (req,
       let schemeIdFilter = '';
       const db = await getDB();
       const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
-      
+
       if (filteredIds) {
         const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
         schemeIdFilter = `AND scheme_id IN (${ids})`;
@@ -5630,8 +5695,8 @@ router.get("/scheme-lpcd/division-details-export/:division/:metric", async (req,
 
       const params: any[] = [division];
       let paramIndex = 2;
-      const regionFilter = region && region !== 'All Regions' 
-        ? `AND region = $${paramIndex++}` 
+      const regionFilter = region && region !== 'All Regions'
+        ? `AND region = $${paramIndex++}`
         : '';
       if (region && region !== 'All Regions') params.push(region);
 
@@ -5672,6 +5737,7 @@ router.get("/scheme-lpcd/division-details-export/:division/:metric", async (req,
             ${schemeIdFilter}
           ORDER BY region, scheme_id, block, 
             CASE 
+              WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
                 CASE
@@ -5776,10 +5842,10 @@ router.get("/scheme-lpcd/day-wise-breakdown", async (req, res) => {
       let schemeIdFilter = "";
       const db = await getDB();
       const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
-      
+
       if (filteredIds) {
         if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
-           // No matches
+          // No matches
         }
         const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
         schemeIdFilter = `AND h.scheme_id IN (${ids})`;
@@ -5798,6 +5864,7 @@ router.get("/scheme-lpcd/day-wise-breakdown", async (req, res) => {
             lpcd_value::numeric as lpcd_value,
             data_date,
             CASE 
+              WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
                 CASE
@@ -5940,10 +6007,10 @@ router.get("/scheme-lpcd/day-wise-breakdown/all-regions", async (req, res) => {
     let schemeIdFilter = "";
     const db = await getDB();
     const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
-    
+
     if (filteredIds) {
-        const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
-        schemeIdFilter = `AND h.scheme_id IN (${ids})`;
+      const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
+      schemeIdFilter = `AND h.scheme_id IN (${ids})`;
     }
 
     const pool = new pg.Pool({
@@ -5963,6 +6030,7 @@ router.get("/scheme-lpcd/day-wise-breakdown/all-regions", async (req, res) => {
             lpcd_value::numeric as lpcd_value,
             data_date,
             CASE 
+              WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
                 CASE
@@ -6046,7 +6114,7 @@ router.get("/scheme-lpcd/day-wise-breakdown/all-regions", async (req, res) => {
       `;
 
       const result = await client.query(query);
-      
+
       // Group results by region
       const allRegionData: { [region: string]: any[] } = {};
       result.rows.forEach((row: any) => {
@@ -6101,10 +6169,10 @@ router.get("/scheme-lpcd/day-wise-schemes/:metric/:days", async (req, res) => {
       let schemeIdFilter = "";
       const db = await getDB();
       const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
-      
+
       if (filteredIds) {
         if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
-           // No matches
+          // No matches
         }
         const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
         schemeIdFilter = `AND h.scheme_id IN (${ids})`;
@@ -6112,8 +6180,8 @@ router.get("/scheme-lpcd/day-wise-schemes/:metric/:days", async (req, res) => {
 
       const params: any[] = [daysNum];
       let paramIndex = 2;
-      const regionFilter = region && region !== 'All Regions' 
-        ? `AND h.region = $${paramIndex++}` 
+      const regionFilter = region && region !== 'All Regions'
+        ? `AND h.region = $${paramIndex++}`
         : '';
       if (region && region !== 'All Regions') params.push(region);
 
@@ -6150,6 +6218,7 @@ router.get("/scheme-lpcd/day-wise-schemes/:metric/:days", async (req, res) => {
             water_value,
             data_date,
             CASE 
+              WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
                 CASE
@@ -6275,7 +6344,7 @@ router.get("/scheme-lpcd/day-wise-schemes-export/:metric/:days", async (req, res
       let schemeIdFilter = "";
       const db = await getDB();
       const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
-      
+
       if (filteredIds) {
         const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
         schemeIdFilter = `AND h.scheme_id IN (${ids})`;
@@ -6283,8 +6352,8 @@ router.get("/scheme-lpcd/day-wise-schemes-export/:metric/:days", async (req, res
 
       const params: any[] = [daysNum];
       let paramIndex = 2;
-      const regionFilter = region && region !== 'All Regions' 
-        ? `AND h.region = $${paramIndex++}` 
+      const regionFilter = region && region !== 'All Regions'
+        ? `AND h.region = $${paramIndex++}`
         : '';
       if (region && region !== 'All Regions') params.push(region);
 
@@ -6328,6 +6397,7 @@ router.get("/scheme-lpcd/day-wise-schemes-export/:metric/:days", async (req, res
             water_value,
             data_date,
             CASE 
+              WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
                 CASE
@@ -6472,10 +6542,10 @@ router.get("/scheme-lpcd/region-comparison", async (req, res) => {
     let schemeIdFilter = "";
     const db = await getDB();
     const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
-    
+
     if (filteredIds) {
       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
-           // No matches
+        // No matches
       }
       const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
       schemeIdFilter = `AND scheme_id IN (${ids})`;
@@ -6516,6 +6586,7 @@ router.get("/scheme-lpcd/region-comparison", async (req, res) => {
           ${schemeIdFilter}
           ORDER BY region, scheme_id, block, 
             CASE 
+              WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
                 CASE
@@ -6590,7 +6661,7 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
     let schemeIdFilter = "";
     const db = await getDB();
     const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
-    
+
     if (filteredIds) {
       const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
       schemeIdFilter = `AND sldh.scheme_id IN (${ids})`;
@@ -6604,37 +6675,37 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
     try {
       const params: any[] = [];
       let paramIndex = 1;
-      const regionFilter = region && region !== 'All Regions' 
-        ? `AND sldh.region = $${paramIndex++}` 
+      const regionFilter = region && region !== 'All Regions'
+        ? `AND sldh.region = $${paramIndex++}`
         : '';
       if (region && region !== 'All Regions') params.push(region);
 
       let query = '';
 
       if (category.startsWith('weekly_')) {
-         if (!dates) {
-             return res.status(400).json({ success: false, error: "Dates required for weekly comparison" });
-         }
-         
-         const dateList = (dates as string).split(',');
-         // normalize query dates logic if needed, but assuming direct string match or simple normalization
-         // Using a simpler approach: Filter where data_date matches ANY of the provided dates
-         
-         const metric = category.replace('weekly_', '');
-         let havingCondition = '';
-                  if (metric === 'above_55') {
-             havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) >= 55';
-          } else if (metric === 'below_55') {
-             havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 0 AND (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) < 55';
-          } else if (metric === 'no_water') {
-             havingCondition = '((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) IS NULL OR (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) = 0)';
-          }
+        if (!dates) {
+          return res.status(400).json({ success: false, error: "Dates required for weekly comparison" });
+        }
 
-         // Pass dates as parameter array
-         const dateParams = dateList.map((_, i) => `$${paramIndex++}`).join(',');
-         params.push(...dateList);
+        const dateList = (dates as string).split(',');
+        // normalize query dates logic if needed, but assuming direct string match or simple normalization
+        // Using a simpler approach: Filter where data_date matches ANY of the provided dates
 
-         query = `
+        const metric = category.replace('weekly_', '');
+        let havingCondition = '';
+        if (metric === 'above_55') {
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) >= 55';
+        } else if (metric === 'below_55') {
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 0 AND (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) < 55';
+        } else if (metric === 'no_water') {
+          havingCondition = '((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) IS NULL OR (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) = 0)';
+        }
+
+        // Pass dates as parameter array
+        const dateParams = dateList.map((_, i) => `$${paramIndex++}`).join(',');
+        params.push(...dateList);
+
+        query = `
             WITH weekly_data AS (
                 SELECT
                     sldh.region, sldh.circle, sldh.division, sldh.sub_division, 
@@ -6673,25 +6744,25 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
          `;
       } else {
 
-      let metricCondition = '';
-      switch (category) {
-        case 'above_55':
-          metricCondition = 'AND lpcd_value IS NOT NULL AND lpcd_value::numeric > 55';
-          break;
-        case 'below_55':
-          metricCondition = 'AND lpcd_value IS NOT NULL AND lpcd_value::numeric > 0 AND lpcd_value::numeric <= 55';
-          break;
-        case 'with_water':
-          metricCondition = 'AND water_value IS NOT NULL AND water_value::numeric > 0';
-          break;
-        case 'no_water':
-          metricCondition = 'AND (water_value IS NULL OR water_value::numeric = 0)';
-          break;
-        default:
-          metricCondition = '';
-      }
+        let metricCondition = '';
+        switch (category) {
+          case 'above_55':
+            metricCondition = 'AND lpcd_value IS NOT NULL AND lpcd_value::numeric > 55';
+            break;
+          case 'below_55':
+            metricCondition = 'AND lpcd_value IS NOT NULL AND lpcd_value::numeric > 0 AND lpcd_value::numeric <= 55';
+            break;
+          case 'with_water':
+            metricCondition = 'AND water_value IS NOT NULL AND water_value::numeric > 0';
+            break;
+          case 'no_water':
+            metricCondition = 'AND (water_value IS NULL OR water_value::numeric = 0)';
+            break;
+          default:
+            metricCondition = '';
+        }
 
-      query = `
+        query = `
         WITH latest_scheme_data AS (
           SELECT DISTINCT ON (sldh.region, sldh.scheme_id, sldh.block)
             sldh.region, sldh.circle, sldh.division, sldh.sub_division, sldh.block,
@@ -6751,12 +6822,12 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
         })),
         count: result.rows.length
       });
-      
+
       // DEBUG: Log first few rows to check URL sources
       if (result.rows.length > 0 && result.rows[0].history_url !== undefined) {
         console.log("DEBUG: Validation of dashboard_url sources (First 5 rows):");
         result.rows.slice(0, 5).forEach((r: any) => {
-           console.log(`Scheme: ${r.scheme_id}, History: '${r.history_url}', Status: '${r.status_url}' => Selected: '${r.dashboard_url}'`);
+          console.log(`Scheme: ${r.scheme_id}, History: '${r.history_url}', Status: '${r.status_url}' => Selected: '${r.dashboard_url}'`);
         });
       }
     } finally {
@@ -6785,10 +6856,10 @@ router.get("/scheme-lpcd/region-comparison-schemes-export-current/:category", as
     let schemeIdFilter = '';
     const db = await getDB();
     const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
-    
+
     if (filteredIds) {
-        const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
-        schemeIdFilter = `AND scheme_id IN (${ids})`;
+      const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
+      schemeIdFilter = `AND scheme_id IN (${ids})`;
     }
 
     const pool = new pg.Pool({
@@ -6799,38 +6870,38 @@ router.get("/scheme-lpcd/region-comparison-schemes-export-current/:category", as
     try {
       const params: any[] = [];
       let paramIndex = 1;
-      const regionFilter = region && region !== 'All Regions' 
-        ? `AND region = $${paramIndex++}` 
+      const regionFilter = region && region !== 'All Regions'
+        ? `AND region = $${paramIndex++}`
         : '';
       if (region && region !== 'All Regions') params.push(region);
 
       let metricCondition = '';
-      
+
       let query = '';
 
       if (category.startsWith('weekly_')) {
-          if (!dates) {
-             return res.status(400).json({ success: false, error: "Dates required for weekly comparison export" });
-          }
-          const dateList = (dates as string).split(',');
-          // normalize query dates logic if needed, but assuming direct string match or simple normalization
-          
-          const metric = category.replace('weekly_', '');
-          let havingCondition = '';
-          
-          if (metric === 'above_55') {
-             havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 55';
-          } else if (metric === 'below_55') {
-             havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 0 AND (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) <= 55';
-          } else if (metric === 'no_water') {
-             havingCondition = '((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) IS NULL OR (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) = 0)';
-          }
+        if (!dates) {
+          return res.status(400).json({ success: false, error: "Dates required for weekly comparison export" });
+        }
+        const dateList = (dates as string).split(',');
+        // normalize query dates logic if needed, but assuming direct string match or simple normalization
 
-          // Pass dates as parameter array
-          const dateParams = dateList.map((_, i) => `$${paramIndex++}`).join(',');
-          params.push(...dateList);
+        const metric = category.replace('weekly_', '');
+        let havingCondition = '';
 
-          query = `
+        if (metric === 'above_55') {
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 55';
+        } else if (metric === 'below_55') {
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 0 AND (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) <= 55';
+        } else if (metric === 'no_water') {
+          havingCondition = '((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) IS NULL OR (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) = 0)';
+        }
+
+        // Pass dates as parameter array
+        const dateParams = dateList.map((_, i) => `$${paramIndex++}`).join(',');
+        params.push(...dateList);
+
+        query = `
              WITH weekly_data AS (
                  SELECT 
                      region, circle, division, sub_division, block,
@@ -6863,24 +6934,24 @@ router.get("/scheme-lpcd/region-comparison-schemes-export-current/:category", as
           `;
       } else {
 
-      switch (category) {
-        case 'above_55':
-          metricCondition = 'AND lpcd_value IS NOT NULL AND lpcd_value::numeric > 55';
-          break;
-        case 'below_55':
-          metricCondition = 'AND lpcd_value IS NOT NULL AND lpcd_value::numeric > 0 AND lpcd_value::numeric <= 55';
-          break;
-        case 'with_water':
-          metricCondition = 'AND water_value IS NOT NULL AND water_value::numeric > 0';
-          break;
-        case 'no_water':
-          metricCondition = 'AND (water_value IS NULL OR water_value::numeric = 0)';
-          break;
-        default:
-          metricCondition = '';
-      }
+        switch (category) {
+          case 'above_55':
+            metricCondition = 'AND lpcd_value IS NOT NULL AND lpcd_value::numeric > 55';
+            break;
+          case 'below_55':
+            metricCondition = 'AND lpcd_value IS NOT NULL AND lpcd_value::numeric > 0 AND lpcd_value::numeric <= 55';
+            break;
+          case 'with_water':
+            metricCondition = 'AND water_value IS NOT NULL AND water_value::numeric > 0';
+            break;
+          case 'no_water':
+            metricCondition = 'AND (water_value IS NULL OR water_value::numeric = 0)';
+            break;
+          default:
+            metricCondition = '';
+        }
 
-      query = `
+        query = `
         WITH latest_scheme_data AS (
           SELECT DISTINCT ON (region, scheme_id, block)
             region, circle, division, sub_division, block,
@@ -6892,6 +6963,7 @@ router.get("/scheme-lpcd/region-comparison-schemes-export-current/:category", as
             ${schemeIdFilter}
           ORDER BY region, scheme_id, block, 
             CASE 
+              WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
                 CASE
@@ -6977,69 +7049,69 @@ router.get("/scheme-lpcd/region-comparison-schemes-export-current/:category", as
 // Export Scheme LPCD region comparison schemes to Excel
 router.get("/scheme-lpcd/region-comparison-schemes-export/:category/:day", async (req, res) => {
   try {
-      const { category, day } = req.params;
-      const { region, dates, fullyCompleted, filterType } = req.query;
+    const { category, day } = req.params;
+    const { region, dates, fullyCompleted, filterType } = req.query;
 
-      console.log(`Exporting Scheme LPCD region comparison schemes for category: ${category}, day: ${day}, dates: ${dates}, fullyCompleted: ${fullyCompleted}, filterType: ${filterType}`);
+    console.log(`Exporting Scheme LPCD region comparison schemes for category: ${category}, day: ${day}, dates: ${dates}, fullyCompleted: ${fullyCompleted}, filterType: ${filterType}`);
 
-      const pool = new pg.Pool({
-        connectionString: process.env.DATABASE_URL,
-      });
-      const client = await pool.connect();
+    const pool = new pg.Pool({
+      connectionString: process.env.DATABASE_URL,
+    });
+    const client = await pool.connect();
 
-      try {
-        // Get filtered scheme IDs
-        let schemeIdFilter = '';
-        const db = await getDB();
-        const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
-        
-        if (filteredIds) {
-            const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
-            schemeIdFilter = `AND scheme_id IN (${ids})`;
+    try {
+      // Get filtered scheme IDs
+      let schemeIdFilter = '';
+      const db = await getDB();
+      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+
+      if (filteredIds) {
+        const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
+        schemeIdFilter = `AND scheme_id IN (${ids})`;
+      }
+      const dayNum = parseInt(day);
+      const params: any[] = [dayNum];
+      let paramIndex = 2;
+      const regionFilter = region && region !== 'All Regions'
+        ? `AND region = $${paramIndex++}`
+        : '';
+      if (region && region !== 'All Regions') params.push(region);
+
+      // Remove duplicate param push - already done above
+      // if (region && region !== 'All Regions') params.push(region);
+
+      let query = '';
+
+      const categoryLabels: Record<string, string> = {
+        'above55': 'Above 55 LPCD',
+        'below55': 'Below 55 LPCD',
+        'weekly_above_55': 'Weekly Avg >55 LPCD',
+        'weekly_below_55': 'Weekly Avg <55 LPCD',
+        'weekly_no_water': 'Weekly Avg No Water',
+      };
+
+      if (category.startsWith('weekly_')) {
+        if (!dates) {
+          return res.status(400).json({ success: false, error: "Dates required for weekly comparison export" });
         }
-        const dayNum = parseInt(day);
-        const params: any[] = [dayNum];
-        let paramIndex = 2;
-        const regionFilter = region && region !== 'All Regions' 
-          ? `AND region = $${paramIndex++}` 
-          : '';
-        if (region && region !== 'All Regions') params.push(region);
-        
-        // Remove duplicate param push - already done above
-        // if (region && region !== 'All Regions') params.push(region);
+        const dateList = (dates as string).split(',');
+        let paramIndex2 = params.length + 1;
 
-        let query = '';
-        
-        const categoryLabels: Record<string, string> = {
-          'above55': 'Above 55 LPCD',
-          'below55': 'Below 55 LPCD',
-          'weekly_above_55': 'Weekly Avg >55 LPCD',
-          'weekly_below_55': 'Weekly Avg <55 LPCD',
-          'weekly_no_water': 'Weekly Avg No Water',
-        };
+        const metric = category.replace('weekly_', '');
+        let havingCondition = '';
 
-        if (category.startsWith('weekly_')) {
-            if (!dates) {
-               return res.status(400).json({ success: false, error: "Dates required for weekly comparison export" });
-            }
-            const dateList = (dates as string).split(',');
-            let paramIndex2 = params.length + 1;
-            
-            const metric = category.replace('weekly_', '');
-            let havingCondition = '';
-            
-            if (metric === 'above_55') {
-               havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) >= 55';
-            } else if (metric === 'below_55') {
-               havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 0 AND (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) < 55';
-            } else if (metric === 'no_water') {
-               havingCondition = '((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) IS NULL OR (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) = 0)';
-            }
+        if (metric === 'above_55') {
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) >= 55';
+        } else if (metric === 'below_55') {
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 0 AND (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) < 55';
+        } else if (metric === 'no_water') {
+          havingCondition = '((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) IS NULL OR (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) = 0)';
+        }
 
-            const dateParams = dateList.map((_, i) => `$${paramIndex2++}`).join(',');
-            params.push(...dateList);
+        const dateParams = dateList.map((_, i) => `$${paramIndex2++}`).join(',');
+        params.push(...dateList);
 
-            query = `
+        query = `
                WITH weekly_data AS (
                    SELECT 
                        region, circle, division, sub_division, block,
@@ -7074,20 +7146,20 @@ router.get("/scheme-lpcd/region-comparison-schemes-export/:category/:day", async
           `;
       } else {
 
-      
-      let metricCondition = '';
-      switch (category) {
-        case 'above55':
-          metricCondition = 'lpcd_value IS NOT NULL AND lpcd_value::numeric > 55';
-          break;
-        case 'below55':
-          metricCondition = 'lpcd_value IS NOT NULL AND lpcd_value::numeric > 0 AND lpcd_value::numeric <= 55';
-          break;
-        default:
-          metricCondition = 'TRUE';
-      }
 
-      query = `
+        let metricCondition = '';
+        switch (category) {
+          case 'above55':
+            metricCondition = 'lpcd_value IS NOT NULL AND lpcd_value::numeric > 55';
+            break;
+          case 'below55':
+            metricCondition = 'lpcd_value IS NOT NULL AND lpcd_value::numeric > 0 AND lpcd_value::numeric <= 55';
+            break;
+          default:
+            metricCondition = 'TRUE';
+        }
+
+        query = `
         WITH history_stats AS (
           SELECT 
             region, circle, division, sub_division, block,

@@ -35,13 +35,13 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({ 
+const upload = multer({
   storage,
   fileFilter: (req, file, cb) => {
     // Accept Excel and CSV files
-    if (file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
-        file.mimetype === 'application/vnd.ms-excel' ||
-        file.mimetype === 'text/csv') {
+    if (file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+      file.mimetype === 'application/vnd.ms-excel' ||
+      file.mimetype === 'text/csv') {
       cb(null, true);
     } else {
       cb(new Error('Only Excel (.xlsx, .xls) or CSV files are allowed'));
@@ -69,6 +69,28 @@ router.get('/', async (req, res) => {
       if (region && region !== 'all') {
         conditions.push('region = $' + (queryParams.length + 1));
         queryParams.push(region);
+      }
+
+      const circle = req.query.circle as string;
+      const division = req.query.division as string;
+      const subdivision = req.query.subdivision as string;
+      const block = req.query.block as string;
+
+      if (circle && circle !== "all") {
+        conditions.push('circle = $' + (queryParams.length + 1));
+        queryParams.push(circle);
+      }
+      if (division && division !== "all") {
+        conditions.push('division = $' + (queryParams.length + 1));
+        queryParams.push(division);
+      }
+      if (subdivision && subdivision !== "all") {
+        conditions.push('sub_division = $' + (queryParams.length + 1));
+        queryParams.push(subdivision);
+      }
+      if (block && block !== "all") {
+        conditions.push('block = $' + (queryParams.length + 1));
+        queryParams.push(block);
       }
 
       if (minLpcd) {
@@ -562,7 +584,7 @@ router.get('/template', (req, res) => {
         'Block',
         'Scheme ID',
         'Scheme Name',
-        'Village Name', 
+        'Village Name',
         'Population',
         'Number of ESR',
         'Water Value Day 1',
@@ -806,9 +828,9 @@ async function processCsvFile(filePath: string) {
           const firstRow = data[0];
           if (Array.isArray(firstRow)) {
             const headerRow = firstRow.map(h => String(h).trim());
-            const waterValueColumns = headerRow.filter(h => 
+            const waterValueColumns = headerRow.filter(h =>
               h.includes('Water Value') || h.includes('water value'));
-            const lpcdValueColumns = headerRow.filter(h => 
+            const lpcdValueColumns = headerRow.filter(h =>
               h.includes('LPCD Value') || h.includes('lpcd value'));
 
             hasLpcdHeaders = waterValueColumns.length > 0 || lpcdValueColumns.length > 0;
@@ -1049,7 +1071,7 @@ async function importDataToDatabase(data: any[], isExcel: boolean, isLpcdTemplat
     // Store historical water scheme data after successful import
     // Generate batch ID for all historical operations
     const uploadBatchId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     try {
       console.log("🔄 Storing historical water scheme data from CSV import...");
 
@@ -1166,9 +1188,9 @@ async function importDataToDatabase(data: any[], isExcel: boolean, isLpcdTemplat
                 await client.query(insertQuery, values);
               }
 
-              console.log(`✅ Inserted batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(historicalRecords.length/batchSize)} into water_scheme_data_history`);
+              console.log(`✅ Inserted batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(historicalRecords.length / batchSize)} into water_scheme_data_history`);
             } catch (batchError) {
-              console.error(`Error inserting historical batch ${Math.floor(i/batchSize) + 1}:`, batchError);
+              console.error(`Error inserting historical batch ${Math.floor(i / batchSize) + 1}:`, batchError);
             }
           }
 
@@ -1399,10 +1421,10 @@ function mapExcelFields(row: any) {
       const value = row[excelField];
 
       // Convert numeric fields to proper number types
-      if (['population', 'number_of_esr', 'water_value_day1', 'water_value_day2', 'water_value_day3', 
-           'water_value_day4', 'water_value_day5', 'water_value_day6', 'lpcd_value_day1', 'lpcd_value_day2', 
-           'lpcd_value_day3', 'lpcd_value_day4', 'lpcd_value_day5', 'lpcd_value_day6', 'lpcd_value_day7',
-           'below_55_lpcd_count', 'above_55_lpcd_count'].includes(dbField)) {
+      if (['population', 'number_of_esr', 'water_value_day1', 'water_value_day2', 'water_value_day3',
+        'water_value_day4', 'water_value_day5', 'water_value_day6', 'lpcd_value_day1', 'lpcd_value_day2',
+        'lpcd_value_day3', 'lpcd_value_day4', 'lpcd_value_day5', 'lpcd_value_day6', 'lpcd_value_day7',
+        'below_55_lpcd_count', 'above_55_lpcd_count'].includes(dbField)) {
         // Handle different Excel value types
         if (value === '' || value === null || value === undefined) {
           record[dbField] = null;
@@ -1431,8 +1453,8 @@ function mapExcelFields(row: any) {
 
   // Log a sample of the processed record for debugging
   if (record.scheme_id) {
-    console.log(`Processed record for scheme_id ${record.scheme_id}, village ${record.village_name}:`, 
-                `water_value_day1=${record.water_value_day1}, lpcd_value_day1=${record.lpcd_value_day1}`);
+    console.log(`Processed record for scheme_id ${record.scheme_id}, village ${record.village_name}:`,
+      `water_value_day1=${record.water_value_day1}, lpcd_value_day1=${record.lpcd_value_day1}`);
   }
 
   return record;
@@ -1495,10 +1517,10 @@ function mapCsvFields(row: string[]) {
       const value = row[index];
 
       // Convert value to appropriate type
-      if (['population', 'number_of_esr', 'water_value_day1', 'water_value_day2', 'water_value_day3', 
-           'water_value_day4', 'water_value_day5', 'water_value_day6', 'water_value_day7', 'lpcd_value_day1', 'lpcd_value_day2', 
-           'lpcd_value_day3', 'lpcd_value_day4', 'lpcd_value_day5', 'lpcd_value_day6', 'lpcd_value_day7',
-           'below_55_lpcd_count', 'above_55_lpcd_count'].includes(field)) {
+      if (['population', 'number_of_esr', 'water_value_day1', 'water_value_day2', 'water_value_day3',
+        'water_value_day4', 'water_value_day5', 'water_value_day6', 'water_value_day7', 'lpcd_value_day1', 'lpcd_value_day2',
+        'lpcd_value_day3', 'lpcd_value_day4', 'lpcd_value_day5', 'lpcd_value_day6', 'lpcd_value_day7',
+        'below_55_lpcd_count', 'above_55_lpcd_count'].includes(field)) {
         // Handle empty values
         if (value === '' || value === null || value === undefined) {
           record[field] = null;
@@ -1850,9 +1872,9 @@ router.get("/population-trends", async (req, res) => {
     }
   } catch (error) {
     console.error('Error fetching population trends:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: 'Failed to fetch population trends' 
+      error: 'Failed to fetch population trends'
     });
   }
 });
@@ -2074,13 +2096,13 @@ function generateDateStrings(startDate: string, endDate: string): string[] {
   const start = new Date(startDate + 'T00:00:00');
   const end = new Date(endDate + 'T00:00:00');
   const dateStrings: string[] = [];
-  
+
   // Calculate the number of days in the range (inclusive)
   const diffTime = end.getTime() - start.getTime();
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  
+
   console.log(`📅 Generating date strings from ${startDate} to ${endDate} (${diffDays + 1} days inclusive)`);
-  
+
   const current = new Date(start);
   // Use a day counter to ensure we include the end date
   for (let i = 0; i <= diffDays; i++) {
@@ -2099,7 +2121,7 @@ function generateDateStrings(startDate: string, endDate: string): string[] {
     }
     current.setDate(current.getDate() + 1);
   }
-  
+
   // De-duplicate while preserving order
   const seen = new Set<string>();
   const unique: string[] = [];
@@ -2120,14 +2142,14 @@ function sortDatesChronologically(dates: string[]): string[] {
     'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
     'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12
   };
-  
+
   return dates.sort((a, b) => {
     const [dayA, monthA] = a.split('-');
     const [dayB, monthB] = b.split('-');
-    
+
     const monthNumA = monthMap[monthA] || 0;
     const monthNumB = monthMap[monthB] || 0;
-    
+
     if (monthNumA !== monthNumB) {
       return monthNumA - monthNumB;
     }
@@ -2141,8 +2163,8 @@ router.get('/historical', async (req, res) => {
     const { startDate, endDate, region, countOnly } = req.query;
 
     if (!startDate || !endDate) {
-      return res.status(400).json({ 
-        error: 'startDate and endDate are required parameters (format: YYYY-MM-DD)' 
+      return res.status(400).json({
+        error: 'startDate and endDate are required parameters (format: YYYY-MM-DD)'
       });
     }
 
@@ -2153,7 +2175,7 @@ router.get('/historical', async (req, res) => {
     try {
       // Generate all DD-MMM date strings in the range (e.g., "20-Aug", "21-Aug", ...)
       const dateStrings = generateDateStrings(String(startDate), String(endDate));
-      
+
       console.log(`📊 Historical LPCD query: ${startDate} to ${endDate}`);
       console.log(`📅 Generated ${dateStrings.length} date strings for filtering:`, dateStrings.slice(0, 5), '...');
 
@@ -2176,9 +2198,9 @@ router.get('/historical', async (req, res) => {
 
         const countResult = await client.query(countQuery, countParams);
         const count = parseInt(countResult.rows[0].total);
-        
+
         console.log(`📈 Count result: ${count} records in date range`);
-        
+
         return res.json({ count });
       }
 
@@ -2239,20 +2261,20 @@ router.get('/historical', async (req, res) => {
 // Download historical village LPCD data with date range filtering
 router.get('/download/village-lpcd-history', async (req, res) => {
   try {
-    const { 
-      startDate, 
-      endDate, 
-      region, 
-      scheme_id, 
+    const {
+      startDate,
+      endDate,
+      region,
+      scheme_id,
       village_name,
       minLpcd,
       maxLpcd,
-      format = 'xlsx' 
+      format = 'xlsx'
     } = req.query;
 
     if (!startDate || !endDate) {
-      return res.status(400).json({ 
-        error: 'startDate and endDate are required parameters (format: YYYY-MM-DD)' 
+      return res.status(400).json({
+        error: 'startDate and endDate are required parameters (format: YYYY-MM-DD)'
       });
     }
 
@@ -2265,7 +2287,7 @@ router.get('/download/village-lpcd-history', async (req, res) => {
     try {
       // Generate all DD-MMM date strings in the range (e.g., "20-Aug", "21-Aug", ...)
       const dateStrings = generateDateStrings(String(startDate), String(endDate));
-      
+
       console.log(`📅 Date range: ${startDate} to ${endDate} (${dateStrings.length} dates)`);
       console.log(`📅 Date strings for filtering:`, dateStrings.slice(0, 5), '...');
 
@@ -2327,7 +2349,7 @@ router.get('/download/village-lpcd-history', async (req, res) => {
       query += ` ORDER BY data_date ASC, region ASC, village_name ASC`;
 
       console.log('🔍 Executing query with date filtering on data_date column...');
-      
+
       const result = await client.query(query, queryParams);
       const filteredRows = result.rows;
 
@@ -2336,7 +2358,7 @@ router.get('/download/village-lpcd-history', async (req, res) => {
       const filteredResult = { ...result, rows: filteredRows };
 
       if (filteredRows.length === 0) {
-        return res.status(404).json({ 
+        return res.status(404).json({
           error: 'No LPCD data found for the specified date range and filters',
           requestedRange: { startDate, endDate },
           availableDates: []
@@ -2348,7 +2370,7 @@ router.get('/download/village-lpcd-history', async (req, res) => {
       const sortedAvailableDates = sortDatesChronologically(availableDates);
       const requestedDates = dateStrings.filter((_, idx) => idx % 2 === 0); // Get unique dates (remove duplicates from padding)
       const uniqueRequestedDates = Array.from(new Set(requestedDates.map(d => d.split('-')[0] + '-' + d.split('-')[1])));
-      
+
       console.log(`📊 Data availability: ${sortedAvailableDates.length} days with data out of ${uniqueRequestedDates.length} days requested`);
       console.log(`📅 Available dates:`, sortedAvailableDates.slice(0, 5), '...', sortedAvailableDates.slice(-2));
 
@@ -2357,7 +2379,7 @@ router.get('/download/village-lpcd-history', async (req, res) => {
 
       // For large datasets (>10K records), automatically use CSV with streaming to prevent crashes
       const useCsvForLargeDataset = filteredRows.length > 10000;
-      
+
       if (useCsvForLargeDataset && format === 'xlsx') {
         console.log(`⚠️ Large dataset (${filteredRows.length} records) - switching to CSV streaming for performance`);
       }
@@ -2365,21 +2387,21 @@ router.get('/download/village-lpcd-history', async (req, res) => {
       if (format === 'csv' || useCsvForLargeDataset) {
         // Generate CSV/Excel with pivot structure - dates as headers
         console.log(`Creating pivot structure for ${filteredRows.length} records`);
-        
+
         // Get unique dates and sort them chronologically
         const dates = filteredRows.map(row => row.data_date);
         const uniqueDatesSet = new Set(dates);
         const uniqueDates = sortDatesChronologically(Array.from(uniqueDatesSet));
-        
+
         console.log('Unique dates found (chronologically sorted):', uniqueDates);
-        
+
         // Create village lookup map for consolidation
         const villageData = new Map();
-        
+
         // Collect all village base information
         filteredRows.forEach(row => {
           const villageKey = `${row.scheme_id}|${row.village_name}`;
-          
+
           if (!villageData.has(villageKey)) {
             villageData.set(villageKey, {
               baseInfo: {
@@ -2397,35 +2419,35 @@ router.get('/download/village-lpcd-history', async (req, res) => {
               dateValues: new Map()
             });
           }
-          
+
           // Store LPCD values for this date
           const existingDateData = villageData.get(villageKey).dateValues.get(row.data_date) || {
             lpcd_value: ''
           };
-          
+
           villageData.get(villageKey).dateValues.set(row.data_date, {
             lpcd_value: row.lpcd_value || existingDateData.lpcd_value || ''
           });
         });
-        
+
         // Build header row with dates as columns
         const headerRow = [
           'Region', 'Circle', 'Division', 'Sub Division', 'Block',
           'Scheme ID', 'Scheme Name', 'Village Name', 'Population', 'Number of ESR'
         ];
-        
+
         // Add date headers as simple columns
         uniqueDates.forEach(date => {
           headerRow.push(date);
         });
-        
+
         // Use ExcelJS for better formatting with colorful headers
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('LPCD History');
-        
+
         // Add header row
         worksheet.addRow(headerRow);
-        
+
         // Build LPCD value rows (one row per village)
         villageData.forEach((village) => {
           const dataRow = [
@@ -2440,7 +2462,7 @@ router.get('/download/village-lpcd-history', async (req, res) => {
             village.baseInfo.population,
             village.baseInfo.number_of_esr
           ];
-          
+
           // Add LPCD values for each date
           uniqueDates.forEach(date => {
             const dateVal = village.dateValues.get(date);
@@ -2450,12 +2472,12 @@ router.get('/download/village-lpcd-history', async (req, res) => {
               dataRow.push('');
             }
           });
-          
+
           worksheet.addRow(dataRow);
         });
-        
+
         console.log(`PIVOT STRUCTURE: ${villageData.size} villages, ${headerRow.length} columns total`);
-        
+
         // Style header row with sky blue background
         const headerRowObj = worksheet.getRow(1);
         headerRowObj.eachCell((cell) => {
@@ -2473,7 +2495,7 @@ router.get('/download/village-lpcd-history', async (req, res) => {
             right: { style: 'thin' }
           };
         });
-        
+
         // Set column widths
         worksheet.columns = [
           { width: 15 }, // Region
@@ -2488,7 +2510,7 @@ router.get('/download/village-lpcd-history', async (req, res) => {
           { width: 15 }, // Number of ESR
           ...uniqueDates.map(() => ({ width: 12 })) // Date columns
         ];
-        
+
         // Add summary sheet
         const summaryWorksheet = workbook.addWorksheet('Summary');
         summaryWorksheet.addRow(['Filter', 'Value']);
@@ -2497,7 +2519,7 @@ router.get('/download/village-lpcd-history', async (req, res) => {
         summaryWorksheet.addRow(['Total Villages', villageData.size]);
         summaryWorksheet.addRow(['Total Records', filteredRows.length]);
         summaryWorksheet.addRow(['Generated At', new Date().toISOString()]);
-        
+
         // Style summary header
         const summaryHeader = summaryWorksheet.getRow(1);
         summaryHeader.eachCell((cell) => {
@@ -2515,24 +2537,24 @@ router.get('/download/village-lpcd-history', async (req, res) => {
             right: { style: 'thin' }
           };
         });
-        
+
         summaryWorksheet.columns = [
           { width: 20 },
           { width: 30 }
         ];
-        
+
         const buffer = await workbook.xlsx.writeBuffer();
-        
+
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
         res.send(buffer);
-        
+
         console.log(`✅ Successfully created pivot Excel with ${villageData.size} villages and ${uniqueDates.length} dates`);
       } else {
         // Generate Excel with proper pivot structure - dates as headers
         // Excel is only for smaller datasets (<= 10K records)
         console.log(`Creating Excel export for ${filteredRows.length} records`);
-        
+
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Pivot Data');
 
@@ -2830,9 +2852,9 @@ router.get('/villages/filtered', async (req, res) => {
       console.log('Query params:', queryParams);
 
       const result = await client.query(query, queryParams);
-      
+
       console.log(`Found ${result.rows.length} villages matching criteria`);
-      
+
       res.json({
         success: true,
         data: result.rows,

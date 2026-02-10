@@ -60,6 +60,7 @@ import {
   Zap,
   Power,
 } from "lucide-react";
+import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
 import ExcelJS from "exceljs";
 
 // Define types for Chlorine Data
@@ -193,6 +194,11 @@ const ChlorineDashboard: React.FC = () => {
 
   // Global filter state (affects both cards and table)
   const [selectedRegion, setSelectedRegion] = useState<string>("all");
+  const [selectedCircle, setSelectedCircle] = useState<string>("all");
+  const [selectedDivision, setSelectedDivision] = useState<string>("all");
+  const [selectedSubdivision, setSelectedSubdivision] = useState<string>("all");
+  const [selectedBlock, setSelectedBlock] = useState<string>("all");
+
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [commissionedFilter, setCommissionedFilter] = useState<string>("all");
   const [fullyCompletedFilter, setFullyCompletedFilter] =
@@ -236,6 +242,65 @@ const ChlorineDashboard: React.FC = () => {
     trackPageVisit("Chlorine Dashboard");
   }, [trackPageVisit]);
 
+  // Filter Handlers
+  const handleRegionChange = (value: string) => {
+    setSelectedRegion(value);
+    setSelectedCircle("all");
+    setSelectedDivision("all");
+    setSelectedSubdivision("all");
+    setSelectedBlock("all");
+    setPage(1);
+  };
+
+  const handleCircleChange = (value: string) => {
+    setSelectedCircle(value);
+    setSelectedDivision("all");
+    setSelectedSubdivision("all");
+    setSelectedBlock("all");
+    setPage(1);
+  };
+
+  const handleDivisionChange = (value: string) => {
+    setSelectedDivision(value);
+    setSelectedSubdivision("all");
+    setSelectedBlock("all");
+    setPage(1);
+  };
+
+  const handleSubdivisionChange = (value: string) => {
+    setSelectedSubdivision(value);
+    setSelectedBlock("all");
+    setPage(1);
+  };
+
+  const handleBlockChange = (value: string) => {
+    setSelectedBlock(value);
+    setPage(1);
+  };
+
+  // Fetch cascading filter options
+  const { data: filterOptions } = useQuery({
+    queryKey: [
+      "/api/chlorine/filters",
+      selectedRegion,
+      selectedCircle,
+      selectedDivision,
+      selectedSubdivision,
+    ],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedRegion !== "all") params.append("region", selectedRegion);
+      if (selectedCircle !== "all") params.append("circle", selectedCircle);
+      if (selectedDivision !== "all") params.append("division", selectedDivision);
+      if (selectedSubdivision !== "all")
+        params.append("subdivision", selectedSubdivision);
+
+      const response = await fetch(`/api/chlorine/filters?${params.toString()}`);
+      if (!response.ok) throw new Error("Failed to fetch filter options");
+      return response.json();
+    },
+  });
+
   // Parse URL parameters and set initial filters
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -271,12 +336,25 @@ const ChlorineDashboard: React.FC = () => {
     error: chlorineError,
     refetch,
   } = useQuery<ChlorineData[]>({
-    queryKey: ["/api/chlorine", selectedRegion],
+    queryKey: ["/api/chlorine", selectedRegion, selectedCircle, selectedDivision, selectedSubdivision, selectedBlock],
     queryFn: async () => {
       const params = new URLSearchParams();
 
+
       if (selectedRegion && selectedRegion !== "all") {
         params.append("region", selectedRegion);
+      }
+      if (selectedCircle && selectedCircle !== "all") {
+        params.append("circle", selectedCircle);
+      }
+      if (selectedDivision && selectedDivision !== "all") {
+        params.append("division", selectedDivision);
+      }
+      if (selectedSubdivision && selectedSubdivision !== "all") {
+        params.append("subDivision", selectedSubdivision);
+      }
+      if (selectedBlock && selectedBlock !== "all") {
+        params.append("block", selectedBlock);
       }
 
       // No longer filtering API requests by card selection
@@ -983,8 +1061,8 @@ const ChlorineDashboard: React.FC = () => {
       selectedRegion === "all"
         ? communicationStatusData
         : communicationStatusData.filter(
-            (comm) => comm.region === selectedRegion,
-          );
+          (comm) => comm.region === selectedRegion,
+        );
 
     // Use Sets to track unique ESR names to avoid double counting
     const uniqueConnectedESRs = new Set<string>();
@@ -1674,37 +1752,37 @@ const ChlorineDashboard: React.FC = () => {
           // Daily chlorine values with date headers
           [`Chlorine (${date1}) mg/l`]:
             item.chlorine_value_1 !== null &&
-            item.chlorine_value_1 !== undefined
+              item.chlorine_value_1 !== undefined
               ? Number(item.chlorine_value_1).toFixed(2)
               : "",
           [`Chlorine (${date2}) mg/l`]:
             item.chlorine_value_2 !== null &&
-            item.chlorine_value_2 !== undefined
+              item.chlorine_value_2 !== undefined
               ? Number(item.chlorine_value_2).toFixed(2)
               : "",
           [`Chlorine (${date3}) mg/l`]:
             item.chlorine_value_3 !== null &&
-            item.chlorine_value_3 !== undefined
+              item.chlorine_value_3 !== undefined
               ? Number(item.chlorine_value_3).toFixed(2)
               : "",
           [`Chlorine (${date4}) mg/l`]:
             item.chlorine_value_4 !== null &&
-            item.chlorine_value_4 !== undefined
+              item.chlorine_value_4 !== undefined
               ? Number(item.chlorine_value_4).toFixed(2)
               : "",
           [`Chlorine (${date5}) mg/l`]:
             item.chlorine_value_5 !== null &&
-            item.chlorine_value_5 !== undefined
+              item.chlorine_value_5 !== undefined
               ? Number(item.chlorine_value_5).toFixed(2)
               : "",
           [`Chlorine (${date6}) mg/l`]:
             item.chlorine_value_6 !== null &&
-            item.chlorine_value_6 !== undefined
+              item.chlorine_value_6 !== undefined
               ? Number(item.chlorine_value_6).toFixed(2)
               : "",
           [`Chlorine (${date7}) mg/l`]:
             item.chlorine_value_7 !== null &&
-            item.chlorine_value_7 !== undefined
+              item.chlorine_value_7 !== undefined
               ? Number(item.chlorine_value_7).toFixed(2)
               : "",
 
@@ -1872,48 +1950,24 @@ const ChlorineDashboard: React.FC = () => {
         </p>
       </div>
 
+      <GeographicalFilters
+        filters={filterOptions}
+        selectedRegion={selectedRegion}
+        selectedCircle={selectedCircle}
+        selectedDivision={selectedDivision}
+        selectedSubdivision={selectedSubdivision}
+        selectedBlock={selectedBlock}
+        onRegionChange={handleRegionChange}
+        onCircleChange={handleCircleChange}
+        onDivisionChange={handleDivisionChange}
+        onSubdivisionChange={handleSubdivisionChange}
+        onBlockChange={handleBlockChange}
+      />
+
       {/* Filters Section - Grid-based layout like PressureDashboard */}
       <div className="bg-white rounded-xl shadow-sm mb-6 p-6 border border-blue-100">
         {/* Filters Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-          {/* Select Region */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <TranslatedText>Select Region</TranslatedText>
-            </label>
-            <Select
-              value={selectedRegion}
-              onValueChange={(value) => {
-                setSelectedRegion(value);
-                setPage(1);
-                if (value !== "all") {
-                  trackFilterUsage(
-                    "region",
-                    value,
-                    undefined,
-                    "chlorine_dashboard",
-                  );
-                }
-              }}
-              data-testid="select-region"
-            >
-              <SelectTrigger className="bg-white border border-blue-200 shadow-sm focus:ring-blue-500 focus:border-blue-500 h-11">
-                <SelectValue placeholder="All Regions" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" className="font-medium">
-                  All Regions
-                </SelectItem>
-                <div className="h-px bg-gray-200 my-1"></div>
-                {regionsData.map((region) => (
-                  <SelectItem key={region.region_id} value={region.region_name}>
-                    {region.region_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
           {/* Commissioned Status Filter */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -2144,11 +2198,10 @@ const ChlorineDashboard: React.FC = () => {
       <div className="grid gap-4 md:grid-cols-4 mb-6">
         {/* Connected Sensors Card */}
         <Card
-          className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${
-            sensorStatusFilter === "connected"
-              ? "ring-2 ring-blue-500 ring-offset-2"
-              : ""
-          } transform hover:scale-[1.02]`}
+          className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${sensorStatusFilter === "connected"
+            ? "ring-2 ring-blue-500 ring-offset-2"
+            : ""
+            } transform hover:scale-[1.02]`}
           onClick={() => handleSensorStatusClick("connected")}
         >
           <CardContent className="p-4 flex items-center">
@@ -2171,11 +2224,10 @@ const ChlorineDashboard: React.FC = () => {
 
         {/* Online Sensors Card */}
         <Card
-          className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${
-            sensorStatusFilter === "online"
-              ? "ring-2 ring-green-500 ring-offset-2"
-              : ""
-          } transform hover:scale-[1.02]`}
+          className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${sensorStatusFilter === "online"
+            ? "ring-2 ring-green-500 ring-offset-2"
+            : ""
+            } transform hover:scale-[1.02]`}
           onClick={() => handleSensorStatusClick("online")}
         >
           <CardContent className="p-4 flex items-center">
@@ -2198,11 +2250,10 @@ const ChlorineDashboard: React.FC = () => {
 
         {/* Offline Sensors Card */}
         <Card
-          className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${
-            sensorStatusFilter === "offline"
-              ? "ring-2 ring-orange-500 ring-offset-2"
-              : ""
-          } transform hover:scale-[1.02]`}
+          className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${sensorStatusFilter === "offline"
+            ? "ring-2 ring-orange-500 ring-offset-2"
+            : ""
+            } transform hover:scale-[1.02]`}
           onClick={() => handleSensorStatusClick("offline")}
         >
           <CardContent className="p-4 flex items-center">
@@ -2225,11 +2276,10 @@ const ChlorineDashboard: React.FC = () => {
 
         {/* No Water Sensors Card - Clickable */}
         <Card
-          className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${
-            sensorStatusFilter === "noWater"
-              ? "ring-2 ring-red-500 ring-offset-2"
-              : ""
-          } transform hover:scale-[1.02]`}
+          className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${sensorStatusFilter === "noWater"
+            ? "ring-2 ring-red-500 ring-offset-2"
+            : ""
+            } transform hover:scale-[1.02]`}
           onClick={() => handleSensorStatusClick("noWater")}
         >
           <CardContent className="p-4 flex items-center">
@@ -2252,11 +2302,10 @@ const ChlorineDashboard: React.FC = () => {
 
         {/* Sensors with Water Card - Clickable */}
         <Card
-          className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${
-            sensorStatusFilter === "withWater"
-              ? "ring-2 ring-blue-500 ring-offset-2"
-              : ""
-          } transform hover:scale-[1.02]`}
+          className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${sensorStatusFilter === "withWater"
+            ? "ring-2 ring-blue-500 ring-offset-2"
+            : ""
+            } transform hover:scale-[1.02]`}
           onClick={() => handleSensorStatusClick("withWater")}
         >
           <CardContent className="p-4 flex items-center">
@@ -2306,12 +2355,11 @@ const ChlorineDashboard: React.FC = () => {
             <div className="grid gap-4 mb-4">
               {/* Total With Water - Now Clickable */}
               <div
-                className={`cursor-pointer text-center p-4 bg-blue-50 rounded-lg border border-blue-200 hover:shadow-lg transition-all duration-200 ${
-                  sensorStatusFilter === "withWater" &&
+                className={`cursor-pointer text-center p-4 bg-blue-50 rounded-lg border border-blue-200 hover:shadow-lg transition-all duration-200 ${sensorStatusFilter === "withWater" &&
                   selectedWithWaterFilter === "all"
-                    ? "ring-2 ring-blue-500 ring-offset-2"
-                    : ""
-                } transform hover:scale-[1.01]`}
+                  ? "ring-2 ring-blue-500 ring-offset-2"
+                  : ""
+                  } transform hover:scale-[1.01]`}
                 onClick={() => handleTotalCardClick("withWater")}
               >
                 <p className="text-3xl font-bold text-blue-600">
@@ -2340,11 +2388,10 @@ const ChlorineDashboard: React.FC = () => {
             <div className="grid gap-3">
               {/* Below Range Card - With Water */}
               <Card
-                className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${
-                  selectedWithWaterFilter === "below_0.2"
-                    ? "ring-2 ring-red-500 ring-offset-2"
-                    : ""
-                } transform hover:scale-[1.01]`}
+                className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedWithWaterFilter === "below_0.2"
+                  ? "ring-2 ring-red-500 ring-offset-2"
+                  : ""
+                  } transform hover:scale-[1.01]`}
                 onClick={() => handleWithWaterCardClick("below_0.2")}
               >
                 <CardContent className="p-4 flex items-center">
@@ -2365,11 +2412,10 @@ const ChlorineDashboard: React.FC = () => {
 
               {/* Optimal Range Card - With Water */}
               <Card
-                className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${
-                  selectedWithWaterFilter === "between_0.2_0.5"
-                    ? "ring-2 ring-green-500 ring-offset-2"
-                    : ""
-                } transform hover:scale-[1.01]`}
+                className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedWithWaterFilter === "between_0.2_0.5"
+                  ? "ring-2 ring-green-500 ring-offset-2"
+                  : ""
+                  } transform hover:scale-[1.01]`}
                 onClick={() => handleWithWaterCardClick("between_0.2_0.5")}
               >
                 <CardContent className="p-4 flex items-center">
@@ -2392,11 +2438,10 @@ const ChlorineDashboard: React.FC = () => {
 
               {/* Above Range Card - With Water */}
               <Card
-                className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${
-                  selectedWithWaterFilter === "above_0.5"
-                    ? "ring-2 ring-orange-500 ring-offset-2"
-                    : ""
-                } transform hover:scale-[1.01]`}
+                className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedWithWaterFilter === "above_0.5"
+                  ? "ring-2 ring-orange-500 ring-offset-2"
+                  : ""
+                  } transform hover:scale-[1.01]`}
                 onClick={() => handleWithWaterCardClick("above_0.5")}
               >
                 <CardContent className="p-4 flex items-center">
@@ -2465,12 +2510,11 @@ const ChlorineDashboard: React.FC = () => {
             <div className="grid gap-4 mb-4">
               {/* Total No Water - Now Clickable */}
               <div
-                className={`cursor-pointer text-center p-4 bg-red-50 rounded-lg border border-red-200 hover:shadow-lg transition-all duration-200 ${
-                  sensorStatusFilter === "noWater" &&
+                className={`cursor-pointer text-center p-4 bg-red-50 rounded-lg border border-red-200 hover:shadow-lg transition-all duration-200 ${sensorStatusFilter === "noWater" &&
                   selectedWithoutWaterFilter === "all"
-                    ? "ring-2 ring-red-500 ring-offset-2"
-                    : ""
-                } transform hover:scale-[1.01]`}
+                  ? "ring-2 ring-red-500 ring-offset-2"
+                  : ""
+                  } transform hover:scale-[1.01]`}
                 onClick={() => handleTotalCardClick("noWater")}
               >
                 <p className="text-3xl font-bold text-red-600">
@@ -2484,11 +2528,10 @@ const ChlorineDashboard: React.FC = () => {
             <div className="grid gap-3">
               {/* Below Range Card - No Water */}
               <Card
-                className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${
-                  selectedWithoutWaterFilter === "below_0.2"
-                    ? "ring-2 ring-red-500 ring-offset-2"
-                    : ""
-                } transform hover:scale-[1.01]`}
+                className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedWithoutWaterFilter === "below_0.2"
+                  ? "ring-2 ring-red-500 ring-offset-2"
+                  : ""
+                  } transform hover:scale-[1.01]`}
                 onClick={() => handleWithoutWaterCardClick("below_0.2")}
               >
                 <CardContent className="p-4 flex items-center">
@@ -2509,11 +2552,10 @@ const ChlorineDashboard: React.FC = () => {
 
               {/* Optimal Range Card - No Water */}
               <Card
-                className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${
-                  selectedWithoutWaterFilter === "between_0.2_0.5"
-                    ? "ring-2 ring-green-500 ring-offset-2"
-                    : ""
-                } transform hover:scale-[1.01]`}
+                className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedWithoutWaterFilter === "between_0.2_0.5"
+                  ? "ring-2 ring-green-500 ring-offset-2"
+                  : ""
+                  } transform hover:scale-[1.01]`}
                 onClick={() => handleWithoutWaterCardClick("between_0.2_0.5")}
               >
                 <CardContent className="p-4 flex items-center">
@@ -2536,11 +2578,10 @@ const ChlorineDashboard: React.FC = () => {
 
               {/* Above Range Card - No Water */}
               <Card
-                className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${
-                  selectedWithoutWaterFilter === "above_0.5"
-                    ? "ring-2 ring-orange-500 ring-offset-2"
-                    : ""
-                } transform hover:scale-[1.01]`}
+                className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedWithoutWaterFilter === "above_0.5"
+                  ? "ring-2 ring-orange-500 ring-offset-2"
+                  : ""
+                  } transform hover:scale-[1.01]`}
                 onClick={() => handleWithoutWaterCardClick("above_0.5")}
               >
                 <CardContent className="p-4 flex items-center">
@@ -2612,11 +2653,10 @@ const ChlorineDashboard: React.FC = () => {
           <div className="grid gap-4 md:grid-cols-5">
             {/* Consistent Zero Card */}
             <Card
-              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${
-                selectedCardFilter === "consistent_zero"
-                  ? "ring-2 ring-gray-500 ring-offset-2"
-                  : ""
-              } transform hover:scale-[1.01]`}
+              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "consistent_zero"
+                ? "ring-2 ring-gray-500 ring-offset-2"
+                : ""
+                } transform hover:scale-[1.01]`}
               onClick={() => handleCardClick("consistent_zero")}
             >
               <CardContent className="p-4 flex items-center">
@@ -2641,11 +2681,10 @@ const ChlorineDashboard: React.FC = () => {
 
             {/* Consistent Below Range Card */}
             <Card
-              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${
-                selectedCardFilter === "consistent_below"
-                  ? "ring-2 ring-red-500 ring-offset-2"
-                  : ""
-              } transform hover:scale-[1.01]`}
+              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "consistent_below"
+                ? "ring-2 ring-red-500 ring-offset-2"
+                : ""
+                } transform hover:scale-[1.01]`}
               onClick={() => handleCardClick("consistent_below")}
             >
               <CardContent className="p-4 flex items-center">
@@ -2668,11 +2707,10 @@ const ChlorineDashboard: React.FC = () => {
 
             {/* Consistent Optimal Range Card */}
             <Card
-              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${
-                selectedCardFilter === "consistent_optimal"
-                  ? "ring-2 ring-green-500 ring-offset-2"
-                  : ""
-              } transform hover:scale-[1.01]`}
+              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "consistent_optimal"
+                ? "ring-2 ring-green-500 ring-offset-2"
+                : ""
+                } transform hover:scale-[1.01]`}
               onClick={() => handleCardClick("consistent_optimal")}
             >
               <CardContent className="p-4 flex items-center">
@@ -2695,11 +2733,10 @@ const ChlorineDashboard: React.FC = () => {
 
             {/* Consistent Above Range Card */}
             <Card
-              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${
-                selectedCardFilter === "consistent_above"
-                  ? "ring-2 ring-orange-500 ring-offset-2"
-                  : ""
-              } transform hover:scale-[1.01]`}
+              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "consistent_above"
+                ? "ring-2 ring-orange-500 ring-offset-2"
+                : ""
+                } transform hover:scale-[1.01]`}
               onClick={() => handleCardClick("consistent_above")}
             >
               <CardContent className="p-4 flex items-center">
@@ -2722,11 +2759,10 @@ const ChlorineDashboard: React.FC = () => {
 
             {/* Show All Sensors */}
             <Card
-              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${
-                selectedCardFilter === "all"
-                  ? "ring-2 ring-teal-500 ring-offset-2"
-                  : ""
-              } transform hover:scale-[1.01]`}
+              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "all"
+                ? "ring-2 ring-teal-500 ring-offset-2"
+                : ""
+                } transform hover:scale-[1.01]`}
               onClick={() => handleCardClick("all")}
             >
               <CardContent className="p-4 flex items-center">
@@ -2857,77 +2893,77 @@ const ChlorineDashboard: React.FC = () => {
             {(commissionedFilter !== "all" ||
               fullyCompletedFilter !== "all" ||
               schemeStatusFilter !== "all") && (
-              <div className="flex flex-wrap gap-2 text-sm">
-                {commissionedFilter !== "all" && (
-                  <div className="border px-3 py-1 rounded-full bg-blue-50 text-blue-700 font-medium">
-                    {commissionedFilter === "Yes"
-                      ? "Commissioned"
-                      : commissionedFilter === "Water Supply"
-                        ? "Water Supply"
-                        : "Not Commissioned"}
-                    :
-                    <span className="font-bold ml-1">
-                      {
-                        filteredData.filter((item) => {
-                          const status = schemeStatusData?.find(
-                            (s) => s.scheme_id === item.scheme_id,
-                          );
-                          return (
-                            status &&
-                            status.mjp_commissioned === commissionedFilter
-                          );
-                        }).length
-                      }
-                    </span>
-                  </div>
-                )}
+                <div className="flex flex-wrap gap-2 text-sm">
+                  {commissionedFilter !== "all" && (
+                    <div className="border px-3 py-1 rounded-full bg-blue-50 text-blue-700 font-medium">
+                      {commissionedFilter === "Yes"
+                        ? "Commissioned"
+                        : commissionedFilter === "Water Supply"
+                          ? "Water Supply"
+                          : "Not Commissioned"}
+                      :
+                      <span className="font-bold ml-1">
+                        {
+                          filteredData.filter((item) => {
+                            const status = schemeStatusData?.find(
+                              (s) => s.scheme_id === item.scheme_id,
+                            );
+                            return (
+                              status &&
+                              status.mjp_commissioned === commissionedFilter
+                            );
+                          }).length
+                        }
+                      </span>
+                    </div>
+                  )}
 
-                {fullyCompletedFilter !== "all" && (
-                  <div className="border px-3 py-1 rounded-full bg-green-50 text-green-700 font-medium">
-                    {fullyCompletedFilter}:
-                    <span className="font-bold ml-1">
-                      {
-                        filteredData.filter((item) => {
-                          const status = schemeStatusData?.find(
-                            (s) => s.scheme_id === item.scheme_id,
-                          );
-                          return (
-                            status &&
-                            status.mjp_fully_completed === fullyCompletedFilter
-                          );
-                        }).length
-                      }
-                    </span>
-                  </div>
-                )}
+                  {fullyCompletedFilter !== "all" && (
+                    <div className="border px-3 py-1 rounded-full bg-green-50 text-green-700 font-medium">
+                      {fullyCompletedFilter}:
+                      <span className="font-bold ml-1">
+                        {
+                          filteredData.filter((item) => {
+                            const status = schemeStatusData?.find(
+                              (s) => s.scheme_id === item.scheme_id,
+                            );
+                            return (
+                              status &&
+                              status.mjp_fully_completed === fullyCompletedFilter
+                            );
+                          }).length
+                        }
+                      </span>
+                    </div>
+                  )}
 
-                {schemeStatusFilter !== "all" && (
-                  <div className="border px-3 py-1 rounded-full bg-purple-50 text-purple-700 font-medium">
-                    {schemeStatusFilter === "Connected"
-                      ? "Connected"
-                      : schemeStatusFilter}
-                    :
-                    <span className="font-bold ml-1">
-                      {
-                        filteredData.filter((item) => {
-                          const status = schemeStatusData?.find(
-                            (s) => s.scheme_id === item.scheme_id,
-                          );
-                          return (
-                            status &&
-                            (schemeStatusFilter === "Connected"
-                              ? status.fully_completion_scheme_status !==
+                  {schemeStatusFilter !== "all" && (
+                    <div className="border px-3 py-1 rounded-full bg-purple-50 text-purple-700 font-medium">
+                      {schemeStatusFilter === "Connected"
+                        ? "Connected"
+                        : schemeStatusFilter}
+                      :
+                      <span className="font-bold ml-1">
+                        {
+                          filteredData.filter((item) => {
+                            const status = schemeStatusData?.find(
+                              (s) => s.scheme_id === item.scheme_id,
+                            );
+                            return (
+                              status &&
+                              (schemeStatusFilter === "Connected"
+                                ? status.fully_completion_scheme_status !==
                                 "Not-Connected"
-                              : status.fully_completion_scheme_status ===
+                                : status.fully_completion_scheme_status ===
                                 schemeStatusFilter)
-                          );
-                        }).length
-                      }
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
+                            );
+                          }).length
+                        }
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -2963,8 +2999,8 @@ const ChlorineDashboard: React.FC = () => {
                           commissionedFilter !== "all" ||
                           fullyCompletedFilter !== "all" ||
                           schemeStatusFilter !== "all") && (
-                          <span className="ml-1">with applied filters</span>
-                        )}
+                            <span className="ml-1">with applied filters</span>
+                          )}
                       </div>
 
                       {/* Filter details */}
@@ -2984,7 +3020,7 @@ const ChlorineDashboard: React.FC = () => {
                                   return (
                                     status &&
                                     status.mjp_commissioned ===
-                                      commissionedFilter
+                                    commissionedFilter
                                   );
                                 }).length
                               }
@@ -3004,7 +3040,7 @@ const ChlorineDashboard: React.FC = () => {
                                   return (
                                     status &&
                                     status.mjp_fully_completed ===
-                                      fullyCompletedFilter
+                                    fullyCompletedFilter
                                   );
                                 }).length
                               }
@@ -3028,9 +3064,9 @@ const ChlorineDashboard: React.FC = () => {
                                     status &&
                                     (schemeStatusFilter === "Connected"
                                       ? status.fully_completion_scheme_status !==
-                                        "Not-Connected"
+                                      "Not-Connected"
                                       : status.fully_completion_scheme_status ===
-                                        schemeStatusFilter)
+                                      schemeStatusFilter)
                                   );
                                 }).length
                               }
@@ -3085,7 +3121,7 @@ const ChlorineDashboard: React.FC = () => {
                       for (const day of [7, 6, 5, 4, 3, 2, 1]) {
                         const dateValue =
                           item[
-                            `chlorine_date_day_${day}` as keyof ChlorineData
+                          `chlorine_date_day_${day}` as keyof ChlorineData
                           ];
                         if (dateValue) {
                           latestDate = dateValue;
@@ -3385,16 +3421,16 @@ const ChlorineDashboard: React.FC = () => {
                                           {[1, 2, 3, 4, 5, 6, 7].map((day) => {
                                             const value =
                                               selectedESR[
-                                                `chlorine_value_${day}` as keyof ChlorineData
+                                              `chlorine_value_${day}` as keyof ChlorineData
                                               ];
                                             const numValue =
                                               value !== undefined &&
-                                              value !== null
+                                                value !== null
                                                 ? Number(value)
                                                 : null;
                                             const dateValue =
                                               selectedESR[
-                                                `chlorine_date_day_${day}` as keyof ChlorineData
+                                              `chlorine_date_day_${day}` as keyof ChlorineData
                                               ];
                                             const {
                                               className: dayClassName,
@@ -3479,11 +3515,11 @@ const ChlorineDashboard: React.FC = () => {
                                                 ) {
                                                   const value =
                                                     selectedESR[
-                                                      `chlorine_value_${day}` as keyof ChlorineData
+                                                    `chlorine_value_${day}` as keyof ChlorineData
                                                     ];
                                                   const numValue =
                                                     value !== undefined &&
-                                                    value !== null
+                                                      value !== null
                                                       ? Number(value)
                                                       : null;
                                                   if (
@@ -3513,11 +3549,11 @@ const ChlorineDashboard: React.FC = () => {
                                                 ) {
                                                   const value =
                                                     selectedESR[
-                                                      `chlorine_value_${day}` as keyof ChlorineData
+                                                    `chlorine_value_${day}` as keyof ChlorineData
                                                     ];
                                                   const numValue =
                                                     value !== undefined &&
-                                                    value !== null
+                                                      value !== null
                                                       ? Number(value)
                                                       : null;
                                                   if (
@@ -3547,11 +3583,11 @@ const ChlorineDashboard: React.FC = () => {
                                                 ) {
                                                   const value =
                                                     selectedESR[
-                                                      `chlorine_value_${day}` as keyof ChlorineData
+                                                    `chlorine_value_${day}` as keyof ChlorineData
                                                     ];
                                                   const numValue =
                                                     value !== undefined &&
-                                                    value !== null
+                                                      value !== null
                                                       ? Number(value)
                                                       : null;
                                                   if (
@@ -3580,11 +3616,11 @@ const ChlorineDashboard: React.FC = () => {
                                                 ) {
                                                   const value =
                                                     selectedESR[
-                                                      `chlorine_value_${day}` as keyof ChlorineData
+                                                    `chlorine_value_${day}` as keyof ChlorineData
                                                     ];
                                                   const numValue =
                                                     value !== undefined &&
-                                                    value !== null
+                                                      value !== null
                                                       ? Number(value)
                                                       : null;
                                                   if (numValue === 0) {

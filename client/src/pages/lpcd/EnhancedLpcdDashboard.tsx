@@ -30,6 +30,7 @@ import { Label } from "@/components/ui/label";
 import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
 import { useComprehensiveActivityTracker } from "@/hooks/use-comprehensive-activity-tracker";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -154,6 +155,10 @@ const EnhancedLpcdDashboard = () => {
 
   // Filter state
   const [selectedRegion, setSelectedRegion] = useState<string>("all");
+  const [selectedCircle, setSelectedCircle] = useState<string>("all");
+  const [selectedDivision, setSelectedDivision] = useState<string>("all");
+  const [selectedSubdivision, setSelectedSubdivision] = useState<string>("all");
+  const [selectedBlock, setSelectedBlock] = useState<string>("all");
   const [currentFilter, setCurrentFilter] = useState<LpcdRange>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [commissionedFilter, setCommissionedFilter] = useState<string>("all");
@@ -226,6 +231,65 @@ const EnhancedLpcdDashboard = () => {
     trackPageVisit("Village LPCD Dashboard");
   }, [trackPageVisit]);
 
+  // Cascading Filter Handlers
+  const handleRegionChange = (value: string) => {
+    setSelectedRegion(value);
+    setSelectedCircle("all");
+    setSelectedDivision("all");
+    setSelectedSubdivision("all");
+    setSelectedBlock("all");
+    setPage(1);
+  };
+
+  const handleCircleChange = (value: string) => {
+    setSelectedCircle(value);
+    setSelectedDivision("all");
+    setSelectedSubdivision("all");
+    setSelectedBlock("all");
+    setPage(1);
+  };
+
+  const handleDivisionChange = (value: string) => {
+    setSelectedDivision(value);
+    setSelectedSubdivision("all");
+    setSelectedBlock("all");
+    setPage(1);
+  };
+
+  const handleSubdivisionChange = (value: string) => {
+    setSelectedSubdivision(value);
+    setSelectedBlock("all");
+    setPage(1);
+  };
+
+  const handleBlockChange = (value: string) => {
+    setSelectedBlock(value);
+    setPage(1);
+  };
+
+  // Fetch cascading filter options
+  const { data: filterOptions } = useQuery({
+    queryKey: [
+      "/api/schemes/filters",
+      selectedRegion,
+      selectedCircle,
+      selectedDivision,
+      selectedSubdivision,
+    ],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedRegion !== "all") params.append("region", selectedRegion);
+      if (selectedCircle !== "all") params.append("circle", selectedCircle);
+      if (selectedDivision !== "all") params.append("division", selectedDivision);
+      if (selectedSubdivision !== "all")
+        params.append("subdivision", selectedSubdivision);
+
+      const response = await fetch(`/api/schemes/filters?${params.toString()}`);
+      if (!response.ok) throw new Error("Failed to fetch filter options");
+      return response.json();
+    },
+  });
+
   // Fetch all water scheme data
   const {
     data: allWaterSchemeData = [],
@@ -233,12 +297,31 @@ const EnhancedLpcdDashboard = () => {
     error: schemesError,
     refetch,
   } = useQuery<WaterSchemeData[]>({
-    queryKey: ["/api/water-scheme-data", selectedRegion],
+    queryKey: [
+      "/api/water-scheme-data",
+      selectedRegion,
+      selectedCircle,
+      selectedDivision,
+      selectedSubdivision,
+      selectedBlock,
+    ],
     queryFn: async () => {
       const params = new URLSearchParams();
 
       if (selectedRegion && selectedRegion !== "all") {
         params.append("region", selectedRegion);
+      }
+      if (selectedCircle && selectedCircle !== "all") {
+        params.append("circle", selectedCircle);
+      }
+      if (selectedDivision && selectedDivision !== "all") {
+        params.append("division", selectedDivision);
+      }
+      if (selectedSubdivision && selectedSubdivision !== "all") {
+        params.append("subdivision", selectedSubdivision);
+      }
+      if (selectedBlock && selectedBlock !== "all") {
+        params.append("block", selectedBlock);
       }
 
       const queryString = params.toString();
@@ -263,8 +346,7 @@ const EnhancedLpcdDashboard = () => {
       const { region } = event.detail;
       console.log("Enhanced LPCD Dashboard received region filter:", region);
       const newRegion = region === "all" ? "all" : region;
-      setSelectedRegion(newRegion);
-      setPage(1);
+      handleRegionChange(newRegion);
     };
 
     const handleMjpCommissionedFilterChange = (event: CustomEvent) => {
@@ -304,16 +386,13 @@ const EnhancedLpcdDashboard = () => {
       setPage(1);
     };
 
-    // Add chatbot event handlers
     const handleChatbotRegionFilter = (event: CustomEvent) => {
       const { region } = event.detail;
       console.log(
         "Enhanced LPCD Dashboard received chatbot region filter:",
         region,
       );
-      const newRegion = region === "all" ? "all" : region;
-      setSelectedRegion(newRegion);
-      setPage(1);
+      handleRegionChange(region === "all" ? "all" : region);
     };
 
     const handleChatbotExcelExport = (event: CustomEvent) => {
@@ -406,7 +485,7 @@ const EnhancedLpcdDashboard = () => {
         (window as any).triggerDashboardExport = undefined;
       }
     };
-  }, [allWaterSchemeData, selectedRegion, currentFilter]);
+  }, [allWaterSchemeData, selectedRegion, selectedCircle, selectedDivision, selectedSubdivision, selectedBlock, currentFilter]);
 
   // Fetch region data
   const { data: regionsData = [], isLoading: isLoadingRegions } = useQuery<
@@ -1667,8 +1746,8 @@ const EnhancedLpcdDashboard = () => {
                       <div
                         key={`lpcd-day-${index + 1}`}
                         className={`p-3 rounded-md text-center ${value !== null
-                            ? getLpcdStatusColor(value)
-                            : "bg-gray-100"
+                          ? getLpcdStatusColor(value)
+                          : "bg-gray-100"
                           }`}
                       >
                         <p className="text-xs opacity-80">Day {item.day}</p>
@@ -1759,16 +1838,16 @@ const EnhancedLpcdDashboard = () => {
                   <CardContent className="p-4 text-center">
                     <p
                       className={`text-sm ${consistentZeroLpcd === 1
-                          ? "text-gray-300"
-                          : "text-gray-600"
+                        ? "text-gray-300"
+                        : "text-gray-600"
                         }`}
                     >
                       Zero Water for Week
                     </p>
                     <p
                       className={`text-2xl font-bold ${consistentZeroLpcd === 1
-                          ? "text-white"
-                          : "text-gray-600"
+                        ? "text-white"
+                        : "text-gray-600"
                         }`}
                     >
                       {consistentZeroLpcd === 1 ? "Yes" : "No"}
@@ -1792,6 +1871,23 @@ const EnhancedLpcdDashboard = () => {
           <p className="text-blue-700 font-medium mt-1">
             Monitor water supply across villages (Litres Per Capita per Day)
           </p>
+        </div>
+
+        {/* Global Geographic Filters */}
+        <div className="mb-6">
+          <GeographicalFilters
+            filters={filterOptions}
+            selectedRegion={selectedRegion}
+            selectedCircle={selectedCircle}
+            selectedDivision={selectedDivision}
+            selectedSubdivision={selectedSubdivision}
+            selectedBlock={selectedBlock}
+            onRegionChange={handleRegionChange}
+            onCircleChange={handleCircleChange}
+            onDivisionChange={handleDivisionChange}
+            onSubdivisionChange={handleSubdivisionChange}
+            onBlockChange={handleBlockChange}
+          />
         </div>
 
         {/* Filters and Actions */}
@@ -1818,147 +1914,126 @@ const EnhancedLpcdDashboard = () => {
             )}
           </div>
 
-          {/* Region Filter */}
-          <Select value={selectedRegion} onValueChange={setSelectedRegion}>
-            <SelectTrigger className="w-[180px] bg-white border border-blue-200 shadow-sm h-10 flex items-center">
-              <SelectValue placeholder="All Regions" />
+          {/* Commissioned Status Filter */}
+          <Select
+            value={commissionedFilter}
+            onValueChange={handleCommissionedFilterChange}
+          >
+            <SelectTrigger className="w-[160px] bg-white border border-blue-200 shadow-sm h-10 flex items-center">
+              <SelectValue placeholder="Commissioned Status" />
             </SelectTrigger>
             <SelectContent className="border border-blue-100">
-              <SelectItem value="all">All Regions</SelectItem>
-              {regionsData.map((region) => (
-                <SelectItem key={region.region_id} value={region.region_name}>
-                  {region.region_name}
-                </SelectItem>
-              ))}
+              <SelectItem value="all">Scheme Readiness</SelectItem>
+              <SelectItem value="Yes">Commissioned</SelectItem>
+              <SelectItem value="No">Not Commissioned</SelectItem>
+              <SelectItem value="Water Supply">Water Supply</SelectItem>
             </SelectContent>
           </Select>
 
-          {/* MJP Civil Status Filter Box - inline layout to match controls */}
-          <div className="border border-blue-200 p-3 rounded-lg shadow-sm bg-white flex items-center space-x-4">
-            <span className="text-blue-700 font-semibold">
-              MJP Civil Status
-            </span>
-            <div className="flex gap-2 items-center">
-              {/* Commissioned Status Filter */}
-              <Select
-                value={commissionedFilter}
-                onValueChange={handleCommissionedFilterChange}
-              >
-                <SelectTrigger className="w-[160px] bg-white border border-blue-200 shadow-sm h-10 flex items-center">
-                  <SelectValue placeholder="Commissioned Status" />
-                </SelectTrigger>
-                <SelectContent className="border border-blue-100">
-                  <SelectItem value="all">Scheme Readiness</SelectItem>
-                  <SelectItem value="Yes">Commissioned</SelectItem>
-                  <SelectItem value="No">Not Commissioned</SelectItem>
-                  <SelectItem value="Water Supply">Water Supply</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* MJP Fully Completed Filter */}
-              <Select
-                value={fullyCompletedFilter}
-                onValueChange={handleFullyCompletedFilterChange}
+          {/* MJP Fully Completed Filter */}
+          <Select
+            value={fullyCompletedFilter}
+            onValueChange={handleFullyCompletedFilterChange}
+            disabled={commissionedFilter === "No"}
+          >
+            <SelectTrigger className="w-[160px] bg-white border border-blue-200 shadow-sm h-10 flex items-center">
+              <SelectValue placeholder="Completion Status" />
+            </SelectTrigger>
+            <SelectContent className="border border-blue-100">
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem
+                value="Fully Completed"
                 disabled={commissionedFilter === "No"}
               >
-                <SelectTrigger className="w-[160px] bg-white border border-blue-200 shadow-sm h-10 flex items-center">
-                  <SelectValue placeholder="Completion Status" />
-                </SelectTrigger>
-                <SelectContent className="border border-blue-100">
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem
-                    value="Fully Completed"
-                    disabled={commissionedFilter === "No"}
-                  >
-                    Fully Completed
-                  </SelectItem>
-                  <SelectItem value="In Progress">In Progress</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* IoT Status Filter */}
-          <Select
-            value={schemeStatusFilter}
-            onValueChange={handleSchemeStatusFilterChange}
-          >
-            <SelectTrigger className="w-[180px] bg-white border border-blue-200 shadow-sm">
-              <SelectValue placeholder="IoT Status" />
-            </SelectTrigger>
-            <SelectContent className="border border-blue-100">
-              <SelectItem value="all">All IoT Status</SelectItem>
-              <SelectItem value="Connected">Connected</SelectItem>
-              <SelectItem value="Fully Completed">Fully Completed</SelectItem>
+                Fully Completed
+              </SelectItem>
               <SelectItem value="In Progress">In Progress</SelectItem>
-              <SelectItem value="Not-Connected">Not Connected</SelectItem>
             </SelectContent>
           </Select>
-
-          {/* Historical Data Toggle */}
-          <Button
-            variant={showHistoricalData ? "default" : "outline"}
-            size="sm"
-            onClick={() => {
-              setShowHistoricalData(!showHistoricalData);
-              if (!showHistoricalData) {
-                trackFilterUsage("Historical Data View", "enabled");
-              }
-            }}
-            className="flex items-center gap-2"
-          >
-            <History className="h-4 w-4" />
-            {showHistoricalData ? "Current Data" : "Historical Data"}
-          </Button>
-
-          {/* Action Buttons */}
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => refetch()}
-              title="Refresh data"
-              className="border-blue-200 shadow-sm text-blue-700 hover:bg-blue-50"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={exportToExcel}
-              title="Export to Excel"
-              className="border-blue-200 shadow-sm text-blue-700 hover:bg-blue-50"
-            >
-              <FileSpreadsheet className="h-4 w-4" />
-            </Button>
-            <Button
-              onClick={() => setShowHistoricalData(!showHistoricalData)}
-              variant={showHistoricalData ? "default" : "outline"}
-              className="flex items-center gap-2"
-            >
-              <History className="h-4 w-4" />
-              {showHistoricalData ? "Current Data" : "Historical Data"}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setShowCharts(!showCharts)}
-              className="border-blue-200 shadow-sm text-blue-700 hover:bg-blue-50"
-            >
-              {showCharts ? (
-                <>
-                  <ChartBarOff className="h-4 w-4 mr-2" /> Hide Charts
-                </>
-              ) : (
-                <>
-                  <BarChart3 className="h-4 w-4 mr-2" /> Show Charts
-                </>
-              )}
-            </Button>
-          </div>
         </div>
+      </div>
 
-        {/* Historical Data Date Selection */}
-        {showHistoricalData && (
+      {/* IoT Status Filter */}
+      <Select
+        value={schemeStatusFilter}
+        onValueChange={handleSchemeStatusFilterChange}
+      >
+        <SelectTrigger className="w-[180px] bg-white border border-blue-200 shadow-sm">
+          <SelectValue placeholder="IoT Status" />
+        </SelectTrigger>
+        <SelectContent className="border border-blue-100">
+          <SelectItem value="all">All IoT Status</SelectItem>
+          <SelectItem value="Connected">Connected</SelectItem>
+          <SelectItem value="Fully Completed">Fully Completed</SelectItem>
+          <SelectItem value="In Progress">In Progress</SelectItem>
+          <SelectItem value="Not-Connected">Not Connected</SelectItem>
+        </SelectContent>
+      </Select>
+
+      {/* Historical Data Toggle */}
+      <Button
+        variant={showHistoricalData ? "default" : "outline"}
+        size="sm"
+        onClick={() => {
+          setShowHistoricalData(!showHistoricalData);
+          if (!showHistoricalData) {
+            trackFilterUsage("Historical Data View", "enabled");
+          }
+        }}
+        className="flex items-center gap-2"
+      >
+        <History className="h-4 w-4" />
+        {showHistoricalData ? "Current Data" : "Historical Data"}
+      </Button>
+
+      {/* Action Buttons */}
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => refetch()}
+          title="Refresh data"
+          className="border-blue-200 shadow-sm text-blue-700 hover:bg-blue-50"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={exportToExcel}
+          title="Export to Excel"
+          className="border-blue-200 shadow-sm text-blue-700 hover:bg-blue-50"
+        >
+          <FileSpreadsheet className="h-4 w-4" />
+        </Button>
+        <Button
+          onClick={() => setShowHistoricalData(!showHistoricalData)}
+          variant={showHistoricalData ? "default" : "outline"}
+          className="flex items-center gap-2"
+        >
+          <History className="h-4 w-4" />
+          {showHistoricalData ? "Current Data" : "Historical Data"}
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => setShowCharts(!showCharts)}
+          className="border-blue-200 shadow-sm text-blue-700 hover:bg-blue-50"
+        >
+          {showCharts ? (
+            <>
+              <ChartBarOff className="h-4 w-4 mr-2" /> Hide Charts
+            </>
+          ) : (
+            <>
+              <BarChart3 className="h-4 w-4 mr-2" /> Show Charts
+            </>
+          )}
+        </Button>
+      </div>
+
+      {/* Historical Data Date Selection */}
+      {
+        showHistoricalData && (
           <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
@@ -2040,8 +2115,8 @@ const EnhancedLpcdDashboard = () => {
                   variant="default"
                   size="sm"
                   className={`flex items-center gap-2 mt-4 md:mt-0 transition-all ${historicalRecordCount > 0
-                      ? "bg-green-600 hover:bg-green-700 shadow-lg scale-105"
-                      : "bg-blue-600 hover:bg-blue-700"
+                    ? "bg-green-600 hover:bg-green-700 shadow-lg scale-105"
+                    : "bg-blue-600 hover:bg-blue-700"
                     }`}
                   disabled={
                     isCountingRecords ||
@@ -2091,7 +2166,7 @@ const EnhancedLpcdDashboard = () => {
                     historical records
                   </span>
                   <span className="text-green-600 ml-2">
-                    ({lastQueriedDates.start} to {lastQueriedDates.end})
+                    ({lastQueriedDates?.start} to {lastQueriedDates?.end})
                   </span>
                   <span className="text-green-600 ml-2 block mt-1">
                     Click the highlighted "Export to Excel" button to download
@@ -2119,747 +2194,749 @@ const EnhancedLpcdDashboard = () => {
                 </div>
               )}
           </div>
-        )}
-      </div>
+        )
+      }
 
       {/* Village details dialog */}
-      <VillageDetailsDialog />
+      < VillageDetailsDialog />
 
-      {isLoadingSchemes || isLoadingRegions ? (
-        <div className="flex justify-center items-center h-[400px]">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-        </div>
-      ) : (
-        <>
-          {/* Main Dashboard Grid */}
-          <div className="space-y-6">
-            {/* Top Card - Total Villages */}
-            <Card
-              className="w-full max-w-md mx-auto cursor-pointer transition-all duration-300 transform hover:scale-[1.02] dashboard-card bg-gradient-to-b from-white to-blue-50 border border-blue-200 rounded-2xl shadow-lg"
-              onClick={() => {
-                setCurrentFilter("all");
-                setSearchQuery("");
-              }}
-            >
-              <CardHeader className="bg-gradient-to-r from-blue-100 to-blue-50 border-b border-blue-200 rounded-t-2xl pb-3">
-                <CardTitle className="text-center text-2xl font-bold text-blue-900 tracking-wide">
-                  Total Villages Covered Under LPCD
-                </CardTitle>
-              </CardHeader>
+      {
+        isLoadingSchemes || isLoadingRegions ? (
+          <div className="flex justify-center items-center h-[400px]">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+          </div>
+        ) : (
+          <>
+            {/* Main Dashboard Grid */}
+            <div className="space-y-6">
+              {/* Top Card - Total Villages */}
+              <Card
+                className="w-full max-w-md mx-auto cursor-pointer transition-all duration-300 transform hover:scale-[1.02] dashboard-card bg-gradient-to-b from-white to-blue-50 border border-blue-200 rounded-2xl shadow-lg"
+                onClick={() => {
+                  setCurrentFilter("all");
+                  setSearchQuery("");
+                }}
+              >
+                <CardHeader className="bg-gradient-to-r from-blue-100 to-blue-50 border-b border-blue-200 rounded-t-2xl pb-3">
+                  <CardTitle className="text-center text-2xl font-bold text-blue-900 tracking-wide">
+                    Total Villages Covered Under LPCD
+                  </CardTitle>
+                </CardHeader>
 
-              <CardContent className="pt-8 pb-6">
-                <p className="text-6xl font-extrabold text-center text-blue-700 drop-shadow-sm">
-                  {filterCounts.total}
-                </p>
+                <CardContent className="pt-8 pb-6">
+                  <p className="text-6xl font-extrabold text-center text-blue-700 drop-shadow-sm">
+                    {filterCounts.total}
+                  </p>
 
-                <div className="flex justify-center mt-6">
-                  <div className="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-5 py-2.5 rounded-full shadow-md">
-                    <span className="font-medium">Total Population: </span>
+                  <div className="flex justify-center mt-6">
+                    <div className="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-5 py-2.5 rounded-full shadow-md">
+                      <span className="font-medium">Total Population: </span>
+                      <span className="font-bold">
+                        {filterCounts.totalPopulation.toLocaleString("en-IN")}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="text-center mt-6 text-blue-800">
+                    <span className="font-medium">
+                      Population Receiving Water Supply:
+                    </span>{" "}
                     <span className="font-bold">
-                      {filterCounts.totalPopulation.toLocaleString("en-IN")}
+                      {(() => {
+                        const noSupplyVillages =
+                          getGloballyFilteredSchemes().filter((scheme) =>
+                            hasNoCurrentWaterSupply(scheme),
+                          );
+                        const suppliedPopulation =
+                          filterCounts.totalPopulation -
+                          noSupplyVillages.reduce(
+                            (sum, village) =>
+                              sum +
+                              (village.population
+                                ? Number(village.population)
+                                : 0),
+                            0,
+                          );
+                        return suppliedPopulation.toLocaleString("en-IN");
+                      })()}
                     </span>
                   </div>
-                </div>
-
-                <div className="text-center mt-6 text-blue-800">
-                  <span className="font-medium">
-                    Population Receiving Water Supply:
-                  </span>{" "}
-                  <span className="font-bold">
-                    {(() => {
-                      const noSupplyVillages =
-                        getGloballyFilteredSchemes().filter((scheme) =>
-                          hasNoCurrentWaterSupply(scheme),
-                        );
-                      const suppliedPopulation =
-                        filterCounts.totalPopulation -
-                        noSupplyVillages.reduce(
-                          (sum, village) =>
-                            sum +
-                            (village.population
-                              ? Number(village.population)
-                              : 0),
-                          0,
-                        );
-                      return suppliedPopulation.toLocaleString("en-IN");
-                    })()}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Main Cards Row - LPCD Categories */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Villages with LPCD > 55L */}
-              <Card className="border-green-200 dashboard-card card-shadow bg-gradient-to-b from-white to-green-50">
-                <CardHeader className="bg-gradient-to-r from-green-100 to-green-50 border-b border-green-200 pb-2">
-                  <CardTitle className="text-center text-xl font-semibold text-green-800">
-                    Villages with LPCD &gt; 55L
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-6 pb-4">
-                  <p className="text-5xl font-bold text-center text-green-600 drop-shadow-sm">
-                    {filterCounts.above55}
-                  </p>
-                  <div className="flex justify-center mt-4">
-                    <div className="bg-green-100 text-green-800 px-4 py-2 rounded-lg shadow-sm border border-green-200">
-                      <span className="font-medium">Population:</span>{" "}
-                      <span className="font-bold">
-                        {filterCounts.above55Population.toLocaleString("en-IN")}
-                      </span>
-                    </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    className="w-full mt-6 text-green-700 hover:text-green-800 hover:bg-green-100 border border-green-300 shadow-sm"
-                    onClick={() => handleFilterChange("above55")}
-                  >
-                    <Eye className="h-4 w-4 mr-2" /> View Villages
-                  </Button>
                 </CardContent>
-
-                {/* Subcategory cards for LPCD > 55L */}
-                {showCharts && (
-                  <CardFooter className="pt-0 pb-4">
-                    <div className="w-full grid grid-cols-1 gap-2">
-                      <Card
-                        className="border-green-100"
-                        onClick={() => handleFilterChange("55to60")}
-                      >
-                        <CardContent className="p-3 flex justify-between items-center cursor-pointer hover:bg-green-50">
-                          <span className="text-sm text-green-700">
-                            LPCD 55-60L
-                          </span>
-                          <span className="font-medium text-green-700">
-                            {filterCounts.ranges["55to60"]}
-                          </span>
-                        </CardContent>
-                      </Card>
-                      <Card
-                        className="border-green-100"
-                        onClick={() => handleFilterChange("60to65")}
-                      >
-                        <CardContent className="p-3 flex justify-between items-center cursor-pointer hover:bg-green-50">
-                          <span className="text-sm text-green-700">
-                            LPCD 60-65L
-                          </span>
-                          <span className="font-medium text-green-700">
-                            {filterCounts.ranges["60to65"]}
-                          </span>
-                        </CardContent>
-                      </Card>
-                      <Card
-                        className="border-green-100"
-                        onClick={() => handleFilterChange("65to70")}
-                      >
-                        <CardContent className="p-3 flex justify-between items-center cursor-pointer hover:bg-green-50">
-                          <span className="text-sm text-green-700">
-                            LPCD 65-70L
-                          </span>
-                          <span className="font-medium text-green-700">
-                            {filterCounts.ranges["65to70"]}
-                          </span>
-                        </CardContent>
-                      </Card>
-                      <Card
-                        className="border-green-100"
-                        onClick={() => handleFilterChange("70to75")}
-                      >
-                        <CardContent className="p-3 flex justify-between items-center cursor-pointer hover:bg-green-50">
-                          <span className="text-sm text-green-700">
-                            LPCD 70-75L
-                          </span>
-                          <span className="font-medium text-green-700">
-                            {filterCounts.ranges["70to75"]}
-                          </span>
-                        </CardContent>
-                      </Card>
-                      <Card
-                        className="border-green-100"
-                        onClick={() => handleFilterChange("75to80")}
-                      >
-                        <CardContent className="p-3 flex justify-between items-center cursor-pointer hover:bg-green-50">
-                          <span className="text-sm text-green-700">
-                            LPCD 75-80L
-                          </span>
-                          <span className="font-medium text-green-700">
-                            {filterCounts.ranges["75to80"]}
-                          </span>
-                        </CardContent>
-                      </Card>
-                      <Card
-                        className="border-orange-100 rounded-lg overflow-hidden"
-                        onClick={() => handleFilterChange("above80")}
-                      >
-                        <CardContent className="p-3 flex justify-between items-center cursor-pointer bg-orange-500">
-                          <span className="text-sm text-green-700">
-                            LPCD &gt; 80L
-                          </span>
-                          <span className="font-medium text-green-700">
-                            {filterCounts.ranges["above80"]}
-                          </span>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </CardFooter>
-                )}
               </Card>
 
-              {/* Villages with LPCD < 55L (but > 0) */}
-              <Card className="border-yellow-200 dashboard-card card-shadow bg-gradient-to-b from-white to-yellow-50">
-                <CardHeader className="bg-gradient-to-r from-yellow-100 to-yellow-50 border-b border-yellow-200 pb-2">
-                  <CardTitle className="text-center text-xl font-semibold text-yellow-800">
-                    Villages with LPCD &lt; 55L
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-6 pb-4">
-                  <p className="text-5xl font-bold text-center text-yellow-600 drop-shadow-sm">
-                    {(() => {
-                      // Calculate villages with LPCD < 55 but > 0 (excluding zero supply)
-                      const below55ExcludingZero =
-                        getGloballyFilteredSchemes().filter((scheme) => {
-                          const lpcd = getLatestLpcdValue(scheme);
-                          return lpcd !== null && lpcd > 0 && lpcd < 55;
-                        });
-                      return below55ExcludingZero.length;
-                    })()}
-                  </p>
-                  <div className="flex justify-center mt-4">
-                    <div className="bg-yellow-100 text-yellow-800 px-4 py-2 rounded-lg shadow-sm border border-yellow-200">
-                      <span className="font-medium">Population:</span>{" "}
-                      <span className="font-bold">
-                        {(() => {
-                          const below55ExcludingZero =
-                            getGloballyFilteredSchemes().filter((scheme) => {
-                              const lpcd = getLatestLpcdValue(scheme);
-                              return lpcd !== null && lpcd > 0 && lpcd < 55;
-                            });
-                          const population = below55ExcludingZero.reduce(
-                            (sum, scheme) =>
-                              sum +
-                              (scheme.population
-                                ? Number(scheme.population)
-                                : 0),
-                            0,
-                          );
-                          return population.toLocaleString("en-IN");
-                        })()}
-                      </span>
+              {/* Main Cards Row - LPCD Categories */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Villages with LPCD > 55L */}
+                <Card className="border-green-200 dashboard-card card-shadow bg-gradient-to-b from-white to-green-50">
+                  <CardHeader className="bg-gradient-to-r from-green-100 to-green-50 border-b border-green-200 pb-2">
+                    <CardTitle className="text-center text-xl font-semibold text-green-800">
+                      Villages with LPCD &gt; 55L
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-6 pb-4">
+                    <p className="text-5xl font-bold text-center text-green-600 drop-shadow-sm">
+                      {filterCounts.above55}
+                    </p>
+                    <div className="flex justify-center mt-4">
+                      <div className="bg-green-100 text-green-800 px-4 py-2 rounded-lg shadow-sm border border-green-200">
+                        <span className="font-medium">Population:</span>{" "}
+                        <span className="font-bold">
+                          {filterCounts.above55Population.toLocaleString("en-IN")}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    className="w-full mt-6 text-yellow-700 hover:text-yellow-800 hover:bg-yellow-100 border border-yellow-300 shadow-sm"
-                    onClick={() => handleFilterChange("below55")}
-                  >
-                    <Eye className="h-4 w-4 mr-2" /> View Villages
-                  </Button>
-                </CardContent>
+                    <Button
+                      variant="outline"
+                      className="w-full mt-6 text-green-700 hover:text-green-800 hover:bg-green-100 border border-green-300 shadow-sm"
+                      onClick={() => handleFilterChange("above55")}
+                    >
+                      <Eye className="h-4 w-4 mr-2" /> View Villages
+                    </Button>
+                  </CardContent>
 
-                {/* Subcategory cards for LPCD < 55L */}
-                {showCharts && (
-                  <CardFooter className="pt-0 pb-4">
-                    <div className="w-full grid grid-cols-1 gap-2">
-                      <Card
-                        className="border border-red-300 bg-red-50 hover:bg-red-100 transition"
-                        onClick={() => handleFilterChange("noSupply")}
-                      >
-                        <CardContent className="p-3 flex justify-between items-center cursor-pointer">
-                          <span className="text-sm text-[#8B0000]">
-                            No Water Supply for Village
-                          </span>
+                  {/* Subcategory cards for LPCD > 55L */}
+                  {showCharts && (
+                    <CardFooter className="pt-0 pb-4">
+                      <div className="w-full grid grid-cols-1 gap-2">
+                        <Card
+                          className="border-green-100"
+                          onClick={() => handleFilterChange("55to60")}
+                        >
+                          <CardContent className="p-3 flex justify-between items-center cursor-pointer hover:bg-green-50">
+                            <span className="text-sm text-green-700">
+                              LPCD 55-60L
+                            </span>
+                            <span className="font-medium text-green-700">
+                              {filterCounts.ranges["55to60"]}
+                            </span>
+                          </CardContent>
+                        </Card>
+                        <Card
+                          className="border-green-100"
+                          onClick={() => handleFilterChange("60to65")}
+                        >
+                          <CardContent className="p-3 flex justify-between items-center cursor-pointer hover:bg-green-50">
+                            <span className="text-sm text-green-700">
+                              LPCD 60-65L
+                            </span>
+                            <span className="font-medium text-green-700">
+                              {filterCounts.ranges["60to65"]}
+                            </span>
+                          </CardContent>
+                        </Card>
+                        <Card
+                          className="border-green-100"
+                          onClick={() => handleFilterChange("65to70")}
+                        >
+                          <CardContent className="p-3 flex justify-between items-center cursor-pointer hover:bg-green-50">
+                            <span className="text-sm text-green-700">
+                              LPCD 65-70L
+                            </span>
+                            <span className="font-medium text-green-700">
+                              {filterCounts.ranges["65to70"]}
+                            </span>
+                          </CardContent>
+                        </Card>
+                        <Card
+                          className="border-green-100"
+                          onClick={() => handleFilterChange("70to75")}
+                        >
+                          <CardContent className="p-3 flex justify-between items-center cursor-pointer hover:bg-green-50">
+                            <span className="text-sm text-green-700">
+                              LPCD 70-75L
+                            </span>
+                            <span className="font-medium text-green-700">
+                              {filterCounts.ranges["70to75"]}
+                            </span>
+                          </CardContent>
+                        </Card>
+                        <Card
+                          className="border-green-100"
+                          onClick={() => handleFilterChange("75to80")}
+                        >
+                          <CardContent className="p-3 flex justify-between items-center cursor-pointer hover:bg-green-50">
+                            <span className="text-sm text-green-700">
+                              LPCD 75-80L
+                            </span>
+                            <span className="font-medium text-green-700">
+                              {filterCounts.ranges["75to80"]}
+                            </span>
+                          </CardContent>
+                        </Card>
+                        <Card
+                          className="border-orange-100 rounded-lg overflow-hidden"
+                          onClick={() => handleFilterChange("above80")}
+                        >
+                          <CardContent className="p-3 flex justify-between items-center cursor-pointer bg-orange-500">
+                            <span className="text-sm text-green-700">
+                              LPCD &gt; 80L
+                            </span>
+                            <span className="font-medium text-green-700">
+                              {filterCounts.ranges["above80"]}
+                            </span>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </CardFooter>
+                  )}
+                </Card>
 
-                          <span className="font-medium text-red-900">
-                            {(() => {
-                              const noSupplyVillages =
-                                getGloballyFilteredSchemes().filter((scheme) =>
-                                  hasNoCurrentWaterSupply(scheme),
-                                );
-                              const totalPopulation = noSupplyVillages.reduce(
-                                (sum, village) =>
-                                  sum +
-                                  (village.population
-                                    ? Number(village.population)
-                                    : 0),
-                                0,
-                              );
-                              return `${noSupplyVillages.length
-                                } (Pop: ${totalPopulation.toLocaleString(
-                                  "en-IN",
-                                )})`;
-                            })()}
-                          </span>
-                        </CardContent>
-                      </Card>
-
-                      <Card
-                        className="border-red-100"
-                        onClick={() => handleFilterChange("45to55")}
-                      >
-                        <CardContent className="p-3 flex justify-between items-center cursor-pointer hover:bg-red-50">
-                          <span className="text-sm text-red-700">
-                            LPCD 45-55L
-                          </span>
-                          <span className="font-medium text-red-700">
-                            {filterCounts.ranges["45to55"]}
-                          </span>
-                        </CardContent>
-                      </Card>
-                      <Card
-                        className="border-red-100"
-                        onClick={() => handleFilterChange("35to45")}
-                      >
-                        <CardContent className="p-3 flex justify-between items-center cursor-pointer hover:bg-red-50">
-                          <span className="text-sm text-red-700">
-                            LPCD 35-45L
-                          </span>
-                          <span className="font-medium text-red-700">
-                            {filterCounts.ranges["35to45"]}
-                          </span>
-                        </CardContent>
-                      </Card>
-                      <Card
-                        className="border-red-100"
-                        onClick={() => handleFilterChange("25to35")}
-                      >
-                        <CardContent className="p-3 flex justify-between items-center cursor-pointer hover:bg-red-50">
-                          <span className="text-sm text-red-700">
-                            LPCD 25-35L
-                          </span>
-                          <span className="font-medium text-red-700">
-                            {filterCounts.ranges["25to35"]}
-                          </span>
-                        </CardContent>
-                      </Card>
-                      <Card
-                        className="border-red-100"
-                        onClick={() => handleFilterChange("15to25")}
-                      >
-                        <CardContent className="p-3 flex justify-between items-center cursor-pointer hover:bg-red-50">
-                          <span className="text-sm text-red-700">
-                            LPCD 15-25L
-                          </span>
-                          <span className="font-medium text-red-700">
-                            {filterCounts.ranges["15to25"]}
-                          </span>
-                        </CardContent>
-                      </Card>
-                      <Card
-                        className="border-red-100"
-                        onClick={() => handleFilterChange("0to15")}
-                      >
-                        <CardContent className="p-3 flex justify-between items-center cursor-pointer hover:bg-red-50">
-                          <span className="text-sm text-red-700">
-                            LPCD 0-15L
-                          </span>
-                          <span className="font-medium text-red-700">
-                            {filterCounts.ranges["0to15"]}
-                          </span>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </CardFooter>
-                )}
-              </Card>
-
-              {/* No Water Supply for Village */}
-              <Card className="border-gray-200 dashboard-card card-shadow bg-gradient-to-b from-white to-gray-50">
-                <CardHeader className="bg-gradient-to-r from-gray-100 to-gray-50 border-b border-gray-200 pb-2">
-                  <CardTitle className="text-center text-xl font-semibold text-gray-800">
-                    No Water Supply for Village
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-6 pb-4">
-                  <p className="text-5xl font-bold text-center text-gray-600 drop-shadow-sm">
-                    {(() => {
-                      const noSupplyVillages =
-                        getGloballyFilteredSchemes().filter((scheme) =>
-                          hasNoCurrentWaterSupply(scheme),
-                        );
-                      return noSupplyVillages.length;
-                    })()}
-                  </p>
-                  <div className="flex justify-center mt-4">
-                    <div className="bg-gray-100 text-gray-800 px-4 py-2 rounded-lg shadow-sm border border-gray-200">
-                      <span className="font-medium">Population:</span>{" "}
-                      <span className="font-bold">
-                        {(() => {
-                          const noSupplyVillages =
-                            getGloballyFilteredSchemes().filter((scheme) =>
-                              hasNoCurrentWaterSupply(scheme),
+                {/* Villages with LPCD < 55L (but > 0) */}
+                <Card className="border-yellow-200 dashboard-card card-shadow bg-gradient-to-b from-white to-yellow-50">
+                  <CardHeader className="bg-gradient-to-r from-yellow-100 to-yellow-50 border-b border-yellow-200 pb-2">
+                    <CardTitle className="text-center text-xl font-semibold text-yellow-800">
+                      Villages with LPCD &lt; 55L
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-6 pb-4">
+                    <p className="text-5xl font-bold text-center text-yellow-600 drop-shadow-sm">
+                      {(() => {
+                        // Calculate villages with LPCD < 55 but > 0 (excluding zero supply)
+                        const below55ExcludingZero =
+                          getGloballyFilteredSchemes().filter((scheme) => {
+                            const lpcd = getLatestLpcdValue(scheme);
+                            return lpcd !== null && lpcd > 0 && lpcd < 55;
+                          });
+                        return below55ExcludingZero.length;
+                      })()}
+                    </p>
+                    <div className="flex justify-center mt-4">
+                      <div className="bg-yellow-100 text-yellow-800 px-4 py-2 rounded-lg shadow-sm border border-yellow-200">
+                        <span className="font-medium">Population:</span>{" "}
+                        <span className="font-bold">
+                          {(() => {
+                            const below55ExcludingZero =
+                              getGloballyFilteredSchemes().filter((scheme) => {
+                                const lpcd = getLatestLpcdValue(scheme);
+                                return lpcd !== null && lpcd > 0 && lpcd < 55;
+                              });
+                            const population = below55ExcludingZero.reduce(
+                              (sum, scheme) =>
+                                sum +
+                                (scheme.population
+                                  ? Number(scheme.population)
+                                  : 0),
+                              0,
                             );
-                          const population = noSupplyVillages.reduce(
-                            (sum, scheme) =>
-                              sum +
-                              (scheme.population
-                                ? Number(scheme.population)
-                                : 0),
-                            0,
+                            return population.toLocaleString("en-IN");
+                          })()}
+                        </span>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="w-full mt-6 text-yellow-700 hover:text-yellow-800 hover:bg-yellow-100 border border-yellow-300 shadow-sm"
+                      onClick={() => handleFilterChange("below55")}
+                    >
+                      <Eye className="h-4 w-4 mr-2" /> View Villages
+                    </Button>
+                  </CardContent>
+
+                  {/* Subcategory cards for LPCD < 55L */}
+                  {showCharts && (
+                    <CardFooter className="pt-0 pb-4">
+                      <div className="w-full grid grid-cols-1 gap-2">
+                        <Card
+                          className="border border-red-300 bg-red-50 hover:bg-red-100 transition"
+                          onClick={() => handleFilterChange("noSupply")}
+                        >
+                          <CardContent className="p-3 flex justify-between items-center cursor-pointer">
+                            <span className="text-sm text-[#8B0000]">
+                              No Water Supply for Village
+                            </span>
+
+                            <span className="font-medium text-red-900">
+                              {(() => {
+                                const noSupplyVillages =
+                                  getGloballyFilteredSchemes().filter((scheme) =>
+                                    hasNoCurrentWaterSupply(scheme),
+                                  );
+                                const totalPopulation = noSupplyVillages.reduce(
+                                  (sum, village) =>
+                                    sum +
+                                    (village.population
+                                      ? Number(village.population)
+                                      : 0),
+                                  0,
+                                );
+                                return `${noSupplyVillages.length
+                                  } (Pop: ${totalPopulation.toLocaleString(
+                                    "en-IN",
+                                  )})`;
+                              })()}
+                            </span>
+                          </CardContent>
+                        </Card>
+
+                        <Card
+                          className="border-red-100"
+                          onClick={() => handleFilterChange("45to55")}
+                        >
+                          <CardContent className="p-3 flex justify-between items-center cursor-pointer hover:bg-red-50">
+                            <span className="text-sm text-red-700">
+                              LPCD 45-55L
+                            </span>
+                            <span className="font-medium text-red-700">
+                              {filterCounts.ranges["45to55"]}
+                            </span>
+                          </CardContent>
+                        </Card>
+                        <Card
+                          className="border-red-100"
+                          onClick={() => handleFilterChange("35to45")}
+                        >
+                          <CardContent className="p-3 flex justify-between items-center cursor-pointer hover:bg-red-50">
+                            <span className="text-sm text-red-700">
+                              LPCD 35-45L
+                            </span>
+                            <span className="font-medium text-red-700">
+                              {filterCounts.ranges["35to45"]}
+                            </span>
+                          </CardContent>
+                        </Card>
+                        <Card
+                          className="border-red-100"
+                          onClick={() => handleFilterChange("25to35")}
+                        >
+                          <CardContent className="p-3 flex justify-between items-center cursor-pointer hover:bg-red-50">
+                            <span className="text-sm text-red-700">
+                              LPCD 25-35L
+                            </span>
+                            <span className="font-medium text-red-700">
+                              {filterCounts.ranges["25to35"]}
+                            </span>
+                          </CardContent>
+                        </Card>
+                        <Card
+                          className="border-red-100"
+                          onClick={() => handleFilterChange("15to25")}
+                        >
+                          <CardContent className="p-3 flex justify-between items-center cursor-pointer hover:bg-red-50">
+                            <span className="text-sm text-red-700">
+                              LPCD 15-25L
+                            </span>
+                            <span className="font-medium text-red-700">
+                              {filterCounts.ranges["15to25"]}
+                            </span>
+                          </CardContent>
+                        </Card>
+                        <Card
+                          className="border-red-100"
+                          onClick={() => handleFilterChange("0to15")}
+                        >
+                          <CardContent className="p-3 flex justify-between items-center cursor-pointer hover:bg-red-50">
+                            <span className="text-sm text-red-700">
+                              LPCD 0-15L
+                            </span>
+                            <span className="font-medium text-red-700">
+                              {filterCounts.ranges["0to15"]}
+                            </span>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </CardFooter>
+                  )}
+                </Card>
+
+                {/* No Water Supply for Village */}
+                <Card className="border-gray-200 dashboard-card card-shadow bg-gradient-to-b from-white to-gray-50">
+                  <CardHeader className="bg-gradient-to-r from-gray-100 to-gray-50 border-b border-gray-200 pb-2">
+                    <CardTitle className="text-center text-xl font-semibold text-gray-800">
+                      No Water Supply for Village
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-6 pb-4">
+                    <p className="text-5xl font-bold text-center text-gray-600 drop-shadow-sm">
+                      {(() => {
+                        const noSupplyVillages =
+                          getGloballyFilteredSchemes().filter((scheme) =>
+                            hasNoCurrentWaterSupply(scheme),
                           );
-                          return population.toLocaleString("en-IN");
-                        })()}
-                      </span>
+                        return noSupplyVillages.length;
+                      })()}
+                    </p>
+                    <div className="flex justify-center mt-4">
+                      <div className="bg-gray-100 text-gray-800 px-4 py-2 rounded-lg shadow-sm border border-gray-200">
+                        <span className="font-medium">Population:</span>{" "}
+                        <span className="font-bold">
+                          {(() => {
+                            const noSupplyVillages =
+                              getGloballyFilteredSchemes().filter((scheme) =>
+                                hasNoCurrentWaterSupply(scheme),
+                              );
+                            const population = noSupplyVillages.reduce(
+                              (sum, scheme) =>
+                                sum +
+                                (scheme.population
+                                  ? Number(scheme.population)
+                                  : 0),
+                              0,
+                            );
+                            return population.toLocaleString("en-IN");
+                          })()}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    className="w-full mt-6 text-gray-700 hover:text-gray-800 hover:bg-gray-100 border border-gray-300 shadow-sm"
-                    onClick={() => handleFilterChange("noSupply")}
-                  >
-                    <Eye className="h-4 w-4 mr-2" /> View Villages
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Bottom Cards Row - Consistent Trends */}
-            {showCharts && (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                {/* Consistently Above 55L LPCD */}
-                <Card
-                  className="border-blue-200 dashboard-card card-shadow bg-gradient-to-b from-white to-blue-50"
-                  onClick={() => handleFilterChange("consistentlyAbove55")}
-                >
-                  <CardContent className="p-5 flex items-center cursor-pointer hover:bg-blue-50 transition-all">
-                    <div className="bg-blue-100 p-3 rounded-full mr-4">
-                      <BarChart3 className="h-6 w-6 text-blue-700" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-blue-800 mb-1">
-                        Consistent High Performance
-                      </h3>
-                      <p className="text-blue-700 text-sm">
-                        Villages consistently above 55L LPCD for the week
-                      </p>
-                    </div>
-                    <div className="text-2xl font-bold text-blue-700 bg-blue-100 px-4 py-2 rounded-lg">
-                      {filterCounts.consistentlyAbove55}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Consistently Below 55L LPCD */}
-                <Card
-                  className="border-orange-200 dashboard-card card-shadow bg-gradient-to-b from-white to-orange-50"
-                  onClick={() => handleFilterChange("consistentlyBelow55")}
-                >
-                  <CardContent className="p-5 flex items-center cursor-pointer hover:bg-orange-50 transition-all">
-                    <div className="bg-orange-100 p-3 rounded-full mr-4">
-                      <ChartBarOff className="h-6 w-6 text-orange-700" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-orange-800 mb-1">
-                        Needs Improvement
-                      </h3>
-                      <p className="text-orange-700 text-sm">
-                        Villages consistently below 55L LPCD for the week
-                      </p>
-                    </div>
-                    <div className="text-2xl font-bold text-orange-700 bg-orange-100 px-4 py-2 rounded-lg">
-                      {filterCounts.consistentlyBelow55}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Consistent Zero Water Supply */}
-                <Card
-                  className="border-red-200 dashboard-card card-shadow bg-gradient-to-b from-white to-red-50"
-                  onClick={() =>
-                    handleFilterChange("consistentZeroWaterSupply")
-                  }
-                >
-                  <CardContent className="p-5 flex items-center cursor-pointer hover:bg-red-50 transition-all">
-                    <div className="bg-red-100 p-3 rounded-full mr-4">
-                      <Droplets className="h-6 w-6 text-red-700" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-red-800 mb-1">
-                        Zero Water Supply
-                      </h3>
-                      <p className="text-red-700 text-sm">
-                        Villages with zero water supply for entire week
-                      </p>
-                    </div>
-                    <div className="text-2xl font-bold text-red-700 bg-red-100 px-4 py-2 rounded-lg">
-                      {filterCounts.consistentZeroWaterSupply}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Consistent Water Supply */}
-                <Card
-                  className="border-green-200 dashboard-card card-shadow bg-gradient-to-b from-white to-green-50"
-                  onClick={() => handleFilterChange("consistentWaterSupply")}
-                >
-                  <CardContent className="p-5 flex items-center cursor-pointer hover:bg-green-50 transition-all">
-                    <div className="bg-green-100 p-3 rounded-full mr-4">
-                      <Droplets className="h-6 w-6 text-green-700" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-green-800 mb-1">
-                        CONSISTENT WATER supply
-                      </h3>
-                      <p className="text-green-700 text-sm">
-                        Villages with water supply for the entire week
-                      </p>
-                    </div>
-                    <div className="text-2xl font-bold text-green-700 bg-green-100 px-4 py-2 rounded-lg">
-                      {filterCounts.consistentWaterSupply}
-                    </div>
+                    <Button
+                      variant="outline"
+                      className="w-full mt-6 text-gray-700 hover:text-gray-800 hover:bg-gray-100 border border-gray-300 shadow-sm"
+                      onClick={() => handleFilterChange("noSupply")}
+                    >
+                      <Eye className="h-4 w-4 mr-2" /> View Villages
+                    </Button>
                   </CardContent>
                 </Card>
               </div>
-            )}
 
-            {/* Results Table */}
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>
-                    {currentFilter === "all"
-                      ? "All Villages"
-                      : `Filtered Villages (${filteredSchemes.length})`}
-                  </CardTitle>
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="itemsPerPage">Show</Label>
-                    <Select
-                      value={itemsPerPage.toString()}
-                      onValueChange={(value) => {
-                        setItemsPerPage(parseInt(value));
-                        setPage(1);
-                      }}
-                    >
-                      <SelectTrigger className="w-[80px]" id="itemsPerPage">
-                        <SelectValue placeholder="10" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="10">10</SelectItem>
-                        <SelectItem value="25">25</SelectItem>
-                        <SelectItem value="50">50</SelectItem>
-                        <SelectItem value="100">100</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <span className="ml-1">entries</span>
-                  </div>
+              {/* Bottom Cards Row - Consistent Trends */}
+              {showCharts && (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  {/* Consistently Above 55L LPCD */}
+                  <Card
+                    className="border-blue-200 dashboard-card card-shadow bg-gradient-to-b from-white to-blue-50"
+                    onClick={() => handleFilterChange("consistentlyAbove55")}
+                  >
+                    <CardContent className="p-5 flex items-center cursor-pointer hover:bg-blue-50 transition-all">
+                      <div className="bg-blue-100 p-3 rounded-full mr-4">
+                        <BarChart3 className="h-6 w-6 text-blue-700" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-blue-800 mb-1">
+                          Consistent High Performance
+                        </h3>
+                        <p className="text-blue-700 text-sm">
+                          Villages consistently above 55L LPCD for the week
+                        </p>
+                      </div>
+                      <div className="text-2xl font-bold text-blue-700 bg-blue-100 px-4 py-2 rounded-lg">
+                        {filterCounts.consistentlyAbove55}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Consistently Below 55L LPCD */}
+                  <Card
+                    className="border-orange-200 dashboard-card card-shadow bg-gradient-to-b from-white to-orange-50"
+                    onClick={() => handleFilterChange("consistentlyBelow55")}
+                  >
+                    <CardContent className="p-5 flex items-center cursor-pointer hover:bg-orange-50 transition-all">
+                      <div className="bg-orange-100 p-3 rounded-full mr-4">
+                        <ChartBarOff className="h-6 w-6 text-orange-700" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-orange-800 mb-1">
+                          Needs Improvement
+                        </h3>
+                        <p className="text-orange-700 text-sm">
+                          Villages consistently below 55L LPCD for the week
+                        </p>
+                      </div>
+                      <div className="text-2xl font-bold text-orange-700 bg-orange-100 px-4 py-2 rounded-lg">
+                        {filterCounts.consistentlyBelow55}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Consistent Zero Water Supply */}
+                  <Card
+                    className="border-red-200 dashboard-card card-shadow bg-gradient-to-b from-white to-red-50"
+                    onClick={() =>
+                      handleFilterChange("consistentZeroWaterSupply")
+                    }
+                  >
+                    <CardContent className="p-5 flex items-center cursor-pointer hover:bg-red-50 transition-all">
+                      <div className="bg-red-100 p-3 rounded-full mr-4">
+                        <Droplets className="h-6 w-6 text-red-700" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-red-800 mb-1">
+                          Zero Water Supply
+                        </h3>
+                        <p className="text-red-700 text-sm">
+                          Villages with zero water supply for entire week
+                        </p>
+                      </div>
+                      <div className="text-2xl font-bold text-red-700 bg-red-100 px-4 py-2 rounded-lg">
+                        {filterCounts.consistentZeroWaterSupply}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Consistent Water Supply */}
+                  <Card
+                    className="border-green-200 dashboard-card card-shadow bg-gradient-to-b from-white to-green-50"
+                    onClick={() => handleFilterChange("consistentWaterSupply")}
+                  >
+                    <CardContent className="p-5 flex items-center cursor-pointer hover:bg-green-50 transition-all">
+                      <div className="bg-green-100 p-3 rounded-full mr-4">
+                        <Droplets className="h-6 w-6 text-green-700" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-green-800 mb-1">
+                          CONSISTENT WATER supply
+                        </h3>
+                        <p className="text-green-700 text-sm">
+                          Villages with water supply for the entire week
+                        </p>
+                      </div>
+                      <div className="text-2xl font-bold text-green-700 bg-green-100 px-4 py-2 rounded-lg">
+                        {filterCounts.consistentWaterSupply}
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
-              </CardHeader>
-              <CardContent>
-                {filteredSchemes.length > 0 ? (
-                  <>
-                    <div className="rounded-md border border-blue-200 overflow-hidden shadow-sm">
-                      <Table className="border-collapse">
-                        <TableHeader>
-                          <TableRow className="bg-blue-600 hover:bg-blue-700">
-                            <TableHead className="w-[50px] text-white font-semibold">
-                              #
-                            </TableHead>
-                            <TableHead className="text-white font-semibold">
-                              Region
-                            </TableHead>
-                            <TableHead className="text-white font-semibold">
-                              Scheme Name
-                            </TableHead>
-                            <TableHead className="text-white font-semibold">
-                              Village
-                            </TableHead>
-                            <TableHead className="text-white font-semibold text-center">
-                              Population
-                            </TableHead>
-                            <TableHead className="text-white font-semibold text-center">
-                              Weekly Average Lpcd
-                            </TableHead>
-                            <TableHead className="text-white font-semibold">
-                              Current LPCD
-                            </TableHead>
-                            <TableHead className="text-white font-semibold">
-                              Status
-                            </TableHead>
-                            <TableHead className="w-[120px] text-white font-semibold">
-                              Actions
-                            </TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {paginatedSchemes.map((scheme, index) => {
-                            const lpcdValue = getLatestLpcdValue(scheme);
-                            const isEven = index % 2 === 0;
-                            return (
-                              <TableRow
-                                // IMPORTANT: Key includes block field to handle duplicate villages across blocks
-                                // This ensures proper React rendering when same village exists in multiple blocks
-                                // (e.g., Shivrai village in both Gangapur and Vaijapur blocks)
-                                key={`${scheme.scheme_id}-${scheme.village_name}-${scheme.block}`}
-                                className={`village-item ${isEven ? "bg-blue-50" : "bg-white"
-                                  } hover:bg-blue-100 transition-all`}
-                              >
-                                <TableCell className="font-medium border-b border-blue-200 text-center align-middle">
-                                  {(page - 1) * itemsPerPage + index + 1}
-                                </TableCell>
-                                <TableCell className="border-b border-blue-200 font-medium text-left align-middle">
-                                  {scheme.region}
-                                </TableCell>
-                                <TableCell className="border-b border-blue-200 text-left align-middle">
-                                  <div className="font-medium text-blue-800">
-                                    {scheme.scheme_name}
-                                  </div>
-                                  <div className="text-xs text-gray-500">
-                                    ID: {scheme.scheme_id}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="border-b border-blue-200 font-medium text-gray-800 text-left align-middle">
-                                  <div className="font-medium text-gray-800">
-                                    {scheme.village_name}
-                                  </div>
-                                  <div className="text-xs text-gray-500">
-                                    Block: {scheme.block}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="border-b border-blue-200 text-center font-mono font-medium align-middle">
-                                  {scheme.population?.toLocaleString("en-IN") ||
-                                    "N/A"}
-                                </TableCell>
+              )}
 
-                                <TableCell className="border-b border-blue-200 text-center align-middle">
-                                  <LpcdBadge
-                                    value={calculateWeeklyAverageLpcd(scheme)}
-                                  />
-                                </TableCell>
-                                <TableCell className="border-b border-blue-200 text-center align-middle">
-                                  <LpcdBadge value={lpcdValue} />
-                                </TableCell>
+              {/* Results Table */}
+              <Card>
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle>
+                      {currentFilter === "all"
+                        ? "All Villages"
+                        : `Filtered Villages (${filteredSchemes.length})`}
+                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="itemsPerPage">Show</Label>
+                      <Select
+                        value={itemsPerPage.toString()}
+                        onValueChange={(value) => {
+                          setItemsPerPage(parseInt(value));
+                          setPage(1);
+                        }}
+                      >
+                        <SelectTrigger className="w-[80px]" id="itemsPerPage">
+                          <SelectValue placeholder="10" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="25">25</SelectItem>
+                          <SelectItem value="50">50</SelectItem>
+                          <SelectItem value="100">100</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <span className="ml-1">entries</span>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {filteredSchemes.length > 0 ? (
+                    <>
+                      <div className="rounded-md border border-blue-200 overflow-hidden shadow-sm">
+                        <Table className="border-collapse">
+                          <TableHeader>
+                            <TableRow className="bg-blue-600 hover:bg-blue-700">
+                              <TableHead className="w-[50px] text-white font-semibold">
+                                #
+                              </TableHead>
+                              <TableHead className="text-white font-semibold">
+                                Region
+                              </TableHead>
+                              <TableHead className="text-white font-semibold">
+                                Scheme Name
+                              </TableHead>
+                              <TableHead className="text-white font-semibold">
+                                Village
+                              </TableHead>
+                              <TableHead className="text-white font-semibold text-center">
+                                Population
+                              </TableHead>
+                              <TableHead className="text-white font-semibold text-center">
+                                Weekly Average Lpcd
+                              </TableHead>
+                              <TableHead className="text-white font-semibold">
+                                Current LPCD
+                              </TableHead>
+                              <TableHead className="text-white font-semibold">
+                                Status
+                              </TableHead>
+                              <TableHead className="w-[120px] text-white font-semibold">
+                                Actions
+                              </TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {paginatedSchemes.map((scheme, index) => {
+                              const lpcdValue = getLatestLpcdValue(scheme);
+                              const isEven = index % 2 === 0;
+                              return (
+                                <TableRow
+                                  // IMPORTANT: Key includes block field to handle duplicate villages across blocks
+                                  // This ensures proper React rendering when same village exists in multiple blocks
+                                  // (e.g., Shivrai village in both Gangapur and Vaijapur blocks)
+                                  key={`${scheme.scheme_id}-${scheme.village_name}-${scheme.block}`}
+                                  className={`village-item ${isEven ? "bg-blue-50" : "bg-white"
+                                    } hover:bg-blue-100 transition-all`}
+                                >
+                                  <TableCell className="font-medium border-b border-blue-200 text-center align-middle">
+                                    {(page - 1) * itemsPerPage + index + 1}
+                                  </TableCell>
+                                  <TableCell className="border-b border-blue-200 font-medium text-left align-middle">
+                                    {scheme.region}
+                                  </TableCell>
+                                  <TableCell className="border-b border-blue-200 text-left align-middle">
+                                    <div className="font-medium text-blue-800">
+                                      {scheme.scheme_name}
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      ID: {scheme.scheme_id}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="border-b border-blue-200 font-medium text-gray-800 text-left align-middle">
+                                    <div className="font-medium text-gray-800">
+                                      {scheme.village_name}
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      Block: {scheme.block}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="border-b border-blue-200 text-center font-mono font-medium align-middle">
+                                    {scheme.population?.toLocaleString("en-IN") ||
+                                      "N/A"}
+                                  </TableCell>
 
-                                <TableCell className="border-b border-blue-200 text-center align-middle">
-                                  <Badge
-                                    variant="outline"
-                                    className={`${getLpcdStatusColor(
-                                      lpcdValue,
-                                    )} border-0`}
-                                  >
-                                    {getLpcdStatusText(lpcdValue)}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="border-b border-blue-200 text-center align-middle">
-                                  <div className="flex space-x-2 justify-center">
-                                    <Button
+                                  <TableCell className="border-b border-blue-200 text-center align-middle">
+                                    <LpcdBadge
+                                      value={calculateWeeklyAverageLpcd(scheme)}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="border-b border-blue-200 text-center align-middle">
+                                    <LpcdBadge value={lpcdValue} />
+                                  </TableCell>
+
+                                  <TableCell className="border-b border-blue-200 text-center align-middle">
+                                    <Badge
                                       variant="outline"
-                                      size="sm"
-                                      onClick={() => handleViewVillage(scheme)}
-                                      title="View Details"
-                                      className="rounded-md bg-blue-50 hover:bg-blue-100 border-blue-200"
+                                      className={`${getLpcdStatusColor(
+                                        lpcdValue,
+                                      )} border-0`}
                                     >
-                                      <Eye className="h-4 w-4 mr-1" /> View
-                                    </Button>
-                                    {scheme.dashboard_url && (
+                                      {getLpcdStatusText(lpcdValue)}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="border-b border-blue-200 text-center align-middle">
+                                    <div className="flex space-x-2 justify-center">
                                       <Button
                                         variant="outline"
-                                        size="icon"
-                                        onClick={() =>
-                                          window.open(
-                                            scheme.dashboard_url,
-                                            "_blank",
-                                          )
-                                        }
-                                        title="Open PI Vision Dashboard"
+                                        size="sm"
+                                        onClick={() => handleViewVillage(scheme)}
+                                        title="View Details"
                                         className="rounded-md bg-blue-50 hover:bg-blue-100 border-blue-200"
                                       >
-                                        <ExternalLink className="h-4 w-4" />
+                                        <Eye className="h-4 w-4 mr-1" /> View
                                       </Button>
-                                    )}
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
-
-                    {/* Pagination */}
-                    {totalPages > 1 && (
-                      <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 gap-4">
-                        <div className="text-sm text-gray-600 bg-blue-50 px-4 py-2 rounded-md border border-blue-100 shadow-sm">
-                          Showing{" "}
-                          <span className="font-semibold text-blue-700">
-                            {(page - 1) * itemsPerPage + 1}
-                          </span>{" "}
-                          to{" "}
-                          <span className="font-semibold text-blue-700">
-                            {Math.min(
-                              page * itemsPerPage,
-                              filteredSchemes.length,
-                            )}
-                          </span>{" "}
-                          of{" "}
-                          <span className="font-semibold text-blue-700">
-                            {filteredSchemes.length}
-                          </span>{" "}
-                          entries
-                        </div>
-                        <div className="flex items-center space-x-2 bg-white p-2 rounded-md border border-blue-100 shadow-sm">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setPage(page - 1)}
-                            disabled={page === 1}
-                            className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
-                          >
-                            <ChevronLeft className="h-4 w-4 mr-1" /> Previous
-                          </Button>
-                          {Array.from(
-                            { length: Math.min(5, totalPages) },
-                            (_, i) => {
-                              // Show pages around the current page
-                              let pageNum;
-                              if (totalPages <= 5) {
-                                pageNum = i + 1;
-                              } else if (page <= 3) {
-                                pageNum = i + 1;
-                              } else if (page >= totalPages - 2) {
-                                pageNum = totalPages - 4 + i;
-                              } else {
-                                pageNum = page - 2 + i;
-                              }
-
-                              return (
-                                <Button
-                                  key={pageNum}
-                                  variant={
-                                    page === pageNum ? "default" : "outline"
-                                  }
-                                  size="sm"
-                                  onClick={() => setPage(pageNum)}
-                                  className={
-                                    page === pageNum
-                                      ? "bg-blue-600 hover:bg-blue-700"
-                                      : "border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
-                                  }
-                                >
-                                  {pageNum}
-                                </Button>
+                                      {scheme.dashboard_url && (
+                                        <Button
+                                          variant="outline"
+                                          size="icon"
+                                          onClick={() =>
+                                            window.open(
+                                              scheme.dashboard_url,
+                                              "_blank",
+                                            )
+                                          }
+                                          title="Open PI Vision Dashboard"
+                                          className="rounded-md bg-blue-50 hover:bg-blue-100 border-blue-200"
+                                        >
+                                          <ExternalLink className="h-4 w-4" />
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
                               );
-                            },
-                          )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setPage(page + 1)}
-                            disabled={page === totalPages}
-                            className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
-                          >
-                            Next <ChevronRight className="h-4 w-4 ml-1" />
-                          </Button>
-                        </div>
+                            })}
+                          </TableBody>
+                        </Table>
                       </div>
-                    )}
-                  </>
-                ) : (
-                  <NoDataMessage />
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </>
-      )}
+
+                      {/* Pagination */}
+                      {totalPages > 1 && (
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-6 gap-4">
+                          <div className="text-sm text-gray-600 bg-blue-50 px-4 py-2 rounded-md border border-blue-100 shadow-sm">
+                            Showing{" "}
+                            <span className="font-semibold text-blue-700">
+                              {(page - 1) * itemsPerPage + 1}
+                            </span>{" "}
+                            to{" "}
+                            <span className="font-semibold text-blue-700">
+                              {Math.min(
+                                page * itemsPerPage,
+                                filteredSchemes.length,
+                              )}
+                            </span>{" "}
+                            of{" "}
+                            <span className="font-semibold text-blue-700">
+                              {filteredSchemes.length}
+                            </span>{" "}
+                            entries
+                          </div>
+                          <div className="flex items-center space-x-2 bg-white p-2 rounded-md border border-blue-100 shadow-sm">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setPage(page - 1)}
+                              disabled={page === 1}
+                              className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+                            >
+                              <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+                            </Button>
+                            {Array.from(
+                              { length: Math.min(5, totalPages) },
+                              (_, i) => {
+                                // Show pages around the current page
+                                let pageNum;
+                                if (totalPages <= 5) {
+                                  pageNum = i + 1;
+                                } else if (page <= 3) {
+                                  pageNum = i + 1;
+                                } else if (page >= totalPages - 2) {
+                                  pageNum = totalPages - 4 + i;
+                                } else {
+                                  pageNum = page - 2 + i;
+                                }
+
+                                return (
+                                  <Button
+                                    key={pageNum}
+                                    variant={
+                                      page === pageNum ? "default" : "outline"
+                                    }
+                                    size="sm"
+                                    onClick={() => setPage(pageNum)}
+                                    className={
+                                      page === pageNum
+                                        ? "bg-blue-600 hover:bg-blue-700"
+                                        : "border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+                                    }
+                                  >
+                                    {pageNum}
+                                  </Button>
+                                );
+                              },
+                            )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setPage(page + 1)}
+                              disabled={page === totalPages}
+                              className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+                            >
+                              Next <ChevronRight className="h-4 w-4 ml-1" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <NoDataMessage />
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </>
+        )
+      }
     </div>
   );
 };

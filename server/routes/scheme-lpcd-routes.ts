@@ -8,16 +8,16 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const { region, minLpcd, maxLpcd, mjpCommissioned } = req.query;
-    
+
     // Use pg directly for this route to perform complex aggregation
     const { Pool } = pg;
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
     const client = await pool.connect();
-    
+
     try {
       // Build the SQL query to join water_scheme_data with scheme_status
       // and aggregate the data by scheme
-      
+
       let baseQuery = `
         -- First, get a clean, deduplicated view of the raw village data with correct LPCD counts
         WITH village_counts AS (
@@ -224,50 +224,50 @@ router.get('/', async (req, res) => {
         FROM 
           scheme_aggregation
       `;
-      
+
       // Add WHERE clause for filtering
       const conditions: string[] = [];
       const queryParams: any[] = [];
-      
+
       // Region filter
       if (region && region !== 'all') {
         conditions.push('region = $' + (queryParams.length + 1));
         queryParams.push(region);
       }
-      
+
       // LPCD minimum filter
       if (minLpcd) {
         conditions.push('CASE WHEN total_population > 0 THEN ROUND((total_water_day7 * 100000) / total_population, 2) ELSE 0 END >= $' + (queryParams.length + 1));
         queryParams.push(Number(minLpcd));
       }
-      
+
       // LPCD maximum filter
       if (maxLpcd) {
         conditions.push('CASE WHEN total_population > 0 THEN ROUND((total_water_day7 * 100000) / total_population, 2) ELSE 0 END < $' + (queryParams.length + 1));
         queryParams.push(Number(maxLpcd));
       }
-      
+
       // MJP Commissioned filter
       if (mjpCommissioned === 'Yes' || mjpCommissioned === 'No') {
         conditions.push('mjp_commissioned = $' + (queryParams.length + 1));
         queryParams.push(mjpCommissioned);
       }
-      
+
       // Add WHERE clause if there are conditions
       if (conditions.length > 0) {
         baseQuery += ' WHERE ' + conditions.join(' AND ');
       }
-      
+
       // Add ordering
       baseQuery += ' ORDER BY region, scheme_name';
-      
+
       console.log('Executing Scheme LPCD Query:', baseQuery);
       console.log('Query Params:', queryParams);
 
       // Execute the query
       const result = await client.query(baseQuery, queryParams);
       console.log(`Query successful, returning ${result.rows.length} rows`);
-      
+
       res.json(result.rows);
     } finally {
       client.release();
@@ -282,12 +282,12 @@ router.get('/', async (req, res) => {
 router.get('/lpcd-stats', async (req, res) => {
   try {
     const { region } = req.query;
-    
+
     // Use pg directly for this route
     const { Pool } = pg;
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
     const client = await pool.connect();
-    
+
     try {
       // First, get aggregated scheme data
       let aggregatedDataQuery = `
@@ -313,17 +313,17 @@ router.get('/lpcd-stats', async (req, res) => {
         FROM 
           scheme_aggregation
       `;
-      
+
       // Add WHERE clause for region filtering
       const queryParams: any[] = [];
       if (region && region !== 'all') {
         aggregatedDataQuery += ' WHERE region = $1';
         queryParams.push(region);
       }
-      
+
       // Execute the aggregation query
       const schemeData = await client.query(aggregatedDataQuery, queryParams);
-      
+
       // Calculate statistics from the result
       const stats = {
         above_55_count: 0,
@@ -332,11 +332,11 @@ router.get('/lpcd-stats', async (req, res) => {
         zero_lpcd_count: 0,
         total_schemes: schemeData.rows.length
       };
-      
+
       // Count schemes in different LPCD ranges
       schemeData.rows.forEach((scheme) => {
         const lpcdValue = parseFloat(scheme.lpcd_value_day1);
-        
+
         if (lpcdValue === 0) {
           stats.zero_lpcd_count += 1;
         } else if (lpcdValue > 55) {
@@ -347,7 +347,7 @@ router.get('/lpcd-stats', async (req, res) => {
           stats.between_40_55_count += 1;
         }
       });
-      
+
       res.json(stats);
     } finally {
       client.release();
@@ -400,8 +400,9 @@ router.get('/history', async (req, res) => {
         // Dynamically parse date: use full date if present, otherwise append year from uploaded_at
         query += ` AND (
           CASE 
-            WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
-            ELSE TO_DATE(data_date || '-' || TO_CHAR(uploaded_at, 'YYYY'), 'DD-Mon-YYYY')
+            WHEN h.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN h.data_date::date
+            WHEN h.data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(h.data_date, 'DD-Mon-YY')
+            ELSE TO_DATE(h.data_date || '-' || TO_CHAR(uploaded_at, 'YYYY'), 'DD-Mon-YYYY')
           END
         ) >= $${paramIndex}::date`;
         queryParams.push(start_date);
@@ -412,8 +413,9 @@ router.get('/history', async (req, res) => {
         // Dynamically parse date: use full date if present, otherwise append year from uploaded_at
         query += ` AND (
           CASE 
-            WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
-            ELSE TO_DATE(data_date || '-' || TO_CHAR(uploaded_at, 'YYYY'), 'DD-Mon-YYYY')
+            WHEN h.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN h.data_date::date
+            WHEN h.data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(h.data_date, 'DD-Mon-YY')
+            ELSE TO_DATE(h.data_date || '-' || TO_CHAR(uploaded_at, 'YYYY'), 'DD-Mon-YYYY')
           END
         ) <= $${paramIndex}::date`;
         queryParams.push(end_date);
@@ -421,7 +423,7 @@ router.get('/history', async (req, res) => {
       }
 
       query += ` ORDER BY data_date DESC, scheme_id`;
-      
+
       // Add pagination
       query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
       queryParams.push(parseInt(limit as string));
@@ -496,6 +498,7 @@ router.get('/export/history', async (req, res) => {
         // Dynamically parse date: use full date if present, otherwise append year from uploaded_at
         query += ` AND (
           CASE 
+            WHEN h.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN h.data_date::date
             WHEN h.data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(h.data_date, 'DD-Mon-YY')
             ELSE TO_DATE(h.data_date || '-' || TO_CHAR(h.uploaded_at, 'YYYY'), 'DD-Mon-YYYY')
           END
@@ -508,6 +511,7 @@ router.get('/export/history', async (req, res) => {
         // Dynamically parse date: use full date if present, otherwise append year from uploaded_at
         query += ` AND (
           CASE 
+            WHEN h.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN h.data_date::date
             WHEN h.data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(h.data_date, 'DD-Mon-YY')
             ELSE TO_DATE(h.data_date || '-' || TO_CHAR(h.uploaded_at, 'YYYY'), 'DD-Mon-YYYY')
           END
@@ -532,7 +536,7 @@ router.get('/export/history', async (req, res) => {
 
       // Create scheme lookup map for consolidation (by scheme_id + block)
       const schemeMap = new Map();
-      
+
       result.rows.forEach(row => {
         const key = `${row.scheme_id}_${row.block}`;
         if (!schemeMap.has(key)) {
@@ -551,7 +555,7 @@ router.get('/export/history', async (req, res) => {
             dateData: {}
           });
         }
-        
+
         const scheme = schemeMap.get(key);
         scheme.dateData[row.data_date] = {
           water_value: row.water_value,
@@ -576,7 +580,7 @@ router.get('/export/history', async (req, res) => {
           'Scheme ID', 'Scheme Name', 'Region', 'Circle', 'Division', 'Sub Division', 'Block',
           'Total Population', 'Total Villages', 'MJP Commissioned'
         ];
-        
+
         uniqueDates.forEach(date => {
           headerRow.push(`${date} Water Value`);
           headerRow.push(`${date} LPCD Value`);
@@ -625,14 +629,14 @@ router.get('/export/history', async (req, res) => {
 
         // Set column widths
         const colWidths = [
-          { wch: 15 }, { wch: 30 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, 
+          { wch: 15 }, { wch: 30 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
           { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 18 }
         ];
-        
+
         uniqueDates.forEach(() => {
           colWidths.push({ wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 });
         });
-        
+
         ws['!cols'] = colWidths;
 
         XLSX.utils.book_append_sheet(wb, ws, 'Scheme LPCD History');
@@ -649,7 +653,7 @@ router.get('/export/history', async (req, res) => {
           'Scheme ID', 'Scheme Name', 'Region', 'Circle', 'Division', 'Sub Division', 'Block',
           'Total Population', 'Total Villages', 'MJP Commissioned'
         ];
-        
+
         uniqueDates.forEach(date => {
           headerRow.push(`${date} Water Value`);
           headerRow.push(`${date} LPCD Value`);
@@ -719,11 +723,11 @@ router.post('/populate-history', async (req, res) => {
     try {
       const uploadBatchId = `backfill_all_days_${Date.now()}`;
       let totalInserted = 0;
-      
+
       // Process each day (1 through 7)
       for (let day = 1; day <= 7; day++) {
         console.log(`\n📅 Processing Day ${day}...`);
-        
+
         const schemeQuery = `
           WITH deduplicated_villages AS (
             SELECT DISTINCT ON (scheme_id, block, village_name)
@@ -864,9 +868,9 @@ router.post('/populate-history', async (req, res) => {
     }
   } catch (error) {
     console.error('Error populating scheme history:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: 'Failed to populate scheme history' 
+      error: 'Failed to populate scheme history'
     });
   }
 });
@@ -875,11 +879,11 @@ router.post('/populate-history', async (req, res) => {
 router.get('/above-55', async (req, res) => {
   try {
     const { region, schemeId } = req.query;
-    
+
     const { Pool } = pg;
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
     const client = await pool.connect();
-    
+
     try {
       const query = `
         WITH village_counts AS (
@@ -974,11 +978,11 @@ router.get('/above-55', async (req, res) => {
         ${schemeId && schemeId !== 'all' ? `AND scheme_id = $${region && region !== 'all' ? '2' : '1'}` : ''}
         ORDER BY lpcd_value_day7 DESC
       `;
-      
+
       const params: any[] = [];
       if (region && region !== 'all') params.push(region);
       if (schemeId && schemeId !== 'all') params.push(schemeId);
-      
+
       const result = await client.query(query, params);
       res.json({ success: true, data: result.rows });
     } finally {
@@ -994,11 +998,11 @@ router.get('/above-55', async (req, res) => {
 router.get('/below-55', async (req, res) => {
   try {
     const { region, schemeId } = req.query;
-    
+
     const { Pool } = pg;
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
     const client = await pool.connect();
-    
+
     try {
       const query = `
         WITH village_counts AS (
@@ -1094,11 +1098,11 @@ router.get('/below-55', async (req, res) => {
         ${schemeId && schemeId !== 'all' ? `AND scheme_id = $${region && region !== 'all' ? '2' : '1'}` : ''}
         ORDER BY lpcd_value_day7 ASC
       `;
-      
+
       const params: any[] = [];
       if (region && region !== 'all') params.push(region);
       if (schemeId && schemeId !== 'all') params.push(schemeId);
-      
+
       const result = await client.query(query, params);
       res.json({ success: true, data: result.rows });
     } finally {
@@ -1114,11 +1118,11 @@ router.get('/below-55', async (req, res) => {
 router.get('/combined-lpcd', async (req, res) => {
   try {
     const { region, schemeId } = req.query;
-    
+
     const { Pool } = pg;
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
     const client = await pool.connect();
-    
+
     try {
       // Fetch both above and below 55 schemes in parallel
       const [above55Result, below55Result] = await Promise.all([
@@ -1320,7 +1324,7 @@ router.get('/combined-lpcd', async (req, res) => {
           return params;
         })())
       ]);
-      
+
       res.json({
         success: true,
         filter: {

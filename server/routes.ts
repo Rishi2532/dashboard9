@@ -1,7 +1,7 @@
 import type { Express, Response, NextFunction } from "express";
 import { createServer as createHttpServer, type Server } from "http";
 import { createServer as createHttpsServer } from "https";
-import { storage } from "./storage";
+import { storage, type WaterSchemeDataFilter } from "./storage";
 import {
   insertRegionSchema,
   insertSchemeStatusSchema,
@@ -21,7 +21,7 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import { updateRegionSummaries, resetRegionData, getDB } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, sql, and, asc } from "drizzle-orm";
 import "express-session";
 import multer from "multer";
 import * as XLSX from "xlsx";
@@ -1188,6 +1188,132 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all schemes with optional region, status, and scheme_id filters
+  // Get filter options for schemes with cascading logic
+  app.get("/api/schemes/filters", async (req, res) => {
+    try {
+      const region = req.query.region as string;
+      const circle = req.query.circle as string;
+      const division = req.query.division as string;
+      const subdivision = req.query.subdivision as string;
+
+      const db = await storage.getDb();
+
+      // Get regions (always show all regions)
+      const regionsList = await db
+        .selectDistinct({ value: schemeStatuses.region })
+        .from(schemeStatuses)
+        .where(
+          sql`${schemeStatuses.region} is not null and ${schemeStatuses.region} != ''`,
+        )
+        .orderBy(asc(schemeStatuses.region));
+
+      // Get circles filtered by region
+      const circleConditions = [];
+      if (region && region !== "all")
+        circleConditions.push(eq(schemeStatuses.region, region));
+      const circleWhereClause =
+        circleConditions.length > 0 ? and(...circleConditions) : undefined;
+
+      const circles = await db
+        .selectDistinct({ value: schemeStatuses.circle })
+        .from(schemeStatuses)
+        .where(
+          circleWhereClause
+            ? and(
+              circleWhereClause,
+              sql`${schemeStatuses.circle} is not null and ${schemeStatuses.circle} != ''`,
+            )
+            : sql`${schemeStatuses.circle} is not null and ${schemeStatuses.circle} != ''`,
+        )
+        .orderBy(asc(schemeStatuses.circle));
+
+      // Get divisions filtered by region and circle
+      const divisionConditions = [];
+      if (region && region !== "all")
+        divisionConditions.push(eq(schemeStatuses.region, region));
+      if (circle && circle !== "all")
+        divisionConditions.push(eq(schemeStatuses.circle, circle));
+      const divisionWhereClause =
+        divisionConditions.length > 0 ? and(...divisionConditions) : undefined;
+
+      const divisions = await db
+        .selectDistinct({ value: schemeStatuses.division })
+        .from(schemeStatuses)
+        .where(
+          divisionWhereClause
+            ? and(
+              divisionWhereClause,
+              sql`${schemeStatuses.division} is not null and ${schemeStatuses.division} != ''`,
+            )
+            : sql`${schemeStatuses.division} is not null and ${schemeStatuses.division} != ''`,
+        )
+        .orderBy(asc(schemeStatuses.division));
+
+      // Get subdivisions filtered by region, circle, and division
+      const subdivisionConditions = [];
+      if (region && region !== "all")
+        subdivisionConditions.push(eq(schemeStatuses.region, region));
+      if (circle && circle !== "all")
+        subdivisionConditions.push(eq(schemeStatuses.circle, circle));
+      if (division && division !== "all")
+        subdivisionConditions.push(eq(schemeStatuses.division, division));
+      const subdivisionWhereClause =
+        subdivisionConditions.length > 0
+          ? and(...subdivisionConditions)
+          : undefined;
+
+      const subdivisions = await db
+        .selectDistinct({ value: schemeStatuses.sub_division })
+        .from(schemeStatuses)
+        .where(
+          subdivisionWhereClause
+            ? and(
+              subdivisionWhereClause,
+              sql`${schemeStatuses.sub_division} is not null and ${schemeStatuses.sub_division} != ''`,
+            )
+            : sql`${schemeStatuses.sub_division} is not null and ${schemeStatuses.sub_division} != ''`,
+        )
+        .orderBy(asc(schemeStatuses.sub_division));
+
+      // Get blocks filtered by all parent geographical levels
+      const blockConditions = [];
+      if (region && region !== "all")
+        blockConditions.push(eq(schemeStatuses.region, region));
+      if (circle && circle !== "all")
+        blockConditions.push(eq(schemeStatuses.circle, circle));
+      if (division && division !== "all")
+        blockConditions.push(eq(schemeStatuses.division, division));
+      if (subdivision && subdivision !== "all")
+        blockConditions.push(eq(schemeStatuses.sub_division, subdivision));
+      const blockWhereClause =
+        blockConditions.length > 0 ? and(...blockConditions) : undefined;
+
+      const blocks = await db
+        .selectDistinct({ value: schemeStatuses.block })
+        .from(schemeStatuses)
+        .where(
+          blockWhereClause
+            ? and(
+              blockWhereClause,
+              sql`${schemeStatuses.block} is not null and ${schemeStatuses.block} != ''`,
+            )
+            : sql`${schemeStatuses.block} is not null and ${schemeStatuses.block} != ''`,
+        )
+        .orderBy(asc(schemeStatuses.block));
+
+      res.json({
+        regions: regionsList.map((r: any) => r.value),
+        circles: circles.map((c: any) => c.value),
+        divisions: divisions.map((d: any) => d.value),
+        subdivisions: subdivisions.map((s: any) => s.value),
+        blocks: blocks.map((b: any) => b.value),
+      });
+    } catch (error) {
+      console.error("Error fetching scheme filter options:", error);
+      res.status(500).json({ error: "Failed to fetch filter options" });
+    }
+  });
+
   app.get("/api/schemes", async (req, res) => {
     try {
       const regionName = req.query.region as string;
@@ -1195,6 +1321,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const schemeId = req.query.scheme_id as string;
       const mjpCommissioned = req.query.mjp_commissioned as string;
       const mjpFullyCompleted = req.query.mjp_fully_completed as string;
+      const circle = req.query.circle as string;
+      const division = req.query.division as string;
+      const subdivision = req.query.subdivision as string;
+      const block = req.query.block as string;
       const viewType = (req.query.view_type as string) || "summary";
       // Default to consolidated view (true) for summary, non-consolidated (false) for detailed
       const consolidated =
@@ -1202,7 +1332,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         (req.query.consolidated === undefined && viewType === "summary");
 
       console.log(
-        `Request params: region=${regionName}, status=${status}, schemeId=${schemeId}, mjpCommissioned=${mjpCommissioned}, mjpFullyCompleted=${mjpFullyCompleted}, consolidated=${consolidated}, viewType=${viewType}`,
+        `Request params: region=${regionName}, circle=${circle}, division=${division}, subdivision=${subdivision}, block=${block}, status=${status}, schemeId=${schemeId}, mjpCommissioned=${mjpCommissioned}, mjpFullyCompleted=${mjpFullyCompleted}, consolidated=${consolidated}, viewType=${viewType}`,
       );
 
       let schemes;
@@ -1217,6 +1347,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             regionName,
             status,
             schemeId,
+            circle,
+            division,
+            subdivision,
+            block,
           );
         } else {
           // Use original non-consolidated method
@@ -1227,6 +1361,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             regionName,
             status,
             schemeId,
+            circle,
+            division,
+            subdivision,
+            block,
           );
         }
         console.log(`Found ${schemes.length} schemes for region ${regionName}`);
@@ -1234,11 +1372,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Get all schemes across regions
         if (consolidated) {
           console.log(`Getting consolidated schemes with status=${status}`);
-          schemes = await storage.getConsolidatedSchemes(status, schemeId);
+          schemes = await storage.getConsolidatedSchemes(
+            status,
+            schemeId,
+            circle,
+            division,
+            subdivision,
+            block,
+          );
         } else {
           // Use original non-consolidated method
           console.log(`Getting all scheme instances with status=${status}`);
-          schemes = await storage.getAllSchemes(status, schemeId);
+          schemes = await storage.getAllSchemes(
+            status,
+            schemeId,
+            circle,
+            division,
+            subdivision,
+            block,
+          );
         }
         console.log(`Found ${schemes.length} schemes across all regions`);
       }
@@ -1286,10 +1438,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let filteredSchemeCount = 0;
       let totalSchemeCount = 0;
 
+      const circle = req.query.circle as string;
+      const division = req.query.division as string;
+      const subdivision = req.query.subdivision as string;
+      const block = req.query.block as string;
+
       if (regionName && regionName !== "all") {
         // Get filtered scheme count from scheme_status table for specific region
-        const schemes =
-          await storage.getConsolidatedSchemesByRegion(regionName);
+        const schemes = await storage.getConsolidatedSchemesByRegion(
+          regionName,
+          undefined,
+          undefined,
+          circle,
+          division,
+          subdivision,
+          block,
+        );
         filteredSchemeCount = schemes.length;
 
         // Get total scheme count from regions table
@@ -1297,7 +1461,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalSchemeCount = region?.total_schemes_integrated || 0;
       } else {
         // Get all schemes count from scheme_status table
-        const schemes = await storage.getConsolidatedSchemes();
+        const schemes = await storage.getAllSchemes(
+          undefined,
+          undefined,
+          circle,
+          division,
+          subdivision,
+          block,
+        );
         filteredSchemeCount = schemes.length;
 
         // Get total scheme count from all regions
@@ -2123,17 +2294,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         : undefined;
       const zeroSupplyForWeek = req.query.zeroSupplyForWeek === "true";
 
-      // Build filter object
-      const filter: {
-        region?: string;
-        minLpcd?: number;
-        maxLpcd?: number;
-        zeroSupplyForWeek?: boolean;
-      } = {};
+      const filter: WaterSchemeDataFilter = {};
 
       if (region && region !== "all") {
         filter.region = region;
       }
+
+      const circle = req.query.circle as string;
+      const division = req.query.division as string;
+      const subdivision = req.query.subdivision as string;
+      const block = req.query.block as string;
+
+      if (circle && circle !== "all") filter.circle = circle;
+      if (division && division !== "all") filter.division = division;
+      if (subdivision && subdivision !== "all") filter.subDivision = subdivision;
+      if (block && block !== "all") filter.block = block;
 
       if (!isNaN(minLpcd as number)) {
         filter.minLpcd = minLpcd;
@@ -2778,9 +2953,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   ? storedValues.flow_meter_integrated
                   : 0
                 : Number(
-                    row["Flow meter Integrated"] ||
-                      row["Flow Meter Integrated"],
-                  ),
+                  row["Flow meter Integrated"] ||
+                  row["Flow Meter Integrated"],
+                ),
               // Check for RCA values
               rca_integrated: isNaN(Number(row["RCA Integrated"]))
                 ? storedValues
@@ -4470,16 +4645,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       | undefined,
                     pressure_transmitter_connected:
                       record.pressure_transmitter_connected as
-                        | number
-                        | undefined,
+                      | number
+                      | undefined,
                     residual_chlorine_analyzer_connected:
                       record.residual_chlorine_analyzer_connected as
-                        | number
-                        | undefined,
+                      | number
+                      | undefined,
                     fully_completion_scheme_status:
                       record.fully_completion_scheme_status as
-                        | string
-                        | undefined,
+                      | string
+                      | undefined,
                     scheme_functional_status:
                       record.scheme_functional_status as string | undefined,
                     no_of_functional_village:

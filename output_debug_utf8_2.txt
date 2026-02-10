@@ -1,0 +1,19 @@
+﻿--- STARTING FILTER REPRODUCTION TEST ---
+Step 1: Fetching sample data from /api/scheme-lpcd-data to identify valid Region/Circle...
+Fetched 213 total records.
+Step 2: Testing with Region: "Amravati" (Has 2 circles)
+        Target Circle: "Amravati"
+Fetching: /api/scheme-lpcd-data?region=Amravati
+Result: 60 records found for Region.
+Fetching: /api/scheme-lpcd-data?region=Amravati&circle=Amravati
+Result: 60 records found for Circle.
+--- ANALYSIS ---
+FAILURE: Region has multiple circles but Circle filter returned same count as Region.
+This indicates filtering is NOT working.
+
+--- Testing /api/water-scheme-data (Simple Dashboard) ---
+Fetching: /api/water-scheme-data?region=Amravati
+Result: 681 records.
+Fetching: /api/water-scheme-data?region=Amravati&circle=Amravati
+Result: 358 records.
+SUCCESS: /api/water-scheme-data filtering works.

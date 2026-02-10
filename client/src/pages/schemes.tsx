@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import ExcelJS from "exceljs";
 import { useQuery } from "@tanstack/react-query";
 import DashboardLayout from "@/components/dashboard/dashboard-layout";
-import RegionFilter from "@/components/dashboard/region-filter";
+import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
 import SchemeTable from "@/components/dashboard/scheme-table";
 import SchemeDetailsModal from "@/components/dashboard/scheme-details-modal";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,10 @@ import { SchemeStatus, Region } from "@/types";
 
 export default function Schemes() {
   const [selectedRegion, setSelectedRegion] = useState("all");
+  const [selectedCircle, setSelectedCircle] = useState("all");
+  const [selectedDivision, setSelectedDivision] = useState("all");
+  const [selectedSubdivision, setSelectedSubdivision] = useState("all");
+  const [selectedBlock, setSelectedBlock] = useState("all");
   const [selectedScheme, setSelectedScheme] = useState<SchemeStatus | null>(
     null,
   );
@@ -27,15 +31,61 @@ export default function Schemes() {
     queryKey: ["/api/regions"],
   });
 
+  // Fetch cascading filter options
+  const { data: filterOptions } = useQuery({
+    queryKey: [
+      "/api/schemes/filters",
+      selectedRegion,
+      selectedCircle,
+      selectedDivision,
+      selectedSubdivision,
+    ],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedRegion !== "all") params.set("region", selectedRegion);
+      if (selectedCircle !== "all") params.set("circle", selectedCircle);
+      if (selectedDivision !== "all") params.set("division", selectedDivision);
+      if (selectedSubdivision !== "all")
+        params.set("subdivision", selectedSubdivision);
+
+      const response = await fetch(`/api/schemes/filters?${params.toString()}`);
+      return response.json();
+    },
+  });
+
   // Fetch schemes data with region and status filters
   const { data: schemes, isLoading: isSchemesLoading } = useQuery({
-    queryKey: ["/api/schemes", selectedRegion, statusFilter],
+    queryKey: [
+      "/api/schemes",
+      selectedRegion,
+      selectedCircle,
+      selectedDivision,
+      selectedSubdivision,
+      selectedBlock,
+      statusFilter,
+    ],
     queryFn: () => {
       let url = `/api/schemes`;
       const params = new URLSearchParams();
 
       if (selectedRegion !== "" && selectedRegion !== "all") {
         params.append("region", selectedRegion);
+      }
+
+      if (selectedCircle !== "all") {
+        params.append("circle", selectedCircle);
+      }
+
+      if (selectedDivision !== "all") {
+        params.append("division", selectedDivision);
+      }
+
+      if (selectedSubdivision !== "all") {
+        params.append("subdivision", selectedSubdivision);
+      }
+
+      if (selectedBlock !== "all") {
+        params.append("block", selectedBlock);
       }
 
       if (statusFilter !== "all") {
@@ -52,6 +102,32 @@ export default function Schemes() {
 
   const handleRegionChange = (region: string) => {
     setSelectedRegion(region);
+    setSelectedCircle("all");
+    setSelectedDivision("all");
+    setSelectedSubdivision("all");
+    setSelectedBlock("all");
+  };
+
+  const handleCircleChange = (circle: string) => {
+    setSelectedCircle(circle);
+    setSelectedDivision("all");
+    setSelectedSubdivision("all");
+    setSelectedBlock("all");
+  };
+
+  const handleDivisionChange = (division: string) => {
+    setSelectedDivision(division);
+    setSelectedSubdivision("all");
+    setSelectedBlock("all");
+  };
+
+  const handleSubdivisionChange = (subdivision: string) => {
+    setSelectedSubdivision(subdivision);
+    setSelectedBlock("all");
+  };
+
+  const handleBlockChange = (block: string) => {
+    setSelectedBlock(block);
   };
 
   const handleStatusFilterChange = (status: string) => {
@@ -93,7 +169,7 @@ export default function Schemes() {
     const handleChatbotExcelExport = (event: CustomEvent) => {
       const { region, pageType } = event.detail;
       console.log("Schemes page received excel export command:", { region, pageType });
-      
+
       // Only respond if this is the right page type
       if (pageType === 'schemes') {
         // Wait for data to be available, then export
@@ -119,7 +195,7 @@ export default function Schemes() {
         setTimeout(resolve, 100);
       });
     };
-    
+
     return () => {
       window.removeEventListener('chatbot-region-filter', handleChatbotRegionFilter as EventListener);
       window.removeEventListener('chatbot-export-excel', handleChatbotExcelExport as EventListener);
@@ -164,7 +240,7 @@ export default function Schemes() {
 
       // Create comprehensive Excel with merged headers and color coding
       await generateComprehensiveExcel(allFilteredSchemes, waterSchemeData, chlorineData, pressureData, communicationData);
-      
+
     } catch (error) {
       console.error("Comprehensive export error:", error);
       toast({
@@ -211,7 +287,7 @@ export default function Schemes() {
 
     // Set main headers
     const mainHeaders = [
-      'Region', 'Scheme Name', 'Status', 'Total Flow\nSensor', 'No. Sensor\nOnline', 
+      'Region', 'Scheme Name', 'Status', 'Total Flow\nSensor', 'No. Sensor\nOnline',
       '55LPCD Village Achievement', '', 'No. of\nESR', 'No. CL\nSensor Online', 'Total CL\nSensor',
       'Chlorin Range', '', '', 'No\nPressure\nSensor Online', 'Total\nPressure Sensor',
       'Pressure', '', ''
@@ -220,7 +296,7 @@ export default function Schemes() {
 
     // Row 2: Sub headers
     const subHeaders = [
-      '', '', '', '', '', 'Yes', 'No', '', '', '', 
+      '', '', '', '', '', 'Yes', 'No', '', '', '',
       '0.2 - 0.5\nMg/l', '<0.2 Mg/l', '>0.5 Mg/l', '', '',
       '0.2 - 0.7\nBar', '<0.2\nBar', '>0.7\nBar'
     ];
@@ -246,7 +322,7 @@ export default function Schemes() {
     for (const scheme of schemes) {
       // Filter data by scheme_id (more reliable than scheme_name)
       const schemeWaterData = waterData.filter(w => w.scheme_id === scheme.scheme_id);
-      const schemeChlorineData = chlorineData.filter(c => c.scheme_id === scheme.scheme_id);  
+      const schemeChlorineData = chlorineData.filter(c => c.scheme_id === scheme.scheme_id);
       const schemePressureData = pressureData.filter(p => p.scheme_id === scheme.scheme_id);
       const schemeCommunicationData = communicationData.filter(comm => comm.scheme_id === scheme.scheme_id);
 
@@ -255,7 +331,7 @@ export default function Schemes() {
         const waterVal = toNumber(w.water_value_day7);
         return waterVal >= 55;
       }).length;
-      
+
       const lpcdNo = schemeWaterData.filter(w => {
         const waterVal = toNumber(w.water_value_day7);
         return waterVal > 0 && waterVal < 55;
@@ -272,12 +348,12 @@ export default function Schemes() {
         const chlorineVal = toNumber(c.chlorine_value_7);
         return chlorineVal >= 0.2 && chlorineVal <= 0.5;
       }).length;
-      
+
       const chlorineLess02 = schemeChlorineData.filter(c => {
         const chlorineVal = toNumber(c.chlorine_value_7);
         return chlorineVal > 0 && chlorineVal < 0.2;
       }).length;
-      
+
       const chlorineGreater05 = schemeChlorineData.filter(c => {
         const chlorineVal = toNumber(c.chlorine_value_7);
         return chlorineVal > 0.5;
@@ -288,12 +364,12 @@ export default function Schemes() {
         const pressureVal = toNumber(p.pressure_value_7);
         return pressureVal >= 0.2 && pressureVal <= 0.7;
       }).length;
-      
+
       const pressureLess02 = schemePressureData.filter(p => {
         const pressureVal = toNumber(p.pressure_value_7);
         return pressureVal > 0 && pressureVal < 0.2;
       }).length;
-      
+
       const pressureGreater07 = schemePressureData.filter(p => {
         const pressureVal = toNumber(p.pressure_value_7);
         return pressureVal > 0.7;
@@ -301,13 +377,13 @@ export default function Schemes() {
 
       // Add data row
       const rowData = [
-        scheme.region || '', 
+        scheme.region || '',
         scheme.scheme_name || '',
         scheme.fully_completion_scheme_status || scheme.scheme_functional_status || '',
         scheme.flow_meters_connected || 0,
         flowSensorsOnline,
         lpcdYes,
-        lpcdNo, 
+        lpcdNo,
         scheme.total_number_of_esr || 0,
         clSensorsOnline,
         scheme.residual_chlorine_analyzer_connected || 0,
@@ -327,11 +403,11 @@ export default function Schemes() {
       // Apply color coding exactly as shown in your image
       row.getCell(6).fill = { type: "pattern", pattern: "solid", fgColor: colors.green }; // LPCD Yes - Green
       row.getCell(7).fill = { type: "pattern", pattern: "solid", fgColor: colors.red };   // LPCD No - Red
-      
+
       row.getCell(11).fill = { type: "pattern", pattern: "solid", fgColor: colors.green }; // Chlorine 0.2-0.5 - Green
       row.getCell(12).fill = { type: "pattern", pattern: "solid", fgColor: colors.yellow }; // Chlorine <0.2 - Yellow
       row.getCell(13).fill = { type: "pattern", pattern: "solid", fgColor: colors.red };   // Chlorine >0.5 - Red
-      
+
       row.getCell(16).fill = { type: "pattern", pattern: "solid", fgColor: colors.green }; // Pressure 0.2-0.7 - Green
       row.getCell(17).fill = { type: "pattern", pattern: "solid", fgColor: colors.yellow }; // Pressure <0.2 - Yellow
       row.getCell(18).fill = { type: "pattern", pattern: "solid", fgColor: colors.red };   // Pressure >0.7 - Red
@@ -549,11 +625,18 @@ export default function Schemes() {
         </div>
       </div>
 
-      <RegionFilter
-        regions={regions || []}
+      <GeographicalFilters
+        filters={filterOptions}
         selectedRegion={selectedRegion}
-        onChange={handleRegionChange}
-        className="mb-6"
+        selectedCircle={selectedCircle}
+        selectedDivision={selectedDivision}
+        selectedSubdivision={selectedSubdivision}
+        selectedBlock={selectedBlock}
+        onRegionChange={handleRegionChange}
+        onCircleChange={handleCircleChange}
+        onDivisionChange={handleDivisionChange}
+        onSubdivisionChange={handleSubdivisionChange}
+        onBlockChange={handleBlockChange}
       />
 
       <SchemeTable

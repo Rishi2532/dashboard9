@@ -64,6 +64,7 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import DashboardLayout from "@/components/dashboard/dashboard-layout";
+import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
 
 // Define interface for water consumption data
 interface WaterConsumptionRecord {
@@ -146,10 +147,14 @@ const WaterConsumptionPage: React.FC = () => {
 
   // Filter state
   const [selectedRegion, setSelectedRegion] = useState<string>("all");
+  const [selectedCircle, setSelectedCircle] = useState<string>("all");
+  const [selectedDivision, setSelectedDivision] = useState<string>("all");
+  const [selectedSubdivision, setSelectedSubdivision] = useState<string>("all");
+  const [selectedBlock, setSelectedBlock] = useState<string>("all");
   const [currentFilter, setCurrentFilter] =
     useState<WaterConsumptionFilterType>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
-  
+
   // Historical data state
   const [showHistoricalData, setShowHistoricalData] = useState(false);
   const [historicalStartDate, setHistoricalStartDate] = useState("");
@@ -179,7 +184,74 @@ const WaterConsumptionPage: React.FC = () => {
     isLoading: isLoadingConsumption,
     error: consumptionError,
   } = useQuery<WaterConsumptionRecord[]>({
-    queryKey: ["/api/water-consumption"],
+    queryKey: [
+      "/api/water-consumption",
+      selectedRegion,
+      selectedCircle,
+      selectedDivision,
+      selectedSubdivision,
+      selectedBlock,
+    ],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedRegion && selectedRegion !== "all") {
+        params.append("region", selectedRegion);
+      }
+      if (selectedCircle && selectedCircle !== "all") {
+        params.append("circle", selectedCircle);
+      }
+      if (selectedDivision && selectedDivision !== "all") {
+        params.append("division", selectedDivision);
+      }
+      if (selectedSubdivision && selectedSubdivision !== "all") {
+        params.append("subdivision", selectedSubdivision);
+      }
+      if (selectedBlock && selectedBlock !== "all") {
+        params.append("block", selectedBlock);
+      }
+
+      const queryString = params.toString();
+      const url = `/api/water-consumption${queryString ? `?${queryString}` : ""}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error("Failed to fetch water consumption data");
+      }
+      return response.json();
+    },
+  });
+
+  // Fetch filter options for geographic filters
+  const { data: filterOptions } = useQuery<any>({
+    queryKey: [
+      "/api/water-consumption/filters",
+      selectedRegion,
+      selectedCircle,
+      selectedDivision,
+      selectedSubdivision,
+    ],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedRegion && selectedRegion !== "all") {
+        params.append("region", selectedRegion);
+      }
+      if (selectedCircle && selectedCircle !== "all") {
+        params.append("circle", selectedCircle);
+      }
+      if (selectedDivision && selectedDivision !== "all") {
+        params.append("division", selectedDivision);
+      }
+      if (selectedSubdivision && selectedSubdivision !== "all") {
+        params.append("subdivision", selectedSubdivision);
+      }
+
+      const queryString = params.toString();
+      const url = `/api/water-consumption/filters${queryString ? `?${queryString}` : ""}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error("Failed to fetch filter options");
+      }
+      return response.json();
+    },
   });
 
   // Fetch region data
@@ -212,6 +284,42 @@ const WaterConsumptionPage: React.FC = () => {
         return data;
       },
     });
+
+  // Cascading filter handlers
+  const handleRegionChange = (value: string) => {
+    setSelectedRegion(value);
+    setSelectedCircle("all");
+    setSelectedDivision("all");
+    setSelectedSubdivision("all");
+    setSelectedBlock("all");
+    setPage(1);
+  };
+
+  const handleCircleChange = (value: string) => {
+    setSelectedCircle(value);
+    setSelectedDivision("all");
+    setSelectedSubdivision("all");
+    setSelectedBlock("all");
+    setPage(1);
+  };
+
+  const handleDivisionChange = (value: string) => {
+    setSelectedDivision(value);
+    setSelectedSubdivision("all");
+    setSelectedBlock("all");
+    setPage(1);
+  };
+
+  const handleSubdivisionChange = (value: string) => {
+    setSelectedSubdivision(value);
+    setSelectedBlock("all");
+    setPage(1);
+  };
+
+  const handleBlockChange = (value: string) => {
+    setSelectedBlock(value);
+    setPage(1);
+  };
 
   // Listen for chatbot events
   useEffect(() => {
@@ -435,6 +543,26 @@ const WaterConsumptionPage: React.FC = () => {
       filtered = filtered.filter((record) => record.region === selectedRegion);
     }
 
+    // Apply circle filter
+    if (selectedCircle !== "all") {
+      filtered = filtered.filter((record) => record.circle === selectedCircle);
+    }
+
+    // Apply division filter
+    if (selectedDivision !== "all") {
+      filtered = filtered.filter((record) => record.division === selectedDivision);
+    }
+
+    // Apply subdivision filter
+    if (selectedSubdivision !== "all") {
+      filtered = filtered.filter((record) => record.sub_division === selectedSubdivision);
+    }
+
+    // Apply block filter
+    if (selectedBlock !== "all") {
+      filtered = filtered.filter((record) => record.block === selectedBlock);
+    }
+
     // Apply search term filter
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase().trim();
@@ -461,7 +589,7 @@ const WaterConsumptionPage: React.FC = () => {
       filtered = filtered.filter((record) => {
         // Get scheme status from the map using scheme_id
         const status = schemeStatusMap.get(record.scheme_id);
-        
+
         if (commissionedFilter === "Water Supply") {
           return status && status.water_supply === "Yes";
         } else if (commissionedFilter === "Yes") {
@@ -478,7 +606,7 @@ const WaterConsumptionPage: React.FC = () => {
       filtered = filtered.filter((record) => {
         // Get scheme status from the map using scheme_id
         const status = schemeStatusMap.get(record.scheme_id);
-        
+
         if (fullyCompletedFilter === "Fully Completed") {
           return status && status.mjp_fully_completed === "Fully Completed";
         } else if (fullyCompletedFilter === "In Progress") {
@@ -506,6 +634,10 @@ const WaterConsumptionPage: React.FC = () => {
   }, [
     allWaterConsumptionData,
     selectedRegion,
+    selectedCircle,
+    selectedDivision,
+    selectedSubdivision,
+    selectedBlock,
     searchTerm,
     commissionedFilter,
     fullyCompletedFilter,
@@ -798,12 +930,6 @@ const WaterConsumptionPage: React.FC = () => {
     return `${percentage.toFixed(1)}%`;
   };
 
-  // Handle region filter change
-  const handleRegionChange = (region: string) => {
-    setSelectedRegion(region);
-    setPage(1); // Reset pagination when filter changes
-  };
-
   // Handle filter change
   const handleFilterChange = (filter: WaterConsumptionFilterType) => {
     setCurrentFilter(filter);
@@ -910,8 +1036,8 @@ const WaterConsumptionPage: React.FC = () => {
           "Consistent Zero Consumption": record.consistent_zero_consumption || 0,
           "Percentage Change from Previous Day":
             record.percentage_consumption_previous_day || 0,
-          "% of ESR Capacity (Latest)": esrCapacityPercentage !== null 
-            ? `${esrCapacityPercentage.toFixed(2)}%` 
+          "% of ESR Capacity (Latest)": esrCapacityPercentage !== null
+            ? `${esrCapacityPercentage.toFixed(2)}%`
             : "N/A",
           "Water Supply": record.water_supply || "No",
         };
@@ -988,7 +1114,7 @@ const WaterConsumptionPage: React.FC = () => {
     const start = new Date(historicalStartDate);
     const end = new Date(historicalEndDate);
     const daysDifference = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     if (daysDifference < 0) {
       toast({
         title: "Invalid Date Range",
@@ -1000,15 +1126,15 @@ const WaterConsumptionPage: React.FC = () => {
 
     try {
       // If we haven't counted yet OR dates changed, count first
-      const datesChanged = !lastQueriedDates || 
-                          lastQueriedDates.start !== historicalStartDate || 
-                          lastQueriedDates.end !== historicalEndDate ||
-                          lastQueriedDates.region !== selectedRegion;
+      const datesChanged = !lastQueriedDates ||
+        lastQueriedDates.start !== historicalStartDate ||
+        lastQueriedDates.end !== historicalEndDate ||
+        lastQueriedDates.region !== selectedRegion;
 
       if (datesChanged) {
         // Count records first
         setIsCountingRecords(true);
-        
+
         try {
           const params = new URLSearchParams();
           params.append("startDate", historicalStartDate);
@@ -1029,10 +1155,10 @@ const WaterConsumptionPage: React.FC = () => {
 
           const data = await response.json();
           const count = data.count || 0;
-          
+
           console.log(`✅ Found ${count} historical Water Consumption records`);
           setHistoricalRecordCount(count);
-          
+
           setLastQueriedDates({
             start: historicalStartDate,
             end: historicalEndDate,
@@ -1568,29 +1694,26 @@ const WaterConsumptionPage: React.FC = () => {
                 />
               </div>
 
-              {/* Filter Row */}
+              {/* Geographic Filters Row */}
+              <div className="mb-2">
+                <GeographicalFilters
+                  selectedRegion={selectedRegion}
+                  selectedCircle={selectedCircle}
+                  selectedDivision={selectedDivision}
+                  selectedSubdivision={selectedSubdivision}
+                  selectedBlock={selectedBlock}
+                  onRegionChange={handleRegionChange}
+                  onCircleChange={handleCircleChange}
+                  onDivisionChange={handleDivisionChange}
+                  onSubdivisionChange={handleSubdivisionChange}
+                  onBlockChange={handleBlockChange}
+                  filters={filterOptions}
+                  className="mb-0"
+                />
+              </div>
+
+              {/* Other Filters Row */}
               <div className="flex flex-col lg:flex-row gap-4">
-                <div className="flex-1">
-                  <Select
-                    value={selectedRegion}
-                    onValueChange={handleRegionChange}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Region" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Regions</SelectItem>
-                      {regionsData.map((region) => (
-                        <SelectItem
-                          key={region.region_id}
-                          value={region.region_name}
-                        >
-                          {region.region_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
 
                 {/* MJP Civil Status Filter Box */}
                 <div className="flex-1">
@@ -1812,8 +1935,7 @@ const WaterConsumptionPage: React.FC = () => {
                       onClick={() =>
                         exportToExcel(
                           filteredData,
-                          `Water_Consumption_${currentFilter}_${selectedRegion}_${
-                            new Date().toISOString().split("T")[0]
+                          `Water_Consumption_${currentFilter}_${selectedRegion}_${new Date().toISOString().split("T")[0]
                           }`,
                         )
                       }
@@ -1825,8 +1947,7 @@ const WaterConsumptionPage: React.FC = () => {
                       onClick={() =>
                         exportToExcel(
                           allWaterConsumptionData,
-                          `Water_Consumption_All_ESR_${
-                            new Date().toISOString().split("T")[0]
+                          `Water_Consumption_All_ESR_${new Date().toISOString().split("T")[0]
                           }`,
                         )
                       }
@@ -1836,7 +1957,7 @@ const WaterConsumptionPage: React.FC = () => {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                
+
                 {/* Historical Data Button */}
                 <Button
                   onClick={() => setShowHistoricalData(!showHistoricalData)}
@@ -1860,7 +1981,7 @@ const WaterConsumptionPage: React.FC = () => {
                       Select Date Range for Historical Water Consumption Data
                     </span>
                   </div>
-                  
+
                   <div className="text-sm text-blue-600 bg-blue-100 px-3 py-2 rounded border border-blue-300">
                     💡 <span className="font-medium">Quick Tip:</span> Select your date range and click "Export to Excel" to download any range of historical data - the system will automatically query and download the data for you!
                   </div>
@@ -1896,11 +2017,10 @@ const WaterConsumptionPage: React.FC = () => {
                       onClick={exportHistoricalData}
                       variant="default"
                       size="sm"
-                      className={`flex items-center gap-2 mt-4 md:mt-0 transition-all ${
-                        historicalRecordCount > 0
-                          ? "bg-green-600 hover:bg-green-700 shadow-lg scale-105"
-                          : "bg-blue-600 hover:bg-blue-700"
-                      }`}
+                      className={`flex items-center gap-2 mt-4 md:mt-0 transition-all ${historicalRecordCount > 0
+                        ? "bg-green-600 hover:bg-green-700 shadow-lg scale-105"
+                        : "bg-blue-600 hover:bg-blue-700"
+                        }`}
                       disabled={
                         isCountingRecords || isExportingHistorical || !historicalStartDate || !historicalEndDate
                       }
@@ -2003,9 +2123,8 @@ const WaterConsumptionPage: React.FC = () => {
                 <div className="mb-4 text-sm text-gray-600">
                   {totalItems === 0
                     ? "No water consumption data available"
-                    : `Showing ${
-                        startIndex + 1
-                      } to ${endIndex} of ${totalItems} ESR locations`}
+                    : `Showing ${startIndex + 1
+                    } to ${endIndex} of ${totalItems} ESR locations`}
                 </div>
 
                 <table
@@ -2300,7 +2419,7 @@ const WaterConsumptionPage: React.FC = () => {
                               borderRadius: "0",
                               color:
                                 consumptionPercentage !== null &&
-                                consumptionPercentage > 75
+                                  consumptionPercentage > 75
                                   ? "#dc2626"
                                   : "#2563eb",
                             }}
@@ -2470,7 +2589,7 @@ const WaterConsumptionPage: React.FC = () => {
                                           <div className="font-medium">
                                             {formatWaterValue(
                                               record[
-                                                `water_value_day${day}` as keyof WaterConsumptionRecord
+                                              `water_value_day${day}` as keyof WaterConsumptionRecord
                                               ] as number,
                                             )}{" "}
                                             LL

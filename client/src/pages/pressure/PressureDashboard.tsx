@@ -39,6 +39,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { TranslatedText } from "@/components/ui/translated-text";
+import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
 import {
   Search,
   AlertTriangle,
@@ -383,6 +384,10 @@ const PressureDashboard: React.FC = () => {
 
   // Global filter state (affects both cards and table data)
   const [selectedRegion, setSelectedRegion] = useState<string>("all");
+  const [selectedCircle, setSelectedCircle] = useState<string>("all");
+  const [selectedDivision, setSelectedDivision] = useState<string>("all");
+  const [selectedSubdivision, setSelectedSubdivision] = useState<string>("all");
+  const [selectedBlock, setSelectedBlock] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [commissionedFilter, setCommissionedFilter] = useState<string>("all");
   const [fullyCompletedFilter, setFullyCompletedFilter] =
@@ -422,6 +427,65 @@ const PressureDashboard: React.FC = () => {
     return date.toISOString().split("T")[0];
   });
 
+  // Cascading filter handlers
+  const handleRegionChange = (value: string) => {
+    setSelectedRegion(value);
+    setSelectedCircle("all");
+    setSelectedDivision("all");
+    setSelectedSubdivision("all");
+    setSelectedBlock("all");
+    setPage(1);
+  };
+
+  const handleCircleChange = (value: string) => {
+    setSelectedCircle(value);
+    setSelectedDivision("all");
+    setSelectedSubdivision("all");
+    setSelectedBlock("all");
+    setPage(1);
+  };
+
+  const handleDivisionChange = (value: string) => {
+    setSelectedDivision(value);
+    setSelectedSubdivision("all");
+    setSelectedBlock("all");
+    setPage(1);
+  };
+
+  const handleSubdivisionChange = (value: string) => {
+    setSelectedSubdivision(value);
+    setSelectedBlock("all");
+    setPage(1);
+  };
+
+  const handleBlockChange = (value: string) => {
+    setSelectedBlock(value);
+    setPage(1);
+  };
+
+  // Fetch filter options
+  const { data: filterOptions } = useQuery({
+    queryKey: [
+      "/api/pressure/filters",
+      selectedRegion,
+      selectedCircle,
+      selectedDivision,
+      selectedSubdivision,
+    ],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedRegion !== "all") params.append("region", selectedRegion);
+      if (selectedCircle !== "all") params.append("circle", selectedCircle);
+      if (selectedDivision !== "all") params.append("division", selectedDivision);
+      if (selectedSubdivision !== "all")
+        params.append("subdivision", selectedSubdivision);
+
+      const response = await fetch(`/api/pressure/filters?${params.toString()}`);
+      if (!response.ok) throw new Error("Failed to fetch filter options");
+      return response.json();
+    },
+  });
+
   // Fetch all pressure data
   const {
     data: allPressureData = [],
@@ -429,12 +493,24 @@ const PressureDashboard: React.FC = () => {
     error: pressureError,
     refetch,
   } = useQuery<PressureData[]>({
-    queryKey: ["/api/pressure", selectedRegion, fullyCompletedFilter, schemeStatusFilter],
+    queryKey: ["/api/pressure", selectedRegion, selectedCircle, selectedDivision, selectedSubdivision, selectedBlock, fullyCompletedFilter, schemeStatusFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
 
       if (selectedRegion && selectedRegion !== "all") {
         params.append("region", selectedRegion);
+      }
+      if (selectedCircle && selectedCircle !== "all") {
+        params.append("circle", selectedCircle);
+      }
+      if (selectedDivision && selectedDivision !== "all") {
+        params.append("division", selectedDivision);
+      }
+      if (selectedSubdivision && selectedSubdivision !== "all") {
+        params.append("subdivision", selectedSubdivision);
+      }
+      if (selectedBlock && selectedBlock !== "all") {
+        params.append("block", selectedBlock);
       }
 
       if (fullyCompletedFilter && fullyCompletedFilter !== "all") {
@@ -468,7 +544,7 @@ const PressureDashboard: React.FC = () => {
 
       const data = await response.json();
       console.log(
-        `Received ${data.length} pressure records for region: ${selectedRegion}`,
+        `Received ${data.length} pressure records for filters:`, { selectedRegion, selectedCircle, selectedDivision, selectedSubdivision, selectedBlock },
       );
       return data;
     },
@@ -2005,34 +2081,21 @@ const PressureDashboard: React.FC = () => {
       <div className="bg-white rounded-xl shadow-sm mb-6 p-6 border border-blue-100">
         {/* Filters Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-          {/* Select Region */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Region
-            </label>
-            <Select
-              value={selectedRegion}
-              onValueChange={(value) => {
-                setSelectedRegion(value);
-                setPage(1);
-              }}
-              data-testid="select-region"
-            >
-              <SelectTrigger className="bg-white border border-blue-200 shadow-sm focus:ring-blue-500 focus:border-blue-500 h-11">
-                <SelectValue placeholder="All Regions" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" className="font-medium">
-                  All Regions
-                </SelectItem>
-                <div className="h-px bg-gray-200 my-1"></div>
-                {regionsData.map((region) => (
-                  <SelectItem key={region.region_id} value={region.region_name}>
-                    {region.region_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Geographic Filters */}
+          <div className="lg:col-span-4">
+            <GeographicalFilters
+              filters={filterOptions}
+              selectedRegion={selectedRegion}
+              selectedCircle={selectedCircle}
+              selectedDivision={selectedDivision}
+              selectedSubdivision={selectedSubdivision}
+              selectedBlock={selectedBlock}
+              onRegionChange={handleRegionChange}
+              onCircleChange={handleCircleChange}
+              onDivisionChange={handleDivisionChange}
+              onSubdivisionChange={handleSubdivisionChange}
+              onBlockChange={handleBlockChange}
+            />
           </div>
 
           {/* Scheme Readiness */}
