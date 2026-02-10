@@ -63,7 +63,7 @@ router.get('/all', async (req, res) => {
 router.get('/search', async (req, res) => {
   try {
     const { query } = req.query;
-    
+
     if (!query || typeof query !== 'string' || query.trim().length < 2) {
       return res.status(400).json({ error: 'Query must be at least 2 characters long' });
     }
@@ -100,19 +100,19 @@ router.get('/search', async (req, res) => {
         ORDER BY priority_order, scheme_name
         LIMIT 10
       `;
-      
+
       const queryStr = query as string;
       const searchPattern = `%${queryStr.trim()}%`;      // For partial matches
       const startPattern = `${queryStr.trim()}%`;        // For starts-with matches
       const exactPattern = queryStr.trim();              // For exact matches
-      
+
       const result = await client.query(searchQuery, [
         searchPattern,    // $1: %query%
         startPattern,     // $2: query%  
         exactPattern      // $3: query (exact)
         // Note: Removed duplicate parameter
       ]);
-      
+
       res.json(result.rows);
     } finally {
       client.release();
@@ -167,7 +167,7 @@ router.get('/comprehensive/:identifier', async (req, res) => {
       `;
 
       const schemeResult = await client.query(schemeQuery, [`%${identifier}%`]);
-      
+
       if (schemeResult.rows.length === 0) {
         return res.status(404).json({ error: 'Scheme not found' });
       }
@@ -345,7 +345,7 @@ router.get('/comprehensive/:identifier', async (req, res) => {
           mjp_commissioned: scheme.mjp_commissioned,
           mjp_fully_completed: scheme.mjp_fully_completed,
           dashboard_url: scheme.dashboard_url,
-          
+
           // Village metrics
           number_of_villages: parseInt(scheme.number_of_village) || 0,
           villages_integrated: parseInt(scheme.total_villages_integrated) || 0,
@@ -354,19 +354,19 @@ router.get('/comprehensive/:identifier', async (req, res) => {
           fully_completed_villages: parseInt(scheme.fully_completed_villages) || 0,
           partial_villages: parseInt(scheme.partial_villages) || 0,
           non_functional_villages: parseInt(scheme.no_of_non_functional_village) || 0,
-          
+
           // ESR metrics
           total_esr: parseInt(scheme.total_number_of_esr) || 0,
           esr_integrated: parseInt(scheme.total_esr_integrated) || 0,
           fully_completed_esr: parseInt(scheme.no_fully_completed_esr) || 0,
           balance_esr_to_complete: parseInt(scheme.balance_to_complete_esr) || 0,
-          
+
           // Infrastructure metrics
           flow_meters_connected: parseInt(scheme.flow_meters_connected) || 0,
           chlorine_analyzers_connected: parseInt(scheme.residual_chlorine_analyzer_connected) || 0,
           pressure_transmitters_connected: parseInt(scheme.pressure_transmitter_connected) || 0
         },
-        
+
         village_water_supply_data: {
           total_villages_with_data: parseInt(waterData.total_villages_with_data) || 0,
           villages_receiving_water: parseInt(waterData.villages_receiving_water) || 0,
@@ -383,7 +383,7 @@ router.get('/comprehensive/:identifier', async (req, res) => {
           avg_lpcd_day7: parseFloat(waterData.avg_lpcd_day7) || 0,
           total_population_covered: parseInt(waterData.total_population_covered) || 0
         },
-        
+
         sensor_data: {
           chlorine_sensors: {
             total_esr_with_data: parseInt(chlorineData.total_esr_with_chlorine_data) || 0,
@@ -397,7 +397,7 @@ router.get('/comprehensive/:identifier', async (req, res) => {
             consistent_zero_readings: parseInt(chlorineData.esr_consistent_zero_chlorine) || 0,
             avg_chlorine_day7: parseFloat(chlorineData.avg_chlorine_day7) || 0
           },
-          
+
           pressure_sensors: {
             total_esr_with_data: parseInt(pressureData.total_esr_with_pressure_data) || 0,
             optimal_range_0_2_to_0_7: parseInt(pressureData.esr_optimal_pressure) || 0,
@@ -411,7 +411,7 @@ router.get('/comprehensive/:identifier', async (req, res) => {
             avg_pressure_day7: parseFloat(pressureData.avg_pressure_day7) || 0
           }
         },
-        
+
         village_completion_data: {
           total_villages_in_system: parseInt(villageData.total_villages_in_system) || 0,
           fully_completed_villages_count: parseInt(villageData.fully_completed_villages_count) || 0,
@@ -645,7 +645,7 @@ router.get('/export/excel/:identifier', async (req, res) => {
         FROM water_scheme_data 
         WHERE scheme_name ILIKE $1 OR scheme_id ILIKE $1
       `;
-      
+
       const chlorineStatsQuery = `
         SELECT 
           COUNT(*) as total_esr_with_chlorine,
@@ -655,7 +655,7 @@ router.get('/export/excel/:identifier', async (req, res) => {
         FROM chlorine_data 
         WHERE scheme_name ILIKE $1 OR scheme_id ILIKE $1
       `;
-      
+
       const pressureStatsQuery = `
         SELECT 
           COUNT(*) as total_esr_with_pressure,
@@ -665,11 +665,11 @@ router.get('/export/excel/:identifier', async (req, res) => {
         FROM pressure_data 
         WHERE scheme_name ILIKE $1 OR scheme_id ILIKE $1
       `;
-      
+
       const lpcdStatsResult = await client.query(lpcdStatsQuery, [`%${identifier}%`]);
       const chlorineStatsResult = await client.query(chlorineStatsQuery, [`%${identifier}%`]);
       const pressureStatsResult = await client.query(pressureStatsQuery, [`%${identifier}%`]);
-      
+
       const lpcdStats = lpcdStatsResult.rows[0] || {};
       const chlorineStats = chlorineStatsResult.rows[0] || {};
       const pressureStats = pressureStatsResult.rows[0] || {};
@@ -720,6 +720,7 @@ router.get('/export/excel/:identifier', async (req, res) => {
             wc.water_value_day4,
             wc.water_value_day5,
             wc.water_value_day6,
+            wc.water_value_day7,
             wc.flow_meter_connected as flow_meter_status,
             wc.flow_rate_m3,
             wc.online_status,
@@ -808,7 +809,7 @@ router.get('/export/excel/:identifier', async (req, res) => {
       };
 
       const results: any = {};
-      
+
       for (const [key, query] of Object.entries(queries)) {
         const result = await client.query(query, [`%${identifier}%`]);
         results[key] = result.rows;
@@ -816,25 +817,25 @@ router.get('/export/excel/:identifier', async (req, res) => {
 
       // Create Excel workbook with ExcelJS and sky blue headers
       const workbook = new ExcelJS.Workbook();
-      
+
       // Helper function to add sky blue headers and format data
       const addWorksheetWithHeaders = (data: any[], sheetName: string) => {
         if (!Array.isArray(data) || data.length === 0) return;
-        
+
         // Format data to remove underscores from headers and replace date columns
         const formattedData = data.map(row => {
           const formattedRow: any = {};
-          
+
           Object.keys(row).forEach(key => {
             let newKey = key;
-            
+
             // Remove underscores and capitalize properly
             if (key.includes('_')) {
-              newKey = key.split('_').map(word => 
+              newKey = key.split('_').map(word =>
                 word.charAt(0).toUpperCase() + word.slice(1)
               ).join(' ');
             }
-            
+
             // For chlorine data, replace value columns with date columns
             if (sheetName === 'chlorine_data') {
               if (key === 'chlorine_value_1') {
@@ -853,7 +854,7 @@ router.get('/export/excel/:identifier', async (req, res) => {
                 newKey = row['chlorine_date_day_7'] || 'Day 7';
               }
             }
-            
+
             // For pressure data, replace value columns with date columns
             if (sheetName === 'pressure_data') {
               if (key === 'pressure_value_1') {
@@ -872,7 +873,7 @@ router.get('/export/excel/:identifier', async (req, res) => {
                 newKey = row['pressure_date_day_7'] || 'Day 7';
               }
             }
-            
+
             // For water consumption data, replace value columns with date columns
             if (sheetName === 'village_water_consumption') {
               if (key === 'water_value_day1') {
@@ -891,28 +892,28 @@ router.get('/export/excel/:identifier', async (req, res) => {
                 newKey = row['water_date_day7'] || 'Day 7';
               }
             }
-            
+
             // Skip date columns as they're now used as headers
             if (!key.includes('_date_day') && !key.includes('date_day')) {
               formattedRow[newKey] = row[key];
             }
           });
-          
+
           return formattedRow;
         });
-        
+
         // Create worksheet
         const worksheet = workbook.addWorksheet(sheetName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
-        
+
         // Add header row
         const headerKeys = formattedData.length > 0 ? Object.keys(formattedData[0]) : [];
         worksheet.addRow(headerKeys);
-        
+
         // Add data rows
         formattedData.forEach((row) => {
           worksheet.addRow(headerKeys.map((key) => row[key]));
         });
-        
+
         // Style header row with sky blue background
         const headerRow = worksheet.getRow(1);
         headerRow.eachCell((cell) => {
@@ -931,12 +932,12 @@ router.get('/export/excel/:identifier', async (req, res) => {
           };
         });
       };
-      
+
       // Add Summary Statistics worksheet first (matching dashboard calculations)
       const summarySheet = workbook.addWorksheet('Dashboard Statistics');
-      
+
       // Style helper for summary sheet
-      const addSummarySection = (startRow: number, title: string, data: {label: string, value: any}[]) => {
+      const addSummarySection = (startRow: number, title: string, data: { label: string, value: any }[]) => {
         // Add section title
         summarySheet.getRow(startRow).getCell(1).value = title;
         summarySheet.getRow(startRow).getCell(1).font = { bold: true, size: 14 };
@@ -947,7 +948,7 @@ router.get('/export/excel/:identifier', async (req, res) => {
         };
         summarySheet.getRow(startRow).getCell(1).font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
         summarySheet.mergeCells(startRow, 1, startRow, 2);
-        
+
         // Add data rows
         data.forEach((item, index) => {
           const row = startRow + index + 1;
@@ -955,16 +956,16 @@ router.get('/export/excel/:identifier', async (req, res) => {
           summarySheet.getRow(row).getCell(2).value = item.value;
           summarySheet.getRow(row).getCell(1).font = { bold: true };
         });
-        
+
         return startRow + data.length + 2;
       };
-      
+
       // Set column widths
       summarySheet.getColumn(1).width = 40;
       summarySheet.getColumn(2).width = 20;
-      
+
       let currentRow = 1;
-      
+
       // 55 LPCD Village Achievement Section (matching EnhancedLpcdDashboard)
       currentRow = addSummarySection(currentRow, '55 LPCD Village Achievement', [
         { label: 'Total Villages', value: parseInt(lpcdStats.total_villages) || 0 },
@@ -979,7 +980,7 @@ router.get('/export/excel/:identifier', async (req, res) => {
         { label: 'Population Above 55 LPCD', value: parseInt(lpcdStats.population_above_55_lpcd) || 0 },
         { label: 'Population Below 55 LPCD', value: parseInt(lpcdStats.population_below_55_lpcd) || 0 },
       ]);
-      
+
       // Chlorine Range Section (matching ChlorineDashboard - zero/null included in below range)
       currentRow = addSummarySection(currentRow, 'Chlorine Sensor Range (mg/L)', [
         { label: 'Total ESRs with Chlorine Data', value: parseInt(chlorineStats.total_esr_with_chlorine) || 0 },
@@ -987,7 +988,7 @@ router.get('/export/excel/:identifier', async (req, res) => {
         { label: 'Optimal Range (0.2 - 0.5 mg/L)', value: parseInt(chlorineStats.esr_optimal_chlorine) || 0 },
         { label: 'Above Range (> 0.5 mg/L)', value: parseInt(chlorineStats.esr_above_05_chlorine) || 0 },
       ]);
-      
+
       // Pressure Range Section (matching PressureDashboard - zero/null included in below range)
       currentRow = addSummarySection(currentRow, 'Pressure Sensor Range (bar)', [
         { label: 'Total ESRs with Pressure Data', value: parseInt(pressureStats.total_esr_with_pressure) || 0 },
@@ -995,7 +996,7 @@ router.get('/export/excel/:identifier', async (req, res) => {
         { label: 'Optimal Range (0.2 - 0.7 bar)', value: parseInt(pressureStats.esr_optimal_pressure) || 0 },
         { label: 'Above Range (> 0.7 bar)', value: parseInt(pressureStats.esr_above_07_pressure) || 0 },
       ]);
-      
+
       // Add worksheets for each data type with sky blue headers
       Object.entries(results).forEach(([sheetName, data]) => {
         addWorksheetWithHeaders(data as any[], sheetName);
@@ -1008,7 +1009,7 @@ router.get('/export/excel/:identifier', async (req, res) => {
       const schemeName = results.scheme_summary[0]?.scheme_name || identifier;
       const region = results.scheme_summary[0]?.region || 'Unknown_Region';
       const fileName = `${schemeName.replace(/[^a-zA-Z0-9]/g, '_')}_${region.replace(/[^a-zA-Z0-9]/g, '_')}_Basic_Report.xlsx`;
-      
+
       res.set({
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="${fileName}"`,
@@ -1066,13 +1067,13 @@ router.get('/export/villages/:identifier', async (req, res) => {
           wsd.water_value_day5,
           wsd.water_value_day6,
           wsd.water_value_day7,
-          wsd.water_date_day_1,
-          wsd.water_date_day_2,
-          wsd.water_date_day_3,
-          wsd.water_date_day_4,
-          wsd.water_date_day_5,
-          wsd.water_date_day_6,
-          wsd.water_date_day_7,
+          wsd.water_date_day1,
+          wsd.water_date_day2,
+          wsd.water_date_day3,
+          wsd.water_date_day4,
+          wsd.water_date_day5,
+          wsd.water_date_day6,
+          wsd.water_date_day7,
           wsd.consistent_zero_water_supply,
           wsd.consistent_water_supply,
           wsd.dashboard_url
@@ -1082,58 +1083,58 @@ router.get('/export/villages/:identifier', async (req, res) => {
       `;
 
       const result = await client.query(villageQuery, [`%${identifier}%`]);
-      
+
       if (result.rows.length === 0) {
         return res.status(404).json({ error: 'No village data found for this scheme' });
       }
 
       // Create Excel workbook with ExcelJS and sky blue headers
       const workbook = new ExcelJS.Workbook();
-      
+
       // Format data to remove underscores from headers and replace date columns
       const formattedData = result.rows.map(row => {
         const formattedRow: any = {};
         Object.keys(row).forEach(key => {
           let newKey = key;
-          
+
           // Remove underscores and capitalize properly
           if (key.includes('_')) {
-            newKey = key.split('_').map(word => 
+            newKey = key.split('_').map(word =>
               word.charAt(0).toUpperCase() + word.slice(1)
             ).join(' ');
           }
-          
+
           // For water consumption data in villages export, replace value columns with date columns
           if (key === 'water_value_day1') {
-            newKey = row['water_date_day_1'] || 'Day 1';
+            newKey = row['water_date_day1'] || 'Day 1';
           } else if (key === 'water_value_day2') {
-            newKey = row['water_date_day_2'] || 'Day 2';
+            newKey = row['water_date_day2'] || 'Day 2';
           } else if (key === 'water_value_day3') {
-            newKey = row['water_date_day_3'] || 'Day 3';
+            newKey = row['water_date_day3'] || 'Day 3';
           } else if (key === 'water_value_day4') {
-            newKey = row['water_date_day_4'] || 'Day 4';
+            newKey = row['water_date_day4'] || 'Day 4';
           } else if (key === 'water_value_day5') {
-            newKey = row['water_date_day_5'] || 'Day 5';
+            newKey = row['water_date_day5'] || 'Day 5';
           } else if (key === 'water_value_day6') {
-            newKey = row['water_date_day_6'] || 'Day 6';
+            newKey = row['water_date_day6'] || 'Day 6';
           } else if (key === 'water_value_day7') {
-            newKey = row['water_date_day_7'] || 'Day 7';
+            newKey = row['water_date_day7'] || 'Day 7';
           } else if (key === 'lpcd_value_day1') {
-            newKey = 'LPCD ' + (row['water_date_day_1'] || 'Day 1');
+            newKey = 'LPCD ' + (row['water_date_day1'] || 'Day 1');
           } else if (key === 'lpcd_value_day2') {
-            newKey = 'LPCD ' + (row['water_date_day_2'] || 'Day 2');
+            newKey = 'LPCD ' + (row['water_date_day2'] || 'Day 2');
           } else if (key === 'lpcd_value_day3') {
-            newKey = 'LPCD ' + (row['water_date_day_3'] || 'Day 3');
+            newKey = 'LPCD ' + (row['water_date_day3'] || 'Day 3');
           } else if (key === 'lpcd_value_day4') {
-            newKey = 'LPCD ' + (row['water_date_day_4'] || 'Day 4');
+            newKey = 'LPCD ' + (row['water_date_day4'] || 'Day 4');
           } else if (key === 'lpcd_value_day5') {
-            newKey = 'LPCD ' + (row['water_date_day_5'] || 'Day 5');
+            newKey = 'LPCD ' + (row['water_date_day5'] || 'Day 5');
           } else if (key === 'lpcd_value_day6') {
-            newKey = 'LPCD ' + (row['water_date_day_6'] || 'Day 6');
+            newKey = 'LPCD ' + (row['water_date_day6'] || 'Day 6');
           } else if (key === 'lpcd_value_day7') {
-            newKey = 'LPCD ' + (row['water_date_day_7'] || 'Day 7');
+            newKey = 'LPCD ' + (row['water_date_day7'] || 'Day 7');
           }
-          
+
           // Skip date columns as they're now used as headers
           if (!key.includes('_date_day')) {
             formattedRow[newKey] = row[key];
@@ -1141,18 +1142,18 @@ router.get('/export/villages/:identifier', async (req, res) => {
         });
         return formattedRow;
       });
-      
+
       const worksheet = workbook.addWorksheet('Village Data');
-      
+
       // Add header row
       const headerKeys = formattedData.length > 0 ? Object.keys(formattedData[0]) : [];
       worksheet.addRow(headerKeys);
-      
+
       // Add data rows
       formattedData.forEach((row) => {
         worksheet.addRow(headerKeys.map((key) => row[key]));
       });
-      
+
       // Style header row with sky blue background
       const headerRow = worksheet.getRow(1);
       headerRow.eachCell((cell) => {
@@ -1178,7 +1179,7 @@ router.get('/export/villages/:identifier', async (req, res) => {
       const schemeName = result.rows[0]?.scheme_name || identifier;
       const region = result.rows[0]?.region || 'Unknown_Region';
       const fileName = `${schemeName.replace(/[^a-zA-Z0-9]/g, '_')}_${region.replace(/[^a-zA-Z0-9]/g, '_')}_Village_Report.xlsx`;
-      
+
       res.set({
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="${fileName}"`,
@@ -1285,27 +1286,27 @@ router.get('/export/esr/:identifier', async (req, res) => {
       `;
 
       const result = await client.query(esrQuery, [`%${identifier}%`]);
-      
+
       if (result.rows.length === 0) {
         return res.status(404).json({ error: 'No ESR data found for this scheme' });
       }
 
       // Create Excel workbook with ExcelJS and sky blue headers
       const workbook = new ExcelJS.Workbook();
-      
+
       // Format data to remove underscores from headers and add date columns
       const formattedData = result.rows.map(row => {
         const formattedRow: any = {};
         Object.keys(row).forEach(key => {
           let newKey = key;
-          
+
           // Remove underscores and capitalize properly
           if (key.includes('_')) {
-            newKey = key.split('_').map(word => 
+            newKey = key.split('_').map(word =>
               word.charAt(0).toUpperCase() + word.slice(1)
             ).join(' ');
           }
-          
+
           // Replace water value columns with date columns as headers
           if (key === 'water_value_day1') {
             newKey = row['water_date_day1'] || 'Day 1';
@@ -1350,7 +1351,7 @@ router.get('/export/esr/:identifier', async (req, res) => {
           } else if (key === 'pressure_value_7') {
             newKey = 'Pressure ' + (row['pressure_date_day_7'] || 'Day 7');
           }
-          
+
           // Skip date columns as they're now used as headers
           if (!key.includes('date_day')) {
             formattedRow[newKey] = row[key];
@@ -1358,18 +1359,18 @@ router.get('/export/esr/:identifier', async (req, res) => {
         });
         return formattedRow;
       });
-      
+
       const worksheet = workbook.addWorksheet('ESR Data');
-      
+
       // Add header row
       const headerKeys = formattedData.length > 0 ? Object.keys(formattedData[0]) : [];
       worksheet.addRow(headerKeys);
-      
+
       // Add data rows
       formattedData.forEach((row) => {
         worksheet.addRow(headerKeys.map((key) => row[key]));
       });
-      
+
       // Style header row with sky blue background
       const headerRow = worksheet.getRow(1);
       headerRow.eachCell((cell) => {
@@ -1395,7 +1396,7 @@ router.get('/export/esr/:identifier', async (req, res) => {
       const schemeName = result.rows[0]?.scheme_name || identifier;
       const region = result.rows[0]?.region || 'Unknown_Region';
       const fileName = `${schemeName.replace(/[^a-zA-Z0-9]/g, '_')}_${region.replace(/[^a-zA-Z0-9]/g, '_')}_ESR_Report.xlsx`;
-      
+
       res.set({
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="${fileName}"`,
@@ -1546,7 +1547,7 @@ router.get('/filter/:identifier/:category', async (req, res) => {
       }
 
       const result = await client.query(query, queryParams);
-      
+
       res.json({
         category: category,
         scheme_identifier: identifier,

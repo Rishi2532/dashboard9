@@ -401,8 +401,11 @@ router.get('/history', async (req, res) => {
         query += ` AND (
           CASE 
             WHEN h.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN h.data_date::date
-            WHEN h.data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(h.data_date, 'DD-Mon-YY')
-            ELSE TO_DATE(h.data_date || '-' || TO_CHAR(uploaded_at, 'YYYY'), 'DD-Mon-YYYY')
+            WHEN h.data_date ~ '^\\d{1,2}-\\d{1,2}-\\d{2,4}$' THEN TO_DATE(h.data_date, 'DD-MM-YYYY')
+            WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+-\\d{4}$' THEN TO_DATE(h.data_date, 'DD-Mon-YYYY')
+            WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+-\\d{2}$' THEN TO_DATE(h.data_date, 'DD-Mon-YY')
+            WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+$' THEN TO_DATE(h.data_date || '-' || TO_CHAR(h.uploaded_at, 'YYYY'), 'DD-Mon-YYYY')
+            ELSE NULL
           END
         ) >= $${paramIndex}::date`;
         queryParams.push(start_date);
@@ -414,8 +417,11 @@ router.get('/history', async (req, res) => {
         query += ` AND (
           CASE 
             WHEN h.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN h.data_date::date
-            WHEN h.data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(h.data_date, 'DD-Mon-YY')
-            ELSE TO_DATE(h.data_date || '-' || TO_CHAR(uploaded_at, 'YYYY'), 'DD-Mon-YYYY')
+            WHEN h.data_date ~ '^\\d{1,2}-\\d{1,2}-\\d{2,4}$' THEN TO_DATE(h.data_date, 'DD-MM-YYYY')
+            WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+-\\d{4}$' THEN TO_DATE(h.data_date, 'DD-Mon-YYYY')
+            WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+-\\d{2}$' THEN TO_DATE(h.data_date, 'DD-Mon-YY')
+            WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+$' THEN TO_DATE(h.data_date || '-' || TO_CHAR(h.uploaded_at, 'YYYY'), 'DD-Mon-YYYY')
+            ELSE NULL
           END
         ) <= $${paramIndex}::date`;
         queryParams.push(end_date);
@@ -499,8 +505,11 @@ router.get('/export/history', async (req, res) => {
         query += ` AND (
           CASE 
             WHEN h.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN h.data_date::date
-            WHEN h.data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(h.data_date, 'DD-Mon-YY')
-            ELSE TO_DATE(h.data_date || '-' || TO_CHAR(h.uploaded_at, 'YYYY'), 'DD-Mon-YYYY')
+            WHEN h.data_date ~ '^\\d{1,2}-\\d{1,2}-\\d{2,4}$' THEN TO_DATE(h.data_date, 'DD-MM-YYYY')
+            WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+-\\d{4}$' THEN TO_DATE(h.data_date, 'DD-Mon-YYYY')
+            WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+-\\d{2}$' THEN TO_DATE(h.data_date, 'DD-Mon-YY')
+            WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+$' THEN TO_DATE(h.data_date || '-' || TO_CHAR(h.uploaded_at, 'YYYY'), 'DD-Mon-YYYY')
+            ELSE NULL
           END
         ) >= $${paramIndex}::date`;
         queryParams.push(start_date);
@@ -512,8 +521,11 @@ router.get('/export/history', async (req, res) => {
         query += ` AND (
           CASE 
             WHEN h.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN h.data_date::date
-            WHEN h.data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(h.data_date, 'DD-Mon-YY')
-            ELSE TO_DATE(h.data_date || '-' || TO_CHAR(h.uploaded_at, 'YYYY'), 'DD-Mon-YYYY')
+            WHEN h.data_date ~ '^\\d{1,2}-\\d{1,2}-\\d{2,4}$' THEN TO_DATE(h.data_date, 'DD-MM-YYYY')
+            WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+-\\d{4}$' THEN TO_DATE(h.data_date, 'DD-Mon-YYYY')
+            WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+-\\d{2}$' THEN TO_DATE(h.data_date, 'DD-Mon-YY')
+            WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+$' THEN TO_DATE(h.data_date || '-' || TO_CHAR(h.uploaded_at, 'YYYY'), 'DD-Mon-YYYY')
+            ELSE NULL
           END
         ) <= $${paramIndex}::date`;
         queryParams.push(end_date);

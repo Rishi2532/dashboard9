@@ -216,6 +216,7 @@ router.get('/village-stats', async (req, res) => {
             village_name,
             scheme_id,
             region,
+            water_value_day7,
             water_value_day6,
             water_value_day5,
             lpcd_value_day7,
@@ -226,13 +227,13 @@ router.get('/village-stats', async (req, res) => {
         SELECT 
           COUNT(DISTINCT CONCAT(village_name, '|', scheme_id)) as total_villages,
 
-          -- Villages receiving water (water_value_day6 > 0)
-          COUNT(CASE WHEN water_value_day6 > 0 THEN 1 END) as villages_with_water,
-          ROUND((COUNT(CASE WHEN water_value_day6 > 0 THEN 1 END) * 100.0 / COUNT(DISTINCT CONCAT(village_name, '|', scheme_id))), 2) as percent_villages_with_water,
+          -- Villages receiving water (water_value_day7 > 0)
+          COUNT(CASE WHEN water_value_day7 > 0 THEN 1 END) as villages_with_water,
+          ROUND((COUNT(CASE WHEN water_value_day7 > 0 THEN 1 END) * 100.0 / COUNT(DISTINCT CONCAT(village_name, '|', scheme_id))), 2) as percent_villages_with_water,
 
-          -- Villages not receiving water (water_value_day6 = 0 or NULL)
-          COUNT(CASE WHEN water_value_day6 = 0 OR water_value_day6 IS NULL THEN 1 END) as villages_without_water,
-          ROUND((COUNT(CASE WHEN water_value_day6 = 0 OR water_value_day6 IS NULL THEN 1 END) * 100.0 / COUNT(DISTINCT CONCAT(village_name, '|', scheme_id))), 2) as percent_villages_without_water,
+          -- Villages not receiving water (water_value_day7 = 0 or NULL)
+          COUNT(CASE WHEN water_value_day7 = 0 OR water_value_day7 IS NULL THEN 1 END) as villages_without_water,
+          ROUND((COUNT(CASE WHEN water_value_day7 = 0 OR water_value_day7 IS NULL THEN 1 END) * 100.0 / COUNT(DISTINCT CONCAT(village_name, '|', scheme_id))), 2) as percent_villages_without_water,
 
           -- Villages with LPCD > 55
           COUNT(CASE WHEN lpcd_value_day7 > 55 THEN 1 END) as villages_lpcd_above_55,
@@ -242,13 +243,13 @@ router.get('/village-stats', async (req, res) => {
           COUNT(CASE WHEN lpcd_value_day7 <= 55 AND lpcd_value_day7 > 0 THEN 1 END) as villages_lpcd_below_55,
           ROUND((COUNT(CASE WHEN lpcd_value_day7 <= 55 AND lpcd_value_day7 > 0 THEN 1 END) * 100.0 / COUNT(DISTINCT CONCAT(village_name, '|', scheme_id))), 2) as percent_villages_lpcd_below_55,
 
-          -- Daily change calculations (comparing day 6 vs day 5)
-          COUNT(CASE WHEN water_value_day6 > 0 AND (water_value_day5 = 0 OR water_value_day5 IS NULL) THEN 1 END) as villages_gained_water,
-          COUNT(CASE WHEN (water_value_day6 = 0 OR water_value_day6 IS NULL) AND water_value_day5 > 0 THEN 1 END) as villages_lost_water,
+          -- Daily change calculations (comparing day 7 vs day 6)
+          COUNT(CASE WHEN water_value_day7 > 0 AND (water_value_day6 = 0 OR water_value_day6 IS NULL) THEN 1 END) as villages_gained_water,
+          COUNT(CASE WHEN (water_value_day7 = 0 OR water_value_day7 IS NULL) AND water_value_day6 > 0 THEN 1 END) as villages_lost_water,
 
-          -- Villages with water on day 5 for comparison
-          COUNT(CASE WHEN water_value_day5 > 0 THEN 1 END) as villages_with_water_day5,
-          COUNT(CASE WHEN water_value_day5 = 0 OR water_value_day5 IS NULL THEN 1 END) as villages_without_water_day5,
+          -- Villages with water on day 6 for comparison
+          COUNT(CASE WHEN water_value_day6 > 0 THEN 1 END) as villages_with_water_day5,
+          COUNT(CASE WHEN water_value_day6 = 0 OR water_value_day6 IS NULL THEN 1 END) as villages_without_water_day5,
 
           -- LPCD change calculations (day 7 vs day 6)
           COUNT(CASE WHEN lpcd_value_day7 > 55 THEN 1 END) as villages_lpcd_above_55_day7,
@@ -295,6 +296,7 @@ router.get('/population-stats', async (req, res) => {
             scheme_id,
             TRIM(region) as region,
             population,
+            water_value_day7,
             water_value_day6,
             water_value_day5,
             lpcd_value_day7,
@@ -306,17 +308,17 @@ router.get('/population-stats', async (req, res) => {
           COUNT(DISTINCT CONCAT(village_name, '|', scheme_id)) as total_villages,
           SUM(population) as total_population,
 
-          -- Villages and population receiving water (water_value_day6 > 0)
-          COUNT(CASE WHEN water_value_day6 > 0 THEN 1 END) as villages_with_water,
-          SUM(CASE WHEN water_value_day6 > 0 THEN population ELSE 0 END) as population_with_water,
-          ROUND((COUNT(CASE WHEN water_value_day6 > 0 THEN 1 END) * 100.0 / COUNT(DISTINCT CONCAT(village_name, '|', scheme_id))), 2) as percent_villages_with_water,
-          ROUND((SUM(CASE WHEN water_value_day6 > 0 THEN population ELSE 0 END) * 100.0 / SUM(population)), 2) as percent_population_with_water,
+          -- Villages and population receiving water (water_value_day7 > 0)
+          COUNT(CASE WHEN water_value_day7 > 0 THEN 1 END) as villages_with_water,
+          SUM(CASE WHEN water_value_day7 > 0 THEN population ELSE 0 END) as population_with_water,
+          ROUND((COUNT(CASE WHEN water_value_day7 > 0 THEN 1 END) * 100.0 / COUNT(DISTINCT CONCAT(village_name, '|', scheme_id))), 2) as percent_villages_with_water,
+          ROUND((SUM(CASE WHEN water_value_day7 > 0 THEN population ELSE 0 END) * 100.0 / SUM(population)), 2) as percent_population_with_water,
 
-          -- Villages and population with no water (water_value_day6 = 0 or NULL)
-          COUNT(CASE WHEN water_value_day6 = 0 OR water_value_day6 IS NULL THEN 1 END) as villages_no_water,
-          SUM(CASE WHEN water_value_day6 = 0 OR water_value_day6 IS NULL THEN population ELSE 0 END) as population_no_water,
-          ROUND((COUNT(CASE WHEN water_value_day6 = 0 OR water_value_day6 IS NULL THEN 1 END) * 100.0 / COUNT(DISTINCT CONCAT(village_name, '|', scheme_id))), 2) as percent_villages_no_water,
-          ROUND((SUM(CASE WHEN water_value_day6 = 0 OR water_value_day6 IS NULL THEN population ELSE 0 END) * 100.0 / SUM(population)), 2) as percent_population_no_water,
+          -- Villages and population with no water (water_value_day7 = 0 or NULL)
+          COUNT(CASE WHEN water_value_day7 = 0 OR water_value_day7 IS NULL THEN 1 END) as villages_no_water,
+          SUM(CASE WHEN water_value_day7 = 0 OR water_value_day7 IS NULL THEN population ELSE 0 END) as population_no_water,
+          ROUND((COUNT(CASE WHEN water_value_day7 = 0 OR water_value_day7 IS NULL THEN 1 END) * 100.0 / COUNT(DISTINCT CONCAT(village_name, '|', scheme_id))), 2) as percent_villages_no_water,
+          ROUND((SUM(CASE WHEN water_value_day7 = 0 OR water_value_day7 IS NULL THEN population ELSE 0 END) * 100.0 / SUM(population)), 2) as percent_population_no_water,
 
           -- LPCD analysis based on latest lpcd_date_day7
           COUNT(CASE WHEN lpcd_value_day7 > 55 THEN 1 END) as villages_lpcd_above_55,
@@ -326,15 +328,15 @@ router.get('/population-stats', async (req, res) => {
           SUM(CASE WHEN lpcd_value_day7 > 55 THEN population ELSE 0 END) as population_lpcd_above_55,
           SUM(CASE WHEN lpcd_value_day7 <= 55 AND lpcd_value_day7 > 0 THEN population ELSE 0 END) as population_lpcd_below_55,
 
-          -- Population change analysis (day6 vs day5) - Net change calculation
-          -- Net change in population with water (day6 - day5)
-          SUM(CASE WHEN water_value_day6 > 0 THEN population ELSE 0 END) - SUM(CASE WHEN water_value_day5 > 0 THEN population ELSE 0 END) as population_gained_water,
-          -- Net change in population without water (day6 - day5)  
-          SUM(CASE WHEN water_value_day6 = 0 OR water_value_day6 IS NULL THEN population ELSE 0 END) - SUM(CASE WHEN water_value_day5 = 0 OR water_value_day5 IS NULL THEN population ELSE 0 END) as population_lost_water,
+          -- Population change analysis (day7 vs day6) - Net change calculation
+          -- Net change in population with water (day7 - day6)
+          SUM(CASE WHEN water_value_day7 > 0 THEN population ELSE 0 END) - SUM(CASE WHEN water_value_day6 > 0 THEN population ELSE 0 END) as population_gained_water,
+          -- Net change in population without water (day7 - day6)  
+          SUM(CASE WHEN water_value_day7 = 0 OR water_value_day7 IS NULL THEN population ELSE 0 END) - SUM(CASE WHEN water_value_day6 = 0 OR water_value_day6 IS NULL THEN population ELSE 0 END) as population_lost_water,
 
-          -- Day 5 baseline for comparison
-          SUM(CASE WHEN water_value_day5 > 0 THEN population ELSE 0 END) as population_with_water_day5,
-          SUM(CASE WHEN water_value_day5 = 0 OR water_value_day5 IS NULL THEN population ELSE 0 END) as population_no_water_day5,
+          -- Day 6 baseline for comparison
+          SUM(CASE WHEN water_value_day6 > 0 THEN population ELSE 0 END) as population_with_water_day5,
+          SUM(CASE WHEN water_value_day6 = 0 OR water_value_day6 IS NULL THEN population ELSE 0 END) as population_no_water_day5,
 
           -- LPCD statistics for day 7 and day 6 comparison
           SUM(CASE WHEN lpcd_value_day7 > 55 THEN population ELSE 0 END) as population_lpcd_above_55_day7,
@@ -1101,8 +1103,8 @@ async function importDataToDatabase(data: any[], isExcel: boolean, isLpcdTemplat
             continue;
           }
 
-          // Process water values (days 1-6)
-          for (let day = 1; day <= 6; day++) {
+          // Process water values (days 1-7)
+          for (let day = 1; day <= 7; day++) {
             const waterDateField = `water_date_day${day}`;
             const waterValueField = `water_value_day${day}`;
 
@@ -1389,6 +1391,7 @@ function mapExcelFields(row: any) {
     'Water Value Day 4': 'water_value_day4',
     'Water Value Day 5': 'water_value_day5',
     'Water Value Day 6': 'water_value_day6',
+    'Water Value Day 7': 'water_value_day7',
     'LPCD Value Day 1': 'lpcd_value_day1',
     'LPCD Value Day 2': 'lpcd_value_day2',
     'LPCD Value Day 3': 'lpcd_value_day3',
@@ -1402,6 +1405,7 @@ function mapExcelFields(row: any) {
     'Water Date Day 4': 'water_date_day4',
     'Water Date Day 5': 'water_date_day5',
     'Water Date Day 6': 'water_date_day6',
+    'Water Date Day 7': 'water_date_day7',
     'LPCD Date Day 1': 'lpcd_date_day1',
     'LPCD Date Day 2': 'lpcd_date_day2',
     'LPCD Date Day 3': 'lpcd_date_day3',
@@ -1422,7 +1426,7 @@ function mapExcelFields(row: any) {
 
       // Convert numeric fields to proper number types
       if (['population', 'number_of_esr', 'water_value_day1', 'water_value_day2', 'water_value_day3',
-        'water_value_day4', 'water_value_day5', 'water_value_day6', 'lpcd_value_day1', 'lpcd_value_day2',
+        'water_value_day4', 'water_value_day5', 'water_value_day6', 'water_value_day7', 'lpcd_value_day1', 'lpcd_value_day2',
         'lpcd_value_day3', 'lpcd_value_day4', 'lpcd_value_day5', 'lpcd_value_day6', 'lpcd_value_day7',
         'below_55_lpcd_count', 'above_55_lpcd_count'].includes(dbField)) {
         // Handle different Excel value types
@@ -1632,7 +1636,8 @@ router.get("/water-trends", async (req, res) => {
           SUM(CASE WHEN water_value_day3 > 0 THEN CAST(population AS INTEGER) ELSE 0 END) as day3,
           SUM(CASE WHEN water_value_day4 > 0 THEN CAST(population AS INTEGER) ELSE 0 END) as day4,
           SUM(CASE WHEN water_value_day5 > 0 THEN CAST(population AS INTEGER) ELSE 0 END) as day5,
-          SUM(CASE WHEN water_value_day6 > 0 THEN CAST(population AS INTEGER) ELSE 0 END) as day6
+          SUM(CASE WHEN water_value_day6 > 0 THEN CAST(population AS INTEGER) ELSE 0 END) as day6,
+          SUM(CASE WHEN water_value_day7 > 0 THEN CAST(population AS INTEGER) ELSE 0 END) as day7
         FROM water_scheme_data 
         WHERE population IS NOT NULL AND population > 0
         ${region && region !== 'all' ? 'AND region = \'' + region + '\'' : ''}
@@ -1645,7 +1650,8 @@ router.get("/water-trends", async (req, res) => {
         parseFloat(row.day3) || 0,
         parseFloat(row.day4) || 0,
         parseFloat(row.day5) || 0,
-        parseFloat(row.day6) || 0
+        parseFloat(row.day6) || 0,
+        parseFloat(row.day7) || 0
       ];
 
       res.json({
@@ -1681,7 +1687,8 @@ router.get("/no-water-trends", async (req, res) => {
           SUM(CASE WHEN water_value_day3 = 0 OR water_value_day3 IS NULL THEN CAST(population AS INTEGER) ELSE 0 END) as day3,
           SUM(CASE WHEN water_value_day4 = 0 OR water_value_day4 IS NULL THEN CAST(population AS INTEGER) ELSE 0 END) as day4,
           SUM(CASE WHEN water_value_day5 = 0 OR water_value_day5 IS NULL THEN CAST(population AS INTEGER) ELSE 0 END) as day5,
-          SUM(CASE WHEN water_value_day6 = 0 OR water_value_day6 IS NULL THEN CAST(population AS INTEGER) ELSE 0 END) as day6
+          SUM(CASE WHEN water_value_day6 = 0 OR water_value_day6 IS NULL THEN CAST(population AS INTEGER) ELSE 0 END) as day6,
+          SUM(CASE WHEN water_value_day7 = 0 OR water_value_day7 IS NULL THEN CAST(population AS INTEGER) ELSE 0 END) as day7
         FROM water_scheme_data 
         WHERE population IS NOT NULL AND population > 0
         ${region && region !== 'all' ? 'AND region = \'' + region + '\'' : ''}
@@ -1694,7 +1701,8 @@ router.get("/no-water-trends", async (req, res) => {
         parseFloat(row.day3) || 0,
         parseFloat(row.day4) || 0,
         parseFloat(row.day5) || 0,
-        parseFloat(row.day6) || 0
+        parseFloat(row.day6) || 0,
+        parseFloat(row.day7) || 0
       ];
 
       res.json({
