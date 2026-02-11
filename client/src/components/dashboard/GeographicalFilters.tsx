@@ -39,11 +39,11 @@ export default function GeographicalFilters({
     className
 }: GeographicalFiltersProps) {
     return (
-        <div className={`grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6 ${className}`}>
+        <div className={`grid grid-cols-2 lg:grid-cols-5 gap-3 ${className}`}>
             <div className="space-y-1">
-                <Label className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Region</Label>
+                <Label className="text-[10px] font-bold text-slate-400 uppercase ml-1 tracking-wider">Region</Label>
                 <Select value={selectedRegion} onValueChange={onRegionChange}>
-                    <SelectTrigger className="h-9">
+                    <SelectTrigger className="h-8 text-xs px-2 bg-white">
                         <SelectValue placeholder="All Regions" />
                     </SelectTrigger>
                     <SelectContent>
@@ -56,9 +56,9 @@ export default function GeographicalFilters({
             </div>
 
             <div className="space-y-1">
-                <Label className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Circle</Label>
+                <Label className="text-[10px] font-bold text-slate-400 uppercase ml-1 tracking-wider">Circle</Label>
                 <Select value={selectedCircle} onValueChange={onCircleChange}>
-                    <SelectTrigger className="h-9">
+                    <SelectTrigger className="h-8 text-xs px-2 bg-white">
                         <SelectValue placeholder="All Circles" />
                     </SelectTrigger>
                     <SelectContent>
@@ -71,9 +71,9 @@ export default function GeographicalFilters({
             </div>
 
             <div className="space-y-1">
-                <Label className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Division</Label>
+                <Label className="text-[10px] font-bold text-slate-400 uppercase ml-1 tracking-wider">Division</Label>
                 <Select value={selectedDivision} onValueChange={onDivisionChange}>
-                    <SelectTrigger className="h-9">
+                    <SelectTrigger className="h-8 text-xs px-2 bg-white">
                         <SelectValue placeholder="All Divisions" />
                     </SelectTrigger>
                     <SelectContent>
@@ -86,9 +86,9 @@ export default function GeographicalFilters({
             </div>
 
             <div className="space-y-1">
-                <Label className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Sub Division</Label>
+                <Label className="text-[10px] font-bold text-slate-400 uppercase ml-1 tracking-wider">Sub Division</Label>
                 <Select value={selectedSubdivision} onValueChange={onSubdivisionChange}>
-                    <SelectTrigger className="h-9">
+                    <SelectTrigger className="h-8 text-xs px-2 bg-white">
                         <SelectValue placeholder="All Sub Divisions" />
                     </SelectTrigger>
                     <SelectContent>
@@ -101,9 +101,9 @@ export default function GeographicalFilters({
             </div>
 
             <div className="space-y-1">
-                <Label className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Block</Label>
+                <Label className="text-[10px] font-bold text-slate-400 uppercase ml-1 tracking-wider">Block</Label>
                 <Select value={selectedBlock} onValueChange={onBlockChange}>
-                    <SelectTrigger className="h-9">
+                    <SelectTrigger className="h-8 text-xs px-2 bg-white">
                         <SelectValue placeholder="All Blocks" />
                     </SelectTrigger>
                     <SelectContent>

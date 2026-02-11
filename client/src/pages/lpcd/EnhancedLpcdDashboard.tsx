@@ -40,6 +40,7 @@ import {
   Eye,
   FileSpreadsheet,
   Filter,
+  FilterX,
   RefreshCw,
   X,
   BarChart,
@@ -1520,9 +1521,16 @@ const EnhancedLpcdDashboard = () => {
         variant="outline"
         className="mt-4"
         onClick={() => {
-          setCurrentFilter("all");
           setSelectedRegion("all");
+          setSelectedCircle("all");
+          setSelectedDivision("all");
+          setSelectedSubdivision("all");
+          setSelectedBlock("all");
+          setCurrentFilter("all");
           setSearchQuery("");
+          setCommissionedFilter("all");
+          setFullyCompletedFilter("all");
+          setSchemeStatusFilter("all");
         }}
       >
         Reset All Filters
@@ -1864,171 +1872,201 @@ const EnhancedLpcdDashboard = () => {
 
   return (
     <div className="w-full py-6 container mx-auto px-4">
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-8 gap-4">
-        {/* Header Card */}
-        <div className="bg-gradient-to-r from-blue-50 to-white p-4 rounded-lg border-l-4 border-blue-600 shadow-sm">
-          <h1 className="text-3xl font-bold text-blue-900">LPCD Dashboard</h1>
-          <p className="text-blue-700 font-medium mt-1">
-            Monitor water supply across villages (Litres Per Capita per Day)
-          </p>
-        </div>
-
-        {/* Global Geographic Filters */}
-        <div className="mb-6">
-          <GeographicalFilters
-            filters={filterOptions}
-            selectedRegion={selectedRegion}
-            selectedCircle={selectedCircle}
-            selectedDivision={selectedDivision}
-            selectedSubdivision={selectedSubdivision}
-            selectedBlock={selectedBlock}
-            onRegionChange={handleRegionChange}
-            onCircleChange={handleCircleChange}
-            onDivisionChange={handleDivisionChange}
-            onSubdivisionChange={handleSubdivisionChange}
-            onBlockChange={handleBlockChange}
-          />
-        </div>
-
-        {/* Filters and Actions */}
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Search Input */}
-          <div className="relative w-64">
-            <Input
-              type="search"
-              placeholder="Search scheme or village name..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setPage(1);
-              }}
-              className="pr-8 border-blue-200 shadow-sm h-10"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-blue-500 hover:text-blue-700"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
+      {/* Slim Header Section */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-1 bg-blue-600 rounded-full" />
+          <div>
+            <h1 className="text-2xl font-bold text-blue-900 leading-tight">LPCD Dashboard</h1>
+            <p className="text-xs text-blue-600 font-medium">Monitoring water supply across villages</p>
           </div>
+        </div>
 
-          {/* Commissioned Status Filter */}
-          <Select
-            value={commissionedFilter}
-            onValueChange={handleCommissionedFilterChange}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            className="h-8 border-blue-200 text-blue-700 hover:bg-blue-50 gap-2 px-3"
           >
-            <SelectTrigger className="w-[160px] bg-white border border-blue-200 shadow-sm h-10 flex items-center">
-              <SelectValue placeholder="Commissioned Status" />
-            </SelectTrigger>
-            <SelectContent className="border border-blue-100">
-              <SelectItem value="all">Scheme Readiness</SelectItem>
-              <SelectItem value="Yes">Commissioned</SelectItem>
-              <SelectItem value="No">Not Commissioned</SelectItem>
-              <SelectItem value="Water Supply">Water Supply</SelectItem>
-            </SelectContent>
-          </Select>
+            <RefreshCw className={`h-3.5 w-3.5 ${isLoadingSchemes ? 'animate-spin' : ''}`} />
+            <span className="hidden md:inline text-xs">Refresh</span>
+          </Button>
 
-          {/* MJP Fully Completed Filter */}
-          <Select
-            value={fullyCompletedFilter}
-            onValueChange={handleFullyCompletedFilterChange}
-            disabled={commissionedFilter === "No"}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportToExcel}
+            className="h-8 border-blue-200 text-blue-700 hover:bg-blue-50 gap-2 px-3"
           >
-            <SelectTrigger className="w-[160px] bg-white border border-blue-200 shadow-sm h-10 flex items-center">
-              <SelectValue placeholder="Completion Status" />
-            </SelectTrigger>
-            <SelectContent className="border border-blue-100">
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem
-                value="Fully Completed"
-                disabled={commissionedFilter === "No"}
-              >
-                Fully Completed
-              </SelectItem>
-              <SelectItem value="In Progress">In Progress</SelectItem>
-            </SelectContent>
-          </Select>
+            <FileSpreadsheet className="h-3.5 w-3.5" />
+            <span className="hidden md:inline text-xs">Export</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowCharts(!showCharts)}
+            className="h-8 border-blue-200 text-blue-700 hover:bg-blue-50 gap-2 px-3"
+          >
+            {showCharts ? <ChartBarOff className="h-3.5 w-3.5" /> : <BarChart3 className="h-3.5 w-3.5" />}
+            <span className="hidden md:inline text-xs">{showCharts ? 'Hide' : 'Show'} Charts</span>
+          </Button>
         </div>
       </div>
 
-      {/* IoT Status Filter */}
-      <Select
-        value={schemeStatusFilter}
-        onValueChange={handleSchemeStatusFilterChange}
-      >
-        <SelectTrigger className="w-[180px] bg-white border border-blue-200 shadow-sm">
-          <SelectValue placeholder="IoT Status" />
-        </SelectTrigger>
-        <SelectContent className="border border-blue-100">
-          <SelectItem value="all">All IoT Status</SelectItem>
-          <SelectItem value="Connected">Connected</SelectItem>
-          <SelectItem value="Fully Completed">Fully Completed</SelectItem>
-          <SelectItem value="In Progress">In Progress</SelectItem>
-          <SelectItem value="Not-Connected">Not Connected</SelectItem>
-        </SelectContent>
-      </Select>
+      {/* Compact Filter Section */}
+      <div className="bg-white border border-blue-100 rounded-xl shadow-sm mb-6 overflow-hidden">
+        <div className="p-3">
+          <div className="flex flex-col gap-3">
+            {/* Row 1: Geographical (Condensed) */}
+            <div className="bg-slate-50/50 p-2 rounded-lg border border-slate-100/50">
+              <GeographicalFilters
+                filters={filterOptions}
+                selectedRegion={selectedRegion}
+                selectedCircle={selectedCircle}
+                selectedDivision={selectedDivision}
+                selectedSubdivision={selectedSubdivision}
+                selectedBlock={selectedBlock}
+                onRegionChange={handleRegionChange}
+                onCircleChange={handleCircleChange}
+                onDivisionChange={handleDivisionChange}
+                onSubdivisionChange={handleSubdivisionChange}
+                onBlockChange={handleBlockChange}
+                className="mb-0 grid-cols-2 md:grid-cols-5 gap-2"
+              />
+            </div>
 
-      {/* Historical Data Toggle */}
-      <Button
-        variant={showHistoricalData ? "default" : "outline"}
-        size="sm"
-        onClick={() => {
-          setShowHistoricalData(!showHistoricalData);
-          if (!showHistoricalData) {
-            trackFilterUsage("Historical Data View", "enabled");
-          }
-        }}
-        className="flex items-center gap-2"
-      >
-        <History className="h-4 w-4" />
-        {showHistoricalData ? "Current Data" : "Historical Data"}
-      </Button>
+            {/* Row 2: Status & Tool Bar */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase ml-1 tracking-wider">Readiness</p>
+                <Select value={commissionedFilter} onValueChange={handleCommissionedFilterChange}>
+                  <SelectTrigger className="h-8 text-xs bg-white border-slate-200 px-2">
+                    <SelectValue placeholder="Readiness" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Readiness</SelectItem>
+                    <SelectItem value="Yes">Commissioned</SelectItem>
+                    <SelectItem value="No">Not Commissioned</SelectItem>
+                    <SelectItem value="Water Supply">Water Supply</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-      {/* Action Buttons */}
-      <div className="flex gap-2">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => refetch()}
-          title="Refresh data"
-          className="border-blue-200 shadow-sm text-blue-700 hover:bg-blue-50"
-        >
-          <RefreshCw className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={exportToExcel}
-          title="Export to Excel"
-          className="border-blue-200 shadow-sm text-blue-700 hover:bg-blue-50"
-        >
-          <FileSpreadsheet className="h-4 w-4" />
-        </Button>
-        <Button
-          onClick={() => setShowHistoricalData(!showHistoricalData)}
-          variant={showHistoricalData ? "default" : "outline"}
-          className="flex items-center gap-2"
-        >
-          <History className="h-4 w-4" />
-          {showHistoricalData ? "Current Data" : "Historical Data"}
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => setShowCharts(!showCharts)}
-          className="border-blue-200 shadow-sm text-blue-700 hover:bg-blue-50"
-        >
-          {showCharts ? (
-            <>
-              <ChartBarOff className="h-4 w-4 mr-2" /> Hide Charts
-            </>
-          ) : (
-            <>
-              <BarChart3 className="h-4 w-4 mr-2" /> Show Charts
-            </>
-          )}
-        </Button>
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase ml-1 tracking-wider">Completion</p>
+                <Select
+                  value={fullyCompletedFilter}
+                  onValueChange={handleFullyCompletedFilterChange}
+                  disabled={commissionedFilter === "No"}
+                >
+                  <SelectTrigger className="h-8 text-xs bg-white border-slate-200 px-2">
+                    <SelectValue placeholder="Completion" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Completion</SelectItem>
+                    <SelectItem value="Fully Completed">Fully Completed</SelectItem>
+                    <SelectItem value="In Progress">In Progress</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase ml-1 tracking-wider">IoT Status</p>
+                <Select value={schemeStatusFilter} onValueChange={handleSchemeStatusFilterChange}>
+                  <SelectTrigger className="h-8 text-xs bg-white border-slate-200 px-2">
+                    <SelectValue placeholder="IoT Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All IoT Status</SelectItem>
+                    <SelectItem value="Connected">Connected</SelectItem>
+                    <SelectItem value="Fully Completed">Fully Completed</SelectItem>
+                    <SelectItem value="In Progress">In Progress</SelectItem>
+                    <SelectItem value="Not-Connected">Not Connected</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase ml-1 tracking-wider">Search</p>
+                <div className="relative">
+                  <Input
+                    size={1}
+                    type="search"
+                    placeholder="Search name..."
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setPage(1);
+                    }}
+                    className="h-8 text-xs bg-white border-slate-200 pr-7 pl-2"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 h-8">
+                <div className="flex-1 flex items-center bg-blue-50 rounded-md p-0.5 border border-blue-100">
+                  <button
+                    onClick={() => setShowHistoricalData(false)}
+                    className={`flex-1 text-[10px] font-semibold py-1 px-2 rounded-sm transition-all ${!showHistoricalData ? 'bg-white text-blue-600 shadow-sm' : 'text-blue-400 hover:text-blue-500'
+                      }`}
+                  >
+                    Current
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowHistoricalData(true);
+                      trackFilterUsage("Historical Data View", "enabled");
+                    }}
+                    className={`flex-1 text-[10px] font-semibold py-1 px-2 rounded-sm transition-all ${showHistoricalData ? 'bg-white text-blue-600 shadow-sm' : 'text-blue-400 hover:text-blue-500'
+                      }`}
+                  >
+                    History
+                  </button>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-slate-400 hover:text-red-500"
+                  onClick={() => {
+                    setSelectedRegion("all");
+                    setSelectedCircle("all");
+                    setSelectedDivision("all");
+                    setSelectedSubdivision("all");
+                    setSelectedBlock("all");
+                    setCurrentFilter("all");
+                    setSearchQuery("");
+                    setCommissionedFilter("all");
+                    setFullyCompletedFilter("all");
+                    setSchemeStatusFilter("all");
+                  }}
+                  title="Clear all filters"
+                >
+                  <FilterX className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-slate-50 border-t border-slate-100 px-3 py-1.5 flex justify-between items-center">
+          <div className="text-[10px] text-slate-500 flex items-center gap-1.5">
+            <span className="flex h-1.5 w-1.5 rounded-full bg-green-500" />
+            Live Data Feed Acitve
+          </div>
+          <div className="text-[10px] font-medium text-slate-600">
+            Showing <span className="text-blue-600">{filteredSchemes.length}</span> results
+          </div>
+        </div>
       </div>
 
       {/* Historical Data Date Selection */}

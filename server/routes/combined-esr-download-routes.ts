@@ -59,8 +59,8 @@ router.get("/latest", async (req, res) => {
 
     const db = await storage.getDb();
 
-    const regionFilter = sanitizedRegion 
-      ? sql`AND wc.region = ${sanitizedRegion}` 
+    const regionFilter = sanitizedRegion
+      ? sql`AND wc.region = ${sanitizedRegion}`
       : sql``;
 
     const result = await db.execute(sql`
@@ -174,8 +174,8 @@ router.get("/historical", async (req, res) => {
     const sanitizedRegion = sanitizeRegion(regionParam);
 
     if (!startDateParam || !endDateParam) {
-      return res.status(400).json({ 
-        error: 'startDate and endDate are required parameters (format: YYYY-MM-DD)' 
+      return res.status(400).json({
+        error: 'startDate and endDate are required parameters (format: YYYY-MM-DD)'
       });
     }
 
@@ -183,8 +183,8 @@ router.get("/historical", async (req, res) => {
 
     const db = await storage.getDb();
 
-    const regionFilter = sanitizedRegion 
-      ? sql`AND region = ${sanitizedRegion}` 
+    const regionFilter = sanitizedRegion
+      ? sql`AND region = ${sanitizedRegion}`
       : sql``;
 
     console.log('🔍 Executing historical queries...');
@@ -197,9 +197,32 @@ router.get("/historical", async (req, res) => {
           data_date, water_value
         FROM water_consumption_history 
         WHERE water_value IS NOT NULL
-          AND TO_DATE(data_date || '-' || EXTRACT(YEAR FROM uploaded_at), 'DD-Mon-YYYY') 
-              BETWEEN TO_DATE(${startDateParam}, 'YYYY-MM-DD') 
-              AND TO_DATE(${endDateParam}, 'YYYY-MM-DD')
+          AND data_date IS NOT NULL
+          AND data_date NOT LIKE '29-Feb%'
+          AND data_date NOT LIKE '30-Feb%'
+          AND data_date NOT LIKE '31-Feb%'
+          AND data_date NOT LIKE '31-Apr%'
+          AND data_date NOT LIKE '31-Jun%'
+          AND data_date NOT LIKE '31-Sep%'
+          AND data_date NOT LIKE '31-Nov%'
+          AND (
+            CASE 
+              WHEN data_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN data_date::date
+              WHEN data_date ~ '^[0-9]{2}-[0-9]{2}-[0-9]{4}$' THEN TO_DATE(data_date, 'DD-MM-YYYY')
+              WHEN data_date ~ '^[0-9]{1,2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(data_date, 'DD-Mon-YYYY')
+              WHEN data_date ~ '^[0-9]{1,2}-[A-Za-z]{3}-[0-9]{2}$' THEN TO_DATE(data_date, 'DD-Mon-YY')
+              WHEN data_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
+                TO_DATE(data_date || '-' || 
+                  CASE 
+                    WHEN EXTRACT(MONTH FROM TO_DATE(data_date, 'DD-Mon')) > EXTRACT(MONTH FROM uploaded_at) 
+                    THEN (EXTRACT(YEAR FROM uploaded_at) - 1)::text
+                    ELSE EXTRACT(YEAR FROM uploaded_at)::text
+                  END, 
+                  'DD-Mon-YYYY')
+              ELSE NULL
+            END
+          ) BETWEEN TO_DATE(${startDateParam}, 'YYYY-MM-DD') 
+          AND TO_DATE(${endDateParam}, 'YYYY-MM-DD')
           ${regionFilter}
       `),
       db.execute(sql`
@@ -209,9 +232,32 @@ router.get("/historical", async (req, res) => {
           chlorine_date, chlorine_value
         FROM chlorine_history 
         WHERE chlorine_value IS NOT NULL
-          AND TO_DATE(chlorine_date || '-' || EXTRACT(YEAR FROM uploaded_at), 'DD-Mon-YYYY') 
-              BETWEEN TO_DATE(${startDateParam}, 'YYYY-MM-DD') 
-              AND TO_DATE(${endDateParam}, 'YYYY-MM-DD')
+          AND chlorine_date IS NOT NULL
+          AND chlorine_date NOT LIKE '29-Feb%'
+          AND chlorine_date NOT LIKE '30-Feb%'
+          AND chlorine_date NOT LIKE '31-Feb%'
+          AND chlorine_date NOT LIKE '31-Apr%'
+          AND chlorine_date NOT LIKE '31-Jun%'
+          AND chlorine_date NOT LIKE '31-Sep%'
+          AND chlorine_date NOT LIKE '31-Nov%'
+          AND (
+            CASE 
+              WHEN chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN chlorine_date::date
+              WHEN chlorine_date ~ '^[0-9]{2}-[0-9]{2}-[0-9]{4}$' THEN TO_DATE(chlorine_date, 'DD-MM-YYYY')
+              WHEN chlorine_date ~ '^[0-9]{1,2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(chlorine_date, 'DD-Mon-YYYY')
+              WHEN chlorine_date ~ '^[0-9]{1,2}-[A-Za-z]{3}-[0-9]{2}$' THEN TO_DATE(chlorine_date, 'DD-Mon-YY')
+              WHEN chlorine_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
+                TO_DATE(chlorine_date || '-' || 
+                  CASE 
+                    WHEN EXTRACT(MONTH FROM TO_DATE(chlorine_date, 'DD-Mon')) > EXTRACT(MONTH FROM uploaded_at) 
+                    THEN (EXTRACT(YEAR FROM uploaded_at) - 1)::text
+                    ELSE EXTRACT(YEAR FROM uploaded_at)::text
+                  END, 
+                  'DD-Mon-YYYY')
+              ELSE NULL
+            END
+          ) BETWEEN TO_DATE(${startDateParam}, 'YYYY-MM-DD') 
+          AND TO_DATE(${endDateParam}, 'YYYY-MM-DD')
           ${regionFilter}
       `),
       db.execute(sql`
@@ -221,9 +267,32 @@ router.get("/historical", async (req, res) => {
           pressure_date, pressure_value
         FROM pressure_history 
         WHERE pressure_value IS NOT NULL
-          AND TO_DATE(pressure_date || '-' || EXTRACT(YEAR FROM uploaded_at), 'DD-Mon-YYYY') 
-              BETWEEN TO_DATE(${startDateParam}, 'YYYY-MM-DD') 
-              AND TO_DATE(${endDateParam}, 'YYYY-MM-DD')
+          AND pressure_date IS NOT NULL
+          AND pressure_date NOT LIKE '29-Feb%'
+          AND pressure_date NOT LIKE '30-Feb%'
+          AND pressure_date NOT LIKE '31-Feb%'
+          AND pressure_date NOT LIKE '31-Apr%'
+          AND pressure_date NOT LIKE '31-Jun%'
+          AND pressure_date NOT LIKE '31-Sep%'
+          AND pressure_date NOT LIKE '31-Nov%'
+          AND (
+            CASE 
+              WHEN pressure_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN pressure_date::date
+              WHEN pressure_date ~ '^[0-9]{2}-[0-9]{2}-[0-9]{4}$' THEN TO_DATE(pressure_date, 'DD-MM-YYYY')
+              WHEN pressure_date ~ '^[0-9]{1,2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(pressure_date, 'DD-Mon-YYYY')
+              WHEN pressure_date ~ '^[0-9]{1,2}-[A-Za-z]{3}-[0-9]{2}$' THEN TO_DATE(pressure_date, 'DD-Mon-YY')
+              WHEN pressure_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
+                TO_DATE(pressure_date || '-' || 
+                  CASE 
+                    WHEN EXTRACT(MONTH FROM TO_DATE(pressure_date, 'DD-Mon')) > EXTRACT(MONTH FROM uploaded_at) 
+                    THEN (EXTRACT(YEAR FROM uploaded_at) - 1)::text
+                    ELSE EXTRACT(YEAR FROM uploaded_at)::text
+                  END, 
+                  'DD-Mon-YYYY')
+              ELSE NULL
+            END
+          ) BETWEEN TO_DATE(${startDateParam}, 'YYYY-MM-DD') 
+          AND TO_DATE(${endDateParam}, 'YYYY-MM-DD')
           ${regionFilter}
       `)
     ]);
@@ -248,7 +317,7 @@ router.get("/historical", async (req, res) => {
 
     waterResult.rows.forEach((row: any) => {
       const esrKey = `${row.scheme_id}|${row.village_name}|${row.esr_name}`;
-      
+
       if (!esrMap.has(esrKey)) {
         esrMap.set(esrKey, {
           region: row.region || '',
@@ -277,7 +346,7 @@ router.get("/historical", async (req, res) => {
 
     chlorineResult.rows.forEach((row: any) => {
       const esrKey = `${row.scheme_id}|${row.village_name}|${row.esr_name}`;
-      
+
       if (!esrMap.has(esrKey)) {
         esrMap.set(esrKey, {
           region: row.region || '',
@@ -306,7 +375,7 @@ router.get("/historical", async (req, res) => {
 
     pressureResult.rows.forEach((row: any) => {
       const esrKey = `${row.scheme_id}|${row.village_name}|${row.esr_name}`;
-      
+
       if (!esrMap.has(esrKey)) {
         esrMap.set(esrKey, {
           region: row.region || '',
@@ -355,7 +424,7 @@ router.get("/historical", async (req, res) => {
       'Region', 'Circle', 'Division', 'Sub Division', 'Block',
       'Scheme ID', 'Scheme Name', 'Village Name', 'ESR Name'
     ];
-    
+
     sortedDates.forEach(date => {
       headers.push(`Water Consumption ${date}`);
       headers.push(`Chlorine ${date}`);
@@ -433,10 +502,10 @@ router.get("/count", async (req, res) => {
     const db = await storage.getDb();
 
     if (type === 'latest') {
-      const regionFilter = sanitizedRegion 
-        ? sql`AND region = ${sanitizedRegion}` 
+      const regionFilter = sanitizedRegion
+        ? sql`AND region = ${sanitizedRegion}`
         : sql``;
-      
+
       const result = await db.execute(sql`
         SELECT COUNT(*) as total FROM water_consumption WHERE 1=1 ${regionFilter}
       `);
@@ -448,8 +517,8 @@ router.get("/count", async (req, res) => {
         return res.status(400).json({ error: 'startDate and endDate required for historical count' });
       }
 
-      const regionFilter = sanitizedRegion 
-        ? sql`AND region = ${sanitizedRegion}` 
+      const regionFilter = sanitizedRegion
+        ? sql`AND region = ${sanitizedRegion}`
         : sql``;
 
       const result = await db.execute(sql`
@@ -457,27 +526,96 @@ router.get("/count", async (req, res) => {
         FROM (
           SELECT scheme_id, village_name, esr_name FROM water_consumption_history 
           WHERE water_value IS NOT NULL
-            AND TO_DATE(data_date || '-' || EXTRACT(YEAR FROM uploaded_at), 'DD-Mon-YYYY') 
-                BETWEEN TO_DATE(${startDateParam}, 'YYYY-MM-DD') 
-                AND TO_DATE(${endDateParam}, 'YYYY-MM-DD')
+            AND data_date IS NOT NULL
+            AND data_date NOT LIKE '29-Feb%'
+            AND data_date NOT LIKE '30-Feb%'
+            AND data_date NOT LIKE '31-Feb%'
+            AND data_date NOT LIKE '31-Apr%'
+            AND data_date NOT LIKE '31-Jun%'
+            AND data_date NOT LIKE '31-Sep%'
+            AND data_date NOT LIKE '31-Nov%'
+            AND (
+              CASE 
+                WHEN data_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN data_date::date
+                WHEN data_date ~ '^[0-9]{2}-[0-9]{2}-[0-9]{4}$' THEN TO_DATE(data_date, 'DD-MM-YYYY')
+                WHEN data_date ~ '^[0-9]{1,2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(data_date, 'DD-Mon-YYYY')
+                WHEN data_date ~ '^[0-9]{1,2}-[A-Za-z]{3}-[0-9]{2}$' THEN TO_DATE(data_date, 'DD-Mon-YY')
+                WHEN data_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
+                  TO_DATE(data_date || '-' || 
+                    CASE 
+                      WHEN EXTRACT(MONTH FROM TO_DATE(data_date, 'DD-Mon')) > EXTRACT(MONTH FROM uploaded_at) 
+                      THEN (EXTRACT(YEAR FROM uploaded_at) - 1)::text
+                      ELSE EXTRACT(YEAR FROM uploaded_at)::text
+                    END, 
+                    'DD-Mon-YYYY')
+                ELSE NULL
+              END
+            ) BETWEEN TO_DATE(${startDateParam}, 'YYYY-MM-DD') 
+            AND TO_DATE(${endDateParam}, 'YYYY-MM-DD')
             ${regionFilter}
           UNION
           SELECT scheme_id, village_name, esr_name FROM chlorine_history 
           WHERE chlorine_value IS NOT NULL
-            AND TO_DATE(chlorine_date || '-' || EXTRACT(YEAR FROM uploaded_at), 'DD-Mon-YYYY') 
-                BETWEEN TO_DATE(${startDateParam}, 'YYYY-MM-DD') 
-                AND TO_DATE(${endDateParam}, 'YYYY-MM-DD')
+            AND chlorine_date IS NOT NULL
+            AND chlorine_date NOT LIKE '29-Feb%'
+            AND chlorine_date NOT LIKE '30-Feb%'
+            AND chlorine_date NOT LIKE '31-Feb%'
+            AND chlorine_date NOT LIKE '31-Apr%'
+            AND chlorine_date NOT LIKE '31-Jun%'
+            AND chlorine_date NOT LIKE '31-Sep%'
+            AND chlorine_date NOT LIKE '31-Nov%'
+            AND (
+              CASE 
+                WHEN chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN chlorine_date::date
+                WHEN chlorine_date ~ '^[0-9]{2}-[0-9]{2}-[0-9]{4}$' THEN TO_DATE(chlorine_date, 'DD-MM-YYYY')
+                WHEN chlorine_date ~ '^[0-9]{1,2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(chlorine_date, 'DD-Mon-YYYY')
+                WHEN chlorine_date ~ '^[0-9]{1,2}-[A-Za-z]{3}-[0-9]{2}$' THEN TO_DATE(chlorine_date, 'DD-Mon-YY')
+                WHEN chlorine_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
+                  TO_DATE(chlorine_date || '-' || 
+                    CASE 
+                      WHEN EXTRACT(MONTH FROM TO_DATE(chlorine_date, 'DD-Mon')) > EXTRACT(MONTH FROM uploaded_at) 
+                      THEN (EXTRACT(YEAR FROM uploaded_at) - 1)::text
+                      ELSE EXTRACT(YEAR FROM uploaded_at)::text
+                    END, 
+                    'DD-Mon-YYYY')
+                ELSE NULL
+              END
+            ) BETWEEN TO_DATE(${startDateParam}, 'YYYY-MM-DD') 
+            AND TO_DATE(${endDateParam}, 'YYYY-MM-DD')
             ${regionFilter}
           UNION
           SELECT scheme_id, village_name, esr_name FROM pressure_history 
           WHERE pressure_value IS NOT NULL
-            AND TO_DATE(pressure_date || '-' || EXTRACT(YEAR FROM uploaded_at), 'DD-Mon-YYYY') 
-                BETWEEN TO_DATE(${startDateParam}, 'YYYY-MM-DD') 
-                AND TO_DATE(${endDateParam}, 'YYYY-MM-DD')
+            AND pressure_date IS NOT NULL
+            AND pressure_date NOT LIKE '29-Feb%'
+            AND pressure_date NOT LIKE '30-Feb%'
+            AND pressure_date NOT LIKE '31-Feb%'
+            AND pressure_date NOT LIKE '31-Apr%'
+            AND pressure_date NOT LIKE '31-Jun%'
+            AND pressure_date NOT LIKE '31-Sep%'
+            AND pressure_date NOT LIKE '31-Nov%'
+            AND (
+              CASE 
+                WHEN pressure_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN pressure_date::date
+                WHEN pressure_date ~ '^[0-9]{2}-[0-9]{2}-[0-9]{4}$' THEN TO_DATE(pressure_date, 'DD-MM-YYYY')
+                WHEN pressure_date ~ '^[0-9]{1,2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(pressure_date, 'DD-Mon-YYYY')
+                WHEN pressure_date ~ '^[0-9]{1,2}-[A-Za-z]{3}-[0-9]{2}$' THEN TO_DATE(pressure_date, 'DD-Mon-YY')
+                WHEN pressure_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
+                  TO_DATE(pressure_date || '-' || 
+                    CASE 
+                      WHEN EXTRACT(MONTH FROM TO_DATE(pressure_date, 'DD-Mon')) > EXTRACT(MONTH FROM uploaded_at) 
+                      THEN (EXTRACT(YEAR FROM uploaded_at) - 1)::text
+                      ELSE EXTRACT(YEAR FROM uploaded_at)::text
+                    END, 
+                    'DD-Mon-YYYY')
+                ELSE NULL
+              END
+            ) BETWEEN TO_DATE(${startDateParam}, 'YYYY-MM-DD') 
+            AND TO_DATE(${endDateParam}, 'YYYY-MM-DD')
             ${regionFilter}
         ) combined
       `);
-      
+
       return res.json({ count: parseInt(result.rows[0].total as string) });
     }
 

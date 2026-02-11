@@ -1,3 +1,30 @@
+# Sensitive files
+*.pem
+*.key
+
+# Logs and temporary files
+*.log
+date_diag.log
+date_full_diag.log
+debug_log.txt
+output.txt
+output_debug*.txt
+output_utf8.txt
+day_wise_report.txt
+inspection_*.txt
+pimparkhed_report.txt
+unique_bidgaons.txt
+
+# Large junk/mystery files
+ziQy70c8
+zizIxiJF
+
+# Temporary data directories
+temp_cleanup/
+temp_data/
+uploads/
+
+# Build and IDE
 node_modules/
 dist/
 dist-ssr/
@@ -12,8 +39,8 @@ yarn-error.log*
 pnpm-debug.log*
 .idea/
 .vscode/
-*.suo
-*.ntvs
-*.njsproj
-*.sln
-*.sw?
+
+# Excel test files
+test_*.xlsx
+test_*.csv
+final_pivot_excel.xlsx
