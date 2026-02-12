@@ -52,6 +52,7 @@ import { initializeDataCleanup } from "./data-cleanup.js"; // Run data cleanup o
 import { mqttService } from "./mqtt-service"; // Initialize MQTT service
 
 const app = express();
+app.set("trust proxy", 1); // Trust the first proxy in the cloud environment
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 

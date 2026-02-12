@@ -1,6 +1,5 @@
 import type { Express, Response, NextFunction } from "express";
 import { createServer as createHttpServer, type Server } from "http";
-import { createServer as createHttpsServer } from "https";
 import { storage, type WaterSchemeDataFilter } from "./storage";
 import {
   insertRegionSchema,
@@ -900,8 +899,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Check auth status
   app.get("/api/auth/status", (req, res) => {
-    const isLoggedIn = req.session && req.session.userId;
-    const isAdmin = req.session && req.session.isAdmin === true;
+    // Prevent browser from caching auth status
+    res.setHeader(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate",
+    );
+    const isLoggedIn = !!(req.session && req.session.userId);
+    const isAdmin = !!(req.session && req.session.isAdmin === true);
     res.json({ isLoggedIn, isAdmin });
   });
 
@@ -1047,7 +1051,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Logout endpoint
   app.post("/api/auth/logout", async (req, res) => {
     if (req.session && req.session.userId) {
-      const sessionId = req.sessionID; // Use req.sessionID instead of req.session.sessionId
+      const sessionId = req.sessionID;
 
       try {
         // Log the logout time in the database
@@ -1055,11 +1059,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`User logout logged for session: ${sessionId}`);
       } catch (error) {
         console.error("Error logging logout:", error);
-        // Continue with logout even if logging fails
       }
+
+      // Explicitly clear the session cookie
+      res.clearCookie("connect.sid", {
+        path: "/",
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+      });
 
       req.session.destroy((err: Error | null) => {
         if (err) {
+          console.error("Session destruction error:", err);
           return res.status(500).json({ message: "Logout failed" });
         }
         res.json({ message: "Logged out successfully" });
@@ -5014,67 +5026,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // For Replit, we need to listen on port 5000
-  // as this is the port Replit expects
+  // Create HTTP server - SSL is handled by cloud load balancer/proxy
   let server: Server = createHttpServer(app);
-  const port = process.env.PORT || 5000;
-
-  // NOTE: Do not call server.listen() here. It's called in server/index.ts
-  console.log(
-    `Creating HTTP server to run on port ${port} (will be bound to all interfaces)`,
-  );
-
-  // Path to SSL certificate files - place them in the /ssl directory at the project root
-  // You will need:
-  // 1. /ssl/privatekey.pem - your private key file
-  // 2. /ssl/certificate.pem - your SSL certificate file
-  const sslKeyPath = path.join(__dirname, "..", "ssl", "privatekey.pem");
-  const sslCertPath = path.join(__dirname, "..", "ssl", "certificate.pem");
-
-  // Check if SSL certificates exist and create HTTPS server on port 443 if they do
-  console.log(
-    `Looking for SSL certificates at: ${sslKeyPath} and ${sslCertPath}`,
-  );
-  console.log(
-    `Certificate exists: ${fs.existsSync(sslCertPath)}, Key exists: ${fs.existsSync(sslKeyPath)}`,
-  );
-
-  // Skip HTTPS setup on Replit as port 443 is restricted
-  const isReplit = process.env.REPL_ID || process.env.REPLIT;
-
-  if (isReplit) {
-    console.log(
-      "Replit environment detected - skipping HTTPS server setup (port 443 is restricted)",
-    );
-    console.log("Using HTTP server only on port 5000");
-  } else if (fs.existsSync(sslKeyPath) && fs.existsSync(sslCertPath)) {
-    console.log("SSL certificates found, creating HTTPS server");
-    try {
-      // Create HTTPS server with the user's certificate
-      const httpsOptions = {
-        key: fs.readFileSync(sslKeyPath),
-        cert: fs.readFileSync(sslCertPath),
-      };
-      const httpsServer = createHttpsServer(httpsOptions, app);
-
-      // Use standard HTTPS port 443
-      // Note: This requires administrator privileges when running locally
-      // Explicitly bind to all interfaces (0.0.0.0) for better compatibility
-      const httpsPort = 443;
-      httpsServer.listen(httpsPort, "0.0.0.0", () => {
-        console.log(`HTTPS server running on port ${httpsPort}`);
-      });
-      console.log(
-        `Running both HTTP and HTTPS servers (HTTP: port 5000, HTTPS: port ${httpsPort})`,
-      );
-    } catch (err) {
-      console.error("Error setting up HTTPS server:", err);
-      console.log("Continuing with HTTP server only");
-    }
-  } else {
-    console.log(
-      "No SSL certificates found in ssl folder. Using HTTP server only.",
-    );
-  }
   return server;
 }

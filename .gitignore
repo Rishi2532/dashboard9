@@ -1,6 +1,7 @@
 # Sensitive files
 *.pem
 *.key
+*.pfx
 
 # Logs and temporary files
 *.log
