@@ -55,6 +55,8 @@ const navigationItems: NavigationItem[] = [
   { name: "Water Consumption", href: "/water-consumption", prefix: "WC" },
   { name: "Communication Status", href: "/communication", icon: Wifi },
   { name: "MQTT Topic Config", href: "/mqtt-topic-config", icon: Settings },
+  { name: "MQTT Topic Config", href: "/mqtt-topic-config", icon: Settings },
+  { name: "Issue Reporting", href: "/helpdesk/issue-reporting", icon: FileText, userOnly: true },
   { name: "Raise Issue", href: "/helpdesk/raise-issue", icon: FileText, userOnly: true },
   { name: "Track Tickets", href: "/helpdesk/track-tickets", icon: HelpCircle, adminOnly: true },
   // { name: "Settings", href: "/settings", icon: Settings },
@@ -129,7 +131,7 @@ export default function Sidebar() {
               if (item.adminOnly && !authData?.isAdmin) {
                 return null;
               }
-              
+
               // Skip user-only items if user is admin
               if (item.userOnly && authData?.isAdmin) {
                 return null;

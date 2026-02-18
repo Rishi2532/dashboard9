@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useLocation } from "wouter";
 import {
   Card,
@@ -35,6 +35,12 @@ import { useComprehensiveActivityTracker } from "@/hooks/use-comprehensive-activ
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   ArrowUpDown,
   Download,
   Eye,
@@ -53,6 +59,7 @@ import {
   Calendar,
   History,
   TrendingUp,
+  AlertCircle,
 } from "lucide-react";
 import {
   Dialog,
@@ -65,10 +72,16 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Pagination } from "@/components/ui/pagination";
-import ExcelJS from "exceljs";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+
 
 // Types
 export interface WaterSchemeData {
+  // ... existing types
   scheme_id: string;
   scheme_name: string;
   village_name: string;
@@ -146,6 +159,7 @@ type LpcdRange =
 
 const EnhancedLpcdDashboard = () => {
   const { toast } = useToast();
+  // ... existing hooks
   const {
     trackPageVisit,
     trackDataExport,
@@ -155,17 +169,16 @@ const EnhancedLpcdDashboard = () => {
   const [location] = useLocation();
 
   // Filter state
-  const [selectedRegion, setSelectedRegion] = useState<string>("all");
-  const [selectedCircle, setSelectedCircle] = useState<string>("all");
-  const [selectedDivision, setSelectedDivision] = useState<string>("all");
-  const [selectedSubdivision, setSelectedSubdivision] = useState<string>("all");
-  const [selectedBlock, setSelectedBlock] = useState<string>("all");
+  const [selectedRegion, setSelectedRegion] = useState("all");
+  const [selectedCircle, setSelectedCircle] = useState("all");
+  const [selectedDivision, setSelectedDivision] = useState("all");
+  const [selectedSubdivision, setSelectedSubdivision] = useState("all");
+  const [selectedBlock, setSelectedBlock] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [currentFilter, setCurrentFilter] = useState<LpcdRange>("all");
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [commissionedFilter, setCommissionedFilter] = useState<string>("all");
-  const [fullyCompletedFilter, setFullyCompletedFilter] =
-    useState<string>("all");
-  const [schemeStatusFilter, setSchemeStatusFilter] = useState<string>("all");
+  const [commissionedFilter, setCommissionedFilter] = useState("all");
+  const [fullyCompletedFilter, setFullyCompletedFilter] = useState("all");
+  const [schemeStatusFilter, setSchemeStatusFilter] = useState("all");
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -173,25 +186,61 @@ const EnhancedLpcdDashboard = () => {
 
   // Historical data state
   const [showHistoricalData, setShowHistoricalData] = useState(false);
-  const [historicalStartDate, setHistoricalStartDate] = useState(() => {
-    const date = new Date();
-    date.setDate(date.getDate() - 30); // Default to 30 days ago
-    return date.toISOString().split("T")[0];
-  });
-  const [historicalEndDate, setHistoricalEndDate] = useState(() => {
-    const date = new Date();
-    return date.toISOString().split("T")[0];
-  });
+  const [latestWaterDate, setLatestWaterDate] = useState<string | null>(null);
+  const [historicalStartDate, setHistoricalStartDate] = useState("");
+  const [historicalEndDate, setHistoricalEndDate] = useState("");
+  const [isExportingHistorical, setIsExportingHistorical] = useState(false);
+  const [isCountingRecords, setIsCountingRecords] = useState(false);
+  const [historicalRecordCount, setHistoricalRecordCount] = useState(0);
   const [lastQueriedDates, setLastQueriedDates] = useState<{
     start: string;
     end: string;
     region: string;
   } | null>(null);
-  const [historicalRecordCount, setHistoricalRecordCount] = useState<number>(0);
-  const [isCountingRecords, setIsCountingRecords] = useState(false);
-  const [isExportingHistorical, setIsExportingHistorical] = useState(false);
 
-  // Parse URL parameters to set initial filters
+  // Fetch active issues
+  const { data: activeIssues = [] } = useQuery({
+    queryKey: ["/api/issue-reporting/active"],
+    queryFn: async () => {
+      const response = await fetch("/api/issue-reporting/active");
+      if (!response.ok) throw new Error("Failed to fetch active issues");
+      const data = await response.json();
+      return data;
+    },
+    // Refresh every minute to keep statuses up to date
+    refetchInterval: 60000,
+  });
+
+  // Create lookup maps for issues
+  const { schemeIssuesMap, villageIssuesMap } = useMemo(() => {
+    const sMap = new Map<string, any[]>();
+    const vMap = new Map<string, any[]>();
+
+    activeIssues.forEach((issue: any) => {
+      // Scheme level issues (no village_name)
+      if (issue.scheme_id && !issue.village_name) {
+        if (!sMap.has(issue.scheme_id)) {
+          sMap.set(issue.scheme_id, []);
+        }
+        sMap.get(issue.scheme_id)?.push(issue);
+      }
+      // Village level issues
+      else if (issue.scheme_id && issue.village_name) {
+        const key = `${issue.scheme_id}-${issue.village_name}`;
+        if (!vMap.has(key)) {
+          vMap.set(key, []);
+        }
+        vMap.get(key)?.push(issue);
+      }
+    });
+
+    return { schemeIssuesMap: sMap, villageIssuesMap: vMap };
+  }, [activeIssues]);
+
+  // ... existing code ...
+
+  // ... inside TableBody ...
+
   useEffect(() => {
     const queryString = location.includes("?") ? location.split("?")[1] : "";
     const urlParams = new URLSearchParams(queryString);
@@ -2797,14 +2846,22 @@ const EnhancedLpcdDashboard = () => {
                             {paginatedSchemes.map((scheme, index) => {
                               const lpcdValue = getLatestLpcdValue(scheme);
                               const isEven = index % 2 === 0;
+
+                              // Check for active issues
+                              const schemeLevelIssues = schemeIssuesMap.get(scheme.scheme_id) || [];
+                              const villageLevelIssues = villageIssuesMap.get(`${scheme.scheme_id}-${scheme.village_name}`) || [];
+                              const allIssues = [...schemeLevelIssues, ...villageLevelIssues];
+                              const hasIssue = allIssues.length > 0;
                               return (
                                 <TableRow
                                   // IMPORTANT: Key includes block field to handle duplicate villages across blocks
                                   // This ensures proper React rendering when same village exists in multiple blocks
                                   // (e.g., Shivrai village in both Gangapur and Vaijapur blocks)
                                   key={`${scheme.scheme_id}-${scheme.village_name}-${scheme.block}`}
-                                  className={`village-item ${isEven ? "bg-blue-50" : "bg-white"
-                                    } hover:bg-blue-100 transition-all`}
+                                  className={`village-item ${hasIssue
+                                    ? "bg-red-50 hover:bg-red-100/50 border-l-4 border-l-red-500"
+                                    : (isEven ? "bg-blue-50" : "bg-white") + " hover:bg-blue-100 transition-all"
+                                    }`}
                                 >
                                   <TableCell className="font-medium border-b border-blue-200 text-center align-middle">
                                     {(page - 1) * itemsPerPage + index + 1}
@@ -2821,8 +2878,62 @@ const EnhancedLpcdDashboard = () => {
                                     </div>
                                   </TableCell>
                                   <TableCell className="border-b border-blue-200 font-medium text-gray-800 text-left align-middle">
-                                    <div className="font-medium text-gray-800">
-                                      {scheme.village_name}
+                                    <div className="flex items-center gap-2">
+                                      <div className="font-medium text-gray-800">
+                                        {scheme.village_name}
+                                      </div>
+                                      {hasIssue && (
+                                        <Popover>
+                                          <PopoverTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-6 w-6 p-0 hover:bg-red-100 rounded-full"
+                                            >
+                                              <AlertCircle className="h-5 w-5 text-red-600 animate-pulse cursor-pointer" />
+                                              <span className="sr-only">View Issues</span>
+                                            </Button>
+                                          </PopoverTrigger>
+                                          <PopoverContent className="w-80 p-0 border-red-200 shadow-xl" collisionPadding={16}>
+                                            <div className="bg-red-50 px-4 py-3 border-b border-red-100 rounded-t-lg">
+                                              <h4 className="font-semibold text-red-900 flex items-center gap-2">
+                                                <AlertCircle className="h-4 w-4" />
+                                                Reported Issues
+                                              </h4>
+                                            </div>
+                                            <div className="p-4 max-h-[300px] overflow-y-auto">
+                                              <ul className="space-y-3">
+                                                {allIssues.map((issue: any) => (
+                                                  <li
+                                                    key={issue.id}
+                                                    className="text-sm bg-white p-3 rounded-md border border-red-100 shadow-sm"
+                                                  >
+                                                    <div className="font-medium text-gray-900 mb-1">
+                                                      {issue.village_name ? (
+                                                        <Badge variant="outline" className="mr-2 border-red-200 text-red-700 bg-red-50">Village</Badge>
+                                                      ) : (
+                                                        <Badge variant="outline" className="mr-2 border-blue-200 text-blue-700 bg-blue-50">Scheme</Badge>
+                                                      )}
+                                                      <span className="text-red-800 font-semibold uppercase text-xs tracking-wider">
+                                                        {issue.issue_level} ISSUE
+                                                      </span>
+                                                    </div>
+                                                    <div className="bg-red-50 p-2.5 rounded-md border border-red-100 mb-2">
+                                                      <p className="text-red-900 font-medium text-sm leading-relaxed">
+                                                        {issue.reason}
+                                                      </p>
+                                                    </div>
+                                                    <div className="text-xs text-gray-500 flex justify-between items-center border-t border-gray-100 pt-2 mt-2">
+                                                      <span>By: <span className="font-medium">{issue.creator_name}</span></span>
+                                                      <span>{new Date(issue.created_at).toLocaleDateString()}</span>
+                                                    </div>
+                                                  </li>
+                                                ))}
+                                              </ul>
+                                            </div>
+                                          </PopoverContent>
+                                        </Popover>
+                                      )}
                                     </div>
                                     <div className="text-xs text-gray-500">
                                       Block: {scheme.block}

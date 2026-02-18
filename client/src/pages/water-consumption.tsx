@@ -8,6 +8,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -53,6 +58,7 @@ import {
   Ban,
   BarChart3,
   Waves,
+  AlertCircle,
 } from "lucide-react";
 import ExcelJS from "exceljs";
 import {
@@ -177,6 +183,54 @@ const WaterConsumptionPage: React.FC = () => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [selectedRecord, setSelectedRecord] =
     useState<WaterConsumptionRecord | null>(null);
+
+  // Fetch active issues
+  const { data: activeIssues = [] } = useQuery({
+    queryKey: ["/api/issue-reporting/active"],
+    queryFn: async () => {
+      const response = await fetch("/api/issue-reporting/active");
+      if (!response.ok) throw new Error("Failed to fetch active issues");
+      const data = await response.json();
+      return data;
+    },
+    // Refresh every minute to keep statuses up to date
+    refetchInterval: 60000,
+  });
+
+  // Create lookup maps for issues
+  const { schemeIssuesMap, villageIssuesMap, esrIssuesMap } = useMemo(() => {
+    const sMap = new Map<string, any[]>();
+    const vMap = new Map<string, any[]>();
+    const eMap = new Map<string, any[]>();
+
+    activeIssues.forEach((issue: any) => {
+      // Scheme level issues (no village_name)
+      if (issue.scheme_id && !issue.village_name) {
+        if (!sMap.has(issue.scheme_id)) {
+          sMap.set(issue.scheme_id, []);
+        }
+        sMap.get(issue.scheme_id)?.push(issue);
+      }
+      // Village level issues (has village_name but no esr_name)
+      else if (issue.scheme_id && issue.village_name && !issue.esr_name) {
+        const key = `${issue.scheme_id}-${issue.village_name}`;
+        if (!vMap.has(key)) {
+          vMap.set(key, []);
+        }
+        vMap.get(key)?.push(issue);
+      }
+      // ESR level issues (has esr_name)
+      else if (issue.scheme_id && issue.village_name && issue.esr_name) {
+        const key = `${issue.scheme_id}-${issue.village_name}-${issue.esr_name}`;
+        if (!eMap.has(key)) {
+          eMap.set(key, []);
+        }
+        eMap.get(key)?.push(issue);
+      }
+    });
+
+    return { schemeIssuesMap: sMap, villageIssuesMap: vMap, esrIssuesMap: eMap };
+  }, [activeIssues]);
 
   // Fetch all water consumption data
   const {
@@ -2310,13 +2364,21 @@ const WaterConsumptionPage: React.FC = () => {
                           record.esr_capacity || null,
                         );
 
+                      // Check for active issues
+                      // Check for active issues
+                      // User Request: Only show ESR level issues on Water Consumption page
+                      const allIssues = esrIssuesMap.get(`${record.scheme_id}-${record.village_name}-${record.esr_name}`) || [];
+                      const hasIssue = allIssues.length > 0;
+
                       return (
                         <tr
                           key={`${record.scheme_id}-${record.esr_name}-${index}`}
                           style={{
-                            backgroundColor: "white",
-                            border: "none",
+                            backgroundColor: hasIssue ? "#fef2f2" : "white", // Red-50 if issue
+                            borderLeft: hasIssue ? "4px solid #ef4444" : "none", // Red border if issue
+                            transition: "all 0.2s"
                           }}
+                          className={hasIssue ? "hover:bg-red-100/50" : ""}
                         >
                           <td
                             style={{
@@ -2362,14 +2424,69 @@ const WaterConsumptionPage: React.FC = () => {
                               textAlign: "left",
                               padding: "8px",
                               borderBottom: "1px solid #e5e7eb",
-                              backgroundColor: "white",
                               fontSize: "14px",
                               fontFamily: "Poppins, sans-serif",
                               fontWeight: "500",
                               borderRadius: "0",
                             }}
                           >
-                            {record.esr_name || "N/A"}
+                            <div className="flex items-center gap-2">
+                              <span>{record.esr_name || "N/A"}</span>
+                              {hasIssue && (
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 p-0 hover:bg-red-100 rounded-full"
+                                    >
+                                      <AlertCircle className="h-5 w-5 text-red-600 animate-pulse cursor-pointer" />
+                                      <span className="sr-only">View Issues</span>
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-80 p-0 border-red-200 shadow-xl" collisionPadding={16}>
+                                    <div className="bg-red-50 px-4 py-3 border-b border-red-100 rounded-t-lg">
+                                      <h4 className="font-semibold text-red-900 flex items-center gap-2">
+                                        <AlertCircle className="h-4 w-4" />
+                                        Reported Issues
+                                      </h4>
+                                    </div>
+                                    <div className="p-4 max-h-[300px] overflow-y-auto">
+                                      <ul className="space-y-3">
+                                        {allIssues.map((issue: any) => (
+                                          <li
+                                            key={issue.id}
+                                            className="text-sm bg-white p-3 rounded-md border border-red-100 shadow-sm"
+                                          >
+                                            <div className="font-medium text-gray-900 mb-1">
+                                              {issue.esr_name ? (
+                                                <Badge variant="outline" className="mr-2 border-purple-200 text-purple-700 bg-purple-50">ESR</Badge>
+                                              ) : issue.village_name ? (
+                                                <Badge variant="outline" className="mr-2 border-red-200 text-red-700 bg-red-50">Village</Badge>
+                                              ) : (
+                                                <Badge variant="outline" className="mr-2 border-blue-200 text-blue-700 bg-blue-50">Scheme</Badge>
+                                              )}
+                                              <span className="text-red-800 font-semibold uppercase text-xs tracking-wider">
+                                                {issue.issue_level} ISSUE
+                                              </span>
+                                            </div>
+                                            <div className="bg-red-50 p-2.5 rounded-md border border-red-100 mb-2">
+                                              <p className="text-red-900 font-medium text-sm leading-relaxed">
+                                                {issue.reason}
+                                              </p>
+                                            </div>
+                                            <div className="text-xs text-gray-500 flex justify-between items-center border-t border-gray-100 pt-2 mt-2">
+                                              <span>By: <span className="font-medium">{issue.creator_name}</span></span>
+                                              <span>{new Date(issue.created_at).toLocaleDateString()}</span>
+                                            </div>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
+                              )}
+                            </div>
                           </td>
                           <td
                             style={{

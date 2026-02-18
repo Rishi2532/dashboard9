@@ -43,6 +43,7 @@ import ESRListPage from "./pages/details/esr-list";
 import MqttMonitor from "./pages/MqttMonitor";
 import MqttTopicConfiguration from "./pages/MqttTopicConfiguration";
 import SmartReportsPage from "./pages/smart-reports";
+import IssueReportingForm from "./pages/helpdesk/IssueReportingForm";
 
 import ProtectedRoute from "./components/auth/protected-route";
 import { AuthProvider } from "./hooks/use-auth";
@@ -280,6 +281,12 @@ function App() {
                       </ProtectedRoute>
                     </Route>
 
+                    <Route path="/helpdesk/issue-reporting">
+                      <ProtectedRoute>
+                        <IssueReportingForm />
+                      </ProtectedRoute>
+                    </Route>
+
                     <Route path="/helpdesk/ticket/:id">
                       <ProtectedRoute>
                         <TicketDetailsPage />
@@ -357,8 +364,8 @@ function App() {
                     <>
                       {/* JJM Assistant Chatbot */}
                       <FilterContextProvider
-                        setSelectedRegion={() => {}}
-                        setStatusFilter={() => {}}
+                        setSelectedRegion={() => { }}
+                        setStatusFilter={() => { }}
                       >
                         <ChatbotComponent />
                       </FilterContextProvider>

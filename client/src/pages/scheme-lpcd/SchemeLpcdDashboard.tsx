@@ -7,6 +7,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -59,6 +64,8 @@ import {
   DialogTrigger,
   DialogClose,
 } from "@/components/ui/dialog";
+
+import { AlertCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SchemeHistoricalDataChart } from "@/components/dashboard/SchemeHistoricalDataChart";
 import { Pagination } from "@/components/ui/pagination";
@@ -447,6 +454,33 @@ const SchemeLpcdDashboard = () => {
       return data;
     },
   });
+
+  // Fetch active issues for dashboard visualization
+  const { data: activeIssues = [] } = useQuery({
+    queryKey: ["/api/issue-reporting/active"],
+    queryFn: async () => {
+      const response = await fetch("/api/issue-reporting/active");
+      if (!response.ok) throw new Error("Failed to fetch active issues");
+      return response.json();
+    },
+    // Refresh every minute to keep statuses up to date
+    refetchInterval: 60000,
+  });
+
+  // Create a map for quick lookup of active issues by scheme_id
+  const activeIssuesMap = React.useMemo(() => {
+    const map = new Map<string, any[]>();
+    activeIssues.forEach((issue: any) => {
+      // Filter for Scheme-level issues only (no village_name)
+      if (issue.scheme_id && !issue.village_name) {
+        if (!map.has(issue.scheme_id)) {
+          map.set(issue.scheme_id, []);
+        }
+        map.get(issue.scheme_id)?.push(issue);
+      }
+    });
+    return map;
+  }, [activeIssues]);
 
   // Get latest LPCD value
   const getLatestLpcdValue = (scheme: SchemeLpcdData): number | null => {
@@ -1936,16 +1970,70 @@ const SchemeLpcdDashboard = () => {
                         const currentIndex =
                           (page - 1) * itemsPerPage + index + 1;
 
+                        // Check for active issues
+                        const schemeIssues = activeIssuesMap.get(scheme.scheme_id);
+                        const hasIssue = schemeIssues && schemeIssues.length > 0;
+
                         return (
                           <TableRow
                             key={`${scheme.scheme_id}-${index}`}
-                            className="hover:bg-blue-50/50"
+                            className={`hover:bg-blue-50/50 ${hasIssue ? "bg-red-50 hover:bg-red-100/50 border-l-4 border-l-red-500" : ""}`}
                           >
                             <TableCell className="text-gray-500 font-medium">
                               {currentIndex}
                             </TableCell>
                             <TableCell className="font-medium text-blue-800">
-                              {scheme.scheme_name || "Unnamed Scheme"}
+                              <div className="flex items-center gap-2">
+                                {scheme.scheme_name || "Unnamed Scheme"}
+                                {hasIssue && (
+                                  <Popover>
+                                    <PopoverTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 p-0 hover:bg-red-100 rounded-full"
+                                      >
+                                        <AlertCircle className="h-5 w-5 text-red-600 animate-pulse cursor-pointer" />
+                                        <span className="sr-only">View Issues</span>
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-80 p-0 border-red-200 shadow-xl" collisionPadding={16}>
+                                      <div className="bg-red-50 px-4 py-3 border-b border-red-100 rounded-t-lg">
+                                        <h4 className="font-semibold text-red-900 flex items-center gap-2">
+                                          <AlertCircle className="h-4 w-4" />
+                                          Reported Issues
+                                        </h4>
+                                      </div>
+                                      <div className="p-4 max-h-[300px] overflow-y-auto">
+                                        <ul className="space-y-3">
+                                          {schemeIssues?.map((issue: any) => (
+                                            <li
+                                              key={issue.id}
+                                              className="text-sm bg-white p-3 rounded-md border border-red-100 shadow-sm"
+                                            >
+                                              <div className="font-medium text-gray-900 mb-1">
+                                                <Badge variant="outline" className="mr-2 border-blue-200 text-blue-700 bg-blue-50">Scheme</Badge>
+                                                <span className="text-red-800 font-semibold uppercase text-xs tracking-wider">
+                                                  {issue.issue_level} ISSUE
+                                                </span>
+                                              </div>
+                                              <div className="bg-red-50 p-2.5 rounded-md border border-red-100 mb-2">
+                                                <p className="text-red-900 font-medium text-sm leading-relaxed">
+                                                  {issue.reason}
+                                                </p>
+                                              </div>
+                                              <div className="text-xs text-gray-500 flex justify-between items-center border-t border-gray-100 pt-2 mt-2">
+                                                <span>By: <span className="font-medium">{issue.creator_name}</span></span>
+                                                <span>{new Date(issue.created_at).toLocaleDateString()}</span>
+                                              </div>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    </PopoverContent>
+                                  </Popover>
+                                )}
+                              </div>
                               <div className="text-gray-500 text-xs mt-1">
                                 ID: {scheme.scheme_id || "N/A"}
                               </div>

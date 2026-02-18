@@ -52,7 +52,8 @@ import nlpChatbotRoutes from "./routes/nlp-chatbot-routes";
 import smartReportsRoutes from "./routes/smart-reports-routes";
 import chatbotHelpdeskRoutes from "./routes/chatbot/helpdesk-routes";
 import combinedEsrDownloadRoutes from "./routes/combined-esr-download-routes";
-// import { mqttService } from "./mqtt-service";
+import issueReportingRoutes from "./routes/issue-reporting-routes";
+import { mqttService } from "./mqtt-service";
 
 const exec = promisify(cp.exec);
 
@@ -141,6 +142,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Mount helpdesk routes (protected)
   app.use("/api/helpdesk", requireAuth, helpdeskRoutes);
+
+  // Mount issue reporting routes (protected)
+  app.use("/api/issue-reporting", requireAuth, issueReportingRoutes);
 
   // Mount chatbot helpdesk routes (protected)
   app.use("/api/chatbot/helpdesk", requireAuth, chatbotHelpdeskRoutes);
@@ -1739,7 +1743,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Reset the numeric fields in our aggregate result to 0
         for (const field of numericFields) {
           if (field in aggregatedScheme) {
-            aggregatedScheme[field] = 0;
+            (aggregatedScheme as any)[field] = 0;
           }
         }
 
@@ -1750,19 +1754,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         for (const scheme of schemes) {
           console.log(`Adding block ${scheme.block} data`);
           for (const field of numericFields) {
-            if (field in scheme && typeof scheme[field] === "number") {
+            if (field in scheme && typeof (scheme as any)[field] === "number") {
               // Use += to sum up the values
-              aggregatedScheme[field] =
-                (aggregatedScheme[field] || 0) + (scheme[field] || 0);
+              (aggregatedScheme as any)[field] =
+                ((aggregatedScheme as any)[field] || 0) + ((scheme as any)[field] || 0);
               console.log(
-                `${field}: ${scheme[field]} => Total: ${aggregatedScheme[field]}`,
+                `${field}: ${(scheme as any)[field]} => Total: ${(aggregatedScheme as any)[field]}`,
               );
             }
           }
         }
 
         // Set special flags for the aggregated result
-        aggregatedScheme.isAggregated = true;
+        (aggregatedScheme as any).isAggregated = true;
         aggregatedScheme.block = "All Blocks";
 
         console.log("Final aggregated data:", aggregatedScheme);
@@ -1922,7 +1926,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           for (const field of numericFields) {
             if (field in templateScheme) {
-              templateScheme[field] = 0;
+              (templateScheme as any)[field] = 0;
             }
           }
 
@@ -1990,7 +1994,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Reset the numeric fields in our aggregate result to 0
       for (const field of numericFields) {
         if (field in aggregatedScheme) {
-          aggregatedScheme[field] = 0;
+          (aggregatedScheme as any)[field] = 0;
         }
       }
 
@@ -2001,19 +2005,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const scheme of schemes) {
         console.log(`Adding block ${scheme.block} data`);
         for (const field of numericFields) {
-          if (field in scheme && typeof scheme[field] === "number") {
+          if (field in scheme && typeof (scheme as any)[field] === "number") {
             // Use += to sum up the values
-            aggregatedScheme[field] =
-              (aggregatedScheme[field] || 0) + (scheme[field] || 0);
+            (aggregatedScheme as any)[field] =
+              ((aggregatedScheme as any)[field] || 0) + ((scheme as any)[field] || 0);
             console.log(
-              `${field}: ${scheme[field]} => Total: ${aggregatedScheme[field]}`,
+              `${field}: ${(scheme as any)[field]} => Total: ${(aggregatedScheme as any)[field]}`,
             );
           }
         }
       }
 
       // Set special flags for the aggregated result
-      aggregatedScheme.isAggregated = true;
+      (aggregatedScheme as any).isAggregated = true;
       aggregatedScheme.block = "All Blocks";
 
       console.log("Final aggregated data:", aggregatedScheme);
@@ -4574,7 +4578,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   const updatedScheme = await storage.updateScheme({
                     ...existingScheme,
                     ...filteredRecord,
-                    active: true, // Mark the scheme as active since it's in the current import
                   });
 
                   log(`Updated scheme: ${schemeId}`, "import");
@@ -4619,8 +4622,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     scheme_name: record.scheme_name || `Scheme ${schemeId}`, // Default name if missing
                     scheme_id: record.scheme_id,
                     region: record.region,
-                    // Mark the scheme as active since it's in the current import
-                    active: true,
                     // Include agency
                     agency: record.agency as string | undefined,
                     // Include location fields
@@ -5017,7 +5018,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await storage.addRegionalPopulation({
         date,
         region,
-        population,
+        total_population: population,
       });
       res.json(result);
     } catch (error) {

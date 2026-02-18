@@ -45,6 +45,11 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   BarChart,
@@ -456,6 +461,69 @@ const DetailedChlorinePage = () => {
   useEffect(() => {
     console.log('🔍 [FILTER CHANGED]', { schemeFilter, mainTab });
   }, [schemeFilter, mainTab]);
+
+  // Fetch active issues for dashboard visualization
+  const { data: activeIssues = [] } = useQuery({
+    queryKey: ["/api/issue-reporting/active"],
+    queryFn: async () => {
+      const response = await fetch("/api/issue-reporting/active");
+      if (!response.ok) throw new Error("Failed to fetch active issues");
+      return response.json();
+    },
+    // Refresh every minute to keep statuses up to date
+    refetchInterval: 60000,
+  });
+
+  // Create lookup maps for issues
+  const { schemeIssuesMap, villageIssuesMap, esrIssuesMap } = useMemo(() => {
+    const sMap = new Map<string, any[]>();
+    const vMap = new Map<string, any[]>();
+    const eMap = new Map<string, any[]>();
+
+    console.log('🔍 DetailedChlorinePage - Creating Issue Maps:', {
+      totalActiveIssues: activeIssues.length,
+      firstFewIssues: activeIssues.slice(0, 3).map((i: any) => ({
+        scheme_id: i.scheme_id,
+        scheme_name: i.scheme_name,
+        village_name: i.village_name,
+        esr_name: i.esr_name
+      }))
+    });
+
+    activeIssues.forEach((issue: any) => {
+      const schemeId = issue.scheme_id?.toString().trim();
+      const villageName = issue.village_name?.toString().trim();
+      const esrName = issue.esr_name?.toString().trim();
+
+      // Scheme level issues (store ALL issues related to this scheme)
+      if (schemeId) {
+        if (!sMap.has(schemeId)) {
+          sMap.set(schemeId, []);
+        }
+        sMap.get(schemeId)?.push(issue);
+      }
+
+      // Village level issues
+      if (villageName && schemeId) {
+        const key = `${schemeId}-${villageName}`;
+        if (!vMap.has(key)) {
+          vMap.set(key, []);
+        }
+        vMap.get(key)?.push(issue);
+      }
+
+      // ESR level issues
+      if (esrName && villageName && schemeId) {
+        const key = `${schemeId}-${villageName}-${esrName}`;
+        if (!eMap.has(key)) {
+          eMap.set(key, []);
+        }
+        eMap.get(key)?.push(issue);
+      }
+    });
+
+    return { schemeIssuesMap: sMap, villageIssuesMap: vMap, esrIssuesMap: eMap };
+  }, [activeIssues]);
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return "N/A";
@@ -9439,74 +9507,140 @@ const DetailedChlorinePage = () => {
                               </TableHeader>
                               <TableBody>
                                 {schemeLpcdDayWiseSchemes.data.map(
-                                  (scheme: any, idx: number) => (
-                                    <TableRow
-                                      key={`scheme-daywise-${scheme.scheme_id}-${idx}`}
-                                      className={`transition-all duration-200 hover:bg-purple-50/70 dark:hover:bg-purple-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-indigo-50/40 dark:bg-indigo-950/20"}`}
-                                      data-testid={`row-scheme-daywise-${idx}`}
-                                    >
-                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 font-medium">
-                                        {scheme.region}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60">
-                                        {scheme.division}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-purple-700 dark:text-purple-400 border-r border-purple-100/80 dark:border-purple-900/60">
-                                        {scheme.scheme_id}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-purple-100/80 dark:border-purple-900/60">
-                                        {scheme.dashboard_url ? (
-                                          <a
-                                            href={scheme.dashboard_url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-blue-600 hover:underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                                            onClick={(e) => e.stopPropagation()}
-                                          >
-                                            {scheme.scheme_name}
-                                          </a>
-                                        ) : (
-                                          scheme.scheme_name
-                                        )}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60">
-                                        {scheme.block}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60">
-                                        {scheme.latest_lpcd_value !== null && scheme.latest_lpcd_value !== undefined ? (
-                                          Number(scheme.latest_lpcd_value).toFixed(2)
-                                        ) : (
-                                          <span className="text-slate-400">
-                                            N/A
+                                  (scheme: any, idx: number) => {
+                                    // Check for active issues for this scheme
+                                    const schemeId = scheme.scheme_id?.toString().trim();
+                                    const issues = schemeIssuesMap.get(schemeId) || [];
+                                    const hasIssue = issues.length > 0;
+
+                                    return (
+                                      <TableRow
+                                        key={`scheme-daywise-${scheme.scheme_id}-${idx}`}
+                                        className={`transition-all duration-200 ${hasIssue
+                                          ? "bg-red-50 hover:bg-red-100/50 dark:bg-red-950/20 dark:hover:bg-red-950/40 border-l-4 border-l-red-500"
+                                          : `hover:bg-purple-50/70 dark:hover:bg-purple-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-indigo-50/40 dark:bg-indigo-950/20"}`
+                                          }`}
+                                        data-testid={`row-scheme-daywise-${idx}`}
+                                      >
+                                        <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 font-medium">
+                                          {scheme.region}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60">
+                                          {scheme.division}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-purple-700 dark:text-purple-400 border-r border-purple-100/80 dark:border-purple-900/60">
+                                          {scheme.scheme_id}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-purple-100/80 dark:border-purple-900/60">
+                                          <div className="flex items-center gap-2">
+                                            <span className="truncate">
+                                              {scheme.dashboard_url ? (
+                                                <a
+                                                  href={scheme.dashboard_url}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="text-blue-600 hover:underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                                                  onClick={(e) => e.stopPropagation()}
+                                                >
+                                                  {scheme.scheme_name}
+                                                </a>
+                                              ) : (
+                                                scheme.scheme_name
+                                              )}
+                                            </span>
+                                            {hasIssue && (
+                                              <Popover>
+                                                <PopoverTrigger asChild>
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-6 w-6 p-0 hover:bg-red-100 rounded-full"
+                                                  >
+                                                    <AlertCircle className="h-5 w-5 text-red-600 animate-pulse cursor-pointer" />
+                                                    <span className="sr-only">View Issues</span>
+                                                  </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-80 p-0 border-red-200 shadow-xl" collisionPadding={16}>
+                                                  <div className="bg-red-50 px-4 py-3 border-b border-red-100 rounded-t-lg">
+                                                    <h4 className="font-semibold text-red-900 flex items-center gap-2">
+                                                      <AlertCircle className="h-4 w-4" />
+                                                      Reported Issues
+                                                    </h4>
+                                                  </div>
+                                                  <div className="p-4 max-h-[300px] overflow-y-auto">
+                                                    <ul className="space-y-3">
+                                                      {issues.map((issue: any, i: number) => (
+                                                        <li
+                                                          key={i}
+                                                          className="text-sm bg-white p-3 rounded-md border border-red-100 shadow-sm"
+                                                        >
+                                                          <div className="font-medium text-gray-900 mb-1">
+                                                            <Badge variant="outline" className="mr-2 border-blue-200 text-blue-700 bg-blue-50">
+                                                              Scheme
+                                                            </Badge>
+                                                            <span className="text-red-800 font-semibold uppercase text-xs tracking-wider">
+                                                              {issue.problem_level} ISSUE
+                                                            </span>
+                                                          </div>
+                                                          <div className="bg-red-50 p-2.5 rounded-md border border-red-100 mb-2">
+                                                            <p className="text-red-900 font-medium text-sm leading-relaxed">
+                                                              {issue.reason}
+                                                            </p>
+                                                          </div>
+                                                          <div className="text-xs text-gray-500 flex justify-between items-center border-t border-gray-100 pt-2 mt-2">
+                                                            <span>
+                                                              By: <span className="font-medium">{issue.creator_name}</span>
+                                                            </span>
+                                                            <span>{new Date(issue.created_at).toLocaleDateString()}</span>
+                                                          </div>
+                                                        </li>
+                                                      ))}
+                                                    </ul>
+                                                  </div>
+                                                </PopoverContent>
+                                              </Popover>
+                                            )}
+                                          </div>
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60">
+                                          {scheme.block}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60">
+                                          {scheme.latest_lpcd_value !== null && scheme.latest_lpcd_value !== undefined ? (
+                                            Number(scheme.latest_lpcd_value).toFixed(2)
+                                          ) : (
+                                            <span className="text-slate-400">
+                                              N/A
+                                            </span>
+                                          )}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-center">
+                                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-800 dark:from-purple-900/60 dark:to-indigo-900/60 dark:text-purple-300 ring-1 ring-purple-200/80 dark:ring-purple-700/60">
+                                            {scheme.consecutive_days || clickedSchemeDayWiseCell.days} day
+                                            {(scheme.consecutive_days || clickedSchemeDayWiseCell.days) > 1
+                                              ? "s"
+                                              : ""}
                                           </span>
-                                        )}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-center">
-                                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-800 dark:from-purple-900/60 dark:to-indigo-900/60 dark:text-purple-300 ring-1 ring-purple-200/80 dark:ring-purple-700/60">
-                                          {scheme.consecutive_days || clickedSchemeDayWiseCell.days} day
-                                          {(scheme.consecutive_days || clickedSchemeDayWiseCell.days) > 1
-                                            ? "s"
-                                            : ""}
-                                        </span>
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-center">
-                                        {scheme.dashboard_url ? (
-                                          <a
-                                            href={scheme.dashboard_url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-flex items-center justify-center p-1.5 text-purple-600 hover:text-purple-800 hover:bg-purple-50 dark:text-purple-400 dark:hover:text-purple-200 dark:hover:bg-purple-900/50 rounded-full transition-colors"
-                                            title="Open Dashboard"
-                                            onClick={(e) => e.stopPropagation()}
-                                          >
-                                            <ExternalLink className="h-3.5 w-3.5" />
-                                          </a>
-                                        ) : (
-                                          <span className="text-slate-400">-</span>
-                                        )}
-                                      </TableCell>
-                                    </TableRow>
-                                  ),
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-center">
+                                          {scheme.dashboard_url ? (
+                                            <a
+                                              href={scheme.dashboard_url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="inline-flex items-center justify-center p-1.5 text-purple-600 hover:text-purple-800 hover:bg-purple-50 dark:text-purple-400 dark:hover:text-purple-200 dark:hover:bg-purple-900/50 rounded-full transition-colors"
+                                              title="Open Dashboard"
+                                              onClick={(e) => e.stopPropagation()}
+                                            >
+                                              <ExternalLink className="h-3.5 w-3.5" />
+                                            </a>
+                                          ) : (
+                                            <span className="text-slate-400">-</span>
+                                          )}
+                                        </TableCell>
+                                      </TableRow>
+                                    );
+                                  }
                                 )}
                               </TableBody>
                             </Table>
@@ -12686,48 +12820,137 @@ const DetailedChlorinePage = () => {
                                         </TableRow>
                                       </TableHeader>
                                       <TableBody>
-                                        {schemeLpcdComparisonSchemes.data.map((item, idx) => (
-                                          <TableRow
-                                            key={`${item.scheme_id}-${idx}`}
-                                            className={`transition-all duration-200 hover:bg-purple-50/70 dark:hover:bg-purple-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-purple-50/40 dark:bg-purple-950/20"}`}
-                                          >
-                                            <TableCell className="!px-3 !py-2.5 !text-[12px] truncate border-r border-purple-100/80 dark:border-purple-900/60">{item.circle}</TableCell>
-                                            <TableCell className="!px-3 !py-2.5 !text-[12px] truncate border-r border-purple-100/80 dark:border-purple-900/60">{item.division}</TableCell>
-                                            <TableCell className="!px-3 !py-2.5 !text-[12px] font-mono font-semibold text-purple-700 dark:text-purple-400 truncate border-r border-purple-100/80 dark:border-purple-900/60">{item.scheme_id}</TableCell>
-                                            <TableCell className="!px-3 !py-2.5 !text-[12px] font-semibold text-slate-800 dark:text-slate-200 truncate border-r border-purple-100/80 dark:border-purple-900/60" title={item.scheme_name}>{item.scheme_name}</TableCell>
-                                            <TableCell className="!px-3 !py-2.5 !text-[12px] text-right border-r border-purple-100/80 dark:border-purple-900/60">{item.total_population?.toLocaleString()}</TableCell>
-                                            <TableCell className="!px-3 !py-2.5 !text-[12px] text-center border-r border-purple-100/80 dark:border-purple-900/60">{item.total_villages}</TableCell>
-                                            <TableCell className="!px-3 !py-2.5 !text-[12px] text-center font-semibold text-red-600 border-r border-purple-100/80 dark:border-purple-900/60">{item.villages_below_55}</TableCell>
-                                            <TableCell className="!px-3 !py-2.5 !text-[12px] text-center font-semibold text-green-600 border-r border-purple-100/80 dark:border-purple-900/60">{item.villages_above_55}</TableCell>
-                                            <TableCell className="!px-3 !py-2.5 !text-[12px] text-center font-semibold text-gray-500 border-r border-purple-100/80 dark:border-purple-900/60">{item.villages_zero_supply}</TableCell>
-                                            <TableCell className="!px-3 !py-2.5 !text-[12px] text-center flex items-center justify-center border-r border-purple-100/80 dark:border-purple-900/60">
-                                              <Badge className={`text-[10px] ${!item.lpcd_value ? "bg-gray-100 text-gray-600" :
-                                                item.lpcd_value > 55 ? "bg-green-100 text-green-700" :
-                                                  "bg-red-100 text-red-700"
-                                                }`}>
-                                                {item.lpcd_value ? Number(item.lpcd_value).toFixed(2) : "N/A"}
-                                              </Badge>
-                                            </TableCell>
-                                            <TableCell className="!px-3 !py-2.5 !text-[12px] text-center whitespace-nowrap">
-                                              {formatDate(item.data_date as string)}
-                                            </TableCell>
-                                            <TableCell className="!px-3 !py-2.5 !text-[12px] text-center">
-                                              {item.dashboard_url ? (
-                                                <a
-                                                  href={item.dashboard_url}
-                                                  target="_blank"
-                                                  rel="noopener noreferrer"
-                                                  className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-700 dark:bg-purple-900/50 dark:hover:bg-purple-900 dark:text-purple-300 transition-colors"
-                                                  title="Open Dashboard"
-                                                >
-                                                  <ExternalLink className="h-3 w-3" />
-                                                </a>
-                                              ) : (
-                                                <span className="text-gray-300 dark:text-gray-700">-</span>
-                                              )}
-                                            </TableCell>
-                                          </TableRow>
-                                        ))}
+                                        {schemeLpcdComparisonSchemes.data.map((item, idx) => {
+                                          // Check for active issues for this scheme
+                                          const schemeId = item.scheme_id?.toString().trim();
+                                          const issues = schemeIssuesMap.get(schemeId) || [];
+                                          const hasIssue = issues.length > 0;
+
+                                          // Debug for first few items
+                                          if (idx < 3 || item.scheme_name?.includes('Kurha') || item.scheme_name?.includes('Padali')) {
+                                            console.log(`🔍 Regional Overview Row ${idx} - ${item.scheme_name}:`, {
+                                              scheme_id: schemeId,
+                                              hasIssue,
+                                              issuesFound: issues.length,
+                                              mapSize: schemeIssuesMap.size,
+                                              mapKeys: Array.from(schemeIssuesMap.keys()).slice(0, 5)
+                                            });
+                                          }
+
+                                          // Debug logging for Kurha
+                                          if (item.scheme_name?.includes('Kurha')) {
+                                            console.log(`🔍 DEBUG Regional Overview - ${item.scheme_name}:`, {
+                                              scheme_id: schemeId,
+                                              hasIssue,
+                                              issuesFound: issues.length,
+                                              allMapKeys: Array.from(schemeIssuesMap.keys()),
+                                              activeIssuesCount: activeIssues.length,
+                                              item: item
+                                            });
+                                          }
+
+                                          return (
+                                            <TableRow
+                                              key={`${item.scheme_id}-${idx}`}
+                                              className={`transition-all duration-200 ${hasIssue
+                                                ? "bg-red-50 hover:bg-red-100/50 dark:bg-red-950/20 dark:hover:bg-red-950/40 border-l-4 border-l-red-500"
+                                                : `hover:bg-purple-50/70 dark:hover:bg-purple-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-purple-50/40 dark:bg-purple-950/20"}`
+                                                }`}
+                                            >
+                                              <TableCell className="!px-3 !py-2.5 !text-[12px] truncate border-r border-purple-100/80 dark:border-purple-900/60">{item.circle}</TableCell>
+                                              <TableCell className="!px-3 !py-2.5 !text-[12px] truncate border-r border-purple-100/80 dark:border-purple-900/60">{item.division}</TableCell>
+                                              <TableCell className="!px-3 !py-2.5 !text-[12px] font-mono font-semibold text-purple-700 dark:text-purple-400 truncate border-r border-purple-100/80 dark:border-purple-900/60">{item.scheme_id}</TableCell>
+                                              <TableCell className="!px-3 !py-2.5 !text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-purple-100/80 dark:border-purple-900/60" title={item.scheme_name}>
+                                                <div className="flex items-center gap-2">
+                                                  <span className="truncate">{item.scheme_name}</span>
+                                                  {hasIssue && (
+                                                    <Popover>
+                                                      <PopoverTrigger asChild>
+                                                        <Button
+                                                          variant="ghost"
+                                                          size="icon"
+                                                          className="h-6 w-6 p-0 hover:bg-red-100 rounded-full flex-shrink-0"
+                                                        >
+                                                          <AlertCircle className="h-5 w-5 text-red-600 animate-pulse cursor-pointer" />
+                                                          <span className="sr-only">View Issues</span>
+                                                        </Button>
+                                                      </PopoverTrigger>
+                                                      <PopoverContent className="w-80 p-0 border-red-200 shadow-xl" collisionPadding={16}>
+                                                        <div className="bg-red-50 px-4 py-3 border-b border-red-100 rounded-t-lg">
+                                                          <h4 className="font-semibold text-red-900 flex items-center gap-2">
+                                                            <AlertCircle className="h-4 w-4" />
+                                                            Reported Issues
+                                                          </h4>
+                                                        </div>
+                                                        <div className="p-4 max-h-[300px] overflow-y-auto">
+                                                          <ul className="space-y-3">
+                                                            {issues.map((issue: any, i: number) => (
+                                                              <li
+                                                                key={i}
+                                                                className="text-sm bg-white p-3 rounded-md border border-red-100 shadow-sm"
+                                                              >
+                                                                <div className="font-medium text-gray-900 mb-1">
+                                                                  <Badge variant="outline" className="mr-2 border-blue-200 text-blue-700 bg-blue-50">
+                                                                    Scheme
+                                                                  </Badge>
+                                                                  <span className="text-red-800 font-semibold uppercase text-xs tracking-wider">
+                                                                    {issue.problem_level} ISSUE
+                                                                  </span>
+                                                                </div>
+                                                                <div className="bg-red-50 p-2.5 rounded-md border border-red-100 mb-2">
+                                                                  <p className="text-red-900 font-medium text-sm leading-relaxed">
+                                                                    {issue.reason}
+                                                                  </p>
+                                                                </div>
+                                                                <div className="text-xs text-gray-500 flex justify-between items-center border-t border-gray-100 pt-2 mt-2">
+                                                                  <span>
+                                                                    By: <span className="font-medium">{issue.creator_name}</span>
+                                                                  </span>
+                                                                  <span>{new Date(issue.created_at).toLocaleDateString()}</span>
+                                                                </div>
+                                                              </li>
+                                                            ))}
+                                                          </ul>
+                                                        </div>
+                                                      </PopoverContent>
+                                                    </Popover>
+                                                  )}
+                                                </div>
+                                              </TableCell>
+                                              <TableCell className="!px-3 !py-2.5 !text-[12px] text-right border-r border-purple-100/80 dark:border-purple-900/60">{item.total_population?.toLocaleString()}</TableCell>
+                                              <TableCell className="!px-3 !py-2.5 !text-[12px] text-center border-r border-purple-100/80 dark:border-purple-900/60">{item.total_villages}</TableCell>
+                                              <TableCell className="!px-3 !py-2.5 !text-[12px] text-center font-semibold text-red-600 border-r border-purple-100/80 dark:border-purple-900/60">{item.villages_below_55}</TableCell>
+                                              <TableCell className="!px-3 !py-2.5 !text-[12px] text-center font-semibold text-green-600 border-r border-purple-100/80 dark:border-purple-900/60">{item.villages_above_55}</TableCell>
+                                              <TableCell className="!px-3 !py-2.5 !text-[12px] text-center font-semibold text-gray-500 border-r border-purple-100/80 dark:border-purple-900/60">{item.villages_zero_supply}</TableCell>
+                                              <TableCell className="!px-3 !py-2.5 !text-[12px] text-center flex items-center justify-center border-r border-purple-100/80 dark:border-purple-900/60">
+                                                <Badge className={`text-[10px] ${!item.lpcd_value ? "bg-gray-100 text-gray-600" :
+                                                  item.lpcd_value > 55 ? "bg-green-100 text-green-700" :
+                                                    "bg-red-100 text-red-700"
+                                                  }`}>
+                                                  {item.lpcd_value ? Number(item.lpcd_value).toFixed(2) : "N/A"}
+                                                </Badge>
+                                              </TableCell>
+                                              <TableCell className="!px-3 !py-2.5 !text-[12px] text-center whitespace-nowrap">
+                                                {formatDate(item.data_date as string)}
+                                              </TableCell>
+                                              <TableCell className="!px-3 !py-2.5 !text-[12px] text-center">
+                                                {item.dashboard_url ? (
+                                                  <a
+                                                    href={item.dashboard_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-700 dark:bg-purple-900/50 dark:hover:bg-purple-900 dark:text-purple-300 transition-colors"
+                                                    title="Open Dashboard"
+                                                  >
+                                                    <ExternalLink className="h-3 w-3" />
+                                                  </a>
+                                                ) : (
+                                                  <span className="text-gray-300 dark:text-gray-700">-</span>
+                                                )}
+                                              </TableCell>
+                                            </TableRow>
+                                          );
+                                        })}
                                       </TableBody>
                                     </Table>
                                   </div>
@@ -14241,66 +14464,132 @@ const DetailedChlorinePage = () => {
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
-                                {schemeLpcdComparisonSchemes.data.map((item: any, idx: number) => (
-                                  <TableRow
-                                    key={`scheme-comp-${item.scheme_id}-${idx}`}
-                                    className={`transition-all duration-200 hover:bg-purple-50/70 dark:hover:bg-purple-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-indigo-50/40 dark:bg-indigo-950/20"}`}
-                                    data-testid={`row-scheme-comparison-${idx}`}
-                                  >
-                                    <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
-                                      {item.dashboard_url ? (
-                                        <a
-                                          href={item.dashboard_url}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          className="text-blue-600 hover:underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                                          onClick={(e) => e.stopPropagation()}
+                                {schemeLpcdComparisonSchemes.data.map((item: any, idx: number) => {
+                                  // Check for active issues for this scheme
+                                  const schemeId = item.scheme_id?.toString().trim();
+                                  const issues = schemeIssuesMap.get(schemeId) || [];
+                                  const hasIssue = issues.length > 0;
+
+                                  return (
+                                    <TableRow
+                                      key={`scheme-comp-${item.scheme_id}-${idx}`}
+                                      className={`transition-all duration-200 ${hasIssue
+                                        ? "bg-red-50 hover:bg-red-100/50 dark:bg-red-950/20 dark:hover:bg-red-950/40 border-l-4 border-l-red-500"
+                                        : `hover:bg-purple-50/70 dark:hover:bg-purple-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-indigo-50/40 dark:bg-indigo-950/20"}`
+                                        }`}
+                                      data-testid={`row-scheme-comparison-${idx}`}
+                                    >
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
+                                        <div className="flex items-center gap-2">
+                                          <span className="truncate">
+                                            {item.dashboard_url ? (
+                                              <a
+                                                href={item.dashboard_url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="text-blue-600 hover:underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                                                onClick={(e) => e.stopPropagation()}
+                                              >
+                                                {item.scheme_name}
+                                              </a>
+                                            ) : (
+                                              item.scheme_name
+                                            )}
+                                          </span>
+                                          {hasIssue && (
+                                            <Popover>
+                                              <PopoverTrigger asChild>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="icon"
+                                                  className="h-6 w-6 p-0 hover:bg-red-100 rounded-full"
+                                                >
+                                                  <AlertCircle className="h-5 w-5 text-red-600 animate-pulse cursor-pointer" />
+                                                  <span className="sr-only">View Issues</span>
+                                                </Button>
+                                              </PopoverTrigger>
+                                              <PopoverContent className="w-80 p-0 border-red-200 shadow-xl" collisionPadding={16}>
+                                                <div className="bg-red-50 px-4 py-3 border-b border-red-100 rounded-t-lg">
+                                                  <h4 className="font-semibold text-red-900 flex items-center gap-2">
+                                                    <AlertCircle className="h-4 w-4" />
+                                                    Reported Issues
+                                                  </h4>
+                                                </div>
+                                                <div className="p-4 max-h-[300px] overflow-y-auto">
+                                                  <ul className="space-y-3">
+                                                    {issues.map((issue: any, i: number) => (
+                                                      <li
+                                                        key={i}
+                                                        className="text-sm bg-white p-3 rounded-md border border-red-100 shadow-sm"
+                                                      >
+                                                        <div className="font-medium text-gray-900 mb-1">
+                                                          <Badge variant="outline" className="mr-2 border-blue-200 text-blue-700 bg-blue-50">
+                                                            Scheme
+                                                          </Badge>
+                                                          <span className="text-red-800 font-semibold uppercase text-xs tracking-wider">
+                                                            {issue.problem_level} ISSUE
+                                                          </span>
+                                                        </div>
+                                                        <div className="bg-red-50 p-2.5 rounded-md border border-red-100 mb-2">
+                                                          <p className="text-red-900 font-medium text-sm leading-relaxed">
+                                                            {issue.reason}
+                                                          </p>
+                                                        </div>
+                                                        <div className="text-xs text-gray-500 flex justify-between items-center border-t border-gray-100 pt-2 mt-2">
+                                                          <span>
+                                                            By: <span className="font-medium">{issue.creator_name}</span>
+                                                          </span>
+                                                          <span>{new Date(issue.created_at).toLocaleDateString()}</span>
+                                                        </div>
+                                                      </li>
+                                                    ))}
+                                                  </ul>
+                                                </div>
+                                              </PopoverContent>
+                                            </Popover>
+                                          )}
+                                        </div>
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
+                                        {item.region}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
+                                        {item.division}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
+                                        {item.block}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-purple-100/80 dark:border-purple-900/60 truncate text-center">
+                                        {item.dashboard_url && (
+                                          <a
+                                            href={item.dashboard_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors"
+                                            title="Open Dashboard"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <ExternalLink className="h-4 w-4" />
+                                          </a>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 text-center border-r border-purple-100/80 dark:border-purple-900/60">
+                                        {item.total_population?.toLocaleString() || (
+                                          <span className="text-slate-400">N/A</span>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center">
+                                        <span
+                                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${item.lpcd_value !== undefined && item.lpcd_value >= 55 ? "bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 dark:from-blue-900/60 dark:to-indigo-900/60 dark:text-blue-300 ring-1 ring-blue-200/80 dark:ring-blue-700/60" : "bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 dark:from-orange-900/60 dark:to-amber-900/60 dark:text-orange-300 ring-1 ring-orange-200/80 dark:ring-orange-700/60"}`}
                                         >
-                                          {item.scheme_name}
-                                        </a>
-                                      ) : (
-                                        item.scheme_name
-                                      )}
-                                    </TableCell>
-                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
-                                      {item.region}
-                                    </TableCell>
-                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
-                                      {item.division}
-                                    </TableCell>
-                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
-                                      {item.block}
-                                    </TableCell>
-                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-purple-100/80 dark:border-purple-900/60 truncate text-center">
-                                      {item.dashboard_url && (
-                                        <a
-                                          href={item.dashboard_url}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors"
-                                          title="Open Dashboard"
-                                          onClick={(e) => e.stopPropagation()}
-                                        >
-                                          <ExternalLink className="h-4 w-4" />
-                                        </a>
-                                      )}
-                                    </TableCell>
-                                    <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 text-center border-r border-purple-100/80 dark:border-purple-900/60">
-                                      {item.total_population?.toLocaleString() || (
-                                        <span className="text-slate-400">N/A</span>
-                                      )}
-                                    </TableCell>
-                                    <TableCell className="!px-4 !py-3 text-center">
-                                      <span
-                                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${item.lpcd_value !== undefined && item.lpcd_value >= 55 ? "bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 dark:from-blue-900/60 dark:to-indigo-900/60 dark:text-blue-300 ring-1 ring-blue-200/80 dark:ring-blue-700/60" : "bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 dark:from-orange-900/60 dark:to-amber-900/60 dark:text-orange-300 ring-1 ring-orange-200/80 dark:ring-orange-700/60"}`}
-                                      >
-                                        {item.lpcd_value !== undefined
-                                          ? Number(item.lpcd_value).toFixed(1)
-                                          : "N/A"}
-                                      </span>
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
+                                          {item.lpcd_value !== undefined
+                                            ? Number(item.lpcd_value).toFixed(1)
+                                            : "N/A"}
+                                        </span>
+                                      </TableCell>
+                                    </TableRow>
+                                  );
+                                })}
                               </TableBody>
                             </Table>
                           </div>

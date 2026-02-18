@@ -152,7 +152,7 @@ export const helpdeskTickets = pgTable("helpdesk_tickets", {
   category: text("category").notNull(),
   specific_issue: text("specific_issue").notNull(),
   description: text("description").notNull(),
-  
+
   // Geographic hierarchy
   level: text("level").notNull(), // Region/Circle/Division/Subdivision/Block/Scheme/Village/ESR
   region: text("region"),
@@ -164,29 +164,29 @@ export const helpdeskTickets = pgTable("helpdesk_tickets", {
   scheme_name: text("scheme_name"),
   village_name: text("village_name"),
   esr_name: text("esr_name"),
-  
+
   // Priority and status
   priority: text("priority").notNull().default("Medium"), // Low/Medium/High
   status: text("status").notNull().default("Open"), // Open/In-Progress/Resolved/Closed
-  
+
   // Contact information
   contact_name: text("contact_name").notNull(),
   contact_phone: text("contact_phone"),
   contact_email: text("contact_email").notNull(),
-  
+
   // Dashboard link for navigation
   dashboard_url: text("dashboard_url"), // URL link for admin/user to navigate to related dashboard
-  
+
   // User who created the ticket
   created_by: integer("created_by").notNull(),
-  
+
   // File attachment path
   attachment_path: text("attachment_path"),
   attachment_filename: text("attachment_filename"),
-  
+
   // Admin comments
   admin_comments: text("admin_comments"),
-  
+
   // Timestamps
   created_at: timestamp("created_at").defaultNow().notNull(),
   updated_at: timestamp("updated_at").defaultNow().notNull(),
@@ -597,7 +597,7 @@ export const communicationStatus = pgTable(
 
     // Last seen timestamp (when chlorine sensor was last online)
     last_seen: timestamp("last_seen", { withTimezone: true }).defaultNow(),
-    
+
     // Last seen timestamp (when pressure sensor was last online)
     pressure_last_seen: timestamp("pressure_last_seen", { withTimezone: true }).defaultNow(),
 
@@ -1184,3 +1184,35 @@ export const insertVendorSchema = createInsertSchema(vendors).omit({
 
 export type InsertVendor = z.infer<typeof insertVendorSchema>;
 export type Vendor = typeof vendors.$inferSelect;
+
+// Issue Reports table for tracking justifications for non-achievement/supply issues
+export const issueReports = pgTable("issue_reports", {
+  id: serial("id").primaryKey(),
+  problem_level: text("problem_level").notNull(), // 'Scheme', 'Village', 'ESR'
+  region: text("region").notNull(),
+  scheme_id: text("scheme_id").notNull(),
+  scheme_name: text("scheme_name").notNull(),
+  village_name: text("village_name"),
+  esr_name: text("esr_name"),
+  status_value: text("status_value").notNull(), // LPCD value or Water Consumption status
+  reason: text("reason").notNull(),
+  sensor_type: text("sensor_type"),
+  status: text("status").default("Active").notNull(), // 'Active', 'Resolved'
+  resolution_remark: text("resolution_remark"),
+  resolved_at: timestamp("resolved_at", { withTimezone: true }),
+  created_by: integer("created_by")
+    .references(() => users.id)
+    .notNull(),
+  creator_name: text("creator_name"), // Stores the name of the creator at the time of submission
+  created_at: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const insertIssueReportSchema = createInsertSchema(issueReports).omit({
+  id: true,
+  created_at: true,
+});
+
+export type InsertIssueReport = z.infer<typeof insertIssueReportSchema>;
+export type IssueReport = typeof issueReports.$inferSelect;

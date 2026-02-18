@@ -134,15 +134,26 @@ export default function Header() {
               </div>
 
               {authData?.isLoggedIn && !authData?.isAdmin && (
-                <Link href="/helpdesk/raise-issue">
-                  <Button
-                    size="sm"
-                    className="hidden sm:flex bg-cyan-500 hover:bg-cyan-600 text-white h-8 text-xs font-semibold"
-                  >
-                    <HelpCircle className="h-3.5 w-3.5 mr-1" />
-                    Help Desk
-                  </Button>
-                </Link>
+                <>
+                  <Link href="/helpdesk/issue-reporting">
+                    <Button
+                      size="sm"
+                      className="hidden sm:flex bg-cyan-500 hover:bg-cyan-600 text-white h-8 text-xs font-semibold mr-2"
+                    >
+                      <FileText className="h-3.5 w-3.5 mr-1" />
+                      Issue Reporting
+                    </Button>
+                  </Link>
+                  <Link href="/helpdesk/raise-issue">
+                    <Button
+                      size="sm"
+                      className="hidden sm:flex bg-cyan-500 hover:bg-cyan-600 text-white h-8 text-xs font-semibold"
+                    >
+                      <HelpCircle className="h-3.5 w-3.5 mr-1" />
+                      Help Desk
+                    </Button>
+                  </Link>
+                </>
               )}
 
               {authData?.isAdmin && (
@@ -379,7 +390,7 @@ export default function Header() {
                 size="sm"
                 className="w-full justify-start text-gray-700 hover:bg-gray-100 h-10 font-semibold"
               >
-                <La className="h-4 w-4 mr-2" />
+                <LayoutDashboard className="h-4 w-4 mr-2" />
                 Detailed Regional Statistics
               </Button>
             </Link>
