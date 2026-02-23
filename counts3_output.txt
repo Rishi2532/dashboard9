@@ -1,0 +1,24 @@
+Using lpcd_value_day7 directly:
+  Above 55 (>= 55): 50
+  Below 55 (< 55): 170
+  Zero: 35
+
+Sample lpcd_value_day7 values (first 10):
+  105 Villages RRWSS (Amravati): day7=173.51, total_water_day7=139.25, population=80254
+  156 Villages Strengthening scheme of 144 villages RR (Amravati): day7=93.53, total_water_day7=103.53, population=110692
+  19 Villages RRWSS, Ta. Chandur Bazaar (Amravati): day7=64.81, total_water_day7=9.74, population=15028
+  24 Villages RRWSS, Ta. Achalpur (Amravati): day7=1428.09, total_water_day7=222.64, population=15590
+  30 Villages RRWS Tal Shegaon(C39-ZP) (Amravati): day7=53.89, total_water_day7=4.54, population=8425
+  83 Village RRWS Scheme MJP RR (C 39) (Amravati): day7=176.30, total_water_day7=52.08, population=29541
+  Akot 84 VRRWSS Tq. Akola, Akot & Telhara Dist. Akola (Amravati): day7=74.83, total_water_day7=86.25, population=115259
+  Andhera & 9 Villages RRWSS (Amravati): day7=24.52, total_water_day7=2.85, population=11625
+  Balapur 69 VRRWSS Tq. Balapur Dist. Akola (Amravati): day7=59.39, total_water_day7=23.87, population=40193
+  Bhankhed & 8 Village RRWSS (Amravati): day7=42.46, total_water_day7=3.22, population=7583
+
+Regional Stats API response:
+  Amravati: total=60, above55=25, below55=35, noSupply=2
+  Chhatrapati Sambhajinagar: total=20, above55=1, below55=19, noSupply=4
+  Konkan: total=14, above55=3, below55=11, noSupply=7
+  Nagpur: total=25, above55=5, below55=20, noSupply=3
+  Nashik: total=71, above55=9, below55=62, noSupply=13
+  Pune: total=30, above55=7, below55=23, noSupply=6

@@ -3098,6 +3098,9 @@ const PressureDashboard: React.FC = () => {
                 <TableHead className="font-semibold text-blue-800 border-b border-blue-200">
                   PI Vision
                 </TableHead>
+                <TableHead className="font-semibold text-blue-800 border-b border-blue-200 text-center w-[120px]">
+                  Remark
+                </TableHead>
                 <TableHead className="font-semibold text-blue-800 border-b border-blue-200 text-right">
                   Actions
                 </TableHead>
@@ -3108,11 +3111,14 @@ const PressureDashboard: React.FC = () => {
                 paginatedData.map((item, idx) => {
                   const latestPressure = getCurrentPressureValue(item);
                   const statusInfo = getPressureStatusInfo(latestPressure);
+                  const esrKey = `${item.scheme_id}-${item.village_name}-${item.esr_name}`;
+                  const issues = esrIssuesMap?.get(esrKey) || [];
+                  const hasIssue = issues.length > 0;
 
                   return (
                     <TableRow
                       key={`${item.scheme_id}-${item.village_name}-${item.esr_name}-${idx}`}
-                      className={`pressure-item ${statusInfo.className} hover:bg-blue-100 border-b border-blue-200`}
+                      className={`pressure-item ${statusInfo.className} hover:bg-blue-100 border-b border-blue-200 ${hasIssue ? "border-l-4 border-l-red-500 bg-red-50/30" : ""}`}
                     >
                       <TableCell className="font-medium border-b border-blue-200">
                         {item.region}
@@ -3128,55 +3134,9 @@ const PressureDashboard: React.FC = () => {
                       </TableCell>
                       <TableCell className="border-b border-blue-200">
                         <div className="flex items-center gap-2">
-                          <span>{item.esr_name}</span>
-                          {(esrIssuesMap?.get(`${item.scheme_id}-${item.village_name}-${item.esr_name}`)?.length || 0) > 0 && (
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6 p-0 hover:bg-red-100 rounded-full"
-                                >
-                                  <AlertCircle className="h-5 w-5 text-red-600 animate-pulse cursor-pointer" />
-                                  <span className="sr-only">View Issues</span>
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-80 p-0 border-red-200 shadow-xl" collisionPadding={16}>
-                                <div className="bg-red-50 px-4 py-3 border-b border-red-100 rounded-t-lg">
-                                  <h4 className="font-semibold text-red-900 flex items-center gap-2">
-                                    <AlertCircle className="h-4 w-4" />
-                                    Reported Issues
-                                  </h4>
-                                </div>
-                                <div className="p-4 max-h-[300px] overflow-y-auto">
-                                  <ul className="space-y-3">
-                                    {esrIssuesMap?.get(`${item.scheme_id}-${item.village_name}-${item.esr_name}`)?.map((issue: any) => (
-                                      <li
-                                        key={issue.id}
-                                        className="text-sm bg-white p-3 rounded-md border border-red-100 shadow-sm"
-                                      >
-                                        <div className="font-medium text-gray-900 mb-1">
-                                          <Badge variant="outline" className="mr-2 border-purple-200 text-purple-700 bg-purple-50">ESR</Badge>
-                                          <span className="text-red-800 font-semibold uppercase text-xs tracking-wider">
-                                            {issue.issue_level} ISSUE
-                                          </span>
-                                        </div>
-                                        <div className="bg-red-50 p-2.5 rounded-md border border-red-100 mb-2">
-                                          <p className="text-red-900 font-medium text-sm leading-relaxed">
-                                            {issue.reason}
-                                          </p>
-                                        </div>
-                                        <div className="text-xs text-gray-500 flex justify-between items-center border-t border-gray-100 pt-2 mt-2">
-                                          <span>By: <span className="font-medium">{issue.creator_name}</span></span>
-                                          <span>{new Date(issue.created_at).toLocaleDateString()}</span>
-                                        </div>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              </PopoverContent>
-                            </Popover>
-                          )}
+                          <span className="font-medium text-blue-900 truncate max-w-[150px]" title={item.esr_name}>
+                            {item.esr_name}
+                          </span>
                         </div>
                       </TableCell>
                       <TableCell className="border-b border-blue-200">
@@ -3223,6 +3183,15 @@ const PressureDashboard: React.FC = () => {
                           <span className="text-xs text-gray-400">
                             Not available
                           </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="border-b border-blue-200 text-center max-w-[150px] truncate" title={hasIssue ? issues.map((i: any) => i.reason).join(", ") : "-"}>
+                        {hasIssue ? (
+                          <span className="text-red-600 font-medium text-[11px] truncate block w-full">
+                            {issues.map((i: any) => i.reason).join(", ")}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
                         )}
                       </TableCell>
                       <TableCell className="text-right border-b border-blue-200">
@@ -3612,7 +3581,7 @@ const PressureDashboard: React.FC = () => {
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={8}
+                    colSpan={9}
                     className="text-center py-8 text-gray-500"
                   >
                     {allPressureData.length === 0 ? (
@@ -3629,68 +3598,70 @@ const PressureDashboard: React.FC = () => {
       </div>
 
       {/* Pagination */}
-      {filteredData.length > itemsPerPage && (
-        <div className="flex justify-center mb-8">
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (page > 1) setPage(page - 1);
-                  }}
-                  className={page === 1 ? "opacity-50 pointer-events-none" : ""}
-                />
-              </PaginationItem>
+      {
+        filteredData.length > itemsPerPage && (
+          <div className="flex justify-center mb-8">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (page > 1) setPage(page - 1);
+                    }}
+                    className={page === 1 ? "opacity-50 pointer-events-none" : ""}
+                  />
+                </PaginationItem>
 
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                // Logic to show 5 pages around the current page
-                let pageNumber = page;
-                if (page < 3) {
-                  pageNumber = i + 1;
-                } else if (page > totalPages - 2) {
-                  pageNumber = totalPages - 4 + i;
-                } else {
-                  pageNumber = page - 2 + i;
-                }
-
-                // Ensure page number is within bounds
-                if (pageNumber < 1) pageNumber = 1;
-                if (pageNumber > totalPages) pageNumber = totalPages;
-
-                return (
-                  <PaginationItem key={`page-${pageNumber}`}>
-                    <PaginationLink
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setPage(pageNumber);
-                      }}
-                      isActive={page === pageNumber}
-                    >
-                      {pageNumber}
-                    </PaginationLink>
-                  </PaginationItem>
-                );
-              })}
-
-              <PaginationItem>
-                <PaginationNext
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (page < totalPages) setPage(page + 1);
-                  }}
-                  className={
-                    page === totalPages ? "opacity-50 pointer-events-none" : ""
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  // Logic to show 5 pages around the current page
+                  let pageNumber = page;
+                  if (page < 3) {
+                    pageNumber = i + 1;
+                  } else if (page > totalPages - 2) {
+                    pageNumber = totalPages - 4 + i;
+                  } else {
+                    pageNumber = page - 2 + i;
                   }
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        </div>
-      )}
+
+                  // Ensure page number is within bounds
+                  if (pageNumber < 1) pageNumber = 1;
+                  if (pageNumber > totalPages) pageNumber = totalPages;
+
+                  return (
+                    <PaginationItem key={`page-${pageNumber}`}>
+                      <PaginationLink
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setPage(pageNumber);
+                        }}
+                        isActive={page === pageNumber}
+                      >
+                        {pageNumber}
+                      </PaginationLink>
+                    </PaginationItem>
+                  );
+                })}
+
+                <PaginationItem>
+                  <PaginationNext
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (page < totalPages) setPage(page + 1);
+                    }}
+                    className={
+                      page === totalPages ? "opacity-50 pointer-events-none" : ""
+                    }
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        )
+      }
     </div>
   );
 };

@@ -2837,6 +2837,9 @@ const EnhancedLpcdDashboard = () => {
                               <TableHead className="text-white font-semibold">
                                 Status
                               </TableHead>
+                              <TableHead className="w-[150px] text-white font-semibold text-center">
+                                Remark
+                              </TableHead>
                               <TableHead className="w-[120px] text-white font-semibold">
                                 Actions
                               </TableHead>
@@ -2879,61 +2882,9 @@ const EnhancedLpcdDashboard = () => {
                                   </TableCell>
                                   <TableCell className="border-b border-blue-200 font-medium text-gray-800 text-left align-middle">
                                     <div className="flex items-center gap-2">
-                                      <div className="font-medium text-gray-800">
+                                      <div className="font-medium text-gray-800 truncate max-w-[150px]" title={scheme.village_name}>
                                         {scheme.village_name}
                                       </div>
-                                      {hasIssue && (
-                                        <Popover>
-                                          <PopoverTrigger asChild>
-                                            <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              className="h-6 w-6 p-0 hover:bg-red-100 rounded-full"
-                                            >
-                                              <AlertCircle className="h-5 w-5 text-red-600 animate-pulse cursor-pointer" />
-                                              <span className="sr-only">View Issues</span>
-                                            </Button>
-                                          </PopoverTrigger>
-                                          <PopoverContent className="w-80 p-0 border-red-200 shadow-xl" collisionPadding={16}>
-                                            <div className="bg-red-50 px-4 py-3 border-b border-red-100 rounded-t-lg">
-                                              <h4 className="font-semibold text-red-900 flex items-center gap-2">
-                                                <AlertCircle className="h-4 w-4" />
-                                                Reported Issues
-                                              </h4>
-                                            </div>
-                                            <div className="p-4 max-h-[300px] overflow-y-auto">
-                                              <ul className="space-y-3">
-                                                {allIssues.map((issue: any) => (
-                                                  <li
-                                                    key={issue.id}
-                                                    className="text-sm bg-white p-3 rounded-md border border-red-100 shadow-sm"
-                                                  >
-                                                    <div className="font-medium text-gray-900 mb-1">
-                                                      {issue.village_name ? (
-                                                        <Badge variant="outline" className="mr-2 border-red-200 text-red-700 bg-red-50">Village</Badge>
-                                                      ) : (
-                                                        <Badge variant="outline" className="mr-2 border-blue-200 text-blue-700 bg-blue-50">Scheme</Badge>
-                                                      )}
-                                                      <span className="text-red-800 font-semibold uppercase text-xs tracking-wider">
-                                                        {issue.issue_level} ISSUE
-                                                      </span>
-                                                    </div>
-                                                    <div className="bg-red-50 p-2.5 rounded-md border border-red-100 mb-2">
-                                                      <p className="text-red-900 font-medium text-sm leading-relaxed">
-                                                        {issue.reason}
-                                                      </p>
-                                                    </div>
-                                                    <div className="text-xs text-gray-500 flex justify-between items-center border-t border-gray-100 pt-2 mt-2">
-                                                      <span>By: <span className="font-medium">{issue.creator_name}</span></span>
-                                                      <span>{new Date(issue.created_at).toLocaleDateString()}</span>
-                                                    </div>
-                                                  </li>
-                                                ))}
-                                              </ul>
-                                            </div>
-                                          </PopoverContent>
-                                        </Popover>
-                                      )}
                                     </div>
                                     <div className="text-xs text-gray-500">
                                       Block: {scheme.block}
@@ -2962,6 +2913,15 @@ const EnhancedLpcdDashboard = () => {
                                     >
                                       {getLpcdStatusText(lpcdValue)}
                                     </Badge>
+                                  </TableCell>
+                                  <TableCell className="border-b border-blue-200 text-center align-middle max-w-[150px] truncate" title={hasIssue ? allIssues.map((i: any) => i.reason).join(", ") : "-"}>
+                                    {hasIssue ? (
+                                      <span className="text-red-600 font-medium text-[11px] truncate block w-full">
+                                        {allIssues.map((i: any) => i.reason).join(", ")}
+                                      </span>
+                                    ) : (
+                                      <span className="text-gray-400">-</span>
+                                    )}
                                   </TableCell>
                                   <TableCell className="border-b border-blue-200 text-center align-middle">
                                     <div className="flex space-x-2 justify-center">

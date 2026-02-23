@@ -1,0 +1,15 @@
+﻿client/src/pages/chlorine/DetailedChlorinePage.tsx(3,29): error TS2307: Cannot find module '@/components/dashboard/dashboard-layout' or its corresponding type declarations.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(4,21): error TS2307: Cannot find module '@/components/dashboard/sidebar' or its corresponding type declarations.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(5,58): error TS2307: Cannot find module '@/components/ui/card' or its corresponding type declarations.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(13,8): error TS2307: Cannot find module '@/components/ui/table' or its corresponding type declarations.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(14,26): error TS2307: Cannot find module '@/components/ui/skeleton' or its corresponding type declarations.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(15,26): error TS2307: Cannot find module '@/hooks/use-toast' or its corresponding type declarations.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(16,23): error TS2307: Cannot find module '@/components/ui/badge' or its corresponding type declarations.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(40,24): error TS2307: Cannot find module '@/components/ui/button' or its corresponding type declarations.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(47,8): error TS2307: Cannot find module '@/components/ui/dialog' or its corresponding type declarations.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(52,8): error TS2307: Cannot find module '@/components/ui/popover' or its corresponding type declarations.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(53,58): error TS2307: Cannot find module '@/components/ui/tabs' or its corresponding type declarations.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(71,8): error TS2307: Cannot find module '@/components/ui/select' or its corresponding type declarations.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(5280,56): error TS2345: Argument of type '{ region: string; totalConnected: number; totalOnline: number; onlineWithWater: number; onlineWithWaterPressureOptimal: number; onlineWithWaterPressureAbove: number; onlineWithWaterPressureBelow: number; ... 5 more ...; offlineSince3Days: number; }' is not assignable to parameter of type 'PressureRegionalStats'.
+  Type '{ region: string; totalConnected: number; totalOnline: number; onlineWithWater: number; onlineWithWaterPressureOptimal: number; onlineWithWaterPressureAbove: number; onlineWithWaterPressureBelow: number; ... 5 more ...; offlineSince3Days: number; }' is missing the following properties from type 'PressureRegionalStats': onlineWithoutWaterPressureOptimal, onlineWithoutWaterPressureAbove, onlineWithoutWaterPressureBelow
+client/src/pages/chlorine/DetailedChlorinePage.tsx(11125,49): error TS2322: Type '"all_sensors"' is not assignable to type '"below02" | "optimal" | "above05"'.

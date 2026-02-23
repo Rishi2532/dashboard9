@@ -1,0 +1,15 @@
+Total records from API: 220
+Unique schemes (by scheme_name): 220
+
+=== TOTALS (matching SchemeLpcdDashboard logic) ===
+Above 55 (>= 55): 50
+Below 55 (< 55, not null): 170
+Null LPCD (no data): 0
+
+=== BY REGION ===
+Amravati: total=60, above55=25, below55=35, null=0
+Chhatrapati Sambhajinagar: total=20, above55=1, below55=19, null=0
+Konkan: total=14, above55=3, below55=11, null=0
+Nagpur: total=25, above55=5, below55=20, null=0
+Nashik: total=71, above55=9, below55=62, null=0
+Pune: total=30, above55=7, below55=23, null=0

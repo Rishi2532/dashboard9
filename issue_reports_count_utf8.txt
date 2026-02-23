@@ -1,0 +1,14 @@
+﻿[
+  {
+    "problem_level": "Scheme",
+    "count": "9"
+  },
+  {
+    "problem_level": "ESR",
+    "count": "5"
+  },
+  {
+    "problem_level": "Village",
+    "count": "4"
+  }
+]

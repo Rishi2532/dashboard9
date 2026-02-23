@@ -1,0 +1,19 @@
+﻿3197:                                                   {issues.map((i: any) => i.reason).join(", ")}
+3254:                                         <TableCell className="!px-4 !py-3 text-center border-r border-slate-100/80 dark:border-slate-800/60 max-w-[150px] truncate" title={hasIssue ? esrIssues.map(i => i.reason).join(", ") : "-"}>
+3257:                                               {esrIssues.map(i => i.reason).join(", ")}
+6123:                                                           {issues.map((i: any) => i.reason).join(", ")}
+7161:                                                           {issues.map((i: any) => i.reason).join(", ")}
+8680:                                                 {issues.map((i: any) => i.reason).join(", ")}
+8908:                                               {issues.map((i: any) => i.reason).join(", ")}
+9127:                                                 {issues.map((i: any) => i.reason).join(", ")}
+9379:                                                 {issues.map((i: any) => i.reason).join(", ")}
+10560:                                                     {issues.map((i: any) => i.reason).join(", ")}
+11399:                                                 {issues.map((i: any) => i.reason).join(", ")}
+13144:                                               <TableCell className="!px-3 !py-2.5 !text-[12px] text-center border-l border-purple-100/80 dark:border-purple-900/60 max-w-[150px] truncate" title={hasIssue ? issues.map((i: any) => i.reason).join(", ") : "-"}>
+13147:                                                     {issues.map((i: any) => i.reason).join(", ")}
+14490:                                                   {issues.map((i: any) => i.reason).join(", ")}
+14515:                                                 {issues.map((i: any) => i.reason).join(", ")}
+14801:                                       <TableCell className="!px-4 !py-3 text-center border-l border-purple-100/80 dark:border-purple-900/60 max-w-[150px] truncate" title={hasIssue ? issues.map((i: any) => i.reason).join(", ") : "-"}>
+14804:                                             {issues.map((i: any) => i.reason).join(", ")}
+15170:                             return issues.length > 0 ? issues.map((i: any) => i.reason).join(", ") : "-";
+15185:                                     {issues.map((i: any) => i.reason).join(", ")}

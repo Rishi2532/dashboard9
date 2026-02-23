@@ -1,0 +1,1034 @@
+client/src/assets/services/nlp-service.ts(224,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+client/src/assets/services/openai-service.ts(1,37): error TS2307: Cannot find module '../config/api-keys' or its corresponding type declarations.
+client/src/components/chatbot/ChatbotComponent.tsx(688,23): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(688,24): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(696,25): error TS2345: Argument of type '(prevMessages: ChatMessage[]) => ChatMessage[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(719,27): error TS2345: Argument of type '(prevMessages: ChatMessage[]) => ChatMessage[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(734,25): error TS2345: Argument of type '(prevMessages: ChatMessage[]) => ChatMessage[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(852,35): error TS2345: Argument of type '(prevMessages: ChatMessage[]) => ChatMessage[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(886,11): error TS2322: Type 'string' is not assignable to type '"en" | "hi" | "mr" | undefined'.
+client/src/components/chatbot/ChatbotComponent.tsx(893,29): error TS2345: Argument of type '(prevMessages: any) => any' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(893,30): error TS7006: Parameter 'prevMessages' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(911,25): error TS2345: Argument of type '(prevMessages: ChatMessage[]) => ChatMessage[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(2071,21): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(2071,22): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(3871,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(3871,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(3933,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(3933,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(3998,37): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(3998,38): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(4151,39): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(4151,40): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(4162,39): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(4162,40): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(4176,37): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(4176,38): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(4186,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(4186,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(4444,25): error TS2353: Object literal may only specify known properties, and 'language' does not exist in type 'Partial<ChatMessage>'.
+client/src/components/chatbot/ChatbotComponent.tsx(4459,25): error TS2353: Object literal may only specify known properties, and 'language' does not exist in type 'Partial<ChatMessage>'.
+client/src/components/chatbot/ChatbotComponent.tsx(4475,23): error TS2353: Object literal may only specify known properties, and 'language' does not exist in type 'Partial<ChatMessage>'.
+client/src/components/chatbot/ChatbotComponent.tsx(4505,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(4505,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(4542,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(4542,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(4574,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(4574,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(4610,37): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(4610,38): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(4615,37): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(4615,38): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(4625,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(4625,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(4670,37): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(4670,38): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(4675,37): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(4675,38): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(4685,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(4685,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(4796,37): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(4796,38): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(4801,37): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(4801,38): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(4812,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(4812,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(4836,37): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(4836,38): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(4853,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(4853,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(4898,37): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(4898,38): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(4909,39): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(4909,40): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(4939,37): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(4939,38): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(4950,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(4950,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(4964,29): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(4964,30): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(5004,29): error TS2339: Property 'regionName' does not exist on type '{ widget: string; regionName: string | null; schemeName: string | null; schemeId: string | null; villageName: string | null; confidence: number; } | { widget: string; confidence: number; }'.
+client/src/components/chatbot/ChatbotComponent.tsx(5004,41): error TS2339: Property 'schemeName' does not exist on type '{ widget: string; regionName: string | null; schemeName: string | null; schemeId: string | null; villageName: string | null; confidence: number; } | { widget: string; confidence: number; }'.
+client/src/components/chatbot/ChatbotComponent.tsx(5004,53): error TS2339: Property 'schemeId' does not exist on type '{ widget: string; regionName: string | null; schemeName: string | null; schemeId: string | null; villageName: string | null; confidence: number; } | { widget: string; confidence: number; }'.
+client/src/components/chatbot/ChatbotComponent.tsx(5004,63): error TS2339: Property 'villageName' does not exist on type '{ widget: string; regionName: string | null; schemeName: string | null; schemeId: string | null; villageName: string | null; confidence: number; } | { widget: string; confidence: number; }'.
+client/src/components/chatbot/ChatbotComponent.tsx(5110,23): error TS2353: Object literal may only specify known properties, and 'language' does not exist in type 'Partial<ChatMessage>'.
+client/src/components/chatbot/ChatbotComponent.tsx(5155,23): error TS2353: Object literal may only specify known properties, and 'language' does not exist in type 'Partial<ChatMessage>'.
+client/src/components/chatbot/ChatbotComponent.tsx(5180,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(5180,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(5211,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(5211,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(5255,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(5255,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(5300,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(5300,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(5356,37): error TS2345: Argument of type '(prev: ChatMessage[]) => (ChatMessage | { type: string; text: string; widget: string; schemes: any; selectedRegion: string; autoSpeak: boolean; language: Language; })[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(5413,37): error TS2345: Argument of type '(prev: ChatMessage[]) => (ChatMessage | { type: string; text: string; widget: string; schemes: any; selectedRegion: string; autoSpeak: boolean; language: Language; })[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(5460,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(5460,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(5507,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(5507,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(5548,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(5548,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(5587,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(5587,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(5642,23): error TS2353: Object literal may only specify known properties, and 'language' does not exist in type 'Partial<ChatMessage>'.
+client/src/components/chatbot/ChatbotComponent.tsx(5730,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(5730,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(5764,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(5764,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(5798,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(5798,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(5832,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(5832,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(5866,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(5866,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(5900,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(5900,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(5934,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(5934,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(5966,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(5966,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(5998,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(5998,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(6030,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(6030,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(6064,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(6064,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(6098,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(6098,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(6132,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(6132,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(6166,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(6166,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(6200,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(6200,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(6220,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(6220,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(6234,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(6234,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(6255,29): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(6255,30): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(6556,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(6556,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(6574,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(6574,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(6585,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(6585,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(6820,39): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(6820,40): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(6845,39): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(6845,40): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(6871,39): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(6871,40): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(6887,39): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(6887,40): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(6905,37): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(6905,38): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(6923,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(6923,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(6936,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(6936,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(6946,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(6946,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(7047,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(7047,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(7181,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(7181,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(7197,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(7197,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(7359,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(7359,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(7599,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(7599,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(8291,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(8291,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(8298,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(8298,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(8308,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(8308,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(8325,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(8325,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(8373,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(8373,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(8380,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(8380,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(8391,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(8391,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(8408,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(8408,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(8643,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(8643,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(8650,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(8650,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(8661,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(8661,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(8677,29): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(8677,30): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(8738,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(8738,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(8743,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(8743,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(8753,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(8753,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(8762,29): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(8762,30): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(8825,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(8825,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(8830,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(8830,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(8840,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(8840,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(8849,29): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(8849,30): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(8915,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(8915,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(8920,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(8920,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(8930,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(8930,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(8939,29): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(8939,30): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(9036,37): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(9036,38): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(9041,37): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(9041,38): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(9054,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(9054,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(9063,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(9063,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(9174,37): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(9174,38): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(9179,37): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(9179,38): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(9189,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(9189,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(9198,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(9198,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(9317,37): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(9317,38): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(9322,37): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(9322,38): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(9332,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(9332,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(9341,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(9341,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(9460,37): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(9460,38): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(9465,37): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(9465,38): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(9475,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(9475,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(9484,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(9484,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(9611,29): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(9611,30): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(9620,29): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(9620,30): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(9638,29): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(9638,30): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(9646,29): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(9646,30): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(9760,29): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(9760,30): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(9770,29): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(9770,30): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(9785,29): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(9785,30): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(9794,29): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(9794,30): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(9846,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(9846,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(9862,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(9862,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(9898,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(9898,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(10087,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(10087,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(10094,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(10094,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(10105,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(10105,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(10122,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(10122,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(10206,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(10206,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(10213,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(10213,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(10224,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(10224,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(10241,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(10241,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(10370,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(10370,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(10388,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(10388,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(10547,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(10547,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(10565,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(10565,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(10654,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(10654,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(10676,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(10676,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(10759,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(10759,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(10778,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(10778,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(10858,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(10858,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(10877,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(10877,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(10957,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(10957,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(10979,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(10979,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(11081,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(11081,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(11144,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(11144,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(11193,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(11193,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(11211,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(11211,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(11257,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(11257,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(11275,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(11275,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(11357,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(11357,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(11376,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(11376,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(11457,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(11457,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(11476,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(11476,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(11556,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(11556,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(11578,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(11578,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(11658,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(11658,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(11680,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(11680,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(11758,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(11758,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(11780,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(11780,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(11857,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(11857,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(11879,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(11879,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(11956,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(11956,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(11978,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(11978,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(12056,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(12056,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(12078,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(12078,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(12155,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(12155,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(12177,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(12177,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(12254,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(12254,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(12276,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(12276,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(12363,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(12363,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(12382,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(12382,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(12469,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(12469,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(12488,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(12488,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(12575,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(12575,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(12594,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(12594,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(12731,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(12731,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(12748,29): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(12748,30): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(12885,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(12885,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(12902,29): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(12902,30): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(12993,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(12993,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(13012,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(13012,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(13101,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(13101,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(13120,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(13120,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(13210,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(13210,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(13229,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(13229,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(13283,31): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(13283,32): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(13290,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(13290,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(13302,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(13302,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(13319,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(13319,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(13516,29): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(13516,30): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(13830,37): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(13830,38): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(14007,37): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(14007,38): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(14145,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(14145,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(14397,29): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(14397,30): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(14421,29): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(14421,30): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(14603,32): error TS2304: Cannot find name 'messages'.
+client/src/components/chatbot/ChatbotComponent.tsx(14606,18): error TS7006: Parameter 'msg' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(14766,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(14766,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(14782,33): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(14782,34): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(14797,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(14797,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(14805,27): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(14805,28): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(14917,39): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(14917,40): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(14926,39): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(14926,40): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(15078,37): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(15078,38): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(15109,35): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(15109,36): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16069,21): error TS2353: Object literal may only specify known properties, and 'customWidget' does not exist in type 'Partial<ChatMessage>'.
+client/src/components/chatbot/ChatbotComponent.tsx(16105,21): error TS2353: Object literal may only specify known properties, and 'customWidget' does not exist in type 'Partial<ChatMessage>'.
+client/src/components/chatbot/ChatbotComponent.tsx(16424,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16424,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16433,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16433,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16466,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16466,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16475,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16475,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16508,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16508,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16517,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16517,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16550,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16550,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16559,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16559,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16592,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16592,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16601,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16601,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16634,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16634,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16643,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16643,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16676,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16676,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16685,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16685,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16726,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16726,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16735,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16735,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16768,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16768,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16777,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16777,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16810,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16810,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16819,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16819,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16852,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16852,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16861,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16861,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16894,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16894,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16903,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16903,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16936,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16936,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16945,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16945,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16971,47): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16971,48): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16986,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16986,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(16994,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(16994,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17103,43): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17103,44): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17115,43): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17115,44): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17136,43): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17136,44): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17180,47): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17180,48): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17194,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17194,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17206,49): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17206,50): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17247,47): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17247,48): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17260,47): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17260,48): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17300,47): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17300,48): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17313,47): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17313,48): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17353,47): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17353,48): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17366,47): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17366,48): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17406,45): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17406,46): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17419,45): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17419,46): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17459,45): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17459,46): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17472,45): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17472,46): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17513,45): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17513,46): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17524,45): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17524,46): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17541,47): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17541,48): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17558,47): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17558,48): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17569,47): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17569,48): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17600,45): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17600,46): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17613,45): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17613,46): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17682,51): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17682,52): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17695,51): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17695,52): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17747,47): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17747,48): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17755,47): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17755,48): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17770,45): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17770,46): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17796,45): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17796,46): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17801,45): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17801,46): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17816,43): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17816,44): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17836,43): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17836,44): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17849,43): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17849,44): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(17978,45): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(17978,46): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(18019,45): error TS2345: Argument of type '(prev: any) => any[]' is not assignable to parameter of type 'ChatMessage[]'.
+client/src/components/chatbot/ChatbotComponent.tsx(18019,46): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+client/src/components/chatbot/ChatbotComponent.tsx(18070,33): error TS18048: 'msg.chlorineSensorExportData' is possibly 'undefined'.
+client/src/components/chatbot/ChatbotComponent.tsx(18071,55): error TS18048: 'msg.chlorineSensorExportData' is possibly 'undefined'.
+client/src/components/chatbot/ChatbotComponent.tsx(18076,72): error TS18048: 'msg.chlorineSensorExportData' is possibly 'undefined'.
+client/src/components/chatbot/ChatbotComponent.tsx(18076,111): error TS18048: 'msg.chlorineSensorExportData' is possibly 'undefined'.
+client/src/components/chatbot/ChatbotComponent.tsx(18090,68): error TS18048: 'msg.chlorineSensorExportData' is possibly 'undefined'.
+client/src/components/chatbot/ChatbotComponent.tsx(18090,127): error TS18048: 'msg.chlorineSensorExportData' is possibly 'undefined'.
+client/src/components/chatbot/ChatbotComponent.tsx(18090,168): error TS18048: 'msg.chlorineSensorExportData' is possibly 'undefined'.
+client/src/components/chatbot/ChatbotComponent.tsx(18100,86): error TS18048: 'msg.chlorineSensorExportData' is possibly 'undefined'.
+client/src/components/chatbot/ChatbotComponent.tsx(18142,37): error TS2339: Property 'language' does not exist on type 'ChatMessage'.
+client/src/components/chatbot/ChatbotComponent.tsx(18153,37): error TS2339: Property 'language' does not exist on type 'ChatMessage'.
+client/src/components/chatbot/ChatbotComponent.tsx(18185,37): error TS2339: Property 'language' does not exist on type 'ChatMessage'.
+client/src/components/chatbot/ChatbotComponent.tsx(18196,37): error TS2339: Property 'language' does not exist on type 'ChatMessage'.
+client/src/components/chatbot/ChatbotComponent.tsx(18304,128): error TS2554: Expected 0-1 arguments, but got 2.
+client/src/components/dashboard/fixed-circle-packing.tsx(94,10): error TS2345: Argument of type 'HierarchyNode<{ name: string; type: string; children: { name: any; type: string; children: { name: string; type: string; value: any; count: any; }[]; }[]; }>' is not assignable to parameter of type 'HierarchyNode<unknown>'.
+  Types of property 'path' are incompatible.
+    Type '(target: HierarchyNode<{ name: string; type: string; children: { name: any; type: string; children: { name: string; type: string; value: any; count: any; }[]; }[]; }>) => HierarchyNode<{ name: string; type: string; children: { ...; }[]; }>[]' is not assignable to type '(target: HierarchyNode<unknown>) => HierarchyNode<unknown>[]'.
+      Types of parameters 'target' and 'target' are incompatible.
+        Type 'HierarchyNode<unknown>' is not assignable to type 'HierarchyNode<{ name: string; type: string; children: { name: any; type: string; children: { name: string; type: string; value: any; count: any; }[]; }[]; }>'.
+          Types of property 'data' are incompatible.
+            Type 'unknown' is not assignable to type '{ name: string; type: string; children: { name: any; type: string; children: { name: string; type: string; value: any; count: any; }[]; }[]; }'.
+client/src/components/dashboard/gis-maharashtra-map.tsx(143,15): error TS2345: Argument of type '{ type: string; features: { type: string; properties: { name: string; region: string; code: string; }; geometry: { type: string; coordinates: number[][][]; }; }[]; }' is not assignable to parameter of type 'GeoJsonObject | GeoJsonObject[] | null | undefined'.
+  Type '{ type: string; features: { type: string; properties: { name: string; region: string; code: string; }; geometry: { type: string; coordinates: number[][][]; }; }[]; }' is not assignable to type 'GeoJsonObject'.
+    Types of property 'type' are incompatible.
+      Type 'string' is not assignable to type '"FeatureCollection" | "Feature" | "Point" | "MultiPoint" | "LineString" | "MultiLineString" | "Polygon" | "MultiPolygon" | "GeometryCollection"'.
+client/src/components/dashboard/gis-maharashtra-map.tsx(155,36): error TS2345: Argument of type '{ type: string; features: { type: string; properties: { name: string; region: string; code: string; }; geometry: { type: string; coordinates: number[][][]; }; }[]; }' is not assignable to parameter of type 'GeoJsonObject | GeoJsonObject[] | null | undefined'.
+  Type '{ type: string; features: { type: string; properties: { name: string; region: string; code: string; }; geometry: { type: string; coordinates: number[][][]; }; }[]; }' is not assignable to type 'GeoJsonObject'.
+    Types of property 'type' are incompatible.
+      Type 'string' is not assignable to type '"FeatureCollection" | "Feature" | "Point" | "MultiPoint" | "LineString" | "MultiLineString" | "Polygon" | "MultiPolygon" | "GeometryCollection"'.
+client/src/components/dashboard/gis-maharashtra-map.tsx(223,56): error TS2345: Argument of type '{ type: string; features: { type: string; properties: { name: string; region: string; code: string; }; geometry: { type: string; coordinates: number[][][]; }; }[]; }' is not assignable to parameter of type 'string'.
+client/src/components/dashboard/maharashtra-official-map.tsx(353,25): error TS2304: Cannot find name 'getRegionColor'.
+client/src/components/dashboard/maharashtra-official-map.tsx(358,25): error TS2304: Cannot find name 'getRegionColor'.
+client/src/components/dashboard/maharashtra-official-map.tsx(363,25): error TS2304: Cannot find name 'getRegionColor'.
+client/src/components/dashboard/maharashtra-official-map.tsx(368,25): error TS2304: Cannot find name 'getRegionColor'.
+client/src/components/dashboard/maharashtra-official-map.tsx(373,25): error TS2304: Cannot find name 'getRegionColor'.
+client/src/components/dashboard/maharashtra-official-map.tsx(378,25): error TS2304: Cannot find name 'getRegionColor'.
+client/src/components/dashboard/maharashtra-official-map.tsx(392,25): error TS2304: Cannot find name 'getRegionColor'.
+client/src/components/dashboard/maharashtra-official-map.tsx(397,25): error TS2304: Cannot find name 'getRegionColor'.
+client/src/components/dashboard/maharashtra-official-map.tsx(402,25): error TS2304: Cannot find name 'getRegionColor'.
+client/src/components/dashboard/maharashtra-official-map.tsx(407,25): error TS2304: Cannot find name 'getRegionColor'.
+client/src/components/dashboard/maharashtra-official-map.tsx(412,25): error TS2304: Cannot find name 'getRegionColor'.
+client/src/components/dashboard/maharashtra-official-map.tsx(417,25): error TS2304: Cannot find name 'getRegionColor'.
+client/src/components/dashboard/maharashtra-official-map.tsx(422,25): error TS2304: Cannot find name 'getRegionColor'.
+client/src/components/dashboard/maharashtra-official-map.tsx(427,25): error TS2304: Cannot find name 'getRegionColor'.
+client/src/components/dashboard/maharashtra-official-map.tsx(441,25): error TS2304: Cannot find name 'getRegionColor'.
+client/src/components/dashboard/maharashtra-official-map.tsx(446,25): error TS2304: Cannot find name 'getRegionColor'.
+client/src/components/dashboard/maharashtra-official-map.tsx(451,25): error TS2304: Cannot find name 'getRegionColor'.
+client/src/components/dashboard/maharashtra-official-map.tsx(456,25): error TS2304: Cannot find name 'getRegionColor'.
+client/src/components/dashboard/maharashtra-official-map.tsx(461,25): error TS2304: Cannot find name 'getRegionColor'.
+client/src/components/dashboard/maharashtra-official-map.tsx(466,25): error TS2304: Cannot find name 'getRegionColor'.
+client/src/components/dashboard/maharashtra-official-map.tsx(480,25): error TS2304: Cannot find name 'getRegionColor'.
+client/src/components/dashboard/maharashtra-official-map.tsx(485,25): error TS2304: Cannot find name 'getRegionColor'.
+client/src/components/dashboard/maharashtra-official-map.tsx(490,25): error TS2304: Cannot find name 'getRegionColor'.
+client/src/components/dashboard/maharashtra-official-map.tsx(496,25): error TS2304: Cannot find name 'getRegionColor'.
+client/src/components/dashboard/maharashtra-official-map.tsx(502,25): error TS2304: Cannot find name 'getRegionColor'.
+client/src/components/dashboard/maharashtra-official-map.tsx(507,25): error TS2304: Cannot find name 'getRegionColor'.
+client/src/components/dashboard/maharashtra-official-map.tsx(512,25): error TS2304: Cannot find name 'getRegionColor'.
+client/src/components/dashboard/region-comparison-chart.tsx(182,18): error TS2322: Type '(context: any) => number' is not assignable to type 'number'.
+client/src/components/dashboard/scheme-details-modal.tsx(323,30): error TS2339: Property 'dashboard_url' does not exist on type 'SchemeStatus'.
+client/src/components/dashboard/scheme-details-modal.tsx(326,41): error TS2339: Property 'dashboard_url' does not exist on type 'SchemeStatus'.
+client/src/components/dashboard/simple-fixed-circle-packing.tsx(165,45): error TS2683: 'this' implicitly has type 'any' because it does not have a type annotation.
+client/src/components/dashboard/water-schemes-circle-packing.tsx(71,10): error TS2345: Argument of type 'HierarchyNode<{ name: string; type: string; children: { name: any; type: string; children: { name: string; type: string; children: { name: string; type: string; value: number; }[]; }[]; }[]; }>' is not assignable to parameter of type 'HierarchyNode<unknown>'.
+  Types of property 'path' are incompatible.
+    Type '(target: HierarchyNode<{ name: string; type: string; children: { name: any; type: string; children: { name: string; type: string; children: { name: string; type: string; value: number; }[]; }[]; }[]; }>) => HierarchyNode<...>[]' is not assignable to type '(target: HierarchyNode<unknown>) => HierarchyNode<unknown>[]'.
+      Types of parameters 'target' and 'target' are incompatible.
+        Type 'HierarchyNode<unknown>' is not assignable to type 'HierarchyNode<{ name: string; type: string; children: { name: any; type: string; children: { name: string; type: string; children: { name: string; type: string; value: number; }[]; }[]; }[]; }>'.
+          Types of property 'data' are incompatible.
+            Type 'unknown' is not assignable to type '{ name: string; type: string; children: { name: any; type: string; children: { name: string; type: string; children: { name: string; type: string; value: number; }[]; }[]; }[]; }'.
+client/src/components/dashboard/water-schemes-circle-packing.tsx(122,20): error TS2339: Property 'value' does not exist on type '{ name: string; type: string; children: { name: any; type: string; children: { name: string; type: string; children: { name: string; type: string; value: number; }[]; }[]; }[]; }'.
+client/src/components/dashboard/water-schemes-circle-packing.tsx(122,59): error TS2339: Property 'value' does not exist on type '{ name: string; type: string; children: { name: any; type: string; children: { name: string; type: string; children: { name: string; type: string; value: number; }[]; }[]; }[]; }'.
+client/src/components/dashboard/water-schemes-circle-packing.tsx(161,66): error TS2339: Property 'value' does not exist on type '{ name: string; type: string; children: { name: any; type: string; children: { name: string; type: string; children: { name: string; type: string; value: number; }[]; }[]; }[]; }'.
+client/src/components/dashboard/water-schemes-circle-packing.tsx(187,86): error TS2339: Property 'r' does not exist on type 'HierarchyNode<{ name: string; type: string; children: { name: any; type: string; children: { name: string; type: string; children: { name: string; type: string; value: number; }[]; }[]; }[]; }>'.
+client/src/components/dashboard/water-schemes-circle-packing.tsx(219,49): error TS2339: Property 'r' does not exist on type 'HierarchyNode<{ name: string; type: string; children: { name: any; type: string; children: { name: string; type: string; children: { name: string; type: string; value: number; }[]; }[]; }[]; }>'.
+client/src/components/dashboard/zoomable-circle-packing.tsx(25,3): error TS7008: Member 'F' implicitly has an 'any' type.
+client/src/components/PopulationDashboard.tsx(73,54): error TS2339: Property 'data' does not exist on type '{}'.
+client/src/components/PopulationDashboard.tsx(74,32): error TS2339: Property 'data' does not exist on type '{}'.
+client/src/components/PopulationDashboard.tsx(75,67): error TS2339: Property 'data' does not exist on type '{}'.
+client/src/components/PopulationDashboard.tsx(216,58): error TS2339: Property 'data' does not exist on type '{}'.
+client/src/components/PopulationDashboard.tsx(262,61): error TS2339: Property 'data' does not exist on type '{}'.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(5388,56): error TS2345: Argument of type '{ region: string; totalConnected: number; totalOnline: number; onlineWithWater: number; onlineWithWaterPressureOptimal: number; onlineWithWaterPressureAbove: number; onlineWithWaterPressureBelow: number; ... 5 more ...; offlineSince3Days: number; }' is not assignable to parameter of type 'PressureRegionalStats'.
+  Type '{ region: string; totalConnected: number; totalOnline: number; onlineWithWater: number; onlineWithWaterPressureOptimal: number; onlineWithWaterPressureAbove: number; onlineWithWaterPressureBelow: number; ... 5 more ...; offlineSince3Days: number; }' is missing the following properties from type 'PressureRegionalStats': onlineWithoutWaterPressureOptimal, onlineWithoutWaterPressureAbove, onlineWithoutWaterPressureBelow
+client/src/pages/chlorine/DetailedChlorinePage.tsx(12663,33): error TS18048: 'schemeLpcdRegionComparison.data.length' is possibly 'undefined'.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(12716,82): error TS18048: 'schemeLpcdRegionComparison' is possibly 'undefined'.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(12725,44): error TS18048: 'schemeLpcdRegionComparison' is possibly 'undefined'.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(12780,78): error TS18048: 'schemeLpcdRegionComparison' is possibly 'undefined'.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(12787,40): error TS18048: 'schemeLpcdRegionComparison' is possibly 'undefined'.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(12817,44): error TS18048: 'schemeLpcdRegionComparison' is possibly 'undefined'.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(12841,80): error TS18048: 'schemeLpcdRegionComparison' is possibly 'undefined'.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(12847,42): error TS18048: 'schemeLpcdRegionComparison' is possibly 'undefined'.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(12865,82): error TS18048: 'schemeLpcdRegionComparison' is possibly 'undefined'.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(12872,44): error TS18048: 'schemeLpcdRegionComparison' is possibly 'undefined'.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(12904,48): error TS18048: 'schemeLpcdRegionComparison' is possibly 'undefined'.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(12913,82): error TS18048: 'schemeLpcdRegionComparison' is possibly 'undefined'.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(12920,44): error TS18048: 'schemeLpcdRegionComparison' is possibly 'undefined'.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(12952,48): error TS18048: 'schemeLpcdRegionComparison' is possibly 'undefined'.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(12961,82): error TS18048: 'schemeLpcdRegionComparison' is possibly 'undefined'.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(12968,44): error TS18048: 'schemeLpcdRegionComparison' is possibly 'undefined'.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(13000,48): error TS18048: 'schemeLpcdRegionComparison' is possibly 'undefined'.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(13009,82): error TS18048: 'schemeLpcdRegionComparison' is possibly 'undefined'.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(13016,44): error TS18048: 'schemeLpcdRegionComparison' is possibly 'undefined'.
+client/src/pages/chlorine/DetailedChlorinePage.tsx(13048,48): error TS18048: 'schemeLpcdRegionComparison' is possibly 'undefined'.
+client/src/pages/dashboard.tsx(320,31): error TS2339: Property 'data' does not exist on type '{}'.
+client/src/pages/dashboard.tsx(335,29): error TS2339: Property 'data' does not exist on type '{}'.
+client/src/pages/dashboard.tsx(563,31): error TS2339: Property 'data' does not exist on type '{}'.
+client/src/pages/dashboard.tsx(578,29): error TS2339: Property 'data' does not exist on type '{}'.
+client/src/pages/ESRDashboard.tsx(71,29): error TS2339: Property 'map' does not exist on type '{}'.
+client/src/pages/ESRDashboard.tsx(82,7): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+client/src/pages/ESRDashboard.tsx(85,21): error TS2339: Property 'map' does not exist on type '{}'.
+client/src/pages/ESRDashboard.tsx(143,31): error TS7006: Parameter 'region' implicitly has an 'any' type.
+client/src/pages/ESRDashboard.tsx(190,27): error TS2339: Property 'data' does not exist on type '{}'.
+client/src/pages/helpdesk/raise-issue.tsx(130,49): error TS2339: Property 'name' does not exist on type '{}'.
+client/src/pages/helpdesk/raise-issue.tsx(131,50): error TS2339: Property 'email' does not exist on type '{}'.
+client/src/pages/helpdesk/raise-issue.tsx(132,50): error TS2339: Property 'phone' does not exist on type '{}'.
+client/src/pages/helpdesk/raise-issue.tsx(779,21): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+client/src/pages/helpdesk/ticket-details.tsx(452,21): error TS2339: Property 'attachments' does not exist on type '{ title: string; circle: string | null; id: number; region: string | null; status: string; division: string | null; subdivision: string | null; block: string | null; description: string; ... 18 more ...; created_at: Date; }'.
+client/src/pages/helpdesk/ticket-details.tsx(452,43): error TS2339: Property 'attachments' does not exist on type '{ title: string; circle: string | null; id: number; region: string | null; status: string; division: string | null; subdivision: string | null; block: string | null; description: string; ... 18 more ...; created_at: Date; }'.
+client/src/pages/helpdesk/ticket-details.tsx(457,42): error TS2339: Property 'attachments' does not exist on type '{ title: string; circle: string | null; id: number; region: string | null; status: string; division: string | null; subdivision: string | null; block: string | null; description: string; ... 18 more ...; created_at: Date; }'.
+client/src/pages/helpdesk/ticket-details.tsx(462,29): error TS2339: Property 'attachments' does not exist on type '{ title: string; circle: string | null; id: number; region: string | null; status: string; division: string | null; subdivision: string | null; block: string | null; description: string; ... 18 more ...; created_at: Date; }'.
+client/src/pages/helpdesk/ticket-details.tsx(462,46): error TS7006: Parameter 'attachment' implicitly has an 'any' type.
+client/src/pages/helpdesk/ticket-details.tsx(462,58): error TS7006: Parameter 'index' implicitly has an 'any' type.
+client/src/pages/lpcd/LpcdDashboard.tsx(530,58): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+client/src/pages/lpcd/LpcdImport.tsx(287,75): error TS7006: Parameter 'error' implicitly has an 'any' type.
+client/src/pages/lpcd/LpcdImport.tsx(287,82): error TS7006: Parameter 'index' implicitly has an 'any' type.
+client/src/pages/lpcd/LpcdImport.tsx(391,73): error TS7006: Parameter 'error' implicitly has an 'any' type.
+client/src/pages/lpcd/LpcdImport.tsx(391,80): error TS7006: Parameter 'index' implicitly has an 'any' type.
+client/src/pages/lpcd/LpcdImport.tsx(489,78): error TS7006: Parameter 'error' implicitly has an 'any' type.
+client/src/pages/lpcd/LpcdImport.tsx(489,85): error TS7006: Parameter 'index' implicitly has an 'any' type.
+client/src/pages/lpcd/SimpleLpcdDashboard.tsx(475,22): error TS1308: 'await' expressions are only allowed within async functions and at the top levels of modules.
+client/src/pages/map-preview.tsx(12,5): error TS2339: Property 'setRegion' does not exist on type 'GeoFilterContextType'.
+client/src/pages/map-preview.tsx(13,5): error TS2339: Property 'setDivision' does not exist on type 'GeoFilterContextType'.
+client/src/pages/map-preview.tsx(14,5): error TS2339: Property 'setSubDivision' does not exist on type 'GeoFilterContextType'.
+client/src/pages/map-preview.tsx(15,5): error TS2339: Property 'setCircle' does not exist on type 'GeoFilterContextType'.
+client/src/pages/map-preview.tsx(16,5): error TS2339: Property 'setBlock' does not exist on type 'GeoFilterContextType'.
+client/src/pages/map-preview.tsx(17,5): error TS2339: Property 'setVillage' does not exist on type 'GeoFilterContextType'.
+client/src/pages/map-preview.tsx(18,5): error TS2339: Property 'clearFilters' does not exist on type 'GeoFilterContextType'.
+client/src/pages/map-preview.tsx(19,5): error TS2339: Property 'currentFilterLevel' does not exist on type 'GeoFilterContextType'.
+client/src/pages/map-preview.tsx(48,23): error TS2322: Type '{ containerClassName: string; onRegionChange: any; onDivisionChange: any; onSubDivisionChange: any; onCircleChange: any; onBlockChange: any; onVillageChange: any; selectedRegion: string | null; mapTitle: string; }' is not assignable to type 'IntrinsicAttributes & EnhancedGeoFilterMapProps'.
+  Property 'containerClassName' does not exist on type 'IntrinsicAttributes & EnhancedGeoFilterMapProps'.
+client/src/pages/map-preview.tsx(88,46): error TS2551: Property 'subDivision' does not exist on type 'GeoFilter'. Did you mean 'subdivision'?
+client/src/pages/map-preview.tsx(89,33): error TS2551: Property 'subDivision' does not exist on type 'GeoFilter'. Did you mean 'subdivision'?
+client/src/pages/map-preview.tsx(89,64): error TS2551: Property 'subDivision' does not exist on type 'GeoFilter'. Did you mean 'subdivision'?
+client/src/pages/MqttTopicConfiguration.tsx(75,7): error TS2353: Object literal may only specify known properties, and 'scheme_id' does not exist in type 'AsyncDefaultValues<{ circle?: string | null | undefined; region?: string | null | undefined; division?: string | null | undefined; block?: string | null | undefined; sub_division?: string | null | undefined; village?: string | ... 1 more ... | undefined; scheme_id_name?: string | ... 1 more ... | undefined; vendor?:...'.
+client/src/pages/MqttTopicConfiguration.tsx(88,37): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(names: readonly ("circle" | "region" | "division" | "block" | "sub_division" | "village" | "scheme_id_name" | "vendor" | "reservoir")[], defaultValue?: { circle?: string | null | undefined; region?: string | ... 1 more ... | undefined; ... 6 more ...; reservoir?: string | ... 1 more ... | undefined; } | undefined): readonly (string | ... 1 more ... | undefined)[]', gave the following error.
+    Argument of type 'string' is not assignable to parameter of type 'readonly ("circle" | "region" | "division" | "block" | "sub_division" | "village" | "scheme_id_name" | "vendor" | "reservoir")[]'.
+  Overload 2 of 4, '(name: "circle" | "region" | "division" | "block" | "sub_division" | "village" | "scheme_id_name" | "vendor" | "reservoir", defaultValue?: string | null | undefined): string | null | undefined', gave the following error.
+    Argument of type '"flow_meter_topic"' is not assignable to parameter of type '"circle" | "region" | "division" | "block" | "sub_division" | "village" | "scheme_id_name" | "vendor" | "reservoir"'.
+  Overload 3 of 4, '(callback: WatchObserver<{ circle?: string | null | undefined; region?: string | null | undefined; division?: string | null | undefined; block?: string | null | undefined; sub_division?: string | null | undefined; village?: string | ... 1 more ... | undefined; scheme_id_name?: string | ... 1 more ... | undefined; vendor?: string | ... 1 more ... | undefined; reservoir?: string | ... 1 more ... | undefined; }>, defaultValues?: { ...; } | undefined): Subscription', gave the following error.
+    Argument of type 'string' is not assignable to parameter of type 'WatchObserver<{ circle?: string | null | undefined; region?: string | null | undefined; division?: string | null | undefined; block?: string | null | undefined; sub_division?: string | null | undefined; village?: string | ... 1 more ... | undefined; scheme_id_name?: string | ... 1 more ... | undefined; vendor?: stri...'.
+client/src/pages/MqttTopicConfiguration.tsx(89,30): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(names: readonly ("circle" | "region" | "division" | "block" | "sub_division" | "village" | "scheme_id_name" | "vendor" | "reservoir")[], defaultValue?: { circle?: string | null | undefined; region?: string | ... 1 more ... | undefined; ... 6 more ...; reservoir?: string | ... 1 more ... | undefined; } | undefined): readonly (string | ... 1 more ... | undefined)[]', gave the following error.
+    Argument of type 'string' is not assignable to parameter of type 'readonly ("circle" | "region" | "division" | "block" | "sub_division" | "village" | "scheme_id_name" | "vendor" | "reservoir")[]'.
+  Overload 2 of 4, '(name: "circle" | "region" | "division" | "block" | "sub_division" | "village" | "scheme_id_name" | "vendor" | "reservoir", defaultValue?: string | null | undefined): string | null | undefined', gave the following error.
+    Argument of type '"cl_topic"' is not assignable to parameter of type '"circle" | "region" | "division" | "block" | "sub_division" | "village" | "scheme_id_name" | "vendor" | "reservoir"'.
+  Overload 3 of 4, '(callback: WatchObserver<{ circle?: string | null | undefined; region?: string | null | undefined; division?: string | null | undefined; block?: string | null | undefined; sub_division?: string | null | undefined; village?: string | ... 1 more ... | undefined; scheme_id_name?: string | ... 1 more ... | undefined; vendor?: string | ... 1 more ... | undefined; reservoir?: string | ... 1 more ... | undefined; }>, defaultValues?: { ...; } | undefined): Subscription', gave the following error.
+    Argument of type 'string' is not assignable to parameter of type 'WatchObserver<{ circle?: string | null | undefined; region?: string | null | undefined; division?: string | null | undefined; block?: string | null | undefined; sub_division?: string | null | undefined; village?: string | ... 1 more ... | undefined; scheme_id_name?: string | ... 1 more ... | undefined; vendor?: stri...'.
+client/src/pages/MqttTopicConfiguration.tsx(90,36): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(names: readonly ("circle" | "region" | "division" | "block" | "sub_division" | "village" | "scheme_id_name" | "vendor" | "reservoir")[], defaultValue?: { circle?: string | null | undefined; region?: string | ... 1 more ... | undefined; ... 6 more ...; reservoir?: string | ... 1 more ... | undefined; } | undefined): readonly (string | ... 1 more ... | undefined)[]', gave the following error.
+    Argument of type 'string' is not assignable to parameter of type 'readonly ("circle" | "region" | "division" | "block" | "sub_division" | "village" | "scheme_id_name" | "vendor" | "reservoir")[]'.
+  Overload 2 of 4, '(name: "circle" | "region" | "division" | "block" | "sub_division" | "village" | "scheme_id_name" | "vendor" | "reservoir", defaultValue?: string | null | undefined): string | null | undefined', gave the following error.
+    Argument of type '"pressure_topic"' is not assignable to parameter of type '"circle" | "region" | "division" | "block" | "sub_division" | "village" | "scheme_id_name" | "vendor" | "reservoir"'.
+  Overload 3 of 4, '(callback: WatchObserver<{ circle?: string | null | undefined; region?: string | null | undefined; division?: string | null | undefined; block?: string | null | undefined; sub_division?: string | null | undefined; village?: string | ... 1 more ... | undefined; scheme_id_name?: string | ... 1 more ... | undefined; vendor?: string | ... 1 more ... | undefined; reservoir?: string | ... 1 more ... | undefined; }>, defaultValues?: { ...; } | undefined): Subscription', gave the following error.
+    Argument of type 'string' is not assignable to parameter of type 'WatchObserver<{ circle?: string | null | undefined; region?: string | null | undefined; division?: string | null | undefined; block?: string | null | undefined; sub_division?: string | null | undefined; village?: string | ... 1 more ... | undefined; scheme_id_name?: string | ... 1 more ... | undefined; vendor?: stri...'.
+client/src/pages/MqttTopicConfiguration.tsx(131,47): error TS2345: Argument of type 'readonly (string | null | undefined)[]' is not assignable to parameter of type 'string'.
+client/src/pages/MqttTopicConfiguration.tsx(177,9): error TS2353: Object literal may only specify known properties, and 'scheme_id' does not exist in type '{ circle?: string | null | undefined; region?: string | null | undefined; division?: string | null | undefined; block?: string | null | undefined; sub_division?: string | null | undefined; village?: string | ... 1 more ... | undefined; scheme_id_name?: string | ... 1 more ... | undefined; vendor?: string | ... 1 mor...'.
+client/src/pages/MqttTopicConfiguration.tsx(206,59): error TS2339: Property 'flow_meter_topic' does not exist on type '{ circle?: string | null | undefined; region?: string | null | undefined; division?: string | null | undefined; block?: string | null | undefined; sub_division?: string | null | undefined; village?: string | ... 1 more ... | undefined; scheme_id_name?: string | ... 1 more ... | undefined; vendor?: string | ... 1 mor...'.
+client/src/pages/MqttTopicConfiguration.tsx(207,44): error TS2339: Property 'cl_topic' does not exist on type '{ circle?: string | null | undefined; region?: string | null | undefined; division?: string | null | undefined; block?: string | null | undefined; sub_division?: string | null | undefined; village?: string | ... 1 more ... | undefined; scheme_id_name?: string | ... 1 more ... | undefined; vendor?: string | ... 1 mor...'.
+client/src/pages/MqttTopicConfiguration.tsx(208,43): error TS2339: Property 'cl_type' does not exist on type '{ circle?: string | null | undefined; region?: string | null | undefined; division?: string | null | undefined; block?: string | null | undefined; sub_division?: string | null | undefined; village?: string | ... 1 more ... | undefined; scheme_id_name?: string | ... 1 more ... | undefined; vendor?: string | ... 1 mor...'.
+client/src/pages/MqttTopicConfiguration.tsx(209,56): error TS2339: Property 'pressure_topic' does not exist on type '{ circle?: string | null | undefined; region?: string | null | undefined; division?: string | null | undefined; block?: string | null | undefined; sub_division?: string | null | undefined; village?: string | ... 1 more ... | undefined; scheme_id_name?: string | ... 1 more ... | undefined; vendor?: string | ... 1 mor...'.
+client/src/pages/MqttTopicConfiguration.tsx(367,28): error TS2322: Type '{ "data-testid": string; onChange: (...event: any[]) => void; onBlur: Noop; value: string | null | undefined; disabled?: boolean | undefined; name: "region"; ref: RefCallBack; }' is not assignable to type 'InputProps'.
+  Types of property 'value' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | number | readonly string[] | undefined'.
+      Type 'null' is not assignable to type 'string | number | readonly string[] | undefined'.
+client/src/pages/MqttTopicConfiguration.tsx(381,28): error TS2322: Type '{ "data-testid": string; onChange: (...event: any[]) => void; onBlur: Noop; value: string | null | undefined; disabled?: boolean | undefined; name: "circle"; ref: RefCallBack; }' is not assignable to type 'InputProps'.
+  Types of property 'value' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | number | readonly string[] | undefined'.
+      Type 'null' is not assignable to type 'string | number | readonly string[] | undefined'.
+client/src/pages/MqttTopicConfiguration.tsx(395,28): error TS2322: Type '{ "data-testid": string; onChange: (...event: any[]) => void; onBlur: Noop; value: string | null | undefined; disabled?: boolean | undefined; name: "division"; ref: RefCallBack; }' is not assignable to type 'InputProps'.
+  Types of property 'value' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | number | readonly string[] | undefined'.
+      Type 'null' is not assignable to type 'string | number | readonly string[] | undefined'.
+client/src/pages/MqttTopicConfiguration.tsx(409,28): error TS2322: Type '{ "data-testid": string; onChange: (...event: any[]) => void; onBlur: Noop; value: string | null | undefined; disabled?: boolean | undefined; name: "sub_division"; ref: RefCallBack; }' is not assignable to type 'InputProps'.
+  Types of property 'value' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | number | readonly string[] | undefined'.
+      Type 'null' is not assignable to type 'string | number | readonly string[] | undefined'.
+client/src/pages/MqttTopicConfiguration.tsx(423,28): error TS2322: Type '{ "data-testid": string; onChange: (...event: any[]) => void; onBlur: Noop; value: string | null | undefined; disabled?: boolean | undefined; name: "block"; ref: RefCallBack; }' is not assignable to type 'InputProps'.
+  Types of property 'value' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | number | readonly string[] | undefined'.
+      Type 'null' is not assignable to type 'string | number | readonly string[] | undefined'.
+client/src/pages/MqttTopicConfiguration.tsx(432,21): error TS2322: Type '"scheme_id"' is not assignable to type '"circle" | "region" | "division" | "block" | "sub_division" | "village" | "scheme_id_name" | "vendor" | "reservoir"'.
+client/src/pages/MqttTopicConfiguration.tsx(437,28): error TS2322: Type '{ "data-testid": string; onChange: (...event: any[]) => void; onBlur: Noop; value: string | null | undefined; disabled?: boolean | undefined; name: "circle" | "region" | "division" | "block" | ... 4 more ... | "reservoir"; ref: RefCallBack; }' is not assignable to type 'InputProps'.
+  Types of property 'value' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | number | readonly string[] | undefined'.
+      Type 'null' is not assignable to type 'string | number | readonly string[] | undefined'.
+client/src/pages/MqttTopicConfiguration.tsx(446,21): error TS2820: Type '"scheme_name"' is not assignable to type '"circle" | "region" | "division" | "block" | "sub_division" | "village" | "scheme_id_name" | "vendor" | "reservoir"'. Did you mean '"scheme_id_name"'?
+client/src/pages/MqttTopicConfiguration.tsx(451,28): error TS2322: Type '{ "data-testid": string; onChange: (...event: any[]) => void; onBlur: Noop; value: string | null | undefined; disabled?: boolean | undefined; name: "circle" | "region" | "division" | "block" | ... 4 more ... | "reservoir"; ref: RefCallBack; }' is not assignable to type 'InputProps'.
+  Types of property 'value' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | number | readonly string[] | undefined'.
+      Type 'null' is not assignable to type 'string | number | readonly string[] | undefined'.
+client/src/pages/MqttTopicConfiguration.tsx(465,28): error TS2322: Type '{ "data-testid": string; onChange: (...event: any[]) => void; onBlur: Noop; value: string | null | undefined; disabled?: boolean | undefined; name: "village"; ref: RefCallBack; }' is not assignable to type 'InputProps'.
+  Types of property 'value' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | number | readonly string[] | undefined'.
+      Type 'null' is not assignable to type 'string | number | readonly string[] | undefined'.
+client/src/pages/MqttTopicConfiguration.tsx(479,28): error TS2322: Type '{ "data-testid": string; onChange: (...event: any[]) => void; onBlur: Noop; value: string | null | undefined; disabled?: boolean | undefined; name: "reservoir"; ref: RefCallBack; }' is not assignable to type 'InputProps'.
+  Types of property 'value' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | number | readonly string[] | undefined'.
+      Type 'null' is not assignable to type 'string | number | readonly string[] | undefined'.
+client/src/pages/MqttTopicConfiguration.tsx(488,21): error TS2322: Type '"submitted_by"' is not assignable to type '"circle" | "region" | "division" | "block" | "sub_division" | "village" | "scheme_id_name" | "vendor" | "reservoir"'.
+client/src/pages/MqttTopicConfiguration.tsx(493,28): error TS2322: Type '{ placeholder: string; "data-testid": string; onChange: (...event: any[]) => void; onBlur: Noop; value: string | null | undefined; disabled?: boolean | undefined; name: "circle" | "region" | ... 6 more ... | "reservoir"; ref: RefCallBack; }' is not assignable to type 'InputProps'.
+  Types of property 'value' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | number | readonly string[] | undefined'.
+      Type 'null' is not assignable to type 'string | number | readonly string[] | undefined'.
+client/src/pages/MqttTopicConfiguration.tsx(526,25): error TS2322: Type '"flow_meter_topic"' is not assignable to type '"circle" | "region" | "division" | "block" | "sub_division" | "village" | "scheme_id_name" | "vendor" | "reservoir"'.
+client/src/pages/MqttTopicConfiguration.tsx(531,32): error TS2322: Type '{ placeholder: string; "data-testid": string; onChange: (...event: any[]) => void; onBlur: Noop; value: string | null | undefined; disabled?: boolean | undefined; name: "circle" | "region" | ... 6 more ... | "reservoir"; ref: RefCallBack; }' is not assignable to type 'InputProps'.
+  Types of property 'value' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | number | readonly string[] | undefined'.
+      Type 'null' is not assignable to type 'string | number | readonly string[] | undefined'.
+client/src/pages/MqttTopicConfiguration.tsx(542,25): error TS2322: Type 'readonly (string | null | undefined)[]' is not assignable to type 'string'.
+client/src/pages/MqttTopicConfiguration.tsx(566,27): error TS2322: Type '"cl_topic"' is not assignable to type '"circle" | "region" | "division" | "block" | "sub_division" | "village" | "scheme_id_name" | "vendor" | "reservoir"'.
+client/src/pages/MqttTopicConfiguration.tsx(571,34): error TS2322: Type '{ placeholder: string; "data-testid": string; onChange: (...event: any[]) => void; onBlur: Noop; value: string | null | undefined; disabled?: boolean | undefined; name: "circle" | "region" | ... 6 more ... | "reservoir"; ref: RefCallBack; }' is not assignable to type 'InputProps'.
+  Types of property 'value' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | number | readonly string[] | undefined'.
+      Type 'null' is not assignable to type 'string | number | readonly string[] | undefined'.
+client/src/pages/MqttTopicConfiguration.tsx(579,27): error TS2322: Type '"cl_type"' is not assignable to type '"circle" | "region" | "division" | "block" | "sub_division" | "village" | "scheme_id_name" | "vendor" | "reservoir"'.
+client/src/pages/MqttTopicConfiguration.tsx(583,70): error TS2322: Type 'string | null | undefined' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+client/src/pages/MqttTopicConfiguration.tsx(604,25): error TS2322: Type 'readonly (string | null | undefined)[]' is not assignable to type 'string'.
+client/src/pages/MqttTopicConfiguration.tsx(627,25): error TS2322: Type '"pressure_topic"' is not assignable to type '"circle" | "region" | "division" | "block" | "sub_division" | "village" | "scheme_id_name" | "vendor" | "reservoir"'.
+client/src/pages/MqttTopicConfiguration.tsx(632,32): error TS2322: Type '{ placeholder: string; "data-testid": string; onChange: (...event: any[]) => void; onBlur: Noop; value: string | null | undefined; disabled?: boolean | undefined; name: "circle" | "region" | ... 6 more ... | "reservoir"; ref: RefCallBack; }' is not assignable to type 'InputProps'.
+  Types of property 'value' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | number | readonly string[] | undefined'.
+      Type 'null' is not assignable to type 'string | number | readonly string[] | undefined'.
+client/src/pages/MqttTopicConfiguration.tsx(643,25): error TS2322: Type 'readonly (string | null | undefined)[]' is not assignable to type 'string'.
+client/src/pages/scheme-details-old.tsx(50,14): error TS2352: Conversion of type 'Promise<any>' to type 'SchemeStatus' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'Promise<any>' is missing the following properties from type 'SchemeStatus': scheme_id, scheme_name, region, block, and 4 more.
+client/src/pages/smart-reports.tsx(208,43): error TS2345: Argument of type 'SchemeReportData' is not assignable to parameter of type 'SchemeReportData'.
+  Types of property 'villagesData' are incompatible.
+    Type 'VillageData[]' is not assignable to type 'VillageData[]'. Two different types with this name exist, but they are unrelated.
+      Type 'VillageData' is not assignable to type 'VillageData'. Two different types with this name exist, but they are unrelated.
+        Types of property 'water_consumption' are incompatible.
+          Type '{ day1: string | null; day2: string | null; day3: string | null; day4: string | null; day5: string | null; day6: string | null; day7: string | null; date1: string | null; date2: string | null; date3: string | null; }' is missing the following properties from type '{ day1: string | null; day2: string | null; day3: string | null; day4: string | null; day5: string | null; day6: string | null; day7: string | null; date1: string | null; date2: string | null; ... 4 more ...; date7: string | null; }': date4, date5, date6, date7
+client/src/services/openai-service.ts(178,61): error TS2367: This comparison appears to be unintentional because the types '"hi" | "mr"' and '"en"' have no overlap.
+server/check_weekly_stats.ts(2,10): error TS2614: Module '"./db"' has no exported member 'db'. Did you mean to use 'import db from "./db"' instead?
+server/database-storage.ts(205,45): error TS18047: 'result.rowCount' is possibly 'null'.
+server/database-storage.ts(285,7): error TS2740: Type 'Omit<PgSelectBase<"scheme_status", { sr_no: PgColumn<{ name: "sr_no"; tableName: "scheme_status"; dataType: "number"; columnType: "PgInteger"; data: number; driverParam: string | number; notNull: false; hasDefault: false; ... 6 more ...; generated: undefined; }, {}, {}>; ... 26 more ...; dashboard_url: PgColumn<...>...' is missing the following properties from type 'PgSelectBase<"scheme_status", { sr_no: PgColumn<{ name: "sr_no"; tableName: "scheme_status"; dataType: "number"; columnType: "PgInteger"; data: number; driverParam: string | number; notNull: false; hasDefault: false; ... 6 more ...; generated: undefined; }, {}, {}>; ... 26 more ...; dashboard_url: PgColumn<...>; }, ...': config, joinsNotNullableMap, tableName, isPartialSelect, and 5 more.
+server/database-storage.ts(289,7): error TS2740: Type 'Omit<PgSelectBase<"scheme_status", { sr_no: PgColumn<{ name: "sr_no"; tableName: "scheme_status"; dataType: "number"; columnType: "PgInteger"; data: number; driverParam: string | number; notNull: false; hasDefault: false; ... 6 more ...; generated: undefined; }, {}, {}>; ... 26 more ...; dashboard_url: PgColumn<...>...' is missing the following properties from type 'PgSelectBase<"scheme_status", { sr_no: PgColumn<{ name: "sr_no"; tableName: "scheme_status"; dataType: "number"; columnType: "PgInteger"; data: number; driverParam: string | number; notNull: false; hasDefault: false; ... 6 more ...; generated: undefined; }, {}, {}>; ... 26 more ...; dashboard_url: PgColumn<...>; }, ...': config, joinsNotNullableMap, tableName, isPartialSelect, and 5 more.
+server/database-storage.ts(303,21): error TS2339: Property 'where' does not exist on type 'Omit<PgSelectBase<"scheme_status", { sr_no: PgColumn<{ name: "sr_no"; tableName: "scheme_status"; dataType: "number"; columnType: "PgInteger"; data: number; driverParam: string | number; notNull: false; hasDefault: false; ... 6 more ...; generated: undefined; }, {}, {}>; ... 26 more ...; dashboard_url: PgColumn<...>...'.
+server/database-storage.ts(307,21): error TS2339: Property 'where' does not exist on type 'Omit<PgSelectBase<"scheme_status", { sr_no: PgColumn<{ name: "sr_no"; tableName: "scheme_status"; dataType: "number"; columnType: "PgInteger"; data: number; driverParam: string | number; notNull: false; hasDefault: false; ... 6 more ...; generated: undefined; }, {}, {}>; ... 26 more ...; dashboard_url: PgColumn<...>...'.
+server/database-storage.ts(345,16): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/database-storage.ts(385,9): error TS2740: Type 'Omit<PgSelectBase<"water_scheme_data", { region: PgColumn<{ name: "region"; tableName: "water_scheme_data"; dataType: "string"; columnType: "PgText"; data: string; driverParam: string; notNull: false; hasDefault: false; ... 6 more ...; generated: undefined; }, {}, {}>; ... 40 more ...; dashboard_url: PgColumn<...>; ...' is missing the following properties from type 'PgSelectBase<"water_scheme_data", { region: PgColumn<{ name: "region"; tableName: "water_scheme_data"; dataType: "string"; columnType: "PgText"; data: string; driverParam: string; notNull: false; hasDefault: false; ... 6 more ...; generated: undefined; }, {}, {}>; ... 40 more ...; dashboard_url: PgColumn<...>; }, .....': config, joinsNotNullableMap, tableName, isPartialSelect, and 5 more.
+server/database-storage.ts(434,9): error TS2740: Type 'Omit<PgSelectBase<"chlorine_data", { region: PgColumn<{ name: "region"; tableName: "chlorine_data"; dataType: "string"; columnType: "PgVarchar"; data: string; driverParam: string; notNull: false; hasDefault: false; ... 6 more ...; generated: undefined; }, {}, { ...; }>; ... 26 more ...; dashboard_url: PgColumn<...>;...' is missing the following properties from type 'PgSelectBase<"chlorine_data", { region: PgColumn<{ name: "region"; tableName: "chlorine_data"; dataType: "string"; columnType: "PgVarchar"; data: string; driverParam: string; notNull: false; hasDefault: false; ... 6 more ...; generated: undefined; }, {}, { ...; }>; ... 26 more ...; dashboard_url: PgColumn<...>; }, ....': config, joinsNotNullableMap, tableName, isPartialSelect, and 5 more.
+server/database-storage.ts(495,9): error TS2416: Property 'getChlorineDashboardStats' in type 'DatabaseStorage' is not assignable to the same property in base type 'IStorage'.
+  Type '(regionName?: string | undefined) => Promise<{ totalSensors: number; belowRangeSensors: number; optimalRangeSensors: number; aboveRangeSensors: number; consistentZeroSensors: number; consistentBelowRangeSensors: number; consistentOptimalSensors: number; consistentAboveRangeSensors: number; noWaterSensors: number; }>' is not assignable to type '(filter?: ChlorineDataFilter | undefined) => Promise<{ totalSensors: number; belowRangeSensors: number; optimalRangeSensors: number; aboveRangeSensors: number; consistentZeroSensors: number; consistentBelowRangeSensors: number; consistentOptimalSensors: number; consistentAboveRangeSensors: number; noWaterSensors: nu...'.
+    Types of parameters 'regionName' and 'filter' are incompatible.
+      Type 'ChlorineDataFilter | undefined' is not assignable to type 'string | undefined'.
+        Type 'ChlorineDataFilter' is not assignable to type 'string'.
+server/database-storage.ts(520,9): error TS2416: Property 'getChlorineSensorsWithNoWater' in type 'DatabaseStorage' is not assignable to the same property in base type 'IStorage'.
+  Type '(regionName?: string | undefined) => Promise<{ totalNoWaterSensors: number; noWaterSensors: { region: string; circle: string; division: string; sub_division: string; block: string; scheme_id: string; ... 5 more ...; chlorine_connected: string | null; }[]; }>' is not assignable to type '(filter?: ChlorineDataFilter | undefined) => Promise<{ totalNoWaterSensors: number; noWaterSensors: { region: string; circle: string; division: string; sub_division: string; ... 7 more ...; chlorine_connected: string | null; }[]; }>'.
+    Types of parameters 'regionName' and 'filter' are incompatible.
+      Type 'ChlorineDataFilter | undefined' is not assignable to type 'string | undefined'.
+        Type 'ChlorineDataFilter' is not assignable to type 'string'.
+server/database-storage.ts(543,9): error TS2416: Property 'getChlorineSensorsWithWater' in type 'DatabaseStorage' is not assignable to the same property in base type 'IStorage'.
+  Type '(regionName?: string | undefined) => Promise<{ totalWithWaterSensors: number; withWaterSensors: { region: string; circle: string; division: string; sub_division: string; block: string; scheme_id: string; ... 5 more ...; chlorine_connected: string | null; }[]; }>' is not assignable to type '(filter?: ChlorineDataFilter | undefined) => Promise<{ totalWithWaterSensors: number; withWaterSensors: { region: string; circle: string; division: string; sub_division: string; ... 7 more ...; chlorine_connected: string | null; }[]; }>'.
+    Types of parameters 'regionName' and 'filter' are incompatible.
+      Type 'ChlorineDataFilter | undefined' is not assignable to type 'string | undefined'.
+        Type 'ChlorineDataFilter' is not assignable to type 'string'.
+server/database-storage.ts(566,9): error TS2416: Property 'getRegionalChlorineStats' in type 'DatabaseStorage' is not assignable to the same property in base type 'IStorage'.
+  Type '() => Promise<{ region: string; totalConnected: number; totalOnline: number; onlineWithWater: number; onlineWithWaterChlorineOptimal: number; onlineWithWaterChlorineAbove: number; onlineWithWaterChlorineBelow: number; ... 7 more ...; offlineSince3Days: number; }[]>' is not assignable to type '(fullyCompletedSchemeIds?: Set<string> | undefined) => Promise<{ region: string; totalConnected: number; totalOnline: number; onlineWithWater: number; onlineWithWaterChlorineOptimal: number; ... 10 more ...; offlineSince3Days: number; }[]>'.
+    Type 'Promise<{ region: string; totalConnected: number; totalOnline: number; onlineWithWater: number; onlineWithWaterChlorineOptimal: number; onlineWithWaterChlorineAbove: number; onlineWithWaterChlorineBelow: number; ... 7 more ...; offlineSince3Days: number; }[]>' is not assignable to type 'Promise<{ region: string; totalConnected: number; totalOnline: number; onlineWithWater: number; onlineWithWaterChlorineOptimal: number; onlineWithWaterChlorineAbove: number; onlineWithWaterChlorineBelow: number; ... 8 more ...; offlineSince3Days: number; }[]>'.
+      Type '{ region: string; totalConnected: number; totalOnline: number; onlineWithWater: number; onlineWithWaterChlorineOptimal: number; onlineWithWaterChlorineAbove: number; onlineWithWaterChlorineBelow: number; ... 7 more ...; offlineSince3Days: number; }[]' is not assignable to type '{ region: string; totalConnected: number; totalOnline: number; onlineWithWater: number; onlineWithWaterChlorineOptimal: number; onlineWithWaterChlorineAbove: number; onlineWithWaterChlorineBelow: number; ... 8 more ...; offlineSince3Days: number; }[]'.
+        Property 'onlineWithWaterNoChlorineData' is missing in type '{ region: string; totalConnected: number; totalOnline: number; onlineWithWater: number; onlineWithWaterChlorineOptimal: number; onlineWithWaterChlorineAbove: number; onlineWithWaterChlorineBelow: number; ... 7 more ...; offlineSince3Days: number; }' but required in type '{ region: string; totalConnected: number; totalOnline: number; onlineWithWater: number; onlineWithWaterChlorineOptimal: number; onlineWithWaterChlorineAbove: number; onlineWithWaterChlorineBelow: number; ... 8 more ...; offlineSince3Days: number; }'.
+server/database-storage.ts(586,9): error TS2416: Property 'getChlorineDayWiseBreakdown' in type 'DatabaseStorage' is not assignable to the same property in base type 'IStorage'.
+  Type '(regionName?: string | undefined) => Promise<{ days: number; offline: number; below_0_2: number; above_0_5: number; }[]>' is not assignable to type '(regionName?: string | undefined, fullyCompletedSchemeIds?: Set<string> | undefined) => Promise<{ days: number; offline: number; below_0_2: number; above_0_5: number; optimal_0_2_0_5: number; }[]>'.
+    Type 'Promise<{ days: number; offline: number; below_0_2: number; above_0_5: number; }[]>' is not assignable to type 'Promise<{ days: number; offline: number; below_0_2: number; above_0_5: number; optimal_0_2_0_5: number; }[]>'.
+      Type '{ days: number; offline: number; below_0_2: number; above_0_5: number; }[]' is not assignable to type '{ days: number; offline: number; below_0_2: number; above_0_5: number; optimal_0_2_0_5: number; }[]'.
+        Property 'optimal_0_2_0_5' is missing in type '{ days: number; offline: number; below_0_2: number; above_0_5: number; }' but required in type '{ days: number; offline: number; below_0_2: number; above_0_5: number; optimal_0_2_0_5: number; }'.
+server/database-storage.ts(601,9): error TS2740: Type 'Omit<PgSelectBase<"pressure_data", { region: PgColumn<{ name: "region"; tableName: "pressure_data"; dataType: "string"; columnType: "PgText"; data: string; driverParam: string; notNull: false; hasDefault: false; ... 6 more ...; generated: undefined; }, {}, {}>; ... 26 more ...; dashboard_url: PgColumn<...>; }, ... 5...' is missing the following properties from type 'PgSelectBase<"pressure_data", { region: PgColumn<{ name: "region"; tableName: "pressure_data"; dataType: "string"; columnType: "PgText"; data: string; driverParam: string; notNull: false; hasDefault: false; isPrimaryKey: false; ... 5 more ...; generated: undefined; }, {}, {}>; ... 26 more ...; dashboard_url: PgColum...': config, joinsNotNullableMap, tableName, isPartialSelect, and 5 more.
+server/debug_lpcd_counts.ts(17,20): error TS7006: Parameter 'v' implicitly has an 'any' type.
+server/debug_lpcd_counts_v2.ts(14,20): error TS7006: Parameter 'v' implicitly has an 'any' type.
+server/debug_lpcd_counts_v3.ts(13,9): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/debug_lpcd_counts_v3.ts(21,20): error TS7006: Parameter 'v' implicitly has an 'any' type.
+server/inspect_ashti.ts(15,19): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/inspect_ashti.ts(15,22): error TS7006: Parameter 'i' implicitly has an 'any' type.
+server/inspect_scheme.ts(12,45): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/inspect_scheme.ts(15,19): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/inspect_scheme.ts(15,22): error TS7006: Parameter 'i' implicitly has an 'any' type.
+server/routes.ts(36,30): error TS7016: Could not find a declaration file for module './routes/admin/import-lpcd'. 'C:/Users/12626/dashboard8/server/routes/admin/import-lpcd.js' implicitly has an 'any' type.
+server/routes.ts(206,33): error TS2304: Cannot find name 'mqttService'.
+server/routes.ts(273,33): error TS2304: Cannot find name 'mqttService'.
+server/routes.ts(322,34): error TS2345: Argument of type 'Buffer<ArrayBufferLike>' is not assignable to parameter of type 'Buffer'.
+  Type 'Buffer<ArrayBufferLike>' is missing the following properties from type 'Buffer': maxByteLength, resizable, resize, detached, and 2 more.
+server/routes.ts(508,41): error TS2304: Cannot find name 'mqttService'.
+server/routes.ts(524,41): error TS2304: Cannot find name 'mqttService'.
+server/routes.ts(545,41): error TS2304: Cannot find name 'mqttService'.
+server/routes.ts(662,12): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server/routes.ts(674,41): error TS2304: Cannot find name 'mqttService'.
+server/routes.ts(696,41): error TS2304: Cannot find name 'mqttService'.
+server/routes.ts(723,41): error TS2304: Cannot find name 'mqttService'.
+server/routes.ts(797,46): error TS2339: Property 'length' does not exist on type 'Buffer'.
+server/routes.ts(2171,36): error TS2802: Type 'Set<string | null>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/routes.ts(2501,15): error TS2307: Cannot find module '../special-amravati-import.js' or its corresponding type declarations.
+server/routes.ts(2537,30): error TS18048: 'importResult' is possibly 'undefined'.
+server/routes.ts(2540,57): error TS18048: 'importResult' is possibly 'undefined'.
+server/routes.ts(2540,103): error TS18048: 'importResult' is possibly 'undefined'.
+server/routes.ts(2541,21): error TS18048: 'importResult' is possibly 'undefined'.
+server/routes.ts(2542,20): error TS18048: 'importResult' is possibly 'undefined'.
+server/routes.ts(2544,19): error TS18048: 'importResult' is possibly 'undefined'.
+server/routes/category-data-routes.ts(22,7): error TS2862: Type 'T' is generic and can only be indexed for reading.
+server/routes/category-data-routes.ts(2823,16): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/routes/communication-status-routes.ts(292,29): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/routes/communication-status-routes.ts(293,29): error TS7006: Parameter 'c' implicitly has an 'any' type.
+server/routes/communication-status-routes.ts(294,33): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/routes/communication-status-routes.ts(295,39): error TS7006: Parameter 's' implicitly has an 'any' type.
+server/routes/communication-status-routes.ts(296,27): error TS7006: Parameter 'b' implicitly has an 'any' type.
+server/routes/esr-routes.ts(132,23): error TS18046: 'row' is of type 'unknown'.
+server/routes/esr-routes.ts(133,25): error TS18046: 'row' is of type 'unknown'.
+server/routes/esr-routes.ts(134,29): error TS18046: 'row' is of type 'unknown'.
+server/routes/esr-routes.ts(135,22): error TS18046: 'row' is of type 'unknown'.
+server/routes/esr-routes.ts(136,33): error TS18046: 'row' is of type 'unknown'.
+server/routes/esr-routes.ts(137,28): error TS18046: 'row' is of type 'unknown'.
+server/routes/esr-routes.ts(138,29): error TS18046: 'row' is of type 'unknown'.
+server/routes/esr-routes.ts(139,25): error TS18046: 'row' is of type 'unknown'.
+server/routes/esr-routes.ts(140,35): error TS18046: 'row' is of type 'unknown'.
+server/routes/esr-routes.ts(141,35): error TS18046: 'row' is of type 'unknown'.
+server/routes/esr-routes.ts(142,37): error TS18046: 'row' is of type 'unknown'.
+server/routes/esr-routes.ts(143,32): error TS18046: 'row' is of type 'unknown'.
+server/routes/esr-routes.ts(144,32): error TS18046: 'row' is of type 'unknown'.
+server/routes/esr-routes.ts(145,34): error TS18046: 'row' is of type 'unknown'.
+server/routes/esr-routes.ts(146,31): error TS18046: 'row' is of type 'unknown'.
+server/routes/esr-routes.ts(170,24): error TS18046: 'row' is of type 'unknown'.
+server/routes/esr-routes.ts(171,22): error TS18046: 'error' is of type 'unknown'.
+server/routes/pressure-routes.ts(526,34): error TS7006: Parameter 'id' implicitly has an 'any' type.
+server/routes/pressure-routes.ts(612,34): error TS7006: Parameter 'id' implicitly has an 'any' type.
+server/simple-db.ts(16,7): error TS2353: Object literal may only specify known properties, and 'require' does not exist in type 'ConnectionOptions'.
+server/simple-index.ts(30,8): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+server/storage.ts(1685,9): error TS2322: Type 'SQL<unknown> | undefined' is not assignable to type 'SQL<unknown>'.
+  Type 'undefined' is not assignable to type 'SQL<unknown>'.
+server/storage.ts(2184,19): error TS2322: Type 'number | null' is not assignable to type 'null | undefined'.
+  Type 'number' is not assignable to type 'null | undefined'.
+server/storage.ts(2271,38): error TS7006: Parameter 'record' implicitly has an 'any' type.
+server/storage.ts(2586,32): error TS7006: Parameter 'record' implicitly has an 'any' type.
+server/storage.ts(2786,42): error TS2802: Type 'MapIterator<[string, Set<string>]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/storage.ts(2800,39): error TS7006: Parameter 's' implicitly has an 'any' type.
+server/storage.ts(3255,54): error TS2551: Property 'subdivision' does not exist on type 'ChlorineDataFilter'. Did you mean 'subDivision'?
+server/storage.ts(3480,28): error TS7006: Parameter 'region' implicitly has an 'any' type.
+server/storage.ts(4943,9): error TS2416: Property 'getPressureSensorsWithNoWater' in type 'PostgresStorage' is not assignable to the same property in base type 'IStorage'.
+  Type '(regionName?: string | undefined) => Promise<{ totalNoWaterSensors: number; noWaterSensors: { region: string; circle: string; division: string; sub_division: string; block: string; scheme_id: string; ... 5 more ...; pressure_connected: string | null; }[]; }>' is not assignable to type '(regionName?: string | undefined) => Promise<{ totalNoWaterSensors: number; noWaterSensors: { region: string; circle: string; division: string; sub_division: string; block: string; scheme_id: string; ... 5 more ...; flow_meter_connected: string | null; }[]; }>'.
+    Type 'Promise<{ totalNoWaterSensors: number; noWaterSensors: { region: string; circle: string; division: string; sub_division: string; block: string; scheme_id: string; scheme_name: string; village_name: string; esr_name: string; water_date_day7: string | null; water_value_day7: number | null; pressure_connected: string |...' is not assignable to type 'Promise<{ totalNoWaterSensors: number; noWaterSensors: { region: string; circle: string; division: string; sub_division: string; block: string; scheme_id: string; scheme_name: string; village_name: string; esr_name: string; water_date_day7: string | null; water_value_day7: number | null; flow_meter_connected: string...'.
+      Type '{ totalNoWaterSensors: number; noWaterSensors: { region: string; circle: string; division: string; sub_division: string; block: string; scheme_id: string; scheme_name: string; village_name: string; esr_name: string; water_date_day7: string | null; water_value_day7: number | null; pressure_connected: string | null; }...' is not assignable to type '{ totalNoWaterSensors: number; noWaterSensors: { region: string; circle: string; division: string; sub_division: string; block: string; scheme_id: string; scheme_name: string; village_name: string; esr_name: string; water_date_day7: string | null; water_value_day7: number | null; flow_meter_connected: string | null;...'.
+        Types of property 'noWaterSensors' are incompatible.
+          Type '{ region: string; circle: string; division: string; sub_division: string; block: string; scheme_id: string; scheme_name: string; village_name: string; esr_name: string; water_date_day7: string | null; water_value_day7: number | null; pressure_connected: string | null; }[]' is not assignable to type '{ region: string; circle: string; division: string; sub_division: string; block: string; scheme_id: string; scheme_name: string; village_name: string; esr_name: string; water_date_day7: string | null; water_value_day7: number | null; flow_meter_connected: string | null; }[]'.
+            Property 'flow_meter_connected' is missing in type '{ region: string; circle: string; division: string; sub_division: string; block: string; scheme_id: string; scheme_name: string; village_name: string; esr_name: string; water_date_day7: string | null; water_value_day7: number | null; pressure_connected: string | null; }' but required in type '{ region: string; circle: string; division: string; sub_division: string; block: string; scheme_id: string; scheme_name: string; village_name: string; esr_name: string; water_date_day7: string | null; water_value_day7: number | null; flow_meter_connected: string | null; }'.
+server/storage.ts(5919,9): error TS2322: Type 'SQL<unknown> | undefined' is not assignable to type 'SQL<unknown>'.
+  Type 'undefined' is not assignable to type 'SQL<unknown>'.
+server/storage.ts(6097,55): error TS2339: Property 'esr_name' does not exist on type 'PgTableWithColumns<{ name: "water_scheme_data"; schema: undefined; columns: { region: PgColumn<{ name: "region"; tableName: "water_scheme_data"; dataType: "string"; columnType: "PgText"; data: string; driverParam: string; ... 8 more ...; generated: undefined; }, {}, {}>; ... 40 more ...; dashboard_url: PgColumn<...>...'.
+server/storage.ts(6121,55): error TS2339: Property 'esr_name' does not exist on type 'PgTableWithColumns<{ name: "water_scheme_data"; schema: undefined; columns: { region: PgColumn<{ name: "region"; tableName: "water_scheme_data"; dataType: "string"; columnType: "PgText"; data: string; driverParam: string; ... 8 more ...; generated: undefined; }, {}, {}>; ... 40 more ...; dashboard_url: PgColumn<...>...'.
+server/storage.ts(6146,55): error TS2339: Property 'esr_name' does not exist on type 'PgTableWithColumns<{ name: "water_scheme_data"; schema: undefined; columns: { region: PgColumn<{ name: "region"; tableName: "water_scheme_data"; dataType: "string"; columnType: "PgText"; data: string; driverParam: string; ... 8 more ...; generated: undefined; }, {}, {}>; ... 40 more ...; dashboard_url: PgColumn<...>...'.
+server/storage.ts(6171,55): error TS2339: Property 'esr_name' does not exist on type 'PgTableWithColumns<{ name: "water_scheme_data"; schema: undefined; columns: { region: PgColumn<{ name: "region"; tableName: "water_scheme_data"; dataType: "string"; columnType: "PgText"; data: string; driverParam: string; ... 8 more ...; generated: undefined; }, {}, {}>; ... 40 more ...; dashboard_url: PgColumn<...>...'.
+server/storage.ts(6196,55): error TS2339: Property 'esr_name' does not exist on type 'PgTableWithColumns<{ name: "water_scheme_data"; schema: undefined; columns: { region: PgColumn<{ name: "region"; tableName: "water_scheme_data"; dataType: "string"; columnType: "PgText"; data: string; driverParam: string; ... 8 more ...; generated: undefined; }, {}, {}>; ... 40 more ...; dashboard_url: PgColumn<...>...'.
+server/storage.ts(6227,55): error TS2339: Property 'esr_name' does not exist on type 'PgTableWithColumns<{ name: "water_scheme_data"; schema: undefined; columns: { region: PgColumn<{ name: "region"; tableName: "water_scheme_data"; dataType: "string"; columnType: "PgText"; data: string; driverParam: string; ... 8 more ...; generated: undefined; }, {}, {}>; ... 40 more ...; dashboard_url: PgColumn<...>...'.
+server/storage.ts(6232,13): error TS2304: Cannot find name 'regionCondition'.
+server/storage.ts(6233,41): error TS2304: Cannot find name 'regionCondition'.
+server/storage.ts(6265,55): error TS2339: Property 'esr_name' does not exist on type 'PgTableWithColumns<{ name: "water_scheme_data"; schema: undefined; columns: { region: PgColumn<{ name: "region"; tableName: "water_scheme_data"; dataType: "string"; columnType: "PgText"; data: string; driverParam: string; ... 8 more ...; generated: undefined; }, {}, {}>; ... 40 more ...; dashboard_url: PgColumn<...>...'.
+server/storage.ts(6270,13): error TS2304: Cannot find name 'regionCondition'.
+server/storage.ts(6271,41): error TS2304: Cannot find name 'regionCondition'.
+server/storage.ts(6303,55): error TS2339: Property 'esr_name' does not exist on type 'PgTableWithColumns<{ name: "water_scheme_data"; schema: undefined; columns: { region: PgColumn<{ name: "region"; tableName: "water_scheme_data"; dataType: "string"; columnType: "PgText"; data: string; driverParam: string; ... 8 more ...; generated: undefined; }, {}, {}>; ... 40 more ...; dashboard_url: PgColumn<...>...'.
+server/storage.ts(6308,13): error TS2304: Cannot find name 'regionCondition'.
+server/storage.ts(6309,41): error TS2304: Cannot find name 'regionCondition'.
+server/storage.ts(6332,50): error TS2304: Cannot find name 'regionName'.
+server/storage.ts(6458,23): error TS7006: Parameter 'record' implicitly has an 'any' type.
+server/storage.ts(6499,39): error TS7006: Parameter 'record' implicitly has an 'any' type.
+server/storage.ts(6531,17): error TS2322: Type 'number | null' is not assignable to type 'null | undefined'.
+  Type 'number' is not assignable to type 'null | undefined'.
+server/storage.ts(6540,17): error TS2322: Type 'string | null' is not assignable to type 'null | undefined'.
+  Type 'string' is not assignable to type 'null | undefined'.
+server/storage.ts(6552,17): error TS2322: Type 'number | null' is not assignable to type 'null | undefined'.
+  Type 'number' is not assignable to type 'null | undefined'.
+server/storage.ts(6559,17): error TS2322: Type '{}' is not assignable to type 'null | undefined'.
+server/storage.ts(6747,60): error TS2554: Expected 1 arguments, but got 2.
+server/storage.ts(6861,42): error TS2802: Type 'MapIterator<[string, Set<string>]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/storage.ts(6875,39): error TS7006: Parameter 's' implicitly has an 'any' type.
+server/storage.ts(6985,5): error TS2322: Type 'number' is not assignable to type 'string'.
+server/storage.ts(6986,5): error TS2322: Type 'number' is not assignable to type 'string'.
+server/storage.ts(6987,5): error TS2322: Type 'number' is not assignable to type 'string'.
+server/storage.ts(7023,9): error TS2393: Duplicate function implementation.
+server/storage.ts(7060,9): error TS2393: Duplicate function implementation.
+server/storage.ts(7103,9): error TS2393: Duplicate function implementation.
+server/storage.ts(7130,9): error TS2393: Duplicate function implementation.
+server/storage.ts(7381,44): error TS2345: Argument of type '{ scheme_id: string; scheme_name: string; region: string | null | undefined; circle: string | null | undefined; division: string | null | undefined; sub_division: string | null | undefined; block: string | ... 1 more ... | undefined; village_name: string; esr_name: string; }' is not assignable to parameter of type '{ circle: string | null; region: string | null; division: string | null; block: string | null; scheme_id: string | null; scheme_name: string | null; sub_division: string | null; ... 20 more ...; dashboard_url: string | null; } | { ...; }'.
+  Type '{ scheme_id: string; scheme_name: string; region: string | null | undefined; circle: string | null | undefined; division: string | null | undefined; sub_division: string | null | undefined; block: string | ... 1 more ... | undefined; village_name: string; esr_name: string; }' is missing the following properties from type '{ circle: string | null; region: string | null; division: string | null; block: string | null; scheme_id: string | null; scheme_name: string | null; sub_division: string | null; ... 20 more ...; pressure_greater_than_07_bar: string | null; }': dashboard_url, pressure_value_1, pressure_date_day_1, pressure_value_2, and 15 more.
+server/storage.ts(7593,44): error TS2345: Argument of type '{ scheme_id: string; scheme_name: string; region: string | null | undefined; circle: string | null | undefined; division: string | null | undefined; sub_division: string | null | undefined; block: string | ... 1 more ... | undefined; village_name: string; esr_name: string; }' is not assignable to parameter of type '{ circle: string | null; region: string | null; division: string | null; block: string | null; scheme_id: string | null; scheme_name: string | null; sub_division: string | null; ... 20 more ...; dashboard_url: string | null; } | { ...; }'.
+  Type '{ scheme_id: string; scheme_name: string; region: string | null | undefined; circle: string | null | undefined; division: string | null | undefined; sub_division: string | null | undefined; block: string | ... 1 more ... | undefined; village_name: string; esr_name: string; }' is missing the following properties from type '{ circle: string | null; region: string | null; division: string | null; block: string | null; scheme_id: string | null; scheme_name: string | null; sub_division: string | null; ... 20 more ...; pressure_greater_than_07_bar: string | null; }': dashboard_url, pressure_value_1, pressure_date_day_1, pressure_value_2, and 15 more.
+server/storage.ts(7669,9): error TS2393: Duplicate function implementation.
+server/storage.ts(7775,9): error TS2393: Duplicate function implementation.
+server/storage.ts(7805,9): error TS2393: Duplicate function implementation.
+server/storage.ts(7837,9): error TS2393: Duplicate function implementation.
+server/storage.ts(7877,10): error TS7006: Parameter 'record' implicitly has an 'any' type.
+server/storage.ts(7880,10): error TS7006: Parameter 'record' implicitly has an 'any' type.
+server/storage.ts(7885,10): error TS7006: Parameter 'acc' implicitly has an 'any' type.
+server/storage.ts(7885,15): error TS7006: Parameter 'record' implicitly has an 'any' type.
+server/storage.ts(7904,11): error TS2698: Spread types may only be created from object types.
+server/storage.ts(8080,15): error TS7006: Parameter 'row' implicitly has an 'any' type.
+server/storage.ts(8370,24): error TS7006: Parameter 'scheme' implicitly has an 'any' type.
+server/storage.ts(8560,24): error TS7006: Parameter 'scheme' implicitly has an 'any' type.
+server/storage.ts(8761,16): error TS7006: Parameter 'item' implicitly has an 'any' type.
+server/storage.ts(8762,13): error TS7006: Parameter 'item' implicitly has an 'any' type.
+server/storage.ts(8778,24): error TS7006: Parameter 'scheme' implicitly has an 'any' type.
+server/storage.ts(8870,34): error TS7006: Parameter 'd' implicitly has an 'any' type.
+server/storage.ts(9324,146): error TS2339: Property 'active' does not exist on type '{ dashboard_url: string | null; scheme_id: string; scheme_name: string; circle?: string | null | undefined; region?: string | null | undefined; division?: string | null | undefined; block?: string | ... 1 more ... | undefined; ... 20 more ...; residual_chlorine_analyzer_connected?: number | ... 1 more ... | undefine...'.
+server/storage.ts(9387,27): error TS2339: Property 'active' does not exist on type '{ circle: string | null; region: string | null; division: string | null; block: string | null; scheme_id: string; scheme_name: string; sub_division: string | null; dashboard_url: string | null; ... 19 more ...; residual_chlorine_analyzer_connected: number | null; }'.
+server/storage.ts(9759,9): error TS2322: Type 'SQL<unknown> | undefined' is not assignable to type 'SQL<unknown>'.
+  Type 'undefined' is not assignable to type 'SQL<unknown>'.
+server/storage.ts(9900,11): error TS2322: Type 'number' is not assignable to type 'string'.
+server/storage.ts(9901,11): error TS2322: Type 'number | null' is not assignable to type 'string | null | undefined'.
+  Type 'number' is not assignable to type 'string'.
+server/storage.ts(10041,7): error TS18047: 'village.scheme_name' is possibly 'null'.
+server/storage.ts(10419,13): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+server/storage.ts(10420,13): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+server/storage.ts(10913,35): error TS2802: Type 'MapIterator<[string, Partial<{ circle?: string | null | undefined; region?: string | null | undefined; division?: string | null | undefined; block?: string | null | undefined; scheme_id?: string | null | undefined; ... 36 more ...; above_55_lpcd_count?: number | ... 1 more ... | undefined; }>]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/storage.ts(10922,34): error TS2802: Type 'MapIterator<[string, { circle: string | null; region: string | null; division: string | null; block: string | null; scheme_id: string | null; scheme_name: string | null; sub_division: string | null; ... 34 more ...; above_55_lpcd_count: number | null; }]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/storage.ts(11159,42): error TS2802: Type 'MapIterator<[string, Set<string>]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/storage.ts(11173,39): error TS7006: Parameter 's' implicitly has an 'any' type.
+server/storage.ts(11777,9): error TS2416: Property 'logUserLogin' in type 'PostgresStorage' is not assignable to the same property in base type 'IStorage'.
+  Type '(user: any, ipAddress: string, userAgent: string, sessionId: string) => Promise<void>' is not assignable to type '(user: { name: string | null; id: number; role: string; email: string | null; password: string; username: string; phone: string | null; }, ipAddress?: string | undefined, userAgent?: string | undefined, sessionId?: string | undefined) => Promise<...>'.
+    Type 'Promise<void>' is not assignable to type 'Promise<{ id: number; username: string; is_active: boolean | null; user_id: number; user_name: string | null; login_time: Date; logout_time: Date | null; session_duration: number | null; ip_address: string | null; user_agent: string | null; session_id: string | null; }>'.
+      Type 'void' is not assignable to type '{ id: number; username: string; is_active: boolean | null; user_id: number; user_name: string | null; login_time: Date; logout_time: Date | null; session_duration: number | null; ip_address: string | null; user_agent: string | null; session_id: string | null; }'.
+server/storage.ts(12235,45): error TS2802: Type 'Map<string, number>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/storage.ts(12711,26): error TS7006: Parameter 'row' implicitly has an 'any' type.
+server/storage.ts(12802,12): error TS7006: Parameter 'record' implicitly has an 'any' type.
+server/storage.ts(12809,12): error TS7006: Parameter 'record' implicitly has an 'any' type.
+server/storage.ts(12820,43): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(12823,14): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(12826,14): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(12829,14): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(12831,47): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(12833,47): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(12837,43): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(12840,14): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(12843,14): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(12846,14): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(12848,47): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(12850,47): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(12855,14): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(12858,14): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(12861,14): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(12864,14): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(12867,14): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(12870,14): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(12875,14): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(12878,14): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(12880,39): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(12924,14): error TS2802: Type 'Set<unknown>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/storage.ts(12924,35): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(12927,14): error TS2802: Type 'Set<unknown>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/storage.ts(12927,35): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(12930,14): error TS2802: Type 'Set<unknown>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/storage.ts(12930,35): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(12933,14): error TS2802: Type 'Set<unknown>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/storage.ts(12933,35): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(12936,14): error TS2802: Type 'Set<unknown>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
+server/storage.ts(12936,35): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(12983,12): error TS7006: Parameter 'record' implicitly has an 'any' type.
+server/storage.ts(12990,12): error TS7006: Parameter 'record' implicitly has an 'any' type.
+server/storage.ts(13000,32): error TS7006: Parameter 'record' implicitly has an 'any' type.
+server/storage.ts(13098,12): error TS7006: Parameter 'record' implicitly has an 'any' type.
+server/storage.ts(13105,12): error TS7006: Parameter 'record' implicitly has an 'any' type.
+server/storage.ts(13125,36): error TS7006: Parameter 'record' implicitly has an 'any' type.
+server/storage.ts(13213,15): error TS2353: Object literal may only specify known properties, and 'completion_status' does not exist in type '{ circle?: string | null | undefined; region?: string | null | undefined; division?: string | null | undefined; block?: string | null | undefined; chlorine_connected?: string | null | undefined; ... 18 more ...; pressure_last_seen?: Date | ... 1 more ... | undefined; }'.
+server/storage.ts(13330,27): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(13333,27): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/storage.ts(13336,42): error TS7006: Parameter 'r' implicitly has an 'any' type.
+server/test_filter_logic.ts(1,23): error TS2307: Cannot find module './db/index' or its corresponding type declarations.
+server/test_filter_logic.ts(2,32): error TS2307: Cannot find module './db/schema' or its corresponding type declarations.
+server/verify_lpcd_counts.ts(2,10): error TS2614: Module '"./db"' has no exported member 'db'. Did you mean to use 'import db from "./db"' instead?
+server/vite.ts(42,5): error TS2322: Type '{ middlewareMode: boolean; hmr: { server: Server<typeof IncomingMessage, typeof ServerResponse>; }; allowedHosts: boolean; }' is not assignable to type 'ServerOptions'.
+  Types of property 'allowedHosts' are incompatible.
+    Type 'boolean' is not assignable to type 'true | string[] | undefined'.

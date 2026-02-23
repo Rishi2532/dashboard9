@@ -5957,8 +5957,8 @@ router.get("/scheme-lpcd/day-wise-breakdown", async (req, res) => {
             lpcd_value,
             parsed_date,
             ROW_NUMBER() OVER (PARTITION BY scheme_id, block ORDER BY parsed_date DESC NULLS LAST) as rn,
-            CASE WHEN lpcd_value > 0 AND lpcd_value <= 55 THEN 1 ELSE 0 END as is_below_55,
-            CASE WHEN lpcd_value > 55 THEN 1 ELSE 0 END as is_above_55,
+            CASE WHEN lpcd_value > 0 AND lpcd_value < 55 THEN 1 ELSE 0 END as is_below_55,
+            CASE WHEN lpcd_value >= 55 THEN 1 ELSE 0 END as is_above_55,
             CASE WHEN lpcd_value > 0 THEN 1 ELSE 0 END as has_water,
             CASE WHEN lpcd_value IS NULL OR lpcd_value = 0 THEN 1 ELSE 0 END as no_water
           FROM deduplicated
@@ -6120,8 +6120,8 @@ router.get("/scheme-lpcd/day-wise-breakdown/all-regions", async (req, res) => {
           SELECT 
             region, scheme_id, block, lpcd_value, parsed_date,
             ROW_NUMBER() OVER (PARTITION BY region, scheme_id, block ORDER BY parsed_date DESC NULLS LAST) as rn,
-            CASE WHEN lpcd_value > 0 AND lpcd_value <= 55 THEN 1 ELSE 0 END as is_below_55,
-            CASE WHEN lpcd_value > 55 THEN 1 ELSE 0 END as is_above_55,
+            CASE WHEN lpcd_value > 0 AND lpcd_value < 55 THEN 1 ELSE 0 END as is_below_55,
+            CASE WHEN lpcd_value >= 55 THEN 1 ELSE 0 END as is_above_55,
             CASE WHEN lpcd_value > 0 THEN 1 ELSE 0 END as has_water,
             CASE WHEN lpcd_value IS NULL OR lpcd_value = 0 THEN 1 ELSE 0 END as no_water
           FROM deduplicated
@@ -6310,8 +6310,8 @@ router.get("/scheme-lpcd/day-wise-schemes/:metric/:days", async (req, res) => {
             total_population, total_villages, dashboard_url,
             lpcd_value, water_value, data_date, parsed_date,
             ROW_NUMBER() OVER (PARTITION BY scheme_id, block ORDER BY parsed_date DESC NULLS LAST) as rn,
-            CASE WHEN lpcd_value > 0 AND lpcd_value <= 55 THEN 1 ELSE 0 END as is_below_55,
-            CASE WHEN lpcd_value > 55 THEN 1 ELSE 0 END as is_above_55,
+            CASE WHEN lpcd_value > 0 AND lpcd_value < 55 THEN 1 ELSE 0 END as is_below_55,
+            CASE WHEN lpcd_value >= 55 THEN 1 ELSE 0 END as is_above_55,
             CASE WHEN lpcd_value > 0 THEN 1 ELSE 0 END as has_water,
             CASE WHEN lpcd_value IS NULL OR lpcd_value = 0 THEN 1 ELSE 0 END as no_water
           FROM deduplicated
@@ -6489,8 +6489,8 @@ router.get("/scheme-lpcd/day-wise-schemes-export/:metric/:days", async (req, res
             total_population, total_villages,
             lpcd_value, water_value, data_date, parsed_date,
             ROW_NUMBER() OVER (PARTITION BY scheme_id, block ORDER BY parsed_date DESC NULLS LAST) as rn,
-            CASE WHEN lpcd_value > 0 AND lpcd_value <= 55 THEN 1 ELSE 0 END as is_below_55,
-            CASE WHEN lpcd_value > 55 THEN 1 ELSE 0 END as is_above_55,
+            CASE WHEN lpcd_value > 0 AND lpcd_value < 55 THEN 1 ELSE 0 END as is_below_55,
+            CASE WHEN lpcd_value >= 55 THEN 1 ELSE 0 END as is_above_55,
             CASE WHEN lpcd_value > 0 THEN 1 ELSE 0 END as has_water,
             CASE WHEN lpcd_value IS NULL OR lpcd_value = 0 THEN 1 ELSE 0 END as no_water
           FROM deduplicated

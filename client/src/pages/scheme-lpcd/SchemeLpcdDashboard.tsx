@@ -1960,6 +1960,7 @@ const SchemeLpcdDashboard = () => {
                       <TableHead className="font-medium">Population</TableHead>
                       <TableHead className="font-medium">LPCD</TableHead>
                       <TableHead className="font-medium">MJP</TableHead>
+                      <TableHead className="font-medium w-[150px]">Remark</TableHead>
                       <TableHead className="font-medium">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1984,55 +1985,9 @@ const SchemeLpcdDashboard = () => {
                             </TableCell>
                             <TableCell className="font-medium text-blue-800">
                               <div className="flex items-center gap-2">
-                                {scheme.scheme_name || "Unnamed Scheme"}
-                                {hasIssue && (
-                                  <Popover>
-                                    <PopoverTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-6 w-6 p-0 hover:bg-red-100 rounded-full"
-                                      >
-                                        <AlertCircle className="h-5 w-5 text-red-600 animate-pulse cursor-pointer" />
-                                        <span className="sr-only">View Issues</span>
-                                      </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-80 p-0 border-red-200 shadow-xl" collisionPadding={16}>
-                                      <div className="bg-red-50 px-4 py-3 border-b border-red-100 rounded-t-lg">
-                                        <h4 className="font-semibold text-red-900 flex items-center gap-2">
-                                          <AlertCircle className="h-4 w-4" />
-                                          Reported Issues
-                                        </h4>
-                                      </div>
-                                      <div className="p-4 max-h-[300px] overflow-y-auto">
-                                        <ul className="space-y-3">
-                                          {schemeIssues?.map((issue: any) => (
-                                            <li
-                                              key={issue.id}
-                                              className="text-sm bg-white p-3 rounded-md border border-red-100 shadow-sm"
-                                            >
-                                              <div className="font-medium text-gray-900 mb-1">
-                                                <Badge variant="outline" className="mr-2 border-blue-200 text-blue-700 bg-blue-50">Scheme</Badge>
-                                                <span className="text-red-800 font-semibold uppercase text-xs tracking-wider">
-                                                  {issue.issue_level} ISSUE
-                                                </span>
-                                              </div>
-                                              <div className="bg-red-50 p-2.5 rounded-md border border-red-100 mb-2">
-                                                <p className="text-red-900 font-medium text-sm leading-relaxed">
-                                                  {issue.reason}
-                                                </p>
-                                              </div>
-                                              <div className="text-xs text-gray-500 flex justify-between items-center border-t border-gray-100 pt-2 mt-2">
-                                                <span>By: <span className="font-medium">{issue.creator_name}</span></span>
-                                                <span>{new Date(issue.created_at).toLocaleDateString()}</span>
-                                              </div>
-                                            </li>
-                                          ))}
-                                        </ul>
-                                      </div>
-                                    </PopoverContent>
-                                  </Popover>
-                                )}
+                                <span className="truncate max-w-[200px]" title={scheme.scheme_name || "Unnamed Scheme"}>
+                                  {scheme.scheme_name || "Unnamed Scheme"}
+                                </span>
                               </div>
                               <div className="text-gray-500 text-xs mt-1">
                                 ID: {scheme.scheme_id || "N/A"}
@@ -2089,6 +2044,15 @@ const SchemeLpcdDashboard = () => {
                                   ? "Water Supply"
                                   : scheme.mjp_commissioned || "Unknown"}
                               </Badge>
+                            </TableCell>
+                            <TableCell className="max-w-[150px] truncate" title={hasIssue ? schemeIssues!.map((i: any) => i.reason).join(", ") : "-"}>
+                              {hasIssue ? (
+                                <span className="text-red-600 font-medium text-[11px] truncate block w-full">
+                                  {schemeIssues!.map((i: any) => i.reason).join(", ")}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
                             </TableCell>
                             <TableCell>
                               <div className="flex space-x-1">

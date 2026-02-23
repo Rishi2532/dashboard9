@@ -1,0 +1,100 @@
+﻿ M client/src/App.tsx
+ D client/src/assets/dashboard.tsx
+ M client/src/components/dashboard/header.tsx
+ M client/src/components/dashboard/sidebar.tsx
+ M client/src/components/ui/popover.tsx
+ M client/src/lib/queryClient.ts
+ M client/src/pages/chlorine/ChlorineDashboard.tsx
+ M client/src/pages/chlorine/DetailedChlorinePage.tsx
+ M client/src/pages/lpcd/EnhancedLpcdDashboard.tsx
+ M client/src/pages/pressure/PressureDashboard.tsx
+ M client/src/pages/scheme-lpcd/SchemeLpcdDashboard.tsx
+ M client/src/pages/water-consumption.tsx
+ M server/routes.ts
+ M server/routes/chlorine-routes.ts
+ M shared/schema.ts
+ M vite.config.ts
+?? add_sensor_type.sql
+?? all_issues_report.txt
+?? check_all_issues.mjs
+?? check_column.ts
+?? check_counts.js
+?? check_counts.mjs
+?? check_counts2.mjs
+?? check_current_below_55.mjs
+?? check_date_distribution.mjs
+?? check_discrepancy.mjs
+?? check_dist_simple.mjs
+?? check_history.mjs
+?? check_history_cols.mjs
+?? check_if_view.mjs
+?? check_issue_reports_table.cjs
+?? check_issue_reports_table.mjs
+?? check_issue_status.ts
+?? check_latest_simple.mjs
+?? check_latest_status_dist.mjs
+?? check_lpcd_type.mjs
+?? check_output.txt
+?? check_output_2.txt
+?? check_output_3.txt
+?? check_padali_kurha.mjs
+?? check_scheme_history.mjs
+?? check_scheme_issues.js
+?? check_scheme_issues.mjs
+?? client/src/pages/helpdesk/IssueReportingForm.tsx
+?? counts.txt
+?? counts2_output.txt
+?? counts3_output.txt
+?? counts4_output.txt
+?? counts_output.txt
+?? date_parsing_output.txt
+?? db_issues.txt
+?? db_output.txt
+?? debug_date_parsing.mjs
+?? debug_date_parsing_v2.mjs
+?? debug_history_parsing.mjs
+?? debug_scheme_ids.cjs
+?? debug_sql_steps.mjs
+?? debug_sql_steps_v2.mjs
+?? debug_stats_v3.json
+?? debug_stats_v4.json
+?? error.json
+?? error_rf.json
+?? find_scheme_name.mjs
+?? fix_scheme_ids.cjs
+?? full_git_status.txt
+?? insert_test_issues.cjs
+?? insert_test_issues.sql
+?? issue_reports_table.sql
+?? issue_reports_table.txt
+?? padali_kurha_report.txt
+?? query_debug.sql
+?? query_issues_raw.cjs
+?? region_comparison.json
+?? region_comparison_final_verification.json
+?? region_comparison_fixed.json
+?? region_comparison_fixed_dedup.json
+?? region_comparison_fixed_dedup_name.json
+?? region_comparison_fixed_filter.json
+?? region_comparison_fixed_final.json
+?? region_comparison_fixed_sumal.json
+?? regional_stats_check.json
+?? regional_stats_v2.json
+?? run_migration.ts
+?? scheme_data.json
+?? scheme_data_2.json
+?? scheme_history_output.txt
+?? scheme_id_debug.txt
+?? scheme_issues_report.txt
+?? scheme_lpcd_data.json
+?? server/debug_esr_status.ts
+?? server/debug_issue_data.ts
+?? server/inspect_ashti.ts
+?? server/inspect_scheme.ts
+?? server/routes/issue-reporting-routes.ts
+?? tsc_output.txt
+?? tsc_output_enhanced.txt
+?? tsc_output_enhanced_final.txt
+?? tsc_output_ui.txt
+?? tsc_output_water.txt
+?? tsc_output_water_final.txt

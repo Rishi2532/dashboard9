@@ -1,0 +1,11 @@
+﻿{
+  "today_incl": "171",
+  "streak3_incl": "160",
+  "streak7_incl": "141",
+  "today_excl": "135",
+  "streak3_excl": "60",
+  "streak7_excl": "49",
+  "today_none": "36",
+  "streak3_none": "32",
+  "streak7_none": "30"
+}

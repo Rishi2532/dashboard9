@@ -1,0 +1,228 @@
+﻿ERROR: Extra closing </div> at line 2338
+ERROR: Extra closing </div> at line 2359
+ERROR: Extra closing </div> at line 2360
+ERROR: Extra closing </div> at line 2453
+ERROR: Extra closing </div> at line 2454
+ERROR: Extra closing </div> at line 2618
+ERROR: Extra closing </div> at line 2641
+ERROR: Extra closing </div> at line 2642
+ERROR: Extra closing </div> at line 2735
+ERROR: Extra closing </div> at line 2736
+ERROR: Mismatched closing </TabsTrigger> at line 2912, expected </TabsList> (opened at line 2904)
+ERROR: Mismatched closing </TabsTrigger> at line 2920, expected </div> (opened at line 2747)
+ERROR: Mismatched closing </TabsTrigger> at line 2928, expected </div> (opened at line 2746)
+ERROR: Mismatched closing </TabsTrigger> at line 2936, expected </div> (opened at line 2742)
+ERROR: Extra closing </TabsList> at line 2937
+ERROR: Mismatched closing </TabsTrigger> at line 2999, expected </TabsList> (opened at line 2990)
+ERROR: Mismatched closing </TabsTrigger> at line 3008, expected </CardContent> (opened at line 2974)
+ERROR: Mismatched closing </TabsList> at line 3010, expected </TabsContent> (opened at line 2940)
+ERROR: Extra closing </TabsContent> at line 3020
+ERROR: Extra closing </Tabs> at line 3022
+ERROR: Extra closing </CardContent> at line 3024
+ERROR: Extra closing </Card> at line 3025
+ERROR: Mismatched closing </TableCell> at line 3265, expected </TableBody> (opened at line 3146)
+ERROR: Mismatched closing </TableRow> at line 3266, expected </Table> (opened at line 3087)
+ERROR: Mismatched closing </TableBody> at line 3269, expected </div> (opened at line 3086)
+ERROR: Mismatched closing </Table> at line 3270, expected </CardContent> (opened at line 3078)
+ERROR: Extra closing </div> at line 3271
+ERROR: Extra closing </CardContent> at line 3280
+ERROR: Extra closing </Card> at line 3281
+ERROR: Mismatched closing </TabsTrigger> at line 3345, expected </TabsList> (opened at line 3336)
+ERROR: Mismatched closing </TabsTrigger> at line 3354, expected </CardContent> (opened at line 3317)
+ERROR: Extra closing </TabsList> at line 3356
+ERROR: Mismatched closing </div> at line 3442, expected </TabsContent> (opened at line 3359)
+ERROR: Extra closing </div> at line 3469
+ERROR: Extra closing </div> at line 3470
+ERROR: Extra closing </div> at line 3526
+ERROR: Extra closing </div> at line 3553
+ERROR: Extra closing </div> at line 3580
+ERROR: Extra closing </div> at line 3581
+ERROR: Extra closing </div> at line 3761
+ERROR: Extra closing </TabsContent> at line 3762
+ERROR: Extra closing </div> at line 3852
+ERROR: Extra closing </div> at line 3879
+ERROR: Extra closing </div> at line 3880
+ERROR: Extra closing </div> at line 3936
+ERROR: Extra closing </div> at line 3963
+ERROR: Extra closing </div> at line 3990
+ERROR: Extra closing </div> at line 3991
+ERROR: Extra closing </div> at line 4158
+ERROR: Extra closing </TabsContent> at line 4159
+ERROR: Extra closing </Tabs> at line 4161
+ERROR: Extra closing </CardContent> at line 4163
+ERROR: Extra closing </Card> at line 4164
+ERROR: Mismatched closing </TableRow> at line 4360, expected </TableBody> (opened at line 4269)
+ERROR: Mismatched closing </TableBody> at line 4363, expected </Table> (opened at line 4227)
+ERROR: Mismatched closing </Table> at line 4364, expected </div> (opened at line 4226)
+ERROR: Mismatched closing </div> at line 4365, expected </CardContent> (opened at line 4218)
+ERROR: Extra closing </CardContent> at line 4374
+ERROR: Extra closing </Card> at line 4375
+ERROR: Mismatched closing </TabsTrigger> at line 4439, expected </TabsList> (opened at line 4430)
+ERROR: Mismatched closing </TabsTrigger> at line 4448, expected </CardContent> (opened at line 4411)
+ERROR: Extra closing </TabsList> at line 4450
+ERROR: Mismatched closing </div> at line 4536, expected </TabsContent> (opened at line 4453)
+ERROR: Extra closing </div> at line 4563
+ERROR: Extra closing </div> at line 4564
+ERROR: Extra closing </div> at line 4729
+ERROR: Extra closing </TabsContent> at line 4730
+ERROR: Mismatched closing </div> at line 4813, expected </TabsContent> (opened at line 4734)
+ERROR: Extra closing </div> at line 4839
+ERROR: Extra closing </div> at line 4840
+ERROR: Extra closing </div> at line 4991
+ERROR: Extra closing </TabsContent> at line 4992
+ERROR: Extra closing </Tabs> at line 4994
+ERROR: Extra closing </CardContent> at line 4996
+ERROR: Extra closing </Card> at line 4997
+ERROR: Mismatched closing </TableRow> at line 5176, expected </TableBody> (opened at line 5104)
+ERROR: Mismatched closing </TableBody> at line 5178, expected </Table> (opened at line 5072)
+ERROR: Mismatched closing </Table> at line 5179, expected </div> (opened at line 5071)
+ERROR: Mismatched closing </div> at line 5180, expected </CardContent> (opened at line 5063)
+ERROR: Extra closing </CardContent> at line 5189
+ERROR: Extra closing </Card> at line 5190
+ERROR: Mismatched closing </TabsTrigger> at line 5252, expected </TabsList> (opened at line 5245)
+ERROR: Mismatched closing </TabsTrigger> at line 5261, expected </CardContent> (opened at line 5226)
+ERROR: Extra closing </TabsList> at line 5263
+ERROR: Extra closing </TabsContent> at line 5276
+ERROR: Extra closing </Tabs> at line 5278
+ERROR: Extra closing </CardContent> at line 5280
+ERROR: Extra closing </Card> at line 5281
+ERROR: Mismatched closing </TableRow> at line 5483, expected </TableBody> (opened at line 5395)
+ERROR: Mismatched closing </TableBody> at line 5485, expected </Table> (opened at line 5366)
+ERROR: Mismatched closing </Table> at line 5486, expected </div> (opened at line 5365)
+ERROR: Mismatched closing </div> at line 5493, expected </CardContent> (opened at line 5353)
+ERROR: Extra closing </CardContent> at line 5502
+ERROR: Extra closing </Card> at line 5503
+ERROR: Extra closing </TabsContent> at line 5507
+ERROR: Mismatched closing </div> at line 5573, expected </Card> (opened at line 5511)
+ERROR: Mismatched closing </CardHeader> at line 5575, expected </TabsContent> (opened at line 5509)
+ERROR: Mismatched closing </div> at line 5880, expected </CardContent> (opened at line 5576)
+ERROR: Extra closing </div> at line 5901
+ERROR: Extra closing </div> at line 5905
+ERROR: Extra closing </div> at line 5926
+ERROR: Extra closing </div> at line 5930
+ERROR: Extra closing </div> at line 5931
+ERROR: Extra closing </div> at line 5934
+ERROR: Extra closing </div> at line 5935
+ERROR: Extra closing </div> at line 5936
+ERROR: Mismatched closing </TableRow> at line 6135, expected </TableBody> (opened at line 6065)
+ERROR: Mismatched closing </TableBody> at line 6138, expected </Table> (opened at line 6016)
+ERROR: Mismatched closing </Table> at line 6139, expected </div> (opened at line 6015)
+ERROR: Mismatched closing </div> at line 6147, expected </CardContent> (opened at line 6006)
+ERROR: Mismatched closing </CardContent> at line 6156, expected </Card> (opened at line 5948)
+ERROR: Extra closing </Card> at line 6157
+ERROR: Extra closing </div> at line 6335
+ERROR: Extra closing </div> at line 6356
+ERROR: Extra closing </div> at line 6360
+ERROR: Extra closing </div> at line 6381
+ERROR: Extra closing </div> at line 6385
+ERROR: Extra closing </div> at line 6386
+ERROR: Extra closing </div> at line 6389
+ERROR: Extra closing </div> at line 6390
+ERROR: Extra closing </div> at line 6391
+ERROR: Extra closing </div> at line 6609
+ERROR: Extra closing </div> at line 6631
+ERROR: Extra closing </div> at line 6635
+ERROR: Extra closing </div> at line 6657
+ERROR: Extra closing </div> at line 6661
+ERROR: Extra closing </div> at line 6662
+ERROR: Extra closing </div> at line 6665
+ERROR: Extra closing </div> at line 6666
+ERROR: Extra closing </div> at line 6667
+ERROR: Extra closing </div> at line 6909
+ERROR: Extra closing </div> at line 6932
+ERROR: Extra closing </div> at line 6936
+ERROR: Extra closing </div> at line 6959
+ERROR: Extra closing </div> at line 6963
+ERROR: Extra closing </div> at line 6964
+ERROR: Extra closing </div> at line 6967
+ERROR: Extra closing </div> at line 6968
+ERROR: Extra closing </div> at line 6969
+ERROR: Mismatched closing </TableRow> at line 7164, expected </TableBody> (opened at line 7094)
+ERROR: Mismatched closing </TableBody> at line 7167, expected </Table> (opened at line 7045)
+ERROR: Mismatched closing </Table> at line 7168, expected </div> (opened at line 7044)
+ERROR: Mismatched closing </div> at line 7176, expected </CardContent> (opened at line 7035)
+ERROR: Mismatched closing </CardContent> at line 7185, expected </Card> (opened at line 6981)
+ERROR: Extra closing </Card> at line 7186
+ERROR: Mismatched closing </div> at line 7387, expected </TableBody> (opened at line 7284)
+ERROR: Mismatched closing </div> at line 7391, expected </Table> (opened at line 7266)
+ERROR: Mismatched closing </TableCell> at line 7392, expected </div> (opened at line 7265)
+ERROR: Extra closing </TableRow> at line 7395
+ERROR: Mismatched closing </div> at line 7464, expected </TableRow> (opened at line 7399)
+ERROR: Extra closing </TableCell> at line 7465
+ERROR: Extra closing </TableRow> at line 7468
+ERROR: Extra closing </TableBody> at line 7469
+ERROR: Extra closing </Table> at line 7470
+ERROR: Extra closing </div> at line 7471
+ERROR: Mismatched closing </div> at line 7682, expected </TableBody> (opened at line 7577)
+ERROR: Mismatched closing </div> at line 7686, expected </Table> (opened at line 7559)
+ERROR: Mismatched closing </TableCell> at line 7687, expected </div> (opened at line 7558)
+ERROR: Extra closing </TableRow> at line 7690
+ERROR: Mismatched closing </div> at line 7771, expected </TableRow> (opened at line 7694)
+ERROR: Extra closing </div> at line 7775
+ERROR: Extra closing </TableCell> at line 7776
+ERROR: Extra closing </TableRow> at line 7779
+ERROR: Extra closing </TableBody> at line 7780
+ERROR: Extra closing </Table> at line 7781
+ERROR: Extra closing </div> at line 7782
+ERROR: Mismatched closing </div> at line 7959, expected </TableBody> (opened at line 7885)
+ERROR: Mismatched closing </div> at line 7963, expected </Table> (opened at line 7869)
+ERROR: Mismatched closing </TableCell> at line 7964, expected </div> (opened at line 7868)
+ERROR: Extra closing </TableRow> at line 7967
+ERROR: Mismatched closing </div> at line 8015, expected </TableCell> (opened at line 8004)
+ERROR: Mismatched closing </TableCell> at line 8016, expected </TableRow> (opened at line 7971)
+ERROR: Extra closing </TableRow> at line 8019
+ERROR: Extra closing </TableBody> at line 8020
+ERROR: Extra closing </Table> at line 8021
+ERROR: Extra closing </div> at line 8022
+ERROR: Mismatched closing </TableRow> at line 8203, expected </TableBody> (opened at line 8154)
+ERROR: Mismatched closing </TableBody> at line 8205, expected </Table> (opened at line 8119)
+ERROR: Mismatched closing </Table> at line 8206, expected </div> (opened at line 8118)
+ERROR: Mismatched closing </div> at line 8207, expected </CardContent> (opened at line 8110)
+ERROR: Mismatched closing </CardContent> at line 8214, expected </Card> (opened at line 8036)
+ERROR: Extra closing </Card> at line 8215
+ERROR: Mismatched closing </div> at line 8405, expected </TableBody> (opened at line 8314)
+ERROR: Mismatched closing </TableCell> at line 8406, expected </Table> (opened at line 8296)
+ERROR: Mismatched closing </TableRow> at line 8409, expected </div> (opened at line 8295)
+ERROR: Mismatched closing </div> at line 8482, expected </TableRow> (opened at line 8413)
+ERROR: Extra closing </TableCell> at line 8483
+ERROR: Extra closing </TableRow> at line 8486
+ERROR: Extra closing </TableBody> at line 8487
+ERROR: Extra closing </Table> at line 8488
+ERROR: Extra closing </div> at line 8489
+ERROR: Extra closing </CardContent> at line 8500
+ERROR: Extra closing </Card> at line 8501
+ERROR: Mismatched closing </TableRow> at line 8707, expected </TableBody> (opened at line 8609)
+ERROR: Mismatched closing </TableBody> at line 8710, expected </Table> (opened at line 8568)
+ERROR: Mismatched closing </Table> at line 8711, expected </div> (opened at line 8567)
+ERROR: Mismatched closing </div> at line 8712, expected </CardContent> (opened at line 8558)
+ERROR: Mismatched closing </CardContent> at line 8719, expected </Card> (opened at line 8505)
+ERROR: Extra closing </Card> at line 8720
+ERROR: Mismatched closing </TableRow> at line 8908, expected </TableBody> (opened at line 8828)
+ERROR: Mismatched closing </TableBody> at line 8910, expected </Table> (opened at line 8787)
+ERROR: Mismatched closing </Table> at line 8911, expected </div> (opened at line 8786)
+ERROR: Mismatched closing </div> at line 8912, expected </CardContent> (opened at line 8778)
+ERROR: Mismatched closing </CardContent> at line 8919, expected </Card> (opened at line 8724)
+ERROR: Extra closing </Card> at line 8920
+ERROR: Mismatched closing </TableRow> at line 9141, expected </TableBody> (opened at line 9038)
+ERROR: Mismatched closing </TableBody> at line 9144, expected </Table> (opened at line 8997)
+ERROR: Mismatched closing </Table> at line 9145, expected </div> (opened at line 8996)
+ERROR: Mismatched closing </div> at line 9146, expected </CardContent> (opened at line 8987)
+ERROR: Mismatched closing </CardContent> at line 9153, expected </Card> (opened at line 8925)
+ERROR: Extra closing </Card> at line 9154
+ERROR: Mismatched closing </TableRow> at line 9347, expected </TableBody> (opened at line 9262)
+ERROR: Mismatched closing </TableBody> at line 9350, expected </Table> (opened at line 9221)
+ERROR: Mismatched closing </Table> at line 9351, expected </div> (opened at line 9220)
+ERROR: Mismatched closing </div> at line 9352, expected </CardContent> (opened at line 9211)
+ERROR: Mismatched closing </CardContent> at line 9359, expected </Card> (opened at line 9159)
+ERROR: Extra closing </Card> at line 9360
+ERROR: Mismatched closing </TableRow> at line 9521, expected </TableBody> (opened at line 9463)
+ERROR: Mismatched closing </TableBody> at line 9524, expected </Table> (opened at line 9434)
+ERROR: Mismatched closing </Table> at line 9525, expected </div> (opened at line 9433)
+ERROR: Mismatched closing </div> at line 9526, expected </CardContent> (opened at line 9424)
+ERROR: Mismatched closing </CardContent> at line 9533, expected </Card> (opened at line 9365)
+ERROR: Extra closing </Card> at line 9534
+Remaining open tags:
+<div> at line 9546
+<div> at line 9541
+<CardHeader> at line 9540
+<Card> at line 9539

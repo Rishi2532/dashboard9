@@ -1,0 +1,26 @@
+﻿[
+  {
+    "level": "Scheme",
+    "count": "1"
+  },
+  {
+    "level": "Region",
+    "count": "2"
+  },
+  {
+    "level": "Circle",
+    "count": "11"
+  },
+  {
+    "level": "ESR",
+    "count": "1"
+  },
+  {
+    "level": "Division",
+    "count": "12"
+  },
+  {
+    "level": "Subdivision",
+    "count": "1"
+  }
+]
