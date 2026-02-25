@@ -2162,15 +2162,16 @@ router.get("/export/historical", async (req, res) => {
 
       if (!esrMap.has(esrKey)) {
         const baseData: any = {
-          'Scheme ID': record.scheme_id,
-          'Scheme Name': record.scheme_name,
-          'Village Name': record.village_name,
-          'ESR Name': record.esr_name,
           'Region': record.region,
           'Circle': record.circle,
           'Division': record.division,
           'Sub Division': record.sub_division,
-          'Block': record.block
+          'Block': record.block,
+          'Scheme ID': record.scheme_id,
+          'Scheme Name': record.scheme_name,
+          'Village Name': record.village_name,
+          'ESR Name': record.esr_name
+
         };
 
         // Initialize all date columns with null values in sorted order
@@ -2205,8 +2206,9 @@ router.get("/export/historical", async (req, res) => {
 
     // Build header row
     const headerRow = [
-      'Scheme ID', 'Scheme Name', 'Village Name', 'ESR Name',
       'Region', 'Circle', 'Division', 'Sub Division', 'Block',
+      'Scheme ID', 'Scheme Name', 'Village Name', 'ESR Name',
+
       ...sortedDates
     ];
 
@@ -2215,15 +2217,16 @@ router.get("/export/historical", async (req, res) => {
     // Add data rows
     Array.from(esrMap.values()).forEach((row: any) => {
       const dataRow = [
-        row['Scheme ID'],
-        row['Scheme Name'],
-        row['Village Name'],
-        row['ESR Name'],
         row['Region'],
         row['Circle'],
         row['Division'],
         row['Sub Division'],
         row['Block'],
+        row['Scheme ID'],
+        row['Scheme Name'],
+        row['Village Name'],
+        row['ESR Name'],
+
         ...sortedDates.map(date => row[date] !== null && row[date] !== undefined ? row[date] : '')
       ];
       worksheet.addRow(dataRow);
@@ -2249,15 +2252,16 @@ router.get("/export/historical", async (req, res) => {
 
     // Set column widths
     worksheet.columns = [
-      { width: 12 },  // Scheme ID
-      { width: 25 },  // Scheme Name
-      { width: 20 },  // Village Name
-      { width: 20 },  // ESR Name
       { width: 15 },  // Region
       { width: 15 },  // Circle
       { width: 15 },  // Division
       { width: 18 },  // Sub Division
       { width: 15 },  // Block
+      { width: 12 },  // Scheme ID
+      { width: 25 },  // Scheme Name
+      { width: 20 },  // Village Name
+      { width: 20 },  // ESR Name
+
       ...sortedDates.map(() => ({ width: 12 })) // Date columns
     ];
 

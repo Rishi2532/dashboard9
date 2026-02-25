@@ -50,6 +50,7 @@ import {
   AlertTriangle,
   CheckCircle,
   AlertCircle,
+  MapPin,
   X,
   RefreshCw,
   Gauge,
@@ -450,6 +451,11 @@ const PressureDashboard: React.FC = () => {
 
   // Selected ESR for detailed view
   const [selectedESR, setSelectedESR] = useState<PressureData | null>(null);
+
+  const [selectedRemarkDetails, setSelectedRemarkDetails] = useState<{
+    title: string;
+    issues: any[];
+  } | null>(null);
 
   // Historical data state
   const [showHistoricalData, setShowHistoricalData] = useState(false);
@@ -3187,9 +3193,18 @@ const PressureDashboard: React.FC = () => {
                       </TableCell>
                       <TableCell className="border-b border-blue-200 text-center max-w-[150px] truncate" title={hasIssue ? issues.map((i: any) => i.reason).join(", ") : "-"}>
                         {hasIssue ? (
-                          <span className="text-red-600 font-medium text-[11px] truncate block w-full">
-                            {issues.map((i: any) => i.reason).join(", ")}
-                          </span>
+                          <Button
+                            variant="ghost"
+                            className="h-auto p-1 max-w-full justify-start text-red-600 font-medium text-[11px] hover:text-red-700 hover:bg-red-50"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedRemarkDetails({ issues, title: `Remarks for ${item.esr_name}` });
+                            }}
+                          >
+                            <span className="truncate block w-full text-left">
+                              {issues.map((i: any) => i.reason).join(", ")}
+                            </span>
+                          </Button>
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
@@ -3662,6 +3677,70 @@ const PressureDashboard: React.FC = () => {
           </div>
         )
       }
+
+      {/* Remark Details Dialog */}
+      {selectedRemarkDetails && (
+        <Dialog
+          open={!!selectedRemarkDetails}
+          onOpenChange={(open) => !open && setSelectedRemarkDetails(null)}
+        >
+          <DialogContent className="max-w-2xl bg-white border-none shadow-2xl p-0 overflow-hidden">
+            <div className="bg-gradient-to-r from-red-600 via-rose-600 to-red-700 p-6 flex justify-between items-center text-white relative">
+              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+              <div className="relative z-10 flex-1 pr-6">
+                <DialogTitle className="text-xl md:text-2xl font-bold flex items-center gap-3">
+                  <AlertCircle className="h-6 w-6 md:h-8 md:w-8 text-red-200" />
+                  <span className="tracking-tight">Issue Details</span>
+                </DialogTitle>
+                <DialogDescription className="text-red-100 mt-2 font-medium flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  <span>{selectedRemarkDetails.title}</span>
+                </DialogDescription>
+              </div>
+            </div>
+
+            <div className="p-6 overflow-y-auto max-h-[70vh] bg-slate-50">
+              <div className="space-y-4">
+                {selectedRemarkDetails.issues.map((issue: any, index: number) => (
+                  <div key={index} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                    <div className="flex justify-between items-start mb-3 gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider">
+                            {issue.problem_level ? `${issue.problem_level} Level`.toUpperCase() : (issue.category || "General")}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right flex flex-col items-end">
+                        <div className="text-sm font-medium text-slate-900">
+                          {issue.creator_name || issue.reported_by || "Field Engineer"}
+                        </div>
+                        <div className="text-xs text-slate-500 mt-0.5 whitespace-nowrap">
+                          {new Date(issue.created_at || new Date()).toLocaleString('en-US', {
+                            month: 'short', day: 'numeric', year: 'numeric',
+                            hour: 'numeric', minute: '2-digit', hour12: true
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-100">
+                      <p className="text-sm text-slate-700 font-medium">
+                        {issue.reason || issue.issue_description}
+                      </p>
+                      {issue.remarks && (
+                        <p className="text-sm text-slate-600 mt-2 pt-2 border-t border-slate-200">
+                          <span className="font-semibold text-slate-800">Additional Remarks:</span> {issue.remarks}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
     </div>
   );
 };

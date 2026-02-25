@@ -4267,6 +4267,9 @@ const DetailedChlorinePage = () => {
                                     <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[100px] border-r border-white/10">
                                       Village
                                     </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[150px] text-center border-r border-white/10">
+                                      Remark
+                                    </TableHead>
                                     <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
                                       Population
                                     </TableHead>
@@ -4310,8 +4313,30 @@ const DetailedChlorinePage = () => {
                                       <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-slate-100/80 dark:border-slate-800/60">
                                         {item.scheme_name}
                                       </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60 truncate">
                                         {item.village_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60 max-w-[150px]">
+                                        {(() => {
+                                          const villageKey = `${item.scheme_id}-${item.village_name}`;
+                                          const issues = villageIssuesMap?.get(villageKey) || [];
+                                          return issues.length > 0 ? (
+                                            <Button
+                                              variant="ghost"
+                                              className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedRemarkDetails({ issues, title: `Remarks for ${item.village_name}` });
+                                              }}
+                                            >
+                                              <span className="truncate w-full text-left">
+                                                {issues.map((i: any) => i.reason).join(", ")}
+                                              </span>
+                                            </Button>
+                                          ) : (
+                                            <span className="text-slate-400">-</span>
+                                          );
+                                        })()}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
                                         {item.population !== null &&
@@ -5109,6 +5134,9 @@ const DetailedChlorinePage = () => {
                                     <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[140px] border-r border-white/10">
                                       Scheme Name
                                     </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[150px] text-center border-r border-white/10">
+                                      Remark
+                                    </TableHead>
                                     <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
                                       Population
                                     </TableHead>
@@ -5142,7 +5170,7 @@ const DetailedChlorinePage = () => {
                                       <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-purple-600 dark:text-purple-400 border-r border-slate-100/80 dark:border-slate-800/60">
                                         {item.scheme_id}
                                       </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] font-medium text-slate-800 dark:text-slate-200 border-r border-slate-100/80 dark:border-slate-800/60">
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-medium text-slate-800 dark:text-slate-200 border-r border-slate-100/80 dark:border-slate-800/60 truncate">
                                         {item.dashboard_url ? (
                                           <a
                                             href={item.dashboard_url}
@@ -5156,6 +5184,28 @@ const DetailedChlorinePage = () => {
                                         ) : (
                                           item.scheme_name
                                         )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60 max-w-[150px]">
+                                        {(() => {
+                                          const schemeId = item.scheme_id?.toString().trim();
+                                          const issues = schemeIssuesMap?.get(schemeId) || [];
+                                          return issues.length > 0 ? (
+                                            <Button
+                                              variant="ghost"
+                                              className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedRemarkDetails({ issues, title: `Remarks for ${item.scheme_name}` });
+                                              }}
+                                            >
+                                              <span className="truncate w-full text-left">
+                                                {issues.map((i: any) => i.reason).join(", ")}
+                                              </span>
+                                            </Button>
+                                          ) : (
+                                            <span className="text-slate-400">-</span>
+                                          );
+                                        })()}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
                                         {item.total_population?.toLocaleString() || "N/A"}
@@ -5406,6 +5456,9 @@ const DetailedChlorinePage = () => {
                                     <TableHead className="!px-4 !py-2 font-bold text-orange-800 dark:text-orange-200 text-center w-[100px]">
                                       Status
                                     </TableHead>
+                                    <TableHead className="!px-4 !py-2 font-bold text-orange-800 dark:text-orange-200 text-center w-[150px]">
+                                      Remark
+                                    </TableHead>
                                     <TableHead className="!px-4 !py-2 font-bold text-orange-800 dark:text-orange-200 text-center w-[100px]">
                                       Dashboard
                                     </TableHead>
@@ -5474,6 +5527,28 @@ const DetailedChlorinePage = () => {
                                           >
                                             {item.pressure_status || "Unknown"}
                                           </Badge>
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-2 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+                                          {(() => {
+                                            const esrKey = `${item.scheme_id}-${item.esr_name}`;
+                                            const issues = esrIssuesMap?.get(esrKey) || [];
+                                            return issues.length > 0 ? (
+                                              <Button
+                                                variant="ghost"
+                                                className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setSelectedRemarkDetails({ issues, title: `Remarks for ${item.esr_name}` });
+                                                }}
+                                              >
+                                                <span className="truncate w-full text-left">
+                                                  {issues.map((i: any) => i.reason).join(", ")}
+                                                </span>
+                                              </Button>
+                                            ) : (
+                                              <span className="text-slate-400">-</span>
+                                            );
+                                          })()}
                                         </TableCell>
                                         <TableCell className="!px-4 !py-2 text-center">
                                           {item.dashboard_url ? (
@@ -9525,6 +9600,9 @@ const DetailedChlorinePage = () => {
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
                                     Village
                                   </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[150px] text-center border-r border-white/10">
+                                    Remark
+                                  </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
                                     LPCD
                                   </TableHead>
@@ -9556,8 +9634,30 @@ const DetailedChlorinePage = () => {
                                       <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-cyan-100/80 dark:border-cyan-900/60">
                                         {sensor.scheme_name}
                                       </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-cyan-100/80 dark:border-cyan-900/60">
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-cyan-100/80 dark:border-cyan-900/60 truncate">
                                         {sensor.village_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-cyan-100/80 dark:border-cyan-900/60 max-w-[150px]">
+                                        {(() => {
+                                          const villageKey = `${sensor.scheme_id}-${sensor.village_name}`;
+                                          const issues = villageIssuesMap?.get(villageKey) || [];
+                                          return issues.length > 0 ? (
+                                            <Button
+                                              variant="ghost"
+                                              className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedRemarkDetails({ issues, title: `Remarks for ${sensor.village_name}` });
+                                              }}
+                                            >
+                                              <span className="truncate w-full text-left">
+                                                {issues.map((i: any) => i.reason).join(", ")}
+                                              </span>
+                                            </Button>
+                                          ) : (
+                                            <span className="text-slate-400">-</span>
+                                          );
+                                        })()}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-cyan-100/80 dark:border-cyan-900/60">
                                         {sensor.latest_lpcd_value !== null ? (
@@ -9694,6 +9794,9 @@ const DetailedChlorinePage = () => {
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[140px] border-r border-white/10">
                                     Scheme Name
                                   </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[150px] text-center border-r border-white/10">
+                                    Remark
+                                  </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
                                     Block
                                   </TableHead>
@@ -9734,76 +9837,38 @@ const DetailedChlorinePage = () => {
                                         <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-purple-700 dark:text-purple-400 border-r border-purple-100/80 dark:border-purple-900/60">
                                           {scheme.scheme_id}
                                         </TableCell>
-                                        <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-purple-100/80 dark:border-purple-900/60">
-                                          <div className="flex items-center gap-2">
-                                            <span className="truncate">
-                                              {scheme.dashboard_url ? (
-                                                <a
-                                                  href={scheme.dashboard_url}
-                                                  target="_blank"
-                                                  rel="noopener noreferrer"
-                                                  className="text-blue-600 hover:underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                                                  onClick={(e) => e.stopPropagation()}
-                                                >
-                                                  {scheme.scheme_name}
-                                                </a>
-                                              ) : (
-                                                scheme.scheme_name
-                                              )}
-                                            </span>
-                                            {hasIssue && (
-                                              <Popover>
-                                                <PopoverTrigger asChild>
-                                                  <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-6 w-6 p-0 hover:bg-red-100 rounded-full"
-                                                  >
-                                                    <AlertCircle className="h-5 w-5 text-red-600 animate-pulse cursor-pointer" />
-                                                    <span className="sr-only">View Issues</span>
-                                                  </Button>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-80 p-0 border-red-200 shadow-xl" collisionPadding={16}>
-                                                  <div className="bg-red-50 px-4 py-3 border-b border-red-100 rounded-t-lg">
-                                                    <h4 className="font-semibold text-red-900 flex items-center gap-2">
-                                                      <AlertCircle className="h-4 w-4" />
-                                                      Reported Issues
-                                                    </h4>
-                                                  </div>
-                                                  <div className="p-4 max-h-[300px] overflow-y-auto">
-                                                    <ul className="space-y-3">
-                                                      {issues.map((issue: any, i: number) => (
-                                                        <li
-                                                          key={i}
-                                                          className="text-sm bg-white p-3 rounded-md border border-red-100 shadow-sm"
-                                                        >
-                                                          <div className="font-medium text-gray-900 mb-1">
-                                                            <Badge variant="outline" className="mr-2 border-blue-200 text-blue-700 bg-blue-50">
-                                                              Scheme
-                                                            </Badge>
-                                                            <span className="text-red-800 font-semibold uppercase text-xs tracking-wider">
-                                                              {issue.problem_level} ISSUE
-                                                            </span>
-                                                          </div>
-                                                          <div className="bg-red-50 p-2.5 rounded-md border border-red-100 mb-2">
-                                                            <p className="text-red-900 font-medium text-sm leading-relaxed">
-                                                              {issue.reason}
-                                                            </p>
-                                                          </div>
-                                                          <div className="text-xs text-gray-500 flex justify-between items-center border-t border-gray-100 pt-2 mt-2">
-                                                            <span>
-                                                              By: <span className="font-medium">{issue.creator_name}</span>
-                                                            </span>
-                                                            <span>{new Date(issue.created_at).toLocaleDateString()}</span>
-                                                          </div>
-                                                        </li>
-                                                      ))}
-                                                    </ul>
-                                                  </div>
-                                                </PopoverContent>
-                                              </Popover>
-                                            )}
-                                          </div>
+                                        <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
+                                          {scheme.dashboard_url ? (
+                                            <a
+                                              href={scheme.dashboard_url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="text-blue-600 hover:underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                                              onClick={(e) => e.stopPropagation()}
+                                            >
+                                              {scheme.scheme_name}
+                                            </a>
+                                          ) : (
+                                            scheme.scheme_name
+                                          )}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 max-w-[150px]">
+                                          {hasIssue ? (
+                                            <Button
+                                              variant="ghost"
+                                              className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedRemarkDetails({ issues, title: `Remarks for ${scheme.scheme_name}` });
+                                              }}
+                                            >
+                                              <span className="truncate w-full text-left">
+                                                {issues.map((i: any) => i.reason).join(", ")}
+                                              </span>
+                                            </Button>
+                                          ) : (
+                                            <span className="text-slate-400">-</span>
+                                          )}
                                         </TableCell>
                                         <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60">
                                           {scheme.block}
@@ -10930,8 +10995,11 @@ const DetailedChlorinePage = () => {
                                       <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[70px] text-center border-r border-white/10">
                                         Villages
                                       </TableHead>
-                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center">
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
                                         LPCD
+                                      </TableHead>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[150px] text-center">
+                                        Remark
                                       </TableHead>
                                     </TableRow>
                                   </TableHeader>
@@ -10974,7 +11042,7 @@ const DetailedChlorinePage = () => {
                                         <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
                                           {item.total_villages || "N/A"}
                                         </TableCell>
-                                        <TableCell className="!px-4 !py-3 text-center">
+                                        <TableCell className="!px-4 !py-3 text-center border-r border-slate-100/80 dark:border-slate-800/60">
                                           {item.lpcd_value !== null && item.lpcd_value !== undefined ? (
                                             <span
                                               className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${Number(item.lpcd_value) > 55
@@ -10987,6 +11055,28 @@ const DetailedChlorinePage = () => {
                                           ) : (
                                             <span className="text-slate-400">N/A</span>
                                           )}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+                                          {(() => {
+                                            const schemeId = item.scheme_id?.toString().trim();
+                                            const issues = schemeIssuesMap?.get(schemeId) || [];
+                                            return issues.length > 0 ? (
+                                              <Button
+                                                variant="ghost"
+                                                className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setSelectedRemarkDetails({ issues, title: `Remarks for ${item.scheme_name}` });
+                                                }}
+                                              >
+                                                <span className="truncate w-full text-left">
+                                                  {issues.map((i: any) => i.reason).join(", ")}
+                                                </span>
+                                              </Button>
+                                            ) : (
+                                              <span className="text-slate-400">-</span>
+                                            );
+                                          })()}
                                         </TableCell>
                                       </TableRow>
                                     ))}
@@ -11810,8 +11900,11 @@ const DetailedChlorinePage = () => {
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-3 !py-3.5 w-[100px] border-r border-white/10">
                                     ESR Name
                                   </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-3 !py-3.5 text-center w-[100px]">
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-3 !py-3.5 text-center w-[100px] border-r border-white/10">
                                     Pressure (bar)
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-3 !py-3.5 text-center w-[150px]">
+                                    Remark
                                   </TableHead>
                                 </TableRow>
                               </TableHeader>
@@ -11894,6 +11987,28 @@ const DetailedChlorinePage = () => {
                                             ).toFixed(2)
                                             : "N/A"}
                                         </Badge>
+                                      </TableCell>
+                                      <TableCell className="!px-3 !py-2.5 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+                                        {(() => {
+                                          const esrKey = `${sensor.scheme_id}-${sensor.esr_name}`;
+                                          const issues = esrIssuesMap?.get(esrKey) || [];
+                                          return issues.length > 0 ? (
+                                            <Button
+                                              variant="ghost"
+                                              className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedRemarkDetails({ issues, title: `Remarks for ${sensor.esr_name}` });
+                                              }}
+                                            >
+                                              <span className="truncate w-full text-left">
+                                                {issues.map((i: any) => i.reason).join(", ")}
+                                              </span>
+                                            </Button>
+                                          ) : (
+                                            <span className="text-slate-400">-</span>
+                                          );
+                                        })()}
                                       </TableCell>
                                     </TableRow>
                                   ),
@@ -14951,8 +15066,11 @@ const DetailedChlorinePage = () => {
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10 text-center">
                                     Dashboard
                                   </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 text-center w-[100px]">
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 text-center w-[100px] border-r border-white/10">
                                     Pressure (bar)
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 text-center w-[150px]">
+                                    Remark
                                   </TableHead>
                                 </TableRow>
                               </TableHeader>
@@ -15037,6 +15155,28 @@ const DetailedChlorinePage = () => {
                                             ).toFixed(2)
                                             : "N/A"}
                                         </span>
+                                      </TableCell>
+                                      <TableCell className="!px-3 !py-2.5 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+                                        {(() => {
+                                          const esrKey = `${item.scheme_id}-${item.esr_name}`;
+                                          const issues = esrIssuesMap?.get(esrKey) || [];
+                                          return issues.length > 0 ? (
+                                            <Button
+                                              variant="ghost"
+                                              className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedRemarkDetails({ issues, title: `Remarks for ${item.esr_name}` });
+                                              }}
+                                            >
+                                              <span className="truncate w-full text-left">
+                                                {issues.map((i: any) => i.reason).join(", ")}
+                                              </span>
+                                            </Button>
+                                          ) : (
+                                            <span className="text-slate-400">-</span>
+                                          );
+                                        })()}
                                       </TableCell>
                                     </TableRow>
                                   ),

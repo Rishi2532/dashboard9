@@ -1,0 +1,13 @@
+﻿Line 6913, col 10: backtick found, now inside string? false
+Line 6940, col 17: backtick found, now inside string? true
+Line 7047, col 7: backtick found, now inside string? false
+Line 7082, col 23: backtick found, now inside string? true
+Line 7082, col 136: backtick found, now inside string? false
+Line 7105, col 17: backtick found, now inside string? true
+Line 7105, col 102: backtick found, now inside string? false
+Line 7113, col 51: backtick found, now inside string? true
+Line 7113, col 59: backtick found, now inside string? false
+Line 7114, col 24: backtick found, now inside string? true
+Line 7114, col 49: backtick found, now inside string? false
+Line 7126, col 11: backtick found, now inside string? true
+Line 7126, col 42: backtick found, now inside string? false
