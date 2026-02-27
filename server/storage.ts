@@ -2699,12 +2699,8 @@ export class PostgresStorage implements IStorage {
           const chlorineDate = record[dateField] as string;
           const chlorineValue = record[valueField] as string;
 
-          // Only store if both date and value exist
-          if (
-            chlorineDate &&
-            chlorineValue !== null &&
-            chlorineValue !== undefined
-          ) {
+          // Only store if date exists. Allow null/blank values.
+          if (chlorineDate) {
             historicalRecords.push({
               region: record.region as string,
               circle: record.circle as string,
@@ -5999,7 +5995,39 @@ export class PostgresStorage implements IStorage {
         )
         .returning();
 
-      return result[0];
+      if (result.length === 0) {
+        throw new Error("Pressure data not found for update");
+      }
+
+      // Automatically insert into pressure_history after an update
+      const updatedRecord = result[0];
+      try {
+        await db.execute(sql`
+          INSERT INTO pressure_history (
+            scheme_id, 
+            village_name, 
+            esr_name, 
+            pressure_date, 
+            pressure_value
+          )
+          VALUES (
+            ${updatedRecord.scheme_id}, 
+            ${updatedRecord.village_name}, 
+            ${updatedRecord.esr_name}, 
+            ${updatedRecord.pressure_date_day_7 || sql`CURRENT_DATE`}, 
+            ${updatedRecord.pressure_value_7}
+          )
+          ON CONFLICT (scheme_id, village_name, esr_name, pressure_date)
+          DO UPDATE SET
+            pressure_value = EXCLUDED.pressure_value
+        `);
+        console.log(`Recorded updated pressure history for ${updatedRecord.esr_name}`);
+      } catch (historyError) {
+        console.error("Failed to record pressure history on update:", historyError);
+        // Don't throw here to avoid failing the main update operation
+      }
+
+      return updatedRecord;
     } catch (error) {
       console.error(
         `Error updating pressure data for ${schemeId}/${villageName}/${esrName}:`,
@@ -6611,12 +6639,8 @@ export class PostgresStorage implements IStorage {
             const pressureValue = pressureRecord[pressureValueKey];
             const pressureDate = pressureRecord[pressureDateKey];
 
-            // Only create historical record if we have both date and value
-            if (
-              pressureDate &&
-              pressureValue !== null &&
-              pressureValue !== undefined
-            ) {
+            // Only create historical record if we have date. Allow null/blank values.
+            if (pressureDate) {
               historicalRecords.push({
                 region: pressureRecord.region as string,
                 circle: pressureRecord.circle as string,

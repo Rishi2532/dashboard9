@@ -1338,15 +1338,23 @@ router.get("/export/historical", async (req, res) => {
       );
     }
 
-    if (filteredData.length === 0) {
-      return res.status(404).json({
-        error: "No chlorine data found for the specified date range and filters"
-      });
-    }
-
     // Transform data for Excel export - clean format as specified
     // Group by ESR and create date-wise columns (one column per date)
     const esrMap = new Map();
+
+    // Fetch base ESRs to ensure all are included, even if blank
+    const db = await getDB();
+    const baseEsrsQuery = sql`
+      SELECT scheme_id, scheme_name, village_name, esr_name, region, circle, division, sub_division, block
+      FROM chlorine_data
+      WHERE 1=1
+      ${region && region !== 'all' ? sql` AND region ILIKE ${region}` : sql``}
+      ${scheme_id ? sql` AND scheme_id = ${scheme_id}` : sql``}
+      ${village_name ? sql` AND village_name = ${village_name}` : sql``}
+      ${esr_name ? sql` AND esr_name = ${esr_name}` : sql``}
+    `;
+
+    const baseEsrsResult = await db.execute(baseEsrsQuery);
 
     // Helper function to format date for column headers
     const formatDateForColumn = (dateStr: string): string => {
@@ -1456,6 +1464,30 @@ router.get("/export/historical", async (req, res) => {
     // Get complete date range in ascending order
     const sortedDates = generateDateRange(startDate as string, endDate as string);
 
+    // Pre-populate the map with ALL matching ESRs from the database
+    baseEsrsResult.rows.forEach(record => {
+      const esrKey = `${record.scheme_id}_${record.village_name}_${record.esr_name}`;
+
+      const baseData: any = {
+        'Scheme ID': record.scheme_id,
+        'Scheme Name': record.scheme_name,
+        'Village Name': record.village_name,
+        'ESR Name': record.esr_name,
+        'Region': record.region,
+        'Circle': record.circle,
+        'Division': record.division,
+        'Sub Division': record.sub_division,
+        'Block': record.block
+      };
+
+      // Initialize all date columns with null values in sorted order
+      sortedDates.forEach(date => {
+        baseData[date] = null;
+      });
+
+      esrMap.set(esrKey, baseData);
+    });
+
     // Also collect dates that exist in data for comparison
     const dataDateSet = new Set<string>();
     filteredData.forEach(record => {
@@ -1478,6 +1510,7 @@ router.get("/export/historical", async (req, res) => {
     filteredData.forEach(record => {
       const esrKey = `${record.scheme_id}_${record.village_name}_${record.esr_name}`;
 
+      // This should ideally never hit if the base ESRs include all history ones, but just in case
       if (!esrMap.has(esrKey)) {
         const baseData: any = {
           'Scheme ID': record.scheme_id,

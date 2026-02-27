@@ -2067,9 +2067,53 @@ router.get("/export/historical", async (req, res) => {
 
     const historicalData = filteredHistoricalData;
 
-    if (historicalData.length === 0) {
-      return res.status(404).json({
-        error: "No historical data found for the specified date range"
+    // Fetch base ESRs to ensure all are included, even if blank
+    const db = await getDB();
+    const baseEsrsQuery = sql`
+      SELECT scheme_id, scheme_name, village_name, esr_name, region, circle, division, sub_division, block
+      FROM pressure_data
+      WHERE 1=1
+      ${region && region !== 'all' ? sql` AND region ILIKE ${region}` : sql``}
+    `;
+
+    const baseEsrsResult = await db.execute(baseEsrsQuery);
+
+    let filteredBaseEsrs = baseEsrsResult.rows;
+
+    // Apply filters to base ESRs to match the schemeStatus and other filters applied to historicalData
+    if (searchQuery && typeof searchQuery === 'string') {
+      const query = searchQuery.toLowerCase();
+      filteredBaseEsrs = filteredBaseEsrs.filter((item: any) =>
+        item.scheme_name?.toLowerCase().includes(query) ||
+        item.region?.toLowerCase().includes(query) ||
+        item.village_name?.toLowerCase().includes(query) ||
+        item.esr_name?.toLowerCase().includes(query)
+      );
+    }
+
+    if (commissioned && commissioned !== "all") {
+      filteredBaseEsrs = filteredBaseEsrs.filter((item: any) => {
+        const status = schemeStatusMap.get(item.scheme_id);
+        return status && status.mjp_commissioned === commissioned;
+      });
+    }
+
+    if (fullyCompleted && fullyCompleted !== "all") {
+      filteredBaseEsrs = filteredBaseEsrs.filter((item: any) => {
+        const status = schemeStatusMap.get(item.scheme_id);
+        return status && status.mjp_fully_completed === fullyCompleted;
+      });
+    }
+
+    if (schemeStatus && schemeStatus !== "all") {
+      filteredBaseEsrs = filteredBaseEsrs.filter((item: any) => {
+        const status = schemeStatusMap.get(item.scheme_id);
+        if (!status) return false;
+
+        if (schemeStatus === "Connected") {
+          return status.fully_completion_scheme_status !== "Not-Connected";
+        }
+        return status.fully_completion_scheme_status === schemeStatus;
       });
     }
 
@@ -2148,6 +2192,30 @@ router.get("/export/historical", async (req, res) => {
     // Get complete date range in ascending order
     const sortedDates = generateDateRange(startDate as string, endDate as string);
 
+    // Pre-populate the map with ALL matching base ESRs from the database
+    filteredBaseEsrs.forEach((record: any) => {
+      const esrKey = `${record.scheme_id}_${record.village_name}_${record.esr_name}`;
+
+      const baseData: any = {
+        'Scheme ID': record.scheme_id,
+        'Scheme Name': record.scheme_name,
+        'Village Name': record.village_name,
+        'ESR Name': record.esr_name,
+        'Region': record.region,
+        'Circle': record.circle,
+        'Division': record.division,
+        'Sub Division': record.sub_division,
+        'Block': record.block
+      };
+
+      // Initialize all date columns with null values in sorted order
+      sortedDates.forEach(date => {
+        baseData[date] = null;
+      });
+
+      esrMap.set(esrKey, baseData);
+    });
+
     // Also collect dates that exist in data for comparison
     const dataDateSet = new Set<string>();
     historicalData.forEach(record => {
@@ -2160,18 +2228,18 @@ router.get("/export/historical", async (req, res) => {
     historicalData.forEach(record => {
       const esrKey = `${record.scheme_id}_${record.village_name}_${record.esr_name}`;
 
+      // This should ideally never hit if the base ESRs include all history ones, but just in case
       if (!esrMap.has(esrKey)) {
         const baseData: any = {
+          'Scheme ID': record.scheme_id,
+          'Scheme Name': record.scheme_name,
+          'Village Name': record.village_name,
+          'ESR Name': record.esr_name,
           'Region': record.region,
           'Circle': record.circle,
           'Division': record.division,
           'Sub Division': record.sub_division,
-          'Block': record.block,
-          'Scheme ID': record.scheme_id,
-          'Scheme Name': record.scheme_name,
-          'Village Name': record.village_name,
-          'ESR Name': record.esr_name
-
+          'Block': record.block
         };
 
         // Initialize all date columns with null values in sorted order

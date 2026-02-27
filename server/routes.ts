@@ -53,7 +53,7 @@ import smartReportsRoutes from "./routes/smart-reports-routes";
 import chatbotHelpdeskRoutes from "./routes/chatbot/helpdesk-routes";
 import combinedEsrDownloadRoutes from "./routes/combined-esr-download-routes";
 import issueReportingRoutes from "./routes/issue-reporting-routes";
-import { mqttService } from "./mqtt-service";
+// import { mqttService } from "./mqtt-service";
 
 const exec = promisify(cp.exec);
 
