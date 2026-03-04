@@ -4882,8 +4882,8 @@ export class PostgresStorage implements IStorage {
         )
         SELECT 
           region,
-          COUNT(CASE WHEN avg_lpcd >= 55 THEN 1 END)::integer as above_55,
-          COUNT(CASE WHEN avg_lpcd < 55 AND avg_lpcd > 0 THEN 1 END)::integer as below_55,
+          COUNT(CASE WHEN avg_lpcd > 55 THEN 1 END)::integer as above_55,
+          COUNT(CASE WHEN avg_lpcd <= 55 AND avg_lpcd > 0 THEN 1 END)::integer as below_55,
           COUNT(CASE WHEN avg_lpcd = 0 OR avg_lpcd IS NULL THEN 1 END)::integer as no_water
         FROM village_averages
         GROUP BY region;
@@ -4920,8 +4920,8 @@ export class PostgresStorage implements IStorage {
         )
         SELECT 
           region,
-          COUNT(CASE WHEN avg_lpcd >= 55 THEN 1 END)::integer as above_55,
-          COUNT(CASE WHEN avg_lpcd < 55 AND avg_lpcd > 0 THEN 1 END)::integer as below_55,
+          COUNT(CASE WHEN avg_lpcd > 55 THEN 1 END)::integer as above_55,
+          COUNT(CASE WHEN avg_lpcd <= 55 AND avg_lpcd > 0 THEN 1 END)::integer as below_55,
           COUNT(CASE WHEN avg_lpcd = 0 OR avg_lpcd IS NULL THEN 1 END)::integer as no_water
         FROM scheme_averages
         GROUP BY region;

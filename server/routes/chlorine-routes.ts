@@ -6896,9 +6896,9 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
         const metric = category.replace('weekly_', '');
         let havingCondition = '';
         if (metric === 'above_55') {
-          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) >= 55';
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 55';
         } else if (metric === 'below_55') {
-          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 0 AND (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) < 55';
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 0 AND (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) <= 55';
         } else if (metric === 'no_water') {
           havingCondition = '((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) IS NULL OR (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) = 0)';
         }
@@ -6931,16 +6931,16 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
                 )
             )
             SELECT
-                region, circle, division, sub_division, block,
-                scheme_id, scheme_name, total_population, total_villages,
+                region, MAX(circle) as circle, MAX(division) as division, MAX(sub_division) as sub_division, block,
+                scheme_id, MAX(scheme_name) as scheme_name, MAX(total_population) as total_population, MAX(total_villages) as total_villages,
                 ROUND((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), '')::numeric, 0)) / 7.0), 2) as lpcd_value,
                 ROUND((SUM(COALESCE(NULLIF(TRIM(water_value::text), '')::numeric, 0)) / 7.0), 2) as water_value,
-                MAX(data_date) as data_date, -- Just pick latest date for display
+                MAX(data_date) as data_date,
                 (ARRAY_AGG(dashboard_url ORDER BY TO_DATE(data_date, 'DD-Mon-YY') DESC))[1] as dashboard_url
             FROM (
-                SELECT *, NULL as completion_status FROM weekly_data -- Add dummy completion_status if not in basic selection
+                SELECT *, NULL as completion_status FROM weekly_data
             ) t
-            GROUP BY region, circle, division, sub_division, block, completion_status, scheme_id, scheme_name, total_population, total_villages
+            GROUP BY region, scheme_id, block
             HAVING ${havingCondition}
             ORDER BY region, scheme_id 
          `;
@@ -7205,17 +7205,17 @@ router.get("/scheme-lpcd/region-comparison-schemes-export-current/:category", as
           )
         )
         SELECT
-        region, circle, division, sub_division, block, completion_status,
-          scheme_id, scheme_name, total_population, total_villages,
-          ROUND((SUM(COALESCE(NULLIF(TRIM(lpcd_value:: text), \'\')::numeric, 0)) / 7.0), 2) as lpcd_value,
-                 ROUND((SUM(COALESCE(NULLIF(TRIM(water_value:: text), \'\')::numeric, 0)) / 7.0), 2) as water_value,
-                 MAX(data_date) as data_date
-             FROM(
+            region, MAX(circle) as circle, MAX(division) as division, MAX(sub_division) as sub_division, block, MAX(completion_status) as completion_status,
+            scheme_id, MAX(scheme_name) as scheme_name, MAX(total_population) as total_population, MAX(total_villages) as total_villages,
+            ROUND((SUM(COALESCE(NULLIF(TRIM(lpcd_value:: text), '')::numeric, 0)) / 7.0), 2) as lpcd_value,
+            ROUND((SUM(COALESCE(NULLIF(TRIM(water_value:: text), '')::numeric, 0)) / 7.0), 2) as water_value,
+            MAX(data_date) as data_date
+        FROM(
             SELECT *, NULL as completion_status FROM weekly_data
-          ) t
-             GROUP BY region, circle, division, sub_division, block, completion_status, scheme_id, scheme_name, total_population, total_villages
-             HAVING ${havingCondition}
-             ORDER BY region, scheme_id
+        ) t
+        GROUP BY region, scheme_id, block
+        HAVING ${havingCondition}
+        ORDER BY region, scheme_id
             `;
       } else {
 
@@ -7386,9 +7386,9 @@ router.get("/scheme-lpcd/region-comparison-schemes-export/:category/:day", async
         let havingCondition = '';
 
         if (metric === 'above_55') {
-          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) >= 55';
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 55';
         } else if (metric === 'below_55') {
-          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 0 AND (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) < 55';
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 0 AND (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) <= 55';
         } else if (metric === 'no_water') {
           havingCondition = '((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) IS NULL OR (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) = 0)';
         }
@@ -7417,17 +7417,17 @@ router.get("/scheme-lpcd/region-comparison-schemes-export/:category/:day", async
               )
             )
         SELECT
-        region, circle, division, sub_division, block, completion_status,
-          scheme_id, scheme_name, total_population, total_villages,
-          ROUND((SUM(COALESCE(NULLIF(TRIM(lpcd_value:: text), ''):: numeric, 0)) / 7.0), 2) as latest_lpcd_value,
-          ROUND((SUM(COALESCE(NULLIF(TRIM(water_value:: text), ''):: numeric, 0)) / 7.0), 2) as latest_water_value,
-          MAX(data_date) as latest_date
+            region, MAX(circle) as circle, MAX(division) as division, MAX(sub_division) as sub_division, block, MAX(completion_status) as completion_status,
+            scheme_id, MAX(scheme_name) as scheme_name, MAX(total_population) as total_population, MAX(total_villages) as total_villages,
+            ROUND((SUM(COALESCE(NULLIF(TRIM(lpcd_value:: text), ''):: numeric, 0)) / 7.0), 2) as latest_lpcd_value,
+            ROUND((SUM(COALESCE(NULLIF(TRIM(water_value:: text), ''):: numeric, 0)) / 7.0), 2) as latest_water_value,
+            MAX(data_date) as latest_date
         FROM(
-          SELECT *, NULL as completion_status FROM weekly_data
+            SELECT *, NULL as completion_status FROM weekly_data
         ) t
-             GROUP BY region, circle, division, sub_division, block, completion_status, scheme_id, scheme_name, total_population, total_villages
-             HAVING ${havingCondition}
-             ORDER BY region, scheme_id
+        GROUP BY region, scheme_id, block
+        HAVING ${havingCondition}
+        ORDER BY region, scheme_id
           `;
       } else {
 
