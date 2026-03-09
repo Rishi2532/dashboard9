@@ -1,1 +1,1 @@
-42
+//in pressure_history table gets filled every time i update pressure_data in admin page but the history table does not store blank values it should store blank values . simalalry chlorine_history table gets filled when i update chlorine_data table iun admin panel but chlorine_history does not store blank values it should store blank values ad when i download the historical data from chlorineDashboard and pressureDashboard then the values should be present there 

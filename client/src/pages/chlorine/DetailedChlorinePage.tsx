@@ -36,6 +36,8 @@ import {
   MapPin,
   Gauge,
   ExternalLink,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -398,6 +400,8 @@ const DetailedChlorinePage = () => {
   const [mainTab, setMainTab] = useState<"lpcd" | "chlorine" | "pressure">(
     "lpcd",
   );
+  // Week offset state
+  const [weekOffset, setWeekOffset] = useState<number>(0);
   // Category sub-tab within each main tab
   const [categoryTab, setCategoryTab] = useState<string>("overall-comparison");
   const [clickedCell, setClickedCell] = useState<ClickedCell | null>(null);
@@ -1324,13 +1328,14 @@ const DetailedChlorinePage = () => {
   }
 
   const { data: weeklyLpcdStats, isLoading: isLoadingWeekly, error: weeklyError } = useQuery<WeeklyLPCDStatsResponse>({
-    queryKey: ["/api/chlorine/weekly-lpcd/stats", schemeFilter],
+    queryKey: ["/api/chlorine/weekly-lpcd/stats", schemeFilter, weekOffset],
     queryFn: async () => {
-      console.log("Fetching weekly LPCD stats...");
+      console.log(`Fetching weekly LPCD stats for offset ${weekOffset}...`);
       const params = new URLSearchParams();
       if (schemeFilter !== 'all') {
         params.append("filterType", schemeFilter);
       }
+      params.append("weekOffset", weekOffset.toString());
       const response = await fetch(`/api/chlorine/weekly-lpcd/stats?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to fetch weekly LPCD statistics");
       const data = await response.json();
@@ -12082,8 +12087,31 @@ const DetailedChlorinePage = () => {
                                     gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
                                   }}
                                 >
-                                  <div className="bg-violet-50 dark:bg-violet-950 px-3 py-3 font-semibold text-[16px] text-violet-800 dark:text-violet-200 border-r-2 border-violet-200 dark:border-violet-800 flex flex-col justify-center">
-                                    <div>Weekly Avg</div>
+                                  <div className="bg-violet-50 dark:bg-violet-950 px-3 py-3 font-semibold text-[16px] text-violet-800 dark:text-violet-200 border-r-2 border-violet-200 dark:border-violet-800 flex flex-col justify-center relative group">
+                                    <div className="flex items-center justify-between">
+                                      <span>Weekly Avg</span>
+                                      <div className="flex -mr-2 opacity-50 group-hover:opacity-100 transition-opacity">
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-6 w-6 text-violet-600 hover:text-violet-800 hover:bg-violet-200"
+                                          onClick={() => setWeekOffset(prev => prev + 1)}
+                                          title="Previous Week"
+                                        >
+                                          <ChevronLeft className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-6 w-6 text-violet-600 hover:text-violet-800 disabled:opacity-20 hover:bg-violet-200"
+                                          onClick={() => setWeekOffset(prev => Math.max(0, prev - 1))}
+                                          disabled={weekOffset === 0}
+                                          title="Next Week"
+                                        >
+                                          <ChevronRight className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    </div>
                                     <div className="text-[10px] font-normal text-violet-600 dark:text-violet-300 mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]" title={weeklyLpcdStats?.weekLabel}>
                                       {weeklyLpcdStats?.weekLabel || "Loading..."}
                                     </div>
@@ -12709,8 +12737,31 @@ const DetailedChlorinePage = () => {
                                       gridTemplateColumns: `180px repeat(${(schemeLpcdRegionComparison?.data?.length || 0) + 1}, 1fr)`,
                                     }}
                                   >
-                                    <div className="bg-purple-50 dark:bg-purple-950 px-3 py-3 font-semibold text-[14px] text-purple-800 dark:text-purple-200 border-r-2 border-purple-200 dark:border-purple-800 flex flex-col justify-center">
-                                      <div>Weekly Avg</div>
+                                    <div className="bg-purple-50 dark:bg-purple-950 px-3 py-3 font-semibold text-[14px] text-purple-800 dark:text-purple-200 border-r-2 border-purple-200 dark:border-purple-800 flex flex-col justify-center relative group">
+                                      <div className="flex items-center justify-between">
+                                        <span>Weekly Avg</span>
+                                        <div className="flex -mr-2 opacity-50 group-hover:opacity-100 transition-opacity">
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6 text-purple-600 hover:text-purple-800 hover:bg-purple-200"
+                                            onClick={() => setWeekOffset(prev => prev + 1)}
+                                            title="Previous Week"
+                                          >
+                                            <ChevronLeft className="h-4 w-4" />
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6 text-purple-600 hover:text-purple-800 disabled:opacity-20 hover:bg-purple-200"
+                                            onClick={() => setWeekOffset(prev => Math.max(0, prev - 1))}
+                                            disabled={weekOffset === 0}
+                                            title="Next Week"
+                                          >
+                                            <ChevronRight className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      </div>
                                       <div className="text-[10px] font-normal text-purple-600 dark:text-purple-300 mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]" title={weeklyLpcdStats?.weekLabel}>
                                         {weeklyLpcdStats?.weekLabel || "Loading..."}
                                       </div>
@@ -13096,210 +13147,8 @@ const DetailedChlorinePage = () => {
                             )
                           )}
 
-                          {/* Scheme LPCD Comparison Details Card */}
-                          {clickedSchemeComparisonCell && mainTab === "lpcd" && lpcdSubTab === "scheme" && (
-                            <Card className="mt-4 border-0 shadow-lg rounded-xl overflow-hidden">
-                              <CardHeader className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950 dark:to-indigo-950 border-b border-purple-200 dark:border-purple-800 py-2.5">
-                                <div className="flex items-center justify-between">
-                                  <CardTitle className="flex items-center gap-2">
-                                    <div className="p-1.5 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg shadow-sm">
-                                      <Building2 className="h-4 w-4 text-white" />
-                                    </div>
-                                    <div>
-                                      <div className="!text-[12px] font-bold text-gray-900 dark:text-white">
-                                        {clickedSchemeComparisonCell.label}
-                                      </div>
-                                      <div className="flex items-center gap-1.5 mt-0.5">
-                                        <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-400 !text-[12px] px-1.5 py-0">
-                                          {clickedSchemeComparisonCell.region}
-                                        </Badge>
-                                        <Badge
-                                          variant="secondary"
-                                          className="!text-[12px] px-1.5 py-0"
-                                        >
-                                          {schemeLpcdComparisonSchemes?.count || 0} Schemes
-                                        </Badge>
-                                      </div>
-                                    </div>
-                                  </CardTitle>
-                                  <div className="flex items-center gap-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => {
-                                        const params = new URLSearchParams({
-                                          region: clickedSchemeComparisonCell.region,
-                                          dates: weeklyLpcdStats?.dates?.join(',') || ''
-                                        });
-                                        if (schemeFilter !== 'all') {
-                                          params.append("filterType", schemeFilter);
-                                        }
-                                        // The route is /api/chlorine/scheme-lpcd/region-comparison-schemes-export/:category/:day
-                                        // "day" is not relevant for "weekly_" categories, so we pass a placeholder "0"
-                                        window.open(
-                                          `/api/chlorine/scheme-lpcd/region-comparison-schemes-export/weekly_${clickedSchemeComparisonCell.category}/0?${params.toString()}`,
-                                          "_blank",
-                                        );
-                                      }}
-                                      className="h-7 px-2 text-[10px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200"
-                                    >
-                                      <Download className="h-3 w-3 mr-1" />
-                                      Excel
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() =>
-                                        setClickedSchemeComparisonCell(null)
-                                      }
-                                      className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
-                                    >
-                                      <X className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </div>
-                                </div>
-                              </CardHeader>
-                              <CardContent className="p-0">
-                                {isLoadingSchemeComparisonSchemes ? (
-                                  <div className="space-y-2 p-5">
-                                    <Skeleton className="h-10 w-full" />
-                                    <Skeleton className="h-10 w-full" />
-                                    <Skeleton className="h-10 w-full" />
-                                  </div>
-                                ) : schemeLpcdComparisonSchemes &&
-                                  schemeLpcdComparisonSchemes.data &&
-                                  schemeLpcdComparisonSchemes.data.length > 0 ? (
-                                  <div className="overflow-x-auto max-h-[400px] border border-purple-200/60 dark:border-purple-800/60 rounded-xl m-3 shadow-sm">
-                                    <Table className="table-fixed w-full min-w-[1200px]">
-                                      <TableHeader className="sticky top-0 z-10">
-                                        <TableRow className="bg-purple-800 dark:bg-purple-900">
-                                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-3 !py-3.5 w-[100px] border-r border-white/10">Circle</TableHead>
-                                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-3 !py-3.5 w-[100px] border-r border-white/10">Division</TableHead>
-                                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-3 !py-3.5 w-[120px] border-r border-white/10">Scheme ID</TableHead>
-                                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-3 !py-3.5 w-[200px] border-r border-white/10">Scheme Name</TableHead>
-                                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-3 !py-3.5 w-[80px] border-r border-white/10 text-right">Pop.</TableHead>
-                                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-3 !py-3.5 w-[80px] border-r border-white/10 text-center">Villages</TableHead>
-                                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-3 !py-3.5 w-[80px] border-r border-white/10 text-center">&lt;55</TableHead>
-                                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-3 !py-3.5 w-[80px] border-r border-white/10 text-center">&gt;55</TableHead>
-                                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-3 !py-3.5 w-[80px] border-r border-white/10 text-center">No Supply</TableHead>
-                                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-3 !py-3.5 w-[80px] border-r border-white/10 text-center">LPCD</TableHead>
-                                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-3 !py-3.5 w-[100px] text-center">Date</TableHead>
-                                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-3 !py-3.5 w-[80px] text-center">Dashboard</TableHead>
-                                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-3 !py-3.5 w-[120px] text-center border-l border-white/10">Remark</TableHead>
-                                        </TableRow>
-                                      </TableHeader>
-                                      <TableBody>
-                                        {schemeLpcdComparisonSchemes.data.map((item, idx) => {
-                                          // Check for active issues for this scheme
-                                          const schemeId = item.scheme_id?.toString().trim();
-                                          const issues = schemeIssuesMap.get(schemeId) || [];
-                                          const hasIssue = issues.length > 0;
 
-                                          // Debug for first few items
-                                          if (idx < 3 || item.scheme_name?.includes('Kurha') || item.scheme_name?.includes('Padali')) {
-                                            console.log(`🔍 Regional Overview Row ${idx} - ${item.scheme_name}:`, {
-                                              scheme_id: schemeId,
-                                              hasIssue,
-                                              issuesFound: issues.length,
-                                              mapSize: schemeIssuesMap.size,
-                                              mapKeys: Array.from(schemeIssuesMap.keys()).slice(0, 5)
-                                            });
-                                          }
 
-                                          // Debug logging for Kurha
-                                          if (item.scheme_name?.includes('Kurha')) {
-                                            console.log(`🔍 DEBUG Regional Overview - ${item.scheme_name}:`, {
-                                              scheme_id: schemeId,
-                                              hasIssue,
-                                              issuesFound: issues.length,
-                                              allMapKeys: Array.from(schemeIssuesMap.keys()),
-                                              activeIssuesCount: activeIssues.length,
-                                              item: item
-                                            });
-                                          }
-
-                                          return (
-                                            <TableRow
-                                              key={`${item.scheme_id}-${idx}`}
-                                              className={`transition-all duration-200 ${hasIssue
-                                                ? "bg-red-50 hover:bg-red-100/50 dark:bg-red-950/20 dark:hover:bg-red-950/40 border-l-4 border-l-red-500"
-                                                : `hover:bg-purple-50/70 dark:hover:bg-purple-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-purple-50/40 dark:bg-purple-950/20"}`
-                                                }`}
-                                            >
-                                              <TableCell className="!px-3 !py-2.5 !text-[12px] truncate border-r border-purple-100/80 dark:border-purple-900/60">{item.circle}</TableCell>
-                                              <TableCell className="!px-3 !py-2.5 !text-[12px] truncate border-r border-purple-100/80 dark:border-purple-900/60">{item.division}</TableCell>
-                                              <TableCell className="!px-3 !py-2.5 !text-[12px] font-mono font-semibold text-purple-700 dark:text-purple-400 truncate border-r border-purple-100/80 dark:border-purple-900/60">{item.scheme_id}</TableCell>
-                                              <TableCell className="!px-3 !py-2.5 !text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-purple-100/80 dark:border-purple-900/60" title={item.scheme_name}>
-                                                <div className="flex items-center gap-2">
-                                                  <span className="truncate">{item.scheme_name}</span>
-                                                </div>
-                                              </TableCell>
-                                              <TableCell className="!px-3 !py-2.5 !text-[12px] text-right border-r border-purple-100/80 dark:border-purple-900/60">{item.total_population?.toLocaleString()}</TableCell>
-                                              <TableCell className="!px-3 !py-2.5 !text-[12px] text-center border-r border-purple-100/80 dark:border-purple-900/60">{item.total_villages}</TableCell>
-                                              <TableCell className="!px-3 !py-2.5 !text-[12px] text-center font-semibold text-red-600 border-r border-purple-100/80 dark:border-purple-900/60">{item.villages_below_55}</TableCell>
-                                              <TableCell className="!px-3 !py-2.5 !text-[12px] text-center font-semibold text-green-600 border-r border-purple-100/80 dark:border-purple-900/60">{item.villages_above_55}</TableCell>
-                                              <TableCell className="!px-3 !py-2.5 !text-[12px] text-center font-semibold text-gray-500 border-r border-purple-100/80 dark:border-purple-900/60">{item.villages_zero_supply}</TableCell>
-                                              <TableCell className="!px-3 !py-2.5 !text-[12px] text-center flex items-center justify-center border-r border-purple-100/80 dark:border-purple-900/60">
-                                                <Badge className={`text-[10px] ${!item.lpcd_value ? "bg-gray-100 text-gray-600" :
-                                                  item.lpcd_value > 55 ? "bg-green-100 text-green-700" :
-                                                    "bg-red-100 text-red-700"
-                                                  }`}>
-                                                  {item.lpcd_value ? Number(item.lpcd_value).toFixed(2) : "N/A"}
-                                                </Badge>
-                                              </TableCell>
-                                              <TableCell className="!px-3 !py-2.5 !text-[12px] text-center whitespace-nowrap">
-                                                {formatDate(item.data_date as string)}
-                                              </TableCell>
-                                              <TableCell className="!px-3 !py-2.5 !text-[12px] text-center">
-                                                {item.dashboard_url ? (
-                                                  <a
-                                                    href={item.dashboard_url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-700 dark:bg-purple-900/50 dark:hover:bg-purple-900 dark:text-purple-300 transition-colors"
-                                                    title="Open Dashboard"
-                                                  >
-                                                    <ExternalLink className="h-3 w-3" />
-                                                  </a>
-                                                ) : (
-                                                  <span className="text-gray-300 dark:text-gray-700">-</span>
-                                                )}
-                                              </TableCell>
-                                              <TableCell className="!px-3 !py-2.5 !text-[12px] text-center border-l border-purple-100/80 dark:border-purple-900/60 max-w-[150px] truncate" title={hasIssue ? issues.map((i: any) => i.reason).join(", ") : "-"}>
-                                                {hasIssue ? (
-                                                  <Button
-                                                    variant="ghost"
-                                                    className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      setSelectedRemarkDetails({ issues, title: `Remarks for ${item.village_name || "Village"}` });
-                                                    }}
-                                                  >
-                                                    <span className="truncate w-full text-left">
-                                                      {issues.map((i: any) => i.reason).join(", ")}
-                                                    </span>
-                                                  </Button>
-                                                ) : (
-                                                  <span className="text-slate-400">-</span>
-                                                )}
-                                              </TableCell>
-                                            </TableRow>
-                                          );
-                                        })}
-                                      </TableBody>
-                                    </Table>
-                                  </div>
-                                ) : (
-                                  <div className="text-center py-12">
-                                    <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                                    <p className="text-gray-500">
-                                      No detailed scheme data found
-                                    </p>
-                                  </div>
-                                )}
-                              </CardContent>
-                            </Card>
-                          )}
 
                           {/* Chlorine Statistics Section */}
                           {mainTab === "chlorine" && (
