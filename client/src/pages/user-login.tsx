@@ -52,13 +52,7 @@ export default function UserLoginPage() {
     refetchOnWindowFocus: false,
   });
 
-  // Redirect to dashboard ONLY if already logged in AS A USER
-  if (authStatusQuery.data?.isLoggedIn && !authStatusQuery.data?.isAdmin) {
-    window.location.href = "/dashboard";
-    return null;
-  }
-  // If they are logged in as an ADMIN, do NOT redirect them.
-  // Let them see the User login page so they can log in to a user account or switch.
+  // User login page always shows the login form, regardless of current session status.
 
   // Login form setup
   const form = useForm<LoginFormValues>({

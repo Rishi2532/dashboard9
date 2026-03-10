@@ -3,9 +3,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
-import { 
-  Droplets, 
-  Shield, 
+import {
+  Droplets,
+  Shield,
   Users,
   ArrowRight,
   Activity,
@@ -30,21 +30,12 @@ export default function LoginPage() {
     refetchOnWindowFocus: false,
   });
 
-  // Effect to handle redirection if user is logged in
-  useEffect(() => {
-    if (authStatusQuery.data?.isLoggedIn) {
-      if (authStatusQuery.data.isAdmin) {
-        setLocation("/admin/dashboard");
-      } else {
-        setLocation("/dashboard");
-      }
-    }
-  }, [authStatusQuery.data, setLocation]);
+  // Removed automatic redirection: Users will always see the login portal even if already authenticated
 
   return (
     <div className="min-h-screen relative overflow-hidden">
       {/* Background Image with Very Light Overlay */}
-      <div 
+      <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: `url(${backgroundImage})` }}
       >
@@ -67,7 +58,7 @@ export default function LoginPage() {
         <div className="flex-1 flex items-center justify-center px-4 py-16">
           <div className="max-w-6xl w-full">
             <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
-              
+
               {/* Left Side - Project Information */}
               <div className="text-white space-y-6" data-testid="section-project-info">
                 <div className="space-y-3">
@@ -75,12 +66,12 @@ export default function LoginPage() {
                     <Droplets className="w-5 h-5 text-white" />
                     <span className="text-sm font-semibold text-white">Jal Jeevan Mission Initiative</span>
                   </div>
-                  
+
                   <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight drop-shadow-2xl" data-testid="text-project-name">
                     Maharashtra Water
                     <span className="block text-white mt-1">Infrastructure Platform</span>
                   </h1>
-                  
+
                   <p className="text-lg md:text-xl text-white/95 font-medium drop-shadow-lg" data-testid="text-tagline">
                     Real-time IoT monitoring & AI-powered analytics for sustainable water management
                   </p>
@@ -122,7 +113,7 @@ export default function LoginPage() {
                 {/* Login Cards */}
                 <div className="w-full max-w-md space-y-3">
                   {/* Admin Login Card */}
-                  <div 
+                  <div
                     className="group bg-white/95 backdrop-blur-lg rounded-xl p-5 shadow-2xl hover:shadow-blue-500/30 transition-all duration-300 hover:scale-[1.02] border border-white/60"
                     data-testid="card-admin-login"
                   >
@@ -134,7 +125,7 @@ export default function LoginPage() {
                         <h3 className="text-xl font-bold text-gray-900">Admin Access</h3>
                         <p className="text-gray-600 text-xs">System control & data management</p>
                       </div>
-                      <Button 
+                      <Button
                         className="bg-gradient-to-r from-blue-900 to-blue-700 hover:from-blue-800 hover:to-blue-600 text-white px-6 py-2 text-sm font-semibold rounded-lg shadow-lg group-hover:shadow-xl transition-all"
                         onClick={() => setLocation("/admin")}
                         data-testid="button-admin-login"
@@ -146,7 +137,7 @@ export default function LoginPage() {
                   </div>
 
                   {/* User Login Card */}
-                  <div 
+                  <div
                     className="group bg-white/95 backdrop-blur-lg rounded-xl p-5 shadow-2xl hover:shadow-blue-400/30 transition-all duration-300 hover:scale-[1.02] border border-white/60"
                     data-testid="card-user-login"
                   >
@@ -158,7 +149,7 @@ export default function LoginPage() {
                         <h3 className="text-xl font-bold text-gray-900">User Access</h3>
                         <p className="text-gray-600 text-xs">Dashboard & analytics view</p>
                       </div>
-                      <Button 
+                      <Button
                         className="bg-gradient-to-r from-blue-600 to-blue-400 hover:from-blue-500 hover:to-blue-300 text-white px-6 py-2 text-sm font-semibold rounded-lg shadow-lg group-hover:shadow-xl transition-all"
                         onClick={() => setLocation("/user-login")}
                         data-testid="button-user-login"
