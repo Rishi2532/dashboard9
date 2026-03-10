@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
@@ -52,8 +52,12 @@ export default function UserLoginPage() {
     refetchOnWindowFocus: false,
   });
 
-  // User login page always shows the login form, regardless of current session status.
-
+  // Redirect to user dashboard if already logged in as a normal user
+  useEffect(() => {
+    if (authStatusQuery.data?.isLoggedIn && !authStatusQuery.data?.isAdmin) {
+      setLocation("/");
+    }
+  }, [authStatusQuery.data, setLocation]);
   // Login form setup
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
