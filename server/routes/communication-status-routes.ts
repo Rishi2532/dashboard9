@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
-import { eq, sql, and, desc, asc, like } from "drizzle-orm";
+import { eq, sql, and, desc, asc, like, inArray } from "drizzle-orm";
 import { getDB } from "../db";
-import { communicationStatus } from "../../shared/schema";
+import { communicationStatus, schemeStatuses } from "../../shared/schema";
 import multer from "multer";
 import * as csv from "csv-parse";
 import fs from "fs";
@@ -19,6 +19,7 @@ router.get("/overview", async (req, res) => {
     const division = req.query.division as string;
     const subdivision = req.query.subdivision as string;
     const block = req.query.block as string;
+    const waterSupply = req.query.waterSupply as string;
 
     // Build filter conditions
     const conditions = [];
@@ -32,6 +33,23 @@ router.get("/overview", async (req, res) => {
       conditions.push(eq(communicationStatus.sub_division, subdivision));
     if (block && block !== "all")
       conditions.push(eq(communicationStatus.block, block));
+    if (waterSupply && waterSupply !== "all") {
+      let subQueryCondition;
+      if (waterSupply.toLowerCase() === "no") {
+        subQueryCondition = sql`lower(${schemeStatuses.water_supply}) = 'no' OR ${schemeStatuses.water_supply} IS NULL OR trim(${schemeStatuses.water_supply}) = ''`;
+      } else {
+        subQueryCondition = sql`lower(${schemeStatuses.water_supply}) = lower(${waterSupply})`;
+      }
+
+      conditions.push(
+        inArray(
+          communicationStatus.scheme_id,
+          db.select({ scheme_id: schemeStatuses.scheme_id })
+            .from(schemeStatuses)
+            .where(subQueryCondition)
+        )
+      );
+    }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -119,6 +137,7 @@ router.get("/schemes", async (req, res) => {
     const division = req.query.division as string;
     const subdivision = req.query.subdivision as string;
     const block = req.query.block as string;
+    const waterSupply = req.query.waterSupply as string;
 
     // Build filter conditions
     const conditions = [];
@@ -132,6 +151,23 @@ router.get("/schemes", async (req, res) => {
       conditions.push(eq(communicationStatus.sub_division, subdivision));
     if (block && block !== "all")
       conditions.push(eq(communicationStatus.block, block));
+    if (waterSupply && waterSupply !== "all") {
+      let subQueryCondition;
+      if (waterSupply.toLowerCase() === "no") {
+        subQueryCondition = sql`lower(${schemeStatuses.water_supply}) = 'no' OR ${schemeStatuses.water_supply} IS NULL OR trim(${schemeStatuses.water_supply}) = ''`;
+      } else {
+        subQueryCondition = sql`lower(${schemeStatuses.water_supply}) = lower(${waterSupply})`;
+      }
+
+      conditions.push(
+        inArray(
+          communicationStatus.scheme_id,
+          db.select({ scheme_id: schemeStatuses.scheme_id })
+            .from(schemeStatuses)
+            .where(subQueryCondition)
+        )
+      );
+    }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -207,9 +243,9 @@ router.get("/filters", async (req, res) => {
       .where(
         circleWhereClause
           ? and(
-              circleWhereClause,
-              sql`${communicationStatus.circle} is not null and ${communicationStatus.circle} != ''`,
-            )
+            circleWhereClause,
+            sql`${communicationStatus.circle} is not null and ${communicationStatus.circle} != ''`,
+          )
           : sql`${communicationStatus.circle} is not null and ${communicationStatus.circle} != ''`,
       )
       .orderBy(asc(communicationStatus.circle));
@@ -229,9 +265,9 @@ router.get("/filters", async (req, res) => {
       .where(
         divisionWhereClause
           ? and(
-              divisionWhereClause,
-              sql`${communicationStatus.division} is not null and ${communicationStatus.division} != ''`,
-            )
+            divisionWhereClause,
+            sql`${communicationStatus.division} is not null and ${communicationStatus.division} != ''`,
+          )
           : sql`${communicationStatus.division} is not null and ${communicationStatus.division} != ''`,
       )
       .orderBy(asc(communicationStatus.division));
@@ -255,9 +291,9 @@ router.get("/filters", async (req, res) => {
       .where(
         subdivisionWhereClause
           ? and(
-              subdivisionWhereClause,
-              sql`${communicationStatus.sub_division} is not null and ${communicationStatus.sub_division} != ''`,
-            )
+            subdivisionWhereClause,
+            sql`${communicationStatus.sub_division} is not null and ${communicationStatus.sub_division} != ''`,
+          )
           : sql`${communicationStatus.sub_division} is not null and ${communicationStatus.sub_division} != ''`,
       )
       .orderBy(asc(communicationStatus.sub_division));
@@ -281,9 +317,9 @@ router.get("/filters", async (req, res) => {
       .where(
         blockWhereClause
           ? and(
-              blockWhereClause,
-              sql`${communicationStatus.block} is not null and ${communicationStatus.block} != ''`,
-            )
+            blockWhereClause,
+            sql`${communicationStatus.block} is not null and ${communicationStatus.block} != ''`,
+          )
           : sql`${communicationStatus.block} is not null and ${communicationStatus.block} != ''`,
       )
       .orderBy(asc(communicationStatus.block));
@@ -347,7 +383,7 @@ router.post("/import", upload.single("file"), async (req, res) => {
     // Process records one by one to preserve last_seen timestamps
     for (let i = 0; i < records.length; i++) {
       const row = records[i];
-      
+
       const recordData = {
         region: (row[0] || "").replace(/^\uFEFF/, "").trim(),
         circle: (row[1] || "").trim(),
@@ -388,11 +424,11 @@ router.post("/import", upload.single("file"), async (req, res) => {
 
       if (existingRecord.length > 0) {
         // Record exists - update it
-        const updateData: any = { 
+        const updateData: any = {
           ...recordData,
           updated_at: new Date()
         };
-        
+
         // Only update last_seen (chlorine) if new chlorine_status is Online (case-insensitive)
         if (recordData.chlorine_status?.trim().toLowerCase() === 'online') {
           updateData.last_seen = new Date();
@@ -400,7 +436,7 @@ router.post("/import", upload.single("file"), async (req, res) => {
           // Preserve existing last_seen value for offline/N/A chlorine devices
           updateData.last_seen = existingRecord[0].last_seen;
         }
-        
+
         // Only update pressure_last_seen if new pressure_status is Online (case-insensitive)
         if (recordData.pressure_status?.trim().toLowerCase() === 'online') {
           updateData.pressure_last_seen = new Date();
@@ -408,7 +444,7 @@ router.post("/import", upload.single("file"), async (req, res) => {
           // Preserve existing pressure_last_seen value for offline/N/A pressure devices
           updateData.pressure_last_seen = existingRecord[0].pressure_last_seen;
         }
-        
+
         await db
           .update(communicationStatus)
           .set(updateData)
@@ -463,6 +499,7 @@ router.get("/download", async (req, res) => {
     const subdivision = req.query.subdivision as string;
     const block = req.query.block as string;
     const search = req.query.search as string;
+    const waterSupply = req.query.waterSupply as string;
 
     // Build filter conditions
     const conditions = [];
@@ -476,6 +513,23 @@ router.get("/download", async (req, res) => {
       conditions.push(eq(communicationStatus.sub_division, subdivision));
     if (block && block !== "all")
       conditions.push(eq(communicationStatus.block, block));
+    if (waterSupply && waterSupply !== "all") {
+      let subQueryCondition;
+      if (waterSupply.toLowerCase() === "no") {
+        subQueryCondition = sql`lower(${schemeStatuses.water_supply}) = 'no' OR ${schemeStatuses.water_supply} IS NULL OR trim(${schemeStatuses.water_supply}) = ''`;
+      } else {
+        subQueryCondition = sql`lower(${schemeStatuses.water_supply}) = lower(${waterSupply})`;
+      }
+
+      conditions.push(
+        inArray(
+          communicationStatus.scheme_id,
+          db.select({ scheme_id: schemeStatuses.scheme_id })
+            .from(schemeStatuses)
+            .where(subQueryCondition)
+        )
+      );
+    }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 

@@ -50,9 +50,14 @@ export default function AdminPage() {
     refetchOnWindowFocus: false,
   });
 
-  // Redirect to admin dashboard if already logged in
+  // Redirect to appropriate dashboard if already logged in
   if (authStatusQuery.data?.isLoggedIn) {
-    window.location.href = "/admin/dashboard";
+    if (authStatusQuery.data?.isAdmin) {
+      window.location.href = "/admin/dashboard";
+    } else {
+      // Normal users trying to access admin login page get sent to their dashboard
+      window.location.href = "/dashboard";
+    }
     return null;
   }
 
@@ -118,7 +123,7 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen relative overflow-hidden">
       {/* Background Image with Light Overlay */}
-      <div 
+      <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: `url(${backgroundImage})` }}
       >
