@@ -126,9 +126,18 @@ app.use((req, res, next) => {
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
+  const distPath = path.resolve(process.cwd(), "dist", "public");
+  
+  // If the production build directory exists, assume we are in production
+  // and force static serving to prevent source code leaks.
+  if (fs.existsSync(distPath)) {
+    console.log("Production build found. Serving statically.");
+    serveStatic(app);
+  } else if (app.get("env") === "development") {
+    console.log("No production build found. Starting Vite development server...");
     await setupVite(app, server);
   } else {
+    // Fallback if env is production but dist is missing (should theoretically throw in serveStatic, but we call it anyway)
     serveStatic(app);
   }
 
