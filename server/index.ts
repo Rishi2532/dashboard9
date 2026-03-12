@@ -144,46 +144,43 @@ app.use((req, res, next) => {
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
   const currentDir = __dirname;
-  const distPath = fs.existsSync(path.join(currentDir, 'public')) 
-    ? path.join(currentDir, 'public') 
+  const distPath = fs.existsSync(path.join(currentDir, 'public'))
+    ? path.join(currentDir, 'public')
     : path.resolve(currentDir, '..', 'dist', 'public');
-  
+
   console.log(`Resolved distPath: ${distPath}`);
   console.log(`Current __dirname: ${__dirname}`);
   console.log(`process.cwd(): ${process.cwd()}`);
-  
+
   // If the production build directory exists, assume we are in production
   // and force static serving to prevent source code leaks.
   if (fs.existsSync(distPath)) {
-    console.log("Production build found. Serving statically.");
+    log("Production build found. Serving statically from dist/public.");
     serveStatic(app);
   } else if (process.env.NODE_ENV !== "production") {
-    console.log("No production build found. Starting Vite development server...");
+    log("No production build found. Starting Vite development server...");
     await setupVite(app, server);
   } else {
-    // Fallback if env is production but dist is missing
+    log("CRITICAL: Production mode but dist/public is missing. Static serving will fail.");
     serveStatic(app);
   }
 
   // ALWAYS serve the app on port 5000
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
-  // iisnode requires listening on process.env.PORT
-  const port = process.env.PORT || 5000;
+  const port = 5000;
+  server.listen(
+    {
+      port,
+      host: "0.0.0.0",
+    },
+    () => {
+      log(`serving on port ${port}`);
 
-  // If port is a string and contains a path/pipe, listen directly
-  if (typeof port === 'string' && (port.includes('\\') || port.includes('/'))) {
-    server.listen(port, () => {
-      log(`serving on named pipe: ${port}`);
-    });
-  } else {
-    server.listen(Number(port), "0.0.0.0", () => {
-      log(`serving on port: ${port}`);
-    });
-  }
-  
-  // Initialize data cleanup
-  setTimeout(() => {
-    initializeDataCleanup().catch(console.error);
-  }, 5000);
+      // Initialize data cleanup after server starts
+      setTimeout(() => {
+        initializeDataCleanup().catch(console.error);
+      }, 5000); // Wait 5 seconds after server start
+    },
+  );
 })(); // Restart trigger v2
