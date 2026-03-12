@@ -170,13 +170,12 @@ app.use((req, res, next) => {
   // It is the only port that is not firewalled.
   // iisnode requires listening on process.env.PORT
   const port = process.env.PORT || 5000;
+  const isPipe = typeof port === 'string' && isNaN(Number(port));
+
   server.listen(
-    {
-      port,
-      host: "0.0.0.0",
-    },
+    isPipe ? port : { port: Number(port), host: "0.0.0.0" },
     () => {
-      log(`serving on port ${port}`);
+      log(`serving on ${isPipe ? 'named pipe' : 'port'} ${port}`);
 
       // Initialize data cleanup after server starts
       setTimeout(() => {
