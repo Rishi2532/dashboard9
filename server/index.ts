@@ -1,10 +1,6 @@
 import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Load environment variables from .env file first
 dotenv.config();
@@ -139,11 +135,7 @@ app.use((req, res, next) => {
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
-  let rootDir = __dirname;
-  while (!fs.existsSync(path.join(rootDir, "package.json")) && rootDir !== path.parse(rootDir).root) {
-    rootDir = path.dirname(rootDir);
-  }
-  const distPath = path.resolve(rootDir, "dist", "public");
+  const distPath = path.resolve(process.cwd(), "dist", "public");
   
   // If the production build directory exists, assume we are in production
   // and force static serving to prevent source code leaks.

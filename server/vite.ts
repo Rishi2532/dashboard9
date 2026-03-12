@@ -72,11 +72,7 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  let rootDir = __dirname;
-  while (!fs.existsSync(path.join(rootDir, "package.json")) && rootDir !== path.parse(rootDir).root) {
-    rootDir = path.dirname(rootDir);
-  }
-  const distPath = path.resolve(rootDir, "dist", "public");
+  const distPath = path.resolve(process.cwd(), "dist", "public");
 
   if (!fs.existsSync(distPath)) {
     throw new Error(
