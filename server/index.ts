@@ -1,6 +1,10 @@
 import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load environment variables from .env file first
 dotenv.config();
@@ -56,6 +60,13 @@ app.set("trust proxy", 1); // Trust the first proxy in the cloud environment
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Security Headers to prevent Clickjacking
+app.use((req, res, next) => {
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("Content-Security-Policy", "frame-ancestors 'self'");
+  next();
+});
+
 // Configure session middleware
 app.use(
   session({
@@ -63,6 +74,8 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
+      path: "/api",
+      sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
@@ -126,7 +139,11 @@ app.use((req, res, next) => {
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
-  const distPath = path.resolve(process.cwd(), "dist", "public");
+  let rootDir = __dirname;
+  while (!fs.existsSync(path.join(rootDir, "package.json")) && rootDir !== path.parse(rootDir).root) {
+    rootDir = path.dirname(rootDir);
+  }
+  const distPath = path.resolve(rootDir, "dist", "public");
   
   // If the production build directory exists, assume we are in production
   // and force static serving to prevent source code leaks.
