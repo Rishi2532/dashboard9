@@ -72,7 +72,12 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(process.cwd(), "dist", "public");
+  const currentDir = __dirname;
+  const distPath = fs.existsSync(path.join(currentDir, 'public')) 
+    ? path.join(currentDir, 'public') 
+    : path.resolve(currentDir, '..', 'dist', 'public');
+  
+  console.log(`serveStatic: distPath resolved to ${distPath}`);
 
   if (!fs.existsSync(distPath)) {
     throw new Error(

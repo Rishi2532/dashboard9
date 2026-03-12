@@ -1,6 +1,10 @@
 import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load environment variables from .env file first
 dotenv.config();
@@ -55,6 +59,10 @@ const app = express();
 app.set("trust proxy", 1); // Trust the first proxy in the cloud environment
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+app.get("/health", (req, res) => {
+  res.send("OK");
+});
 
 // Security Headers to prevent Clickjacking
 app.use((req, res, next) => {
@@ -135,7 +143,14 @@ app.use((req, res, next) => {
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
-  const distPath = path.resolve(process.cwd(), "dist", "public");
+  const currentDir = __dirname;
+  const distPath = fs.existsSync(path.join(currentDir, 'public')) 
+    ? path.join(currentDir, 'public') 
+    : path.resolve(currentDir, '..', 'dist', 'public');
+  
+  console.log(`Resolved distPath: ${distPath}`);
+  console.log(`Current __dirname: ${__dirname}`);
+  console.log(`process.cwd(): ${process.cwd()}`);
   
   // If the production build directory exists, assume we are in production
   // and force static serving to prevent source code leaks.
