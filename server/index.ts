@@ -157,11 +157,11 @@ app.use((req, res, next) => {
   if (fs.existsSync(distPath)) {
     console.log("Production build found. Serving statically.");
     serveStatic(app);
-  } else if (app.get("env") === "development") {
+  } else if (process.env.NODE_ENV !== "production") {
     console.log("No production build found. Starting Vite development server...");
     await setupVite(app, server);
   } else {
-    // Fallback if env is production but dist is missing (should theoretically throw in serveStatic, but we call it anyway)
+    // Fallback if env is production but dist is missing
     serveStatic(app);
   }
 
@@ -170,17 +170,20 @@ app.use((req, res, next) => {
   // It is the only port that is not firewalled.
   // iisnode requires listening on process.env.PORT
   const port = process.env.PORT || 5000;
-  const isPipe = typeof port === 'string' && isNaN(Number(port));
 
-  server.listen(
-    isPipe ? port : { port: Number(port), host: "0.0.0.0" },
-    () => {
-      log(`serving on ${isPipe ? 'named pipe' : 'port'} ${port}`);
-
-      // Initialize data cleanup after server starts
-      setTimeout(() => {
-        initializeDataCleanup().catch(console.error);
-      }, 5000); // Wait 5 seconds after server start
-    },
-  );
+  // If port is a string and contains a path/pipe, listen directly
+  if (typeof port === 'string' && (port.includes('\\') || port.includes('/'))) {
+    server.listen(port, () => {
+      log(`serving on named pipe: ${port}`);
+    });
+  } else {
+    server.listen(Number(port), "0.0.0.0", () => {
+      log(`serving on port: ${port}`);
+    });
+  }
+  
+  // Initialize data cleanup
+  setTimeout(() => {
+    initializeDataCleanup().catch(console.error);
+  }, 5000);
 })(); // Restart trigger v2
