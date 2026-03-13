@@ -65,10 +65,12 @@ app.get("/health", (req, res) => {
   res.send("OK");
 });
 
-// Security Headers to prevent Clickjacking
+// Security Headers to prevent Clickjacking and other attacks
 app.use((req, res, next) => {
   res.setHeader("X-Frame-Options", "SAMEORIGIN");
-  res.setHeader("Content-Security-Policy", "frame-ancestors 'self'");
+  res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://dashboard1.mahajaliot.in;");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   next();
 });
 
