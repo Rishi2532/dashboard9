@@ -1305,16 +1305,14 @@ router.get("/overall-region-comparison", async (req, res) => {
     const result = await db.execute(sql.raw(`
       WITH pressure_analysis AS (
         SELECT 
-          pd.region,
-          pd.scheme_id,
-          pd.village_name,
-          pd.esr_name,
-          pd.pressure_value_7,
+          cs.region,
+          cs.id,
           CASE 
+            WHEN cs.pressure_status = 'Offline' OR cs.pressure_status = 'offline' THEN 'offline'
+            WHEN pd.pressure_value_7 IS NULL THEN 'offline'
             WHEN pd.pressure_value_7 < 0.2 THEN 'below_0_2'
             WHEN pd.pressure_value_7 >= 0.2 AND pd.pressure_value_7 <= 0.7 THEN 'optimal_0_2_0_7'
-            WHEN pd.pressure_value_7 > 0.7 THEN 'above_0_7'
-            ELSE 'no_data'
+            ELSE 'above_0_7'
           END as pressure_category,
           CASE 
             WHEN pd.pressure_value_1 < 0.2 AND pd.pressure_value_2 < 0.2 AND pd.pressure_value_3 < 0.2 
@@ -1335,28 +1333,23 @@ router.get("/overall-region-comparison", async (req, res) => {
               AND pd.pressure_value_4 > 0.7 AND pd.pressure_value_5 > 0.7 AND pd.pressure_value_6 > 0.7 
               AND pd.pressure_value_7 > 0.7 THEN 1 ELSE 0 
           END as consistent_above
-        FROM pressure_data pd
-        INNER JOIN communication_status cs ON (
-          pd.scheme_id = cs.scheme_id AND 
-          pd.village_name = cs.village_name AND 
-          pd.esr_name = cs.esr_name
-        )
-        WHERE pd.region IS NOT NULL 
-        AND cs.pressure_connected = 'Connected' 
-        AND cs.pressure_status <> 'Offline'
-        ${schemeIdFilter}
-      ),
-      offline_analysis AS (
-        SELECT 
-          cs.region,
-          COUNT(DISTINCT CASE WHEN cs.pressure_connected = 'Connected' AND cs.pressure_status = 'Offline' THEN cs.id END) as offline_count
         FROM communication_status cs
-        WHERE cs.region IS NOT NULL ${communicationStatusSchemeFilter}
-        GROUP BY cs.region
+        LEFT JOIN (
+          SELECT DISTINCT ON (scheme_id, village_name, esr_name) *
+          FROM pressure_data
+          ORDER BY scheme_id, village_name, esr_name, pressure_date_day_7 DESC
+        ) pd ON (
+          cs.scheme_id = pd.scheme_id AND 
+          cs.village_name = pd.village_name AND 
+          cs.esr_name = pd.esr_name
+        )
+        WHERE cs.region IS NOT NULL 
+        AND cs.pressure_connected = 'Connected'
+        ${communicationStatusSchemeFilter}
       )
       SELECT 
-        pa.region,
-        COALESCE(oa.offline_count, 0) as offline,
+        region,
+        COUNT(CASE WHEN pressure_category = 'offline' THEN 1 END) as offline,
         COUNT(CASE WHEN pressure_category = 'below_0_2' THEN 1 END) as below_0_2,
         COUNT(CASE WHEN pressure_category = 'optimal_0_2_0_7' THEN 1 END) as optimal_0_2_0_7,
         COUNT(CASE WHEN pressure_category = 'above_0_7' THEN 1 END) as above_0_7,
@@ -1364,10 +1357,9 @@ router.get("/overall-region-comparison", async (req, res) => {
         COUNT(CASE WHEN consistent_optimal = 1 THEN 1 END) as consistent_optimal,
         COUNT(CASE WHEN consistent_above = 1 THEN 1 END) as consistent_above_0_7,
         COUNT(*) as total_count
-      FROM pressure_analysis pa
-      LEFT JOIN offline_analysis oa ON pa.region = oa.region
-      GROUP BY pa.region, oa.offline_count
-      ORDER BY pa.region
+      FROM pressure_analysis
+      GROUP BY region
+      ORDER BY region
     `));
 
     res.json({
@@ -1381,6 +1373,7 @@ router.get("/overall-region-comparison", async (req, res) => {
         consistent_below_0_2: Number(row.consistent_below_0_2) || 0,
         consistent_optimal: Number(row.consistent_optimal) || 0,
         consistent_above_0_7: Number(row.consistent_above_0_7) || 0,
+        connected: Number(row.total_count) || 0,
       }))
     });
   } catch (error) {
@@ -1440,7 +1433,9 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
             cs.esr_name,
             cs.pressure_status,
             cs.pressure_last_seen,
-            pd.dashboard_url
+            pd.dashboard_url,
+            pd.pressure_value_7 as pressure_value,
+            pd.pressure_date_day_7 as pressure_date
           FROM communication_status cs
           LEFT JOIN (
             SELECT DISTINCT ON (scheme_id, village_name, esr_name) *
@@ -1448,7 +1443,13 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
             ORDER BY scheme_id, village_name, esr_name, pressure_date_day_7 DESC
           ) pd ON (cs.scheme_id = pd.scheme_id AND cs.village_name = pd.village_name AND cs.esr_name = pd.esr_name)
           WHERE cs.pressure_connected = 'Connected'
-            AND cs.pressure_status = 'Offline'
+            AND (
+              cs.pressure_status = 'Offline' OR cs.pressure_status = 'offline'
+              OR (
+                (cs.pressure_status = 'Online' OR cs.pressure_status = 'online')
+                AND pd.pressure_value_7 IS NULL
+              )
+            )
             ${communicationStatusSchemeFilter}
             ${region && region !== 'All Regions' ? sql`AND cs.region = ${region}` : sql``}
           ORDER BY cs.region, cs.village_name
@@ -1475,13 +1476,16 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
               pd.pressure_value_7 as pressure_value,
               pd.dashboard_url
             FROM communication_status cs
-            LEFT JOIN pressure_data pd ON (
+            LEFT JOIN (
+              SELECT DISTINCT ON (scheme_id, village_name, esr_name) *
+              FROM pressure_data
+              ORDER BY scheme_id, village_name, esr_name, pressure_date_day_7 DESC
+            ) pd ON (
               cs.scheme_id = pd.scheme_id AND 
               cs.village_name = pd.village_name AND 
               cs.esr_name = pd.esr_name
             )
             WHERE cs.pressure_connected = 'Connected'
-            AND (cs.pressure_status = 'Offline' OR cs.pressure_status = 'offline' OR pd.pressure_value_7 IS NOT NULL)
             ${region && region !== 'All Regions' ? sql`AND cs.region = ${region}` : sql``}
             ${communicationStatusSchemeFilter}
             ORDER BY cs.region, cs.division, cs.village_name
@@ -1546,24 +1550,30 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
 
     const query = sql`
       SELECT 
-        pd.region,
-        pd.circle,
-        pd.division,
-        pd.sub_division,
-        pd.block,
-        pd.scheme_id,
-        pd.scheme_name,
-        pd.village_name,
-        pd.esr_name,
+        cs.region,
+        cs.circle,
+        cs.division,
+        cs.sub_division,
+        cs.block,
+        cs.scheme_id,
+        cs.scheme_name,
+        cs.village_name,
+        cs.esr_name,
         pd.pressure_value_7 as pressure_value,
         pd.pressure_date_day_7 as pressure_date,
         pd.dashboard_url
-      FROM pressure_data pd
-      WHERE pd.region IS NOT NULL
-        ${regionFilter}
+      FROM communication_status cs
+      LEFT JOIN (
+        SELECT DISTINCT ON (scheme_id, village_name, esr_name) *
+        FROM pressure_data
+        ORDER BY scheme_id, village_name, esr_name, pressure_date_day_7 DESC
+      ) pd ON (cs.scheme_id = pd.scheme_id AND cs.village_name = pd.village_name AND cs.esr_name = pd.esr_name)
+      WHERE cs.region IS NOT NULL
+        AND cs.pressure_connected = 'Connected'
+        ${region && region !== 'All Regions' ? sql`AND cs.region = ${region}` : sql``}
         ${categoryCondition}
-        ${schemeIdFilter}
-      ORDER BY pd.region, pd.village_name
+        ${communicationStatusSchemeFilter}
+      ORDER BY cs.region, cs.village_name
     `;
 
     const result = await db.execute(query);
@@ -1633,11 +1643,23 @@ router.get("/overall-region-comparison/details-export/:category", async (req, re
             cs.esr_name,
             cs.pressure_status,
             cs.pressure_last_seen,
-            pd.dashboard_url
+            pd.dashboard_url,
+            pd.pressure_value_7 as pressure_value,
+            pd.pressure_date_day_7 as pressure_date
           FROM communication_status cs
-          LEFT JOIN pressure_data pd ON (cs.scheme_id = pd.scheme_id AND cs.village_name = pd.village_name AND cs.esr_name = pd.esr_name)
+          LEFT JOIN (
+            SELECT DISTINCT ON (scheme_id, village_name, esr_name) *
+            FROM pressure_data
+            ORDER BY scheme_id, village_name, esr_name, pressure_date_day_7 DESC
+          ) pd ON (cs.scheme_id = pd.scheme_id AND cs.village_name = pd.village_name AND cs.esr_name = pd.esr_name)
           WHERE cs.pressure_connected = 'Connected'
-            AND cs.pressure_status = 'Offline'
+            AND (
+              cs.pressure_status = 'Offline' OR cs.pressure_status = 'offline'
+              OR (
+                (cs.pressure_status = 'Online' OR cs.pressure_status = 'online')
+                AND pd.pressure_value_7 IS NULL
+              )
+            )
             ${communicationStatusSchemeFilter}
             ${region && region !== 'All Regions' ? sql`AND cs.region = ${region}` : sql``}
           ORDER BY cs.region, cs.village_name
@@ -1673,6 +1695,25 @@ router.get("/overall-region-comparison/details-export/:category", async (req, re
           AND pd.pressure_value_4 > 0.7 AND pd.pressure_value_5 > 0.7 AND pd.pressure_value_6 > 0.7 
           AND pd.pressure_value_7 > 0.7`;
         break;
+      case 'consistent_all':
+        categoryCondition = sql`AND (
+          (pd.pressure_value_1 < 0.2 AND pd.pressure_value_2 < 0.2 AND pd.pressure_value_3 < 0.2 
+           AND pd.pressure_value_4 < 0.2 AND pd.pressure_value_5 < 0.2 AND pd.pressure_value_6 < 0.2 
+           AND pd.pressure_value_7 < 0.2)
+          OR
+          (pd.pressure_value_1 >= 0.2 AND pd.pressure_value_1 <= 0.7 
+           AND pd.pressure_value_2 >= 0.2 AND pd.pressure_value_2 <= 0.7
+           AND pd.pressure_value_3 >= 0.2 AND pd.pressure_value_3 <= 0.7
+           AND pd.pressure_value_4 >= 0.2 AND pd.pressure_value_4 <= 0.7
+           AND pd.pressure_value_5 >= 0.2 AND pd.pressure_value_5 <= 0.7
+           AND pd.pressure_value_6 >= 0.2 AND pd.pressure_value_6 <= 0.7
+           AND pd.pressure_value_7 >= 0.2 AND pd.pressure_value_7 <= 0.7)
+          OR
+          (pd.pressure_value_1 > 0.7 AND pd.pressure_value_2 > 0.7 AND pd.pressure_value_3 > 0.7 
+           AND pd.pressure_value_4 > 0.7 AND pd.pressure_value_5 > 0.7 AND pd.pressure_value_6 > 0.7 
+           AND pd.pressure_value_7 > 0.7)
+        )`;
+        break;
       case 'all_sensors':
         categoryCondition = sql``;
         queryData = []; // Will query explicitly below if needed, but here we can just set base
@@ -1688,17 +1729,20 @@ router.get("/overall-region-comparison/details-export/:category", async (req, re
               cs.scheme_name,
               cs.village_name,
               cs.esr_name,
-              pd.pressure_value_7 as pressure_value_7,
-              pd.pressure_date_day_7 as pressure_date_day_7,
+              pd.pressure_value_7 as pressure_value,
+              pd.pressure_date_day_7 as pressure_date,
               pd.dashboard_url
             FROM communication_status cs
-            LEFT JOIN pressure_data pd ON (
+            LEFT JOIN (
+              SELECT DISTINCT ON (scheme_id, village_name, esr_name) *
+              FROM pressure_data
+              ORDER BY scheme_id, village_name, esr_name, pressure_date_day_7 DESC
+            ) pd ON (
               cs.scheme_id = pd.scheme_id AND 
               cs.village_name = pd.village_name AND 
               cs.esr_name = pd.esr_name
             )
             WHERE cs.pressure_connected = 'Connected'
-            AND (cs.pressure_status = 'Offline' OR cs.pressure_status = 'offline' OR pd.pressure_value_7 IS NOT NULL)
             ${region && region !== 'All Regions' ? sql`AND cs.region = ${region}` : sql``}
             ${communicationStatusSchemeFilter}
             ORDER BY cs.region, cs.division, cs.village_name
@@ -1713,24 +1757,30 @@ router.get("/overall-region-comparison/details-export/:category", async (req, re
     if (category !== 'offline' && category !== 'all_sensors') {
       const query = sql`
         SELECT 
-          pd.region,
-          pd.circle,
-          pd.division,
-          pd.sub_division,
-          pd.block,
-          pd.scheme_id,
-          pd.scheme_name,
-          pd.village_name,
-          pd.esr_name,
+          cs.region,
+          cs.circle,
+          cs.division,
+          cs.sub_division,
+          cs.block,
+          cs.scheme_id,
+          cs.scheme_name,
+          cs.village_name,
+          cs.esr_name,
           pd.pressure_value_7,
           pd.pressure_date_day_7,
           pd.dashboard_url
-        FROM pressure_data pd
-        WHERE pd.region IS NOT NULL
-          ${regionFilter}
+        FROM communication_status cs
+        LEFT JOIN (
+          SELECT DISTINCT ON (scheme_id, village_name, esr_name) *
+          FROM pressure_data
+          ORDER BY scheme_id, village_name, esr_name, pressure_date_day_7 DESC
+        ) pd ON (cs.scheme_id = pd.scheme_id AND cs.village_name = pd.village_name AND cs.esr_name = pd.esr_name)
+        WHERE cs.region IS NOT NULL
+          AND cs.pressure_connected = 'Connected'
+          ${region && region !== 'All Regions' ? sql`AND cs.region = ${region}` : sql``}
           ${categoryCondition}
-          ${schemeIdFilter}
-        ORDER BY pd.region, pd.village_name
+          ${communicationStatusSchemeFilter}
+        ORDER BY cs.region, cs.village_name
       `;
       const result = await db.execute(query);
       queryData = result.rows;

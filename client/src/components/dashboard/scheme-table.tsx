@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Card,
@@ -169,21 +169,24 @@ export default function SchemeTable({
     return Number(((value / total) * 100).toFixed(2));
   };
 
-  // Get overall totals from region summary (always global, regardless of filters)
-  const overallTotals = {
-    totalVillages: regionSummary?.total_villages_integrated
-      ? parseInt(String(regionSummary.total_villages_integrated))
-      : 0,
-    totalFullyCompletedVillages: regionSummary?.fully_completed_villages
-      ? parseInt(String(regionSummary.fully_completed_villages))
-      : 0,
-    totalEsr: regionSummary?.total_esr_integrated
-      ? parseInt(String(regionSummary.total_esr_integrated))
-      : 0,
-    totalFullyCompletedEsr: regionSummary?.fully_completed_esr
-      ? parseInt(String(regionSummary.fully_completed_esr))
-      : 0,
-  };
+  // Calculate totals from filtered schemes
+  const overallTotals = useMemo(() => {
+    return filteredSchemes.reduce(
+      (acc, scheme) => {
+        acc.totalVillages += scheme.number_of_village || 0;
+        acc.totalFullyCompletedVillages += scheme.fully_completed_villages || 0;
+        acc.totalEsr += scheme.total_number_of_esr || 0;
+        acc.totalFullyCompletedEsr += scheme.no_fully_completed_esr || 0;
+        return acc;
+      },
+      {
+        totalVillages: 0,
+        totalFullyCompletedVillages: 0,
+        totalEsr: 0,
+        totalFullyCompletedEsr: 0,
+      }
+    );
+  }, [filteredSchemes]);
 
   return (
     <Card className="bg-white shadow mb-8">

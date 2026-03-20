@@ -1120,6 +1120,9 @@ const DetailedChlorinePage = () => {
         if (schemeFilter !== 'all') {
           params.append("filterType", schemeFilter);
         }
+        if (clickedComparisonCell?.isLpcd !== undefined) {
+          params.append("isLpcd", clickedComparisonCell.isLpcd.toString());
+        }
 
         const response = await fetch(
           `/api/chlorine/overall-region-comparison/details/${clickedComparisonCell?.category}?${params.toString()}`,
@@ -1439,6 +1442,7 @@ const DetailedChlorinePage = () => {
         clickedSchemeComparisonCell?.category,
         clickedSchemeComparisonCell?.region,
         schemeFilter,
+        clickedSchemeComparisonCell?.dates?.join(',')
       ],
       enabled: !!clickedSchemeComparisonCell,
       queryFn: async () => {
@@ -5294,8 +5298,8 @@ const DetailedChlorinePage = () => {
                           <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 dark:bg-orange-950/50 border border-orange-200 dark:border-orange-800 rounded-lg">
                             <Gauge className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400" />
                             <span className="!text-[12px] font-medium text-orange-700 dark:text-orange-300">
-                              Optimal Range:{" "}
-                              <span className="font-bold">0.2 - 0.7 bar</span>
+                              Numbers Represent{" "}
+                              <span className="font-bold">Pressure Sensors</span>
                             </span>
                           </div>
                         </CardTitle>
@@ -9500,6 +9504,7 @@ const DetailedChlorinePage = () => {
                                           </a>
                                         )}
                                       </TableCell>
+
                                     </TableRow>
                                   ),
                                 )}
@@ -10140,16 +10145,24 @@ const DetailedChlorinePage = () => {
                         <div
                           className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 ${mainTab === "lpcd" ? "bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800" : mainTab === "pressure" ? "bg-orange-50 dark:bg-orange-950/50 border-orange-200 dark:border-orange-800" : "bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800"} border rounded-lg`}
                         >
-                          <Home
-                            className={`h-3.5 w-3.5 ${mainTab === "lpcd" ? "text-emerald-600 dark:text-emerald-400" : mainTab === "pressure" ? "text-orange-600 dark:text-orange-400" : "text-blue-600 dark:text-blue-400"}`}
-                          />
+                          {mainTab === "lpcd" ? (
+                            lpcdSubTab === "scheme" ? (
+                              <Building2 className={`h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400`} />
+                            ) : (
+                              <Home className={`h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400`} />
+                            )
+                          ) : mainTab === "pressure" ? (
+                            <Zap className={`h-3.5 w-3.5 text-orange-600 dark:text-orange-400`} />
+                          ) : (
+                            <Zap className={`h-3.5 w-3.5 text-blue-600 dark:text-blue-400`} />
+                          )}
                           <span
                             className={`!text-[12px] font-medium ${mainTab === "lpcd" ? "text-emerald-700 dark:text-emerald-300" : mainTab === "pressure" ? "text-orange-700 dark:text-orange-300" : "text-blue-700 dark:text-blue-300"}`}
                           >
                             Numbers represent{" "}
                             <span className="font-bold">
                               {mainTab === "lpcd"
-                                ? "Villages"
+                                ? (lpcdSubTab === "village" ? "Villages" : "Schemes")
                                 : mainTab === "pressure"
                                   ? "Pressure Sensors"
                                   : "RCAs"}
@@ -12239,10 +12252,11 @@ const DetailedChlorinePage = () => {
                                             <button
                                               onClick={() =>
                                                 setClickedComparisonCell({
-                                                  category: "all_villages",
+                                                  category: "weekly_all_villages",
                                                   region: regionData.region,
-                                                  label: `All Villages - ${regionData.region}`,
+                                                  label: `Weekly Avg Total - ${regionData.region}`,
                                                   isLpcd: true,
+                                                  dates: weeklyLpcdStats?.dates,
                                                 })
                                               }
                                               className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-violet-100 dark:bg-violet-900 text-dark-700 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-800 transition-colors"
@@ -12257,10 +12271,11 @@ const DetailedChlorinePage = () => {
                                       <button
                                         onClick={() =>
                                           setClickedComparisonCell({
-                                            category: "all_villages",
+                                            category: "weekly_all_villages",
                                             region: "All Regions",
-                                            label: "All Villages - All Regions",
+                                            label: "Weekly Avg Total - All Regions",
                                             isLpcd: true,
+                                            dates: weeklyLpcdStats?.dates,
                                           })
                                         }
                                         className="min-w-[40px] px-2 py-1 rounded-md text-sm font-bold bg-violet-200 dark:bg-violet-800 text-dark-800 dark:text-violet-200 hover:bg-violet-300 dark:hover:bg-violet-700 transition-colors"
@@ -12875,9 +12890,10 @@ const DetailedChlorinePage = () => {
                                           <button
                                             onClick={() =>
                                               setClickedSchemeComparisonCell({
-                                                category: "total_schemes",
+                                                category: "weekly_total_schemes",
                                                 region: regionData.region,
                                                 label: `Total Schemes - ${regionData.region}`,
+                                                dates: weeklyLpcdStats?.dates
                                               })
                                             }
                                             className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/60 transition-colors"
@@ -12890,9 +12906,10 @@ const DetailedChlorinePage = () => {
                                         <button
                                           onClick={() =>
                                             setClickedSchemeComparisonCell({
-                                              category: "total_schemes",
+                                              category: "weekly_total_schemes",
                                               region: "All Regions",
                                               label: "Total Schemes - All Regions",
+                                              dates: weeklyLpcdStats?.dates
                                             })
                                           }
                                           className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-200 hover:bg-purple-300 dark:hover:bg-purple-700 transition-colors"
@@ -14349,6 +14366,9 @@ const DetailedChlorinePage = () => {
                                     if (schemeFilter !== 'all') {
                                       params.append("filterType", schemeFilter);
                                     }
+                                    if (clickedComparisonCell.isLpcd !== undefined) {
+                                      params.append("isLpcd", clickedComparisonCell.isLpcd.toString());
+                                    }
 
                                     const url = `/api/chlorine/overall-region-comparison/export/${clickedComparisonCell.category}?${params.toString()}`;
                                     window.open(url, "_blank");
@@ -14552,9 +14572,9 @@ const DetailedChlorinePage = () => {
                                             className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${item.lpcd_value !== undefined && item.lpcd_value >= 55 ? "bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 dark:from-blue-900/60 dark:to-indigo-900/60 dark:text-blue-300 ring-1 ring-blue-200/80 dark:ring-blue-700/60" : "bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 dark:from-orange-900/60 dark:to-amber-900/60 dark:text-orange-300 ring-1 ring-orange-200/80 dark:ring-orange-700/60"}`}
                                           >
                                             {item.lpcd_value !== undefined
-                                              ? Number(item.lpcd_value).toFixed(
-                                                2,
-                                              )
+                                              ? (clickedComparisonCell.category?.startsWith('weekly_')
+                                                ? Number(item.lpcd_value).toFixed(2)
+                                                : (Number(item.lpcd_value) / 7).toFixed(2))
                                               : "N/A"}
                                           </span>
                                         </TableCell>

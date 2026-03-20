@@ -1041,14 +1041,19 @@ const ChlorineDashboard: React.FC = () => {
 
     // Use the pre-created scheme status map for filtering
 
+
     // Apply commissioned status filter
     if (commissionedFilter !== "all") {
       filtered = filtered.filter((item) => {
         // Get scheme status from the map using scheme_id
         const status = schemeStatusMap.get(item.scheme_id);
+        if (commissionedFilter === "Water Supply") {
+          return status && status.water_supply === "Yes";
+        }
         return status && status.mjp_commissioned === commissionedFilter;
       });
     }
+
 
     // Apply fully completed filter
     if (fullyCompletedFilter !== "all") {
@@ -2960,6 +2965,9 @@ const ChlorineDashboard: React.FC = () => {
                             const status = schemeStatusData?.find(
                               (s) => s.scheme_id === item.scheme_id,
                             );
+                            if (commissionedFilter === "Water Supply") {
+                              return status && status.water_supply === "Yes";
+                            }
                             return (
                               status &&
                               status.mjp_commissioned === commissionedFilter
