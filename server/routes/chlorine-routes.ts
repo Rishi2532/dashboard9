@@ -7045,7 +7045,8 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
             CASE WHEN total_population > 0 THEN ROUND((total_water_day5 * 100000) / total_population, 2) ELSE 0 END as lpcd_value_day5,
             CASE WHEN total_population > 0 THEN ROUND((total_water_day6 * 100000) / total_population, 2) ELSE 0 END as lpcd_value_day6,
             CASE WHEN total_population > 0 THEN ROUND((total_water_day7 * 100000) / total_population, 2) ELSE 0 END as lpcd_value_day7,
-            total_water_day7
+            total_water_day1, total_water_day2, total_water_day3,
+            total_water_day4, total_water_day5, total_water_day6, total_water_day7
           FROM scheme_aggregation
         ),
         live_data AS (
