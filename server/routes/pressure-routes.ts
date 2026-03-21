@@ -1305,14 +1305,16 @@ router.get("/overall-region-comparison", async (req, res) => {
     const result = await db.execute(sql.raw(`
       WITH pressure_analysis AS (
         SELECT 
-          cs.region,
-          cs.id,
+          pd.region,
+          pd.scheme_id,
+          pd.village_name,
+          pd.esr_name,
+          pd.pressure_value_7,
           CASE 
-            WHEN cs.pressure_status = 'Offline' OR cs.pressure_status = 'offline' THEN 'offline'
-            WHEN pd.pressure_value_7 IS NULL THEN 'offline'
             WHEN pd.pressure_value_7 < 0.2 THEN 'below_0_2'
             WHEN pd.pressure_value_7 >= 0.2 AND pd.pressure_value_7 <= 0.7 THEN 'optimal_0_2_0_7'
-            ELSE 'above_0_7'
+            WHEN pd.pressure_value_7 > 0.7 THEN 'above_0_7'
+            ELSE 'no_data'
           END as pressure_category,
           CASE 
             WHEN pd.pressure_value_1 < 0.2 AND pd.pressure_value_2 < 0.2 AND pd.pressure_value_3 < 0.2 
@@ -1333,23 +1335,28 @@ router.get("/overall-region-comparison", async (req, res) => {
               AND pd.pressure_value_4 > 0.7 AND pd.pressure_value_5 > 0.7 AND pd.pressure_value_6 > 0.7 
               AND pd.pressure_value_7 > 0.7 THEN 1 ELSE 0 
           END as consistent_above
-        FROM communication_status cs
-        LEFT JOIN (
-          SELECT DISTINCT ON (scheme_id, village_name, esr_name) *
-          FROM pressure_data
-          ORDER BY scheme_id, village_name, esr_name, pressure_date_day_7 DESC
-        ) pd ON (
-          cs.scheme_id = pd.scheme_id AND 
-          cs.village_name = pd.village_name AND 
-          cs.esr_name = pd.esr_name
+        FROM pressure_data pd
+        INNER JOIN communication_status cs ON (
+          pd.scheme_id = cs.scheme_id AND 
+          pd.village_name = cs.village_name AND 
+          pd.esr_name = cs.esr_name
         )
-        WHERE cs.region IS NOT NULL 
-        AND cs.pressure_connected = 'Connected'
-        ${communicationStatusSchemeFilter}
+        WHERE pd.region IS NOT NULL 
+        AND cs.pressure_connected = 'Connected' 
+        AND cs.pressure_status <> 'Offline'
+        ${schemeIdFilter}
+      ),
+      offline_analysis AS (
+        SELECT 
+          cs.region,
+          COUNT(DISTINCT CASE WHEN cs.pressure_connected = 'Connected' AND cs.pressure_status = 'Offline' THEN cs.id END) as offline_count
+        FROM communication_status cs
+        WHERE cs.region IS NOT NULL ${communicationStatusSchemeFilter}
+        GROUP BY cs.region
       )
       SELECT 
-        region,
-        COUNT(CASE WHEN pressure_category = 'offline' THEN 1 END) as offline,
+        pa.region,
+        COALESCE(oa.offline_count, 0) + COUNT(CASE WHEN pressure_category = 'no_data' THEN 1 END) as offline,
         COUNT(CASE WHEN pressure_category = 'below_0_2' THEN 1 END) as below_0_2,
         COUNT(CASE WHEN pressure_category = 'optimal_0_2_0_7' THEN 1 END) as optimal_0_2_0_7,
         COUNT(CASE WHEN pressure_category = 'above_0_7' THEN 1 END) as above_0_7,
@@ -1357,9 +1364,10 @@ router.get("/overall-region-comparison", async (req, res) => {
         COUNT(CASE WHEN consistent_optimal = 1 THEN 1 END) as consistent_optimal,
         COUNT(CASE WHEN consistent_above = 1 THEN 1 END) as consistent_above_0_7,
         COUNT(*) as total_count
-      FROM pressure_analysis
-      GROUP BY region
-      ORDER BY region
+      FROM pressure_analysis pa
+      LEFT JOIN offline_analysis oa ON pa.region = oa.region
+      GROUP BY pa.region, oa.offline_count
+      ORDER BY pa.region
     `));
 
     res.json({
@@ -1373,7 +1381,6 @@ router.get("/overall-region-comparison", async (req, res) => {
         consistent_below_0_2: Number(row.consistent_below_0_2) || 0,
         consistent_optimal: Number(row.consistent_optimal) || 0,
         consistent_above_0_7: Number(row.consistent_above_0_7) || 0,
-        connected: Number(row.total_count) || 0,
       }))
     });
   } catch (error) {
@@ -1420,160 +1427,73 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
     let categoryCondition;
     switch (category) {
       case 'offline':
-        const offlineQuery = sql`
-          SELECT 
-            cs.region,
-            cs.circle,
-            cs.division,
-            cs.sub_division,
-            cs.block,
-            cs.scheme_id,
-            cs.scheme_name,
-            cs.village_name,
-            cs.esr_name,
-            cs.pressure_status,
-            cs.pressure_last_seen,
-            pd.dashboard_url,
-            pd.pressure_value_7 as pressure_value,
-            pd.pressure_date_day_7 as pressure_date
-          FROM communication_status cs
-          LEFT JOIN (
-            SELECT DISTINCT ON (scheme_id, village_name, esr_name) *
-            FROM pressure_data
-            ORDER BY scheme_id, village_name, esr_name, pressure_date_day_7 DESC
-          ) pd ON (cs.scheme_id = pd.scheme_id AND cs.village_name = pd.village_name AND cs.esr_name = pd.esr_name)
-          WHERE cs.pressure_connected = 'Connected'
-            AND (
-              cs.pressure_status = 'Offline' OR cs.pressure_status = 'offline'
-              OR (
-                (cs.pressure_status = 'Online' OR cs.pressure_status = 'online')
-                AND pd.pressure_value_7 IS NULL
-              )
-            )
-            ${communicationStatusSchemeFilter}
-            ${region && region !== 'All Regions' ? sql`AND cs.region = ${region}` : sql``}
-          ORDER BY cs.region, cs.village_name
-        `;
-        const offlineResult = await db.execute(offlineQuery);
-        return res.json({
-          success: true,
-          data: offlineResult.rows,
-          count: offlineResult.rows.length
-        });
-
+        categoryCondition = sql`AND (cs.pressure_status = 'Offline' OR (cs.pressure_status = 'Online' AND pd.pressure_value_7 IS NULL))`;
+        break;
       case 'all_sensors':
-        const allSensorsQuery = sql`
-            SELECT 
-              cs.region,
-              cs.circle,
-              cs.division,
-              cs.sub_division,
-              cs.block,
-              cs.scheme_id,
-              cs.scheme_name,
-              cs.village_name,
-              cs.esr_name,
-              pd.pressure_value_7 as pressure_value,
-              pd.dashboard_url
-            FROM communication_status cs
-            LEFT JOIN (
-              SELECT DISTINCT ON (scheme_id, village_name, esr_name) *
-              FROM pressure_data
-              ORDER BY scheme_id, village_name, esr_name, pressure_date_day_7 DESC
-            ) pd ON (
-              cs.scheme_id = pd.scheme_id AND 
-              cs.village_name = pd.village_name AND 
-              cs.esr_name = pd.esr_name
-            )
-            WHERE cs.pressure_connected = 'Connected'
-            ${region && region !== 'All Regions' ? sql`AND cs.region = ${region}` : sql``}
-            ${communicationStatusSchemeFilter}
-            ORDER BY cs.region, cs.division, cs.village_name
-          `;
-        const allSensorsResult = await db.execute(allSensorsQuery);
-        return res.json({
-          success: true,
-          data: allSensorsResult.rows,
-          count: allSensorsResult.rows.length
-        });
-
+        categoryCondition = sql`AND (
+          cs.pressure_status = 'Offline' 
+          OR (cs.pressure_status = 'Online' AND pd.pressure_value_7 IS NULL)
+          OR ((cs.pressure_status IS NULL OR cs.pressure_status <> 'Offline') AND pd.pressure_value_7 IS NOT NULL)
+        )`;
+        break;
       case 'below_0_2':
-        categoryCondition = sql`AND pd.pressure_value_7 IS NOT NULL AND pd.pressure_value_7 < 0.2`;
+        categoryCondition = sql`AND (cs.pressure_status IS NULL OR cs.pressure_status <> 'Offline') AND pd.pressure_value_7 IS NOT NULL AND pd.pressure_value_7 < 0.2`;
         break;
       case 'optimal_0_2_0_7':
-        categoryCondition = sql`AND pd.pressure_value_7 IS NOT NULL AND pd.pressure_value_7 >= 0.2 AND pd.pressure_value_7 <= 0.7`;
+        categoryCondition = sql`AND (cs.pressure_status IS NULL OR cs.pressure_status <> 'Offline') AND pd.pressure_value_7 IS NOT NULL AND pd.pressure_value_7 >= 0.2 AND pd.pressure_value_7 <= 0.7`;
         break;
       case 'above_0_7':
-        categoryCondition = sql`AND pd.pressure_value_7 IS NOT NULL AND pd.pressure_value_7 > 0.7`;
+        categoryCondition = sql`AND (cs.pressure_status IS NULL OR cs.pressure_status <> 'Offline') AND pd.pressure_value_7 IS NOT NULL AND pd.pressure_value_7 > 0.7`;
         break;
       case 'consistent_below_0_2':
-        categoryCondition = sql`AND pd.pressure_value_1 < 0.2 AND pd.pressure_value_2 < 0.2 AND pd.pressure_value_3 < 0.2 
-          AND pd.pressure_value_4 < 0.2 AND pd.pressure_value_5 < 0.2 AND pd.pressure_value_6 < 0.2 
-          AND pd.pressure_value_7 < 0.2`;
+        categoryCondition = sql`AND (cs.pressure_status IS NULL OR cs.pressure_status <> 'Offline') AND pd.pressure_value_1 < 0.2 AND pd.pressure_value_2 < 0.2 AND pd.pressure_value_3 < 0.2 AND pd.pressure_value_4 < 0.2 AND pd.pressure_value_5 < 0.2 AND pd.pressure_value_6 < 0.2 AND pd.pressure_value_7 < 0.2`;
         break;
       case 'consistent_optimal':
-        categoryCondition = sql`AND pd.pressure_value_1 >= 0.2 AND pd.pressure_value_1 <= 0.7 
-          AND pd.pressure_value_2 >= 0.2 AND pd.pressure_value_2 <= 0.7
-          AND pd.pressure_value_3 >= 0.2 AND pd.pressure_value_3 <= 0.7
-          AND pd.pressure_value_4 >= 0.2 AND pd.pressure_value_4 <= 0.7
-          AND pd.pressure_value_5 >= 0.2 AND pd.pressure_value_5 <= 0.7
-          AND pd.pressure_value_6 >= 0.2 AND pd.pressure_value_6 <= 0.7
-          AND pd.pressure_value_7 >= 0.2 AND pd.pressure_value_7 <= 0.7`;
+        categoryCondition = sql`AND (cs.pressure_status IS NULL OR cs.pressure_status <> 'Offline') AND pd.pressure_value_1 >= 0.2 AND pd.pressure_value_1 <= 0.7 AND pd.pressure_value_2 >= 0.2 AND pd.pressure_value_2 <= 0.7 AND pd.pressure_value_3 >= 0.2 AND pd.pressure_value_3 <= 0.7 AND pd.pressure_value_4 >= 0.2 AND pd.pressure_value_4 <= 0.7 AND pd.pressure_value_5 >= 0.2 AND pd.pressure_value_5 <= 0.7 AND pd.pressure_value_6 >= 0.2 AND pd.pressure_value_6 <= 0.7 AND pd.pressure_value_7 >= 0.2 AND pd.pressure_value_7 <= 0.7`;
         break;
       case 'consistent_above_0_7':
-        categoryCondition = sql`AND pd.pressure_value_1 > 0.7 AND pd.pressure_value_2 > 0.7 AND pd.pressure_value_3 > 0.7 
-          AND pd.pressure_value_4 > 0.7 AND pd.pressure_value_5 > 0.7 AND pd.pressure_value_6 > 0.7 
-          AND pd.pressure_value_7 > 0.7`;
+        categoryCondition = sql`AND (cs.pressure_status IS NULL OR cs.pressure_status <> 'Offline') AND pd.pressure_value_1 > 0.7 AND pd.pressure_value_2 > 0.7 AND pd.pressure_value_3 > 0.7 AND pd.pressure_value_4 > 0.7 AND pd.pressure_value_5 > 0.7 AND pd.pressure_value_6 > 0.7 AND pd.pressure_value_7 > 0.7`;
         break;
       case 'consistent_all':
-        categoryCondition = sql`AND (
-          (pd.pressure_value_1 < 0.2 AND pd.pressure_value_2 < 0.2 AND pd.pressure_value_3 < 0.2 
-           AND pd.pressure_value_4 < 0.2 AND pd.pressure_value_5 < 0.2 AND pd.pressure_value_6 < 0.2 
-           AND pd.pressure_value_7 < 0.2)
+        categoryCondition = sql`AND (cs.pressure_status IS NULL OR cs.pressure_status <> 'Offline') AND (
+          (pd.pressure_value_1 < 0.2 AND pd.pressure_value_2 < 0.2 AND pd.pressure_value_3 < 0.2 AND pd.pressure_value_4 < 0.2 AND pd.pressure_value_5 < 0.2 AND pd.pressure_value_6 < 0.2 AND pd.pressure_value_7 < 0.2)
           OR
-          (pd.pressure_value_1 >= 0.2 AND pd.pressure_value_1 <= 0.7 
-           AND pd.pressure_value_2 >= 0.2 AND pd.pressure_value_2 <= 0.7
-           AND pd.pressure_value_3 >= 0.2 AND pd.pressure_value_3 <= 0.7
-           AND pd.pressure_value_4 >= 0.2 AND pd.pressure_value_4 <= 0.7
-           AND pd.pressure_value_5 >= 0.2 AND pd.pressure_value_5 <= 0.7
-           AND pd.pressure_value_6 >= 0.2 AND pd.pressure_value_6 <= 0.7
-           AND pd.pressure_value_7 >= 0.2 AND pd.pressure_value_7 <= 0.7)
+          (pd.pressure_value_1 >= 0.2 AND pd.pressure_value_1 <= 0.7 AND pd.pressure_value_2 >= 0.2 AND pd.pressure_value_2 <= 0.7 AND pd.pressure_value_3 >= 0.2 AND pd.pressure_value_3 <= 0.7 AND pd.pressure_value_4 >= 0.2 AND pd.pressure_value_4 <= 0.7 AND pd.pressure_value_5 >= 0.2 AND pd.pressure_value_5 <= 0.7 AND pd.pressure_value_6 >= 0.2 AND pd.pressure_value_6 <= 0.7 AND pd.pressure_value_7 >= 0.2 AND pd.pressure_value_7 <= 0.7)
           OR
-          (pd.pressure_value_1 > 0.7 AND pd.pressure_value_2 > 0.7 AND pd.pressure_value_3 > 0.7 
-           AND pd.pressure_value_4 > 0.7 AND pd.pressure_value_5 > 0.7 AND pd.pressure_value_6 > 0.7 
-           AND pd.pressure_value_7 > 0.7)
+          (pd.pressure_value_1 > 0.7 AND pd.pressure_value_2 > 0.7 AND pd.pressure_value_3 > 0.7 AND pd.pressure_value_4 > 0.7 AND pd.pressure_value_5 > 0.7 AND pd.pressure_value_6 > 0.7 AND pd.pressure_value_7 > 0.7)
         )`;
         break;
       default:
         return res.status(400).json({ error: "Invalid category" });
     }
 
+    const customRegionFilter = region && region !== 'All Regions'
+      ? sql`AND COALESCE(cs.region, pd.region) = ${region}`
+      : sql``;
+
     const query = sql`
       SELECT 
-        cs.region,
-        cs.circle,
-        cs.division,
-        cs.sub_division,
-        cs.block,
-        cs.scheme_id,
-        cs.scheme_name,
-        cs.village_name,
-        cs.esr_name,
+        COALESCE(cs.region, pd.region) as region,
+        COALESCE(cs.circle, pd.circle) as circle,
+        COALESCE(cs.division, pd.division) as division,
+        COALESCE(cs.sub_division, pd.sub_division) as sub_division,
+        COALESCE(cs.block, pd.block) as block,
+        COALESCE(cs.scheme_id, pd.scheme_id) as scheme_id,
+        COALESCE(cs.scheme_name, pd.scheme_name) as scheme_name,
+        COALESCE(cs.village_name, pd.village_name) as village_name,
+        COALESCE(cs.esr_name, pd.esr_name) as esr_name,
         pd.pressure_value_7 as pressure_value,
         pd.pressure_date_day_7 as pressure_date,
+        cs.pressure_status,
+        cs.pressure_last_seen as pressure_last_seen,
         pd.dashboard_url
       FROM communication_status cs
-      LEFT JOIN (
-        SELECT DISTINCT ON (scheme_id, village_name, esr_name) *
-        FROM pressure_data
-        ORDER BY scheme_id, village_name, esr_name, pressure_date_day_7 DESC
-      ) pd ON (cs.scheme_id = pd.scheme_id AND cs.village_name = pd.village_name AND cs.esr_name = pd.esr_name)
-      WHERE cs.region IS NOT NULL
-        AND cs.pressure_connected = 'Connected'
-        ${region && region !== 'All Regions' ? sql`AND cs.region = ${region}` : sql``}
+      FULL OUTER JOIN pressure_data pd ON (cs.scheme_id = pd.scheme_id AND cs.village_name = pd.village_name AND cs.esr_name = pd.esr_name)
+      WHERE COALESCE(cs.pressure_connected, 'Not Connected') = 'Connected'
+        ${customRegionFilter}
         ${categoryCondition}
         ${communicationStatusSchemeFilter}
-      ORDER BY cs.region, cs.village_name
+      ORDER BY COALESCE(cs.region, pd.region), COALESCE(cs.village_name, pd.village_name)
     `;
 
     const result = await db.execute(query);
@@ -1630,161 +1550,76 @@ router.get("/overall-region-comparison/details-export/:category", async (req, re
 
     switch (category) {
       case 'offline':
-        const offlineQuery = sql`
-          SELECT 
-            cs.region,
-            cs.circle,
-            cs.division,
-            cs.sub_division,
-            cs.block,
-            cs.scheme_id,
-            cs.scheme_name,
-            cs.village_name,
-            cs.esr_name,
-            cs.pressure_status,
-            cs.pressure_last_seen,
-            pd.dashboard_url,
-            pd.pressure_value_7 as pressure_value,
-            pd.pressure_date_day_7 as pressure_date
-          FROM communication_status cs
-          LEFT JOIN (
-            SELECT DISTINCT ON (scheme_id, village_name, esr_name) *
-            FROM pressure_data
-            ORDER BY scheme_id, village_name, esr_name, pressure_date_day_7 DESC
-          ) pd ON (cs.scheme_id = pd.scheme_id AND cs.village_name = pd.village_name AND cs.esr_name = pd.esr_name)
-          WHERE cs.pressure_connected = 'Connected'
-            AND (
-              cs.pressure_status = 'Offline' OR cs.pressure_status = 'offline'
-              OR (
-                (cs.pressure_status = 'Online' OR cs.pressure_status = 'online')
-                AND pd.pressure_value_7 IS NULL
-              )
-            )
-            ${communicationStatusSchemeFilter}
-            ${region && region !== 'All Regions' ? sql`AND cs.region = ${region}` : sql``}
-          ORDER BY cs.region, cs.village_name
-        `;
-        const offlineResult = await db.execute(offlineQuery);
-        queryData = offlineResult.rows;
-        break;
-      case 'below_0_2':
-        categoryCondition = sql`AND pd.pressure_value_7 IS NOT NULL AND pd.pressure_value_7 < 0.2`;
-        break;
-      case 'optimal_0_2_0_7':
-        categoryCondition = sql`AND pd.pressure_value_7 IS NOT NULL AND pd.pressure_value_7 >= 0.2 AND pd.pressure_value_7 <= 0.7`;
-        break;
-      case 'above_0_7':
-        categoryCondition = sql`AND pd.pressure_value_7 IS NOT NULL AND pd.pressure_value_7 > 0.7`;
-        break;
-      case 'consistent_below_0_2':
-        categoryCondition = sql`AND pd.pressure_value_1 < 0.2 AND pd.pressure_value_2 < 0.2 AND pd.pressure_value_3 < 0.2 
-          AND pd.pressure_value_4 < 0.2 AND pd.pressure_value_5 < 0.2 AND pd.pressure_value_6 < 0.2 
-          AND pd.pressure_value_7 < 0.2`;
-        break;
-      case 'consistent_optimal':
-        categoryCondition = sql`AND pd.pressure_value_1 >= 0.2 AND pd.pressure_value_1 <= 0.7 
-          AND pd.pressure_value_2 >= 0.2 AND pd.pressure_value_2 <= 0.7
-          AND pd.pressure_value_3 >= 0.2 AND pd.pressure_value_3 <= 0.7
-          AND pd.pressure_value_4 >= 0.2 AND pd.pressure_value_4 <= 0.7
-          AND pd.pressure_value_5 >= 0.2 AND pd.pressure_value_5 <= 0.7
-          AND pd.pressure_value_6 >= 0.2 AND pd.pressure_value_6 <= 0.7
-          AND pd.pressure_value_7 >= 0.2 AND pd.pressure_value_7 <= 0.7`;
-        break;
-      case 'consistent_above_0_7':
-        categoryCondition = sql`AND pd.pressure_value_1 > 0.7 AND pd.pressure_value_2 > 0.7 AND pd.pressure_value_3 > 0.7 
-          AND pd.pressure_value_4 > 0.7 AND pd.pressure_value_5 > 0.7 AND pd.pressure_value_6 > 0.7 
-          AND pd.pressure_value_7 > 0.7`;
-        break;
-      case 'consistent_all':
-        categoryCondition = sql`AND (
-          (pd.pressure_value_1 < 0.2 AND pd.pressure_value_2 < 0.2 AND pd.pressure_value_3 < 0.2 
-           AND pd.pressure_value_4 < 0.2 AND pd.pressure_value_5 < 0.2 AND pd.pressure_value_6 < 0.2 
-           AND pd.pressure_value_7 < 0.2)
-          OR
-          (pd.pressure_value_1 >= 0.2 AND pd.pressure_value_1 <= 0.7 
-           AND pd.pressure_value_2 >= 0.2 AND pd.pressure_value_2 <= 0.7
-           AND pd.pressure_value_3 >= 0.2 AND pd.pressure_value_3 <= 0.7
-           AND pd.pressure_value_4 >= 0.2 AND pd.pressure_value_4 <= 0.7
-           AND pd.pressure_value_5 >= 0.2 AND pd.pressure_value_5 <= 0.7
-           AND pd.pressure_value_6 >= 0.2 AND pd.pressure_value_6 <= 0.7
-           AND pd.pressure_value_7 >= 0.2 AND pd.pressure_value_7 <= 0.7)
-          OR
-          (pd.pressure_value_1 > 0.7 AND pd.pressure_value_2 > 0.7 AND pd.pressure_value_3 > 0.7 
-           AND pd.pressure_value_4 > 0.7 AND pd.pressure_value_5 > 0.7 AND pd.pressure_value_6 > 0.7 
-           AND pd.pressure_value_7 > 0.7)
-        )`;
+        categoryCondition = sql`AND (cs.pressure_status = 'Offline' OR (cs.pressure_status = 'Online' AND pd.pressure_value_7 IS NULL))`;
         break;
       case 'all_sensors':
-        categoryCondition = sql``;
-        queryData = []; // Will query explicitly below if needed, but here we can just set base
-        // Special handling for all_sensors to use communication_status base
-        const allSensorsExportQuery = sql`
-            SELECT 
-              cs.region,
-              cs.circle,
-              cs.division,
-              cs.sub_division,
-              cs.block,
-              cs.scheme_id,
-              cs.scheme_name,
-              cs.village_name,
-              cs.esr_name,
-              pd.pressure_value_7 as pressure_value,
-              pd.pressure_date_day_7 as pressure_date,
-              pd.dashboard_url
-            FROM communication_status cs
-            LEFT JOIN (
-              SELECT DISTINCT ON (scheme_id, village_name, esr_name) *
-              FROM pressure_data
-              ORDER BY scheme_id, village_name, esr_name, pressure_date_day_7 DESC
-            ) pd ON (
-              cs.scheme_id = pd.scheme_id AND 
-              cs.village_name = pd.village_name AND 
-              cs.esr_name = pd.esr_name
-            )
-            WHERE cs.pressure_connected = 'Connected'
-            ${region && region !== 'All Regions' ? sql`AND cs.region = ${region}` : sql``}
-            ${communicationStatusSchemeFilter}
-            ORDER BY cs.region, cs.division, cs.village_name
-        `;
-        const result = await db.execute(allSensorsExportQuery);
-        queryData = result.rows;
+        categoryCondition = sql`AND (
+          cs.pressure_status = 'Offline' 
+          OR (cs.pressure_status = 'Online' AND pd.pressure_value_7 IS NULL)
+          OR ((cs.pressure_status IS NULL OR cs.pressure_status <> 'Offline') AND pd.pressure_value_7 IS NOT NULL)
+        )`;
+        break;
+      case 'below_0_2':
+        categoryCondition = sql`AND (cs.pressure_status IS NULL OR cs.pressure_status <> 'Offline') AND pd.pressure_value_7 IS NOT NULL AND pd.pressure_value_7 < 0.2`;
+        break;
+      case 'optimal_0_2_0_7':
+        categoryCondition = sql`AND (cs.pressure_status IS NULL OR cs.pressure_status <> 'Offline') AND pd.pressure_value_7 IS NOT NULL AND pd.pressure_value_7 >= 0.2 AND pd.pressure_value_7 <= 0.7`;
+        break;
+      case 'above_0_7':
+        categoryCondition = sql`AND (cs.pressure_status IS NULL OR cs.pressure_status <> 'Offline') AND pd.pressure_value_7 IS NOT NULL AND pd.pressure_value_7 > 0.7`;
+        break;
+      case 'consistent_below_0_2':
+        categoryCondition = sql`AND (cs.pressure_status IS NULL OR cs.pressure_status <> 'Offline') AND pd.pressure_value_1 < 0.2 AND pd.pressure_value_2 < 0.2 AND pd.pressure_value_3 < 0.2 AND pd.pressure_value_4 < 0.2 AND pd.pressure_value_5 < 0.2 AND pd.pressure_value_6 < 0.2 AND pd.pressure_value_7 < 0.2`;
+        break;
+      case 'consistent_optimal':
+        categoryCondition = sql`AND (cs.pressure_status IS NULL OR cs.pressure_status <> 'Offline') AND pd.pressure_value_1 >= 0.2 AND pd.pressure_value_1 <= 0.7 AND pd.pressure_value_2 >= 0.2 AND pd.pressure_value_2 <= 0.7 AND pd.pressure_value_3 >= 0.2 AND pd.pressure_value_3 <= 0.7 AND pd.pressure_value_4 >= 0.2 AND pd.pressure_value_4 <= 0.7 AND pd.pressure_value_5 >= 0.2 AND pd.pressure_value_5 <= 0.7 AND pd.pressure_value_6 >= 0.2 AND pd.pressure_value_6 <= 0.7 AND pd.pressure_value_7 >= 0.2 AND pd.pressure_value_7 <= 0.7`;
+        break;
+      case 'consistent_above_0_7':
+        categoryCondition = sql`AND (cs.pressure_status IS NULL OR cs.pressure_status <> 'Offline') AND pd.pressure_value_1 > 0.7 AND pd.pressure_value_2 > 0.7 AND pd.pressure_value_3 > 0.7 AND pd.pressure_value_4 > 0.7 AND pd.pressure_value_5 > 0.7 AND pd.pressure_value_6 > 0.7 AND pd.pressure_value_7 > 0.7`;
+        break;
+      case 'consistent_all':
+        categoryCondition = sql`AND (cs.pressure_status IS NULL OR cs.pressure_status <> 'Offline') AND (
+          (pd.pressure_value_1 < 0.2 AND pd.pressure_value_2 < 0.2 AND pd.pressure_value_3 < 0.2 AND pd.pressure_value_4 < 0.2 AND pd.pressure_value_5 < 0.2 AND pd.pressure_value_6 < 0.2 AND pd.pressure_value_7 < 0.2)
+          OR
+          (pd.pressure_value_1 >= 0.2 AND pd.pressure_value_1 <= 0.7 AND pd.pressure_value_2 >= 0.2 AND pd.pressure_value_2 <= 0.7 AND pd.pressure_value_3 >= 0.2 AND pd.pressure_value_3 <= 0.7 AND pd.pressure_value_4 >= 0.2 AND pd.pressure_value_4 <= 0.7 AND pd.pressure_value_5 >= 0.2 AND pd.pressure_value_5 <= 0.7 AND pd.pressure_value_6 >= 0.2 AND pd.pressure_value_6 <= 0.7 AND pd.pressure_value_7 >= 0.2 AND pd.pressure_value_7 <= 0.7)
+          OR
+          (pd.pressure_value_1 > 0.7 AND pd.pressure_value_2 > 0.7 AND pd.pressure_value_3 > 0.7 AND pd.pressure_value_4 > 0.7 AND pd.pressure_value_5 > 0.7 AND pd.pressure_value_6 > 0.7 AND pd.pressure_value_7 > 0.7)
+        )`;
         break;
       default:
         return res.status(400).json({ error: "Invalid category" });
     }
 
-    if (category !== 'offline' && category !== 'all_sensors') {
-      const query = sql`
-        SELECT 
-          cs.region,
-          cs.circle,
-          cs.division,
-          cs.sub_division,
-          cs.block,
-          cs.scheme_id,
-          cs.scheme_name,
-          cs.village_name,
-          cs.esr_name,
-          pd.pressure_value_7,
-          pd.pressure_date_day_7,
-          pd.dashboard_url
-        FROM communication_status cs
-        LEFT JOIN (
-          SELECT DISTINCT ON (scheme_id, village_name, esr_name) *
-          FROM pressure_data
-          ORDER BY scheme_id, village_name, esr_name, pressure_date_day_7 DESC
-        ) pd ON (cs.scheme_id = pd.scheme_id AND cs.village_name = pd.village_name AND cs.esr_name = pd.esr_name)
-        WHERE cs.region IS NOT NULL
-          AND cs.pressure_connected = 'Connected'
-          ${region && region !== 'All Regions' ? sql`AND cs.region = ${region}` : sql``}
-          ${categoryCondition}
-          ${communicationStatusSchemeFilter}
-        ORDER BY cs.region, cs.village_name
-      `;
-      const result = await db.execute(query);
-      queryData = result.rows;
-    }
+    const customRegionFilter = region && region !== 'All Regions'
+      ? sql`AND COALESCE(cs.region, pd.region) = ${region}`
+      : sql``;
+
+    const query = sql`
+      SELECT 
+        COALESCE(cs.region, pd.region) as region,
+        COALESCE(cs.circle, pd.circle) as circle,
+        COALESCE(cs.division, pd.division) as division,
+        COALESCE(cs.sub_division, pd.sub_division) as sub_division,
+        COALESCE(cs.block, pd.block) as block,
+        COALESCE(cs.scheme_id, pd.scheme_id) as scheme_id,
+        COALESCE(cs.scheme_name, pd.scheme_name) as scheme_name,
+        COALESCE(cs.village_name, pd.village_name) as village_name,
+        COALESCE(cs.esr_name, pd.esr_name) as esr_name,
+        pd.pressure_value_7 as pressure_value_7,
+        pd.pressure_date_day_7 as pressure_date_day_7,
+        cs.pressure_status,
+        cs.pressure_last_seen as last_seen,
+        pd.dashboard_url
+      FROM communication_status cs
+      FULL OUTER JOIN pressure_data pd ON (cs.scheme_id = pd.scheme_id AND cs.village_name = pd.village_name AND cs.esr_name = pd.esr_name)
+      WHERE COALESCE(cs.pressure_connected, 'Not Connected') = 'Connected'
+        ${customRegionFilter}
+        ${categoryCondition}
+        ${communicationStatusSchemeFilter}
+      ORDER BY COALESCE(cs.region, pd.region), COALESCE(cs.village_name, pd.village_name)
+    `;
+    const result = await db.execute(query);
+    queryData = result.rows;
 
     const data = queryData.map((row: any) => ({
       Region: row.region,

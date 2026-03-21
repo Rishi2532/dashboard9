@@ -47,8 +47,25 @@ export async function cleanupWaterSchemeData() {
       `);
       console.log(`✅ Cleaned up ${schemeCleanupResult.rowCount} records with trailing spaces in scheme names`);
       
-      // Clean up village names
-      console.log('Cleaning up village names...');
+      // Clean up village names - Step 1: Handle potential primary key violations by deduplicating
+      console.log('Deduplicating village names before trimming...');
+      const dedupeResult = await client.query(`
+        WITH duplicates AS (
+          SELECT ctid,
+                 ROW_NUMBER() OVER (
+                   PARTITION BY scheme_id, block, TRIM(village_name) 
+                   ORDER BY (water_value_day7 IS NOT NULL) DESC, village_name = TRIM(village_name) DESC, ctid ASC
+                 ) as row_num
+          FROM water_scheme_data
+          WHERE village_name IS NOT NULL
+        )
+        DELETE FROM water_scheme_data
+        WHERE ctid IN (SELECT ctid FROM duplicates WHERE row_num > 1)
+      `);
+      console.log(`✅ Removed ${dedupeResult.rowCount} redundant records that would cause collisions`);
+
+      // Clean up village names - Step 2: Now safe to TRIM
+      console.log('Trimming village names...');
       const villageCleanupResult = await client.query(`
         UPDATE water_scheme_data 
         SET village_name = TRIM(village_name) 

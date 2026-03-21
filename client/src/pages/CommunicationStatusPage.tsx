@@ -1033,10 +1033,7 @@ export default function CommunicationStatusPage() {
                       <span className="text-sm font-medium">Connected</span>
                     </div>
                     <span className="text-xl font-bold text-black-600">
-                      {Math.round(
-                        Number(overview.flow_meter_online) +
-                        Number(overview.flow_meter_offline),
-                      )}
+                      {overview.flow_meter_connected}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -1105,10 +1102,7 @@ export default function CommunicationStatusPage() {
                       <span className="text-sm font-medium">Connected</span>
                     </div>
                     <span className="text-xl font-bold text-black-600">
-                      {Math.round(
-                        Number(overview.chlorine_online) +
-                        Number(overview.chlorine_offline),
-                      )}
+                      {overview.chlorine_connected}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -1177,10 +1171,7 @@ export default function CommunicationStatusPage() {
                       <span className="text-sm font-medium">Connected</span>
                     </div>
                     <span className="text-xl font-bold text-black-600">
-                      {Math.round(
-                        Number(overview.pressure_online) +
-                        Number(overview.pressure_offline),
-                      )}
+                      {overview.pressure_connected}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
