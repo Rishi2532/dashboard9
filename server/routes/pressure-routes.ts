@@ -1304,7 +1304,7 @@ router.get("/overall-region-comparison", async (req, res) => {
 
     const result = await db.execute(sql.raw(`
       WITH pressure_analysis AS (
-        SELECT 
+        SELECT DISTINCT ON (pd.scheme_id, pd.village_name, pd.esr_name)
           pd.region,
           pd.scheme_id,
           pd.village_name,
@@ -1345,6 +1345,7 @@ router.get("/overall-region-comparison", async (req, res) => {
         AND cs.pressure_connected = 'Connected' 
         AND cs.pressure_status <> 'Offline'
         ${schemeIdFilter}
+        ORDER BY pd.scheme_id, pd.village_name, pd.esr_name, cs.uploaded_at DESC
       ),
       offline_analysis AS (
         SELECT 
@@ -1363,7 +1364,7 @@ router.get("/overall-region-comparison", async (req, res) => {
         COUNT(CASE WHEN consistent_below = 1 THEN 1 END) as consistent_below_0_2,
         COUNT(CASE WHEN consistent_optimal = 1 THEN 1 END) as consistent_optimal,
         COUNT(CASE WHEN consistent_above = 1 THEN 1 END) as consistent_above_0_7,
-        COUNT(*) as total_count
+        COALESCE(oa.offline_count, 0) + COUNT(*) as total_count
       FROM pressure_analysis pa
       LEFT JOIN offline_analysis oa ON pa.region = oa.region
       GROUP BY pa.region, oa.offline_count
@@ -1472,28 +1473,31 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
       : sql``;
 
     const query = sql`
-      SELECT 
-        COALESCE(cs.region, pd.region) as region,
-        COALESCE(cs.circle, pd.circle) as circle,
-        COALESCE(cs.division, pd.division) as division,
-        COALESCE(cs.sub_division, pd.sub_division) as sub_division,
-        COALESCE(cs.block, pd.block) as block,
-        COALESCE(cs.scheme_id, pd.scheme_id) as scheme_id,
-        COALESCE(cs.scheme_name, pd.scheme_name) as scheme_name,
-        COALESCE(cs.village_name, pd.village_name) as village_name,
-        COALESCE(cs.esr_name, pd.esr_name) as esr_name,
-        pd.pressure_value_7 as pressure_value,
-        pd.pressure_date_day_7 as pressure_date,
-        cs.pressure_status,
-        cs.pressure_last_seen as pressure_last_seen,
-        pd.dashboard_url
-      FROM communication_status cs
-      FULL OUTER JOIN pressure_data pd ON (cs.scheme_id = pd.scheme_id AND cs.village_name = pd.village_name AND cs.esr_name = pd.esr_name)
-      WHERE COALESCE(cs.pressure_connected, 'Not Connected') = 'Connected'
-        ${customRegionFilter}
-        ${categoryCondition}
-        ${communicationStatusSchemeFilter}
-      ORDER BY COALESCE(cs.region, pd.region), COALESCE(cs.village_name, pd.village_name)
+      SELECT * FROM (
+        SELECT DISTINCT ON (COALESCE(cs.scheme_id, pd.scheme_id), COALESCE(cs.village_name, pd.village_name), COALESCE(cs.esr_name, pd.esr_name))
+          COALESCE(cs.region, pd.region) as region,
+          COALESCE(cs.circle, pd.circle) as circle,
+          COALESCE(cs.division, pd.division) as division,
+          COALESCE(cs.sub_division, pd.sub_division) as sub_division,
+          COALESCE(cs.block, pd.block) as block,
+          COALESCE(cs.scheme_id, pd.scheme_id) as scheme_id,
+          COALESCE(cs.scheme_name, pd.scheme_name) as scheme_name,
+          COALESCE(cs.village_name, pd.village_name) as village_name,
+          COALESCE(cs.esr_name, pd.esr_name) as esr_name,
+          pd.pressure_value_7 as pressure_value,
+          pd.pressure_date_day_7 as pressure_date,
+          cs.pressure_status,
+          cs.pressure_last_seen as pressure_last_seen,
+          pd.dashboard_url
+        FROM communication_status cs
+        FULL OUTER JOIN pressure_data pd ON (cs.scheme_id = pd.scheme_id AND cs.village_name = pd.village_name AND cs.esr_name = pd.esr_name)
+        WHERE COALESCE(cs.pressure_connected, 'Not Connected') = 'Connected'
+          ${customRegionFilter}
+          ${categoryCondition}
+          ${communicationStatusSchemeFilter}
+        ORDER BY COALESCE(cs.scheme_id, pd.scheme_id), COALESCE(cs.village_name, pd.village_name), COALESCE(cs.esr_name, pd.esr_name), cs.uploaded_at DESC
+      ) as t
+      ORDER BY region, village_name
     `;
 
     const result = await db.execute(query);
@@ -1595,28 +1599,31 @@ router.get("/overall-region-comparison/details-export/:category", async (req, re
       : sql``;
 
     const query = sql`
-      SELECT 
-        COALESCE(cs.region, pd.region) as region,
-        COALESCE(cs.circle, pd.circle) as circle,
-        COALESCE(cs.division, pd.division) as division,
-        COALESCE(cs.sub_division, pd.sub_division) as sub_division,
-        COALESCE(cs.block, pd.block) as block,
-        COALESCE(cs.scheme_id, pd.scheme_id) as scheme_id,
-        COALESCE(cs.scheme_name, pd.scheme_name) as scheme_name,
-        COALESCE(cs.village_name, pd.village_name) as village_name,
-        COALESCE(cs.esr_name, pd.esr_name) as esr_name,
-        pd.pressure_value_7 as pressure_value_7,
-        pd.pressure_date_day_7 as pressure_date_day_7,
-        cs.pressure_status,
-        cs.pressure_last_seen as last_seen,
-        pd.dashboard_url
-      FROM communication_status cs
-      FULL OUTER JOIN pressure_data pd ON (cs.scheme_id = pd.scheme_id AND cs.village_name = pd.village_name AND cs.esr_name = pd.esr_name)
-      WHERE COALESCE(cs.pressure_connected, 'Not Connected') = 'Connected'
-        ${customRegionFilter}
-        ${categoryCondition}
-        ${communicationStatusSchemeFilter}
-      ORDER BY COALESCE(cs.region, pd.region), COALESCE(cs.village_name, pd.village_name)
+      SELECT * FROM (
+        SELECT DISTINCT ON (COALESCE(cs.scheme_id, pd.scheme_id), COALESCE(cs.village_name, pd.village_name), COALESCE(cs.esr_name, pd.esr_name))
+          COALESCE(cs.region, pd.region) as region,
+          COALESCE(cs.circle, pd.circle) as circle,
+          COALESCE(cs.division, pd.division) as division,
+          COALESCE(cs.sub_division, pd.sub_division) as sub_division,
+          COALESCE(cs.block, pd.block) as block,
+          COALESCE(cs.scheme_id, pd.scheme_id) as scheme_id,
+          COALESCE(cs.scheme_name, pd.scheme_name) as scheme_name,
+          COALESCE(cs.village_name, pd.village_name) as village_name,
+          COALESCE(cs.esr_name, pd.esr_name) as esr_name,
+          pd.pressure_value_7 as pressure_value_7,
+          pd.pressure_date_day_7 as pressure_date_day_7,
+          cs.pressure_status,
+          cs.pressure_last_seen as last_seen,
+          pd.dashboard_url
+        FROM communication_status cs
+        FULL OUTER JOIN pressure_data pd ON (cs.scheme_id = pd.scheme_id AND cs.village_name = pd.village_name AND cs.esr_name = pd.esr_name)
+        WHERE COALESCE(cs.pressure_connected, 'Not Connected') = 'Connected'
+          ${customRegionFilter}
+          ${categoryCondition}
+          ${communicationStatusSchemeFilter}
+        ORDER BY COALESCE(cs.scheme_id, pd.scheme_id), COALESCE(cs.village_name, pd.village_name), COALESCE(cs.esr_name, pd.esr_name), cs.uploaded_at DESC
+      ) as t
+      ORDER BY region, village_name
     `;
     const result = await db.execute(query);
     queryData = result.rows;

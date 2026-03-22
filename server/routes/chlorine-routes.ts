@@ -2425,9 +2425,13 @@ router.get("/overall-region-comparison", async (req, res) => {
             SUM(CASE WHEN lpcd_value_day7 IS NOT NULL AND lpcd_value_day7 >= 55 THEN 1 ELSE 0 END) as above_55,
             SUM(CASE WHEN lpcd_value_day7 IS NOT NULL AND lpcd_value_day7::numeric > 0 AND lpcd_value_day7::numeric < 55 THEN 1 ELSE 0 END) as below_55,
             SUM(CASE WHEN lpcd_value_day7 IS NULL OR lpcd_value_day7::numeric = 0 THEN 1 ELSE 0 END) as no_water
-          FROM water_scheme_data
-          WHERE region = $1
-          ${schemeIdFilter}
+          FROM (
+            SELECT DISTINCT ON (scheme_id, village_name, block) *
+            FROM water_scheme_data
+            WHERE region = $1
+            ${schemeIdFilter}
+            ORDER BY scheme_id, village_name, block
+          ) t
         `;
         const lpcdResult = await client.query(lpcdQuery, [region]);
         const lpcdRow = lpcdResult.rows[0] || {};
@@ -2462,8 +2466,12 @@ router.get("/overall-region-comparison", async (req, res) => {
               (lpcd_value_day6 IS NULL OR lpcd_value_day6::numeric = 0) AND
               (lpcd_value_day7 IS NULL OR lpcd_value_day7::numeric = 0)
             THEN 1 ELSE 0 END) as consistent_no_water
-          FROM water_scheme_data
-          WHERE region = $1
+          FROM (
+            SELECT DISTINCT ON (scheme_id, village_name, block) *
+            FROM water_scheme_data
+            WHERE region = $1
+            ORDER BY scheme_id, village_name, block
+          ) t
         `;
         const consistentLpcdResult = await client.query(consistentLpcdQuery, [region]);
         const consistentLpcdRow = consistentLpcdResult.rows[0] || {};
@@ -2596,138 +2604,78 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
         switch (category) {
           case 'offline':
             query = `
-            SELECT 
-              cs.region, cs.circle, cs.division, cs.sub_division, cs.block,
-              cs.scheme_id, cs.scheme_name, cs.village_name, cs.esr_name,
-              cs.chlorine_status, cs.last_seen,
-              cd.dashboard_url
-            FROM communication_status cs
-            LEFT JOIN chlorine_data cd ON cs.scheme_id = cd.scheme_id AND cs.scheme_name = cd.scheme_name AND cs.village_name = cd.village_name AND cs.esr_name = cd.esr_name
-            WHERE cs.chlorine_connected = 'Connected'
-            AND (
-              (cs.chlorine_status = 'Offline' OR cs.chlorine_status = 'offline')
-              OR
-              ((cs.chlorine_status = 'Online' OR cs.chlorine_status = 'online') AND cd.chlorine_value_7 IS NULL)
-            )
-            ${region ? 'AND cs.region = $1' : ''}
-            ${schemeIdFilterGeneric.replace(/scheme_id/g, 'cs.scheme_id')}
-            ORDER BY cs.region, cs.division, cs.village_name
+            SELECT * FROM (
+              SELECT DISTINCT ON (cs.scheme_id, cs.village_name, cs.esr_name)
+                cs.region, cs.circle, cs.division, cs.sub_division, cs.block,
+                cs.scheme_id, cs.scheme_name, cs.village_name, cs.esr_name,
+                cs.chlorine_status, cs.last_seen,
+                cd.dashboard_url
+              FROM communication_status cs
+              LEFT JOIN chlorine_data cd ON cs.scheme_id = cd.scheme_id AND cs.scheme_name = cd.scheme_name AND cs.village_name = cd.village_name AND cs.esr_name = cd.esr_name
+              WHERE cs.chlorine_connected = 'Connected'
+              AND (
+                (cs.chlorine_status = 'Offline' OR cs.chlorine_status = 'offline')
+                OR
+                ((cs.chlorine_status = 'Online' OR cs.chlorine_status = 'online') AND cd.chlorine_value_7 IS NULL)
+              )
+              ${region ? 'AND cs.region = $1' : ''}
+              ${schemeIdFilterGeneric.replace(/scheme_id/g, 'cs.scheme_id')}
+              ORDER BY cs.scheme_id, cs.village_name, cs.esr_name
+            ) as t
+            ORDER BY region, division, village_name
           `;
             if (region) params.push(region);
             break;
 
           case 'below_0_2':
+          case 'optimal_0_2_0_5':
+          case 'above_0_5':
+            const subCondition = category === 'below_0_2' 
+              ? 'cd.chlorine_value_7 < 0.2' 
+              : category === 'optimal_0_2_0_5' 
+                ? 'cd.chlorine_value_7 >= 0.2 AND cd.chlorine_value_7 <= 0.5' 
+                : 'cd.chlorine_value_7 > 0.5';
             query = `
-              SELECT 
-                cd.region, cd.circle, cd.division, cd.sub_division, cd.block,
-                cd.scheme_id, cd.scheme_name, cd.village_name, cd.esr_name,
-                cd.chlorine_value_7 as chlorine_value, cd.chlorine_date_day_7 as chlorine_date,
-                cd.chlorine_value_7 as chlorine_value, cd.chlorine_date_day_7 as chlorine_date,
-                cd.dashboard_url
-              FROM chlorine_data cd
-              WHERE cd.chlorine_value_7 IS NOT NULL AND cd.chlorine_value_7 < 0.2
-              ${region ? 'AND cd.region = $1' : ''}
-              ${schemeIdFilterGeneric.replace('scheme_id', 'cd.scheme_id')}
-              ORDER BY cd.region, cd.division, cd.village_name
+              SELECT * FROM (
+                SELECT DISTINCT ON (cd.scheme_id, cd.village_name, cd.esr_name)
+                  cd.region, cd.circle, cd.division, cd.sub_division, cd.block,
+                  cd.scheme_id, cd.scheme_name, cd.village_name, cd.esr_name,
+                  cd.chlorine_value_7 as chlorine_value, cd.chlorine_date_day_7 as chlorine_date,
+                  cd.dashboard_url
+                FROM chlorine_data cd
+                WHERE cd.chlorine_value_7 IS NOT NULL AND ${subCondition}
+                ${region ? 'AND cd.region = $1' : ''}
+                ${schemeIdFilterGeneric.replace('scheme_id', 'cd.scheme_id')}
+                ORDER BY cd.scheme_id, cd.village_name, cd.esr_name
+              ) as t
+              ORDER BY region, division, village_name
             `;
             if (region) params.push(region);
             break;
 
-          case 'optimal_0_2_0_5':
-            query = `
-            SELECT 
-              cd.region, cd.circle, cd.division, cd.sub_division, cd.block,
-              cd.scheme_id, cd.scheme_name, cd.village_name, cd.esr_name,
-              cd.chlorine_value_7 as chlorine_value, cd.chlorine_date_day_7 as chlorine_date,
-              cd.dashboard_url
-            FROM chlorine_data cd
-            WHERE cd.chlorine_value_7 IS NOT NULL AND cd.chlorine_value_7 >= 0.2 AND cd.chlorine_value_7 <= 0.5
-            ${region ? 'AND cd.region = $1' : ''}
-            ${schemeIdFilterGeneric.replace('scheme_id', 'cd.scheme_id')}
-            ORDER BY cd.region, cd.division, cd.village_name
-          `;
-            if (region) params.push(region);
-            break;
-
-          case 'above_0_5':
-            query = `
-            SELECT 
-              cd.region, cd.circle, cd.division, cd.sub_division, cd.block,
-              cd.scheme_id, cd.scheme_name, cd.village_name, cd.esr_name,
-              cd.chlorine_value_7 as chlorine_value, cd.chlorine_date_day_7 as chlorine_date,
-              cd.dashboard_url
-            FROM chlorine_data cd
-            WHERE cd.chlorine_value_7 IS NOT NULL AND cd.chlorine_value_7 > 0.5
-            ${region ? 'AND cd.region = $1' : ''}
-            ${schemeIdFilterGeneric.replace('scheme_id', 'cd.scheme_id')}
-            ORDER BY cd.region, cd.division, cd.village_name
-          `;
-            if (region) params.push(region);
-            break;
-
           case 'consistent_below_0_2':
-            query = `
-            SELECT 
-              cd.region, cd.circle, cd.division, cd.sub_division, cd.block,
-              cd.scheme_id, cd.scheme_name, cd.village_name, cd.esr_name,
-              cd.chlorine_value_7 as chlorine_value, cd.chlorine_date_day_7 as chlorine_date,
-              cd.dashboard_url
-            FROM chlorine_data cd
-            WHERE cd.chlorine_value_1 IS NOT NULL AND cd.chlorine_value_1 < 0.2
-              AND cd.chlorine_value_2 IS NOT NULL AND cd.chlorine_value_2 < 0.2
-              AND cd.chlorine_value_3 IS NOT NULL AND cd.chlorine_value_3 < 0.2
-              AND cd.chlorine_value_4 IS NOT NULL AND cd.chlorine_value_4 < 0.2
-              AND cd.chlorine_value_5 IS NOT NULL AND cd.chlorine_value_5 < 0.2
-              AND cd.chlorine_value_6 IS NOT NULL AND cd.chlorine_value_6 < 0.2
-              AND cd.chlorine_value_7 IS NOT NULL AND cd.chlorine_value_7 < 0.2
-            ${region ? 'AND cd.region = $1' : ''}
-            ${schemeIdFilterGeneric.replace('scheme_id', 'cd.scheme_id')}
-            ORDER BY cd.region, cd.division, cd.village_name
-          `;
-            if (region) params.push(region);
-            break;
-
           case 'consistent_optimal':
-            query = `
-            SELECT 
-              cd.region, cd.circle, cd.division, cd.sub_division, cd.block,
-              cd.scheme_id, cd.scheme_name, cd.village_name, cd.esr_name,
-              cd.chlorine_value_7 as chlorine_value, cd.chlorine_date_day_7 as chlorine_date,
-              cd.dashboard_url
-            FROM chlorine_data cd
-            WHERE cd.chlorine_value_1 IS NOT NULL AND cd.chlorine_value_1 >= 0.2 AND cd.chlorine_value_1 <= 0.5
-              AND cd.chlorine_value_2 IS NOT NULL AND cd.chlorine_value_2 >= 0.2 AND cd.chlorine_value_2 <= 0.5
-              AND cd.chlorine_value_3 IS NOT NULL AND cd.chlorine_value_3 >= 0.2 AND cd.chlorine_value_3 <= 0.5
-              AND cd.chlorine_value_4 IS NOT NULL AND cd.chlorine_value_4 >= 0.2 AND cd.chlorine_value_4 <= 0.5
-              AND cd.chlorine_value_5 IS NOT NULL AND cd.chlorine_value_5 >= 0.2 AND cd.chlorine_value_5 <= 0.5
-              AND cd.chlorine_value_6 IS NOT NULL AND cd.chlorine_value_6 >= 0.2 AND cd.chlorine_value_6 <= 0.5
-              AND cd.chlorine_value_7 IS NOT NULL AND cd.chlorine_value_7 >= 0.2 AND cd.chlorine_value_7 <= 0.5
-            ${region ? 'AND cd.region = $1' : ''}
-            ${schemeIdFilterGeneric.replace('scheme_id', 'cd.scheme_id')}
-            ORDER BY cd.region, cd.division, cd.village_name
-          `;
-            if (region) params.push(region);
-            break;
-
           case 'consistent_above_0_5':
+            const consistentCondition = category === 'consistent_below_0_2'
+              ? 'cd.chlorine_value_1 < 0.2 AND cd.chlorine_value_2 < 0.2 AND cd.chlorine_value_3 < 0.2 AND cd.chlorine_value_4 < 0.2 AND cd.chlorine_value_5 < 0.2 AND cd.chlorine_value_6 < 0.2 AND cd.chlorine_value_7 < 0.2'
+              : category === 'consistent_optimal'
+                ? 'cd.chlorine_value_1 >= 0.2 AND cd.chlorine_value_1 <= 0.5 AND cd.chlorine_value_2 >= 0.2 AND cd.chlorine_value_2 <= 0.5 AND cd.chlorine_value_3 >= 0.2 AND cd.chlorine_value_3 <= 0.5 AND cd.chlorine_value_4 >= 0.2 AND cd.chlorine_value_4 <= 0.5 AND cd.chlorine_value_5 >= 0.2 AND cd.chlorine_value_5 <= 0.5 AND cd.chlorine_value_6 >= 0.2 AND cd.chlorine_value_6 <= 0.5 AND cd.chlorine_value_7 >= 0.2 AND cd.chlorine_value_7 <= 0.5'
+                : 'cd.chlorine_value_1 > 0.5 AND cd.chlorine_value_2 > 0.5 AND cd.chlorine_value_3 > 0.5 AND cd.chlorine_value_4 > 0.5 AND cd.chlorine_value_5 > 0.5 AND cd.chlorine_value_6 > 0.5 AND cd.chlorine_value_7 > 0.5';
             query = `
-            SELECT 
-              cd.region, cd.circle, cd.division, cd.sub_division, cd.block,
-              cd.scheme_id, cd.scheme_name, cd.village_name, cd.esr_name,
-              cd.chlorine_value_7 as chlorine_value, cd.chlorine_date_day_7 as chlorine_date,
-              cd.dashboard_url
-            FROM chlorine_data cd
-            WHERE cd.chlorine_value_1 IS NOT NULL AND cd.chlorine_value_1 > 0.5
-              AND cd.chlorine_value_2 IS NOT NULL AND cd.chlorine_value_2 > 0.5
-              AND cd.chlorine_value_3 IS NOT NULL AND cd.chlorine_value_3 > 0.5
-              AND cd.chlorine_value_4 IS NOT NULL AND cd.chlorine_value_4 > 0.5
-              AND cd.chlorine_value_5 IS NOT NULL AND cd.chlorine_value_5 > 0.5
-              AND cd.chlorine_value_6 IS NOT NULL AND cd.chlorine_value_6 > 0.5
-              AND cd.chlorine_value_7 IS NOT NULL AND cd.chlorine_value_7 > 0.5
-            ${region ? 'AND cd.region = $1' : ''}
-            ${schemeIdFilterGeneric.replace('scheme_id', 'cd.scheme_id')}
-            ORDER BY cd.region, cd.division, cd.village_name
-          `;
+              SELECT * FROM (
+                SELECT DISTINCT ON (cd.scheme_id, cd.village_name, cd.esr_name)
+                  cd.region, cd.circle, cd.division, cd.sub_division, cd.block,
+                  cd.scheme_id, cd.scheme_name, cd.village_name, cd.esr_name,
+                  cd.chlorine_value_7 as chlorine_value, cd.chlorine_date_day_7 as chlorine_date,
+                  cd.dashboard_url
+                FROM chlorine_data cd
+                WHERE cd.chlorine_value_1 IS NOT NULL AND ${consistentCondition}
+                ${region ? 'AND cd.region = $1' : ''}
+                ${schemeIdFilterGeneric.replace('scheme_id', 'cd.scheme_id')}
+                ORDER BY cd.scheme_id, cd.village_name, cd.esr_name
+              ) as t
+              ORDER BY region, division, village_name
+            `;
             if (region) params.push(region);
             break;
 
@@ -2760,142 +2708,159 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
 
           case 'above_55':
             query = `
-            SELECT 
-              ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
-              ws.scheme_id, ws.scheme_name, ws.village_name,
-              ws.population, ws.lpcd_value_day7 as lpcd_value, ws.lpcd_date_day7 as lpcd_date,
-              ws.water_value_day7, ws.water_date_day7,
-              COALESCE(ws.dashboard_url, (SELECT dashboard_url FROM chlorine_history ch WHERE ch.scheme_id = ws.scheme_id AND ch.village_name = ws.village_name AND ch.dashboard_url IS NOT NULL ORDER BY ch.uploaded_at DESC LIMIT 1)) as dashboard_url
-            FROM water_scheme_data ws
-            WHERE ws.lpcd_value_day7 IS NOT NULL AND ws.lpcd_value_day7 >= 55
-            ${region ? 'AND ws.region = $1' : ''}
-            ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
-            ORDER BY ws.region, ws.division, ws.village_name
+            SELECT * FROM (
+              SELECT DISTINCT ON (ws.scheme_id, ws.village_name, ws.block)
+                ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
+                ws.scheme_id, ws.scheme_name, ws.village_name,
+                ws.population, ws.lpcd_value_day7 as lpcd_value, ws.lpcd_date_day7 as lpcd_date,
+                ws.water_value_day7, ws.water_date_day7,
+                COALESCE(ws.dashboard_url, (SELECT dashboard_url FROM chlorine_history ch WHERE ch.scheme_id = ws.scheme_id AND ch.village_name = ws.village_name AND ch.dashboard_url IS NOT NULL ORDER BY ch.uploaded_at DESC LIMIT 1)) as dashboard_url
+              FROM water_scheme_data ws
+              WHERE ws.lpcd_value_day7 IS NOT NULL AND ws.lpcd_value_day7 >= 55
+              ${region ? 'AND ws.region = $1' : ''}
+              ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
+              ORDER BY ws.scheme_id, ws.village_name, ws.block, ws.lpcd_value_day7 DESC NULLS LAST
+            ) as t
+            ORDER BY region, division, village_name
           `;
             if (region) params.push(region);
             break;
 
           case 'below_55':
             query = `
-            SELECT 
-              ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
-              ws.scheme_id, ws.scheme_name, ws.village_name,
-              ws.population, ws.lpcd_value_day7 as lpcd_value, ws.lpcd_date_day7 as lpcd_date,
-              ws.water_value_day7, ws.water_date_day7,
-              ws.water_value_day7, ws.water_date_day7,
-              ws.dashboard_url
-            FROM water_scheme_data ws
-            WHERE ws.lpcd_value_day7 IS NOT NULL AND ws.lpcd_value_day7::numeric > 0 AND ws.lpcd_value_day7::numeric < 55
-            ${region ? 'AND ws.region = $1' : ''}
-            ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
-            ORDER BY ws.region, ws.division, ws.village_name
+            SELECT * FROM (
+              SELECT DISTINCT ON (ws.scheme_id, ws.village_name, ws.block)
+                ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
+                ws.scheme_id, ws.scheme_name, ws.village_name,
+                ws.population, ws.lpcd_value_day7 as lpcd_value, ws.lpcd_date_day7 as lpcd_date,
+                ws.water_value_day7, ws.water_date_day7,
+                ws.dashboard_url
+              FROM water_scheme_data ws
+              WHERE ws.lpcd_value_day7 IS NOT NULL AND ws.lpcd_value_day7::numeric > 0 AND ws.lpcd_value_day7::numeric < 55
+              ${region ? 'AND ws.region = $1' : ''}
+              ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
+              ORDER BY ws.scheme_id, ws.village_name, ws.block, ws.lpcd_value_day7 DESC NULLS LAST
+            ) as t
+            ORDER BY region, division, village_name
           `;
             if (region) params.push(region);
             break;
 
           case 'consistent_above_55':
             query = `
-            SELECT 
-              ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
-              ws.scheme_id, ws.scheme_name, ws.village_name,
-              ws.population, ws.lpcd_value_day7 as lpcd_value, ws.lpcd_date_day7 as lpcd_date,
-              ws.water_value_day7, ws.water_date_day7,
-              ws.water_value_day7, ws.water_date_day7,
-              ws.dashboard_url
-            FROM water_scheme_data ws
-            WHERE ws.lpcd_value_day1 IS NOT NULL AND ws.lpcd_value_day1 >= 55
-              AND ws.lpcd_value_day2 IS NOT NULL AND ws.lpcd_value_day2 >= 55
-              AND ws.lpcd_value_day3 IS NOT NULL AND ws.lpcd_value_day3 >= 55
-              AND ws.lpcd_value_day4 IS NOT NULL AND ws.lpcd_value_day4 >= 55
-              AND ws.lpcd_value_day5 IS NOT NULL AND ws.lpcd_value_day5 >= 55
-              AND ws.lpcd_value_day6 IS NOT NULL AND ws.lpcd_value_day6 >= 55
-              AND ws.lpcd_value_day7 IS NOT NULL AND ws.lpcd_value_day7 >= 55
-            ${region ? 'AND ws.region = $1' : ''}
-            ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
-            ORDER BY ws.region, ws.division, ws.village_name
+            SELECT * FROM (
+              SELECT DISTINCT ON (ws.scheme_id, ws.village_name, ws.block)
+                ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
+                ws.scheme_id, ws.scheme_name, ws.village_name,
+                ws.population, ws.lpcd_value_day7 as lpcd_value, ws.lpcd_date_day7 as lpcd_date,
+                ws.water_value_day7, ws.water_date_day7,
+                ws.dashboard_url
+              FROM water_scheme_data ws
+              WHERE ws.lpcd_value_day1 IS NOT NULL AND ws.lpcd_value_day1 >= 55
+                AND ws.lpcd_value_day2 IS NOT NULL AND ws.lpcd_value_day2 >= 55
+                AND ws.lpcd_value_day3 IS NOT NULL AND ws.lpcd_value_day3 >= 55
+                AND ws.lpcd_value_day4 IS NOT NULL AND ws.lpcd_value_day4 >= 55
+                AND ws.lpcd_value_day5 IS NOT NULL AND ws.lpcd_value_day5 >= 55
+                AND ws.lpcd_value_day6 IS NOT NULL AND ws.lpcd_value_day6 >= 55
+                AND ws.lpcd_value_day7 IS NOT NULL AND ws.lpcd_value_day7 >= 55
+              ${region ? 'AND ws.region = $1' : ''}
+              ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
+              ORDER BY ws.scheme_id, ws.village_name, ws.block, ws.lpcd_value_day7 DESC NULLS LAST
+            ) as t
+            ORDER BY region, division, village_name
           `;
             if (region) params.push(region);
             break;
 
           case 'consistent_below_55':
             query = `
-            SELECT 
-              ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
-              ws.scheme_id, ws.scheme_name, ws.village_name,
-              ws.population, ws.lpcd_value_day7 as lpcd_value, ws.lpcd_date_day7 as lpcd_date,
-              ws.water_value_day7, ws.water_date_day7,
-              ws.water_value_day7, ws.water_date_day7,
-              ws.dashboard_url
-            FROM water_scheme_data ws
-            WHERE ws.lpcd_value_day1 IS NOT NULL AND ws.lpcd_value_day1::numeric > 0 AND ws.lpcd_value_day1::numeric < 55
-              AND ws.lpcd_value_day2 IS NOT NULL AND ws.lpcd_value_day2::numeric > 0 AND ws.lpcd_value_day2::numeric < 55
-              AND ws.lpcd_value_day3 IS NOT NULL AND ws.lpcd_value_day3::numeric > 0 AND ws.lpcd_value_day3::numeric < 55
-              AND ws.lpcd_value_day4 IS NOT NULL AND ws.lpcd_value_day4::numeric > 0 AND ws.lpcd_value_day4::numeric < 55
-              AND ws.lpcd_value_day5 IS NOT NULL AND ws.lpcd_value_day5::numeric > 0 AND ws.lpcd_value_day5::numeric < 55
-              AND ws.lpcd_value_day6 IS NOT NULL AND ws.lpcd_value_day6::numeric > 0 AND ws.lpcd_value_day6::numeric < 55
-              AND ws.lpcd_value_day7 IS NOT NULL AND ws.lpcd_value_day7::numeric > 0 AND ws.lpcd_value_day7::numeric < 55
-            ${region ? 'AND ws.region = $1' : ''}
-            ORDER BY ws.region, ws.division, ws.village_name
+            SELECT * FROM (
+              SELECT DISTINCT ON (ws.scheme_id, ws.village_name, ws.block)
+                ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
+                ws.scheme_id, ws.scheme_name, ws.village_name,
+                ws.population, ws.lpcd_value_day7 as lpcd_value, ws.lpcd_date_day7 as lpcd_date,
+                ws.water_value_day7, ws.water_date_day7,
+                ws.dashboard_url
+              FROM water_scheme_data ws
+              WHERE ws.lpcd_value_day1 IS NOT NULL AND ws.lpcd_value_day1::numeric > 0 AND ws.lpcd_value_day1::numeric < 55
+                AND ws.lpcd_value_day2 IS NOT NULL AND ws.lpcd_value_day2::numeric > 0 AND ws.lpcd_value_day2::numeric < 55
+                AND ws.lpcd_value_day3 IS NOT NULL AND ws.lpcd_value_day3::numeric > 0 AND ws.lpcd_value_day3::numeric < 55
+                AND ws.lpcd_value_day4 IS NOT NULL AND ws.lpcd_value_day4::numeric > 0 AND ws.lpcd_value_day4::numeric < 55
+                AND ws.lpcd_value_day5 IS NOT NULL AND ws.lpcd_value_day5::numeric > 0 AND ws.lpcd_value_day5::numeric < 55
+                AND ws.lpcd_value_day6 IS NOT NULL AND ws.lpcd_value_day6::numeric > 0 AND ws.lpcd_value_day6::numeric < 55
+                AND ws.lpcd_value_day7 IS NOT NULL AND ws.lpcd_value_day7::numeric > 0 AND ws.lpcd_value_day7::numeric < 55
+              ${region ? 'AND ws.region = $1' : ''}
+              ORDER BY ws.scheme_id, ws.village_name, ws.block, ws.lpcd_value_day7 DESC NULLS LAST
+            ) as t
+            ORDER BY region, division, village_name
           `;
             if (region) params.push(region);
             break;
 
           case 'no_water':
             query = `
-            SELECT 
-              ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
-              ws.scheme_id, ws.scheme_name, ws.village_name,
-              ws.population, ws.lpcd_value_day7 as lpcd_value, ws.lpcd_date_day7 as lpcd_date,
-              ws.water_value_day7, ws.water_date_day7,
-              ws.water_value_day7, ws.water_date_day7,
-              ws.dashboard_url
-            FROM water_scheme_data ws
-            WHERE (ws.lpcd_value_day7 IS NULL OR ws.lpcd_value_day7 = 0)
-            ${region ? 'AND ws.region = $1' : ''}
-            ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
-            ORDER BY ws.region, ws.division, ws.village_name
+            SELECT * FROM (
+              SELECT DISTINCT ON (ws.scheme_id, ws.village_name, ws.block)
+                ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
+                ws.scheme_id, ws.scheme_name, ws.village_name,
+                ws.population, ws.lpcd_value_day7 as lpcd_value, ws.lpcd_date_day7 as lpcd_date,
+                ws.water_value_day7, ws.water_date_day7,
+                ws.dashboard_url
+              FROM water_scheme_data ws
+              WHERE (ws.lpcd_value_day7 IS NULL OR ws.lpcd_value_day7 = 0)
+              ${region ? 'AND ws.region = $1' : ''}
+              ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
+              ORDER BY ws.scheme_id, ws.village_name, ws.block, ws.uploaded_at DESC NULLS LAST
+            ) as t
+            ORDER BY region, division, village_name
           `;
             if (region) params.push(region);
             break;
 
           case 'all_villages':
             query = `
-            SELECT 
-              ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
-              ws.scheme_id, ws.scheme_name, ws.village_name,
-              ws.population, ws.lpcd_value_day7 as lpcd_value, ws.lpcd_date_day7 as lpcd_date,
-              ws.water_value_day7, ws.water_date_day7,
-              ws.water_value_day7, ws.water_date_day7,
-              ws.dashboard_url
-            FROM water_scheme_data ws
-            WHERE ws.region IS NOT NULL
-            ${region ? 'AND ws.region = $1' : ''}
-            ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
-            ORDER BY ws.region, ws.division, ws.village_name
+            SELECT * FROM (
+              SELECT DISTINCT ON (ws.scheme_id, ws.village_name, ws.block)
+                ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
+                ws.scheme_id, ws.scheme_name, ws.village_name,
+                ws.population, ws.lpcd_value_day7 as lpcd_value, ws.lpcd_date_day7 as lpcd_date,
+                ws.water_value_day7, ws.water_date_day7,
+                (SELECT dashboard_url FROM chlorine_history ch WHERE ch.scheme_id = ws.scheme_id AND ch.village_name = ws.village_name AND ch.dashboard_url IS NOT NULL ORDER BY ch.uploaded_at DESC LIMIT 1) as dashboard_url
+              FROM water_scheme_data ws
+              WHERE ws.region IS NOT NULL
+              ${region ? 'AND ws.region = $1' : ''}
+              ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
+              ORDER BY ws.scheme_id, ws.village_name, ws.block
+            ) as t
+            ORDER BY region, division, village_name
           `;
+            if (region) params.push(region);
+            break;
             if (region) params.push(region);
             break;
 
           case 'consistent_no_water':
             query = `
-            SELECT 
-              ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
-              ws.scheme_id, ws.scheme_name, ws.village_name,
-              ws.population, ws.lpcd_value_day7 as lpcd_value, ws.lpcd_date_day7 as lpcd_date,
-              ws.water_value_day7, ws.water_date_day7,
-              ws.water_value_day7, ws.water_date_day7,
-              ws.dashboard_url
-            FROM water_scheme_data ws
-            WHERE (ws.lpcd_value_day1 IS NULL OR ws.lpcd_value_day1 = 0)
-              AND (ws.lpcd_value_day2 IS NULL OR ws.lpcd_value_day2 = 0)
-              AND (ws.lpcd_value_day3 IS NULL OR ws.lpcd_value_day3 = 0)
-              AND (ws.lpcd_value_day4 IS NULL OR ws.lpcd_value_day4 = 0)
-              AND (ws.lpcd_value_day5 IS NULL OR ws.lpcd_value_day5 = 0)
-              AND (ws.lpcd_value_day6 IS NULL OR ws.lpcd_value_day6 = 0)
-              AND (ws.lpcd_value_day7 IS NULL OR ws.lpcd_value_day7 = 0)
-            ${region ? 'AND ws.region = $1' : ''}
-            ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
-            ORDER BY ws.region, ws.division, ws.village_name
+            SELECT * FROM (
+              SELECT DISTINCT ON (ws.scheme_id, ws.village_name, ws.block)
+                ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
+                ws.scheme_id, ws.scheme_name, ws.village_name,
+                ws.population, ws.lpcd_value_day7 as lpcd_value, ws.lpcd_date_day7 as lpcd_date,
+                ws.water_value_day7, ws.water_date_day7,
+                ws.dashboard_url
+              FROM water_scheme_data ws
+              WHERE (ws.lpcd_value_day1 IS NULL OR ws.lpcd_value_day1 = 0)
+                AND (ws.lpcd_value_day2 IS NULL OR ws.lpcd_value_day2 = 0)
+                AND (ws.lpcd_value_day3 IS NULL OR ws.lpcd_value_day3 = 0)
+                AND (ws.lpcd_value_day4 IS NULL OR ws.lpcd_value_day4 = 0)
+                AND (ws.lpcd_value_day5 IS NULL OR ws.lpcd_value_day5 = 0)
+                AND (ws.lpcd_value_day6 IS NULL OR ws.lpcd_value_day6 = 0)
+                AND (ws.lpcd_value_day7 IS NULL OR ws.lpcd_value_day7 = 0)
+              ${region ? 'AND ws.region = $1' : ''}
+              ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
+              ORDER BY ws.scheme_id, ws.village_name, ws.block, ws.uploaded_at DESC NULLS LAST
+            ) as t
+            ORDER BY region, division, village_name
           `;
             if (region) params.push(region);
             break;
@@ -3119,7 +3084,11 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
             FROM communication_status cs
             LEFT JOIN chlorine_data cd ON cs.scheme_id = cd.scheme_id AND cs.scheme_name = cd.scheme_name AND cs.village_name = cd.village_name AND cs.esr_name = cd.esr_name
             WHERE cs.chlorine_connected = 'Connected'
-            AND (cs.chlorine_status = 'Offline' OR cs.chlorine_status = 'offline')
+            AND (
+              (cs.chlorine_status = 'Offline' OR cs.chlorine_status = 'offline')
+              OR
+              ((cs.chlorine_status = 'Online' OR cs.chlorine_status = 'online') AND cd.chlorine_value_7 IS NULL)
+            )
             ${region ? 'AND cs.region = $1' : ''}
             ${schemeIdFilterGeneric.replace('scheme_id', 'cs.scheme_id')}
             ORDER BY cs.region, cs.division, cs.village_name
@@ -3135,16 +3104,19 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
           case 'consistent_above_0_5':
             const chlorineCondition = getChlorineCondition(category);
             query = `
-            SELECT 
-              cd.region, cd.circle, cd.division, cd.sub_division, cd.block,
-              cd.scheme_id, cd.scheme_name, cd.village_name, cd.esr_name,
-              cd.chlorine_value_7 as chlorine_value, cd.chlorine_date_day_7 as chlorine_date,
-              cd.dashboard_url
-            FROM chlorine_data cd
-            WHERE ${chlorineCondition}
-            ${region ? 'AND cd.region = $1' : ''}
-            ${schemeIdFilterGeneric.replace('scheme_id', 'cd.scheme_id')}
-            ORDER BY cd.region, cd.division, cd.village_name
+            SELECT * FROM (
+              SELECT DISTINCT ON (cd.scheme_id, cd.village_name, cd.esr_name)
+                cd.region, cd.circle, cd.division, cd.sub_division, cd.block,
+                cd.scheme_id, cd.scheme_name, cd.village_name, cd.esr_name,
+                cd.chlorine_value_7 as chlorine_value, cd.chlorine_date_day_7 as chlorine_date,
+                cd.dashboard_url
+              FROM chlorine_data cd
+              WHERE ${chlorineCondition}
+              ${region ? 'AND cd.region = $1' : ''}
+              ${schemeIdFilterGeneric.replace('scheme_id', 'cd.scheme_id')}
+              ORDER BY cd.scheme_id, cd.village_name, cd.esr_name
+            ) as t
+            ORDER BY region, division, village_name
           `;
             if (region) params.push(region);
             break;
@@ -3156,108 +3128,118 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
           case 'no_water':
             const lpcdCondition = getLpcdCondition(category);
             query = `
-            SELECT 
-              ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
-              ws.scheme_id, ws.scheme_name, ws.village_name,
-              ws.population, ws.lpcd_value_day7 as lpcd_value, ws.lpcd_date_day7 as lpcd_date,
-              ws.water_value_day7, ws.water_date_day7,
-              (SELECT dashboard_url FROM chlorine_history ch WHERE ch.scheme_id = ws.scheme_id AND ch.village_name = ws.village_name AND ch.dashboard_url IS NOT NULL ORDER BY ch.uploaded_at DESC LIMIT 1) as dashboard_url
-            FROM water_scheme_data ws
-            WHERE ${lpcdCondition}
-            ${region ? 'AND ws.region = $1' : ''}
-            ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
-            ORDER BY ws.region, ws.division, ws.village_name
+            SELECT * FROM (
+              SELECT DISTINCT ON (ws.scheme_id, ws.village_name, ws.block)
+                ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
+                ws.scheme_id, ws.scheme_name, ws.village_name,
+                ws.population, ws.lpcd_value_day7 as lpcd_value, ws.lpcd_date_day7 as lpcd_date,
+                ws.water_value_day7, ws.water_date_day7,
+                (SELECT dashboard_url FROM chlorine_history ch WHERE ch.scheme_id = ws.scheme_id AND ch.village_name = ws.village_name AND ch.dashboard_url IS NOT NULL ORDER BY ch.uploaded_at DESC LIMIT 1) as dashboard_url
+              FROM water_scheme_data ws
+              WHERE ${lpcdCondition}
+              ${region ? 'AND ws.region = $1' : ''}
+              ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
+              ORDER BY ws.scheme_id, ws.village_name, ws.block
+            ) as t
+            ORDER BY region, division, village_name
           `;
             if (region) params.push(region);
             break;
 
           case 'all_villages':
             query = `
-            SELECT 
-              ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
-              ws.scheme_id, ws.scheme_name, ws.village_name,
-              ws.population, ws.lpcd_value_day7 as lpcd_value, ws.lpcd_date_day7 as lpcd_date,
-              ws.water_value_day7, ws.water_date_day7,
-              ws.water_value_day7, ws.water_date_day7,
-              ws.dashboard_url
-            FROM water_scheme_data ws
-            WHERE ws.region IS NOT NULL
-            ${region ? 'AND ws.region = $1' : ''}
-            ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
-            ORDER BY ws.region, ws.division, ws.village_name
+            SELECT * FROM (
+              SELECT DISTINCT ON (ws.scheme_id, ws.village_name, ws.block)
+                ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
+                ws.scheme_id, ws.scheme_name, ws.village_name,
+                ws.population, ws.lpcd_value_day7 as lpcd_value, ws.lpcd_date_day7 as lpcd_date,
+                ws.water_value_day7, ws.water_date_day7,
+                (SELECT dashboard_url FROM chlorine_history ch WHERE ch.scheme_id = ws.scheme_id AND ch.village_name = ws.village_name AND ch.dashboard_url IS NOT NULL ORDER BY ch.uploaded_at DESC LIMIT 1) as dashboard_url
+              FROM water_scheme_data ws
+              WHERE ws.region IS NOT NULL
+              ${region ? 'AND ws.region = $1' : ''}
+              ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
+              ORDER BY ws.scheme_id, ws.village_name, ws.block
+            ) as t
+            ORDER BY region, division, village_name
           `;
             if (region) params.push(region);
             break;
 
           case 'consistent_no_water':
             query = `
-            SELECT 
-              ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
-              ws.scheme_id, ws.scheme_name, ws.village_name,
-              ws.population, ws.lpcd_value_day7 as lpcd_value, ws.lpcd_date_day7 as lpcd_date,
-              ws.water_value_day7, ws.water_date_day7,
-              ws.water_value_day7, ws.water_date_day7,
-              ws.dashboard_url
-            FROM water_scheme_data ws
-            WHERE (ws.lpcd_value_day1 IS NULL OR ws.lpcd_value_day1 = 0)
-              AND (ws.lpcd_value_day2 IS NULL OR ws.lpcd_value_day2 = 0)
-              AND (ws.lpcd_value_day3 IS NULL OR ws.lpcd_value_day3 = 0)
-              AND (ws.lpcd_value_day4 IS NULL OR ws.lpcd_value_day4 = 0)
-              AND (ws.lpcd_value_day5 IS NULL OR ws.lpcd_value_day5 = 0)
-              AND (ws.lpcd_value_day6 IS NULL OR ws.lpcd_value_day6 = 0)
-              AND (ws.lpcd_value_day7 IS NULL OR ws.lpcd_value_day7 = 0)
-            ${region ? 'AND ws.region = $1' : ''}
-            ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
-            ORDER BY ws.region, ws.division, ws.village_name
+            SELECT * FROM (
+              SELECT DISTINCT ON (ws.scheme_id, ws.village_name, ws.block)
+                ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
+                ws.scheme_id, ws.scheme_name, ws.village_name,
+                ws.population, ws.lpcd_value_day7 as lpcd_value, ws.lpcd_date_day7 as lpcd_date,
+                ws.water_value_day7, ws.water_date_day7,
+                (SELECT dashboard_url FROM chlorine_history ch WHERE ch.scheme_id = ws.scheme_id AND ch.village_name = ws.village_name AND ch.dashboard_url IS NOT NULL ORDER BY ch.uploaded_at DESC LIMIT 1) as dashboard_url
+              FROM water_scheme_data ws
+              WHERE (ws.lpcd_value_day1 IS NULL OR ws.lpcd_value_day1 = 0)
+                AND (ws.lpcd_value_day2 IS NULL OR ws.lpcd_value_day2 = 0)
+                AND (ws.lpcd_value_day3 IS NULL OR ws.lpcd_value_day3 = 0)
+                AND (ws.lpcd_value_day4 IS NULL OR ws.lpcd_value_day4 = 0)
+                AND (ws.lpcd_value_day5 IS NULL OR ws.lpcd_value_day5 = 0)
+                AND (ws.lpcd_value_day6 IS NULL OR ws.lpcd_value_day6 = 0)
+                AND (ws.lpcd_value_day7 IS NULL OR ws.lpcd_value_day7 = 0)
+              ${region ? 'AND ws.region = $1' : ''}
+              ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
+              ORDER BY ws.scheme_id, ws.village_name, ws.block
+            ) as t
+            ORDER BY region, division, village_name
           `;
             if (region) params.push(region);
             break;
 
           case 'consistent_all':
             query = `
-            SELECT 
-              cd.region, cd.circle, cd.division, cd.sub_division, cd.block,
-              cd.scheme_id, cd.scheme_name, cd.village_name, cd.esr_name,
-              cd.chlorine_value_7 as chlorine_value, cd.chlorine_date_day_7 as chlorine_date,
-              cd.dashboard_url
-            FROM chlorine_data cd
-            WHERE (
-              -- Consistent Below 0.2
-              (
-                cd.chlorine_value_1 IS NOT NULL AND cd.chlorine_value_1 < 0.2
-                AND cd.chlorine_value_2 IS NOT NULL AND cd.chlorine_value_2 < 0.2
-                AND cd.chlorine_value_3 IS NOT NULL AND cd.chlorine_value_3 < 0.2
-                AND cd.chlorine_value_4 IS NOT NULL AND cd.chlorine_value_4 < 0.2
-                AND cd.chlorine_value_5 IS NOT NULL AND cd.chlorine_value_5 < 0.2
-                AND cd.chlorine_value_6 IS NOT NULL AND cd.chlorine_value_6 < 0.2
-                AND cd.chlorine_value_7 IS NOT NULL AND cd.chlorine_value_7 < 0.2
+            SELECT * FROM (
+              SELECT DISTINCT ON (cd.scheme_id, cd.village_name, cd.esr_name)
+                cd.region, cd.circle, cd.division, cd.sub_division, cd.block,
+                cd.scheme_id, cd.scheme_name, cd.village_name, cd.esr_name,
+                cd.chlorine_value_7 as chlorine_value, cd.chlorine_date_day_7 as chlorine_date,
+                cd.dashboard_url
+              FROM chlorine_data cd
+              WHERE (
+                -- Consistent Below 0.2
+                (
+                  cd.chlorine_value_1 IS NOT NULL AND cd.chlorine_value_1 < 0.2
+                  AND cd.chlorine_value_2 IS NOT NULL AND cd.chlorine_value_2 < 0.2
+                  AND cd.chlorine_value_3 IS NOT NULL AND cd.chlorine_value_3 < 0.2
+                  AND cd.chlorine_value_4 IS NOT NULL AND cd.chlorine_value_4 < 0.2
+                  AND cd.chlorine_value_5 IS NOT NULL AND cd.chlorine_value_5 < 0.2
+                  AND cd.chlorine_value_6 IS NOT NULL AND cd.chlorine_value_6 < 0.2
+                  AND cd.chlorine_value_7 IS NOT NULL AND cd.chlorine_value_7 < 0.2
+                )
+                OR
+                -- Consistent Optimal
+                (
+                  cd.chlorine_value_1 IS NOT NULL AND cd.chlorine_value_1 >= 0.2 AND cd.chlorine_value_1 <= 0.5
+                  AND cd.chlorine_value_2 IS NOT NULL AND cd.chlorine_value_2 >= 0.2 AND cd.chlorine_value_2 <= 0.5
+                  AND cd.chlorine_value_3 IS NOT NULL AND cd.chlorine_value_3 >= 0.2 AND cd.chlorine_value_3 <= 0.5
+                  AND cd.chlorine_value_4 IS NOT NULL AND cd.chlorine_value_4 >= 0.2 AND cd.chlorine_value_4 <= 0.5
+                  AND cd.chlorine_value_5 IS NOT NULL AND cd.chlorine_value_5 >= 0.2 AND cd.chlorine_value_5 <= 0.5
+                  AND cd.chlorine_value_6 IS NOT NULL AND cd.chlorine_value_6 >= 0.2 AND cd.chlorine_value_6 <= 0.5
+                  AND cd.chlorine_value_7 IS NOT NULL AND cd.chlorine_value_7 >= 0.2 AND cd.chlorine_value_7 <= 0.5
+                )
+                OR
+                -- Consistent Above 0.5
+                (
+                  cd.chlorine_value_1 IS NOT NULL AND cd.chlorine_value_1 > 0.5
+                  AND cd.chlorine_value_2 IS NOT NULL AND cd.chlorine_value_2 > 0.5
+                  AND cd.chlorine_value_3 IS NOT NULL AND cd.chlorine_value_3 > 0.5
+                  AND cd.chlorine_value_4 IS NOT NULL AND cd.chlorine_value_4 > 0.5
+                  AND cd.chlorine_value_5 IS NOT NULL AND cd.chlorine_value_5 > 0.5
+                  AND cd.chlorine_value_6 IS NOT NULL AND cd.chlorine_value_6 > 0.5
+                  AND cd.chlorine_value_7 IS NOT NULL AND cd.chlorine_value_7 > 0.5
+                )
               )
-              OR
-              -- Consistent Optimal
-              (
-                cd.chlorine_value_1 IS NOT NULL AND cd.chlorine_value_1 >= 0.2 AND cd.chlorine_value_1 <= 0.5
-                AND cd.chlorine_value_2 IS NOT NULL AND cd.chlorine_value_2 >= 0.2 AND cd.chlorine_value_2 <= 0.5
-                AND cd.chlorine_value_3 IS NOT NULL AND cd.chlorine_value_3 >= 0.2 AND cd.chlorine_value_3 <= 0.5
-                AND cd.chlorine_value_4 IS NOT NULL AND cd.chlorine_value_4 >= 0.2 AND cd.chlorine_value_4 <= 0.5
-                AND cd.chlorine_value_5 IS NOT NULL AND cd.chlorine_value_5 >= 0.2 AND cd.chlorine_value_5 <= 0.5
-                AND cd.chlorine_value_6 IS NOT NULL AND cd.chlorine_value_6 >= 0.2 AND cd.chlorine_value_6 <= 0.5
-                AND cd.chlorine_value_7 IS NOT NULL AND cd.chlorine_value_7 >= 0.2 AND cd.chlorine_value_7 <= 0.5
-              )
-              OR
-              -- Consistent Above 0.5
-              (
-                cd.chlorine_value_1 IS NOT NULL AND cd.chlorine_value_1 > 0.5
-                AND cd.chlorine_value_2 IS NOT NULL AND cd.chlorine_value_2 > 0.5
-                AND cd.chlorine_value_3 IS NOT NULL AND cd.chlorine_value_3 > 0.5
-                AND cd.chlorine_value_4 IS NOT NULL AND cd.chlorine_value_4 > 0.5
-                AND cd.chlorine_value_5 IS NOT NULL AND cd.chlorine_value_5 > 0.5
-                AND cd.chlorine_value_6 IS NOT NULL AND cd.chlorine_value_6 > 0.5
-                AND cd.chlorine_value_7 IS NOT NULL AND cd.chlorine_value_7 > 0.5
-              )
-            )
-            ${region ? 'AND cd.region = $1' : ''}
-            ${schemeIdFilterGeneric.replace('scheme_id', 'cd.scheme_id')}
-            ORDER BY cd.region, cd.division, cd.village_name
+              ${region ? 'AND cd.region = $1' : ''}
+              ${schemeIdFilterGeneric.replace('scheme_id', 'cd.scheme_id')}
+              ORDER BY cd.scheme_id, cd.village_name, cd.esr_name
+            ) as t
+            ORDER BY region, division, village_name
           `;
             if (region) params.push(region);
             break;
@@ -3497,7 +3479,7 @@ function getLpcdCondition(category: string): string {
     case 'above_55':
       return `ws.lpcd_value_day7 IS NOT NULL AND ws.lpcd_value_day7 >= 55`;
     case 'below_55':
-      return `ws.lpcd_value_day7 IS NOT NULL AND ws.lpcd_value_day7 < 55`;
+      return `ws.lpcd_value_day7 IS NOT NULL AND ws.lpcd_value_day7::numeric > 0 AND ws.lpcd_value_day7::numeric < 55`;
     case 'consistent_above_55':
       return `ws.lpcd_value_day1 IS NOT NULL AND ws.lpcd_value_day1 >= 55
         AND ws.lpcd_value_day2 IS NOT NULL AND ws.lpcd_value_day2 >= 55
@@ -3507,13 +3489,15 @@ function getLpcdCondition(category: string): string {
         AND ws.lpcd_value_day6 IS NOT NULL AND ws.lpcd_value_day6 >= 55
         AND ws.lpcd_value_day7 IS NOT NULL AND ws.lpcd_value_day7 >= 55`;
     case 'consistent_below_55':
-      return `ws.lpcd_value_day1 IS NOT NULL AND ws.lpcd_value_day1 < 55
-        AND ws.lpcd_value_day2 IS NOT NULL AND ws.lpcd_value_day2 < 55
-        AND ws.lpcd_value_day3 IS NOT NULL AND ws.lpcd_value_day3 < 55
-        AND ws.lpcd_value_day4 IS NOT NULL AND ws.lpcd_value_day4 < 55
-        AND ws.lpcd_value_day5 IS NOT NULL AND ws.lpcd_value_day5 < 55
-        AND ws.lpcd_value_day6 IS NOT NULL AND ws.lpcd_value_day6 < 55
-        AND ws.lpcd_value_day7 IS NOT NULL AND ws.lpcd_value_day7 < 55`;
+      return `ws.lpcd_value_day1 IS NOT NULL AND ws.lpcd_value_day1::numeric > 0 AND ws.lpcd_value_day1::numeric < 55
+        AND ws.lpcd_value_day2 IS NOT NULL AND ws.lpcd_value_day2::numeric > 0 AND ws.lpcd_value_day2::numeric < 55
+        AND ws.lpcd_value_day3 IS NOT NULL AND ws.lpcd_value_day3::numeric > 0 AND ws.lpcd_value_day3::numeric < 55
+        AND ws.lpcd_value_day4 IS NOT NULL AND ws.lpcd_value_day4::numeric > 0 AND ws.lpcd_value_day4::numeric < 55
+        AND ws.lpcd_value_day5 IS NOT NULL AND ws.lpcd_value_day5::numeric > 0 AND ws.lpcd_value_day5::numeric < 55
+        AND ws.lpcd_value_day6 IS NOT NULL AND ws.lpcd_value_day6::numeric > 0 AND ws.lpcd_value_day6::numeric < 55
+        AND ws.lpcd_value_day7 IS NOT NULL AND ws.lpcd_value_day7::numeric > 0 AND ws.lpcd_value_day7::numeric < 55`;
+    case 'no_water':
+      return `(ws.lpcd_value_day7 IS NULL OR ws.lpcd_value_day7 = 0)`;
     default:
       return '1=1';
   }
@@ -4443,7 +4427,7 @@ router.get("/lpcd/regional-stats", async (req, res) => {
               THEN ws.scheme_id || '-' || ws.village_name || '-' || COALESCE(ws.block, '')
             END) as villages_with_water,
             COUNT(DISTINCT CASE 
-              WHEN ws.lpcd_value_day7 IS NOT NULL AND ws.lpcd_value_day7::numeric > 55 
+              WHEN ws.lpcd_value_day7 IS NOT NULL AND ws.lpcd_value_day7::numeric >= 55 
               THEN ws.scheme_id || '-' || ws.village_name || '-' || COALESCE(ws.block, '')
             END) as villages_above_55,
             COUNT(DISTINCT CASE 
@@ -4621,63 +4605,75 @@ router.get("/lpcd/details/:statisticType", async (req, res) => {
 
         case 'villages-with-water':
           query = `
-            SELECT 
-              ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
-              ws.scheme_id, ws.scheme_name, ws.village_name,
-              ws.population, ws.lpcd_value_day7, ws.water_value_day7, ws.water_date_day7,
-              COALESCE(ws.dashboard_url, (SELECT dashboard_url FROM chlorine_history ch WHERE ch.scheme_id = ws.scheme_id AND ch.village_name = ws.village_name AND ch.dashboard_url IS NOT NULL ORDER BY ch.uploaded_at DESC LIMIT 1)) as dashboard_url
-            FROM water_scheme_data ws
-            WHERE ws.lpcd_value_day7 IS NOT NULL AND ws.lpcd_value_day7::numeric > 0
-            ${region && region !== 'All Regions' ? `AND ws.region = $1` : ''}
-            ${schemeIdFilterWS}
-            ORDER BY ws.region, ws.division, ws.village_name
+            SELECT * FROM (
+              SELECT DISTINCT ON (ws.scheme_id, ws.village_name, ws.block)
+                ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
+                ws.scheme_id, ws.scheme_name, ws.village_name,
+                ws.population, ws.lpcd_value_day7, ws.water_value_day7, ws.water_date_day7,
+                COALESCE(ws.dashboard_url, (SELECT dashboard_url FROM chlorine_history ch WHERE ch.scheme_id = ws.scheme_id AND ch.village_name = ws.village_name AND ch.dashboard_url IS NOT NULL ORDER BY ch.uploaded_at DESC LIMIT 1)) as dashboard_url
+              FROM water_scheme_data ws
+              WHERE ws.lpcd_value_day7 IS NOT NULL AND ws.lpcd_value_day7::numeric > 0
+              ${region && region !== 'All Regions' ? `AND ws.region = $1` : ''}
+              ${schemeIdFilterWS}
+              ORDER BY ws.scheme_id, ws.village_name, ws.block
+            ) as t
+            ORDER BY region, division, village_name
           `;
           break;
 
         case 'villages-above-55':
           query = `
-            SELECT 
-              ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
-              ws.scheme_id, ws.scheme_name, ws.village_name,
-              ws.population, ws.lpcd_value_day7, ws.water_value_day7, ws.water_date_day7,
-              COALESCE(ws.dashboard_url, (SELECT dashboard_url FROM chlorine_history ch WHERE ch.scheme_id = ws.scheme_id AND ch.village_name = ws.village_name AND ch.dashboard_url IS NOT NULL ORDER BY ch.uploaded_at DESC LIMIT 1)) as dashboard_url
-            FROM water_scheme_data ws
-            WHERE ws.lpcd_value_day7 IS NOT NULL AND ws.lpcd_value_day7::numeric > 55
-            ${region && region !== 'All Regions' ? `AND ws.region = $1` : ''}
-            ${schemeIdFilterWS}
-            ORDER BY ws.region, ws.division, ws.village_name
+            SELECT * FROM (
+              SELECT DISTINCT ON (ws.scheme_id, ws.village_name, ws.block)
+                ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
+                ws.scheme_id, ws.scheme_name, ws.village_name,
+                ws.population, ws.lpcd_value_day7, ws.water_value_day7, ws.water_date_day7,
+                COALESCE(ws.dashboard_url, (SELECT dashboard_url FROM chlorine_history ch WHERE ch.scheme_id = ws.scheme_id AND ch.village_name = ws.village_name AND ch.dashboard_url IS NOT NULL ORDER BY ch.uploaded_at DESC LIMIT 1)) as dashboard_url
+              FROM water_scheme_data ws
+              WHERE ws.lpcd_value_day7 IS NOT NULL AND ws.lpcd_value_day7::numeric > 55
+              ${region && region !== 'All Regions' ? `AND ws.region = $1` : ''}
+              ${schemeIdFilterWS}
+              ORDER BY ws.scheme_id, ws.village_name, ws.block
+            ) as t
+            ORDER BY region, division, village_name
           `;
           break;
 
         case 'villages-below-55':
           query = `
-            SELECT 
-              ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
-              ws.scheme_id, ws.scheme_name, ws.village_name,
-              ws.population, ws.lpcd_value_day7, ws.water_value_day7, ws.water_date_day7,
-              COALESCE(ws.dashboard_url, (SELECT dashboard_url FROM chlorine_history ch WHERE ch.scheme_id = ws.scheme_id AND ch.village_name = ws.village_name AND ch.dashboard_url IS NOT NULL ORDER BY ch.uploaded_at DESC LIMIT 1)) as dashboard_url
-            FROM water_scheme_data ws
-            WHERE ws.lpcd_value_day7 IS NOT NULL 
-              AND ws.lpcd_value_day7::numeric > 0 
-              AND ws.lpcd_value_day7::numeric < 55
-            ${region && region !== 'All Regions' ? `AND ws.region = $1` : ''}
-            ${schemeIdFilterWS}
-            ORDER BY ws.region, ws.division, ws.village_name
+            SELECT * FROM (
+              SELECT DISTINCT ON (ws.scheme_id, ws.village_name, ws.block)
+                ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
+                ws.scheme_id, ws.scheme_name, ws.village_name,
+                ws.population, ws.lpcd_value_day7, ws.water_value_day7, ws.water_date_day7,
+                COALESCE(ws.dashboard_url, (SELECT dashboard_url FROM chlorine_history ch WHERE ch.scheme_id = ws.scheme_id AND ch.village_name = ws.village_name AND ch.dashboard_url IS NOT NULL ORDER BY ch.uploaded_at DESC LIMIT 1)) as dashboard_url
+              FROM water_scheme_data ws
+              WHERE ws.lpcd_value_day7 IS NOT NULL 
+                AND ws.lpcd_value_day7::numeric > 0 
+                AND ws.lpcd_value_day7::numeric < 55
+              ${region && region !== 'All Regions' ? `AND ws.region = $1` : ''}
+              ${schemeIdFilterWS}
+              ORDER BY ws.scheme_id, ws.village_name, ws.block
+            ) as t
+            ORDER BY region, division, village_name
           `;
           break;
 
         case 'villages-no-water':
           query = `
-            SELECT 
-              ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
-              ws.scheme_id, ws.scheme_name, ws.village_name,
-              ws.population, ws.lpcd_value_day7, ws.water_value_day7, ws.water_date_day7,
-              COALESCE(ws.dashboard_url, (SELECT dashboard_url FROM chlorine_history ch WHERE ch.scheme_id = ws.scheme_id AND ch.village_name = ws.village_name AND ch.dashboard_url IS NOT NULL ORDER BY ch.uploaded_at DESC LIMIT 1)) as dashboard_url
-            FROM water_scheme_data ws
-            WHERE ws.lpcd_value_day7 IS NULL OR ws.lpcd_value_day7::numeric = 0
-            ${region && region !== 'All Regions' ? `AND ws.region = $1` : ''}
-            ${schemeIdFilterWS}
-            ORDER BY ws.region, ws.division, ws.village_name
+            SELECT * FROM (
+              SELECT DISTINCT ON (ws.scheme_id, ws.village_name, ws.block)
+                ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
+                ws.scheme_id, ws.scheme_name, ws.village_name,
+                ws.population, ws.lpcd_value_day7, ws.water_value_day7, ws.water_date_day7,
+                COALESCE(ws.dashboard_url, (SELECT dashboard_url FROM chlorine_history ch WHERE ch.scheme_id = ws.scheme_id AND ch.village_name = ws.village_name AND ch.dashboard_url IS NOT NULL ORDER BY ch.uploaded_at DESC LIMIT 1)) as dashboard_url
+              FROM water_scheme_data ws
+              WHERE ws.lpcd_value_day7 IS NULL OR ws.lpcd_value_day7::numeric = 0
+              ${region && region !== 'All Regions' ? `AND ws.region = $1` : ''}
+              ${schemeIdFilterWS}
+              ORDER BY ws.scheme_id, ws.village_name, ws.block
+            ) as t
+            ORDER BY region, division, village_name
           `;
           break;
 
@@ -5477,6 +5473,39 @@ router.get("/scheme-lpcd/details-export/:statisticType", async (req, res) => {
             WITH latest_data AS (${baseQuery})
             SELECT * FROM latest_data
             WHERE lpcd_value IS NULL OR lpcd_value::numeric = 0
+            ORDER BY region, scheme_id
+          `;
+          break;
+        case 'below55For3Days':
+        case 'below55For7Days':
+        case 'below55For30Days':
+          const daysThreshold = statisticType === 'below55For3Days' ? 3 :
+            statisticType === 'below55For7Days' ? 7 : 30;
+
+          query = `
+            WITH history_stats AS (
+              SELECT 
+                region, circle, division, sub_division, block,
+                scheme_id, scheme_name, total_population,
+                COUNT(CASE WHEN lpcd_value IS NOT NULL AND lpcd_value::numeric < 55 THEN 1 END) as days_below_55
+              FROM (
+                SELECT DISTINCT ON (region, scheme_id, block, data_date)
+                  region, circle, division, sub_division, block, scheme_id, scheme_name, total_population, data_date, lpcd_value
+                FROM scheme_lpcd_data_history
+                WHERE region IS NOT NULL 
+                  AND data_date IS NOT NULL
+                  ${regionFilter}
+                  ${schemeIdFilter}
+                ORDER BY region, scheme_id, block, data_date, uploaded_at DESC
+              ) deduplicated
+              GROUP BY region, circle, division, sub_division, block, scheme_id, scheme_name, total_population
+            )
+            SELECT 
+              region, circle, division, sub_division, block,
+              scheme_id, scheme_name, total_population,
+              days_below_55 as consecutive_days
+            FROM history_stats
+            WHERE days_below_55 >= ${daysThreshold}
             ORDER BY region, scheme_id
           `;
           break;
@@ -6832,10 +6861,10 @@ router.get("/scheme-lpcd/region-comparison", async (req, res) => {
             ) as latest_lpcd_value,
             total_water_day7 as latest_water_value
           FROM (
-            SELECT DISTINCT ON (scheme_name) *
+            SELECT DISTINCT ON (region, scheme_name) *
             FROM scheme_calculated_values
             WHERE scheme_name IS NOT NULL AND BTRIM(scheme_name) <> ''
-            ORDER BY scheme_name, block
+            ORDER BY region, scheme_name, block
           ) calculated
           WHERE region IS NOT NULL
           ${schemeIdFilter}
@@ -6917,9 +6946,9 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
         const metric = category.replace('weekly_', '');
         let havingCondition = '';
         if (metric === 'above_55') {
-          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 55';
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) >= 55';
         } else if (metric === 'below_55') {
-          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 0 AND (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) <= 55';
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 0 AND (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) < 55';
         } else if (metric === 'no_water') {
           havingCondition = '((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) IS NULL OR (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) = 0)';
         } else {
@@ -6932,7 +6961,7 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
 
         query = `
             WITH weekly_data AS (
-                SELECT DISTINCT ON (sldh.scheme_id, sldh.block, sldh.data_date)
+                SELECT DISTINCT ON (sldh.region, sldh.scheme_id, sldh.block, sldh.data_date)
                     sldh.region, sldh.circle, sldh.division, sldh.sub_division, 
                     COALESCE(NULLIF(TRIM(sldh.block), ''), ss.block) as block,
                     sldh.scheme_id, sldh.scheme_name, sldh.total_population, sldh.total_villages,
@@ -6943,7 +6972,7 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
                 ${regionFilter}
                 ${schemeIdFilter}
                 AND sldh.data_date IN (${dateParams})
-                ORDER BY sldh.scheme_id, sldh.block, sldh.data_date, sldh.uploaded_at DESC
+                ORDER BY sldh.region, sldh.scheme_id, sldh.block, sldh.data_date, sldh.uploaded_at DESC
             )
             SELECT
                 region, MAX(circle) as circle, MAX(division) as division, MAX(sub_division) as sub_division, block,
@@ -6970,10 +6999,10 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
             metricCondition = 'AND lpcd_value IS NOT NULL AND lpcd_value::numeric > 0 AND lpcd_value::numeric <= 55';
             break;
           case 'with_water':
-            metricCondition = 'AND water_value IS NOT NULL AND water_value::numeric > 0';
+            metricCondition = 'AND lpcd_value IS NOT NULL AND lpcd_value::numeric > 0';
             break;
           case 'no_water':
-            metricCondition = 'AND (water_value IS NULL OR water_value::numeric = 0)';
+            metricCondition = 'AND (lpcd_value IS NULL OR lpcd_value::numeric = 0)';
             break;
           default:
             metricCondition = '';
@@ -7052,29 +7081,22 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
         live_data AS (
           SELECT 
             calculated.*,
-            (
-              COALESCE(lpcd_value_day1, 0) + 
-              COALESCE(lpcd_value_day2, 0) + 
-              COALESCE(lpcd_value_day3, 0) + 
-              COALESCE(lpcd_value_day4, 0) + 
-              COALESCE(lpcd_value_day5, 0) + 
-              COALESCE(lpcd_value_day6, 0) + 
-              COALESCE(lpcd_value_day7, 0)
-            ) / 7.0 as latest_lpcd_value,
-            (
-              COALESCE(total_water_day1, 0) + 
-              COALESCE(total_water_day2, 0) + 
-              COALESCE(total_water_day3, 0) + 
-              COALESCE(total_water_day4, 0) + 
-              COALESCE(total_water_day5, 0) + 
-              COALESCE(total_water_day6, 0) + 
-              COALESCE(total_water_day7, 0)
-            ) / 7.0 as latest_water_value
+            COALESCE(
+              lpcd_value_day7, 
+              lpcd_value_day6, 
+              lpcd_value_day5, 
+              lpcd_value_day4, 
+              lpcd_value_day3, 
+              lpcd_value_day2, 
+              lpcd_value_day1, 
+              0
+            ) as latest_lpcd_value,
+            total_water_day7 as latest_water_value
           FROM (
-            SELECT DISTINCT ON (scheme_name) *
+            SELECT DISTINCT ON (region, scheme_name) *
             FROM scheme_calculated_values
             WHERE scheme_name IS NOT NULL AND BTRIM(scheme_name) <> ''
-            ORDER BY scheme_name, block
+            ORDER BY region, scheme_name, block
           ) calculated
         ),
         latest_history AS (
@@ -7086,26 +7108,29 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
           LEFT JOIN scheme_status ss ON ss.scheme_id = sldh.scheme_id AND ss.scheme_name = sldh.scheme_name
           ORDER BY sldh.scheme_id, sldh.block, sldh.uploaded_at DESC
         )
-        SELECT 
-          ld.region, lh.circle, lh.division, lh.sub_division, ld.block,
-          ld.scheme_id, ld.scheme_name, 
-          sa.total_population, la.total_villages,
-          la.villages_above_55 as villages_above_55, 
-          la.villages_below_55 as villages_below_55, 
-          la.villages_zero_supply as villages_zero_supply,
-          ld.latest_lpcd_value as lpcd_value, 
-          ld.latest_water_value as water_value, 
-          lh.data_date, 
-          lh.dashboard_url
-        FROM live_data ld
-        LEFT JOIN latest_history lh ON ld.scheme_id = lh.scheme_id AND ld.block = lh.block
-        JOIN lpcd_aggregation la ON ld.scheme_id = la.scheme_id AND ld.block = la.block
-        JOIN scheme_aggregation sa ON ld.scheme_id = sa.scheme_id AND ld.block = sa.block
-        WHERE ld.region IS NOT NULL
-          ${updatedRegionFilter}
-          ${updatedSchemeIdFilter}
-          ${updatedMetricCondition}
-        ORDER BY ld.region, ld.scheme_name, ld.block
+        SELECT * FROM (
+          SELECT DISTINCT ON (ld.scheme_id)
+            ld.region, lh.circle, lh.division, lh.sub_division, ld.block,
+            ld.scheme_id, ld.scheme_name, 
+            sa.total_population, la.total_villages,
+            la.villages_above_55 as villages_above_55, 
+            la.villages_below_55 as villages_below_55, 
+            la.villages_zero_supply as villages_zero_supply,
+            ld.latest_lpcd_value as lpcd_value, 
+            ld.latest_water_value as water_value, 
+            lh.data_date, 
+            lh.dashboard_url
+          FROM live_data ld
+          LEFT JOIN latest_history lh ON ld.scheme_id = lh.scheme_id AND ld.block = lh.block
+          LEFT JOIN lpcd_aggregation la ON ld.scheme_id = la.scheme_id AND ld.block = la.block
+          LEFT JOIN scheme_aggregation sa ON ld.scheme_id = sa.scheme_id AND ld.block = sa.block
+          WHERE ld.region IS NOT NULL
+            ${updatedRegionFilter}
+            ${updatedSchemeIdFilter}
+            ${updatedMetricCondition}
+          ORDER BY ld.scheme_id, ld.block
+        ) as t
+        ORDER BY region, scheme_name, block
       `;
       }
 
@@ -7411,9 +7436,9 @@ router.get("/scheme-lpcd/region-comparison-schemes-export/:category/:day", async
         let havingCondition = '';
 
         if (metric === 'above_55') {
-          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 55';
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) >= 55';
         } else if (metric === 'below_55') {
-          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 0 AND (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) <= 55';
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 0 AND (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) < 55';
         } else if (metric === 'no_water') {
           havingCondition = '((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) IS NULL OR (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) = 0)';
         }
@@ -7423,12 +7448,12 @@ router.get("/scheme-lpcd/region-comparison-schemes-export/:category/:day", async
 
         query = `
         WITH weekly_data AS (
-          SELECT DISTINCT ON (scheme_id, village_name, data_date)
+          SELECT DISTINCT ON (region, scheme_id, block, data_date)
             region, circle, division, sub_division, block,
-            scheme_id, scheme_name, village_name, population as total_population,
+            scheme_id, scheme_name, total_population, total_villages,
             lpcd_value, water_value, data_date, dashboard_url,
-            1 as total_villages -- Assuming each row represents one village for this context
-          FROM water_scheme_data_history
+            total_villages as villages_in_scheme
+          FROM scheme_lpcd_data_history
           WHERE region IS NOT NULL
           ${regionFilter}
           ${schemeIdFilter}
@@ -7436,7 +7461,7 @@ router.get("/scheme-lpcd/region-comparison-schemes-export/:category/:day", async
           AND(
               data_date IN(${dateParams})
             )
-          ORDER BY scheme_id, village_name, data_date, uploaded_at DESC
+          ORDER BY region, scheme_id, block, data_date, uploaded_at DESC
         )
         SELECT
             region, MAX(circle) as circle, MAX(division) as division, MAX(sub_division) as sub_division, block, MAX(completion_status) as completion_status,
@@ -7456,66 +7481,142 @@ router.get("/scheme-lpcd/region-comparison-schemes-export/:category/:day", async
 
         let metricCondition = '';
         switch (category) {
-          case 'above55':
-            metricCondition = 'lpcd_value IS NOT NULL AND lpcd_value::numeric > 55';
+          case 'above_55':
+            metricCondition = 'AND ld.latest_lpcd_value IS NOT NULL AND ld.latest_lpcd_value::numeric >= 55';
             break;
-          case 'below55':
-            metricCondition = 'lpcd_value IS NOT NULL AND lpcd_value::numeric > 0 AND lpcd_value::numeric <= 55';
+          case 'below_55':
+            metricCondition = 'AND ld.latest_lpcd_value IS NOT NULL AND ld.latest_lpcd_value::numeric > 0 AND ld.latest_lpcd_value::numeric < 55';
+            break;
+          case 'with_water':
+            metricCondition = 'AND ld.latest_lpcd_value IS NOT NULL AND ld.latest_lpcd_value::numeric > 0';
+            break;
+          case 'no_water':
+            metricCondition = 'AND (ld.latest_lpcd_value IS NULL OR ld.latest_lpcd_value::numeric = 0)';
             break;
           default:
-            metricCondition = 'TRUE';
+            metricCondition = '';
         }
 
+        let updatedRegionFilter = region && region !== 'All Regions' ? `AND ld.region = $${paramIndex - 1}` : '';
+        let updatedSchemeIdFilter = schemeIdFilter ? schemeIdFilter.replace(/scheme_id IN/g, 'ld.scheme_id IN') : '';
+
         query = `
-        WITH history_stats AS(
-        WITH weekly_data AS (
-          SELECT DISTINCT ON (scheme_id, village_name, data_date)
-            region, circle, division, sub_division, block,
-            scheme_id, scheme_name, village_name, population as total_population,
-            lpcd_value, water_value, data_date, dashboard_url,
-            1 as total_villages -- Assuming each row represents one village for this context
-          FROM water_scheme_data_history
-          WHERE region IS NOT NULL
-          ${regionFilter}
-          ${schemeIdFilter}
-          ORDER BY scheme_id, village_name, data_date, uploaded_at DESC
+        WITH village_counts AS (
+          SELECT 
+            scheme_id,
+            block,
+            village_name,
+            CASE WHEN lpcd_value_day7 >= 55 THEN 1 ELSE 0 END as is_above_55,
+            CASE WHEN lpcd_value_day7 < 55 AND lpcd_value_day7 > 0 THEN 1 ELSE 0 END as is_below_55,
+            CASE WHEN lpcd_value_day7 = 0 OR lpcd_value_day7 IS NULL THEN 1 ELSE 0 END as is_zero_supply
+          FROM water_scheme_data
+        ),
+        deduplicated_villages AS (
+          SELECT DISTINCT ON (scheme_id, block, village_name)
+            scheme_id, scheme_name, region, block, village_name, population,
+            water_value_day1, water_value_day2, water_value_day3, water_value_day4,
+            water_value_day5, water_value_day6, water_value_day7
+          FROM water_scheme_data
+          ORDER BY scheme_id, block, village_name, lpcd_value_day7 DESC NULLS LAST
+        ),
+        village_status AS (
+          SELECT scheme_id, block, village_name,
+            MAX(is_above_55) as has_above_55,
+            MAX(is_below_55) as has_below_55,
+            MAX(is_zero_supply) as has_zero_supply
+          FROM village_counts
+          GROUP BY scheme_id, block, village_name
+        ),
+        lpcd_aggregation AS (
+          SELECT scheme_id, block,
+            COUNT(DISTINCT village_name) as total_villages,
+            SUM(CASE WHEN has_above_55 > 0 THEN 1 ELSE 0 END) as villages_above_55,
+            SUM(CASE WHEN has_below_55 > 0 THEN 1 ELSE 0 END) as villages_below_55,
+            SUM(CASE WHEN has_above_55 = 0 AND has_below_55 = 0 THEN 1 ELSE 0 END) as villages_zero_supply
+          FROM village_status
+          GROUP BY scheme_id, block
+        ),
+        scheme_aggregation AS (
+          SELECT 
+            wsd.scheme_id, wsd.scheme_name, wsd.region, wsd.block,
+            SUM(wsd.population) as total_population,
+            SUM(wsd.water_value_day1) as total_water_day1,
+            SUM(wsd.water_value_day2) as total_water_day2,
+            SUM(wsd.water_value_day3) as total_water_day3,
+            SUM(wsd.water_value_day4) as total_water_day4,
+            SUM(wsd.water_value_day5) as total_water_day5,
+            SUM(wsd.water_value_day6) as total_water_day6,
+            SUM(wsd.water_value_day7) as total_water_day7
+          FROM deduplicated_villages wsd
+          JOIN lpcd_aggregation la ON wsd.scheme_id = la.scheme_id AND wsd.block = la.block
+          GROUP BY wsd.scheme_id, wsd.scheme_name, wsd.region, wsd.block
+        ),
+        scheme_calculated_values AS (
+          SELECT scheme_id, scheme_name, region, block,
+            CASE WHEN total_population > 0 THEN ROUND((total_water_day1 * 100000) / total_population, 2) ELSE 0 END as lpcd_value_day1,
+            CASE WHEN total_population > 0 THEN ROUND((total_water_day2 * 100000) / total_population, 2) ELSE 0 END as lpcd_value_day2,
+            CASE WHEN total_population > 0 THEN ROUND((total_water_day3 * 100000) / total_population, 2) ELSE 0 END as lpcd_value_day3,
+            CASE WHEN total_population > 0 THEN ROUND((total_water_day4 * 100000) / total_population, 2) ELSE 0 END as lpcd_value_day4,
+            CASE WHEN total_population > 0 THEN ROUND((total_water_day5 * 100000) / total_population, 2) ELSE 0 END as lpcd_value_day5,
+            CASE WHEN total_population > 0 THEN ROUND((total_water_day6 * 100000) / total_population, 2) ELSE 0 END as lpcd_value_day6,
+            CASE WHEN total_population > 0 THEN ROUND((total_water_day7 * 100000) / total_population, 2) ELSE 0 END as lpcd_value_day7,
+            total_water_day1, total_water_day2, total_water_day3,
+            total_water_day4, total_water_day5, total_water_day6, total_water_day7
+          FROM scheme_aggregation
+        ),
+        live_data AS (
+          SELECT 
+            calculated.*,
+            COALESCE(
+              lpcd_value_day7, 
+              lpcd_value_day6, 
+              lpcd_value_day5, 
+              lpcd_value_day4, 
+              lpcd_value_day3, 
+              lpcd_value_day2, 
+              lpcd_value_day1, 
+              0
+            ) as latest_lpcd_value,
+            total_water_day7 as latest_water_value
+          FROM (
+            SELECT DISTINCT ON (region, scheme_name) *
+            FROM scheme_calculated_values
+            WHERE scheme_name IS NOT NULL AND BTRIM(scheme_name) <> ''
+            ORDER BY region, scheme_name, block
+          ) calculated
+        ),
+        latest_history AS (
+          SELECT DISTINCT ON (sldh.scheme_id, sldh.block)
+            sldh.scheme_id, sldh.block,
+            sldh.circle, sldh.division, sldh.sub_division, sldh.data_date,
+            COALESCE(NULLIF(ss.dashboard_url, ''), sldh.dashboard_url) as dashboard_url
+          FROM scheme_lpcd_data_history sldh
+          LEFT JOIN scheme_status ss ON ss.scheme_id = sldh.scheme_id AND ss.scheme_name = sldh.scheme_name
+          ORDER BY sldh.scheme_id, sldh.block, sldh.uploaded_at DESC
         )
-            SELECT
-            region, circle, division, sub_division, block,
-            scheme_id, scheme_name, total_population, total_villages,
-            COUNT(CASE WHEN ${metricCondition} THEN 1 END) as consecutive_days
-          FROM(
-              SELECT DISTINCT ON(region, scheme_id, block, data_date)
-              region, circle, division, sub_division, block,
-              scheme_id, scheme_name, total_population, total_villages, data_date, lpcd_value
-            WHERE region IS NOT NULL
-              ${regionFilter}
-              ${schemeIdFilter}
-            ORDER BY region, scheme_id, block, data_date, uploaded_at DESC
-            ) deduplicated
-          GROUP BY region, circle, division, sub_division, block, scheme_id, scheme_name, total_population, total_villages
-          ),
-          latest_values AS(
-            SELECT DISTINCT ON(region, scheme_id, block)
-            region, scheme_id, block, lpcd_value, water_value, data_date
-          FROM scheme_lpcd_data_history
-          WHERE region IS NOT NULL
-            ${regionFilter}
-            ${schemeIdFilter}
-          ORDER BY region, scheme_id, block, uploaded_at DESC
-          )
-        SELECT
-        hs.region, hs.circle, hs.division, hs.sub_division, hs.block,
-          hs.scheme_id, hs.scheme_name, hs.total_population, hs.total_villages,
-          hs.consecutive_days,
-          lv.lpcd_value as latest_lpcd_value,
-          lv.water_value as latest_water_value,
-          lv.data_date as latest_date
-        FROM history_stats hs
-        LEFT JOIN latest_values lv ON hs.scheme_id = lv.scheme_id AND COALESCE(hs.block, '') = COALESCE(lv.block, '')
-        WHERE hs.consecutive_days >= $1
-        ORDER BY hs.consecutive_days DESC, hs.region, hs.scheme_name
-          `;
+        SELECT * FROM (
+          SELECT DISTINCT ON (ld.scheme_id)
+            ld.region, lh.circle, lh.division, lh.sub_division, ld.block,
+            ld.scheme_id, ld.scheme_name, 
+            sa.total_population, la.total_villages,
+            1 as consecutive_days,
+            ld.latest_lpcd_value as latest_lpcd_value, 
+            ld.latest_water_value as latest_water_value, 
+            lh.data_date as latest_date, 
+            lh.dashboard_url
+          FROM live_data ld
+          LEFT JOIN latest_history lh ON ld.scheme_id = lh.scheme_id AND ld.block = lh.block
+          LEFT JOIN lpcd_aggregation la ON ld.scheme_id = la.scheme_id AND ld.block = la.block
+          LEFT JOIN scheme_aggregation sa ON ld.scheme_id = sa.scheme_id AND ld.block = sa.block
+          WHERE ld.region IS NOT NULL
+            AND $1::int IS NOT NULL -- Consume dayNum to fix PG error
+            ${updatedRegionFilter}
+            ${updatedSchemeIdFilter}
+            ${metricCondition}
+          ORDER BY ld.scheme_id, ld.block
+        ) as t
+        ORDER BY region, scheme_name, block
+      `;
 
       }
 

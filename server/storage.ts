@@ -4888,8 +4888,8 @@ export class PostgresStorage implements IStorage {
         )
         SELECT 
           region,
-          COUNT(CASE WHEN avg_lpcd > 55 THEN 1 END)::integer as above_55,
-          COUNT(CASE WHEN avg_lpcd <= 55 AND avg_lpcd > 0 THEN 1 END)::integer as below_55,
+          COUNT(CASE WHEN avg_lpcd >= 55 THEN 1 END)::integer as above_55,
+          COUNT(CASE WHEN avg_lpcd < 55 AND avg_lpcd > 0 THEN 1 END)::integer as below_55,
           COUNT(CASE WHEN avg_lpcd = 0 OR avg_lpcd IS NULL THEN 1 END)::integer as no_water
         FROM village_averages
         GROUP BY region;
@@ -4919,15 +4919,20 @@ export class PostgresStorage implements IStorage {
             scheme_id,
             block,
             SUM(COALESCE(NULLIF(lpcd_value, 'NaN')::numeric, 0)) / 7.0 as avg_lpcd
-          FROM scheme_lpcd_data_history
-          WHERE data_date IN (${sql.join(dateStrings.map(d => sql`${d}`), sql`, `)})
-          ${schemeFilter}
+          FROM (
+            SELECT DISTINCT ON (region, scheme_id, block, data_date)
+              region, scheme_id, block, lpcd_value, data_date
+            FROM scheme_lpcd_data_history
+            WHERE data_date IN (${sql.join(dateStrings.map(d => sql`${d}`), sql`, `)})
+            ${schemeFilter}
+            ORDER BY region, scheme_id, block, data_date, uploaded_at DESC
+          ) deduplicated
           GROUP BY region, scheme_id, block
         )
         SELECT 
           region,
-          COUNT(CASE WHEN avg_lpcd > 55 THEN 1 END)::integer as above_55,
-          COUNT(CASE WHEN avg_lpcd <= 55 AND avg_lpcd > 0 THEN 1 END)::integer as below_55,
+          COUNT(CASE WHEN avg_lpcd >= 55 THEN 1 END)::integer as above_55,
+          COUNT(CASE WHEN avg_lpcd < 55 AND avg_lpcd > 0 THEN 1 END)::integer as below_55,
           COUNT(CASE WHEN avg_lpcd = 0 OR avg_lpcd IS NULL THEN 1 END)::integer as no_water
         FROM scheme_averages
         GROUP BY region;
