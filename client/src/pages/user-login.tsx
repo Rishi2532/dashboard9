@@ -1,23 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle, 
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
   CardDescription,
   CardFooter
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { 
-  Form, 
-  FormControl, 
-  FormField, 
-  FormItem, 
-  FormLabel, 
-  FormMessage 
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage
 } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -45,19 +45,19 @@ export default function UserLoginPage() {
   const { toast } = useToast();
   const [loginError, setLoginError] = useState<string | null>(null);
   const [, setLocation] = useLocation();
-  
+
   // Check if user is already logged in
   const authStatusQuery = useQuery<AuthStatusResponse>({
     queryKey: ['/api/auth/status'],
     refetchOnWindowFocus: false,
   });
-  
-  // Redirect to dashboard if already logged in
-  if (authStatusQuery.data?.isLoggedIn) {
-    window.location.href = '/dashboard';
-    return null;
-  }
 
+  // Redirect to user dashboard if already logged in as a normal user
+  useEffect(() => {
+    if (authStatusQuery.data?.isLoggedIn && !authStatusQuery.data?.isAdmin) {
+      setLocation("/");
+    }
+  }, [authStatusQuery.data, setLocation]);
   // Login form setup
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -77,25 +77,25 @@ export default function UserLoginPage() {
         },
         body: JSON.stringify(credentials),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Login failed');
       }
-      
+
       return response.json();
     },
     onSuccess: (data) => {
       // Check if the user is an admin - admins should use admin login
       if (data.role === 'admin') {
         setLoginError('Administrators should use the admin login page. This login is for regular users only.');
-        
+
         // Log out the admin who tried to log in through user login
         fetch('/api/auth/logout', { method: 'POST' });
-        
+
         return;
       }
-      
+
       toast({
         title: 'Login successful',
         description: 'You are now logged in',
@@ -118,7 +118,7 @@ export default function UserLoginPage() {
   return (
     <div className="min-h-screen relative overflow-hidden">
       {/* Background Image with Light Overlay */}
-      <div 
+      <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: `url(${backgroundImage})` }}
       >
@@ -135,7 +135,7 @@ export default function UserLoginPage() {
             className="h-12 sm:h-16 md:h-20 drop-shadow-2xl"
           />
         </div>
-        
+
         <div className="flex-1 flex items-center justify-center px-3 sm:px-4 py-16 sm:py-4">
           <Card className="w-full max-w-md shadow-2xl border border-white/40 bg-white/95 backdrop-blur-lg">
             <CardHeader className="space-y-1 p-4 sm:p-6">
@@ -166,9 +166,9 @@ export default function UserLoginPage() {
                       <FormItem>
                         <FormLabel className="text-blue-800">Username</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="Enter your username" 
-                            {...field} 
+                          <Input
+                            placeholder="Enter your username"
+                            {...field}
                             className="border-blue-200 focus-visible:ring-blue-500"
                           />
                         </FormControl>
@@ -183,10 +183,10 @@ export default function UserLoginPage() {
                       <FormItem>
                         <FormLabel className="text-blue-800">Password</FormLabel>
                         <FormControl>
-                          <Input 
-                            type="password" 
-                            placeholder="Enter your password" 
-                            {...field} 
+                          <Input
+                            type="password"
+                            placeholder="Enter your password"
+                            {...field}
                             className="border-blue-200 focus-visible:ring-blue-500"
                           />
                         </FormControl>
@@ -194,8 +194,8 @@ export default function UserLoginPage() {
                       </FormItem>
                     )}
                   />
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     className="w-full bg-gradient-to-r from-blue-600 to-blue-400 hover:from-blue-500 hover:to-blue-300 py-5 text-lg mt-2"
                     disabled={loginMutation.isPending}
                   >
@@ -238,7 +238,7 @@ export default function UserLoginPage() {
             </CardFooter>
           </Card>
         </div>
-        
+
         {/* Footer */}
         <footer className="relative z-10 py-4 border-t border-white/30 backdrop-blur-sm">
           <div className="text-center">

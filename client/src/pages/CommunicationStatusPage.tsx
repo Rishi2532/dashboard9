@@ -123,6 +123,7 @@ export default function CommunicationStatusPage() {
   const [selectedDivision, setSelectedDivision] = useState<string>("all");
   const [selectedSubdivision, setSelectedSubdivision] = useState<string>("all");
   const [selectedBlock, setSelectedBlock] = useState<string>("all");
+  const [selectedWaterSupply, setSelectedWaterSupply] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 10;
@@ -135,6 +136,7 @@ export default function CommunicationStatusPage() {
       selectedDivision,
       selectedSubdivision,
       selectedBlock,
+      selectedWaterSupply,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -144,6 +146,7 @@ export default function CommunicationStatusPage() {
       if (selectedSubdivision !== "all")
         params.set("subdivision", selectedSubdivision);
       if (selectedBlock !== "all") params.set("block", selectedBlock);
+      if (selectedWaterSupply !== "all") params.set("waterSupply", selectedWaterSupply);
 
       const response = await fetch(
         `/api/communication-status/overview?${params.toString()}`,
@@ -168,6 +171,7 @@ export default function CommunicationStatusPage() {
       selectedDivision,
       selectedSubdivision,
       selectedBlock,
+      selectedWaterSupply,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -177,6 +181,7 @@ export default function CommunicationStatusPage() {
       if (selectedSubdivision !== "all")
         params.set("subdivision", selectedSubdivision);
       if (selectedBlock !== "all") params.set("block", selectedBlock);
+      if (selectedWaterSupply !== "all") params.set("waterSupply", selectedWaterSupply);
 
       const response = await fetch(
         `/api/communication-status/schemes?${params.toString()}`,
@@ -833,7 +838,7 @@ export default function CommunicationStatusPage() {
             <CardTitle>Filter Communication Data</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <Select
                 value={selectedRegion}
                 onValueChange={(value) => {
@@ -947,6 +952,23 @@ export default function CommunicationStatusPage() {
                   ))}
                 </SelectContent>
               </Select>
+
+              <Select
+                value={selectedWaterSupply}
+                onValueChange={(value) => {
+                  setSelectedWaterSupply(value);
+                  resetPage();
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Water Supply" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="Yes">Yes</SelectItem>
+                  <SelectItem value="No">No</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>
@@ -1011,10 +1033,7 @@ export default function CommunicationStatusPage() {
                       <span className="text-sm font-medium">Connected</span>
                     </div>
                     <span className="text-xl font-bold text-black-600">
-                      {Math.round(
-                        Number(overview.flow_meter_online) +
-                        Number(overview.flow_meter_offline),
-                      )}
+                      {overview.flow_meter_connected}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -1083,10 +1102,7 @@ export default function CommunicationStatusPage() {
                       <span className="text-sm font-medium">Connected</span>
                     </div>
                     <span className="text-xl font-bold text-black-600">
-                      {Math.round(
-                        Number(overview.chlorine_online) +
-                        Number(overview.chlorine_offline),
-                      )}
+                      {overview.chlorine_connected}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -1155,10 +1171,7 @@ export default function CommunicationStatusPage() {
                       <span className="text-sm font-medium">Connected</span>
                     </div>
                     <span className="text-xl font-bold text-black-600">
-                      {Math.round(
-                        Number(overview.pressure_online) +
-                        Number(overview.pressure_offline),
-                      )}
+                      {overview.pressure_connected}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">

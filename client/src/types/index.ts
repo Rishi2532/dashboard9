@@ -64,7 +64,13 @@ export interface Scheme {
 export interface SchemeStatus {
   id: number;
   scheme_id: string;
+  scheme_name: string;
   region: string;
+  circle: string;
+  division: string;
+  sub_division: string;
+  block: string;
+  agency?: string;
   district: string;
   completed_civil_works: number;
   pending_civil_works: number;
@@ -79,6 +85,20 @@ export interface SchemeStatus {
   issues_reported: string | null;
   issue_resolution_status: string | null;
   updated_at: string;
+  number_of_village?: number;
+  total_villages_integrated?: number;
+  fully_completed_villages?: number;
+  total_number_of_esr?: number;
+  total_esr_integrated?: number;
+  no_fully_completed_esr?: number;
+  flow_meters_connected?: number;
+  pressure_transmitter_connected?: number;
+  residual_chlorine_analyzer_connected?: number;
+  mjp_commissioned?: string;
+  mjp_fully_completed?: string;
+  water_supply?: string;
+  fully_completion_scheme_status?: string;
+  scheme_functional_status?: string;
 }
 
 // Map location type is now imported directly from EnhancedGeoFilterMap.tsx

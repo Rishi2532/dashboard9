@@ -24,8 +24,8 @@ async function getCredentials() {
 
   connectionSettings = await fetch(
     "https://" +
-      hostname +
-      "/api/v2/connection?include_secrets=true&connector_names=resend",
+    hostname +
+    "/api/v2/connection?include_secrets=true&connector_names=resend",
     {
       headers: {
         Accept: "application/json",
@@ -74,6 +74,7 @@ function getGmailTransporter() {
     host: "smtp.gmail.com",
     port: 465,
     secure: true,
+    name: "gmail.com", // Add the domain name explicitly
     auth: {
       user: gmailUser,
       pass: gmailAppPassword,
@@ -103,15 +104,22 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
     ) {
       const transporter = getGmailTransporter();
 
-      const fromAddress =
-        typeof params.from === "string"
-          ? `${params.from} <${process.env.GMAIL_USER}>`
-          : `${params.from} <${process.env.GMAIL_USER}>`;
+      // **CRITICAL FIX for OUTLOOK:** 
+      // Do NOT use a custom display name like "Maharashtra Water <email@gmail.com>"
+      // Just use the bare email address. Outlook flags free @gmail.com accounts 
+      // that try to spoof names from scripts.
+      const fromAddress = process.env.GMAIL_USER;
 
       const mailOptions: any = {
         from: fromAddress,
         to: params.to,
         subject: params.subject,
+        // **CRITICAL FIX for OUTLOOK:** Add headers to make it look like a real client
+        headers: {
+          "X-Mailer": "Microsoft Outlook 16.0", // Trick some basic filters
+          "MIME-Version": "1.0",
+          ...params.headers
+        }
       };
 
       if (params.html) mailOptions.html = params.html;
@@ -288,7 +296,7 @@ export async function sendVendorNotificationEmail(
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
       <div style="background-color: #dc2626; color: white; padding: 20px; text-align: center;">
-        <h1 style="margin: 0; font-size: 24px;">⚠️ Maharashtra Water Infrastructure</h1>
+        <h1 style="margin: 0; font-size: 24px;">⚠️ JJM  SWSM IoT Maharashtra</h1>
         <p style="margin: 5px 0 0 0; opacity: 0.9; font-size: 16px;">NEW SUPPORT REQUEST - ACTION REQUIRED</p>
       </div>
 

@@ -1,0 +1,33 @@
+
+--- Region: Nagpur ---
+Summary Total (Offline/NoData + Valid Readings): 250
+Detail List all_sensors count: 247
+MISMATCH!
+Found 1 rows in chlorine_data with valid readings but NOT connected in communication_status.
+Summary 7-Day Consistent: 85
+
+--- Region: Chhatrapati Sambhajinagar ---
+Summary Total (Offline/NoData + Valid Readings): 526
+Detail List all_sensors count: 521
+MISMATCH!
+Summary 7-Day Consistent: 100
+
+--- Region: Konkan ---
+Summary Total (Offline/NoData + Valid Readings): 142
+Detail List all_sensors count: 140
+MISMATCH!
+Found 2 rows in chlorine_data with valid readings but NOT connected in communication_status.
+Summary 7-Day Consistent: 10
+
+--- Region: Nashik ---
+Summary Total (Offline/NoData + Valid Readings): 602
+Detail List all_sensors count: 597
+MISMATCH!
+Summary 7-Day Consistent: 88
+
+--- Region: Pune ---
+Summary Total (Offline/NoData + Valid Readings): 268
+Detail List all_sensors count: 263
+MISMATCH!
+Found 5 rows in chlorine_data with valid readings but NOT connected in communication_status.
+Summary 7-Day Consistent: 46

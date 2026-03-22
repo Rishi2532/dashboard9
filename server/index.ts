@@ -1,6 +1,10 @@
 import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load environment variables from .env file first
 dotenv.config();
@@ -52,9 +56,25 @@ import { initializeDataCleanup } from "./data-cleanup.js"; // Run data cleanup o
 import { mqttService } from "./mqtt-service"; // Initialize MQTT service
 
 const app = express();
+app.disable('x-powered-by');
 app.set("trust proxy", 1); // Trust the first proxy in the cloud environment
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+app.get("/health", (req, res) => {
+  res.send("OK");
+});
+
+// Security Headers to prevent Clickjacking and other attacks
+app.use((req, res, next) => {
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://dashboard1.mahajaliot.in;");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), usb=(), fullscreen=(self)");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  next();
+});
 
 // Configure session middleware
 app.use(
@@ -63,6 +83,8 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
+      path: "/api",
+      sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
@@ -105,20 +127,46 @@ app.use((req, res, next) => {
 
   const server = await registerRoutes(app);
 
+  // Validate URI before hitting Vite or other middlewares
+  app.use((req, res, next) => {
+    try {
+      decodeURI(req.url);
+      next();
+    } catch (e) {
+      res.status(400).send("Bad Request: Malformed URI");
+    }
+  });
+
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
     res.status(status).json({ message });
-    throw err;
+    console.error(err);
   });
 
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
+  const currentDir = __dirname;
+  const distPath = fs.existsSync(path.join(currentDir, 'public'))
+    ? path.join(currentDir, 'public')
+    : path.resolve(currentDir, '..', 'dist', 'public');
+
+  console.log(`Resolved distPath: ${distPath}`);
+  console.log(`Current __dirname: ${__dirname}`);
+  console.log(`process.cwd(): ${process.cwd()}`);
+
+  // If the production build directory exists, assume we are in production
+  // and force static serving to prevent source code leaks.
+  if (fs.existsSync(distPath)) {
+    log("Production build found. Serving statically from dist/public.");
+    serveStatic(app);
+  } else if (process.env.NODE_ENV !== "production") {
+    log("No production build found. Starting Vite development server...");
     await setupVite(app, server);
   } else {
+    log("CRITICAL: Production mode but dist/public is missing. Static serving will fail.");
     serveStatic(app);
   }
 
@@ -130,7 +178,6 @@ app.use((req, res, next) => {
     {
       port,
       host: "0.0.0.0",
-      // reusePort: true,
     },
     () => {
       log(`serving on port ${port}`);

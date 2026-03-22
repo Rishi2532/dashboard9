@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
@@ -50,12 +50,12 @@ export default function AdminPage() {
     refetchOnWindowFocus: false,
   });
 
-  // Redirect to admin dashboard if already logged in
-  if (authStatusQuery.data?.isLoggedIn) {
-    window.location.href = "/admin/dashboard";
-    return null;
-  }
-
+  // Redirect to admin dashboard if already logged in as admin
+  useEffect(() => {
+    if (authStatusQuery.data?.isLoggedIn && authStatusQuery.data?.isAdmin) {
+      window.location.href = "/admin/dashboard";
+    }
+  }, [authStatusQuery.data]);
   // Login form setup
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -118,7 +118,7 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen relative overflow-hidden">
       {/* Background Image with Light Overlay */}
-      <div 
+      <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: `url(${backgroundImage})` }}
       >

@@ -7,7 +7,7 @@ const router = express.Router();
 // Get scheme LPCD data - aggregated from village LPCD data
 router.get('/', async (req, res) => {
   try {
-    const { region, minLpcd, maxLpcd, mjpCommissioned } = req.query;
+    const { region, circle, division, subdivision, block, minLpcd, maxLpcd, mjpCommissioned } = req.query;
 
     // Use pg directly for this route to perform complex aggregation
     const { Pool } = pg;
@@ -235,6 +235,30 @@ router.get('/', async (req, res) => {
         queryParams.push(region);
       }
 
+      // Circle filter
+      if (circle && circle !== 'all') {
+        conditions.push('circle = $' + (queryParams.length + 1));
+        queryParams.push(circle);
+      }
+
+      // Division filter
+      if (division && division !== 'all') {
+        conditions.push('division = $' + (queryParams.length + 1));
+        queryParams.push(division);
+      }
+
+      // Subdivision filter
+      if (subdivision && subdivision !== 'all') {
+        conditions.push('sub_division = $' + (queryParams.length + 1));
+        queryParams.push(subdivision);
+      }
+
+      // Block filter
+      if (block && block !== 'all') {
+        conditions.push('block = $' + (queryParams.length + 1));
+        queryParams.push(block);
+      }
+
       // LPCD minimum filter
       if (minLpcd) {
         conditions.push('CASE WHEN total_population > 0 THEN ROUND((total_water_day7 * 100000) / total_population, 2) ELSE 0 END >= $' + (queryParams.length + 1));
@@ -281,7 +305,7 @@ router.get('/', async (req, res) => {
 // Get scheme LPCD statistics
 router.get('/lpcd-stats', async (req, res) => {
   try {
-    const { region } = req.query;
+    const { region, circle, division, subdivision, block } = req.query;
 
     // Use pg directly for this route
     const { Pool } = pg;
@@ -314,11 +338,33 @@ router.get('/lpcd-stats', async (req, res) => {
           scheme_aggregation
       `;
 
-      // Add WHERE clause for region filtering
+      // Add WHERE clauses for geographic filtering
       const queryParams: any[] = [];
+      const conditions: string[] = [];
+
       if (region && region !== 'all') {
-        aggregatedDataQuery += ' WHERE region = $1';
+        conditions.push('region = $' + (queryParams.length + 1));
         queryParams.push(region);
+      }
+      if (circle && circle !== 'all') {
+        conditions.push('circle = $' + (queryParams.length + 1));
+        queryParams.push(circle);
+      }
+      if (division && division !== 'all') {
+        conditions.push('division = $' + (queryParams.length + 1));
+        queryParams.push(division);
+      }
+      if (subdivision && subdivision !== 'all') {
+        conditions.push('sub_division = $' + (queryParams.length + 1));
+        queryParams.push(subdivision);
+      }
+      if (block && block !== 'all') {
+        conditions.push('block = $' + (queryParams.length + 1));
+        queryParams.push(block);
+      }
+
+      if (conditions.length > 0) {
+        aggregatedDataQuery += ' WHERE ' + conditions.join(' AND ');
       }
 
       // Execute the aggregation query
@@ -361,7 +407,7 @@ router.get('/lpcd-stats', async (req, res) => {
 // Get scheme LPCD historical data with date range functionality
 router.get('/history', async (req, res) => {
   try {
-    const { scheme_id, start_date, end_date, region, block, limit = '1000', offset = '0' } = req.query;
+    const { scheme_id, start_date, end_date, region, circle, division, subdivision, block, limit = '1000', offset = '0' } = req.query;
 
     const { Pool } = pg;
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -393,6 +439,24 @@ router.get('/history', async (req, res) => {
       if (region && region !== 'all') {
         query += ` AND h.region = $${paramIndex}`;
         queryParams.push(region);
+        paramIndex++;
+      }
+
+      if (circle && circle !== 'all') {
+        query += ` AND h.circle = $${paramIndex}`;
+        queryParams.push(circle);
+        paramIndex++;
+      }
+
+      if (division && division !== 'all') {
+        query += ` AND h.division = $${paramIndex}`;
+        queryParams.push(division);
+        paramIndex++;
+      }
+
+      if (subdivision && subdivision !== 'all') {
+        query += ` AND h.sub_division = $${paramIndex}`;
+        queryParams.push(subdivision);
         paramIndex++;
       }
 
@@ -449,7 +513,7 @@ router.get('/history', async (req, res) => {
 // Export scheme LPCD historical data with streaming for large datasets
 router.get('/export/history', async (req, res) => {
   try {
-    const { scheme_id, start_date, end_date, region, block, format = 'xlsx' } = req.query;
+    const { scheme_id, start_date, end_date, region, circle, division, subdivision, block, format = 'xlsx' } = req.query;
 
     const { Pool } = pg;
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -497,6 +561,24 @@ router.get('/export/history', async (req, res) => {
       if (region && region !== 'all') {
         query += ` AND h.region = $${paramIndex}`;
         queryParams.push(region);
+        paramIndex++;
+      }
+
+      if (circle && circle !== 'all') {
+        query += ` AND h.circle = $${paramIndex}`;
+        queryParams.push(circle);
+        paramIndex++;
+      }
+
+      if (division && division !== 'all') {
+        query += ` AND h.division = $${paramIndex}`;
+        queryParams.push(division);
+        paramIndex++;
+      }
+
+      if (subdivision && subdivision !== 'all') {
+        query += ` AND h.sub_division = $${paramIndex}`;
+        queryParams.push(subdivision);
         paramIndex++;
       }
 

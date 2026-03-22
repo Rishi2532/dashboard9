@@ -167,7 +167,7 @@ export default function Header() {
                       Track Issues
                     </Button>
                   </Link>
-                  <Link href="/admin">
+                  <Link href="/admin/dashboard">
                     <Button
                       size="sm"
                       className="hidden sm:flex bg-amber-500 hover:bg-amber-600 text-white h-8 text-xs font-semibold"

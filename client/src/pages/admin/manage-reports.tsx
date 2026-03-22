@@ -213,7 +213,7 @@ const ManageReports = () => {
   return (
     <div className="container py-8">
       <div className="flex items-center mb-6">
-        <Link href="/admin" className="mr-4">
+        <Link href="/admin/dashboard" className="mr-4">
           <Button variant="outline" size="sm">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Admin
