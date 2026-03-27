@@ -4869,12 +4869,12 @@ export class PostgresStorage implements IStorage {
 
       const query = sql`
         WITH deduplicated_history AS (
-          SELECT DISTINCT ON (scheme_id, village_name, data_date)
+          SELECT DISTINCT ON (scheme_id, village_name, block, data_date)
             region, scheme_id, village_name, block, lpcd_value, data_date
           FROM water_scheme_data_history
           WHERE data_date IN (${sql.join(dateStrings.map(d => sql`${d}`), sql`, `)})
           ${schemeFilter}
-          ORDER BY scheme_id, village_name, data_date, uploaded_at DESC
+          ORDER BY scheme_id, village_name, block, data_date, uploaded_at DESC
         ),
         village_averages AS (
           SELECT 

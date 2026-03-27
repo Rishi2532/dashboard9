@@ -2570,7 +2570,7 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
         // We need to fetch details similar to other cases but aggregated
         query = `
             WITH weekly_data AS (
-                SELECT DISTINCT ON (scheme_id, village_name, data_date)
+                SELECT DISTINCT ON (scheme_id, village_name, block, data_date)
                     region, circle, division, sub_division, block,
                     scheme_id, scheme_name, village_name, population,
                     lpcd_value, data_date, dashboard_url
@@ -2581,24 +2581,20 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
                 AND (
                     data_date IN (${dateParams})
                 )
-                ORDER BY scheme_id, village_name, data_date, uploaded_at DESC
+                ORDER BY scheme_id, village_name, block, data_date, uploaded_at DESC
             )
             SELECT
-                wd.region, wd.circle, wd.division, wd.sub_division, wd.block,
-                wd.scheme_id, wd.scheme_name, wd.village_name, wd.population,
-                ROUND((SUM(COALESCE(NULLIF(TRIM(wd.lpcd_value::text), '')::numeric, 0)) / 7.0), 2) as lpcd_value,
-                MAX(wd.data_date) as lpcd_date,
-                MAX(COALESCE(wsd.dashboard_url, wd.dashboard_url)) as dashboard_url,
+                region, MAX(circle) as circle, MAX(division) as division, MAX(sub_division) as sub_division, block,
+                scheme_id, MAX(scheme_name) as scheme_name, MAX(village_name) as village_name, MAX(population) as population,
+                ROUND((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), '')::numeric, 0)) / 7.0), 2) as lpcd_value,
+                MAX(data_date) as lpcd_date,
+                MAX(dashboard_url) as dashboard_url,
                 NULL as water_value_day7, -- placeholder
                 NULL as water_date_day7 -- placeholder
-            FROM weekly_data wd
-            LEFT JOIN water_scheme_data wsd ON 
-                wd.scheme_id = wsd.scheme_id AND 
-                wd.village_name = wsd.village_name AND 
-                wd.block = wsd.block
-            GROUP BY wd.region, wd.circle, wd.division, wd.sub_division, wd.block, wd.scheme_id, wd.scheme_name, wd.village_name, wd.population
+            FROM weekly_data
+            GROUP BY region, scheme_id, block, village_name
             HAVING ${havingCondition}
-            ORDER BY wd.region, wd.division, wd.village_name
+            ORDER BY region, MAX(division), village_name
           `;
       } else {
         switch (category) {
@@ -3016,7 +3012,7 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
         // Use water_scheme_data_history for weekly
         query = `
             WITH weekly_data AS (
-                SELECT 
+                SELECT DISTINCT ON (scheme_id, village_name, block, data_date)
                     region, circle, division, sub_division, block,
                     scheme_id, scheme_name, village_name, population,
                     lpcd_value, data_date, dashboard_url
@@ -3032,18 +3028,19 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
                        ELSE '01-Jan-2000'
                     END, 'DD-Mon-YY'), 'DD-Mon') IN (${dateParams})
                 )
+                ORDER BY scheme_id, village_name, block, data_date, uploaded_at DESC
             )
             SELECT
-                region, circle, division, sub_division, block,
-                scheme_id, scheme_name, village_name, population,
+                region, MAX(circle) as circle, MAX(division) as division, MAX(sub_division) as sub_division, block,
+                scheme_id, MAX(scheme_name) as scheme_name, MAX(village_name) as village_name, MAX(population) as population,
                 ROUND((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), '')::numeric, 0)) / 7.0), 2) as lpcd_value,
                 MAX(data_date) as lpcd_date,
                 MAX(dashboard_url) as dashboard_url,
                 NULL as water_value_day7 -- placeholder
             FROM weekly_data
-            GROUP BY region, circle, division, sub_division, block, scheme_id, scheme_name, village_name, population
+            GROUP BY region, scheme_id, block, village_name
             HAVING ${havingCondition}
-            ORDER BY region, division, village_name
+            ORDER BY region, MAX(division), village_name
           `;
       } else {
         switch (category) {
@@ -6981,9 +6978,7 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
                 ROUND((SUM(COALESCE(NULLIF(TRIM(water_value::text), '')::numeric, 0)) / 7.0), 2) as water_value,
                 MAX(data_date) as data_date,
                 (ARRAY_AGG(dashboard_url ORDER BY TO_DATE(data_date, 'DD-Mon-YY') DESC))[1] as dashboard_url
-            FROM (
-                SELECT *, NULL as completion_status FROM weekly_data
-            ) t
+            FROM weekly_data
             GROUP BY region, scheme_id, block
             HAVING ${havingCondition}
             ORDER BY region, scheme_id 
@@ -7451,8 +7446,7 @@ router.get("/scheme-lpcd/region-comparison-schemes-export/:category/:day", async
           SELECT DISTINCT ON (region, scheme_id, block, data_date)
             region, circle, division, sub_division, block,
             scheme_id, scheme_name, total_population, total_villages,
-            lpcd_value, water_value, data_date, dashboard_url,
-            total_villages as villages_in_scheme
+            lpcd_value, water_value, data_date, dashboard_url
           FROM scheme_lpcd_data_history
           WHERE region IS NOT NULL
           ${regionFilter}
@@ -7466,9 +7460,9 @@ router.get("/scheme-lpcd/region-comparison-schemes-export/:category/:day", async
         SELECT
             region, MAX(circle) as circle, MAX(division) as division, MAX(sub_division) as sub_division, block, MAX(completion_status) as completion_status,
             scheme_id, MAX(scheme_name) as scheme_name, MAX(total_population) as total_population, MAX(total_villages) as total_villages,
-            ROUND((SUM(COALESCE(NULLIF(TRIM(lpcd_value:: text), ''):: numeric, 0)) / 7.0), 2) as latest_lpcd_value,
-            ROUND((SUM(COALESCE(NULLIF(TRIM(water_value:: text), ''):: numeric, 0)) / 7.0), 2) as latest_water_value,
-            MAX(data_date) as latest_date
+            ROUND((SUM(COALESCE(NULLIF(TRIM(lpcd_value:: text), ''):: numeric, 0)) / 7.0), 2) as lpcd_value,
+            ROUND((SUM(COALESCE(NULLIF(TRIM(water_value:: text), ''):: numeric, 0)) / 7.0), 2) as water_value,
+            MAX(data_date) as lpcd_date
         FROM(
             SELECT *, NULL as completion_status FROM weekly_data
         ) t

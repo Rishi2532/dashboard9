@@ -12378,10 +12378,12 @@ if (schemeFilter === "fully_completed") {
                                     </div>
                                     {overallComparisonData.data.map(
                                       (regionData, idx) => {
-                                        const currentDayTotal =
-                                          regionData.above_55 +
-                                          regionData.below_55 +
-                                          regionData.no_water;
+                                        const regionStat = weeklyLpcdStats?.villageStats?.find(s => s.region === regionData.region);
+                                        const weeklyTotal = regionStat
+                                          ? Number(regionStat.above_55 || 0) +
+                                            Number(regionStat.below_55 || 0) +
+                                            Number(regionStat.no_water || 0)
+                                          : 0;
                                         return (
                                           <div
                                             key={`lpcd-current-total-${regionData.region}`}
@@ -12390,41 +12392,44 @@ if (schemeFilter === "fully_completed") {
                                             <button
                                               onClick={() =>
                                                 setClickedComparisonCell({
-                                                  category: "all_villages",
+                                                  category: "weekly_all_villages",
                                                   region: regionData.region,
-                                                  label: `All Villages - ${regionData.region}`,
+                                                  label: `Weekly Avg All Villages - ${regionData.region}`,
                                                   isLpcd: true,
+                                                  dates: weeklyLpcdStats?.dates
                                                 })
                                               }
                                               className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-violet-100 dark:bg-violet-900 text-dark-700 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-800 transition-colors"
                                             >
-                                              {currentDayTotal}
+                                              {weeklyTotal}
                                             </button>
                                           </div>
                                         );
                                       },
                                     )}
                                     <div className="px-2 py-2.5 flex items-center justify-center bg-violet-100/50 dark:bg-violet-950/50">
-                                      <button
-                                        onClick={() =>
-                                          setClickedComparisonCell({
-                                            category: "all_villages",
-                                            region: "All Regions",
-                                            label: "All Villages - All Regions",
-                                            isLpcd: true,
-                                          })
-                                        }
-                                        className="min-w-[40px] px-2 py-1 rounded-md text-sm font-bold bg-violet-200 dark:bg-violet-800 text-dark-800 dark:text-violet-200 hover:bg-violet-300 dark:hover:bg-violet-700 transition-colors"
-                                      >
-                                        {overallComparisonData.data.reduce(
-                                          (sum, r) =>
-                                            sum +
-                                            r.above_55 +
-                                            r.below_55 +
-                                            r.no_water,
+                                      {(() => {
+                                        const weeklyAllRegionsTotal = weeklyLpcdStats?.villageStats?.reduce(
+                                          (sum, r) => sum + (Number(r.above_55 || 0) + Number(r.below_55 || 0) + Number(r.no_water || 0)),
                                           0,
-                                        )}
-                                      </button>
+                                        ) || 0;
+                                        return (
+                                          <button
+                                            onClick={() =>
+                                              setClickedComparisonCell({
+                                                category: "weekly_all_villages",
+                                                region: "All Regions",
+                                                label: "Weekly Avg All Villages - All Regions",
+                                                isLpcd: true,
+                                                dates: weeklyLpcdStats?.dates
+                                              })
+                                            }
+                                            className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-violet-200 dark:bg-violet-800 text-dark-700 dark:text-violet-200 hover:bg-violet-300 dark:hover:bg-violet-700 transition-colors"
+                                          >
+                                            {weeklyAllRegionsTotal}
+                                          </button>
+                                        );
+                                      })()}
                                     </div>
                                   </div>
                                 </div>
@@ -13023,33 +13028,53 @@ if (schemeFilter === "fully_completed") {
                                           key={`scheme-total-${regionData.region}`}
                                           className="px-2 py-2.5 flex items-center justify-center border-r border-purple-100 dark:border-purple-900"
                                         >
-                                          <button
-                                            onClick={() =>
-                                              setClickedSchemeComparisonCell({
-                                                category: "total_schemes",
-                                                region: regionData.region,
-                                                label: `Total Schemes - ${regionData.region}`,
-                                              })
-                                            }
-                                            className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/60 transition-colors"
-                                          >
-                                            {regionData.total_schemes}
-                                          </button>
+                                          {(() => {
+                                            const regionStat = weeklyLpcdStats?.schemeStats?.find(s => s.region === regionData.region);
+                                            const weeklyTotal = regionStat
+                                              ? Number(regionStat.above_55 || 0) +
+                                                Number(regionStat.below_55 || 0) +
+                                                Number(regionStat.no_water || 0)
+                                              : 0;
+                                            return (
+                                              <button
+                                                onClick={() =>
+                                                  setClickedSchemeComparisonCell({
+                                                    category: "weekly_total_schemes",
+                                                    region: regionData.region,
+                                                    label: `Weekly Avg Total Schemes - ${regionData.region}`,
+                                                    dates: weeklyLpcdStats?.dates
+                                                  })
+                                                }
+                                                className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/60 transition-colors"
+                                              >
+                                                {weeklyTotal}
+                                              </button>
+                                            );
+                                          })()}
                                         </div>
                                       ))}
                                       <div className="px-2 py-2.5 flex items-center justify-center bg-purple-50/50 dark:bg-purple-950/30">
-                                        <button
-                                          onClick={() =>
-                                            setClickedSchemeComparisonCell({
-                                              category: "total_schemes",
-                                              region: "All Regions",
-                                              label: "Total Schemes - All Regions",
-                                            })
-                                          }
-                                          className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-200 hover:bg-purple-300 dark:hover:bg-purple-700 transition-colors"
-                                        >
-                                          {schemeLpcdRegionComparison.data.reduce((sum, r) => sum + r.total_schemes, 0)}
-                                        </button>
+                                        {(() => {
+                                          const weeklyAllRegionsTotal = weeklyLpcdStats?.schemeStats?.reduce(
+                                            (sum, r) => sum + (Number(r.above_55 || 0) + Number(r.below_55 || 0) + Number(r.no_water || 0)),
+                                            0,
+                                          ) || 0;
+                                          return (
+                                            <button
+                                              onClick={() =>
+                                                setClickedSchemeComparisonCell({
+                                                  category: "weekly_total_schemes",
+                                                  region: "All Regions",
+                                                  label: "Weekly Avg Total Schemes - All Regions",
+                                                  dates: weeklyLpcdStats?.dates
+                                                })
+                                              }
+                                              className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-200 hover:bg-purple-300 dark:hover:bg-purple-700 transition-colors"
+                                            >
+                                              {weeklyAllRegionsTotal}
+                                            </button>
+                                          );
+                                        })()}
                                       </div>
                                     </div>
 
@@ -13076,7 +13101,7 @@ if (schemeFilter === "fully_completed") {
                                         }}
                                       >
                                         <div className="bg-purple-50 dark:bg-purple-950 px-3 py-3 font-semibold text-[14px] text-purple-800 dark:text-purple-200 border-r-2 border-purple-200 dark:border-purple-800 flex items-center">
-                                          Weekly Avg
+                                          Metric
                                         </div>
                                         {schemeLpcdRegionComparison.data.map((regionData) => (
                                           <div
