@@ -2582,7 +2582,7 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
                     data_date IN (${dateParams})
                 )
                 ORDER BY scheme_id, village_name, block, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC
-            )
+            ),
             village_stats AS (
                 SELECT
                     region, MAX(circle) as circle, MAX(division) as division, MAX(sub_division) as sub_division, block,
@@ -3035,7 +3035,7 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
                     END, 'DD-Mon-YY'), 'DD-Mon') IN (${dateParams})
                 )
                 ORDER BY scheme_id, village_name, block, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC
-            )
+            ),
             village_stats AS (
                 SELECT
                     region, MAX(circle) as circle, MAX(division) as division, MAX(sub_division) as sub_division, block,
@@ -3577,7 +3577,7 @@ router.get("/lpcd/day-wise-breakdown/all-regions", async (req, res) => {
           ${schemeIdFilter}
             AND lpcd_value IS NOT NULL
             AND region IS NOT NULL
-          ORDER BY scheme_id, village_name, data_date, uploaded_at DESC NULLS LAST
+          ORDER BY scheme_id, village_name, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC NULLS LAST
         ),
         ranked AS (
           SELECT 
@@ -3731,7 +3731,7 @@ router.get("/lpcd/day-wise-breakdown", async (req, res) => {
             AND lpcd_value IS NOT NULL
             ${regionFilter}
             ${schemeIdFilter}
-          ORDER BY scheme_id, village_name, data_date, uploaded_at DESC NULLS LAST
+          ORDER BY scheme_id, village_name, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC NULLS LAST
         ),
         ranked AS (
           SELECT 
@@ -3917,7 +3917,7 @@ router.get("/lpcd/day-wise-villages/:metric/:days", async (req, res) => {
           WHERE data_date IS NOT NULL
             ${regionFilter}
             ${schemeIdFilter}
-          ORDER BY scheme_id, village_name, data_date, uploaded_at DESC NULLS LAST
+          ORDER BY scheme_id, village_name, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC NULLS LAST
         ),
         ranked AS (
           SELECT 
@@ -4062,7 +4062,7 @@ router.get("/lpcd/day-wise-villages-export/:metric/:days", async (req, res) => {
           WHERE data_date IS NOT NULL
             ${regionFilter}
             ${schemeIdFilter}
-          ORDER BY scheme_id, village_name, data_date, uploaded_at DESC NULLS LAST
+          ORDER BY scheme_id, village_name, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC NULLS LAST
         ),
         ranked AS (
           SELECT 
@@ -4259,7 +4259,7 @@ router.get("/lpcd/region-comparison-total-export", async (req, res) => {
             WHERE data_date IS NOT NULL
               ${regionFilter}
               ${schemeIdFilter}
-            ORDER BY scheme_id, village_name, data_date, uploaded_at DESC NULLS LAST
+            ORDER BY scheme_id, village_name, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC NULLS LAST
           ),
           ranked AS (
             SELECT 
@@ -6979,7 +6979,7 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
                 ${regionFilter}
                 ${schemeIdFilter}
                 AND sldh.data_date IN (${dateParams})
-                ORDER BY sldh.region, sldh.scheme_id, sldh.block, sldh.data_date, sldh.uploaded_at DESC
+                ORDER BY sldh.region, sldh.scheme_id, sldh.block, sldh.data_date, (sldh.lpcd_value IS NOT NULL AND TRIM(sldh.lpcd_value::text) != '') DESC, sldh.uploaded_at DESC
             )
             SELECT
                 region, MAX(circle) as circle, MAX(division) as division, MAX(sub_division) as sub_division, block,
@@ -7257,8 +7257,8 @@ router.get("/scheme-lpcd/region-comparison-schemes-export-current/:category", as
           AND(
             data_date IN(${dateParams})
           )
-          ORDER BY scheme_id, village_name, data_date, uploaded_at DESC
-        )
+          ORDER BY scheme_id, village_name, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC
+        ),
         scheme_stats AS (
           SELECT
               region, MAX(circle) as circle, MAX(division) as division, MAX(sub_division) as sub_division, block, MAX(completion_status) as completion_status,
