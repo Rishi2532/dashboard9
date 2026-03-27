@@ -2583,16 +2583,20 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
                 )
                 ORDER BY scheme_id, village_name, block, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC
             )
-            SELECT
-                region, MAX(circle) as circle, MAX(division) as division, MAX(sub_division) as sub_division, block,
-                scheme_id, MAX(scheme_name) as scheme_name, MAX(village_name) as village_name, MAX(population) as population,
-                ROUND((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), '')::numeric, 0)) / 7.0), 2) as lpcd_value,
-                MAX(data_date) as lpcd_date,
-                MAX(dashboard_url) as dashboard_url,
-                NULL as water_value_day7, -- placeholder
-                NULL as water_date_day7 -- placeholder
-            FROM weekly_data
-            GROUP BY region, scheme_id, block, village_name
+            village_stats AS (
+                SELECT
+                    region, MAX(circle) as circle, MAX(division) as division, MAX(sub_division) as sub_division, block,
+                    scheme_id, MAX(scheme_name) as scheme_name, village_name, MAX(population) as population,
+                    ROUND((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), '')::numeric, 0)) / 7.0), 2) as lpcd_value,
+                    MAX(data_date) as lpcd_date,
+                    NULL as water_value_day7, -- placeholder
+                    NULL as water_date_day7 -- placeholder
+                FROM weekly_data
+                GROUP BY region, scheme_id, block, village_name
+            )
+            SELECT vs.*, wsd.dashboard_url
+            FROM village_stats vs
+            LEFT JOIN water_scheme_data wsd ON vs.scheme_id = wsd.scheme_id AND vs.village_name = wsd.village_name
             HAVING ${havingCondition}
             ORDER BY region, MAX(division), village_name
           `;
@@ -3032,15 +3036,19 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
                 )
                 ORDER BY scheme_id, village_name, block, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC
             )
-            SELECT
-                region, MAX(circle) as circle, MAX(division) as division, MAX(sub_division) as sub_division, block,
-                scheme_id, MAX(scheme_name) as scheme_name, MAX(village_name) as village_name, MAX(population) as population,
-                ROUND((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), '')::numeric, 0)) / 7.0), 2) as lpcd_value,
-                MAX(data_date) as lpcd_date,
-                MAX(dashboard_url) as dashboard_url,
-                NULL as water_value_day7 -- placeholder
-            FROM weekly_data
-            GROUP BY region, scheme_id, block, village_name
+            village_stats AS (
+                SELECT
+                    region, MAX(circle) as circle, MAX(division) as division, MAX(sub_division) as sub_division, block,
+                    scheme_id, MAX(scheme_name) as scheme_name, village_name, MAX(population) as population,
+                    ROUND((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), '')::numeric, 0)) / 7.0), 2) as lpcd_value,
+                    MAX(data_date) as lpcd_date,
+                    NULL as water_value_day7 -- placeholder
+                FROM deduplicated_history
+                GROUP BY region, block, scheme_id, village_name
+            )
+            SELECT vs.*, wsd.dashboard_url
+            FROM village_stats vs
+            LEFT JOIN water_scheme_data wsd ON vs.scheme_id = wsd.scheme_id AND vs.village_name = wsd.village_name
             HAVING ${havingCondition}
             ORDER BY region, MAX(division), village_name
           `;
@@ -7251,16 +7259,21 @@ router.get("/scheme-lpcd/region-comparison-schemes-export-current/:category", as
           )
           ORDER BY scheme_id, village_name, data_date, uploaded_at DESC
         )
-        SELECT
-            region, MAX(circle) as circle, MAX(division) as division, MAX(sub_division) as sub_division, block, MAX(completion_status) as completion_status,
-            scheme_id, MAX(scheme_name) as scheme_name, MAX(total_population) as total_population, MAX(total_villages) as total_villages,
-            ROUND((SUM(COALESCE(NULLIF(TRIM(lpcd_value:: text), '')::numeric, 0)) / 7.0), 2) as lpcd_value,
-            ROUND((SUM(COALESCE(NULLIF(TRIM(water_value:: text), '')::numeric, 0)) / 7.0), 2) as water_value,
-            MAX(data_date) as data_date
-        FROM(
-            SELECT *, NULL as completion_status FROM weekly_data
-        ) t
-        GROUP BY region, scheme_id, block
+        scheme_stats AS (
+          SELECT
+              region, MAX(circle) as circle, MAX(division) as division, MAX(sub_division) as sub_division, block, MAX(completion_status) as completion_status,
+              scheme_id, MAX(scheme_name) as scheme_name, MAX(total_population) as total_population, MAX(total_villages) as total_villages,
+              ROUND((SUM(COALESCE(NULLIF(TRIM(lpcd_value:: text), '')::numeric, 0)) / 7.0), 2) as lpcd_value,
+              ROUND((SUM(COALESCE(NULLIF(TRIM(water_value:: text), '')::numeric, 0)) / 7.0), 2) as water_value,
+              MAX(data_date) as data_date
+          FROM(
+              SELECT *, NULL as completion_status FROM weekly_data
+          ) t
+          GROUP BY region, scheme_id, block
+        )
+        SELECT ss.*, sss.dashboard_url
+        FROM scheme_stats ss
+        LEFT JOIN scheme_status sss ON ss.scheme_id = sss.scheme_id AND ss.block = sss.block
         HAVING ${havingCondition}
         ORDER BY region, scheme_id
             `;
