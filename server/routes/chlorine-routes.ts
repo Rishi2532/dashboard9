@@ -2553,11 +2553,11 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
 
         let havingCondition = '1=1';
         if (metric === 'above_55') {
-          havingCondition = 'AVG(NULLIF(TRIM(lpcd_value::text), \'\')::numeric) >= 55';
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) >= 55';
         } else if (metric === 'below_55') {
-          havingCondition = 'AVG(NULLIF(TRIM(lpcd_value::text), \'\')::numeric) > 0 AND AVG(NULLIF(TRIM(lpcd_value::text), \'\')::numeric) < 55';
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 0 AND (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) < 55';
         } else if (metric === 'no_water') {
-          havingCondition = '(AVG(NULLIF(TRIM(lpcd_value::text), \'\')::numeric) IS NULL OR AVG(NULLIF(TRIM(lpcd_value::text), \'\')::numeric) = 0)';
+          havingCondition = '((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) IS NULL OR (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) = 0)';
         }
 
         let paramIndex = 1;
@@ -2581,12 +2581,12 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
                 AND (
                     data_date IN (${dateParams})
                 )
-                ORDER BY scheme_id, village_name, block, data_date, uploaded_at DESC
+                ORDER BY scheme_id, village_name, block, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC
             )
             SELECT
                 region, MAX(circle) as circle, MAX(division) as division, MAX(sub_division) as sub_division, block,
                 scheme_id, MAX(scheme_name) as scheme_name, MAX(village_name) as village_name, MAX(population) as population,
-                ROUND(AVG(NULLIF(TRIM(lpcd_value::text), '')::numeric), 2) as lpcd_value,
+                ROUND((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), '')::numeric, 0)) / 7.0), 2) as lpcd_value,
                 MAX(data_date) as lpcd_date,
                 MAX(dashboard_url) as dashboard_url,
                 NULL as water_value_day7, -- placeholder
@@ -2995,11 +2995,11 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
 
         let havingCondition = '1=1';
         if (metric === 'above_55') {
-          havingCondition = 'AVG(NULLIF(TRIM(lpcd_value::text), \'\')::numeric) >= 55';
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) >= 55';
         } else if (metric === 'below_55') {
-          havingCondition = 'AVG(NULLIF(TRIM(lpcd_value::text), \'\')::numeric) > 0 AND AVG(NULLIF(TRIM(lpcd_value::text), \'\')::numeric) < 55';
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 0 AND (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) < 55';
         } else if (metric === 'no_water') {
-          havingCondition = '(AVG(NULLIF(TRIM(lpcd_value::text), \'\')::numeric) IS NULL OR AVG(NULLIF(TRIM(lpcd_value::text), \'\')::numeric) = 0)';
+          havingCondition = '((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) IS NULL OR (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) = 0)';
         } else {
           havingCondition = '1=1'; // Default for weekly_all_villages
         }
@@ -3030,12 +3030,12 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
                        ELSE '01-Jan-2000'
                     END, 'DD-Mon-YY'), 'DD-Mon') IN (${dateParams})
                 )
-                ORDER BY scheme_id, village_name, block, data_date, uploaded_at DESC
+                ORDER BY scheme_id, village_name, block, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC
             )
             SELECT
                 region, MAX(circle) as circle, MAX(division) as division, MAX(sub_division) as sub_division, block,
                 scheme_id, MAX(scheme_name) as scheme_name, MAX(village_name) as village_name, MAX(population) as population,
-                ROUND(AVG(NULLIF(TRIM(lpcd_value::text), '')::numeric), 2) as lpcd_value,
+                ROUND((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), '')::numeric, 0)) / 7.0), 2) as lpcd_value,
                 MAX(data_date) as lpcd_date,
                 MAX(dashboard_url) as dashboard_url,
                 NULL as water_value_day7 -- placeholder
@@ -5326,7 +5326,7 @@ router.get("/scheme-lpcd/details/:statisticType", async (req, res) => {
                   AND data_date IS NOT NULL
                   ${regionFilter}
                   ${schemeIdFilter}
-                ORDER BY region, scheme_id, block, data_date, uploaded_at DESC
+                ORDER BY region, scheme_id, block, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC
               ) deduplicated
               GROUP BY region, scheme_id, scheme_name, block, total_population
             )
@@ -5495,7 +5495,7 @@ router.get("/scheme-lpcd/details-export/:statisticType", async (req, res) => {
                   AND data_date IS NOT NULL
                   ${regionFilter}
                   ${schemeIdFilter}
-                ORDER BY region, scheme_id, block, data_date, uploaded_at DESC
+                ORDER BY region, scheme_id, block, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC
               ) deduplicated
               GROUP BY region, circle, division, sub_division, block, scheme_id, scheme_name, total_population
             )
@@ -6945,11 +6945,11 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
         const metric = category.replace('weekly_', '');
         let havingCondition = '1=1';
         if (metric === 'above_55') {
-          havingCondition = 'AVG(NULLIF(TRIM(lpcd_value::text), \'\')::numeric) >= 55';
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) >= 55';
         } else if (metric === 'below_55') {
-          havingCondition = 'AVG(NULLIF(TRIM(lpcd_value::text), \'\')::numeric) > 0 AND AVG(NULLIF(TRIM(lpcd_value::text), \'\')::numeric) < 55';
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 0 AND (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) < 55';
         } else if (metric === 'no_water') {
-          havingCondition = '(AVG(NULLIF(TRIM(lpcd_value::text), \'\')::numeric) IS NULL OR AVG(NULLIF(TRIM(lpcd_value::text), \'\')::numeric) = 0)';
+          havingCondition = '((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) IS NULL OR (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) = 0)';
         } else {
           havingCondition = '1=1';
         }
@@ -6976,8 +6976,8 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
             SELECT
                 region, MAX(circle) as circle, MAX(division) as division, MAX(sub_division) as sub_division, block,
                 scheme_id, MAX(scheme_name) as scheme_name, MAX(total_population) as total_population, MAX(total_villages) as total_villages,
-                ROUND(AVG(NULLIF(TRIM(lpcd_value::text), '')::numeric), 2) as lpcd_value,
-                ROUND(AVG(NULLIF(TRIM(water_value::text), '')::numeric), 2) as water_value,
+                ROUND((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), '')::numeric, 0)) / 7.0), 2) as lpcd_value,
+                ROUND((SUM(COALESCE(NULLIF(TRIM(water_value::text), '')::numeric, 0)) / 7.0), 2) as water_value,
                 MAX(data_date) as data_date,
                 (ARRAY_AGG(dashboard_url ORDER BY TO_DATE(data_date, 'DD-Mon-YY') DESC))[1] as dashboard_url
             FROM weekly_data
@@ -7226,11 +7226,11 @@ router.get("/scheme-lpcd/region-comparison-schemes-export-current/:category", as
         let havingCondition = '1=1';
 
         if (metric === 'above_55') {
-          havingCondition = 'AVG(NULLIF(TRIM(lpcd_value::text), \'\')::numeric) > 55';
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 55';
         } else if (metric === 'below_55') {
-          havingCondition = 'AVG(NULLIF(TRIM(lpcd_value::text), \'\')::numeric) > 0 AND AVG(NULLIF(TRIM(lpcd_value::text), \'\')::numeric) <= 55';
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 0 AND (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) <= 55';
         } else if (metric === 'no_water') {
-          havingCondition = '(AVG(NULLIF(TRIM(lpcd_value::text), \'\')::numeric) IS NULL OR AVG(NULLIF(TRIM(lpcd_value::text), \'\')::numeric) = 0)';
+          havingCondition = '((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) IS NULL OR (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) = 0)';
         }
 
         // Pass dates as parameter array
@@ -7254,8 +7254,8 @@ router.get("/scheme-lpcd/region-comparison-schemes-export-current/:category", as
         SELECT
             region, MAX(circle) as circle, MAX(division) as division, MAX(sub_division) as sub_division, block, MAX(completion_status) as completion_status,
             scheme_id, MAX(scheme_name) as scheme_name, MAX(total_population) as total_population, MAX(total_villages) as total_villages,
-            ROUND(AVG(NULLIF(TRIM(lpcd_value:: text), '')::numeric), 2) as lpcd_value,
-            ROUND(AVG(NULLIF(TRIM(water_value:: text), '')::numeric), 2) as water_value,
+            ROUND((SUM(COALESCE(NULLIF(TRIM(lpcd_value:: text), '')::numeric, 0)) / 7.0), 2) as lpcd_value,
+            ROUND((SUM(COALESCE(NULLIF(TRIM(water_value:: text), '')::numeric, 0)) / 7.0), 2) as water_value,
             MAX(data_date) as data_date
         FROM(
             SELECT *, NULL as completion_status FROM weekly_data
@@ -7433,11 +7433,11 @@ router.get("/scheme-lpcd/region-comparison-schemes-export/:category/:day", async
         let havingCondition = '1=1';
 
         if (metric === 'above_55') {
-          havingCondition = 'AVG(NULLIF(TRIM(lpcd_value::text), \'\')::numeric) >= 55';
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) >= 55';
         } else if (metric === 'below_55') {
-          havingCondition = 'AVG(NULLIF(TRIM(lpcd_value::text), \'\')::numeric) > 0 AND AVG(NULLIF(TRIM(lpcd_value::text), \'\')::numeric) < 55';
+          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 0 AND (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) < 55';
         } else if (metric === 'no_water') {
-          havingCondition = '(AVG(NULLIF(TRIM(lpcd_value::text), \'\')::numeric) IS NULL OR AVG(NULLIF(TRIM(lpcd_value::text), \'\')::numeric) = 0)';
+          havingCondition = '((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) IS NULL OR (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) = 0)';
         }
 
         const dateParams = dateList.map((_, i) => `$${paramIndex2++} `).join(',');
@@ -7457,13 +7457,13 @@ router.get("/scheme-lpcd/region-comparison-schemes-export/:category/:day", async
           AND(
               data_date IN(${dateParams})
             )
-          ORDER BY region, scheme_id, block, data_date, uploaded_at DESC
+          ORDER BY region, scheme_id, block, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC
         )
         SELECT
             region, MAX(circle) as circle, MAX(division) as division, MAX(sub_division) as sub_division, block, MAX(completion_status) as completion_status,
             scheme_id, MAX(scheme_name) as scheme_name, MAX(total_population) as total_population, MAX(total_villages) as total_villages,
-            ROUND(AVG(NULLIF(TRIM(lpcd_value:: text), ''):: numeric), 2) as lpcd_value,
-            ROUND(AVG(NULLIF(TRIM(water_value:: text), ''):: numeric), 2) as water_value,
+            ROUND((SUM(COALESCE(NULLIF(TRIM(lpcd_value:: text), ''):: numeric, 0)) / 7.0), 2) as lpcd_value,
+            ROUND((SUM(COALESCE(NULLIF(TRIM(water_value:: text), ''):: numeric, 0)) / 7.0), 2) as water_value,
             MAX(data_date) as lpcd_date
         FROM(
             SELECT *, NULL as completion_status FROM weekly_data
