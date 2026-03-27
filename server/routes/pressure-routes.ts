@@ -347,26 +347,27 @@ router.get("/regional-stats", async (req, res) => {
 
       const regionalStats = await Promise.all(
         regions.map(async (region: string) => {
+          const bkey = "TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, '')))";
           const statsResult = await client.query(`
             SELECT 
-              COUNT(DISTINCT CASE WHEN cs.pressure_connected = 'Connected' THEN cs.id END) as total_connected,
-              COUNT(DISTINCT CASE WHEN cs.pressure_connected = 'Connected' AND cs.pressure_status = 'Online' THEN cs.id END) as total_online,
-              COUNT(DISTINCT CASE WHEN cs.pressure_connected = 'Connected' AND cs.pressure_status = 'Offline' THEN cs.id END) as total_offline,
-              COUNT(DISTINCT CASE WHEN cs.pressure_connected = 'Connected' AND cs.pressure_status = 'Online' AND wc.water_value_day7 > 0 THEN cs.id END) as online_with_water,
-              COUNT(DISTINCT CASE WHEN cs.pressure_connected = 'Connected' AND cs.pressure_status = 'Online' AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) THEN cs.id END) as online_without_water,
-              COUNT(DISTINCT CASE WHEN cs.pressure_connected = 'Connected' AND cs.pressure_status = 'Online' AND wc.water_value_day7 > 0 AND pd.pressure_value_7 BETWEEN 0.2 AND 0.7 THEN cs.id END) as online_with_water_pressure_optimal,
-              COUNT(DISTINCT CASE WHEN cs.pressure_connected = 'Connected' AND cs.pressure_status = 'Online' AND wc.water_value_day7 > 0 AND pd.pressure_value_7 > 0.7 THEN cs.id END) as online_with_water_pressure_above,
-              COUNT(DISTINCT CASE WHEN cs.pressure_connected = 'Connected' AND cs.pressure_status = 'Online' AND wc.water_value_day7 > 0 AND pd.pressure_value_7 < 0.2 THEN cs.id END) as online_with_water_pressure_below,
-              COUNT(DISTINCT CASE WHEN cs.pressure_connected = 'Connected' AND cs.pressure_status = 'Online' AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) AND pd.pressure_value_7 BETWEEN 0.2 AND 0.7 THEN cs.id END) as online_without_water_pressure_optimal,
-              COUNT(DISTINCT CASE WHEN cs.pressure_connected = 'Connected' AND cs.pressure_status = 'Online' AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) AND pd.pressure_value_7 > 0.7 THEN cs.id END) as online_without_water_pressure_above,
-              COUNT(DISTINCT CASE WHEN cs.pressure_connected = 'Connected' AND cs.pressure_status = 'Online' AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) AND pd.pressure_value_7 < 0.2 THEN cs.id END) as online_without_water_pressure_below,
-              COUNT(DISTINCT CASE WHEN cs.pressure_connected = 'Connected' AND cs.pressure_status = 'Offline' AND CURRENT_TIMESTAMP - cs.pressure_last_seen >= INTERVAL '7 days' THEN cs.id END) as offline_since_7days,
-              COUNT(DISTINCT CASE WHEN cs.pressure_connected = 'Connected' AND cs.pressure_status = 'Offline' AND CURRENT_TIMESTAMP - cs.pressure_last_seen >= INTERVAL '30 days' THEN cs.id END) as offline_since_30days,
-              COUNT(DISTINCT CASE WHEN cs.pressure_connected = 'Connected' AND cs.pressure_status = 'Offline' AND CURRENT_TIMESTAMP - cs.pressure_last_seen >= INTERVAL '3 days' THEN cs.id END) as offline_since_3days
+              COUNT(DISTINCT TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, '')))) as total_connected,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as total_online,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Offline' THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as total_offline,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND wc.water_value_day7 > 0 THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as online_with_water,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as online_without_water,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND wc.water_value_day7 > 0 AND pd.pressure_value_7 BETWEEN 0.2 AND 0.7 THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as online_with_water_pressure_optimal,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND wc.water_value_day7 > 0 AND pd.pressure_value_7 > 0.7 THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as online_with_water_pressure_above,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND wc.water_value_day7 > 0 AND pd.pressure_value_7 < 0.2 THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as online_with_water_pressure_below,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) AND pd.pressure_value_7 BETWEEN 0.2 AND 0.7 THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as online_without_water_pressure_optimal,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) AND pd.pressure_value_7 > 0.7 THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as online_without_water_pressure_above,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) AND pd.pressure_value_7 < 0.2 THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as online_without_water_pressure_below,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Offline' AND CURRENT_TIMESTAMP - cs.pressure_last_seen >= INTERVAL '7 days' THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as offline_since_7days,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Offline' AND CURRENT_TIMESTAMP - cs.pressure_last_seen >= INTERVAL '30 days' THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as offline_since_30days,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Offline' AND CURRENT_TIMESTAMP - cs.pressure_last_seen >= INTERVAL '3 days' THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as offline_since_3days
             FROM communication_status cs
             LEFT JOIN water_consumption wc ON (cs.scheme_id = wc.scheme_id AND cs.village_name = wc.village_name)
-            LEFT JOIN pressure_data pd ON (cs.scheme_id = pd.scheme_id AND cs.village_name = pd.village_name)
-            WHERE cs.region = $1 ${schemeIdFilter}
+            LEFT JOIN pressure_data pd ON (cs.scheme_id = pd.scheme_id AND cs.village_name = pd.village_name AND cs.esr_name = pd.esr_name)
+            WHERE cs.region = $1 AND cs.pressure_connected = 'Connected' ${schemeIdFilter}
           `, [region]);
 
           const row = statsResult.rows[0] || {};
@@ -1022,7 +1023,7 @@ router.get("/details/:statisticType", async (req, res) => {
     }
 
     const query = sql`
-      SELECT 
+      SELECT DISTINCT ON (TRIM(UPPER(COALESCE(cs.scheme_id, ''))), TRIM(UPPER(COALESCE(cs.village_name, ''))), TRIM(UPPER(COALESCE(cs.esr_name, '')))) 
         cs.region,
         cs.circle,
         cs.division,
@@ -1061,7 +1062,6 @@ router.get("/details/:statisticType", async (req, res) => {
         pd.pressure_value_6,
         pd.pressure_date_day_6,
         pd.pressure_value_7,
-        pd.pressure_value_7,
         pd.pressure_date_day_7,
         pd.dashboard_url
       FROM communication_status cs
@@ -1070,17 +1070,12 @@ router.get("/details/:statisticType", async (req, res) => {
         cs.village_name = wc.village_name
       )
       LEFT JOIN pressure_data pd ON (
-        cs.region = pd.region AND
-        cs.circle = pd.circle AND
-        cs.division = pd.division AND
-        cs.sub_division = pd.sub_division AND
-        cs.block = pd.block AND
         cs.scheme_id = pd.scheme_id AND
-        cs.scheme_name = pd.scheme_name AND
         cs.village_name = pd.village_name AND
         cs.esr_name = pd.esr_name
       )
       WHERE ${sql.join(filters, sql` AND `)}
+      ORDER BY TRIM(UPPER(COALESCE(cs.scheme_id, ''))), TRIM(UPPER(COALESCE(cs.village_name, ''))), TRIM(UPPER(COALESCE(cs.esr_name, ''))), cs.uploaded_at DESC
     `;
 
     const result = await db.execute(query);
@@ -1102,7 +1097,9 @@ router.get("/details/:statisticType", async (req, res) => {
 });
 
 // Export pressure sensor details to Excel
-router.get("/details-export/:statisticType", async (req, res) => {
+// Get detailed list of pressure sensors by statistic type (Export)
+// Supports both route formats for flexibility
+router.get(["/details/export/:statisticType", "/details-export/:statisticType"], async (req, res) => {
   try {
     const { statisticType } = req.params;
     const { region, fullyCompleted, filterType } = req.query;
@@ -1117,13 +1114,17 @@ router.get("/details-export/:statisticType", async (req, res) => {
 
     if (filteredIds) {
       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
-        // Create a dummy result that will result in empty excel
-        const query = sql`SELECT 1 WHERE 1=0`;
-        const result = await db.execute(query);
-        // ... (rest of export logic usually handles empty result gracefully)
+        // Return early with empty excel if no matches
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Pressure Sensors');
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename=pressure_${statisticType}_${region || 'all'}.xlsx`);
+        await workbook.xlsx.write(res);
+        return res.end();
       }
       fullyCompletedSchemeIds = new Set(filteredIds);
     }
+
     const filters = [];
 
     if (region) {
@@ -1134,10 +1135,7 @@ router.get("/details-export/:statisticType", async (req, res) => {
       const ids = Array.from(fullyCompletedSchemeIds);
       const inClause = ids.map(id => `'${id}'`).join(',');
       filters.push(sql.raw(`cs.scheme_id IN (${inClause})`));
-    } else if (filteredIds && filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
-      filters.push(sql`1=0`);
     }
-
 
     filters.push(sql`cs.pressure_connected = 'Connected'`);
 
@@ -1177,17 +1175,46 @@ router.get("/details-export/:statisticType", async (req, res) => {
         filters.push(sql`pd.pressure_value_7 IS NOT NULL`);
         filters.push(sql`pd.pressure_value_7 < 0.2`);
         break;
-      case 'online-with-water-no-pressure-data':
+      case 'online-without-water-pressure-optimal':
         filters.push(sql`cs.pressure_status = 'Online'`);
-        filters.push(sql`wc.water_value_day7 IS NOT NULL AND wc.water_value_day7 > 0`);
-        filters.push(sql`pd.pressure_value_7 IS NULL`);
+        filters.push(sql`(wc.water_value_day7 IS NULL OR CAST(wc.water_value_day7 AS text) = '0' OR wc.water_value_day7 = 0)`);
+        filters.push(sql`pd.pressure_value_7 IS NOT NULL`);
+        filters.push(sql`pd.pressure_value_7 >= 0.2`);
+        filters.push(sql`pd.pressure_value_7 <= 0.7`);
+        break;
+      case 'online-without-water-pressure-above':
+        filters.push(sql`cs.pressure_status = 'Online'`);
+        filters.push(sql`(wc.water_value_day7 IS NULL OR CAST(wc.water_value_day7 AS text) = '0' OR wc.water_value_day7 = 0)`);
+        filters.push(sql`pd.pressure_value_7 IS NOT NULL`);
+        filters.push(sql`pd.pressure_value_7 > 0.7`);
+        break;
+      case 'online-without-water-pressure-below':
+        filters.push(sql`cs.pressure_status = 'Online'`);
+        filters.push(sql`(wc.water_value_day7 IS NULL OR CAST(wc.water_value_day7 AS text) = '0' OR wc.water_value_day7 = 0)`);
+        filters.push(sql`pd.pressure_value_7 IS NOT NULL`);
+        filters.push(sql`pd.pressure_value_7 < 0.2`);
+        break;
+      case 'offline-since-7days':
+        filters.push(sql`cs.pressure_status = 'Offline'`);
+        filters.push(sql`cs.pressure_last_seen IS NOT NULL`);
+        filters.push(sql`CURRENT_TIMESTAMP - cs.pressure_last_seen >= INTERVAL '7 days'`);
+        break;
+      case 'offline-since-30days':
+        filters.push(sql`cs.pressure_status = 'Offline'`);
+        filters.push(sql`cs.pressure_last_seen IS NOT NULL`);
+        filters.push(sql`CURRENT_TIMESTAMP - cs.pressure_last_seen >= INTERVAL '30 days'`);
+        break;
+      case 'offline-since-3days':
+        filters.push(sql`cs.pressure_status = 'Offline'`);
+        filters.push(sql`cs.pressure_last_seen IS NOT NULL`);
+        filters.push(sql`CURRENT_TIMESTAMP - cs.pressure_last_seen >= INTERVAL '3 days'`);
         break;
       default:
         return res.status(400).json({ error: "Invalid statistic type" });
     }
 
     const query = sql`
-      SELECT 
+      SELECT DISTINCT ON (TRIM(UPPER(COALESCE(cs.scheme_id, ''))), TRIM(UPPER(COALESCE(cs.village_name, ''))), TRIM(UPPER(COALESCE(cs.esr_name, '')))) 
         cs.region,
         cs.circle,
         cs.division,
@@ -1199,28 +1226,24 @@ router.get("/details-export/:statisticType", async (req, res) => {
         cs.esr_name,
         cs.pressure_connected,
         cs.pressure_status,
-        cs.pressure_last_seen,
+        cs.pressure_last_seen as last_seen,
         wc.water_value_day7,
         pd.pressure_value_7,
-        pd.pressure_date_day_7
+        pd.pressure_date_day_7,
+        cs.uploaded_at,
+        pd.dashboard_url
       FROM communication_status cs
       LEFT JOIN water_consumption wc ON (
         cs.scheme_id = wc.scheme_id AND
         cs.village_name = wc.village_name
       )
       LEFT JOIN pressure_data pd ON (
-        cs.region = pd.region AND
-        cs.circle = pd.circle AND
-        cs.division = pd.division AND
-        cs.sub_division = pd.sub_division AND
-        cs.block = pd.block AND
         cs.scheme_id = pd.scheme_id AND
-        cs.scheme_name = pd.scheme_name AND
         cs.village_name = pd.village_name AND
         cs.esr_name = pd.esr_name
       )
       WHERE ${sql.join(filters, sql` AND `)}
-      ORDER BY cs.region, cs.division, cs.scheme_id
+      ORDER BY TRIM(UPPER(COALESCE(cs.scheme_id, ''))), TRIM(UPPER(COALESCE(cs.village_name, ''))), TRIM(UPPER(COALESCE(cs.esr_name, ''))), cs.uploaded_at DESC
     `;
 
     const result = await db.execute(query);

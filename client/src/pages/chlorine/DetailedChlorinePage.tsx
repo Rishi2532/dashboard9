@@ -570,8 +570,11 @@ const DetailedChlorinePage = () => {
     queryFn: async () => {
       const params = new URLSearchParams();
       if (schemeFilter !== 'all') {
-        params.append("filterType", schemeFilter);
-      }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
       const queryString = params.toString();
       const url = `/api/chlorine/regional-stats${queryString ? `?${queryString}` : ""}`;
       const response = await fetch(url);
@@ -623,8 +626,11 @@ const DetailedChlorinePage = () => {
       }
 
       if (schemeFilter !== 'all') {
-        params.append("filterType", schemeFilter);
-      }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
 
       const response = await fetch(
         `/api/chlorine/details/${clickedCell?.statisticType}?${params.toString()}`,
@@ -649,8 +655,11 @@ const DetailedChlorinePage = () => {
       }
 
       if (schemeFilter !== 'all') {
-        params.append("filterType", schemeFilter);
-      }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
 
       const response = await fetch(
         `/api/chlorine/day-wise-breakdown?${params.toString()}`,
@@ -677,8 +686,11 @@ const DetailedChlorinePage = () => {
             const params = new URLSearchParams();
             params.append("region", encodeURIComponent(region));
             if (schemeFilter !== 'all') {
-              params.append("filterType", schemeFilter);
-            }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
             const response = await fetch(
               `/api/chlorine/day-wise-breakdown?${params.toString()}`,
             );
@@ -730,8 +742,11 @@ const DetailedChlorinePage = () => {
         params.append("region", clickedRegionComparisonCell.region);
       }
       if (schemeFilter !== 'all') {
-        params.append("filterType", schemeFilter);
-      }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
 
       const response = await fetch(
         `/api/chlorine/day-wise-sensors/${clickedRegionComparisonCell?.category}/${clickedRegionComparisonCell?.day}?${params.toString()}`,
@@ -803,8 +818,11 @@ const DetailedChlorinePage = () => {
         params.append("region", lpcdDayWiseRegion);
       }
       if (schemeFilter !== 'all') {
-        params.append("filterType", schemeFilter);
-      }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
       const response = await fetch(
         `/api/chlorine/lpcd/day-wise-breakdown?${params.toString()}`,
       );
@@ -830,8 +848,11 @@ const DetailedChlorinePage = () => {
     queryFn: async () => {
       const params = new URLSearchParams();
       if (schemeFilter !== 'all') {
-        params.append("filterType", schemeFilter);
-      }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
       const queryString = params.toString();
       const url = `/api/chlorine/lpcd/day-wise-breakdown/all-regions${queryString ? `?${queryString}` : ""}`;
       const response = await fetch(url);
@@ -863,8 +884,11 @@ const DetailedChlorinePage = () => {
           params.append("region", lpcdDayWiseRegion);
         }
         if (schemeFilter !== 'all') {
-          params.append("filterType", schemeFilter);
-        }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
         const response = await fetch(
           `/api/chlorine/lpcd/day-wise-villages/${clickedLpcdDayWiseCell?.metric}/${clickedLpcdDayWiseCell?.days}?${params.toString()}`,
         );
@@ -896,8 +920,11 @@ const DetailedChlorinePage = () => {
         params.append("region", clickedLpcdRegionComparisonCell.region);
       }
       if (schemeFilter !== 'all') {
-        params.append("filterType", schemeFilter);
-      }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
       const response = await fetch(
         `/api/chlorine/lpcd/day-wise-villages/${clickedLpcdRegionComparisonCell?.category}/${clickedLpcdRegionComparisonCell?.day}?${params.toString()}`,
       );
@@ -927,8 +954,11 @@ const DetailedChlorinePage = () => {
           params.append("region", dayWiseRegion);
         }
         if (schemeFilter !== 'all') {
-          params.append("filterType", schemeFilter);
-        }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
 
         const response = await fetch(
           `/api/chlorine/day-wise-sensors/${clickedDayWiseCell?.metric}/${clickedDayWiseCell?.days}?${params.toString()}`,
@@ -956,8 +986,11 @@ const DetailedChlorinePage = () => {
           params.append("region", divisionWiseRegion);
         }
         if (schemeFilter !== 'all') {
-          params.append("filterType", schemeFilter);
-        }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
 
         const response = await fetch(
           `/api/category-data/division-wise-summary?${params.toString()}`,
@@ -994,8 +1027,11 @@ const DetailedChlorinePage = () => {
         }
         params.append("metric", clickedDivisionCell!.metric);
         if (schemeFilter !== 'all') {
-          params.append("filterType", schemeFilter);
-        }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
 
         const response = await fetch(
           `/api/category-data/division-villages?${params.toString()}`,
@@ -1022,8 +1058,11 @@ const DetailedChlorinePage = () => {
       }
 
       if (schemeFilter !== 'all') {
-        params.append("filterType", schemeFilter);
-      }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
 
       const response = await fetch(
         `/api/chlorine/division-wise-summary?${params.toString()}`,
@@ -1062,8 +1101,11 @@ const DetailedChlorinePage = () => {
       }
       params.append("metric", clickedChlorineDivisionCell!.metric);
       if (schemeFilter !== 'all') {
-        params.append("filterType", schemeFilter);
-      }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
 
       const response = await fetch(
         `/api/chlorine/division-sensors?${params.toString()}`,
@@ -1084,8 +1126,11 @@ const DetailedChlorinePage = () => {
       queryFn: async () => {
         const params = new URLSearchParams();
         if (schemeFilter !== 'all') {
-          params.append("filterType", schemeFilter);
-        }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
         const queryString = params.toString();
         const url = `/api/chlorine/overall-region-comparison${queryString ? `?${queryString}` : ""}`;
         const response = await fetch(url);
@@ -1118,8 +1163,11 @@ const DetailedChlorinePage = () => {
           params.append("dates", clickedComparisonCell.dates.join(","));
         }
         if (schemeFilter !== 'all') {
-          params.append("filterType", schemeFilter);
-        }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
 
         const response = await fetch(
           `/api/chlorine/overall-region-comparison/details/${clickedComparisonCell?.category}?${params.toString()}`,
@@ -1139,8 +1187,11 @@ const DetailedChlorinePage = () => {
       queryFn: async () => {
         const params = new URLSearchParams();
         if (schemeFilter !== 'all') {
-          params.append("filterType", schemeFilter);
-        }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
         const queryString = params.toString();
         const url = `/api/chlorine/lpcd/regional-stats${queryString ? `?${queryString}` : ""}`;
         const response = await fetch(url);
@@ -1170,8 +1221,11 @@ const DetailedChlorinePage = () => {
         params.append("region", clickedLPCDCell.region);
       }
       if (schemeFilter !== 'all') {
-        params.append("filterType", schemeFilter);
-      }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
 
       const response = await fetch(
         `/api/chlorine/lpcd/details/${clickedLPCDCell?.statisticType}?${params.toString()}`,
@@ -1194,8 +1248,11 @@ const DetailedChlorinePage = () => {
       queryFn: async () => {
         const params = new URLSearchParams();
         if (schemeFilter !== 'all') {
-          params.append("filterType", schemeFilter);
-        }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
         const queryString = params.toString();
         const url = `/api/chlorine/scheme-lpcd/regional-stats${queryString ? `?${queryString}` : ""}`;
         const response = await fetch(url);
@@ -1224,8 +1281,11 @@ const DetailedChlorinePage = () => {
         params.append("region", clickedSchemeLPCDCell.region);
       }
       if (schemeFilter !== 'all') {
-        params.append("filterType", schemeFilter);
-      }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
 
       const response = await fetch(
         `/api/chlorine/scheme-lpcd/details/${clickedSchemeLPCDCell?.statisticType}?${params.toString()}`,
@@ -1250,8 +1310,11 @@ const DetailedChlorinePage = () => {
           params.append("region", schemeLpcdDivisionWiseRegion);
         }
         if (schemeFilter !== 'all') {
-          params.append("filterType", schemeFilter);
-        }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
         const response = await fetch(`/api/chlorine/scheme-lpcd/division-summary?${params.toString()}`);
         if (!response.ok) throw new Error("Failed to fetch Scheme LPCD division summary");
         return response.json();
@@ -1279,8 +1342,11 @@ const DetailedChlorinePage = () => {
           params.append("region", clickedSchemeDivisionCell.region);
         }
         if (schemeFilter !== 'all') {
-          params.append("filterType", schemeFilter);
-        }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
         const response = await fetch(
           `/api/chlorine/scheme-lpcd/division-details/${encodeURIComponent(clickedSchemeDivisionCell?.division || '')}/${clickedSchemeDivisionCell?.metric}?${params.toString()}`,
         );
@@ -1303,8 +1369,11 @@ const DetailedChlorinePage = () => {
           params.append("region", schemeLpcdDayWiseRegion);
         }
         if (schemeFilter !== 'all') {
-          params.append("filterType", schemeFilter);
-        }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
         const response = await fetch(`/api/chlorine/scheme-lpcd/day-wise-breakdown?${params.toString()}`);
         if (!response.ok) throw new Error("Failed to fetch Scheme LPCD day-wise breakdown");
         return response.json();
@@ -1333,8 +1402,11 @@ const DetailedChlorinePage = () => {
       console.log(`Fetching weekly LPCD stats for offset ${weekOffset}...`);
       const params = new URLSearchParams();
       if (schemeFilter !== 'all') {
-        params.append("filterType", schemeFilter);
-      }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
       params.append("weekOffset", weekOffset.toString());
       const response = await fetch(`/api/chlorine/weekly-lpcd/stats?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to fetch weekly LPCD statistics");
@@ -1368,8 +1440,11 @@ const DetailedChlorinePage = () => {
           params.append("region", clickedSchemeDayWiseCell.region);
         }
         if (schemeFilter !== 'all') {
-          params.append("filterType", schemeFilter);
-        }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
         const response = await fetch(
           `/api/chlorine/scheme-lpcd/day-wise-schemes/${clickedSchemeDayWiseCell?.metric}/${clickedSchemeDayWiseCell?.days}?${params.toString()}`,
         );
@@ -1390,8 +1465,11 @@ const DetailedChlorinePage = () => {
       queryFn: async () => {
         const params = new URLSearchParams();
         if (schemeFilter !== 'all') {
-          params.append("filterType", schemeFilter);
-        }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
         const queryString = params.toString();
         const url = `/api/chlorine/scheme-lpcd/region-comparison${queryString ? `?${queryString}` : ""}`;
         const response = await fetch(url);
@@ -1417,8 +1495,11 @@ const DetailedChlorinePage = () => {
     queryFn: async () => {
       const params = new URLSearchParams();
       if (schemeFilter !== 'all') {
-        params.append("filterType", schemeFilter);
-      }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
       const queryString = params.toString();
       const url = `/api/chlorine/scheme-lpcd/day-wise-breakdown/all-regions${queryString ? `?${queryString}` : ""}`;
       const response = await fetch(url);
@@ -1447,8 +1528,11 @@ const DetailedChlorinePage = () => {
           params.append("region", clickedSchemeComparisonCell.region);
         }
         if (schemeFilter !== 'all') {
-          params.append("filterType", schemeFilter);
-        }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
         if (clickedSchemeComparisonCell?.dates) {
           params.append("dates", clickedSchemeComparisonCell.dates.join(","));
         }
@@ -1489,8 +1573,11 @@ const DetailedChlorinePage = () => {
     queryFn: async () => {
       const params = new URLSearchParams();
       if (schemeFilter !== 'all') {
-        params.append("filterType", schemeFilter);
-      }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
       const queryString = params.toString();
       const url = `/api/pressure/regional-stats${queryString ? `?${queryString}` : ""}`;
       const response = await fetch(url);
@@ -1705,8 +1792,11 @@ const DetailedChlorinePage = () => {
     queryFn: async () => {
       const params = new URLSearchParams();
       if (schemeFilter !== 'all') {
-        params.append("filterType", schemeFilter);
-      }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
       const queryString = params.toString();
       const url = `/api/pressure/overall-region-comparison${queryString ? `?${queryString}` : ""}`;
       const response = await fetch(url);
@@ -2057,8 +2147,11 @@ const DetailedChlorinePage = () => {
       params.append("region", clickedLPCDCell.region);
     }
     if (schemeFilter !== 'all') {
-      params.append("filterType", schemeFilter);
-    }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
 
     const url = `/api/chlorine/lpcd/export/${clickedLPCDCell.statisticType}?${params.toString()}`;
     window.open(url, "_blank");
@@ -2176,7 +2269,15 @@ const DetailedChlorinePage = () => {
       params.append("region", clickedCell.region);
     }
 
+    if (schemeFilter !== "all") {
+      params.append("filterType", schemeFilter);
+    }
+    if (schemeFilter === "fully_completed") {
+      params.append("fullyCompleted", "true");
+    }
+
     const url = `/api/chlorine/export/${clickedCell.statisticType}?${params.toString()}`;
+    console.log("🚀 [EXPORTING] Opening URL:", url);
     window.open(url, "_blank");
   };
 
@@ -2216,12 +2317,6 @@ const DetailedChlorinePage = () => {
         statisticType: "online-with-water",
         value: stat.onlineWithWater,
         color: "#4ade80",
-      },
-      {
-        label: "Optimal Cl (0.2-0.5)",
-        statisticType: "online-with-water-chlorine-optimal",
-        value: stat.onlineWithWaterChlorineOptimal,
-        color: "#14b8a6",
       },
       {
         label: "Above Cl (>0.5)",
@@ -5085,8 +5180,11 @@ const DetailedChlorinePage = () => {
                                     params.append("region", clickedSchemeLPCDCell.region);
                                   }
                                   if (schemeFilter !== 'all') {
-                                    params.append("filterType", schemeFilter);
-                                  }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
                                   window.open(
                                     `/api/chlorine/scheme-lpcd/details-export/${clickedSchemeLPCDCell.statisticType}?${params.toString()}`,
                                     "_blank"
@@ -6079,10 +6177,14 @@ const DetailedChlorinePage = () => {
                                           if (dayWiseRegion && dayWiseRegion !== "All Regions") {
                                             params.append("region", dayWiseRegion);
                                           }
-                                          if (schemeFilter !== 'all') {
-                                            params.append("filterType", schemeFilter);
-                                          }
-                                          const url = `/api/chlorine/day-wise-sensors-export/${clickedDayWiseCell.metric}/${clickedDayWiseCell.days}?${params.toString()}`;
+                                          if (schemeFilter !== "all") {
+                                             params.append("filterType", schemeFilter);
+                                           }
+                                           if (schemeFilter === "fully_completed") {
+                                             params.append("fullyCompleted", "true");
+                                           }
+
+    const url = `/api/chlorine/day-wise-sensors-export/${clickedDayWiseCell.metric}/${clickedDayWiseCell.days}?${params.toString()}`;
                                           window.open(url, "_blank");
                                         }}
                                         variant="outline"
@@ -8190,8 +8292,11 @@ const DetailedChlorinePage = () => {
                                         params.append("region", clickedLpcdRegionComparisonCell.region);
                                       }
                                       if (schemeFilter !== 'all') {
-                                        params.append("filterType", schemeFilter);
-                                      }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
                                       window.open(`/api/chlorine/lpcd/region-comparison-total-export?${params.toString()}`, "_blank");
                                     } else {
                                       const params = new URLSearchParams();
@@ -8199,8 +8304,11 @@ const DetailedChlorinePage = () => {
                                         params.append("region", clickedLpcdRegionComparisonCell.region);
                                       }
                                       if (schemeFilter !== 'all') {
-                                        params.append("filterType", schemeFilter);
-                                      }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
                                       window.open(
                                         `/api/chlorine/lpcd/day-wise-villages-export/${clickedLpcdRegionComparisonCell.category}/${clickedLpcdRegionComparisonCell.day}?${params.toString()}`,
                                         "_blank",
@@ -8881,10 +8989,13 @@ const DetailedChlorinePage = () => {
                                   dayWiseRegion === "All Regions"
                                     ? ""
                                     : dayWiseRegion;
-                                window.open(
-                                  `/api/chlorine/day-wise-sensors-export/${clickedDayWiseCell.metric}/${clickedDayWiseCell.days}?region=${encodeURIComponent(region)}`,
-                                  "_blank",
-                                );
+                                const params = new URLSearchParams();
+                                if (region) params.append("region", region);
+                                if (schemeFilter !== "all") params.append("filterType", schemeFilter);
+                                if (schemeFilter === "fully_completed") params.append("fullyCompleted", "true");
+                                
+                                const url = `/api/chlorine/day-wise-sensors-export/${clickedDayWiseCell.metric}/${clickedDayWiseCell.days}?${params.toString()}`;
+                                window.open(url, "_blank");
                               }}
                               className="flex items-center gap-1.5 px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors text-xs font-medium shadow-sm"
                               data-testid="button-export-daywise-excel"
@@ -9330,10 +9441,18 @@ const DetailedChlorinePage = () => {
                           <div className="flex gap-1.5">
                             <button
                               onClick={() => {
-                                window.open(
-                                  `/api/chlorine/day-wise-sensors-export/${clickedRegionComparisonCell.category}/${clickedRegionComparisonCell.day}?region=${encodeURIComponent(clickedRegionComparisonCell.region)}`,
-                                  "_blank",
-                                );
+                                const params = new URLSearchParams();
+                                 params.append("region", clickedRegionComparisonCell.region);
+                                 if (schemeFilter !== "all") {
+                                   params.append("filterType", schemeFilter);
+                                 }
+                                 if (schemeFilter === "fully_completed") {
+                                   params.append("fullyCompleted", "true");
+                                 }
+                                 window.open(
+                                   `/api/chlorine/day-wise-sensors-export/${clickedRegionComparisonCell.category}/${clickedRegionComparisonCell.day}?${params.toString()}`,
+                                   "_blank",
+                                 );
                               }}
                               className="flex items-center gap-1.5 px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors text-xs font-medium shadow-sm"
                               data-testid="button-export-comparison-excel"
@@ -9552,8 +9671,11 @@ const DetailedChlorinePage = () => {
                                 const params = new URLSearchParams();
                                 params.append("region", region);
                                 if (schemeFilter !== 'all') {
-                                  params.append("filterType", schemeFilter);
-                                }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
                                 window.open(
                                   `/api/chlorine/lpcd/day-wise-villages-export/${clickedLpcdDayWiseCell.metric}/${clickedLpcdDayWiseCell.days}?${params.toString()}`,
                                   "_blank",
@@ -9749,8 +9871,11 @@ const DetailedChlorinePage = () => {
                                   params.append("region", schemeLpcdDayWiseRegion);
                                 }
                                 if (schemeFilter !== 'all') {
-                                  params.append("filterType", schemeFilter);
-                                }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
                                 window.open(
                                   `/api/chlorine/scheme-lpcd/day-wise-schemes-export/${clickedSchemeDayWiseCell.metric}/${clickedSchemeDayWiseCell.days}?${params.toString()}`,
                                   "_blank",
@@ -9958,10 +10083,18 @@ const DetailedChlorinePage = () => {
                           <div className="flex gap-1.5">
                             <button
                               onClick={() => {
-                                window.open(
-                                  `/api/chlorine/lpcd/day-wise-villages-export/${clickedLpcdRegionComparisonCell.category}/${clickedLpcdRegionComparisonCell.day}?region=${encodeURIComponent(clickedLpcdRegionComparisonCell.region)}`,
-                                  "_blank",
-                                );
+                                 const params = new URLSearchParams();
+                                 params.append("region", clickedLpcdRegionComparisonCell.region);
+                                 if (schemeFilter !== "all") {
+                                   params.append("filterType", schemeFilter);
+                                 }
+                                 if (schemeFilter === "fully_completed") {
+                                   params.append("fullyCompleted", "true");
+                                 }
+                                 window.open(
+                                   `/api/chlorine/lpcd/day-wise-villages-export/${clickedLpcdRegionComparisonCell.category}/${clickedLpcdRegionComparisonCell.day}?${params.toString()}`,
+                                   "_blank",
+                                 );
                               }}
                               className="flex items-center gap-1.5 px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors !text-[12px] font-medium shadow-sm"
                               data-testid="button-export-lpcd-comparison-excel"
@@ -10497,8 +10630,11 @@ const DetailedChlorinePage = () => {
                                         if (region) params.append("region", region);
                                         params.append("metric", clickedDivisionCell.metric);
                                         if (schemeFilter !== 'all') {
-                                          params.append("filterType", schemeFilter);
-                                        }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
                                         window.open(
                                           `/api/category-data/division-villages/export?${params.toString()}`,
                                           "_blank",
@@ -10940,8 +11076,11 @@ const DetailedChlorinePage = () => {
                                       params.append("region", clickedSchemeDivisionCell.region);
                                     }
                                     if (schemeFilter !== 'all') {
-                                      params.append("filterType", schemeFilter);
-                                    }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
                                     window.open(
                                       `/api/chlorine/scheme-lpcd/division-details-export/${encodeURIComponent(clickedSchemeDivisionCell.division)}/${clickedSchemeDivisionCell.metric}?${params.toString()}`,
                                       "_blank"
@@ -11362,15 +11501,21 @@ const DetailedChlorinePage = () => {
                               size="sm"
                               onClick={() => {
                                 const params = new URLSearchParams({
-                                  division:
-                                    clickedChlorineDivisionCell.division,
-                                  metric: clickedChlorineDivisionCell.metric,
-                                  region: clickedChlorineDivisionCell.region,
-                                });
-                                window.open(
-                                  `/api/chlorine/division-sensors-export?${params.toString()}`,
-                                  "_blank",
-                                );
+                                   division:
+                                     clickedChlorineDivisionCell.division,
+                                   metric: clickedChlorineDivisionCell.metric,
+                                   region: clickedChlorineDivisionCell.region,
+                                 });
+                                 if (schemeFilter !== "all") {
+                                   params.append("filterType", schemeFilter);
+                                 }
+                                 if (schemeFilter === "fully_completed") {
+                                   params.append("fullyCompleted", "true");
+                                 }
+                                 window.open(
+                                   `/api/chlorine/division-sensors-export?${params.toString()}`,
+                                   "_blank",
+                                 );
                               }}
                               className="h-7 px-2 text-[10px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200"
                               data-testid="button-export-chlorine-division-excel"
@@ -11845,6 +11990,12 @@ const DetailedChlorinePage = () => {
                                   metric: clickedPressureDivisionCell.metric,
                                   region: pressureDivisionWiseRegion || "",
                                 });
+                                 if (schemeFilter !== "all") {
+                                   params.append("filterType", schemeFilter);
+                                 }
+                                 if (schemeFilter === "fully_completed") {
+                                   params.append("fullyCompleted", "true");
+                                 }
                                 window.open(
                                   `/api/pressure/division-sensors-export?${params.toString()}`,
                                   "_blank",
@@ -13196,7 +13347,7 @@ const DetailedChlorinePage = () => {
                                 >
                                   <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-cyan-200 dark:border-cyan-800 flex items-center">
                                     <span className="w-2 h-2 rounded-full bg-gray-400 mr-2"></span>
-                                    Offline/No Data
+                                    Offline/Online with no water
                                   </div>
                                   {overallComparisonData.data.map(
                                     (regionData, idx) => (
@@ -13929,7 +14080,7 @@ const DetailedChlorinePage = () => {
                                     >
                                       <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-orange-200 dark:border-orange-800 flex items-center">
                                         <span className="w-2 h-2 rounded-full bg-gray-400 mr-2"></span>
-                                        Offline/No Data
+                                        Offline/online with no water
                                       </div>
                                       {pressureOverallComparison.data.map(
                                         (regionData: any) => (
@@ -14347,8 +14498,11 @@ const DetailedChlorinePage = () => {
                                     if (clickedComparisonCell.dates)
                                       params.append("dates", clickedComparisonCell.dates.join(","));
                                     if (schemeFilter !== 'all') {
-                                      params.append("filterType", schemeFilter);
-                                    }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
 
                                     const url = `/api/chlorine/overall-region-comparison/export/${clickedComparisonCell.category}?${params.toString()}`;
                                     window.open(url, "_blank");
@@ -14643,8 +14797,11 @@ const DetailedChlorinePage = () => {
                                       params.append("dates", clickedSchemeComparisonCell.dates.join(","));
                                     }
                                     if (schemeFilter !== 'all') {
-                                      params.append("filterType", schemeFilter);
-                                    }
+  params.append("filterType", schemeFilter);
+}
+if (schemeFilter === "fully_completed") {
+  params.append("fullyCompleted", "true");
+}
                                     window.open(
                                       `/api/chlorine/scheme-lpcd/region-comparison-schemes-export/${clickedSchemeComparisonCell.category}/7?${params.toString()}`,
                                       "_blank",
