@@ -4882,7 +4882,7 @@ export class PostgresStorage implements IStorage {
             scheme_id,
             village_name,
             block,
-            SUM(COALESCE(NULLIF(lpcd_value, 'NaN')::numeric, 0)) / 7.0 as avg_lpcd
+            AVG(NULLIF(lpcd_value, 'NaN')::numeric) as avg_lpcd
           FROM deduplicated_history
           GROUP BY region, scheme_id, village_name, block
         )
@@ -4918,7 +4918,7 @@ export class PostgresStorage implements IStorage {
             region,
             scheme_id,
             block,
-            SUM(COALESCE(NULLIF(lpcd_value, 'NaN')::numeric, 0)) / 7.0 as avg_lpcd
+            AVG(NULLIF(lpcd_value, 'NaN')::numeric) as avg_lpcd
           FROM (
             SELECT DISTINCT ON (region, scheme_id, block, data_date)
               region, scheme_id, block, lpcd_value, data_date
