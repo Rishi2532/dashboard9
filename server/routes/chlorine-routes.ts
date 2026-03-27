@@ -2993,13 +2993,15 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
         const dateList = (dates as string).split(',');
         const metric = category.replace('weekly_', '');
 
-        let havingCondition = '';
+        let havingCondition = '1=1';
         if (metric === 'above_55') {
           havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) >= 55';
         } else if (metric === 'below_55') {
           havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 0 AND (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) < 55';
         } else if (metric === 'no_water') {
           havingCondition = '((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) IS NULL OR (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) = 0)';
+        } else {
+          havingCondition = '1=1'; // Default for weekly_all_villages
         }
 
         let paramIndex = 1;
@@ -6941,7 +6943,7 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
         // Using a simpler approach: Filter where data_date matches ANY of the provided dates
 
         const metric = category.replace('weekly_', '');
-        let havingCondition = '';
+        let havingCondition = '1=1';
         if (metric === 'above_55') {
           havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) >= 55';
         } else if (metric === 'below_55') {
@@ -7221,7 +7223,7 @@ router.get("/scheme-lpcd/region-comparison-schemes-export-current/:category", as
         // normalize query dates logic if needed, but assuming direct string match or simple normalization
 
         const metric = category.replace('weekly_', '');
-        let havingCondition = '';
+        let havingCondition = '1=1';
 
         if (metric === 'above_55') {
           havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 55';
@@ -7428,7 +7430,7 @@ router.get("/scheme-lpcd/region-comparison-schemes-export/:category/:day", async
         let paramIndex2 = params.length + 1;
 
         const metric = category.replace('weekly_', '');
-        let havingCondition = '';
+        let havingCondition = '1=1';
 
         if (metric === 'above_55') {
           havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) >= 55';
