@@ -1327,11 +1327,11 @@ router.get("/overall-region-comparison", async (req, res) => {
 
     const result = await db.execute(sql.raw(`
       WITH pressure_analysis AS (
-        SELECT DISTINCT ON (pd.scheme_id, pd.village_name, pd.esr_name)
-          pd.region,
-          pd.scheme_id,
-          pd.village_name,
-          pd.esr_name,
+        SELECT DISTINCT ON (cs.scheme_id, cs.village_name, cs.esr_name)
+          cs.region,
+          cs.scheme_id,
+          cs.village_name,
+          cs.esr_name,
           pd.pressure_value_7,
           CASE 
             WHEN pd.pressure_value_7 < 0.2 THEN 'below_0_2'
@@ -1358,17 +1358,17 @@ router.get("/overall-region-comparison", async (req, res) => {
               AND pd.pressure_value_4 > 0.7 AND pd.pressure_value_5 > 0.7 AND pd.pressure_value_6 > 0.7 
               AND pd.pressure_value_7 > 0.7 THEN 1 ELSE 0 
           END as consistent_above
-        FROM pressure_data pd
-        INNER JOIN communication_status cs ON (
+        FROM communication_status cs
+        LEFT JOIN pressure_data pd ON (
           pd.scheme_id = cs.scheme_id AND 
           pd.village_name = cs.village_name AND 
           pd.esr_name = cs.esr_name
         )
-        WHERE pd.region IS NOT NULL 
+        WHERE cs.region IS NOT NULL 
         AND cs.pressure_connected = 'Connected' 
         AND cs.pressure_status <> 'Offline'
-        ${schemeIdFilter}
-        ORDER BY pd.scheme_id, pd.village_name, pd.esr_name, cs.uploaded_at DESC
+        ${communicationStatusSchemeFilter}
+        ORDER BY cs.scheme_id, cs.village_name, cs.esr_name, cs.uploaded_at DESC
       ),
       offline_analysis AS (
         SELECT 
