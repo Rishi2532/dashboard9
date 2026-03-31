@@ -2573,7 +2573,7 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
                 SELECT DISTINCT ON (scheme_id, village_name, block, data_date)
                     region, circle, division, sub_division, block,
                     scheme_id, scheme_name, village_name, population,
-                    lpcd_value, data_date, dashboard_url
+                    lpcd_value, water_value, data_date, dashboard_url
                 FROM water_scheme_data_history
                 WHERE region IS NOT NULL
                 ${regionFilter}
@@ -3025,7 +3025,7 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
                 SELECT DISTINCT ON (scheme_id, village_name, block, data_date)
                     region, circle, division, sub_division, block,
                     scheme_id, scheme_name, village_name, population,
-                    lpcd_value, data_date, dashboard_url
+                    lpcd_value, water_value, data_date, dashboard_url
                 FROM water_scheme_data_history
                 WHERE region IS NOT NULL
                 ${regionFilter}
