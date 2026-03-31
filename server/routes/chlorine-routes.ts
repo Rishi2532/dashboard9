@@ -2470,6 +2470,7 @@ router.get("/overall-region-comparison", async (req, res) => {
             SELECT DISTINCT ON (scheme_id, village_name, block) *
             FROM water_scheme_data
             WHERE region = $1
+            ${schemeIdFilter}
             ORDER BY scheme_id, village_name, block
           ) t
         `;
