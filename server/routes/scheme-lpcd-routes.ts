@@ -625,6 +625,14 @@ router.get('/export/history', async (req, res) => {
       const dates = result.rows.map(r => r.data_date).filter(Boolean);
       const uniqueDatesSet = new Set(dates);
       const uniqueDates = Array.from(uniqueDatesSet).sort();
+      
+      const currentYear = new Date().getFullYear();
+      const formattedDates = uniqueDates.map(date => {
+        if (/^\d{1,2}[-/][a-zA-Z]{3}$/.test(date as string)) {
+          return `${date}-${currentYear}`;
+        }
+        return date;
+      });
 
       console.log('[SCHEME EXPORT] Unique dates found:', uniqueDates);
 
@@ -675,7 +683,7 @@ router.get('/export/history', async (req, res) => {
           'Total Population', 'Total Villages', 'MJP Commissioned'
         ];
 
-        uniqueDates.forEach(date => {
+        formattedDates.forEach(date => {
           headerRow.push(`${date} Water Value`);
           headerRow.push(`${date} LPCD Value`);
           headerRow.push(`${date} Below 55`);
@@ -748,7 +756,7 @@ router.get('/export/history', async (req, res) => {
           'Total Population', 'Total Villages', 'MJP Commissioned'
         ];
 
-        uniqueDates.forEach(date => {
+        formattedDates.forEach(date => {
           headerRow.push(`${date} Water Value`);
           headerRow.push(`${date} LPCD Value`);
           headerRow.push(`${date} Below 55`);

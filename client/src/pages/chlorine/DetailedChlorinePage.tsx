@@ -13371,8 +13371,8 @@ if (schemeFilter === "fully_completed") {
                                   }}
                                 >
                                   <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-cyan-200 dark:border-cyan-800 flex items-center">
-                                    <span className="w-2 h-2 rounded-full bg-gray-400 mr-2"></span>
-                                    Offline/Online with no water
+                                    <span className="w-2 h-2 rounded-full bg-red-400 mr-2"></span>
+                                    Offline
                                   </div>
                                   {overallComparisonData.data.map(
                                     (regionData, idx) => (
@@ -13412,6 +13412,61 @@ if (schemeFilter === "fully_completed") {
                                     >
                                       {overallComparisonData.data.reduce(
                                         (sum, r) => sum + r.offline,
+                                        0,
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Online with no water Row */}
+                                <div
+                                  className="grid border-b border-cyan-100 dark:border-cyan-900 hover:bg-cyan-50/50 dark:hover:bg-cyan-950/30 transition-colors"
+                                  style={{
+                                    gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
+                                  }}
+                                >
+                                  <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-cyan-200 dark:border-cyan-800 flex items-center">
+                                    <span className="w-2 h-2 rounded-full bg-gray-400 mr-2"></span>
+                                    Online with no water
+                                  </div>
+                                  {overallComparisonData.data.map(
+                                    (regionData, idx) => (
+                                      <div
+                                        key={`online-nowater-${regionData.region}`}
+                                        className="px-2 py-2.5 flex items-center justify-center border-r border-cyan-100 dark:border-cyan-900"
+                                      >
+                                        <button
+                                          onClick={() =>
+                                            (regionData.online_no_water || 0) > 0 &&
+                                            setClickedComparisonCell({
+                                              category: "online_no_water",
+                                              region: regionData.region,
+                                              label: `Online with no water - ${regionData.region}`,
+                                              isLpcd: false,
+                                            })
+                                          }
+                                          className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${(regionData.online_no_water || 0) > 0 ? "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                          data-testid={`btn-online-nowater-${regionData.region}`}
+                                        >
+                                          {regionData.online_no_water || 0}
+                                        </button>
+                                      </div>
+                                    ),
+                                  )}
+                                  <div className="px-2 py-2.5 flex items-center justify-center bg-cyan-50/50 dark:bg-cyan-950/30">
+                                    <button
+                                      onClick={() =>
+                                        setClickedComparisonCell({
+                                          category: "online_no_water",
+                                          region: "All Regions",
+                                          label: "Online with no water - All Regions",
+                                          isLpcd: false,
+                                        })
+                                      }
+                                      className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-gray-200 dark:bg-gray-700 text-dark-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                                    >
+                                      {overallComparisonData.data.reduce(
+                                        (sum, r) => sum + (r.online_no_water || 0),
                                         0,
                                       )}
                                     </button>
@@ -13598,6 +13653,7 @@ if (schemeFilter === "fully_completed") {
                                     (regionData, idx) => {
                                       const currentDayTotal =
                                         regionData.offline +
+                                        (regionData.online_no_water || 0) +
                                         regionData.below_0_2 +
                                         regionData.optimal_0_2_0_5 +
                                         regionData.above_0_5;
@@ -13640,6 +13696,7 @@ if (schemeFilter === "fully_completed") {
                                         (sum, r) =>
                                           sum +
                                           r.offline +
+                                          (r.online_no_water || 0) +
                                           r.below_0_2 +
                                           r.optimal_0_2_0_5 +
                                           r.above_0_5,
@@ -14097,6 +14154,7 @@ if (schemeFilter === "fully_completed") {
                                       </div>
                                     </div>
 
+                                    {/* Offline Row */}
                                     <div
                                       className="grid border-b border-orange-100 dark:border-orange-900 hover:bg-orange-50/50 dark:hover:bg-orange-950/30 transition-colors"
                                       style={{
@@ -14104,8 +14162,8 @@ if (schemeFilter === "fully_completed") {
                                       }}
                                     >
                                       <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-orange-200 dark:border-orange-800 flex items-center">
-                                        <span className="w-2 h-2 rounded-full bg-gray-400 mr-2"></span>
-                                        Offline/online with no water
+                                        <span className="w-2 h-2 rounded-full bg-red-400 mr-2"></span>
+                                        Offline
                                       </div>
                                       {pressureOverallComparison.data.map(
                                         (regionData: any) => (
@@ -14122,7 +14180,7 @@ if (schemeFilter === "fully_completed") {
                                                   `Offline Sensors - ${regionData.region}`,
                                                 )
                                               }
-                                              className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${(regionData.offline || 0) > 0 ? "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                              className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${(regionData.offline || 0) > 0 ? "bg-red-100 dark:bg-red-800/40 text-gray-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-700 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
                                             >
                                               {regionData.offline || 0}
                                             </button>
@@ -14149,6 +14207,59 @@ if (schemeFilter === "fully_completed") {
                                       </div>
                                     </div>
 
+                                    {/* Online with no water Row */}
+                                    <div
+                                      className="grid border-b border-orange-100 dark:border-orange-900 hover:bg-orange-50/50 dark:hover:bg-orange-950/30 transition-colors"
+                                      style={{
+                                        gridTemplateColumns: `180px repeat(${pressureOverallComparison.data.length + 1}, 1fr)`,
+                                      }}
+                                    >
+                                      <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-orange-200 dark:border-orange-800 flex items-center">
+                                        <span className="w-2 h-2 rounded-full bg-gray-400 mr-2"></span>
+                                        Online with no water
+                                      </div>
+                                      {pressureOverallComparison.data.map(
+                                        (regionData: any) => (
+                                          <div
+                                            key={`online-nowater-${regionData.region}`}
+                                            className="px-2 py-2.5 flex items-center justify-center border-r border-orange-100 dark:border-orange-900"
+                                          >
+                                            <button
+                                              onClick={() =>
+                                                (regionData.online_no_water || 0) > 0 &&
+                                                handlePressureComparisonCellClick(
+                                                  "online_no_water",
+                                                  regionData.region,
+                                                  `Online with no water - ${regionData.region}`,
+                                                )
+                                              }
+                                              className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${(regionData.online_no_water || 0) > 0 ? "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                            >
+                                              {regionData.online_no_water || 0}
+                                            </button>
+                                          </div>
+                                        ),
+                                      )}
+                                      <div className="px-2 py-2.5 flex items-center justify-center bg-orange-50/50 dark:bg-orange-950/30">
+                                        <button
+                                          onClick={() =>
+                                            handlePressureComparisonCellClick(
+                                              "online_no_water",
+                                              "All Regions",
+                                              "Online with no water - All Regions",
+                                            )
+                                          }
+                                          className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                                        >
+                                          {pressureOverallComparison.data.reduce(
+                                            (sum: number, r: any) =>
+                                              sum + (r.online_no_water || 0),
+                                            0,
+                                          )}
+                                        </button>
+                                      </div>
+                                    </div>
+
                                     {/* Current Day TOTAL Row */}
                                     <div
                                       className="grid bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/50 dark:to-amber-950/50 border-b-2 border-orange-200 dark:border-orange-800"
@@ -14164,6 +14275,7 @@ if (schemeFilter === "fully_completed") {
                                         (regionData: any) => {
                                           const currentDayTotal =
                                             (regionData.offline || 0) +
+                                            (regionData.online_no_water || 0) +
                                             (regionData.below_0_2 || 0) +
                                             (regionData.optimal_0_2_0_7 || 0) +
                                             (regionData.above_0_7 || 0);
@@ -14205,6 +14317,7 @@ if (schemeFilter === "fully_completed") {
                                             (sum: number, r: any) =>
                                               sum +
                                               (r.offline || 0) +
+                                              (r.online_no_water || 0) +
                                               (r.below_0_2 || 0) +
                                               (r.optimal_0_2_0_7 || 0) +
                                               (r.above_0_7 || 0),

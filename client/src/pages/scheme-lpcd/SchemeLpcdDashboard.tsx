@@ -1091,8 +1091,21 @@ const SchemeLpcdDashboard = () => {
       // Helper function to format dates for headers
       const formatDateForHeader = (dateStr: string | null | undefined) => {
         if (!dateStr) return "N/A";
+        
+        if (/^\d{1,2}[-/][a-zA-Z]{3}$/.test(dateStr)) {
+          const currentYear = new Date().getFullYear();
+          return `${dateStr}-${currentYear}`;
+        }
+        
         try {
           const date = new Date(dateStr);
+          if (isNaN(date.getTime())) return dateStr;
+          
+          if (date.getFullYear() === 2001 && !dateStr.includes("2001")) {
+            const currentYear = new Date().getFullYear();
+            return `${dateStr}-${currentYear}`;
+          }
+          
           return date.toLocaleDateString("en-IN", {
             day: "2-digit",
             month: "short",

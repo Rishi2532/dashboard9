@@ -2400,6 +2400,14 @@ router.get('/download/village-lpcd-history', async (req, res) => {
         const dates = filteredRows.map(row => row.data_date);
         const uniqueDatesSet = new Set(dates);
         const uniqueDates = sortDatesChronologically(Array.from(uniqueDatesSet));
+        
+        const currentYear = new Date().getFullYear();
+        const formattedDates = uniqueDates.map(date => {
+          if (/^\d{1,2}[-/][a-zA-Z]{3}$/.test(date as string)) {
+            return `${date}-${currentYear}`;
+          }
+          return date;
+        });
 
         console.log('Unique dates found (chronologically sorted):', uniqueDates);
 
@@ -2445,7 +2453,7 @@ router.get('/download/village-lpcd-history', async (req, res) => {
         ];
 
         // Add date headers as simple columns
-        uniqueDates.forEach(date => {
+        formattedDates.forEach(date => {
           headerRow.push(date);
         });
 
@@ -2570,6 +2578,14 @@ router.get('/download/village-lpcd-history', async (req, res) => {
         const dates = filteredResult.rows.map(row => row.data_date);
         const uniqueDatesSet = new Set(dates);
         const uniqueDates = sortDatesChronologically(Array.from(uniqueDatesSet));
+        
+        const currentYear = new Date().getFullYear();
+        const formattedDates = uniqueDates.map(date => {
+          if (/^\d{1,2}[-/][a-zA-Z]{3}$/.test(date as string)) {
+            return `${date}-${currentYear}`;
+          }
+          return date;
+        });
 
         console.log('Creating proper pivot Excel structure');
         console.log('Unique dates found (chronologically sorted):', uniqueDates);
@@ -2618,7 +2634,7 @@ router.get('/download/village-lpcd-history', async (req, res) => {
         ];
 
         // Add date headers as simple columns (dates only)
-        uniqueDates.forEach(date => {
+        formattedDates.forEach(date => {
           headerRow.push(date); // Just the date as header
         });
 

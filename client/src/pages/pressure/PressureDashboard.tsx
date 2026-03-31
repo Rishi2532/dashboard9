@@ -1866,8 +1866,23 @@ const PressureDashboard: React.FC = () => {
 
       const formatDateForHeader = (dateStr: string | null | undefined) => {
         if (!dateStr) return "N/A";
+        
+        // If it's already a short date format like "15-Feb" or "15/02" without a year
+        if (/^\d{1,2}[-/][a-zA-Z]{3}$/.test(dateStr)) {
+          // Append the current year to ensure accuracy instead of JS defaulting to 2001
+          const currentYear = new Date().getFullYear();
+          return `${dateStr}-${currentYear}`;
+        }
+
         try {
           const date = new Date(dateStr);
+          if (isNaN(date.getTime())) return dateStr;
+          
+          if (date.getFullYear() === 2001 && !dateStr.includes("2001")) {
+            const currentYear = new Date().getFullYear();
+            return `${dateStr}-${currentYear}`;
+          }
+
           return date.toLocaleDateString("en-IN", {
             day: "2-digit",
             month: "short",

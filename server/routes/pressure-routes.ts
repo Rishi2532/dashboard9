@@ -1380,7 +1380,8 @@ router.get("/overall-region-comparison", async (req, res) => {
       )
       SELECT 
         pa.region,
-        COALESCE(oa.offline_count, 0) + COUNT(CASE WHEN pressure_category = 'no_data' THEN 1 END) as offline,
+        COALESCE(oa.offline_count, 0) as offline,
+        COUNT(CASE WHEN pressure_category = 'no_data' THEN 1 END) as online_no_water,
         COUNT(CASE WHEN pressure_category = 'below_0_2' THEN 1 END) as below_0_2,
         COUNT(CASE WHEN pressure_category = 'optimal_0_2_0_7' THEN 1 END) as optimal_0_2_0_7,
         COUNT(CASE WHEN pressure_category = 'above_0_7' THEN 1 END) as above_0_7,
@@ -1399,6 +1400,7 @@ router.get("/overall-region-comparison", async (req, res) => {
       data: result.rows.map((row: any) => ({
         region: row.region,
         offline: Number(row.offline) || 0,
+        online_no_water: Number(row.online_no_water) || 0,
         below_0_2: Number(row.below_0_2) || 0,
         optimal_0_2_0_7: Number(row.optimal_0_2_0_7) || 0,
         above_0_7: Number(row.above_0_7) || 0,
@@ -1451,7 +1453,10 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
     let categoryCondition;
     switch (category) {
       case 'offline':
-        categoryCondition = sql`AND (cs.pressure_status = 'Offline' OR (cs.pressure_status = 'Online' AND pd.pressure_value_7 IS NULL))`;
+        categoryCondition = sql`AND cs.pressure_status = 'Offline'`;
+        break;
+      case 'online_no_water':
+        categoryCondition = sql`AND cs.pressure_status = 'Online' AND pd.pressure_value_7 IS NULL`;
         break;
       case 'all_sensors':
         categoryCondition = sql`AND (
@@ -1577,7 +1582,10 @@ router.get("/overall-region-comparison/details-export/:category", async (req, re
 
     switch (category) {
       case 'offline':
-        categoryCondition = sql`AND (cs.pressure_status = 'Offline' OR (cs.pressure_status = 'Online' AND pd.pressure_value_7 IS NULL))`;
+        categoryCondition = sql`AND cs.pressure_status = 'Offline'`;
+        break;
+      case 'online_no_water':
+        categoryCondition = sql`AND cs.pressure_status = 'Online' AND pd.pressure_value_7 IS NULL`;
         break;
       case 'all_sensors':
         categoryCondition = sql`AND (

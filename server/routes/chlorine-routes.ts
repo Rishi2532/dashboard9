@@ -2352,20 +2352,21 @@ router.get("/overall-region-comparison", async (req, res) => {
       const comparisonData: any[] = [];
 
       for (const region of regions) {
-        // Offline/No Data sensors: (Offline status) OR (Online status AND NULL value)
+        // Offline and No Data sensors:
         const offlineQuery = `
-          SELECT COUNT(*) as count 
+          SELECT 
+            SUM(CASE WHEN cs.chlorine_status IN ('Offline', 'offline') THEN 1 ELSE 0 END) as offline_count,
+            SUM(CASE WHEN cs.chlorine_status IN ('Online', 'online') THEN 1 ELSE 0 END) as online_no_water_count
           FROM communication_status cs
           LEFT JOIN chlorine_data cd ON (cs.scheme_id = cd.scheme_id AND cs.village_name = cd.village_name AND cs.esr_name = cd.esr_name)
           WHERE cs.region = $1 
           AND cs.chlorine_connected = 'Connected'
-          AND (
-            (cs.chlorine_status IN ('Offline', 'offline', 'Online', 'online') AND cd.chlorine_value_7 IS NULL)
-          )
+          AND cd.chlorine_value_7 IS NULL
           ${schemeIdFilter.replace(/scheme_id/g, 'cs.scheme_id')}
         `;
         const offlineResult = await client.query(offlineQuery, [region]);
-        const offline = parseInt(offlineResult.rows[0]?.count || '0');
+        const offline = parseInt(offlineResult.rows[0]?.offline_count || '0');
+        const online_no_water = parseInt(offlineResult.rows[0]?.online_no_water_count || '0');
 
         // Chlorine ranges from chlorine_data (Day 7)
         const chlorineQuery = `
@@ -2478,7 +2479,8 @@ router.get("/overall-region-comparison", async (req, res) => {
         comparisonData.push({
           region,
           offline: offline,
-          below_0_2: Number(chlorineRow.below_0_2 || 0),
+          online_no_water: online_no_water,
+          below_0_2: parseInt(chlorineRow.below_0_2 || '0'),
           optimal_0_2_0_5: Number(chlorineRow.optimal_0_2_0_5 || 0),
           above_0_5: Number(chlorineRow.above_0_5 || 0),
           consistent_below_0_2: Number(consistentChlorineRow.consistent_below_0_2 || 0),
@@ -2621,9 +2623,30 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
               FROM communication_status cs
               LEFT JOIN chlorine_data cd ON cs.scheme_id = cd.scheme_id AND cs.scheme_name = cd.scheme_name AND cs.village_name = cd.village_name AND cs.esr_name = cd.esr_name
               WHERE cs.chlorine_connected = 'Connected'
-              AND (
-                (cs.chlorine_status IN ('Offline', 'offline', 'Online', 'online') AND cd.chlorine_value_7 IS NULL)
-              )
+              AND cs.chlorine_status IN ('Offline', 'offline')
+              AND cd.chlorine_value_7 IS NULL
+              ${region ? 'AND cs.region = $1' : ''}
+              ${schemeIdFilterGeneric.replace(/scheme_id/g, 'cs.scheme_id')}
+              ORDER BY cs.scheme_id, cs.village_name, cs.esr_name
+            ) as t
+            ORDER BY region, division, village_name
+          `;
+            if (region) params.push(region);
+            break;
+
+          case 'online_no_water':
+            query = `
+            SELECT * FROM (
+              SELECT DISTINCT ON (cs.scheme_id, cs.village_name, cs.esr_name)
+                cs.region, cs.circle, cs.division, cs.sub_division, cs.block,
+                cs.scheme_id, cs.scheme_name, cs.village_name, cs.esr_name,
+                cs.chlorine_status, cs.last_seen,
+                cd.dashboard_url
+              FROM communication_status cs
+              LEFT JOIN chlorine_data cd ON cs.scheme_id = cd.scheme_id AND cs.scheme_name = cd.scheme_name AND cs.village_name = cd.village_name AND cs.esr_name = cd.esr_name
+              WHERE cs.chlorine_connected = 'Connected'
+              AND cs.chlorine_status IN ('Online', 'online')
+              AND cd.chlorine_value_7 IS NULL
               ${region ? 'AND cs.region = $1' : ''}
               ${schemeIdFilterGeneric.replace(/scheme_id/g, 'cs.scheme_id')}
               ORDER BY cs.scheme_id, cs.village_name, cs.esr_name
@@ -3097,9 +3120,27 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
             FROM communication_status cs
             LEFT JOIN chlorine_data cd ON cs.scheme_id = cd.scheme_id AND cs.scheme_name = cd.scheme_name AND cs.village_name = cd.village_name AND cs.esr_name = cd.esr_name
             WHERE cs.chlorine_connected = 'Connected'
-            AND (
-              (cs.chlorine_status IN ('Offline', 'offline', 'Online', 'online') AND cd.chlorine_value_7 IS NULL)
-            )
+            AND cs.chlorine_status IN ('Offline', 'offline')
+            AND cd.chlorine_value_7 IS NULL
+            ${region ? 'AND cs.region = $1' : ''}
+            ${schemeIdFilterGeneric.replace('scheme_id', 'cs.scheme_id')}
+            ORDER BY cs.region, cs.division, cs.village_name
+          `;
+            if (region) params.push(region);
+            break;
+
+          case 'online_no_water':
+            query = `
+            SELECT 
+              cs.region, cs.circle, cs.division, cs.sub_division, cs.block,
+              cs.scheme_id, cs.scheme_name, cs.village_name, cs.esr_name,
+              cs.chlorine_status, cs.last_seen,
+              cd.dashboard_url
+            FROM communication_status cs
+            LEFT JOIN chlorine_data cd ON cs.scheme_id = cd.scheme_id AND cs.scheme_name = cd.scheme_name AND cs.village_name = cd.village_name AND cs.esr_name = cd.esr_name
+            WHERE cs.chlorine_connected = 'Connected'
+            AND cs.chlorine_status IN ('Online', 'online')
+            AND cd.chlorine_value_7 IS NULL
             ${region ? 'AND cs.region = $1' : ''}
             ${schemeIdFilterGeneric.replace('scheme_id', 'cs.scheme_id')}
             ORDER BY cs.region, cs.division, cs.village_name
