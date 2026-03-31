@@ -2606,7 +2606,7 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
             )
             SELECT vs.*, wsd.dashboard_url
             FROM village_stats vs
-            LEFT JOIN water_scheme_data wsd ON vs.scheme_id = wsd.scheme_id AND vs.village_name = wsd.village_name
+            LEFT JOIN water_scheme_data wsd ON vs.scheme_id = wsd.scheme_id AND vs.village_name = wsd.village_name AND vs.block = wsd.block
             ORDER BY vs.region, vs.division, vs.village_name
           `;
       } else {
@@ -3058,7 +3058,7 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
             )
             SELECT vs.*, wsd.dashboard_url
             FROM village_stats vs
-            LEFT JOIN water_scheme_data wsd ON vs.scheme_id = wsd.scheme_id AND vs.village_name = wsd.village_name
+            LEFT JOIN water_scheme_data wsd ON vs.scheme_id = wsd.scheme_id AND vs.village_name = wsd.village_name AND vs.block = wsd.block
             ORDER BY vs.region, vs.division, vs.village_name
           `;
       } else {
