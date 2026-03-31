@@ -2819,7 +2819,7 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
               WHERE (ws.lpcd_value_day7 IS NULL OR ws.lpcd_value_day7 = 0)
               ${region ? 'AND ws.region = $1' : ''}
               ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
-              ORDER BY ws.scheme_id, ws.village_name, ws.block, ws.uploaded_at DESC NULLS LAST
+              ORDER BY ws.scheme_id, ws.village_name, ws.block
             ) as t
             ORDER BY region, division, village_name
           `;
@@ -2867,7 +2867,7 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
                 AND (ws.lpcd_value_day7 IS NULL OR ws.lpcd_value_day7 = 0)
               ${region ? 'AND ws.region = $1' : ''}
               ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}
-              ORDER BY ws.scheme_id, ws.village_name, ws.block, ws.uploaded_at DESC NULLS LAST
+              ORDER BY ws.scheme_id, ws.village_name, ws.block
             ) as t
             ORDER BY region, division, village_name
           `;
