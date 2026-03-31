@@ -2360,9 +2360,7 @@ router.get("/overall-region-comparison", async (req, res) => {
           WHERE cs.region = $1 
           AND cs.chlorine_connected = 'Connected'
           AND (
-            (cs.chlorine_status = 'Offline' OR cs.chlorine_status = 'offline')
-            OR
-            ((cs.chlorine_status = 'Online' OR cs.chlorine_status = 'online') AND cd.chlorine_value_7 IS NULL)
+            (cs.chlorine_status IN ('Offline', 'offline', 'Online', 'online') AND cd.chlorine_value_7 IS NULL)
           )
           ${schemeIdFilter.replace(/scheme_id/g, 'cs.scheme_id')}
         `;
@@ -2624,9 +2622,7 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
               LEFT JOIN chlorine_data cd ON cs.scheme_id = cd.scheme_id AND cs.scheme_name = cd.scheme_name AND cs.village_name = cd.village_name AND cs.esr_name = cd.esr_name
               WHERE cs.chlorine_connected = 'Connected'
               AND (
-                (cs.chlorine_status = 'Offline' OR cs.chlorine_status = 'offline')
-                OR
-                ((cs.chlorine_status = 'Online' OR cs.chlorine_status = 'online') AND cd.chlorine_value_7 IS NULL)
+                (cs.chlorine_status IN ('Offline', 'offline', 'Online', 'online') AND cd.chlorine_value_7 IS NULL)
               )
               ${region ? 'AND cs.region = $1' : ''}
               ${schemeIdFilterGeneric.replace(/scheme_id/g, 'cs.scheme_id')}
@@ -3102,9 +3098,7 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
             LEFT JOIN chlorine_data cd ON cs.scheme_id = cd.scheme_id AND cs.scheme_name = cd.scheme_name AND cs.village_name = cd.village_name AND cs.esr_name = cd.esr_name
             WHERE cs.chlorine_connected = 'Connected'
             AND (
-              (cs.chlorine_status = 'Offline' OR cs.chlorine_status = 'offline')
-              OR
-              ((cs.chlorine_status = 'Online' OR cs.chlorine_status = 'online') AND cd.chlorine_value_7 IS NULL)
+              (cs.chlorine_status IN ('Offline', 'offline', 'Online', 'online') AND cd.chlorine_value_7 IS NULL)
             )
             ${region ? 'AND cs.region = $1' : ''}
             ${schemeIdFilterGeneric.replace('scheme_id', 'cs.scheme_id')}
