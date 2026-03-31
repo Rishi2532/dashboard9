@@ -2580,6 +2580,11 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
                 ${schemeIdFilterGeneric}
                 AND (
                     data_date IN (${dateParams})
+                    OR
+                    TO_CHAR(TO_DATE(CASE 
+                       WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN data_date
+                       ELSE '01-Jan-2000'
+                    END, 'DD-Mon-YY'), 'DD-Mon') IN (${dateParams})
                 )
                 ORDER BY scheme_id, village_name, block, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC
             ),
@@ -7249,19 +7254,23 @@ router.get("/scheme-lpcd/region-comparison-schemes-export-current/:category", as
         const dateParams = dateList.map((_, i) => `$${paramIndex++} `).join(',');
         params.push(...dateList);
 
-        query = `
-        WITH weekly_data AS (
-          SELECT DISTINCT ON (scheme_id, village_name, data_date)
+        query = `        WITH weekly_data AS (
+          SELECT DISTINCT ON (region, scheme_id, block, data_date)
             region, circle, division, sub_division, block,
             scheme_id, scheme_name, total_population, total_villages,
-            lpcd_value, water_value, data_date
+            lpcd_value, water_value, data_date, mjp_commissioned
           FROM scheme_lpcd_data_history
           WHERE region IS NOT NULL
           ${regionFilter}
           AND(
             data_date IN(${dateParams})
+            OR
+            TO_CHAR(TO_DATE(CASE 
+               WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN data_date
+               ELSE '01-Jan-2000'
+            END, 'DD-Mon-YY'), 'DD-Mon') IN (${dateParams})
           )
-          ORDER BY scheme_id, village_name, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC
+          ORDER BY region, scheme_id, block, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC
         ),
         scheme_stats AS (
           SELECT
@@ -7472,8 +7481,13 @@ router.get("/scheme-lpcd/region-comparison-schemes-export/:category/:day", async
           ${schemeIdFilter}
           AND $1:: int IS NOT NULL-- Fix: usage of dayNum param to avoid postgres binding error
           AND(
-              data_date IN(${dateParams})
-            )
+            data_date IN(${dateParams})
+            OR
+            TO_CHAR(TO_DATE(CASE 
+               WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN data_date
+               ELSE '01-Jan-2000'
+            END, 'DD-Mon-YY'), 'DD-Mon') IN (${dateParams})
+          )
           ORDER BY region, scheme_id, block, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC
         )
         SELECT

@@ -4872,9 +4872,16 @@ export class PostgresStorage implements IStorage {
           SELECT DISTINCT ON (scheme_id, village_name, block, data_date)
             region, scheme_id, village_name, block, lpcd_value, data_date
           FROM water_scheme_data_history
-          WHERE data_date IN (${sql.join(dateStrings.map(d => sql`${d}`), sql`, `)})
+          WHERE (
+            data_date IN (${sql.join(dateStrings.map(d => sql`${d}`), sql`, `)})
+            OR
+            TO_CHAR(TO_DATE(CASE 
+               WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN data_date
+               ELSE '01-Jan-2000'
+            END, 'DD-Mon-YY'), 'DD-Mon') IN (${sql.join(dateStrings.map(d => sql`${d}`), sql`, `)})
+          )
           ${schemeFilter}
-          ORDER BY scheme_id, village_name, block, data_date, (lpcd_value IS NOT NULL AND lpcd_value != 'NaN') DESC, uploaded_at DESC
+          ORDER BY scheme_id, village_name, block, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC
         ),
         village_averages AS (
           SELECT 
@@ -4882,7 +4889,7 @@ export class PostgresStorage implements IStorage {
             scheme_id,
             village_name,
             block,
-            SUM(COALESCE(NULLIF(lpcd_value, 'NaN')::numeric, 0)) / 7.0 as avg_lpcd
+            SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), '')::numeric, 0)) / 7.0 as avg_lpcd
           FROM deduplicated_history
           GROUP BY region, scheme_id, village_name, block
         )
@@ -4918,14 +4925,21 @@ export class PostgresStorage implements IStorage {
             region,
             scheme_id,
             block,
-            SUM(COALESCE(NULLIF(lpcd_value, 'NaN')::numeric, 0)) / 7.0 as avg_lpcd
+            SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), '')::numeric, 0)) / 7.0 as avg_lpcd
           FROM (
             SELECT DISTINCT ON (region, scheme_id, block, data_date)
               region, scheme_id, block, lpcd_value, data_date
             FROM scheme_lpcd_data_history
-            WHERE data_date IN (${sql.join(dateStrings.map(d => sql`${d}`), sql`, `)})
+            WHERE (
+              data_date IN (${sql.join(dateStrings.map(d => sql`${d}`), sql`, `)})
+              OR
+              TO_CHAR(TO_DATE(CASE 
+                 WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN data_date
+                 ELSE '01-Jan-2000'
+              END, 'DD-Mon-YY'), 'DD-Mon') IN (${sql.join(dateStrings.map(d => sql`${d}`), sql`, `)})
+            )
             ${schemeFilter}
-            ORDER BY region, scheme_id, block, data_date, (lpcd_value IS NOT NULL AND lpcd_value != 'NaN') DESC, uploaded_at DESC
+            ORDER BY region, scheme_id, block, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC
           ) deduplicated
           GROUP BY region, scheme_id, block
         )
