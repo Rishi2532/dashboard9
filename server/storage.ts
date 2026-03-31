@@ -3894,7 +3894,17 @@ export class PostgresStorage implements IStorage {
                 )
                 AND rh2.is_optimal = 1
             ), 0) as consecutive_optimal_0_2_0_5
-          FROM (SELECT DISTINCT scheme_id, village_name, esr_name FROM valid_history) rh1
+          FROM (
+            SELECT DISTINCT vh.scheme_id, vh.village_name, vh.esr_name 
+            FROM valid_history vh
+            INNER JOIN communication_status cs ON 
+              vh.scheme_id = cs.scheme_id AND 
+              vh.village_name = cs.village_name AND 
+              vh.esr_name = cs.esr_name
+            WHERE cs.chlorine_connected = 'Connected'
+              ${regionFilter}
+              ${schemeFilter}
+          ) rh1
         ),
         -- Combine all metrics
         day_counts AS (
