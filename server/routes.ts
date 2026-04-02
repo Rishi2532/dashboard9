@@ -3620,6 +3620,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           mjp_commissioned: ["MJP Commissioned", "mjp_commissioned"],
           mjp_fully_completed: ["MJP Fully Completed", "mjp_fully_completed"],
           water_supply: ["Water Supply", "water_supply"],
+          agency_type: ["Agency Type", "agency_type", "Agencies"],
         };
 
         // Region name patterns for detection
@@ -3783,6 +3784,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             mjp_commissioned: "MJP Commissioned",
             mjp_fully_completed: "MJP Fully Completed",
             water_supply: "Water Supply",
+            agency_type: "Agency Type",
           };
 
           // Add variant spellings to ensure we catch all possible column headers
@@ -3839,6 +3841,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             23: "mjp_commissioned",
             24: "mjp_fully_completed",
             25: "water_supply",
+            26: "agency_type",
           };
 
           // First try direct mapping from Excel column headers to database fields

@@ -9245,7 +9245,7 @@ export class PostgresStorage implements IStorage {
         no_of_non_functional_village, fully_completed_villages, total_number_of_esr, scheme_functional_status,
         total_esr_integrated, no_fully_completed_esr, balance_to_complete_esr, flow_meters_connected,
         pressure_transmitter_connected, residual_chlorine_analyzer_connected, fully_completion_scheme_status,
-        mjp_commissioned, mjp_fully_completed, dashboard_url, water_supply, active
+        mjp_commissioned, mjp_fully_completed, dashboard_url, water_supply, agency_type, active
       ) VALUES (
         ${schemeData.scheme_id}, ${schemeData.scheme_name}, ${schemeData.region}, ${schemeData.sr_no},
         ${schemeData.circle}, ${schemeData.division}, ${schemeData.sub_division}, ${schemeData.block}, ${schemeData.agency},
@@ -9253,7 +9253,7 @@ export class PostgresStorage implements IStorage {
         ${schemeData.no_of_non_functional_village}, ${schemeData.fully_completed_villages}, ${schemeData.total_number_of_esr}, ${schemeData.scheme_functional_status},
         ${schemeData.total_esr_integrated}, ${schemeData.no_fully_completed_esr}, ${schemeData.balance_to_complete_esr}, ${schemeData.flow_meters_connected},
         ${schemeData.pressure_transmitter_connected}, ${schemeData.residual_chlorine_analyzer_connected}, ${schemeData.fully_completion_scheme_status},
-        ${schemeData.mjp_commissioned}, ${schemeData.mjp_fully_completed}, ${schemeData.dashboard_url}, ${schemeData.water_supply}, ${schemeData.active ?? true}
+        ${schemeData.mjp_commissioned}, ${schemeData.mjp_fully_completed}, ${schemeData.dashboard_url}, ${schemeData.water_supply}, ${(schemeData as any).agency_type ?? null}, ${schemeData.active ?? true}
       )
       RETURNING *
     `);
@@ -9315,6 +9315,7 @@ export class PostgresStorage implements IStorage {
         mjp_commissioned = ${scheme.mjp_commissioned},
         mjp_fully_completed = ${scheme.mjp_fully_completed},
         water_supply = ${scheme.water_supply},
+        agency_type = ${(scheme as any).agency_type ?? null},
         dashboard_url = ${scheme.dashboard_url},
         active = ${scheme.active ?? true}
       WHERE 
@@ -9463,6 +9464,7 @@ export class PostgresStorage implements IStorage {
             mjp_fully_completed: getStringOrExisting(scheme.mjp_fully_completed, existingRecord?.mjp_fully_completed) || '',
             dashboard_url: dashboardUrl || existingRecord?.dashboard_url || null,
             water_supply: getStringOrExisting(scheme.water_supply, existingRecord?.water_supply),
+            agency_type: getStringOrExisting((scheme as any).agency_type, (existingRecord as any)?.agency_type),
           };
 
           if (mergedScheme.water_supply) {
@@ -9478,7 +9480,7 @@ export class PostgresStorage implements IStorage {
                 no_of_non_functional_village, fully_completed_villages, total_number_of_esr, scheme_functional_status,
                 total_esr_integrated, no_fully_completed_esr, balance_to_complete_esr, flow_meters_connected,
                 pressure_transmitter_connected, residual_chlorine_analyzer_connected, fully_completion_scheme_status,
-                mjp_commissioned, mjp_fully_completed, dashboard_url, water_supply
+                mjp_commissioned, mjp_fully_completed, dashboard_url, water_supply, agency_type
               ) VALUES (
                 ${mergedScheme.scheme_id}, ${mergedScheme.scheme_name}, ${mergedScheme.region}, ${mergedScheme.sr_no},
                 ${mergedScheme.circle}, ${mergedScheme.division}, ${mergedScheme.sub_division}, ${mergedScheme.block}, ${mergedScheme.agency},
@@ -9486,7 +9488,7 @@ export class PostgresStorage implements IStorage {
                 ${mergedScheme.no_of_non_functional_village}, ${mergedScheme.fully_completed_villages}, ${mergedScheme.total_number_of_esr}, ${mergedScheme.scheme_functional_status},
                 ${mergedScheme.total_esr_integrated}, ${mergedScheme.no_fully_completed_esr}, ${mergedScheme.balance_to_complete_esr}, ${mergedScheme.flow_meters_connected},
                 ${mergedScheme.pressure_transmitter_connected}, ${mergedScheme.residual_chlorine_analyzer_connected}, ${mergedScheme.fully_completion_scheme_status},
-                ${mergedScheme.mjp_commissioned}, ${mergedScheme.mjp_fully_completed}, ${mergedScheme.dashboard_url}, ${mergedScheme.water_supply}
+                ${mergedScheme.mjp_commissioned}, ${mergedScheme.mjp_fully_completed}, ${mergedScheme.dashboard_url}, ${mergedScheme.water_supply}, ${(mergedScheme as any).agency_type}
               )
               ON CONFLICT (scheme_id, block) DO UPDATE SET
                 scheme_name = EXCLUDED.scheme_name,
@@ -9513,7 +9515,8 @@ export class PostgresStorage implements IStorage {
                 mjp_commissioned = EXCLUDED.mjp_commissioned,
                 mjp_fully_completed = EXCLUDED.mjp_fully_completed,
                 dashboard_url = EXCLUDED.dashboard_url,
-                water_supply = EXCLUDED.water_supply
+                water_supply = EXCLUDED.water_supply,
+                agency_type = EXCLUDED.agency_type
               RETURNING scheme_id
             `);
 

@@ -9,9 +9,9 @@ const router = Router();
 async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: any) {
   if (filterType === 'all' && !fullyCompleted) return null;
   
-  let query = sql`SELECT DISTINCT scheme_id FROM scheme_status WHERE 1=1`;
+  let query = sql`SELECT DISTINCT scheme_id FROM scheme_status WHERE 1 = 1`;
   if (filterType === 'fully_completed' || fullyCompleted === 'true') {
-    query = sql`${query} AND water_supply = 'Yes'`;
+    query = sql`${ query } AND water_supply = 'Yes'`;
   }
   
   const result = await db.execute(query);
@@ -32,18 +32,18 @@ router.get("/overall-region-comparison", async (req, res) => {
         schemeIdFilter = "AND scheme_id = 'NO_MATCHES_PLACEHOLDER'";
       } else {
         const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
-        schemeIdFilter = `AND scheme_id IN (${ids})`;
+        schemeIdFilter = `AND scheme_id IN(${ ids })`;
       }
     }
 
     const query = `
-      SELECT
-        region,
-        COUNT(CASE WHEN LOWER(flow_meter_status) = 'online' THEN 1 END) as online_count,
-        COUNT(CASE WHEN LOWER(flow_meter_status) = 'offline' THEN 1 END) as offline_count
+SELECT
+region,
+  COUNT(CASE WHEN LOWER(flow_meter_status) = 'online' THEN 1 END) as online_count,
+  COUNT(CASE WHEN LOWER(flow_meter_status) = 'offline' THEN 1 END) as offline_count
       FROM communication_status
       WHERE region IS NOT NULL
-      ${schemeIdFilter}
+      ${ schemeIdFilter }
       GROUP BY region
       ORDER BY region
     `;
@@ -78,7 +78,7 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
         schemeIdFilter = "AND cs.scheme_id = 'NO_MATCHES_PLACEHOLDER'";
       } else {
         const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
-        schemeIdFilter = `AND cs.scheme_id IN (${ids})`;
+        schemeIdFilter = `AND cs.scheme_id IN(${ ids })`;
       }
     }
 
@@ -87,14 +87,14 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
       regionFilter = `AND cs.region = '${String(region).replace(/'/g, "''")}'`;
     }
 
-    let statusFilter = "";
-    if (category === 'online') {
-      statusFilter = "AND LOWER(cs.flow_meter_status) = 'online'";
-    } else if (category === 'offline') {
-      statusFilter = "AND LOWER(cs.flow_meter_status) = 'offline'";
-    }
+let statusFilter = "";
+if (category === 'online') {
+  statusFilter = "AND LOWER(cs.flow_meter_status) = 'online'";
+} else if (category === 'offline') {
+  statusFilter = "AND LOWER(cs.flow_meter_status) = 'offline'";
+}
 
-    const query = `
+const query = `
       SELECT
         cs.region,
         cs.division,
@@ -119,17 +119,17 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
       ORDER BY cs.region, cs.division, cs.village_name
     `;
 
-    const result = await db.execute(sql.raw(query));
-    
-    res.json({
-      success: true,
-      data: result.rows,
-      count: result.rows.length
-    });
+const result = await db.execute(sql.raw(query));
+
+res.json({
+  success: true,
+  data: result.rows,
+  count: result.rows.length
+});
   } catch (error) {
-    console.error("Error fetching flowmeter details:", error);
-    res.status(500).json({ success: false, error: "Failed to fetch flowmeter details" });
-  }
+  console.error("Error fetching flowmeter details:", error);
+  res.status(500).json({ success: false, error: "Failed to fetch flowmeter details" });
+}
 });
 
 // Export flowmeter statistics to Excel (identical query to details)
@@ -188,10 +188,10 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
     `;
 
     const result = await db.execute(sql.raw(query));
-    
+
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Flowmeter Details');
-    
+
     worksheet.columns = [
       { header: 'Region', key: 'region', width: 18 },
       { header: 'Division', key: 'division', width: 18 },
@@ -224,7 +224,7 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename=flowmeter-${category}-${region || 'all'}.xlsx`);
-    
+
     await workbook.xlsx.write(res);
     res.end();
   } catch (error) {

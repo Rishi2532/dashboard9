@@ -138,7 +138,8 @@ router.get('/', async (req, res) => {
             MAX(ss.flow_meters_connected) as flow_meters_connected,
             MAX(ss.pressure_transmitter_connected) as pressure_transmitter_connected,
             MAX(ss.residual_chlorine_analyzer_connected) as residual_chlorine_analyzer_connected,
-            MAX(ss.agency) as agency
+            MAX(ss.agency) as agency,
+            MAX(ss.agency_type) as agency_type
           FROM 
             deduplicated_villages wsd
           JOIN
@@ -220,7 +221,8 @@ router.get('/', async (req, res) => {
           flow_meters_connected,
           pressure_transmitter_connected,
           residual_chlorine_analyzer_connected,
-          agency
+          agency,
+          agency_type
         FROM 
           scheme_aggregation
       `;
@@ -548,7 +550,8 @@ router.get('/export/history', async (req, res) => {
             h.water_value,
             h.lpcd_value,
             h.dashboard_url,
-            h.mjp_commissioned
+            h.mjp_commissioned,
+            h.agency_type
           FROM scheme_lpcd_data_history h
         )
         SELECT 
@@ -641,6 +644,7 @@ router.get('/export/history', async (req, res) => {
             total_population: row.total_population,
             total_villages: row.total_villages,
             mjp_commissioned: row.mjp_commissioned,
+            agency_type: row.agency_type,
             dashboard_url: row.dashboard_url,
             dateData: {}
           });
@@ -668,7 +672,7 @@ router.get('/export/history', async (req, res) => {
         // Build header row with dates as columns
         const headerRow = [
           'Scheme ID', 'Scheme Name', 'Region', 'Circle', 'Division', 'Sub Division', 'Block',
-          'Total Population', 'Total Villages', 'MJP Commissioned'
+          'Total Population', 'Total Villages', 'MJP Commissioned', 'Agency Type'
         ];
 
         formattedDates.forEach(date => {
@@ -720,7 +724,7 @@ router.get('/export/history', async (req, res) => {
         // Set column widths
         const colWidths = [
           { wch: 15 }, { wch: 30 }, { wch: 20 }, { wch: 20 }, { wch: 20 },
-          { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 18 }
+          { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 18 }, { wch: 15 }
         ];
 
         uniqueDates.forEach(() => {

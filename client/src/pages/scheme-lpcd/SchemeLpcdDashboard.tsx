@@ -119,6 +119,7 @@ export interface SchemeLpcdData {
   fully_completion_scheme_status?: string;
   dashboard_url?: string;
   water_supply?: string;
+  agency_type?: string;
 }
 
 export interface RegionData {
@@ -1142,6 +1143,7 @@ const SchemeLpcdDashboard = () => {
           "Villages Zero Supply": scheme.villages_zero_supply || 0,
           "Latest LPCD Value (L)": latestLpcd !== null ? latestLpcd.toFixed(2) : "No data",
           "LPCD Status": statusText,
+          "Agency Type": scheme.agency_type || "N/A",
           [`LPCD ${formatDateForHeader(scheme.lpcd_date_day1)}`]: scheme.lpcd_value_day1 || "N/A",
           [`LPCD ${formatDateForHeader(scheme.lpcd_date_day2)}`]: scheme.lpcd_value_day2 || "N/A",
           [`LPCD ${formatDateForHeader(scheme.lpcd_date_day3)}`]: scheme.lpcd_value_day3 || "N/A",
@@ -1977,6 +1979,7 @@ const SchemeLpcdDashboard = () => {
                       <TableHead className="font-medium">Population</TableHead>
                       <TableHead className="font-medium">LPCD</TableHead>
                       <TableHead className="font-medium">MJP</TableHead>
+                      <TableHead className="font-medium">Agency Type</TableHead>
                       <TableHead className="font-medium w-[150px]">Remark</TableHead>
                       <TableHead className="font-medium">Actions</TableHead>
                     </TableRow>
@@ -2048,20 +2051,18 @@ const SchemeLpcdDashboard = () => {
                             <TableCell>
                               <LpcdBadge value={lpcdValue} />
                             </TableCell>
-                            <TableCell>
-                              <Badge
-                                className={`${scheme.water_supply === "Yes"
-                                  ? "bg-blue-100 text-blue-800 hover:bg-blue-200"
-                                  : scheme.mjp_commissioned === "Yes"
-                                    ? "bg-green-100 text-green-800 hover:bg-green-200"
-                                    : "bg-amber-100 text-amber-800 hover:bg-amber-200"
-                                  }`}
-                              >
-                                {scheme.water_supply === "Yes"
-                                  ? "Water Supply"
-                                  : scheme.mjp_commissioned || "Unknown"}
-                              </Badge>
-                            </TableCell>
+                             <TableCell>
+                               <Badge
+                                 className={`${scheme.agency_type === "MJP"
+                                   ? "bg-blue-100 text-blue-800 hover:bg-blue-200"
+                                   : scheme.agency_type === "ZP"
+                                     ? "bg-teal-100 text-teal-800 hover:bg-teal-200"
+                                     : "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                                   }`}
+                               >
+                                 {scheme.agency_type || "N/A"}
+                               </Badge>
+                             </TableCell>
                             <TableCell className="max-w-[150px] truncate" title={hasIssue ? schemeIssues!.map((i: any) => i.reason).join(", ") : "-"}>
                               {hasIssue ? (
                                 <Button

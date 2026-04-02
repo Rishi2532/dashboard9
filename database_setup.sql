@@ -61,6 +61,8 @@ CREATE TABLE IF NOT EXISTS "scheme_status" (
   "fully_completion_scheme_status" TEXT,
   "mjp_commissioned" TEXT DEFAULT 'No',
   "mjp_fully_completed" TEXT DEFAULT 'In Progress',
+  "water_supply" TEXT,
+  "agency_type" TEXT,
   "dashboard_url" TEXT
   -- No primary key constraint to allow duplicate entries
 );

@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS scheme_status (
   mjp_commissioned TEXT,
   mjp_fully_completed TEXT,
   water_supply TEXT,
+  agency_type TEXT,
   dashboard_url TEXT,
   UNIQUE(scheme_id, block)
 );

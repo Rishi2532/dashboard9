@@ -57,6 +57,7 @@ const schemeFields = [
   { value: "mjp_commissioned", label: "MJP Commissioned", required: false },
   { value: "mjp_fully_completed", label: "MJP Fully Completed", required: false },
   { value: "water_supply", label: "Water Supply", required: false },
+  { value: "agency_type", label: "Agency Type (MJP/ZP)", required: false },
 ];
 
 const regionFields = [
@@ -279,7 +280,8 @@ export default function EnhancedCsvImporter({ defaultTable = "scheme_status" }: 
             
             const matchedField = fields.find(field => 
               field.label.toLowerCase() === lowerHeader ||
-              field.value.toLowerCase() === lowerHeader
+              field.value.toLowerCase() === lowerHeader ||
+              (field.value === "agency_type" && lowerHeader === "mjp_type")
             );
 
             if (matchedField) {

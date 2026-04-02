@@ -97,6 +97,7 @@ export interface SchemeStatus {
   mjp_commissioned?: string;
   mjp_fully_completed?: string;
   water_supply?: string;
+  agency_type?: string; // MJP or ZP
   fully_completion_scheme_status?: string;
   scheme_functional_status?: string;
 }

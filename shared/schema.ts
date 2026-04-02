@@ -117,6 +117,7 @@ export const schemeStatuses = pgTable("scheme_status", {
   mjp_commissioned: text("mjp_commissioned"), // Whether the scheme was commissioned by MJP (Yes/No)
   mjp_fully_completed: text("mjp_fully_completed"), // MJP fully completed status (Fully Completed/In Progress)
   water_supply: text("water_supply"), // Water Supply status (Yes/No/etc.)
+  agency_type: text("agency_type"), // Agency type: MJP or ZP
   dashboard_url: text("dashboard_url"), // URL to access the PI Vision dashboard for this scheme
   // No primary key - allows multiple entries with the same scheme_id and block
 }, (table) => {

@@ -71,6 +71,7 @@ const schemeFields = [
   { value: "mjp_commissioned", label: "MJP Commissioned" },
   { value: "mjp_fully_completed", label: "MJP Fully Completed" },
   { value: "water_supply", label: "Water Supply" },
+  { value: "agency_type", label: "Agency Type (MJP/ZP)" },
 ];
 
 // Regions for the dropdown with agency mapping
@@ -136,11 +137,12 @@ export default function SchemeImporter() {
     mjp_commissioned: 23, // Column 24
     mjp_fully_completed: 24, // Column 25
     water_supply: 25, // Column 26
+    agency_type: 26, // Column 27
   };
 
   // CSV import state
   const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [columnCount, setColumnCount] = useState(26); // Fixed to 26 columns for scheme (including water_supply)
+  const [columnCount, setColumnCount] = useState(27); // Fixed to 27 columns (including agency_type)
   const [columnMappings] =
     useState<Record<string, number | string>>(fixedSchemeMappings); // Fixed mappings
   const [isUploading, setIsUploading] = useState(false);

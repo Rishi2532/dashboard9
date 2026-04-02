@@ -57,6 +57,7 @@ export interface SchemeStatus {
   mjp_commissioned?: string; // Yes/No values
   mjp_fully_completed?: string; // Fully Completed/In Progress values
   water_supply?: string; // Yes/Blank values
+  agency_type?: string; // MJP or ZP
   flow_meters_connected?: boolean;
   flow_meter_working?: boolean;
   flow_meter_data_on_cloud?: boolean;
