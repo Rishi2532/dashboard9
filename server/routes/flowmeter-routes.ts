@@ -85,7 +85,7 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
 
     let regionFilter = "";
     if (region && region !== 'All Regions') {
-      regionFilter = `AND cs.region = ${sql.raw(`'${region}'`)}`;
+      regionFilter = `AND cs.region = '${String(region).replace(/'/g, "''")}'`;
     }
 
     let statusFilter = "";
@@ -148,7 +148,7 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
 
     let regionFilter = "";
     if (region && region !== 'All Regions') {
-      regionFilter = `AND cs.region = '${region}'`;
+      regionFilter = `AND cs.region = '${String(region).replace(/'/g, "''")}'`;
     }
 
     let statusFilter = "";
