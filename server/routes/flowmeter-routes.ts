@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { getDB } from "../db";
 import { sql } from "drizzle-orm";
-import pg from "pg";
 import ExcelJS from "exceljs";
 
 const router = Router();
@@ -21,6 +20,7 @@ async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: an
 }
 
 // Get flowmeter statistics online/offline counts by region
+// Uses a CTE with DISTINCT ON to deduplicate exactly like the details query
 router.get("/overall-region-comparison", async (req, res) => {
   try {
     const { fullyCompleted, filterType } = req.query;
@@ -37,14 +37,23 @@ router.get("/overall-region-comparison", async (req, res) => {
       }
     }
 
+    // Use CTE with DISTINCT ON to deduplicate per (scheme_id, village_name) —
+    // this ensures the count matches the drill-down list exactly
     const query = `
-      SELECT 
+      WITH deduped AS (
+        SELECT DISTINCT ON (scheme_id, village_name)
+          region,
+          flow_meter_status
+        FROM communication_status
+        WHERE region IS NOT NULL
+        ${schemeIdFilter}
+        ORDER BY scheme_id, village_name
+      )
+      SELECT
         region,
         COUNT(CASE WHEN LOWER(flow_meter_status) = 'online' THEN 1 END) as online_count,
         COUNT(CASE WHEN LOWER(flow_meter_status) = 'offline' THEN 1 END) as offline_count
-      FROM communication_status
-      WHERE region IS NOT NULL
-      ${schemeIdFilter}
+      FROM deduped
       GROUP BY region
       ORDER BY region
     `;
@@ -65,7 +74,7 @@ router.get("/overall-region-comparison", async (req, res) => {
   }
 });
 
-// Get detailed list for flowmeter statistics
+// Get detailed list for flowmeter statistics (drill-down)
 router.get("/overall-region-comparison/details/:category", async (req, res) => {
   try {
     const { category } = req.params;
@@ -128,7 +137,7 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
   }
 });
 
-// Export flowmeter statistics to Excel
+// Export flowmeter statistics to Excel (same query as details to ensure same rows)
 router.get("/overall-region-comparison/export/:category", async (req, res) => {
   try {
     const { category } = req.params;
@@ -158,6 +167,7 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
       statusFilter = "AND LOWER(cs.flow_meter_status) = 'offline'";
     }
 
+    // Identical to the details query — ensures Excel matches the list count
     const query = `
       SELECT DISTINCT ON (cs.scheme_id, cs.village_name)
         cs.region,
@@ -179,37 +189,44 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
 
     const result = await db.execute(sql.raw(query));
     
-    // Create Excel
+    // Create Excel workbook
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Flowmeter Details');
     
     worksheet.columns = [
-      { header: 'Region', key: 'region', width: 15 },
-      { header: 'Division', key: 'division', width: 15 },
-      { header: 'Block', key: 'block', width: 15 },
-      { header: 'Village', key: 'village_name', width: 20 },
-      { header: 'Scheme ID', key: 'scheme_id', width: 15 },
-      { header: 'Scheme Name', key: 'scheme_name', width: 30 },
+      { header: 'Region', key: 'region', width: 18 },
+      { header: 'Division', key: 'division', width: 18 },
+      { header: 'Block', key: 'block', width: 18 },
+      { header: 'Village', key: 'village_name', width: 22 },
+      { header: 'Scheme ID', key: 'scheme_id', width: 18 },
+      { header: 'Scheme Name', key: 'scheme_name', width: 35 },
       { header: 'Flow Meter Status', key: 'status', width: 20 },
       { header: 'Population', key: 'population', width: 15 }
     ];
 
-    // Style header
-    worksheet.getRow(1).font = { bold: true };
-    worksheet.getRow(1).fill = {
+    // Style header row
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { color: { argb: 'FFFFFFFF' }, bold: true };
+    headerRow.fill = {
       type: 'pattern',
       pattern: 'solid',
       fgColor: { argb: 'FF4F81BD' }
     };
-    worksheet.getRow(1).font = { color: { argb: 'FFFFFFFF' }, bold: true };
 
-    // Add rows
-    result.rows.forEach((row: any) => {
-      worksheet.addRow(row);
+    // Add data rows with alternating colors
+    result.rows.forEach((row: any, idx: number) => {
+      const dataRow = worksheet.addRow(row);
+      if (idx % 2 === 1) {
+        dataRow.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE8F0FE' }
+        };
+      }
     });
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename=flowmeter-statistics-${category}.xlsx`);
+    res.setHeader('Content-Disposition', `attachment; filename=flowmeter-${category}-${region || 'all'}.xlsx`);
     
     await workbook.xlsx.write(res);
     res.end();
