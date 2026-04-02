@@ -20,7 +20,6 @@ async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: an
 }
 
 // Get flowmeter statistics online/offline counts by region
-// Uses a CTE with DISTINCT ON to deduplicate exactly like the details query
 router.get("/overall-region-comparison", async (req, res) => {
   try {
     const { fullyCompleted, filterType } = req.query;
@@ -37,23 +36,14 @@ router.get("/overall-region-comparison", async (req, res) => {
       }
     }
 
-    // Use CTE with DISTINCT ON to deduplicate per (scheme_id, village_name) —
-    // this ensures the count matches the drill-down list exactly
     const query = `
-      WITH deduped AS (
-        SELECT DISTINCT ON (scheme_id, village_name)
-          region,
-          flow_meter_status
-        FROM communication_status
-        WHERE region IS NOT NULL
-        ${schemeIdFilter}
-        ORDER BY scheme_id, village_name
-      )
       SELECT
         region,
         COUNT(CASE WHEN LOWER(flow_meter_status) = 'online' THEN 1 END) as online_count,
         COUNT(CASE WHEN LOWER(flow_meter_status) = 'offline' THEN 1 END) as offline_count
-      FROM deduped
+      FROM communication_status
+      WHERE region IS NOT NULL
+      ${schemeIdFilter}
       GROUP BY region
       ORDER BY region
     `;
@@ -105,7 +95,7 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
     }
 
     const query = `
-      SELECT DISTINCT ON (cs.scheme_id, cs.village_name)
+      SELECT
         cs.region,
         cs.division,
         cs.block,
@@ -121,7 +111,7 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
       ${schemeIdFilter}
       ${regionFilter}
       ${statusFilter}
-      ORDER BY cs.scheme_id, cs.village_name
+      ORDER BY cs.region, cs.division, cs.village_name
     `;
 
     const result = await db.execute(sql.raw(query));
@@ -137,7 +127,7 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
   }
 });
 
-// Export flowmeter statistics to Excel (same query as details to ensure same rows)
+// Export flowmeter statistics to Excel (identical query to details)
 router.get("/overall-region-comparison/export/:category", async (req, res) => {
   try {
     const { category } = req.params;
@@ -167,9 +157,9 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
       statusFilter = "AND LOWER(cs.flow_meter_status) = 'offline'";
     }
 
-    // Identical to the details query — ensures Excel matches the list count
+    // Identical to details query — Excel will always match the list
     const query = `
-      SELECT DISTINCT ON (cs.scheme_id, cs.village_name)
+      SELECT
         cs.region,
         cs.division,
         cs.block,
@@ -184,12 +174,11 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
       ${schemeIdFilter}
       ${regionFilter}
       ${statusFilter}
-      ORDER BY cs.scheme_id, cs.village_name
+      ORDER BY cs.region, cs.division, cs.village_name
     `;
 
     const result = await db.execute(sql.raw(query));
     
-    // Create Excel workbook
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Flowmeter Details');
     
@@ -204,7 +193,6 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
       { header: 'Population', key: 'population', width: 15 }
     ];
 
-    // Style header row
     const headerRow = worksheet.getRow(1);
     headerRow.font = { color: { argb: 'FFFFFFFF' }, bold: true };
     headerRow.fill = {
@@ -213,7 +201,6 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
       fgColor: { argb: 'FF4F81BD' }
     };
 
-    // Add data rows with alternating colors
     result.rows.forEach((row: any, idx: number) => {
       const dataRow = worksheet.addRow(row);
       if (idx % 2 === 1) {
