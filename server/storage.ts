@@ -65,6 +65,7 @@ import { getDB, initializeDatabase } from "./db";
 import { eq, sql, and, ilike, inArray, isNotNull } from "drizzle-orm";
 import { parse } from "csv-parse";
 import { v4 as uuidv4 } from "uuid";
+import pg from "pg";
 
 // Declare global variables for storing updates data
 declare global {
@@ -5432,192 +5433,70 @@ export class PostgresStorage implements IStorage {
         `Querying chlorine historical data from ${startDate} to ${endDate}`,
       );
 
-      // Get all records and filter dates in JavaScript to handle mixed formats
-      let query = db.select().from(chlorineHistory);
+      // Use pg directly for complex CTE and Native Date parsing functions ensuring DB handles the load not JS Memory
+      const { Pool } = pg;
+      const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+      const client = await pool.connect();
+      
+      try {
+        const queryParams: any[] = [startDate, endDate];
+        let paramIdx = 3;
+        let filterSql = '';
+        
+        if (regionFilter && regionFilter !== "all") {
+          filterSql += ` AND region ILIKE $${paramIdx++}`;
+          queryParams.push(regionFilter);
+        }
+        if (schemeFilter) {
+          filterSql += ` AND scheme_id = $${paramIdx++}`;
+          queryParams.push(schemeFilter);
+        }
+        if (villageFilter) {
+          filterSql += ` AND village_name = $${paramIdx++}`;
+          queryParams.push(villageFilter);
+        }
 
-      // Apply additional filters with case-insensitive matching for region
-      if (regionFilter && regionFilter !== "all") {
-        query = query.where(ilike(chlorineHistory.region, regionFilter));
+        const rawQuery = `
+          WITH parsed_dates AS (
+            SELECT 
+              *,
+              (
+                CASE 
+                  WHEN chlorine_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
+                    CASE 
+                      WHEN EXTRACT(MONTH FROM TO_DATE(chlorine_date, 'DD-Mon')) >= 11 AND EXTRACT(MONTH FROM uploaded_at) <= 2 THEN
+                        TO_DATE(chlorine_date || '-' || (EXTRACT(YEAR FROM uploaded_at) - 1)::text, 'DD-Mon-YYYY')
+                      ELSE 
+                        TO_DATE(chlorine_date || '-' || EXTRACT(YEAR FROM uploaded_at)::text, 'DD-Mon-YYYY')
+                    END
+                  WHEN chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(chlorine_date, 'DD-Mon-YYYY')
+                  WHEN chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN TO_DATE(chlorine_date, 'DD-Mon-YY')
+                  WHEN chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(chlorine_date, 'YYYY-MM-DD')
+                  WHEN chlorine_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN TO_DATE(chlorine_date, 'DD/MM/YYYY')
+                  WHEN chlorine_date ~ '^[0-9]+\\.?[0-9]*$' THEN TO_DATE('1899-12-30', 'YYYY-MM-DD') + CAST(CAST(chlorine_date AS NUMERIC) AS INTEGER) 
+                  ELSE NULL
+                END
+              ) as actual_timestamp
+            FROM chlorine_history
+          )
+          SELECT DISTINCT ON (scheme_id, village_name, esr_name, actual_timestamp)
+            id, scheme_id, scheme_name, village_name, esr_name, 
+            region, circle, division, sub_division, block, 
+            chlorine_value, dashboard_url, upload_batch_id, uploaded_at,
+            TO_CHAR(actual_timestamp, 'YYYY-MM-DD') as chlorine_date
+          FROM parsed_dates
+          WHERE actual_timestamp >= $1::date AND actual_timestamp <= $2::date
+          ${filterSql}
+          ORDER BY scheme_id, village_name, esr_name, actual_timestamp, uploaded_at DESC
+        `;
+
+        const result = await client.query(rawQuery, queryParams);
+        console.log(`Found ${result.rows.length} unique chlorine records natively using SQL for date range ${startDate} to ${endDate}`);
+        return result.rows;
+      } finally {
+        client.release();
+        // Don't close pool here as it gets cached or just let it drop since require is scoped
       }
-
-      if (schemeFilter) {
-        query = query.where(eq(chlorineHistory.scheme_id, schemeFilter));
-      }
-
-      if (villageFilter) {
-        query = query.where(eq(chlorineHistory.village_name, villageFilter));
-      }
-
-      // Order by date and uploaded_at to get latest values for each date
-      query = query.orderBy(
-        chlorineHistory.scheme_id,
-        chlorineHistory.village_name,
-        chlorineHistory.esr_name,
-        chlorineHistory.chlorine_date,
-        sql`${chlorineHistory.uploaded_at} DESC`,
-      );
-
-      const results = await query;
-
-      // Helper function to parse various date formats to a comparable Date object
-      const parseDate = (dateStr: string): Date | null => {
-        if (!dateStr) return null;
-        dateStr = dateStr.trim();
-
-        // Handle YYYY-MM-DD format
-        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-          const [year, month, day] = dateStr.split("-").map(Number);
-          return new Date(year, month - 1, day);
-        }
-
-        // Handle DD-MMM-YY format (e.g., "03-Jun-25")
-        if (/^\d{1,2}-[A-Za-z]{3}-\d{2}$/.test(dateStr)) {
-          const [day, month, year] = dateStr.split("-");
-          const fullYear = parseInt(year) + 2000; // Assume 20xx
-          const monthNames = [
-            "jan", "feb", "mar", "apr", "may", "jun",
-            "jul", "aug", "sep", "oct", "nov", "dec",
-          ];
-          const monthIndex = monthNames.indexOf(month.toLowerCase());
-          if (monthIndex !== -1) {
-            return new Date(fullYear, monthIndex, parseInt(day));
-          }
-        }
-
-        // Handle DD-MMM-YYYY format (e.g., "31-Jul-2025")
-        if (/^\d{1,2}-[A-Za-z]{3}-\d{4}$/.test(dateStr)) {
-          const [day, month, year] = dateStr.split("-");
-          const fullYear = parseInt(year);
-          const monthNames = [
-            "jan", "feb", "mar", "apr", "may", "jun",
-            "jul", "aug", "sep", "oct", "nov", "dec",
-          ];
-          const monthIndex = monthNames.indexOf(month.toLowerCase());
-          if (monthIndex !== -1) {
-            return new Date(fullYear, monthIndex, parseInt(day));
-          }
-        }
-
-        // Handle Excel numeric date format (days since 1900-01-01, with 2-day offset)
-        if (/^\d+\.?\d*$/.test(dateStr)) {
-          const daysSince1900 = parseFloat(dateStr);
-          const baseDate = new Date(1900, 0, 1); // January 1, 1900
-          return new Date(
-            baseDate.getTime() + (daysSince1900 - 2) * 24 * 60 * 60 * 1000,
-          );
-        }
-
-        // Handle DD-MMM format (e.g., "21-Jan") - Assume current year
-        if (/^\d{1,2}-[A-Za-z]{3}$/.test(dateStr)) {
-          const [day, month] = dateStr.split("-");
-          const currentYear = new Date().getFullYear();
-          const monthNames = [
-            "jan", "feb", "mar", "apr", "may", "jun",
-            "jul", "aug", "sep", "oct", "nov", "dec",
-          ];
-          const monthIndex = monthNames.indexOf(month.toLowerCase());
-          if (monthIndex !== -1) {
-            let year = currentYear;
-            const tempDate = new Date(year, monthIndex, parseInt(day));
-            const now = new Date();
-
-            // If date is more than 6 months in future, assume last year
-            if (tempDate.getTime() - now.getTime() > 180 * 24 * 60 * 60 * 1000) {
-              year = currentYear - 1;
-            }
-
-            return new Date(year, monthIndex, parseInt(day));
-          }
-        }
-
-        return null;
-      };
-
-      // Parse start and end dates for comparison - handle different input formats
-      let startDateObj: Date;
-      let endDateObj: Date;
-
-      // Try to parse the input dates (they might be in DD-MM-YYYY format from frontend)
-      if (/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
-        const [year, month, day] = startDate.split("-").map(Number);
-        startDateObj = new Date(year, month - 1, day);
-      } else if (/^\d{2}-\d{2}-\d{4}$/.test(startDate)) {
-        // Handle DD-MM-YYYY format
-        const [day, month, year] = startDate.split("-");
-        startDateObj = new Date(
-          parseInt(year),
-          parseInt(month) - 1,
-          parseInt(day),
-        );
-      } else {
-        startDateObj = new Date(startDate);
-      }
-
-      if (/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
-        const [year, month, day] = endDate.split("-").map(Number);
-        endDateObj = new Date(year, month - 1, day);
-      } else if (/^\d{2}-\d{2}-\d{4}$/.test(endDate)) {
-        // Handle DD-MM-YYYY format
-        const [day, month, year] = endDate.split("-");
-        endDateObj = new Date(
-          parseInt(year),
-          parseInt(month) - 1,
-          parseInt(day),
-        );
-      } else {
-        endDateObj = new Date(endDate);
-      }
-
-      // Set end date to end of day for inclusive filtering
-      endDateObj.setHours(23, 59, 59, 999);
-
-      console.log(
-        `Date range parsed: ${startDateObj.toISOString()} to ${endDateObj.toISOString()}`,
-      );
-
-      // Filter results by date range
-      const filteredResults = results.filter((record: any) => {
-        const recordDate = parseDate(record.chlorine_date);
-        if (!recordDate) {
-          console.log(
-            `Invalid date format for record: ${record.chlorine_date}`,
-          );
-          return false;
-        }
-
-        return recordDate >= startDateObj && recordDate <= endDateObj;
-      });
-
-      console.log(
-        `After date filtering: ${filteredResults.length} records from ${results.length} total`,
-      );
-
-      // Remove duplicates - keep only the most recent upload for each ESR + date combination
-      const uniqueRecords = new Map<string, ChlorineHistory>();
-
-      // Sort by upload time (most recent first) before deduplication
-      const sortedResults = filteredResults.sort((a: any, b: any) => {
-        if (!a.uploaded_at || !b.uploaded_at) return 0;
-        return (
-          new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime()
-        );
-      });
-
-      for (const record of sortedResults) {
-        const key = `${record.scheme_id}|${record.village_name}|${record.esr_name}|${record.chlorine_date}`;
-
-        // Only keep if this is the first (most recent) record for this key
-        if (!uniqueRecords.has(key)) {
-          uniqueRecords.set(key, record);
-        }
-      }
-
-      const finalResults = Array.from(uniqueRecords.values());
-      console.log(
-        `Found ${finalResults.length} unique chlorine records for date range ${startDate} to ${endDate}`,
-      );
-
-      return finalResults;
     } catch (error) {
       console.error(
         "Error querying chlorine historical data by date range:",
@@ -6292,9 +6171,7 @@ export class PostgresStorage implements IStorage {
         )
         .where(
           and(
-            regionCondition
-              ? eq(pressureData.region, regionCondition)
-              : undefined,
+            ...buildFilterConditions(),
             sql`${pressureData.pressure_value_1} > 0 AND ${pressureData.pressure_value_1} < 0.2 AND 
                 ${pressureData.pressure_value_2} > 0 AND ${pressureData.pressure_value_2} < 0.2 AND 
                 ${pressureData.pressure_value_3} > 0 AND ${pressureData.pressure_value_3} < 0.2 AND 
@@ -6330,9 +6207,7 @@ export class PostgresStorage implements IStorage {
         )
         .where(
           and(
-            regionCondition
-              ? eq(pressureData.region, regionCondition)
-              : undefined,
+            ...buildFilterConditions(),
             sql`${pressureData.pressure_value_1} >= 0.2 AND ${pressureData.pressure_value_1} <= 0.7 AND 
                 ${pressureData.pressure_value_2} >= 0.2 AND ${pressureData.pressure_value_2} <= 0.7 AND 
                 ${pressureData.pressure_value_3} >= 0.2 AND ${pressureData.pressure_value_3} <= 0.7 AND 
@@ -6368,9 +6243,7 @@ export class PostgresStorage implements IStorage {
         )
         .where(
           and(
-            regionCondition
-              ? eq(pressureData.region, regionCondition)
-              : undefined,
+            ...buildFilterConditions(),
             sql`${pressureData.pressure_value_1} > 0.7 AND 
                 ${pressureData.pressure_value_2} > 0.7 AND 
                 ${pressureData.pressure_value_3} > 0.7 AND 
@@ -12571,248 +12444,87 @@ export class PostgresStorage implements IStorage {
     const db = await this.ensureInitialized();
 
     try {
-      let query = db
-        .select({
-          scheme_id: pressureHistory.scheme_id,
-          region: pressureHistory.region,
-          circle: pressureHistory.circle,
-          division: pressureHistory.division,
-          sub_division: pressureHistory.sub_division,
-          block: pressureHistory.block,
-          scheme_name: pressureHistory.scheme_name,
-          village_name: pressureHistory.village_name,
-          esr_name: pressureHistory.esr_name,
-          measurement_date: pressureHistory.pressure_date,
-          pressure_value: pressureHistory.pressure_value,
-          dashboard_url: pressureHistory.dashboard_url,
-          uploaded_at: pressureHistory.uploaded_at,
-        })
-        .from(pressureHistory);
+      const { Pool } = pg;
+      const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+      const client = await pool.connect();
 
-      // Apply date range filter with improved date conversion
-      // Convert input dates (YYYY-MM-DD) to match stored format for comparison
-      const startDateConverted = new Date(filter.startDate + "T00:00:00Z");
-      const endDateConverted = new Date(filter.endDate + "T23:59:59Z");
+      try {
+        const queryParams: any[] = [filter.startDate, filter.endDate];
+        let paramIdx = 3;
+        let filterSql = '';
+        
+        if (filter.region && filter.region !== "all") {
+          filterSql += ` AND p.region ILIKE $${paramIdx++}`;
+          queryParams.push(filter.region);
+        }
+        if (filter.scheme_id) {
+          filterSql += ` AND p.scheme_id = $${paramIdx++}`;
+          queryParams.push(filter.scheme_id);
+        }
+        if (filter.village_name) {
+          filterSql += ` AND p.village_name = $${paramIdx++}`;
+          queryParams.push(filter.village_name);
+        }
+        if (filter.esr_name) {
+          filterSql += ` AND p.esr_name = $${paramIdx++}`;
+          queryParams.push(filter.esr_name);
+        }
 
-      // Format dates to DD-Mon-YY format to match database storage
-      const formatToDBDate = (date: Date): string => {
-        const day = date.getDate().toString().padStart(2, "0");
-        const monthNames = [
-          "Jan",
-          "Feb",
-          "Mar",
-          "Apr",
-          "May",
-          "Jun",
-          "Jul",
-          "Aug",
-          "Sep",
-          "Oct",
-          "Nov",
-          "Dec",
-        ];
-        const month = monthNames[date.getMonth()];
-        const year = date.getFullYear().toString().slice(-2);
-        return `${day}-${month}-${year}`;
-      };
-
-      const startDBFormat = formatToDBDate(startDateConverted);
-      const endDBFormat = formatToDBDate(endDateConverted);
-
-      console.log(
-        `Filtering pressure history from ${filter.startDate} (${startDBFormat}) to ${filter.endDate} (${endDBFormat})`,
-      );
-
-      // Add pressure_value filter to only include valid data
-      const baseConditions = [
-        sql`${pressureHistory.pressure_value} IS NOT NULL`,
-      ];
-
-      // Use simplified date filtering approach for better compatibility
-      const conditions = [
-        ...baseConditions,
-        sql`(
-          CASE 
-            WHEN ${pressureHistory.pressure_date} ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$'
-            THEN (
-              EXTRACT(YEAR FROM TO_DATE(${pressureHistory.pressure_date}, 'DD-Mon-YYYY')) * 10000 + 
-              EXTRACT(MONTH FROM TO_DATE(${pressureHistory.pressure_date}, 'DD-Mon-YYYY')) * 100 + 
-              EXTRACT(DAY FROM TO_DATE(${pressureHistory.pressure_date}, 'DD-Mon-YYYY'))
-            ) >= (
-              EXTRACT(YEAR FROM TO_DATE(${filter.startDate}, 'YYYY-MM-DD')) * 10000 + 
-              EXTRACT(MONTH FROM TO_DATE(${filter.startDate}, 'YYYY-MM-DD')) * 100 + 
-              EXTRACT(DAY FROM TO_DATE(${filter.startDate}, 'YYYY-MM-DD'))
-            )
-            WHEN ${pressureHistory.pressure_date} ~ '^[0-9]{2}-[A-Za-z]{3}$'
-            THEN (
+        const rawQuery = `
+          WITH parsed_dates AS (
+            SELECT 
+              p.*,
               (
                 CASE 
-                  WHEN EXTRACT(MONTH FROM TO_DATE(${pressureHistory.pressure_date}, 'DD-Mon')) > EXTRACT(MONTH FROM ${pressureHistory.uploaded_at})
-                  THEN EXTRACT(YEAR FROM ${pressureHistory.uploaded_at}) - 1
-                  ELSE EXTRACT(YEAR FROM ${pressureHistory.uploaded_at})
+                  WHEN p.pressure_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
+                    CASE 
+                      WHEN EXTRACT(MONTH FROM TO_DATE(p.pressure_date, 'DD-Mon')) >= 11 AND EXTRACT(MONTH FROM p.uploaded_at) <= 2 THEN
+                        TO_DATE(p.pressure_date || '-' || (EXTRACT(YEAR FROM p.uploaded_at) - 1)::text, 'DD-Mon-YYYY')
+                      ELSE 
+                        TO_DATE(p.pressure_date || '-' || EXTRACT(YEAR FROM p.uploaded_at)::text, 'DD-Mon-YYYY')
+                    END
+                  WHEN p.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(p.pressure_date, 'DD-Mon-YYYY')
+                  WHEN p.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN TO_DATE(p.pressure_date, 'DD-Mon-YY')
+                  WHEN p.pressure_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(p.pressure_date, 'YYYY-MM-DD')
+                  WHEN p.pressure_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN TO_DATE(p.pressure_date, 'DD/MM/YYYY')
+                  WHEN p.pressure_date ~ '^[0-9]+\\.?[0-9]*$' THEN TO_DATE('1899-12-30', 'YYYY-MM-DD') + CAST(CAST(p.pressure_date AS NUMERIC) AS INTEGER) 
+                  ELSE NULL
                 END
-              ) * 10000 + 
-              EXTRACT(MONTH FROM TO_DATE(${pressureHistory.pressure_date}, 'DD-Mon')) * 100 + 
-              EXTRACT(DAY FROM TO_DATE(${pressureHistory.pressure_date}, 'DD-Mon'))
-            ) >= (
-              EXTRACT(YEAR FROM TO_DATE(${filter.startDate}, 'YYYY-MM-DD')) * 10000 + 
-              EXTRACT(MONTH FROM TO_DATE(${filter.startDate}, 'YYYY-MM-DD')) * 100 + 
-              EXTRACT(DAY FROM TO_DATE(${filter.startDate}, 'YYYY-MM-DD'))
-            )
-            WHEN ${pressureHistory.pressure_date} ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$'
-            THEN (
-              EXTRACT(YEAR FROM TO_DATE(${pressureHistory.pressure_date}, 'DD-Mon-YY')) * 10000 + 
-              EXTRACT(MONTH FROM TO_DATE(${pressureHistory.pressure_date}, 'DD-Mon-YY')) * 100 + 
-              EXTRACT(DAY FROM TO_DATE(${pressureHistory.pressure_date}, 'DD-Mon-YY'))
-            ) >= (
-              EXTRACT(YEAR FROM TO_DATE(${filter.startDate}, 'YYYY-MM-DD')) * 10000 + 
-              EXTRACT(MONTH FROM TO_DATE(${filter.startDate}, 'YYYY-MM-DD')) * 100 + 
-              EXTRACT(DAY FROM TO_DATE(${filter.startDate}, 'YYYY-MM-DD'))
-            )
-            WHEN ${pressureHistory.pressure_date} ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$'
-            THEN (
-              EXTRACT(YEAR FROM TO_DATE(${pressureHistory.pressure_date}, 'DD/MM/YYYY')) * 10000 + 
-              EXTRACT(MONTH FROM TO_DATE(${pressureHistory.pressure_date}, 'DD/MM/YYYY')) * 100 + 
-              EXTRACT(DAY FROM TO_DATE(${pressureHistory.pressure_date}, 'DD/MM/YYYY'))
-            ) >= (
-              EXTRACT(YEAR FROM TO_DATE(${filter.startDate}, 'YYYY-MM-DD')) * 10000 + 
-              EXTRACT(MONTH FROM TO_DATE(${filter.startDate}, 'YYYY-MM-DD')) * 100 + 
-              EXTRACT(DAY FROM TO_DATE(${filter.startDate}, 'YYYY-MM-DD'))
-            )
-            WHEN ${pressureHistory.pressure_date} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
-            THEN TO_DATE(${pressureHistory.pressure_date}, 'YYYY-MM-DD') >= TO_DATE(${filter.startDate}, 'YYYY-MM-DD')
-            ELSE TRUE
-          END
-        )`,
-        sql`(
-          CASE 
-            WHEN ${pressureHistory.pressure_date} ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$'
-            THEN (
-              EXTRACT(YEAR FROM TO_DATE(${pressureHistory.pressure_date}, 'DD-Mon-YYYY')) * 10000 + 
-              EXTRACT(MONTH FROM TO_DATE(${pressureHistory.pressure_date}, 'DD-Mon-YYYY')) * 100 + 
-              EXTRACT(DAY FROM TO_DATE(${pressureHistory.pressure_date}, 'DD-Mon-YYYY'))
-            ) <= (
-              EXTRACT(YEAR FROM TO_DATE(${filter.endDate}, 'YYYY-MM-DD')) * 10000 + 
-              EXTRACT(MONTH FROM TO_DATE(${filter.endDate}, 'YYYY-MM-DD')) * 100 + 
-              EXTRACT(DAY FROM TO_DATE(${filter.endDate}, 'YYYY-MM-DD'))
-            )
-            WHEN ${pressureHistory.pressure_date} ~ '^[0-9]{2}-[A-Za-z]{3}$'
-            THEN (
-              (
-                CASE 
-                  WHEN EXTRACT(MONTH FROM TO_DATE(${pressureHistory.pressure_date}, 'DD-Mon')) > EXTRACT(MONTH FROM ${pressureHistory.uploaded_at})
-                  THEN EXTRACT(YEAR FROM ${pressureHistory.uploaded_at}) - 1
-                  ELSE EXTRACT(YEAR FROM ${pressureHistory.uploaded_at})
-                END
-              ) * 10000 + 
-              EXTRACT(MONTH FROM TO_DATE(${pressureHistory.pressure_date}, 'DD-Mon')) * 100 + 
-              EXTRACT(DAY FROM TO_DATE(${pressureHistory.pressure_date}, 'DD-Mon'))
-            ) <= (
-              EXTRACT(YEAR FROM TO_DATE(${filter.endDate}, 'YYYY-MM-DD')) * 10000 + 
-              EXTRACT(MONTH FROM TO_DATE(${filter.endDate}, 'YYYY-MM-DD')) * 100 + 
-              EXTRACT(DAY FROM TO_DATE(${filter.endDate}, 'YYYY-MM-DD'))
-            )
-            WHEN ${pressureHistory.pressure_date} ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$'
-            THEN (
-              EXTRACT(YEAR FROM TO_DATE(${pressureHistory.pressure_date}, 'DD-Mon-YY')) * 10000 + 
-              EXTRACT(MONTH FROM TO_DATE(${pressureHistory.pressure_date}, 'DD-Mon-YY')) * 100 + 
-              EXTRACT(DAY FROM TO_DATE(${pressureHistory.pressure_date}, 'DD-Mon-YY'))
-            ) <= (
-              EXTRACT(YEAR FROM TO_DATE(${filter.endDate}, 'YYYY-MM-DD')) * 10000 + 
-              EXTRACT(MONTH FROM TO_DATE(${filter.endDate}, 'YYYY-MM-DD')) * 100 + 
-              EXTRACT(DAY FROM TO_DATE(${filter.endDate}, 'YYYY-MM-DD'))
-            )
-            WHEN ${pressureHistory.pressure_date} ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$'
-            THEN (
-              EXTRACT(YEAR FROM TO_DATE(${pressureHistory.pressure_date}, 'DD/MM/YYYY')) * 10000 + 
-              EXTRACT(MONTH FROM TO_DATE(${pressureHistory.pressure_date}, 'DD/MM/YYYY')) * 100 + 
-              EXTRACT(DAY FROM TO_DATE(${pressureHistory.pressure_date}, 'DD/MM/YYYY'))
-            ) <= (
-              EXTRACT(YEAR FROM TO_DATE(${filter.endDate}, 'YYYY-MM-DD')) * 10000 + 
-              EXTRACT(MONTH FROM TO_DATE(${filter.endDate}, 'YYYY-MM-DD')) * 100 + 
-              EXTRACT(DAY FROM TO_DATE(${filter.endDate}, 'YYYY-MM-DD'))
-            )
-            WHEN ${pressureHistory.pressure_date} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
-            THEN TO_DATE(${pressureHistory.pressure_date}, 'YYYY-MM-DD') <= TO_DATE(${filter.endDate}, 'YYYY-MM-DD')
-            ELSE TRUE
-          END
-        )`,
-      ];
+              ) as actual_timestamp
+            FROM pressure_history p
+            WHERE p.pressure_value IS NOT NULL
+          )
+          SELECT DISTINCT ON (p.scheme_id, p.village_name, p.esr_name, p.actual_timestamp)
+            p.scheme_id, p.scheme_name, p.village_name, p.esr_name, 
+            p.region, p.circle, p.division, p.sub_division, p.block, 
+            p.pressure_value, p.dashboard_url, p.uploaded_at,
+            TO_CHAR(p.actual_timestamp, 'YYYY-MM-DD') as measurement_date
+          FROM parsed_dates p
+          WHERE p.actual_timestamp >= $1::date AND p.actual_timestamp <= $2::date
+          ${filterSql}
+          ORDER BY p.scheme_id, p.village_name, p.esr_name, p.actual_timestamp, p.uploaded_at DESC
+        `;
 
-      // Apply optional filters with case-insensitive matching for region
-      if (filter.region) {
-        conditions.push(ilike(pressureHistory.region, filter.region));
+        const result = await client.query(rawQuery, queryParams);
+        console.log(`Found ${result.rows.length} unique pressure records natively using SQL for date range ${filter.startDate} to ${filter.endDate}`);
+        
+        return result.rows.map((row: any) => ({
+          scheme_id: row.scheme_id || "",
+          region: row.region || "",
+          circle: row.circle || "",
+          division: row.division || "",
+          sub_division: row.sub_division || "",
+          block: row.block || "",
+          scheme_name: row.scheme_name || "",
+          village_name: row.village_name || "",
+          esr_name: row.esr_name || "",
+          measurement_date: row.measurement_date || "",
+          pressure_value: parseFloat(row.pressure_value?.toString() || "0"),
+          dashboard_url: row.dashboard_url || undefined,
+        }));
+      } finally {
+        client.release();
       }
-
-      if (filter.scheme_id) {
-        conditions.push(eq(pressureHistory.scheme_id, filter.scheme_id));
-      }
-
-      if (filter.village_name) {
-        conditions.push(eq(pressureHistory.village_name, filter.village_name));
-      }
-
-      if (filter.esr_name) {
-        conditions.push(eq(pressureHistory.esr_name, filter.esr_name));
-      }
-
-      if (conditions.length > 0) {
-        query = query.where(and(...conditions));
-      }
-
-      const result = await query.orderBy(
-        pressureHistory.pressure_date,
-        pressureHistory.scheme_id,
-        pressureHistory.village_name,
-        pressureHistory.esr_name,
-      );
-
-      return result.map((row) => ({
-        scheme_id: row.scheme_id || "",
-        region: row.region || "",
-        circle: row.circle || "",
-        division: row.division || "",
-        sub_division: row.sub_division || "",
-        block: row.block || "",
-        scheme_name: row.scheme_name || "",
-        village_name: row.village_name || "",
-        esr_name: row.esr_name || "",
-        measurement_date: ((dateStr: string) => {
-          if (!dateStr) return "";
-
-          // Check for DD/MM/YYYY format and convert to YYYY-MM-DD
-          if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
-            const [day, month, year] = dateStr.split('/');
-            return `${year}-${month}-${day}`;
-          }
-
-          // Check for DD-Mon format (e.g., 29-Dec) and infer year
-          if (/^\d{2}-[A-Za-z]{3}$/.test(dateStr) && row.uploaded_at) {
-            const months: { [key: string]: number } = {
-              'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
-              'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
-            };
-            const [day, mon] = dateStr.split('-');
-            const monthIndex = months[mon];
-            if (monthIndex !== undefined) {
-              const uploadDate = new Date(row.uploaded_at);
-              let year = uploadDate.getFullYear();
-
-              // If data month is > upload month, it's from previous year
-              if (monthIndex > uploadDate.getMonth()) {
-                year = year - 1;
-              }
-
-              const monthNum = (monthIndex + 1).toString().padStart(2, '0');
-              return `${year}-${monthNum}-${day}`;
-            }
-          }
-
-          return dateStr;
-        })(row.measurement_date || ""),
-        pressure_value: parseFloat(row.pressure_value?.toString() || "0"),
-        dashboard_url: row.dashboard_url || undefined,
-      }));
     } catch (error) {
       console.error("Error in getHistoricalPressureData:", error);
       throw error;

@@ -9,13 +9,28 @@ async function run() {
   const client = await pool.connect();
   
   try {
-    const res = await client.query("SELECT data_date FROM scheme_lpcd_data_history LIMIT 10;");
-    console.log("scheme_lpcd_data_history:");
+    const res = await client.query(`
+      SELECT 
+        data_date,
+        uploaded_at,
+        (
+          CASE 
+            WHEN data_date ~ '^\\d{1,2}-[A-Za-z]+$' THEN 
+              CASE 
+                WHEN EXTRACT(MONTH FROM TO_DATE(data_date, 'DD-Mon')) >= 11 AND EXTRACT(MONTH FROM uploaded_at) <= 2 THEN
+                  TO_CHAR(TO_DATE(data_date || '-' || (EXTRACT(YEAR FROM uploaded_at) - 1)::text, 'DD-Mon-YYYY'), 'DD-Mon-YYYY')
+                ELSE 
+                  TO_CHAR(TO_DATE(data_date || '-' || EXTRACT(YEAR FROM uploaded_at)::text, 'DD-Mon-YYYY'), 'DD-Mon-YYYY')
+              END
+            ELSE data_date
+          END
+        ) as resolved_date
+      FROM scheme_lpcd_data_history
+      LIMIT 10;
+    `);
     console.table(res.rows);
-    
-    const res2 = await client.query("SELECT uploaded_at, water_date_day1 FROM water_scheme_data WHERE water_date_day1 IS NOT NULL LIMIT 10;");
-    console.log("water_scheme_data:");
-    console.table(res2.rows);
+  } catch (error) {
+    console.error(error);
   } finally {
     client.release();
     pool.end();

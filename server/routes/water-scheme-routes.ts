@@ -2181,80 +2181,83 @@ router.get('/historical', async (req, res) => {
     const client = await pool.connect();
 
     try {
-      // Generate all DD-MMM date strings in the range (e.g., "20-Aug", "21-Aug", ...)
-      const dateStrings = generateDateStrings(String(startDate), String(endDate));
+      console.log(`📊 Historical LPCD query via CTE: ${startDate} to ${endDate}`);
 
-      console.log(`📊 Historical LPCD query: ${startDate} to ${endDate}`);
-      console.log(`📅 Generated ${dateStrings.length} date strings for filtering:`, dateStrings.slice(0, 5), '...');
+      // Base query with CTE to resolve actual dates
+      const baseCte = `
+        WITH resolved_history AS (
+          SELECT 
+            h.*,
+            (
+              CASE 
+                WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+$' THEN 
+                  CASE 
+                    WHEN EXTRACT(MONTH FROM TO_DATE(h.data_date, 'DD-Mon')) >= 11 AND EXTRACT(MONTH FROM h.uploaded_at) <= 2 THEN
+                      TO_DATE(h.data_date || '-' || (EXTRACT(YEAR FROM h.uploaded_at) - 1)::text, 'DD-Mon-YYYY')
+                    ELSE 
+                      TO_DATE(h.data_date || '-' || EXTRACT(YEAR FROM h.uploaded_at)::text, 'DD-Mon-YYYY')
+                  END
+                WHEN h.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN h.data_date::date
+                WHEN h.data_date ~ '^\\d{1,2}-\\d{1,2}-\\d{2,4}$' THEN TO_DATE(h.data_date, 'DD-MM-YYYY')
+                WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+-\\d{4}$' THEN TO_DATE(h.data_date, 'DD-Mon-YYYY')
+                WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+-\\d{2}$' THEN TO_DATE(h.data_date, 'DD-Mon-YY')
+                ELSE NULL
+              END
+            ) as actual_date
+          FROM water_scheme_data_history h
+        )
+      `;
 
-      // For count-only requests, just return the count
+      // For count-only requests
       if (countOnly === 'true') {
-        let countQuery = `
+        let countQuery = `${baseCte}
           SELECT COUNT(*) as total
-          FROM water_scheme_data_history 
-          WHERE (lpcd_value IS NOT NULL OR water_value IS NOT NULL)
-            AND data_date = ANY($1)
+          FROM resolved_history h
+          WHERE (h.lpcd_value IS NOT NULL OR h.water_value IS NOT NULL)
+            AND h.actual_date >= $1::date
+            AND h.actual_date <= $2::date
         `;
 
-        const countParams: any[] = [dateStrings];
-        let paramIndex = 2;
+        const countParams: any[] = [startDate, endDate];
+        let paramIndex = 3;
 
         if (region && region !== 'all') {
-          countQuery += ` AND region = $${paramIndex++}`;
+          countQuery += ` AND LOWER(h.region) = LOWER($${paramIndex++})`;
           countParams.push(String(region));
         }
 
         const countResult = await client.query(countQuery, countParams);
         const count = parseInt(countResult.rows[0].total);
 
-        console.log(`📈 Count result: ${count} records in date range`);
-
+        console.log(`📈 Count result: ${count} records in resolved date range`);
         return res.json({ count });
       }
 
-      // Full data query with date filtering using data_date column
-      let query = `
+      // Full data query
+      let query = `${baseCte}
         SELECT 
-          region,
-          circle,
-          division,
-          sub_division,
-          block,
-          scheme_id,
-          scheme_name,
-          village_name,
-          population,
-          number_of_esr,
-          data_date,
-          water_value,
-          lpcd_value,
-          upload_batch_id,
-          uploaded_at
-        FROM water_scheme_data_history 
-        WHERE (lpcd_value IS NOT NULL OR water_value IS NOT NULL)
-          AND data_date = ANY($1)
+          *,
+          TO_CHAR(actual_date, 'DD-Mon-YYYY') as resolved_date_str
+        FROM resolved_history h
+        WHERE (h.lpcd_value IS NOT NULL OR h.water_value IS NOT NULL)
+          AND h.actual_date >= $1::date
+          AND h.actual_date <= $2::date
       `;
 
-      const queryParams: any[] = [dateStrings];
-      let paramIndex = 2;
+      const queryParams: any[] = [startDate, endDate];
+      let paramIndex = 3;
 
-      // Add region filter if specified
       if (region && region !== 'all') {
-        query += ` AND region = $${paramIndex++}`;
+        query += ` AND LOWER(h.region) = LOWER($${paramIndex++})`;
         queryParams.push(String(region));
       }
 
-      query += ' ORDER BY data_date ASC, village_name ASC';
+      query += ' ORDER BY h.actual_date ASC, h.village_name ASC';
 
-      console.log('🔍 Executing historical LPCD query with data_date filtering...');
-
+      console.log('🔍 Executing historical LPCD query with SQL-resolved actual_date...');
       const result = await client.query(query, queryParams);
 
-      console.log(`✅ Found ${result.rows.length} historical LPCD records`);
-      const dates = result.rows.map(r => r.data_date);
-      const uniqueDates = sortDatesChronologically(Array.from(new Set(dates)));
-      console.log('📅 Available dates in results (chronologically sorted):', uniqueDates);
-
+      console.log(`✅ Found ${result.rows.length} historical LPCD records using SQL resolution`);
       res.json(result.rows);
 
     } finally {
@@ -2265,6 +2268,7 @@ router.get('/historical', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch historical LPCD data' });
   }
 });
+
 
 // Download historical village LPCD data with date range filtering
 router.get('/download/village-lpcd-history', async (req, res) => {
@@ -2293,14 +2297,29 @@ router.get('/download/village-lpcd-history', async (req, res) => {
     const client = await pool.connect();
 
     try {
-      // Generate all DD-MMM date strings in the range (e.g., "20-Aug", "21-Aug", ...)
-      const dateStrings = generateDateStrings(String(startDate), String(endDate));
-
-      console.log(`📅 Date range: ${startDate} to ${endDate} (${dateStrings.length} dates)`);
-      console.log(`📅 Date strings for filtering:`, dateStrings.slice(0, 5), '...');
-
-      // Build query with proper date filtering using data_date column
+      // Build query using CTE to accurately resolve cross-year Date strings utilizing uploaded_at timestamps
       let query = `
+        WITH resolved_history AS (
+          SELECT 
+            h.*,
+            (
+              CASE 
+                WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+$' THEN 
+                  CASE 
+                    WHEN EXTRACT(MONTH FROM TO_DATE(h.data_date, 'DD-Mon')) >= 11 AND EXTRACT(MONTH FROM h.uploaded_at) <= 2 THEN
+                      TO_DATE(h.data_date || '-' || (EXTRACT(YEAR FROM h.uploaded_at) - 1)::text, 'DD-Mon-YYYY')
+                    ELSE 
+                      TO_DATE(h.data_date || '-' || EXTRACT(YEAR FROM h.uploaded_at)::text, 'DD-Mon-YYYY')
+                  END
+                WHEN h.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN h.data_date::date
+                WHEN h.data_date ~ '^\\d{1,2}-\\d{1,2}-\\d{2,4}$' THEN TO_DATE(h.data_date, 'DD-MM-YYYY')
+                WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+-\\d{4}$' THEN TO_DATE(h.data_date, 'DD-Mon-YYYY')
+                WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+-\\d{2}$' THEN TO_DATE(h.data_date, 'DD-Mon-YY')
+                ELSE NULL
+              END
+            ) as actual_date
+          FROM water_scheme_data_history h
+        )
         SELECT 
           region,
           circle,
@@ -2312,18 +2331,20 @@ router.get('/download/village-lpcd-history', async (req, res) => {
           village_name,
           population,
           number_of_esr,
-          data_date,
+          TO_CHAR(actual_date, 'DD-Mon-YYYY') as data_date,
           lpcd_value,
           water_value,
           upload_batch_id,
           uploaded_at
-        FROM water_scheme_data_history 
+        FROM resolved_history h
         WHERE (lpcd_value IS NOT NULL OR water_value IS NOT NULL)
-          AND data_date = ANY($1)
+          AND actual_date >= $1::date
+          AND actual_date <= $2::date
       `;
 
-      const queryParams: any[] = [dateStrings];
-      let paramIndex = 2;
+
+      const queryParams: any[] = [startDate, endDate];
+      let paramIndex = 3;
 
       // Add region filter with case-insensitive matching
       if (region && region !== 'all') {
@@ -2354,7 +2375,7 @@ router.get('/download/village-lpcd-history', async (req, res) => {
         queryParams.push(String(maxLpcd));
       }
 
-      query += ` ORDER BY data_date ASC, region ASC, village_name ASC`;
+      query += ` ORDER BY actual_date ASC, region ASC, village_name ASC`;
 
       console.log('🔍 Executing query with date filtering on data_date column...');
 
@@ -2375,12 +2396,15 @@ router.get('/download/village-lpcd-history', async (req, res) => {
 
       // Calculate data availability information
       const availableDates = Array.from(new Set(filteredRows.map(row => row.data_date)));
-      const sortedAvailableDates = sortDatesChronologically(availableDates);
-      const requestedDates = dateStrings.filter((_, idx) => idx % 2 === 0); // Get unique dates (remove duplicates from padding)
-      const uniqueRequestedDates = Array.from(new Set(requestedDates.map(d => d.split('-')[0] + '-' + d.split('-')[1])));
+      
+      const rawAvailableDates = availableDates.sort((a: any, b: any) => {
+        const dateA = new Date(a);
+        const dateB = new Date(b);
+        return dateA.getTime() - dateB.getTime();
+      });
 
-      console.log(`📊 Data availability: ${sortedAvailableDates.length} days with data out of ${uniqueRequestedDates.length} days requested`);
-      console.log(`📅 Available dates:`, sortedAvailableDates.slice(0, 5), '...', sortedAvailableDates.slice(-2));
+      console.log(`📊 Data availability: ${rawAvailableDates.length} days with data in requested range`);
+      console.log(`📅 Available dates:`, rawAvailableDates.slice(0, 5), '...', rawAvailableDates.slice(-2));
 
       // Generate filename with date range
       const filename = `Village_LPCD_History_${startDate}_to_${endDate}_${Date.now()}`;
@@ -2396,18 +2420,19 @@ router.get('/download/village-lpcd-history', async (req, res) => {
         // Generate CSV/Excel with pivot structure - dates as headers
         console.log(`Creating pivot structure for ${filteredRows.length} records`);
 
-        // Get unique dates and sort them chronologically
+        // Get unique dates and sort them natively using string array mapping
         const dates = filteredRows.map(row => row.data_date);
         const uniqueDatesSet = new Set(dates);
-        const uniqueDates = sortDatesChronologically(Array.from(uniqueDatesSet));
         
-        const currentYear = new Date().getFullYear();
-        const formattedDates = uniqueDates.map(date => {
-          if (/^\d{1,2}[-/][a-zA-Z]{3}$/.test(date as string)) {
-            return `${date}-${currentYear}`;
-          }
-          return date;
+        const rawUniqueDates = Array.from(uniqueDatesSet).sort((a: any, b: any) => {
+          const dateA = new Date(a);
+          const dateB = new Date(b);
+          return dateA.getTime() - dateB.getTime();
         });
+        
+        // No need to append current year since SQL already resolved the authentic year correctly
+        const formattedDates = rawUniqueDates;
+        const uniqueDates = rawUniqueDates;
 
         console.log('Unique dates found (chronologically sorted):', uniqueDates);
 
@@ -2574,18 +2599,19 @@ router.get('/download/village-lpcd-history', async (req, res) => {
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Pivot Data');
 
-        // Get unique dates and sort them chronologically
+        // Get unique dates and sort them natively using string array mapping
         const dates = filteredResult.rows.map(row => row.data_date);
         const uniqueDatesSet = new Set(dates);
-        const uniqueDates = sortDatesChronologically(Array.from(uniqueDatesSet));
         
-        const currentYear = new Date().getFullYear();
-        const formattedDates = uniqueDates.map(date => {
-          if (/^\d{1,2}[-/][a-zA-Z]{3}$/.test(date as string)) {
-            return `${date}-${currentYear}`;
-          }
-          return date;
+        const rawUniqueDates = Array.from(uniqueDatesSet).sort((a: any, b: any) => {
+          const dateA = new Date(a);
+          const dateB = new Date(b);
+          return dateA.getTime() - dateB.getTime();
         });
+        
+        // No need to append current year since SQL already resolved the authentic year correctly
+        const formattedDates = rawUniqueDates;
+        const uniqueDates = rawUniqueDates;
 
         console.log('Creating proper pivot Excel structure');
         console.log('Unique dates found (chronologically sorted):', uniqueDates);

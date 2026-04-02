@@ -1139,6 +1139,11 @@ const EnhancedLpcdDashboard = () => {
         const formatDateForHeader = (dateStr: string | null | undefined) => {
           if (!dateStr) return "N/A";
           
+          // If it's already in a format with a year (e.g., "01-Jan-2025" or "01-Jan-25"), return as is
+          if (/^\d{1,2}[-/][a-zA-Z]{3}[-/]\d{2,4}$/.test(dateStr)) {
+            return dateStr;
+          }
+          
           if (/^\d{1,2}[-/][a-zA-Z]{3}$/.test(dateStr)) {
             const currentYear = new Date().getFullYear();
             return `${dateStr}-${currentYear}`;

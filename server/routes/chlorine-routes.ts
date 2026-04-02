@@ -411,6 +411,8 @@ router.get("/regional-stats", async (req, res) => {
             SELECT 
               COUNT(DISTINCT CASE WHEN cs.chlorine_connected = 'Connected' THEN cs.id END) as total_connected,
               COUNT(DISTINCT CASE WHEN cs.chlorine_connected = 'Connected' AND cs.chlorine_status = 'Online' THEN cs.id END) as total_online,
+              COUNT(DISTINCT CASE WHEN cs.chlorine_connected = 'Connected' AND cs.chlorine_status = 'Offline' AND (wc.water_value_day7 IS NULL OR CAST(wc.water_value_day7 AS text) = '0' OR wc.water_value_day7 = 0) THEN cs.id END) as offline_with_no_water,
+              COUNT(DISTINCT CASE WHEN cs.chlorine_connected = 'Connected' AND cs.chlorine_status = 'Offline' AND wc.water_value_day7 IS NOT NULL AND wc.water_value_day7 > 0 THEN cs.id END) as offline_with_water,
               COUNT(DISTINCT CASE WHEN cs.chlorine_connected = 'Connected' AND cs.chlorine_status = 'Offline' THEN cs.id END) as total_offline,
               COUNT(DISTINCT CASE 
                 WHEN cs.chlorine_connected = 'Connected' 
@@ -539,6 +541,8 @@ router.get("/regional-stats", async (req, res) => {
             onlineWithoutWaterChlorineAbove: Number(row.online_without_water_chlorine_above) || 0,
             onlineWithoutWaterChlorineBelow: Number(row.online_without_water_chlorine_below) || 0,
             totalOffline: Number(row.total_offline) || 0,
+            offlineWithNoWater: Number(row.offline_with_no_water) || 0,
+            offlineWithWater: Number(row.offline_with_water) || 0,
             offlineSince7Days: Number(row.offline_since_7days) || 0,
             offlineSince30Days: Number(row.offline_since_30days) || 0,
             offlineSince3Days: Number(row.offline_since_3days) || 0,
@@ -1156,6 +1160,14 @@ router.get("/details/:statisticType", async (req, res) => {
       case 'offline':
         filters.push(sql`cs.chlorine_status = 'Offline'`);
         break;
+      case 'offline-with-no-water':
+        filters.push(sql`cs.chlorine_status = 'Offline'`);
+        filters.push(sql`(wc.water_value_day7 IS NULL OR CAST(wc.water_value_day7 AS text) = '0' OR CAST(wc.water_value_day7 AS text) = '0.0' OR CAST(wc.water_value_day7 AS text) = '0.00' OR wc.water_value_day7 = 0)`);
+        break;
+      case 'offline-with-water':
+        filters.push(sql`cs.chlorine_status = 'Offline'`);
+        filters.push(sql`wc.water_value_day7 IS NOT NULL AND wc.water_value_day7 > 0`);
+        break;
       case 'online-with-water-chlorine-optimal':
         filters.push(sql`cs.chlorine_status = 'Online'`);
         filters.push(sql`wc.water_value_day7 IS NOT NULL AND wc.water_value_day7 > 0`);
@@ -1696,6 +1708,14 @@ router.get("/export/:statisticType", async (req, res) => {
         break;
       case 'offline':
         filters.push(sql`cs.chlorine_status = 'Offline'`);
+        break;
+      case 'offline-with-no-water':
+        filters.push(sql`cs.chlorine_status = 'Offline'`);
+        filters.push(sql`(wc.water_value_day7 IS NULL OR CAST(wc.water_value_day7 AS text) = '0' OR CAST(wc.water_value_day7 AS text) = '0.0' OR CAST(wc.water_value_day7 AS text) = '0.00' OR wc.water_value_day7 = 0)`);
+        break;
+      case 'offline-with-water':
+        filters.push(sql`cs.chlorine_status = 'Offline'`);
+        filters.push(sql`wc.water_value_day7 IS NOT NULL AND wc.water_value_day7 > 0`);
         break;
       case 'online-with-water-chlorine-optimal':
         filters.push(sql`cs.chlorine_status = 'Online'`);
@@ -2355,10 +2375,23 @@ router.get("/overall-region-comparison", async (req, res) => {
         // Offline and No Data sensors:
         const offlineQuery = `
           SELECT 
+            SUM(CASE WHEN cs.chlorine_status IN ('Offline', 'offline') AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) THEN 1 ELSE 0 END) as offline_with_no_water_count,
+            SUM(CASE WHEN cs.chlorine_status IN ('Offline', 'offline') AND wc.water_value_day7 > 0 THEN 1 ELSE 0 END) as offline_with_water_count,
             SUM(CASE WHEN cs.chlorine_status IN ('Offline', 'offline') THEN 1 ELSE 0 END) as offline_count,
             SUM(CASE WHEN cs.chlorine_status IN ('Online', 'online') THEN 1 ELSE 0 END) as online_no_water_count
           FROM communication_status cs
           LEFT JOIN chlorine_data cd ON (cs.scheme_id = cd.scheme_id AND cs.village_name = cd.village_name AND cs.esr_name = cd.esr_name)
+          LEFT JOIN water_consumption wc ON (
+            cs.region = wc.region AND
+            cs.circle = wc.circle AND
+            cs.division = wc.division AND
+            cs.sub_division = wc.sub_division AND
+            cs.block = wc.block AND
+            cs.scheme_id = wc.scheme_id AND
+            cs.scheme_name = wc.scheme_name AND
+            cs.village_name = wc.village_name AND
+            cs.esr_name = wc.esr_name
+          )
           WHERE cs.region = $1 
           AND cs.chlorine_connected = 'Connected'
           AND cd.chlorine_value_7 IS NULL
@@ -2366,6 +2399,8 @@ router.get("/overall-region-comparison", async (req, res) => {
         `;
         const offlineResult = await client.query(offlineQuery, [region]);
         const offline = parseInt(offlineResult.rows[0]?.offline_count || '0');
+        const offline_with_no_water = parseInt(offlineResult.rows[0]?.offline_with_no_water_count || '0');
+        const offline_with_water = parseInt(offlineResult.rows[0]?.offline_with_water_count || '0');
         const online_no_water = parseInt(offlineResult.rows[0]?.online_no_water_count || '0');
 
         // Chlorine ranges from chlorine_data (Day 7)
@@ -2479,6 +2514,8 @@ router.get("/overall-region-comparison", async (req, res) => {
         comparisonData.push({
           region,
           offline: offline,
+          offline_with_no_water: offline_with_no_water,
+          offline_with_water: offline_with_water,
           online_no_water: online_no_water,
           below_0_2: parseInt(chlorineRow.below_0_2 || '0'),
           optimal_0_2_0_5: Number(chlorineRow.optimal_0_2_0_5 || 0),
@@ -2612,6 +2649,62 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
           `;
       } else {
         switch (category) {
+          case 'offline-with-no-water':
+            query = `
+            SELECT * FROM (
+              SELECT DISTINCT ON (cs.scheme_id, cs.village_name, cs.esr_name)
+                cs.region, cs.circle, cs.division, cs.sub_division, cs.block,
+                cs.scheme_id, cs.scheme_name, cs.village_name, cs.esr_name,
+                cs.chlorine_status, cs.last_seen,
+                cd.dashboard_url
+              FROM communication_status cs
+              LEFT JOIN chlorine_data cd ON cs.scheme_id = cd.scheme_id AND cs.scheme_name = cd.scheme_name AND cs.village_name = cd.village_name AND cs.esr_name = cd.esr_name
+              LEFT JOIN water_consumption wc ON (
+                cs.scheme_id = wc.scheme_id AND
+                cs.village_name = wc.village_name AND
+                cs.esr_name = wc.esr_name
+              )
+              WHERE cs.chlorine_connected = 'Connected'
+              AND cs.chlorine_status IN ('Offline', 'offline')
+              AND cd.chlorine_value_7 IS NULL
+              AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0)
+              ${region ? 'AND cs.region = $1' : ''}
+              ${schemeIdFilterGeneric.replace(/scheme_id/g, 'cs.scheme_id')}
+              ORDER BY cs.scheme_id, cs.village_name, cs.esr_name
+            ) as t
+            ORDER BY region, division, village_name
+          `;
+            if (region) params.push(region);
+            break;
+
+          case 'offline-with-water':
+            query = `
+            SELECT * FROM (
+              SELECT DISTINCT ON (cs.scheme_id, cs.village_name, cs.esr_name)
+                cs.region, cs.circle, cs.division, cs.sub_division, cs.block,
+                cs.scheme_id, cs.scheme_name, cs.village_name, cs.esr_name,
+                cs.chlorine_status, cs.last_seen,
+                cd.dashboard_url
+              FROM communication_status cs
+              LEFT JOIN chlorine_data cd ON cs.scheme_id = cd.scheme_id AND cs.scheme_name = cd.scheme_name AND cs.village_name = cd.village_name AND cs.esr_name = cd.esr_name
+              LEFT JOIN water_consumption wc ON (
+                cs.scheme_id = wc.scheme_id AND
+                cs.village_name = wc.village_name AND
+                cs.esr_name = wc.esr_name
+              )
+              WHERE cs.chlorine_connected = 'Connected'
+              AND cs.chlorine_status IN ('Offline', 'offline')
+              AND cd.chlorine_value_7 IS NULL
+              AND wc.water_value_day7 > 0
+              ${region ? 'AND cs.region = $1' : ''}
+              ${schemeIdFilterGeneric.replace(/scheme_id/g, 'cs.scheme_id')}
+              ORDER BY cs.scheme_id, cs.village_name, cs.esr_name
+            ) as t
+            ORDER BY region, division, village_name
+          `;
+            if (region) params.push(region);
+            break;
+
           case 'offline':
             query = `
             SELECT * FROM (
@@ -3110,6 +3203,56 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
             if (region) params.push(region);
             break;
 
+          case 'offline-with-no-water':
+            query = `
+            SELECT 
+              cs.region, cs.circle, cs.division, cs.sub_division, cs.block,
+              cs.scheme_id, cs.scheme_name, cs.village_name, cs.esr_name,
+              cs.chlorine_status, cs.last_seen,
+              cd.dashboard_url
+            FROM communication_status cs
+            LEFT JOIN chlorine_data cd ON cs.scheme_id = cd.scheme_id AND cs.scheme_name = cd.scheme_name AND cs.village_name = cd.village_name AND cs.esr_name = cd.esr_name
+            LEFT JOIN water_consumption wc ON (
+              cs.scheme_id = wc.scheme_id AND
+              cs.village_name = wc.village_name AND
+              cs.esr_name = wc.esr_name
+            )
+            WHERE cs.chlorine_connected = 'Connected'
+            AND cs.chlorine_status IN ('Offline', 'offline')
+            AND cd.chlorine_value_7 IS NULL
+            AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0)
+            ${region ? 'AND cs.region = $1' : ''}
+            ${schemeIdFilterGeneric.replace('scheme_id', 'cs.scheme_id')}
+            ORDER BY cs.region, cs.division, cs.village_name
+          `;
+            if (region) params.push(region);
+            break;
+
+          case 'offline-with-water':
+            query = `
+            SELECT 
+              cs.region, cs.circle, cs.division, cs.sub_division, cs.block,
+              cs.scheme_id, cs.scheme_name, cs.village_name, cs.esr_name,
+              cs.chlorine_status, cs.last_seen,
+              cd.dashboard_url
+            FROM communication_status cs
+            LEFT JOIN chlorine_data cd ON cs.scheme_id = cd.scheme_id AND cs.scheme_name = cd.scheme_name AND cs.village_name = cd.village_name AND cs.esr_name = cd.esr_name
+            LEFT JOIN water_consumption wc ON (
+              cs.scheme_id = wc.scheme_id AND
+              cs.village_name = wc.village_name AND
+              cs.esr_name = wc.esr_name
+            )
+            WHERE cs.chlorine_connected = 'Connected'
+            AND cs.chlorine_status IN ('Offline', 'offline')
+            AND cd.chlorine_value_7 IS NULL
+            AND wc.water_value_day7 > 0
+            ${region ? 'AND cs.region = $1' : ''}
+            ${schemeIdFilterGeneric.replace('scheme_id', 'cs.scheme_id')}
+            ORDER BY cs.region, cs.division, cs.village_name
+          `;
+            if (region) params.push(region);
+            break;
+
           case 'offline':
             query = `
             SELECT 
@@ -3342,7 +3485,7 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
           { header: 'LPCD Date', key: 'lpcd_date', width: 18 },
           { header: 'Dashboard Link', key: 'dashboard_url', width: 40 },
         ];
-      } else if (category === 'offline') {
+      } else if (['offline', 'offline-with-no-water', 'offline-with-water', 'online_no_water'].includes(category)) {
         worksheet.columns = [
           { header: 'Region', key: 'region', width: 20 },
           { header: 'Circle', key: 'circle', width: 20 },
@@ -3354,8 +3497,6 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
           { header: 'Village', key: 'village_name', width: 25 },
           { header: 'ESR Name', key: 'esr_name', width: 25 },
           { header: 'Status', key: 'chlorine_status', width: 15 },
-          { header: 'Last Seen', key: 'last_seen', width: 22 },
-          { header: 'Dashboard Link', key: 'dashboard_url', width: 40 },
         ];
       } else if (category === 'all_sensors') {
         worksheet.columns = [
@@ -3416,7 +3557,7 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
             lpcd_date: row.lpcd_date || 'N/A',
             dashboard_url: row.dashboard_url || 'N/A',
           });
-        } else if (category === 'offline') {
+        } else if (['offline', 'offline-with-no-water', 'offline-with-water', 'online_no_water'].includes(category)) {
           worksheet.addRow({
             region: row.region,
             circle: row.circle,
@@ -3425,9 +3566,6 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
             block: row.block,
             scheme_id: row.scheme_id,
             scheme_name: row.scheme_name,
-            village_name: row.village_name,
-            esr_name: row.esr_name,
-            chlorine_status: row.chlorine_status,
             last_seen: row.last_seen || 'N/A',
             dashboard_url: row.dashboard_url || 'N/A',
           });

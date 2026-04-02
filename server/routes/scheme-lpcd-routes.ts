@@ -415,9 +415,30 @@ router.get('/history', async (req, res) => {
 
     try {
       let query = `
+        WITH resolved_history AS (
+          SELECT 
+            h.*,
+            (
+              CASE 
+                WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+$' THEN 
+                  CASE 
+                    WHEN EXTRACT(MONTH FROM TO_DATE(h.data_date, 'DD-Mon')) >= 11 AND EXTRACT(MONTH FROM h.uploaded_at) <= 2 THEN
+                      TO_DATE(h.data_date || '-' || (EXTRACT(YEAR FROM h.uploaded_at) - 1)::text, 'DD-Mon-YYYY')
+                    ELSE 
+                      TO_DATE(h.data_date || '-' || EXTRACT(YEAR FROM h.uploaded_at)::text, 'DD-Mon-YYYY')
+                  END
+                WHEN h.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN h.data_date::date
+                WHEN h.data_date ~ '^\\d{1,2}-\\d{1,2}-\\d{2,4}$' THEN TO_DATE(h.data_date, 'DD-MM-YYYY')
+                WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+-\\d{4}$' THEN TO_DATE(h.data_date, 'DD-Mon-YYYY')
+                WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+-\\d{2}$' THEN TO_DATE(h.data_date, 'DD-Mon-YY')
+                ELSE NULL
+              END
+            ) as actual_date
+          FROM scheme_lpcd_data_history h
+        )
         SELECT 
-          h.*
-        FROM scheme_lpcd_data_history h
+          *
+        FROM resolved_history h
         WHERE 1=1
       `;
 
@@ -425,81 +446,54 @@ router.get('/history', async (req, res) => {
       let paramIndex = 1;
 
       if (scheme_id) {
-        query += ` AND h.scheme_id = $${paramIndex}`;
+        query += ` AND h.scheme_id = $${paramIndex++}`;
         queryParams.push(scheme_id);
-        paramIndex++;
       }
 
       if (block) {
-        query += ` AND h.block = $${paramIndex}`;
+        query += ` AND h.block = $${paramIndex++}`;
         queryParams.push(block);
-        paramIndex++;
       }
 
       if (region && region !== 'all') {
-        query += ` AND h.region = $${paramIndex}`;
+        query += ` AND h.region = $${paramIndex++}`;
         queryParams.push(region);
-        paramIndex++;
       }
 
       if (circle && circle !== 'all') {
-        query += ` AND h.circle = $${paramIndex}`;
+        query += ` AND h.circle = $${paramIndex++}`;
         queryParams.push(circle);
-        paramIndex++;
       }
 
       if (division && division !== 'all') {
-        query += ` AND h.division = $${paramIndex}`;
+        query += ` AND h.division = $${paramIndex++}`;
         queryParams.push(division);
-        paramIndex++;
       }
 
       if (subdivision && subdivision !== 'all') {
-        query += ` AND h.sub_division = $${paramIndex}`;
+        query += ` AND h.sub_division = $${paramIndex++}`;
         queryParams.push(subdivision);
-        paramIndex++;
       }
 
       if (start_date) {
-        // Dynamically parse date: use full date if present, otherwise append year from uploaded_at
-        query += ` AND (
-          CASE 
-            WHEN h.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN h.data_date::date
-            WHEN h.data_date ~ '^\\d{1,2}-\\d{1,2}-\\d{2,4}$' THEN TO_DATE(h.data_date, 'DD-MM-YYYY')
-            WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+-\\d{4}$' THEN TO_DATE(h.data_date, 'DD-Mon-YYYY')
-            WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+-\\d{2}$' THEN TO_DATE(h.data_date, 'DD-Mon-YY')
-            WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+$' THEN TO_DATE(h.data_date || '-' || TO_CHAR(h.uploaded_at, 'YYYY'), 'DD-Mon-YYYY')
-            ELSE NULL
-          END
-        ) >= $${paramIndex}::date`;
+        query += ` AND h.actual_date >= $${paramIndex++}::date`;
         queryParams.push(start_date);
-        paramIndex++;
       }
 
       if (end_date) {
-        // Dynamically parse date: use full date if present, otherwise append year from uploaded_at
-        query += ` AND (
-          CASE 
-            WHEN h.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN h.data_date::date
-            WHEN h.data_date ~ '^\\d{1,2}-\\d{1,2}-\\d{2,4}$' THEN TO_DATE(h.data_date, 'DD-MM-YYYY')
-            WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+-\\d{4}$' THEN TO_DATE(h.data_date, 'DD-Mon-YYYY')
-            WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+-\\d{2}$' THEN TO_DATE(h.data_date, 'DD-Mon-YY')
-            WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+$' THEN TO_DATE(h.data_date || '-' || TO_CHAR(h.uploaded_at, 'YYYY'), 'DD-Mon-YYYY')
-            ELSE NULL
-          END
-        ) <= $${paramIndex}::date`;
+        query += ` AND h.actual_date <= $${paramIndex++}::date`;
         queryParams.push(end_date);
-        paramIndex++;
       }
 
-      query += ` ORDER BY data_date DESC, scheme_id`;
+      query += ` ORDER BY h.actual_date DESC, h.scheme_id`;
 
       // Add pagination
-      query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+      query += ` LIMIT $${paramIndex++} OFFSET $${paramIndex++}`;
       queryParams.push(parseInt(limit as string));
       queryParams.push(parseInt(offset as string));
 
       const result = await client.query(query, queryParams);
+
       res.json(result.rows);
     } finally {
       client.release();
@@ -521,25 +515,46 @@ router.get('/export/history', async (req, res) => {
 
     try {
       let query = `
+        WITH resolved_history AS (
+          SELECT 
+            h.scheme_id,
+            h.scheme_name,
+            h.region,
+            h.circle,
+            h.division,
+            h.sub_division,
+            h.block,
+            h.total_population,
+            h.total_villages,
+            h.villages_below_55,
+            h.villages_above_55,
+            h.villages_zero_supply,
+            (
+              CASE 
+                WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+$' THEN 
+                  CASE 
+                    WHEN EXTRACT(MONTH FROM TO_DATE(h.data_date, 'DD-Mon')) >= 11 AND EXTRACT(MONTH FROM h.uploaded_at) <= 2 THEN
+                      TO_DATE(h.data_date || '-' || (EXTRACT(YEAR FROM h.uploaded_at) - 1)::text, 'DD-Mon-YYYY')
+                    ELSE 
+                      TO_DATE(h.data_date || '-' || EXTRACT(YEAR FROM h.uploaded_at)::text, 'DD-Mon-YYYY')
+                  END
+                WHEN h.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN h.data_date::date
+                WHEN h.data_date ~ '^\\d{1,2}-\\d{1,2}-\\d{2,4}$' THEN TO_DATE(h.data_date, 'DD-MM-YYYY')
+                WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+-\\d{4}$' THEN TO_DATE(h.data_date, 'DD-Mon-YYYY')
+                WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+-\\d{2}$' THEN TO_DATE(h.data_date, 'DD-Mon-YY')
+                ELSE NULL
+              END
+            ) as actual_date,
+            h.water_value,
+            h.lpcd_value,
+            h.dashboard_url,
+            h.mjp_commissioned
+          FROM scheme_lpcd_data_history h
+        )
         SELECT 
-          h.scheme_id,
-          h.scheme_name,
-          h.region,
-          h.circle,
-          h.division,
-          h.sub_division,
-          h.block,
-          h.total_population,
-          h.total_villages,
-          h.villages_below_55,
-          h.villages_above_55,
-          h.villages_zero_supply,
-          h.data_date,
-          h.water_value,
-          h.lpcd_value,
-          h.dashboard_url,
-          h.mjp_commissioned
-        FROM scheme_lpcd_data_history h
+          *,
+          TO_CHAR(actual_date, 'DD-Mon-YYYY') as formatted_date
+        FROM resolved_history h
         WHERE 1=1
       `;
 
@@ -547,92 +562,65 @@ router.get('/export/history', async (req, res) => {
       let paramIndex = 1;
 
       if (scheme_id) {
-        query += ` AND h.scheme_id = $${paramIndex}`;
+        query += ` AND h.scheme_id = $${paramIndex++}`;
         queryParams.push(scheme_id);
-        paramIndex++;
       }
 
       if (block) {
-        query += ` AND h.block = $${paramIndex}`;
+        query += ` AND h.block = $${paramIndex++}`;
         queryParams.push(block);
-        paramIndex++;
       }
 
       if (region && region !== 'all') {
-        query += ` AND h.region = $${paramIndex}`;
+        query += ` AND h.region = $${paramIndex++}`;
         queryParams.push(region);
-        paramIndex++;
       }
 
       if (circle && circle !== 'all') {
-        query += ` AND h.circle = $${paramIndex}`;
+        query += ` AND h.circle = $${paramIndex++}`;
         queryParams.push(circle);
-        paramIndex++;
       }
 
       if (division && division !== 'all') {
-        query += ` AND h.division = $${paramIndex}`;
+        query += ` AND h.division = $${paramIndex++}`;
         queryParams.push(division);
-        paramIndex++;
       }
 
       if (subdivision && subdivision !== 'all') {
-        query += ` AND h.sub_division = $${paramIndex}`;
+        query += ` AND h.sub_division = $${paramIndex++}`;
         queryParams.push(subdivision);
-        paramIndex++;
       }
 
       if (start_date) {
-        // Dynamically parse date: use full date if present, otherwise append year from uploaded_at
-        query += ` AND (
-          CASE 
-            WHEN h.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN h.data_date::date
-            WHEN h.data_date ~ '^\\d{1,2}-\\d{1,2}-\\d{2,4}$' THEN TO_DATE(h.data_date, 'DD-MM-YYYY')
-            WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+-\\d{4}$' THEN TO_DATE(h.data_date, 'DD-Mon-YYYY')
-            WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+-\\d{2}$' THEN TO_DATE(h.data_date, 'DD-Mon-YY')
-            WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+$' THEN TO_DATE(h.data_date || '-' || TO_CHAR(h.uploaded_at, 'YYYY'), 'DD-Mon-YYYY')
-            ELSE NULL
-          END
-        ) >= $${paramIndex}::date`;
+        query += ` AND h.actual_date >= $${paramIndex++}::date`;
         queryParams.push(start_date);
-        paramIndex++;
       }
 
       if (end_date) {
-        // Dynamically parse date: use full date if present, otherwise append year from uploaded_at
-        query += ` AND (
-          CASE 
-            WHEN h.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN h.data_date::date
-            WHEN h.data_date ~ '^\\d{1,2}-\\d{1,2}-\\d{2,4}$' THEN TO_DATE(h.data_date, 'DD-MM-YYYY')
-            WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+-\\d{4}$' THEN TO_DATE(h.data_date, 'DD-Mon-YYYY')
-            WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+-\\d{2}$' THEN TO_DATE(h.data_date, 'DD-Mon-YY')
-            WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+$' THEN TO_DATE(h.data_date || '-' || TO_CHAR(h.uploaded_at, 'YYYY'), 'DD-Mon-YYYY')
-            ELSE NULL
-          END
-        ) <= $${paramIndex}::date`;
+        query += ` AND h.actual_date <= $${paramIndex++}::date`;
         queryParams.push(end_date);
-        paramIndex++;
       }
 
-      query += ` ORDER BY h.data_date DESC, h.scheme_id`;
+      query += ` ORDER BY h.actual_date DESC, h.scheme_id`;
 
-      console.log('[SCHEME EXPORT] Query:', query);
-      console.log('[SCHEME EXPORT] Params:', queryParams);
+      console.log('[SCHEME EXPORT] Query executed with CTE date parsing');
       const result = await client.query(query, queryParams);
+
       console.log('[SCHEME EXPORT] Result count:', result.rows.length);
 
-      // Get unique dates and sort them
-      const dates = result.rows.map(r => r.data_date).filter(Boolean);
+      // Get unique dates and sort them (they already contain the real year now directly from the SQL Engine)
+      const dates = result.rows.map(r => r.formatted_date).filter(Boolean);
       const uniqueDatesSet = new Set(dates);
-      const uniqueDates = Array.from(uniqueDatesSet).sort();
       
-      const currentYear = new Date().getFullYear();
-      const formattedDates = uniqueDates.map(date => {
-        if (/^\d{1,2}[-/][a-zA-Z]{3}$/.test(date as string)) {
-          return `${date}-${currentYear}`;
-        }
-        return date;
+      const rawUniqueDates = Array.from(uniqueDatesSet).sort((a: any, b: any) => {
+        const dateA = new Date(a);
+        const dateB = new Date(b);
+        return dateA.getTime() - dateB.getTime();
       });
+
+      // No need to append current year since SQL already resolved the authentic year correctly
+      const formattedDates = rawUniqueDates;
+      const uniqueDates = rawUniqueDates;
 
       console.log('[SCHEME EXPORT] Unique dates found:', uniqueDates);
 
@@ -659,7 +647,7 @@ router.get('/export/history', async (req, res) => {
         }
 
         const scheme = schemeMap.get(key);
-        scheme.dateData[row.data_date] = {
+        scheme.dateData[row.formatted_date] = {
           water_value: row.water_value,
           lpcd_value: row.lpcd_value,
           villages_below_55: row.villages_below_55,
