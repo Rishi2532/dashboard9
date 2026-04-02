@@ -263,6 +263,8 @@ interface RegionComparisonData {
   consistent_above_55: number;
   consistent_below_55: number;
   consistent_no_water: number;
+  online_no_water?: number;
+  with_water?: number;
 }
 
 interface ClickedComparisonCell {
@@ -445,7 +447,19 @@ const DetailedChlorinePage = () => {
   const [clickedPressureDivisionCell, setClickedPressureDivisionCell] =
     useState<ClickedDivisionCell | null>(null);
   const [clickedPressureComparisonCell, setClickedPressureComparisonCell] =
-    useState<ClickedComparisonCell | null>(null);
+    useState<{
+      category: string;
+      region: string;
+      label: string;
+      dates?: string[];
+    } | null>(null);
+
+  const [clickedFlowmeterCell, setClickedFlowmeterCell] =
+    useState<{
+      category: string;
+      region: string;
+      label: string;
+    } | null>(null);
 
   // LPCD sub-tab: Village or Scheme (within LPCD main tab)
   const [lpcdSubTab, setLpcdSubTab] = useState<"village" | "scheme">("village");
@@ -1142,6 +1156,61 @@ if (schemeFilter === "fully_completed") {
           throw new Error("Failed to fetch overall region comparison");
         return response.json();
       },
+    });
+
+  const { data: flowmeterStats, isLoading: isLoadingFlowmeterStats } =
+    useQuery<{
+      success: boolean;
+      data: { region: string; online: number; offline: number }[];
+    }>({
+      queryKey: ["/api/flowmeter/overall-region-comparison", schemeFilter],
+      queryFn: async () => {
+        const params = new URLSearchParams();
+        if (schemeFilter !== 'all') {
+          params.append("filterType", schemeFilter);
+        }
+        if (schemeFilter === "fully_completed") {
+          params.append("fullyCompleted", "true");
+        }
+        const response = await fetch(
+          `/api/flowmeter/overall-region-comparison?${params.toString()}`,
+        );
+        if (!response.ok) throw new Error("Failed to fetch flowmeter stats");
+        return response.json();
+      },
+      enabled: mainTab === "lpcd" && lpcdSubTab === "village",
+    });
+
+  const { data: flowmeterDetails, isLoading: isLoadingFlowmeterDetails } =
+    useQuery<{
+      success: boolean;
+      data: any[];
+      count: number;
+    }>({
+      queryKey: [
+        "/api/flowmeter/overall-region-comparison/details",
+        clickedFlowmeterCell?.category,
+        clickedFlowmeterCell?.region,
+        schemeFilter,
+      ],
+      queryFn: async () => {
+        const params = new URLSearchParams();
+        if (clickedFlowmeterCell?.region && clickedFlowmeterCell.region !== "All Regions") {
+          params.append("region", clickedFlowmeterCell.region);
+        }
+        if (schemeFilter !== 'all') {
+          params.append("filterType", schemeFilter);
+        }
+        if (schemeFilter === "fully_completed") {
+          params.append("fullyCompleted", "true");
+        }
+        const response = await fetch(
+          `/api/flowmeter/overall-region-comparison/details/${clickedFlowmeterCell?.category}?${params.toString()}`,
+        );
+        if (!response.ok) throw new Error("Failed to fetch flowmeter details");
+        return response.json();
+      },
+      enabled: !!clickedFlowmeterCell,
     });
 
   const { data: comparisonDetails, isLoading: isLoadingComparisonDetails } =
@@ -12391,14 +12460,14 @@ if (schemeFilter === "fully_completed") {
                                   })}
 
 
-                                  {/* Current Day TOTAL Row - Placed after current day metrics */}
+                                  {/* LPCD Total Row - Restoration */}
                                   <div
                                     className="grid bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-950/50 dark:to-purple-950/50 border-b-2 border-violet-200 dark:border-violet-800"
                                     style={{
                                       gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
                                     }}
                                   >
-                                    <div className="px-3 py-2.5 text-xl font-bold text-violet-700 dark:text-violet-300 border-r-2 border-volet-200 dark:border-violet-800 flex items-center">
+                                    <div className="px-3 py-2.5 text-xl font-bold text-violet-700 dark:text-violet-300 border-r-2 border-violet-200 dark:border-violet-800 flex items-center">
                                       <span className="w-2 h-2 rounded-full bg-violet-400 mr-2"></span>
                                       Total
                                     </div>
@@ -12456,6 +12525,146 @@ if (schemeFilter === "fully_completed") {
                                           </button>
                                         );
                                       })()}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="h-4"></div>
+
+                              {/* Flowmeter Statistics Table */}
+                              <div className="rounded-xl border-2 border-indigo-200 dark:border-indigo-800 overflow-hidden shadow-sm">
+                                <div className="bg-gradient-to-r from-indigo-600 to-blue-600 px-4 py-2.5 flex items-center gap-2">
+                                  <Activity className="h-4 w-4 text-white" />
+                                  <span className="text-white font-semibold text-sm tracking-wide">
+                                    FLOWMETER STATISTICS
+                                  </span>
+                                </div>
+
+                                {/* Header Row */}
+                                <div
+                                  className="grid border-b-2 border-indigo-200 dark:border-indigo-800"
+                                  style={{
+                                    gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
+                                  }}
+                                >
+                                  <div className="bg-indigo-50 dark:bg-indigo-950 px-3 py-3 font-semibold text-[16px] text-indigo-800 dark:text-indigo-200 border-r-2 border-indigo-200 dark:border-indigo-800 flex items-center">
+                                    Status
+                                  </div>
+                                  {overallComparisonData.data.map(
+                                    (regionData) => (
+                                      <div
+                                        key={`flow-header-${regionData.region}`}
+                                        className="bg-indigo-50 dark:bg-indigo-950 px-2 py-3 text-center font-bold text-[16px] text-indigo-800 dark:text-indigo-200 border-r border-indigo-200 dark:border-indigo-800"
+                                      >
+                                        {regionData.region}
+                                      </div>
+                                    ),
+                                  )}
+                                  <div className="bg-indigo-100 dark:bg-indigo-900 px-2 py-3 text-center font-bold text-xs text-indigo-900 dark:text-indigo-100">
+                                    TOTAL
+                                  </div>
+                                </div>
+
+                                <div className="bg-white dark:bg-gray-900">
+                                  {/* Online Row */}
+                                  <div
+                                    className="grid border-b border-indigo-100 dark:border-indigo-900 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30 transition-colors"
+                                    style={{
+                                      gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
+                                    }}
+                                  >
+                                    <div className="px-3 py-2.5 text-[14px] font-medium text-gray-600 dark:text-gray-400 border-r-2 border-indigo-200 dark:border-indigo-800 flex items-center pl-6">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-2"></span>
+                                      Online
+                                    </div>
+                                    {overallComparisonData.data.map((regionData) => {
+                                      const stat = flowmeterStats?.data.find(s => s.region === regionData.region);
+                                      const val = stat?.online || 0;
+                                      return (
+                                        <div key={`flow-online-${regionData.region}`} className="px-2 py-2.5 flex items-center justify-center border-r border-indigo-100 dark:border-indigo-900">
+                                          <button
+                                            onClick={() => val > 0 && setClickedFlowmeterCell({ category: 'online', region: regionData.region, label: `Online Flowmeters - ${regionData.region}` })}
+                                            className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${val > 0 ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200" : "text-gray-400"}`}
+                                          >
+                                            {val}
+                                          </button>
+                                        </div>
+                                      );
+                                    })}
+                                    <div className="px-2 py-2.5 flex items-center justify-center bg-indigo-50/50 dark:bg-indigo-950/30">
+                                      <button
+                                        onClick={() => {
+                                          const total = flowmeterStats?.data.reduce((sum, s) => sum + (s.online || 0), 0) || 0;
+                                          total > 0 && setClickedFlowmeterCell({ category: 'online', region: 'All Regions', label: 'Online Flowmeters - All Regions' });
+                                        }}
+                                        className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-emerald-200 text-emerald-800"
+                                      >
+                                        {flowmeterStats?.data.reduce((sum, s) => sum + (s.online || 0), 0) || 0}
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Offline Row */}
+                                  <div
+                                    className="grid border-b-2 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30 transition-colors"
+                                    style={{
+                                      gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
+                                    }}
+                                  >
+                                    <div className="px-3 py-2.5 text-[14px] font-medium text-gray-600 dark:text-gray-400 border-r-2 border-indigo-200 dark:border-indigo-800 flex items-center pl-6">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-red-400 mr-2"></span>
+                                      Offline
+                                    </div>
+                                    {overallComparisonData.data.map((regionData) => {
+                                      const stat = flowmeterStats?.data.find(s => s.region === regionData.region);
+                                      const val = stat?.offline || 0;
+                                      return (
+                                        <div key={`flow-offline-${regionData.region}`} className="px-2 py-2.5 flex items-center justify-center border-r border-indigo-100 dark:border-indigo-900">
+                                          <button
+                                            onClick={() => val > 0 && setClickedFlowmeterCell({ category: 'offline', region: regionData.region, label: `Offline Flowmeters - ${regionData.region}` })}
+                                            className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${val > 0 ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 hover:bg-red-200" : "text-gray-400"}`}
+                                          >
+                                            {val}
+                                          </button>
+                                        </div>
+                                      );
+                                    })}
+                                    <div className="px-2 py-2.5 flex items-center justify-center bg-indigo-50/50 dark:bg-indigo-950/30">
+                                      <button
+                                        onClick={() => {
+                                          const total = flowmeterStats?.data.reduce((sum, s) => sum + (s.offline || 0), 0) || 0;
+                                          total > 0 && setClickedFlowmeterCell({ category: 'offline', region: 'All Regions', label: 'Offline Flowmeters - All Regions' });
+                                        }}
+                                        className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-red-200 text-red-800"
+                                      >
+                                        {flowmeterStats?.data.reduce((sum, s) => sum + (s.offline || 0), 0) || 0}
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Flowmeter TOTAL Row */}
+                                  <div
+                                    className="grid bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/50 dark:to-blue-950/50 border-b-2 border-indigo-200 dark:border-indigo-800"
+                                    style={{
+                                      gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
+                                    }}
+                                  >
+                                    <div className="px-3 py-2.5 text-xl font-bold text-indigo-700 dark:text-indigo-300 border-r-2 border-indigo-200 dark:border-indigo-800 flex items-center pl-2">
+                                      <span className="w-2 h-2 rounded-full bg-indigo-400 mr-2"></span>
+                                      Total
+                                    </div>
+                                    {overallComparisonData.data.map((regionData) => {
+                                      const stat = flowmeterStats?.data.find(s => s.region === regionData.region);
+                                      const total = (stat?.online || 0) + (stat?.offline || 0);
+                                      return (
+                                        <div key={`flow-total-${regionData.region}`} className="px-2 py-2.5 flex items-center justify-center border-r border-indigo-200 dark:border-indigo-800 font-bold text-[16px]">
+                                          {total}
+                                        </div>
+                                      );
+                                    })}
+                                    <div className="px-2 py-2.5 flex items-center justify-center bg-indigo-100/50 dark:bg-indigo-950/50 font-bold text-[16px]">
+                                      {flowmeterStats?.data.reduce((sum, s) => sum + (s.online || 0) + (s.offline || 0), 0) || 0}
                                     </div>
                                   </div>
                                 </div>
@@ -12977,9 +13186,9 @@ if (schemeFilter === "fully_completed") {
                                         <div
                                           key={`weekly-scheme-overall-${cat.key}`}
                                           className="grid border-b border-indigo-100 dark:border-indigo-900 bg-indigo-50/30 dark:bg-indigo-950/20"
-                                          style={{
-                                            gridTemplateColumns: `180px repeat(${schemeLpcdRegionComparison.data.length + 1}, 1fr)`,
-                                          }}
+                                      style={{
+                                        gridTemplateColumns: `180px repeat(${(schemeLpcdRegionComparison?.data?.length || 0) + 1}, 1fr)`,
+                                      }}
                                         >
                                           <div className="px-3 py-2.5 text-[14px] font-medium text-indigo-700 dark:text-indigo-300 border-r-2 border-indigo-200 dark:border-indigo-800 flex flex-col justify-center bg-indigo-50 dark:bg-indigo-950/40 sticky left-0 z-10">
                                             <div className="flex items-center">
@@ -13146,9 +13355,9 @@ if (schemeFilter === "fully_completed") {
                                         {/* >55 LPCD (Good) Row */}
                                         <div
                                           className="grid border-b border-purple-100 dark:border-purple-900 hover:bg-purple-50/50 dark:hover:bg-purple-950/30 transition-colors"
-                                          style={{
-                                            gridTemplateColumns: `180px repeat(${schemeLpcdRegionComparison.data.length + 1}, 1fr)`,
-                                          }}
+                                      style={{
+                                        gridTemplateColumns: `180px repeat(${(schemeLpcdRegionComparison?.data?.length || 0) + 1}, 1fr)`,
+                                      }}
                                         >
                                           <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-purple-200 dark:border-purple-800 flex items-center">
                                             <span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
@@ -13194,9 +13403,9 @@ if (schemeFilter === "fully_completed") {
                                         {/* <55 LPCD Row */}
                                         <div
                                           className="grid border-b border-purple-100 dark:border-purple-900 hover:bg-purple-50/50 dark:hover:bg-purple-950/30 transition-colors"
-                                          style={{
-                                            gridTemplateColumns: `180px repeat(${schemeLpcdRegionComparison.data.length + 1}, 1fr)`,
-                                          }}
+                                      style={{
+                                        gridTemplateColumns: `180px repeat(${(schemeLpcdRegionComparison?.data?.length || 0) + 1}, 1fr)`,
+                                      }}
                                         >
                                           <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-purple-200 dark:border-purple-800 flex items-center">
                                             <span className="w-2 h-2 rounded-full bg-red-500 mr-2"></span>
@@ -13242,9 +13451,9 @@ if (schemeFilter === "fully_completed") {
                                         {/* With Water Row */}
                                         <div
                                           className="grid border-b border-purple-100 dark:border-purple-900 hover:bg-purple-50/50 dark:hover:bg-purple-950/30 transition-colors"
-                                          style={{
-                                            gridTemplateColumns: `180px repeat(${schemeLpcdRegionComparison.data.length + 1}, 1fr)`,
-                                          }}
+                                      style={{
+                                        gridTemplateColumns: `180px repeat(${(schemeLpcdRegionComparison?.data?.length || 0) + 1}, 1fr)`,
+                                      }}
                                         >
                                           <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-purple-200 dark:border-purple-800 flex items-center">
                                             <span className="w-2 h-2 rounded-full bg-blue-500 mr-2"></span>
@@ -13290,9 +13499,9 @@ if (schemeFilter === "fully_completed") {
                                         {/* No Water Row */}
                                         <div
                                           className="grid hover:bg-purple-50/50 dark:hover:bg-purple-950/30 transition-colors"
-                                          style={{
-                                            gridTemplateColumns: `180px repeat(${schemeLpcdRegionComparison.data.length + 1}, 1fr)`,
-                                          }}
+                                      style={{
+                                        gridTemplateColumns: `180px repeat(${(schemeLpcdRegionComparison?.data?.length || 0) + 1}, 1fr)`,
+                                      }}
                                         >
                                           <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-purple-200 dark:border-purple-800 flex items-center">
                                             <span className="w-2 h-2 rounded-full bg-gray-500 mr-2"></span>
@@ -15248,6 +15457,193 @@ if (schemeFilter === "fully_completed") {
                             <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
                             <p className="text-gray-500">
                               No schemes found for this category
+                            </p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Flowmeter Statistics Details Card */}
+                  {clickedFlowmeterCell && (
+                    <Card className="mt-4 border-0 shadow-lg rounded-xl overflow-hidden">
+                      <CardHeader className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950 dark:to-blue-950 border-b border-indigo-200 dark:border-indigo-800 py-2.5">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2">
+                            <div className="p-1.5 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-lg shadow-sm">
+                              <Activity className="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                              <div className="text-sm font-bold text-gray-900 dark:text-white">
+                                {clickedFlowmeterCell.label}
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <Badge className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-400 !text-[12px] px-1.5 py-0">
+                                  {clickedFlowmeterCell.region}
+                                </Badge>
+                                <Badge
+                                  variant="secondary"
+                                  className="!text-[12px] px-1.5 py-0"
+                                >
+                                  {flowmeterDetails?.count || 0} Sensors
+                                </Badge>
+                              </div>
+                            </div>
+                          </CardTitle>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const params = new URLSearchParams();
+                                if (clickedFlowmeterCell.region && clickedFlowmeterCell.region !== "All Regions") {
+                                  params.append("region", clickedFlowmeterCell.region);
+                                }
+                                if (schemeFilter !== "all") {
+                                  params.append("filterType", schemeFilter);
+                                }
+                                if (schemeFilter === "fully_completed") {
+                                  params.append("fullyCompleted", "true");
+                                }
+                                window.open(
+                                  `/api/flowmeter/overall-region-comparison/export/${clickedFlowmeterCell.category}?${params.toString()}`,
+                                  "_blank",
+                                );
+                              }}
+                              className="h-7 px-2 text-[10px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200"
+                            >
+                              <Download className="h-3 w-3 mr-1" />
+                              Excel
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setClickedFlowmeterCell(null)}
+                              className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        {isLoadingFlowmeterDetails ? (
+                          <div className="space-y-2 p-5">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                          </div>
+                        ) : flowmeterDetails &&
+                          flowmeterDetails.data &&
+                          flowmeterDetails.data.length > 0 ? (
+                          <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-indigo-200/60 dark:border-indigo-800/60 rounded-xl m-3 shadow-sm">
+                            <Table className="table-fixed w-full min-w-[1000px]">
+                              <TableHeader className="sticky top-0 z-10">
+                                <TableRow className="bg-indigo-800 dark:bg-indigo-900">
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-indigo-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Region
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-indigo-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Division
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-indigo-50 !px-4 !py-3.5 w-[130px] border-r border-white/10">
+                                    Village
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-indigo-50 !px-4 !py-3.5 w-[180px] border-r border-white/10">
+                                    Scheme Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-indigo-50 !px-4 !py-3.5 w-[100px] border-r border-white/10 text-center">
+                                    Dashboard
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-indigo-50 !px-4 !py-3.5 text-center w-[100px] border-r border-white/10">
+                                     Status
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-indigo-50 !px-4 !py-3.5 text-center w-[150px]">
+                                    Remark
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {flowmeterDetails.data.map((item: any, idx: number) => (
+                                  <TableRow
+                                    key={`${item.scheme_id}-${item.village_name}-${idx}`}
+                                    className={`transition-all duration-200 hover:bg-indigo-50/70 dark:hover:bg-indigo-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-indigo-50/40 dark:bg-indigo-950/20"}`}
+                                  >
+                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-indigo-100/80 dark:border-indigo-900/60 truncate">
+                                      {item.region}
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-indigo-100/80 dark:border-indigo-900/60 truncate">
+                                      {item.division}
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-indigo-100/80 dark:border-indigo-900/60 truncate">
+                                      {item.village_name}
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-indigo-100/80 dark:border-indigo-900/60 truncate">
+                                      {item.dashboard_url ? (
+                                        <a
+                                          href={item.dashboard_url}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="text-blue-600 hover:underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          {item.scheme_name}
+                                        </a>
+                                      ) : (
+                                        item.scheme_name
+                                      )}
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-indigo-100/80 dark:border-indigo-900/60 truncate text-center">
+                                      {item.dashboard_url && (
+                                        <a
+                                          href={item.dashboard_url}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors"
+                                          title="Open Dashboard"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <ExternalLink className="h-4 w-4" />
+                                        </a>
+                                      )}
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-center">
+                                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${item.status === 'Online' ? 'bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60' : 'bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60'}`}>
+                                        {item.status}
+                                      </span>
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+                                      {(() => {
+                                        const villageKey = `${item.scheme_id}-${item.village_name}`;
+                                        const issues = villageIssuesMap?.get(villageKey) || [];
+                                        return issues.length > 0 ? (
+                                          <Button
+                                            variant="ghost"
+                                            className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setSelectedRemarkDetails({ issues, title: `Remarks for ${item.village_name}` });
+                                            }}
+                                          >
+                                            <span className="truncate w-full text-left">
+                                              {issues.map((i: any) => i.reason).join(", ")}
+                                            </span>
+                                          </Button>
+                                        ) : (
+                                          <span className="text-slate-400">-</span>
+                                        );
+                                      })()}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        ) : (
+                          <div className="text-center py-12">
+                            <Activity className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-500">
+                              No sensors found for this category
                             </p>
                           </div>
                         )}

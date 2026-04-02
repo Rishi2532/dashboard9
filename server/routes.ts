@@ -53,6 +53,7 @@ import smartReportsRoutes from "./routes/smart-reports-routes";
 import chatbotHelpdeskRoutes from "./routes/chatbot/helpdesk-routes";
 import combinedEsrDownloadRoutes from "./routes/combined-esr-download-routes";
 import issueReportingRoutes from "./routes/issue-reporting-routes";
+import flowmeterRoutes from "./routes/flowmeter-routes";
 // import { mqttService } from "./mqtt-service";
 
 const exec = promisify(cp.exec);
@@ -163,6 +164,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Mount Combined ESR Download routes
   app.use("/api/combined-esr-download", combinedEsrDownloadRoutes);
+
+  // Mount flowmeter statistics routes
+  app.use("/api/flowmeter", flowmeterRoutes);
 
   // Vendor API endpoints - get vendors by region
   app.get("/api/vendors", async (req, res) => {
