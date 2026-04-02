@@ -51,7 +51,7 @@ import session from "express-session";
 import { randomBytes } from "crypto";
 import "./init-database.js"; // Initial data cleanup (optional, based on requirements)
 // initializeDataCleanup();
-// Server restart trigger 
+// Server restart trigger: Row reorder complete 14:15
 import { initializeDataCleanup } from "./data-cleanup.js"; // Run data cleanup on startup
 import { mqttService } from "./mqtt-service"; // Initialize MQTT service
 
@@ -188,4 +188,4 @@ app.use((req, res, next) => {
       }, 5000); // Wait 5 seconds after server start
     },
   );
-})(); // Restart trigger v4 (Category Naming Fix)
+})(); // Restart trigger v5 (Row Order & Join Fix)

@@ -1564,7 +1564,7 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
           pd.dashboard_url
         FROM communication_status cs
         FULL OUTER JOIN pressure_data pd ON (cs.scheme_id = pd.scheme_id AND cs.village_name = pd.village_name AND cs.esr_name = pd.esr_name)
-        LEFT JOIN water_consumption wc ON (cs.scheme_id = wc.scheme_id AND cs.village_name = wc.village_name)
+        LEFT JOIN water_consumption wc ON (cs.scheme_id = wc.scheme_id AND cs.village_name = wc.village_name AND cs.esr_name = wc.esr_name)
         WHERE COALESCE(cs.pressure_connected, 'Not Connected') = 'Connected'
           ${customRegionFilter}
           ${categoryCondition}
@@ -1700,7 +1700,7 @@ router.get("/overall-region-comparison/details-export/:category", async (req, re
           pd.dashboard_url
         FROM communication_status cs
         FULL OUTER JOIN pressure_data pd ON (cs.scheme_id = pd.scheme_id AND cs.village_name = pd.village_name AND cs.esr_name = pd.esr_name)
-        LEFT JOIN water_consumption wc ON (cs.scheme_id = wc.scheme_id AND cs.village_name = wc.village_name)
+        LEFT JOIN water_consumption wc ON (cs.scheme_id = wc.scheme_id AND cs.village_name = wc.village_name AND cs.esr_name = wc.esr_name)
         WHERE COALESCE(cs.pressure_connected, 'Not Connected') = 'Connected'
           ${customRegionFilter}
           ${categoryCondition}
@@ -1722,7 +1722,7 @@ router.get("/overall-region-comparison/details-export/:category", async (req, re
       'Scheme Name': row.scheme_name,
       Village: row.village_name,
       'ESR Name': row.esr_name,
-      ...(['offline', 'offline_with_no_water', 'offline_with_water'].includes(category)
+      ...(['offline', 'offline-with-no-water', 'offline-with-water'].includes(category)
         ? { 'Status': row.pressure_status, 'Last Seen': row.last_seen }
         : { 'Pressure Value (bar)': row.pressure_value_7 !== null ? Number(row.pressure_value_7).toFixed(2) : 'N/A', 'Pressure Date': row.pressure_date_day_7 }
       ),
