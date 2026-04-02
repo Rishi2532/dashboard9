@@ -106,7 +106,12 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
         sd.population,
         sd.dashboard_url
       FROM communication_status cs
-      LEFT JOIN water_scheme_data sd ON (cs.scheme_id = sd.scheme_id AND cs.village_name = sd.village_name)
+      LEFT JOIN LATERAL (
+        SELECT population, dashboard_url
+        FROM water_scheme_data
+        WHERE scheme_id = cs.scheme_id AND village_name = cs.village_name
+        LIMIT 1
+      ) sd ON true
       WHERE cs.region IS NOT NULL
       ${schemeIdFilter}
       ${regionFilter}
@@ -169,7 +174,12 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
         cs.flow_meter_status as status,
         sd.population
       FROM communication_status cs
-      LEFT JOIN water_scheme_data sd ON (cs.scheme_id = sd.scheme_id AND cs.village_name = sd.village_name)
+      LEFT JOIN LATERAL (
+        SELECT population
+        FROM water_scheme_data
+        WHERE scheme_id = cs.scheme_id AND village_name = cs.village_name
+        LIMIT 1
+      ) sd ON true
       WHERE cs.region IS NOT NULL
       ${schemeIdFilter}
       ${regionFilter}
