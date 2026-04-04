@@ -13,27 +13,27 @@ import { schemeStatuses } from "@shared/schema";
 
 const router = express.Router();
 
-// Helper to get filtered scheme IDs based on filterType
-async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: any) {
+// Helper to get filtered scheme IDs based on filterType and agencyType
+async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: any, agencyType?: string) {
   const activeFilter = filterType || (fullyCompleted === "true" ? "fully_completed" : undefined);
 
-  if (!activeFilter || activeFilter === 'all') {
-    return null; // No filter needed
-  }
-
-  let condition;
+  const conditions = [];
   if (activeFilter === 'commissioned') {
-    condition = sql`LOWER(${schemeStatuses.water_supply}) = 'yes'`;
+    conditions.push(sql`LOWER(${schemeStatuses.water_supply}) = 'yes'`);
   } else if (activeFilter === 'fully_completed') {
-    condition = sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('completed', 'fully-completed', 'fully completed', 'functionally completed')`;
+    conditions.push(sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('completed', 'fully-completed', 'fully completed', 'functionally completed')`);
   } else if (activeFilter === 'partial' || activeFilter === 'in_progress') {
-    condition = sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('in progress', 'partial', 'ongoing')`;
+    conditions.push(sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('in progress', 'partial', 'ongoing')`);
   }
 
-  if (condition) {
+  if (agencyType && agencyType !== 'ALL' && agencyType !== 'all') {
+    conditions.push(eq(schemeStatuses.agency_type, agencyType));
+  }
+
+  if (conditions.length > 0) {
     const rows = await db.select({ scheme_id: schemeStatuses.scheme_id })
       .from(schemeStatuses)
-      .where(condition);
+      .where(and(...conditions));
     const ids = rows.map((r: any) => r.scheme_id);
     return ids.length > 0 ? ids : ['NO_MATCHES'];
   }
@@ -89,13 +89,13 @@ router.get("/weekly-lpcd/stats", async (req, res) => {
     const weekInfo = getISOWeekInfo(weekOffset);
     console.log(`Weekly LPCD Stats Request for weekOffset ${weekOffset}:`, weekInfo);
 
-    const { fullyCompleted, filterType } = req.query;
-    console.log(`Weekly LPCD Stats Request for: ${weekInfo.weekNum}`, { fullyCompleted, filterType });
+    const { fullyCompleted, filterType, agencyType } = req.query;
+    console.log(`Weekly LPCD Stats Request for: ${weekInfo.weekNum}`, { fullyCompleted, filterType, agencyType });
 
     const db = await getDB();
 
     // Get filtered scheme IDs
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
     let fullyCompletedSchemeIds: Set<string> | undefined;
 
     if (filteredIds) {
@@ -141,7 +141,7 @@ const requireAdmin = (req: express.Request, res: express.Response, next: express
 // Get chlorine filter options
 router.get("/filters", async (req, res) => {
   try {
-    const { region, circle, division, subDivision, subdivision, block } = req.query;
+    const { region, circle, division, subDivision, subdivision, block, agencyType } = req.query;
 
     const filter: any = {};
     if (region) filter.region = region as string;
@@ -151,6 +151,7 @@ router.get("/filters", async (req, res) => {
     const subDivParam = (subDivision || subdivision) as string | undefined;
     if (subDivParam) filter.subDivision = subDivParam;
     if (block) filter.block = block as string;
+    if (agencyType) filter.agencyType = agencyType as string;
 
     const options = await storage.getChlorineFilterOptions(filter);
     res.json(options);
@@ -163,7 +164,7 @@ router.get("/filters", async (req, res) => {
 // Get all chlorine data with optional filters
 router.get("/", async (req, res) => {
   try {
-    const { region, circle, division, subDivision, block, chlorineRange, minChlorine, maxChlorine } = req.query;
+    const { region, circle, division, subDivision, block, chlorineRange, minChlorine, maxChlorine, agencyType } = req.query;
 
     console.log("Chlorine API Request Filters:", {
       region,
@@ -173,7 +174,8 @@ router.get("/", async (req, res) => {
       block,
       chlorineRange,
       minChlorine,
-      maxChlorine
+      maxChlorine,
+      agencyType
     });
 
     interface ChlorineFilter {
@@ -182,6 +184,7 @@ router.get("/", async (req, res) => {
       division?: string;
       subDivision?: string;
       block?: string;
+      agencyType?: string;
       chlorineRange?: 'below_0.2' | 'between_0.2_0.5' | 'above_0.5' | 'consistent_zero' | 'consistent_below' | 'consistent_optimal' | 'consistent_above';
       minChlorine?: number;
       maxChlorine?: number;
@@ -193,6 +196,7 @@ router.get("/", async (req, res) => {
     if (division) filter.division = division as string;
     if (subDivision) filter.subDivision = subDivision as string;
     if (block) filter.block = block as string;
+    if (agencyType) filter.agencyType = agencyType as string;
     if (chlorineRange) filter.chlorineRange = chlorineRange as any;
     if (minChlorine) filter.minChlorine = parseFloat(minChlorine as string);
     if (maxChlorine) filter.maxChlorine = parseFloat(maxChlorine as string);
@@ -286,7 +290,7 @@ router.get("/historical", async (req, res) => {
 // Get dashboard statistics for chlorine data
 router.get("/dashboard-stats", async (req, res) => {
   try {
-    const { region, circle, division, subDivision, block } = req.query;
+    const { region, circle, division, subDivision, block, agencyType } = req.query;
 
     const filter: any = {};
     if (region) filter.region = region as string;
@@ -294,6 +298,7 @@ router.get("/dashboard-stats", async (req, res) => {
     if (division) filter.division = division as string;
     if (subDivision) filter.subDivision = subDivision as string;
     if (block) filter.block = block as string;
+    if (agencyType) filter.agencyType = agencyType as string;
 
     const stats = await storage.getChlorineDashboardStats(filter);
     res.json(stats);
@@ -306,8 +311,8 @@ router.get("/dashboard-stats", async (req, res) => {
 // Get chlorine sensors with no water (cross-referenced with water consumption)
 router.get("/no-water-sensors", async (req, res) => {
   try {
-    const { region, circle, division, subDivision, block } = req.query;
-    console.log("Fetching chlorine sensors with no water for filters:", { region, circle, division, subDivision, block });
+    const { region, circle, division, subDivision, block, agencyType } = req.query;
+    console.log("Fetching chlorine sensors with no water for filters:", { region, circle, division, subDivision, block, agencyType });
 
     const filter: any = {};
     if (region) filter.region = region as string;
@@ -315,6 +320,7 @@ router.get("/no-water-sensors", async (req, res) => {
     if (division) filter.division = division as string;
     if (subDivision) filter.subDivision = subDivision as string;
     if (block) filter.block = block as string;
+    if (agencyType) filter.agencyType = agencyType as string;
 
     const result = await storage.getChlorineSensorsWithNoWater(filter);
 
@@ -335,8 +341,8 @@ router.get("/no-water-sensors", async (req, res) => {
 // Get chlorine sensors with water (cross-referenced with water consumption)
 router.get("/with-water-sensors", async (req, res) => {
   try {
-    const { region, circle, division, subDivision, block } = req.query;
-    console.log("Fetching chlorine sensors with water for filters:", { region, circle, division, subDivision, block });
+    const { region, circle, division, subDivision, block, agencyType } = req.query;
+    console.log("Fetching chlorine sensors with water for filters:", { region, circle, division, subDivision, block, agencyType });
 
     const filter: any = {};
     if (region) filter.region = region as string;
@@ -344,6 +350,7 @@ router.get("/with-water-sensors", async (req, res) => {
     if (division) filter.division = division as string;
     if (subDivision) filter.subDivision = subDivision as string;
     if (block) filter.block = block as string;
+    if (agencyType) filter.agencyType = agencyType as string;
 
     const result = await storage.getChlorineSensorsWithWater(filter);
 
@@ -364,14 +371,14 @@ router.get("/with-water-sensors", async (req, res) => {
 // Get regional chlorine sensor statistics
 router.get("/regional-stats", async (req, res) => {
   try {
-    const { fullyCompleted, filterType } = req.query;
-    console.log("Fetching regional chlorine sensor statistics", { fullyCompleted, filterType });
+    const { fullyCompleted, filterType, agencyType } = req.query;
+    console.log("Fetching regional chlorine sensor statistics", { fullyCompleted, filterType, agencyType });
 
     const db = await getDB();
 
     // Get filtered scheme IDs if filter is enabled
     let schemeIdFilter = "";
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
     if (filteredIds) {
       const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
       schemeIdFilter = `AND cs.scheme_id IN (${ids})`;
@@ -567,14 +574,14 @@ router.get("/regional-stats", async (req, res) => {
 // Get chlorine division-wise summary 
 router.get("/division-wise-summary", async (req, res) => {
   try {
-    const { region, fullyCompleted, filterType } = req.query;
-    console.log(`Fetching chlorine division-wise summary for region: ${region || 'all'}`, { fullyCompleted, filterType });
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
+    console.log(`Fetching chlorine division-wise summary for region: ${region || 'all'}`, { fullyCompleted, filterType, agencyType });
 
     const db = await getDB();
 
     // Get filtered scheme IDs if filter is enabled
     let schemeIdFilter = "";
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
     if (filteredIds) {
       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
@@ -649,7 +656,7 @@ router.get("/division-wise-summary", async (req, res) => {
 // Get chlorine sensors by division and metric
 router.get("/division-sensors", async (req, res) => {
   try {
-    const { region, division, metric, fullyCompleted, filterType } = req.query;
+    const { region, division, metric, fullyCompleted, filterType, agencyType } = req.query;
 
     if (!division) {
       return res.status(400).json({
@@ -657,13 +664,13 @@ router.get("/division-sensors", async (req, res) => {
       });
     }
 
-    console.log(`Fetching chlorine sensors for division: ${division}, metric: ${metric}, region: ${region || 'all'}`, { fullyCompleted, filterType });
+    console.log(`Fetching chlorine sensors for division: ${division}, metric: ${metric}, region: ${region || 'all'}`, { fullyCompleted, filterType, agencyType });
 
     const db = await getDB();
 
     // Get filtered scheme IDs if filter is enabled
     let schemeIdFilter = "";
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
     if (filteredIds) {
       if (filteredIds[0] === 'NO_MATCHES') {
@@ -748,7 +755,7 @@ router.get("/division-sensors", async (req, res) => {
 // Export chlorine sensors by division to Excel
 router.get("/division-sensors-export", async (req, res) => {
   try {
-    const { region, division, metric, fullyCompleted, filterType } = req.query;
+    const { region, division, metric, fullyCompleted, filterType, agencyType } = req.query;
 
     if (!division) {
       return res.status(400).json({
@@ -756,13 +763,13 @@ router.get("/division-sensors-export", async (req, res) => {
       });
     }
 
-    console.log(`Exporting chlorine sensors for division: ${division}, metric: ${metric}, region: ${region || 'all'}`, { fullyCompleted, filterType });
+    console.log(`Exporting chlorine sensors for division: ${division}, metric: ${metric}, region: ${region || 'all'}`, { fullyCompleted, filterType, agencyType });
 
     const db = await getDB();
 
     // Get filtered scheme IDs if filter is enabled
     let schemeIdFilter = "";
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
     if (filteredIds) {
       const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
       schemeIdFilter = `AND scheme_id IN (${ids})`;
@@ -897,11 +904,11 @@ router.get("/division-sensors-export", async (req, res) => {
 // Get day-wise breakdown for chlorine sensors
 router.get("/day-wise-breakdown", async (req, res) => {
   try {
-    const { region, fullyCompleted, filterType } = req.query;
-    console.log(`Fetching day-wise breakdown for region: "${region || 'all'}" (type: ${typeof region})`, { fullyCompleted, filterType });
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
+    console.log(`Fetching day-wise breakdown for region: "${region || 'all'}" (type: ${typeof region})`, { fullyCompleted, filterType, agencyType });
 
     const db = await getDB();
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
     const filteredSchemeIds = filteredIds ? new Set(filteredIds as string[]) : undefined;
 
     const breakdown = await storage.getChlorineDayWiseBreakdown(
@@ -927,9 +934,9 @@ router.get("/day-wise-breakdown", async (req, res) => {
 router.get("/day-wise-sensors/:metric/:days", async (req, res) => {
   try {
     const { metric, days } = req.params;
-    const { region, fullyCompleted, filterType } = req.query;
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
 
-    console.log(`Fetching sensors for metric: ${metric}, days: ${days}, region: ${region || 'all'}`, { fullyCompleted, filterType });
+    console.log(`Fetching sensors for metric: ${metric}, days: ${days}, region: ${region || 'all'}`, { fullyCompleted, filterType, agencyType });
 
     // Validate metric
     if (!['offline', 'below_0_2', 'above_0_5', 'optimal_0_2_0_5'].includes(metric)) {
@@ -947,7 +954,7 @@ router.get("/day-wise-sensors/:metric/:days", async (req, res) => {
     }
 
     const db = await getDB();
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
     const filteredSchemeIds = filteredIds ? new Set(filteredIds as string[]) : undefined;
 
     const regionName = region === 'All Regions' ? undefined : (region as string);
@@ -987,9 +994,9 @@ router.get(["/day-wise-sensors-export/:metric/:days", "/day-wise-sensors-export"
     let { metric, days } = req.params;
     if (!metric) metric = req.query.metric as string;
     if (!days) days = req.query.days as string;
-    const { region, fullyCompleted, filterType } = req.query;
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
 
-    console.log(`Exporting sensors for metric: ${metric}, days: ${days}, region: ${region || 'all'}`, { fullyCompleted, filterType });
+    console.log(`Exporting sensors for metric: ${metric}, days: ${days}, region: ${region || 'all'}`, { fullyCompleted, filterType, agencyType });
 
     // Validate metric
     if (!['offline', 'below_0_2', 'above_0_5', 'optimal_0_2_0_5'].includes(metric)) {
@@ -1007,7 +1014,7 @@ router.get(["/day-wise-sensors-export/:metric/:days", "/day-wise-sensors-export"
     }
 
     const db = await getDB();
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
     const filteredSchemeIds = filteredIds ? new Set(filteredIds as string[]) : undefined;
 
     // Use the storage method which has all the correct logic (deduplication, >= filtering, etc.)
@@ -1109,9 +1116,9 @@ router.get(["/day-wise-sensors-export/:metric/:days", "/day-wise-sensors-export"
 router.get("/details/:statisticType", async (req, res) => {
   try {
     const { statisticType } = req.params;
-    const { region, fullyCompleted, filterType } = req.query;
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
 
-    console.log(`Fetching detailed ${statisticType} sensors for region: ${region} filterType: ${filterType || fullyCompleted}`);
+    console.log(`Fetching detailed ${statisticType} sensors for region: ${region} filterType: ${filterType || fullyCompleted} agencyType: ${agencyType}`);
 
     const db = await getDB();
 
@@ -1124,7 +1131,7 @@ router.get("/details/:statisticType", async (req, res) => {
     }
 
     // Add scheme filter
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
     if (filteredIds) {
       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
         return res.json({
@@ -1661,7 +1668,7 @@ router.get("/export/historical", async (req, res) => {
 router.get("/export/:statisticType", async (req, res) => {
   try {
     const { statisticType } = req.params;
-    const { region, fullyCompleted, filterType } = req.query;
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
 
     console.log(`Exporting ${statisticType} sensors to Excel for region: ${region} filterType: ${filterType || fullyCompleted}`);
 
@@ -1676,7 +1683,7 @@ router.get("/export/:statisticType", async (req, res) => {
     }
 
     // Add scheme filter
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
     if (filteredIds) {
       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
         // Return empty excel? Or handle graceful exit.
@@ -2342,12 +2349,12 @@ router.get('/esrs/filtered', async (req, res) => {
 // Get Overall Region Comparison data for all categories
 router.get("/overall-region-comparison", async (req, res) => {
   try {
-    const { fullyCompleted, filterType } = req.query;
+    const { fullyCompleted, filterType, agencyType } = req.query;
 
     // Get filtered scheme IDs if filter is enabled
     let schemeIdFilter = "";
     const db = await getDB();
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
     if (filteredIds) {
       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
@@ -2554,7 +2561,7 @@ router.get("/overall-region-comparison", async (req, res) => {
 router.get("/overall-region-comparison/details/:category", async (req, res) => {
   try {
     const { category } = req.params;
-    const { region, dates, fullyCompleted, filterType } = req.query; // Add filterType
+    const { region, dates, fullyCompleted, filterType, agencyType } = req.query; // Add filterType
     console.log(`[DEBUG Details] Category: ${category}, Region: ${region}, FilterType: ${filterType || fullyCompleted}, Dates: ${dates}`);
 
     const pool = new pg.Pool({
@@ -2567,7 +2574,7 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
       const params: any[] = [];
 
       const db = await getDB();
-      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
       let schemeIdFilterGeneric = "";
 
       if (filteredIds) {
@@ -3068,7 +3075,7 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
 router.get("/overall-region-comparison/export/:category", async (req, res) => {
   try {
     const { category } = req.params;
-    let { region, dates, fullyCompleted, filterType } = req.query; // Add filterType
+    let { region, dates, fullyCompleted, filterType, agencyType } = req.query; // Add filterType
 
     // Sanitize region if it equals "All Regions"
     if (region === 'All Regions') {
@@ -3088,7 +3095,7 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
       let params: any[] = [];
 
       const db = await getDB();
-      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
       let schemeIdFilterGeneric = "";
 
       if (filteredIds) {
@@ -3696,7 +3703,7 @@ function getLpcdCondition(category: string): string {
 // Get LPCD day-wise breakdown for all regions (for region comparison) - OPTIMIZED single query
 router.get("/lpcd/day-wise-breakdown/all-regions", async (req, res) => {
   try {
-    const { fullyCompleted, filterType } = req.query; // Add filterType
+    const { fullyCompleted, filterType, agencyType } = req.query; // Add filterType
     console.log("Fetching LPCD day-wise breakdown for all regions", { filterType: filterType || fullyCompleted });
 
     // Get filtered scheme IDs if filter is enabled
@@ -3867,13 +3874,13 @@ router.get("/lpcd/day-wise-breakdown/all-regions", async (req, res) => {
 // Get LPCD day-wise breakdown (1-30 days) using water_scheme_data_history table - OPTIMIZED with window functions
 router.get("/lpcd/day-wise-breakdown", async (req, res) => {
   try {
-    const { region, fullyCompleted, filterType } = req.query;
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
     console.log(`Fetching LPCD day-wise breakdown for region: ${region || 'all'}`, { fullyCompleted, filterType });
 
     // Get filtered scheme IDs if filter is enabled
     let schemeIdFilter = "";
     const db = await getDB();
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
     if (filteredIds) {
       const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
@@ -4037,7 +4044,7 @@ router.get("/lpcd/day-wise-breakdown", async (req, res) => {
 router.get("/lpcd/day-wise-villages/:metric/:days", async (req, res) => {
   try {
     const { metric, days } = req.params;
-    const { region, fullyCompleted, filterType } = req.query;
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
 
     console.log(`Fetching villages for LPCD metric: ${metric}, days: ${days}, region: ${region || 'all'}`, { fullyCompleted, filterType });
 
@@ -4057,7 +4064,7 @@ router.get("/lpcd/day-wise-villages/:metric/:days", async (req, res) => {
     // Get filtered scheme IDs if filter is enabled
     let schemeIdFilter = "";
     const db = await getDB();
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
     if (filteredIds) {
       const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
@@ -4182,7 +4189,7 @@ router.get("/lpcd/day-wise-villages/:metric/:days", async (req, res) => {
 router.get("/lpcd/day-wise-villages-export/:metric/:days", async (req, res) => {
   try {
     const { metric, days } = req.params;
-    const { region, fullyCompleted, filterType } = req.query;
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
 
     console.log(`Exporting LPCD villages for metric: ${metric}, days: ${days}, region: ${region || 'all'}`, { fullyCompleted, filterType });
 
@@ -4202,7 +4209,7 @@ router.get("/lpcd/day-wise-villages-export/:metric/:days", async (req, res) => {
     // Get filtered scheme IDs if filter is enabled
     let schemeIdFilter = "";
     const db = await getDB();
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
     if (filteredIds) {
       const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
@@ -4379,7 +4386,7 @@ router.get("/lpcd/day-wise-villages-export/:metric/:days", async (req, res) => {
 // Export LPCD Region Comparison Total (Multi-sheet)
 router.get("/lpcd/region-comparison-total-export", async (req, res) => {
   try {
-    const { region, fullyCompleted, filterType } = req.query;
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
     console.log(`Exporting LPCD Region Comparison Total for region: ${region || 'All'}`, { fullyCompleted, filterType });
 
     const pool = new pg.Pool({
@@ -4401,7 +4408,7 @@ router.get("/lpcd/region-comparison-total-export", async (req, res) => {
       // Get filtered scheme IDs if filter is enabled - calculate ONCE
       let schemeIdFilter = "";
       const db = await getDB();
-      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
       if (filteredIds) {
         const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
@@ -4562,7 +4569,7 @@ router.get("/lpcd/region-comparison-total-export", async (req, res) => {
 // Get LPCD regional statistics (for flow meters)
 router.get("/lpcd/regional-stats", async (req, res) => {
   try {
-    const { fullyCompleted, filterType } = req.query;
+    const { fullyCompleted, filterType, agencyType } = req.query;
     console.log("Fetching LPCD regional statistics", { fullyCompleted, filterType });
 
     const pool = new pg.Pool({
@@ -4575,7 +4582,7 @@ router.get("/lpcd/regional-stats", async (req, res) => {
       let schemeIdFilterWS = "";
       let schemeIdFilterCS = "";
       const db = await getDB();
-      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
       if (filteredIds) {
         if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
@@ -4716,7 +4723,7 @@ router.get("/lpcd/regional-stats", async (req, res) => {
 router.get("/lpcd/details/:statisticType", async (req, res) => {
   try {
     const { statisticType } = req.params;
-    const { region, fullyCompleted, filterType } = req.query;
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
 
     console.log(`Fetching LPCD details for type: ${statisticType}, region: ${region || 'all'}, filterType: ${filterType || fullyCompleted}`);
 
@@ -4731,7 +4738,7 @@ router.get("/lpcd/details/:statisticType", async (req, res) => {
       let schemeIdFilterCS = "";
       let schemeIdFilterGeneric = "";
       const db = await getDB();
-      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
       if (filteredIds) {
         if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
@@ -4934,7 +4941,7 @@ router.get("/lpcd/details/:statisticType", async (req, res) => {
 router.get("/lpcd/export/:statisticType", async (req, res) => {
   try {
     const { statisticType } = req.params;
-    const { region, fullyCompleted, filterType } = req.query;
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
 
     console.log(`Exporting LPCD details for type: ${statisticType}, region: ${region || 'all'}, filterType: ${filterType || fullyCompleted}`);
 
@@ -4949,7 +4956,7 @@ router.get("/lpcd/export/:statisticType", async (req, res) => {
       let schemeIdFilterCS = "";
       let schemeIdFilterGeneric = "";
       const db = await getDB();
-      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
       if (filteredIds) {
         if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
@@ -5185,7 +5192,7 @@ router.get("/lpcd/export/:statisticType", async (req, res) => {
 // Get Scheme LPCD regional statistics (for Region Comparison and Regional Overview tabs)
 router.get("/scheme-lpcd/regional-stats", async (req, res) => {
   try {
-    const { fullyCompleted, filterType } = req.query;
+    const { fullyCompleted, filterType, agencyType } = req.query;
     console.log("Fetching Scheme LPCD regional statistics", { fullyCompleted, filterType });
 
     const pool = new pg.Pool({
@@ -5197,7 +5204,7 @@ router.get("/scheme-lpcd/regional-stats", async (req, res) => {
       // Get filtered scheme IDs if filter is enabled
       let schemeIdFilter = "";
       const db = await getDB();
-      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
       if (filteredIds) {
         if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
@@ -5400,7 +5407,7 @@ router.get("/scheme-lpcd/regional-stats", async (req, res) => {
 router.get("/scheme-lpcd/details/:statisticType", async (req, res) => {
   try {
     const { statisticType } = req.params;
-    const { region, fullyCompleted, filterType } = req.query;
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
 
     console.log(`Fetching Scheme LPCD details for type: ${statisticType}, region: ${region || 'all'}, filterType: ${filterType || fullyCompleted}`);
 
@@ -5413,7 +5420,7 @@ router.get("/scheme-lpcd/details/:statisticType", async (req, res) => {
       // Get filtered scheme IDs if filter is enabled
       let schemeIdFilter = "";
       const db = await getDB();
-      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
       if (filteredIds) {
         if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
@@ -5579,7 +5586,7 @@ router.get("/scheme-lpcd/details/:statisticType", async (req, res) => {
 router.get("/scheme-lpcd/details-export/:statisticType", async (req, res) => {
   try {
     const { statisticType } = req.params;
-    const { region, fullyCompleted, filterType } = req.query;
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
 
     console.log(`Exporting Scheme LPCD details for type: ${statisticType}, region: ${region || 'all'}, filterType: ${filterType || fullyCompleted}`);
 
@@ -5592,7 +5599,7 @@ router.get("/scheme-lpcd/details-export/:statisticType", async (req, res) => {
       // Get filtered scheme IDs if filter is enabled
       let schemeIdFilter = "";
       const db = await getDB();
-      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
       if (filteredIds) {
         if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
@@ -5782,7 +5789,7 @@ router.get("/scheme-lpcd/details-export/:statisticType", async (req, res) => {
 // Get Scheme LPCD division summary
 router.get("/scheme-lpcd/division-summary", async (req, res) => {
   try {
-    const { region, fullyCompleted, filterType } = req.query;
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
 
     console.log(`Fetching Scheme LPCD division summary for region: ${region || 'all'}`, { fullyCompleted, filterType });
 
@@ -5795,7 +5802,7 @@ router.get("/scheme-lpcd/division-summary", async (req, res) => {
       // Get filtered scheme IDs if filter is enabled
       let schemeIdFilter = "";
       const db = await getDB();
-      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
       if (filteredIds) {
         const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
@@ -5889,7 +5896,7 @@ router.get("/scheme-lpcd/division-summary", async (req, res) => {
 router.get("/scheme-lpcd/division-details/:division/:metric", async (req, res) => {
   try {
     const { division, metric } = req.params;
-    const { region, fullyCompleted, filterType } = req.query;
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
 
     console.log(`Fetching Scheme LPCD division details for division: ${division}, metric: ${metric}, region: ${region || 'all'}`, { fullyCompleted, filterType });
 
@@ -5902,7 +5909,7 @@ router.get("/scheme-lpcd/division-details/:division/:metric", async (req, res) =
       // Get filtered scheme IDs if filter is enabled
       let schemeIdFilter = '';
       const db = await getDB();
-      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
       if (filteredIds) {
         const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
@@ -6015,7 +6022,7 @@ router.get("/scheme-lpcd/division-details/:division/:metric", async (req, res) =
 router.get("/scheme-lpcd/division-details-export/:division/:metric", async (req, res) => {
   try {
     const { division, metric } = req.params;
-    const { region, fullyCompleted, filterType } = req.query;
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
 
     console.log(`Exporting Scheme LPCD division details for division: ${division}, metric: ${metric}, filterType: ${filterType || fullyCompleted}`);
 
@@ -6028,7 +6035,7 @@ router.get("/scheme-lpcd/division-details-export/:division/:metric", async (req,
       // Get filtered scheme IDs if filter is enabled
       let schemeIdFilter = '';
       const db = await getDB();
-      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
       if (filteredIds) {
         const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
@@ -6170,7 +6177,7 @@ router.get("/scheme-lpcd/division-details-export/:division/:metric", async (req,
 // Get Scheme LPCD day-wise breakdown - OPTIMIZED with window functions
 router.get("/scheme-lpcd/day-wise-breakdown", async (req, res) => {
   try {
-    const { region, fullyCompleted, filterType } = req.query;
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
 
     console.log(`Fetching Scheme LPCD day-wise breakdown for region: ${region || 'all'}`, { fullyCompleted, filterType });
 
@@ -6183,7 +6190,7 @@ router.get("/scheme-lpcd/day-wise-breakdown", async (req, res) => {
       // Get filtered scheme IDs if filter is enabled
       let schemeIdFilter = "";
       const db = await getDB();
-      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
       if (filteredIds) {
         if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
@@ -6342,13 +6349,13 @@ router.get("/scheme-lpcd/day-wise-breakdown", async (req, res) => {
 // Get Scheme LPCD day-wise breakdown for all regions - OPTIMIZED single query
 router.get("/scheme-lpcd/day-wise-breakdown/all-regions", async (req, res) => {
   try {
-    const { fullyCompleted, filterType } = req.query;
+    const { fullyCompleted, filterType, agencyType } = req.query;
     console.log("Fetching Scheme LPCD day-wise breakdown for all regions", { fullyCompleted, filterType });
 
     // Get filtered scheme IDs if filter is enabled
     let schemeIdFilter = "";
     const db = await getDB();
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
     if (filteredIds) {
       const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
@@ -6495,7 +6502,7 @@ router.get("/scheme-lpcd/day-wise-breakdown/all-regions", async (req, res) => {
 router.get("/scheme-lpcd/day-wise-schemes/:metric/:days", async (req, res) => {
   try {
     const { metric, days } = req.params;
-    const { region, fullyCompleted, filterType } = req.query;
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
 
     console.log(`Fetching Scheme LPCD day-wise schemes for metric: ${metric}, days: ${days}, region: ${region || 'all'}`, { fullyCompleted, filterType });
 
@@ -6510,7 +6517,7 @@ router.get("/scheme-lpcd/day-wise-schemes/:metric/:days", async (req, res) => {
       // Get filtered scheme IDs if filter is enabled
       let schemeIdFilter = "";
       const db = await getDB();
-      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
       if (filteredIds) {
         if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
@@ -6670,7 +6677,7 @@ router.get("/scheme-lpcd/day-wise-schemes/:metric/:days", async (req, res) => {
 router.get("/scheme-lpcd/day-wise-schemes-export/:metric/:days", async (req, res) => {
   try {
     const { metric, days } = req.params;
-    const { region, fullyCompleted, filterType } = req.query;
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
 
     console.log(`Exporting Scheme LPCD day-wise schemes for metric: ${metric}, days: ${days}`, { fullyCompleted, filterType });
 
@@ -6685,7 +6692,7 @@ router.get("/scheme-lpcd/day-wise-schemes-export/:metric/:days", async (req, res
       // Get filtered scheme IDs if filter is enabled
       let schemeIdFilter = "";
       const db = await getDB();
-      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
       if (filteredIds) {
         const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
@@ -6877,13 +6884,13 @@ router.get("/scheme-lpcd/day-wise-schemes-export/:metric/:days", async (req, res
 // Get Scheme LPCD region comparison (all regions with current day data)
 router.get("/scheme-lpcd/region-comparison", async (req, res) => {
   try {
-    const { fullyCompleted, filterType } = req.query;
+    const { fullyCompleted, filterType, agencyType } = req.query;
     console.log("Fetching Scheme LPCD region comparison data", { fullyCompleted, filterType });
 
     // Get filtered scheme IDs if filter is enabled
     let schemeIdFilter = "";
     const db = await getDB();
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
     if (filteredIds) {
       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
@@ -7095,14 +7102,14 @@ router.get("/scheme-lpcd/region-comparison", async (req, res) => {
 router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) => {
   try {
     const { category } = req.params;
-    const { region, fullyCompleted, dates, filterType } = req.query;
+    const { region, fullyCompleted, dates, filterType, agencyType } = req.query;
 
     console.log(`Fetching Scheme LPCD region comparison schemes for category: ${category}, region: ${region || 'all'}, filterType: ${filterType || fullyCompleted}, dates: ${dates}`);
 
     // Get filtered scheme IDs if filter is enabled
     let schemeIdFilter = "";
     const db = await getDB();
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
     if (filteredIds) {
       const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
@@ -7375,14 +7382,14 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
 router.get("/scheme-lpcd/region-comparison-schemes-export-current/:category", async (req, res) => {
   try {
     const { category } = req.params;
-    const { region, fullyCompleted, dates, filterType } = req.query;
+    const { region, fullyCompleted, dates, filterType, agencyType } = req.query;
 
     console.log(`Exporting Current Scheme LPCD comparison for category: ${category}, dates: ${dates} `);
 
     // Fetch filtered schemes
     let schemeIdFilter = '';
     const db = await getDB();
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
     if (filteredIds) {
       const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
@@ -7582,9 +7589,9 @@ router.get("/scheme-lpcd/region-comparison-schemes-export-current/:category", as
 router.get("/scheme-lpcd/region-comparison-schemes-export/:category/:day", async (req, res) => {
   try {
     const { category, day } = req.params;
-    const { region, dates, fullyCompleted, filterType } = req.query;
+    const { region, dates, fullyCompleted, filterType, agencyType } = req.query;
 
-    console.log(`Exporting Scheme LPCD region comparison schemes for category: ${category}, day: ${day}, dates: ${dates}, fullyCompleted: ${fullyCompleted}, filterType: ${filterType} `);
+    console.log(`Exporting Scheme LPCD region comparison schemes for category: ${category}, day: ${day}, dates: ${dates}, fullyCompleted: ${fullyCompleted}, filterType: ${filterType}, agencyType: ${agencyType} `);
 
     const pool = new pg.Pool({
       connectionString: process.env.DATABASE_URL,
@@ -7595,7 +7602,7 @@ router.get("/scheme-lpcd/region-comparison-schemes-export/:category/:day", async
       // Get filtered scheme IDs
       let schemeIdFilter = '';
       const db = await getDB();
-      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+      const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
       if (filteredIds) {
         const ids = filteredIds.map((id: string) => `'${id}'`).join(',');

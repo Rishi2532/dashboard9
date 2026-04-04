@@ -54,13 +54,22 @@ router.get("/latest", async (req, res) => {
   try {
     const regionParam = req.query.region as string | undefined;
     const sanitizedRegion = sanitizeRegion(regionParam);
+    const agencyType = req.query.agencyType as string | undefined;
 
-    console.log(`📥 Combined ESR latest data download request. Region: ${sanitizedRegion || 'all'}`);
+    console.log(`📥 Combined ESR latest data download request. Region: ${sanitizedRegion || 'all'}, AgencyType: ${agencyType || 'ALL'}`);
 
     const db = await storage.getDb();
 
     const regionFilter = sanitizedRegion
       ? sql`AND wc.region = ${sanitizedRegion}`
+      : sql``;
+
+    const agencyFilter = (agencyType && agencyType !== 'ALL' && agencyType !== 'all')
+      ? sql`AND EXISTS (
+          SELECT 1 FROM scheme_status ss 
+          WHERE ss.scheme_id = wc.scheme_id 
+          AND ss.agency_type = ${agencyType}
+        )`
       : sql``;
 
     const result = await db.execute(sql`
@@ -89,7 +98,7 @@ router.get("/latest", async (req, res) => {
         wc.scheme_id = pd.scheme_id AND 
         wc.village_name = pd.village_name AND 
         wc.esr_name = pd.esr_name
-      WHERE 1=1 ${regionFilter}
+      WHERE 1=1 ${regionFilter} ${agencyFilter}
       ORDER BY wc.region, wc.circle, wc.division, wc.sub_division, wc.block, wc.scheme_name, wc.village_name, wc.esr_name
     `);
 
@@ -172,6 +181,7 @@ router.get("/historical", async (req, res) => {
     const endDateParam = sanitizeDate(req.query.endDate as string);
     const regionParam = req.query.region as string | undefined;
     const sanitizedRegion = sanitizeRegion(regionParam);
+    const agencyType = req.query.agencyType as string | undefined;
 
     if (!startDateParam || !endDateParam) {
       return res.status(400).json({
@@ -179,12 +189,20 @@ router.get("/historical", async (req, res) => {
       });
     }
 
-    console.log(`📥 Combined ESR historical download request: ${startDateParam} to ${endDateParam}, region: ${sanitizedRegion || 'all'}`);
+    console.log(`📥 Combined ESR historical download request: ${startDateParam} to ${endDateParam}, region: ${sanitizedRegion || 'all'}, AgencyType: ${agencyType || 'ALL'}`);
 
     const db = await storage.getDb();
 
     const regionFilter = sanitizedRegion
       ? sql`AND region = ${sanitizedRegion}`
+      : sql``;
+
+    const agencyFilter = (agencyType && agencyType !== 'ALL' && agencyType !== 'all')
+      ? sql`AND EXISTS (
+          SELECT 1 FROM scheme_status ss 
+          WHERE ss.scheme_id = scheme_id 
+          AND ss.agency_type = ${agencyType}
+        )`
       : sql``;
 
     console.log('🔍 Executing historical queries...');
@@ -498,6 +516,7 @@ router.get("/count", async (req, res) => {
     const endDateParam = sanitizeDate(req.query.endDate as string);
     const regionParam = req.query.region as string | undefined;
     const sanitizedRegion = sanitizeRegion(regionParam);
+    const agencyType = req.query.agencyType as string | undefined;
 
     const db = await storage.getDb();
 
@@ -506,8 +525,16 @@ router.get("/count", async (req, res) => {
         ? sql`AND region = ${sanitizedRegion}`
         : sql``;
 
+      const agencyFilter = (agencyType && agencyType !== 'ALL' && agencyType !== 'all')
+        ? sql`AND EXISTS (
+            SELECT 1 FROM scheme_status ss 
+            WHERE ss.scheme_id = water_consumption.scheme_id 
+            AND ss.agency_type = ${agencyType}
+          )`
+        : sql``;
+
       const result = await db.execute(sql`
-        SELECT COUNT(*) as total FROM water_consumption WHERE 1=1 ${regionFilter}
+        SELECT COUNT(*) as total FROM water_consumption WHERE 1=1 ${regionFilter} ${agencyFilter}
       `);
       return res.json({ count: parseInt(result.rows[0].total as string) });
     }
@@ -519,6 +546,14 @@ router.get("/count", async (req, res) => {
 
       const regionFilter = sanitizedRegion
         ? sql`AND region = ${sanitizedRegion}`
+        : sql``;
+
+      const agencyFilter = (agencyType && agencyType !== 'ALL' && agencyType !== 'all')
+        ? sql`AND EXISTS (
+            SELECT 1 FROM scheme_status ss 
+            WHERE ss.scheme_id = scheme_id 
+            AND ss.agency_type = ${agencyType}
+          )`
         : sql``;
 
       const result = await db.execute(sql`
@@ -553,6 +588,7 @@ router.get("/count", async (req, res) => {
             ) BETWEEN TO_DATE(${startDateParam}, 'YYYY-MM-DD') 
             AND TO_DATE(${endDateParam}, 'YYYY-MM-DD')
             ${regionFilter}
+            ${agencyFilter}
           UNION
           SELECT scheme_id, village_name, esr_name FROM chlorine_history 
           WHERE chlorine_value IS NOT NULL
@@ -583,6 +619,7 @@ router.get("/count", async (req, res) => {
             ) BETWEEN TO_DATE(${startDateParam}, 'YYYY-MM-DD') 
             AND TO_DATE(${endDateParam}, 'YYYY-MM-DD')
             ${regionFilter}
+            ${agencyFilter}
           UNION
           SELECT scheme_id, village_name, esr_name FROM pressure_history 
           WHERE pressure_value IS NOT NULL
@@ -613,6 +650,7 @@ router.get("/count", async (req, res) => {
             ) BETWEEN TO_DATE(${startDateParam}, 'YYYY-MM-DD') 
             AND TO_DATE(${endDateParam}, 'YYYY-MM-DD')
             ${regionFilter}
+            ${agencyFilter}
         ) combined
       `);
 

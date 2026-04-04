@@ -71,6 +71,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import DashboardLayout from "@/components/dashboard/dashboard-layout";
 import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
+import AgencyTypeFilter from "@/components/dashboard/AgencyTypeFilter";
 
 // Define interface for water consumption data
 interface WaterConsumptionRecord {
@@ -110,6 +111,7 @@ interface WaterConsumptionRecord {
   mjp_fully_completed?: string;
   fully_completion_scheme_status?: string;
   water_supply?: string;
+  agency_type?: string;
 }
 
 // Define interface for region data
@@ -157,6 +159,7 @@ const WaterConsumptionPage: React.FC = () => {
   const [selectedDivision, setSelectedDivision] = useState<string>("all");
   const [selectedSubdivision, setSelectedSubdivision] = useState<string>("all");
   const [selectedBlock, setSelectedBlock] = useState<string>("all");
+  const [selectedAgencyType, setSelectedAgencyType] = useState<string>("ALL");
   const [currentFilter, setCurrentFilter] =
     useState<WaterConsumptionFilterType>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -245,6 +248,7 @@ const WaterConsumptionPage: React.FC = () => {
       selectedDivision,
       selectedSubdivision,
       selectedBlock,
+      selectedAgencyType,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -262,6 +266,9 @@ const WaterConsumptionPage: React.FC = () => {
       }
       if (selectedBlock && selectedBlock !== "all") {
         params.append("block", selectedBlock);
+      }
+      if (selectedAgencyType && selectedAgencyType !== "ALL") {
+        params.append("agencyType", selectedAgencyType);
       }
 
       const queryString = params.toString();
@@ -282,6 +289,7 @@ const WaterConsumptionPage: React.FC = () => {
       selectedCircle,
       selectedDivision,
       selectedSubdivision,
+      selectedAgencyType,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -316,12 +324,15 @@ const WaterConsumptionPage: React.FC = () => {
   // Fetch scheme status data for filtering (like other dashboards)
   const { data: schemeStatusData = [], isLoading: isLoadingSchemeStatus } =
     useQuery<any[]>({
-      queryKey: ["/api/schemes", selectedRegion],
+      queryKey: ["/api/schemes", selectedRegion, selectedAgencyType],
       queryFn: async () => {
         const params = new URLSearchParams();
 
         if (selectedRegion && selectedRegion !== "all") {
           params.append("region", selectedRegion);
+        }
+        if (selectedAgencyType && selectedAgencyType !== "ALL") {
+          params.append("agencyType", selectedAgencyType);
         }
 
         const queryString = params.toString();
@@ -1073,6 +1084,7 @@ const WaterConsumptionPage: React.FC = () => {
           Division: record.division || "",
           "Sub Division": record.sub_division || "",
           Block: record.block || "",
+          "Agency Type": record.agency_type || "NA",
           "Scheme ID": record.scheme_id || "",
           "Scheme Name": record.scheme_name || "",
           "Village Name": record.village_name || "",
@@ -1763,6 +1775,20 @@ const WaterConsumptionPage: React.FC = () => {
                   onBlockChange={handleBlockChange}
                   filters={filterOptions}
                   className="mb-0"
+                />
+              </div>
+
+              {/* Agency Type Filter Row */}
+              <div className="mb-4 w-full max-w-xs">
+                <label className="block text-sm font-medium text-blue-700 mb-1">
+                  Agency Type
+                </label>
+                <AgencyTypeFilter
+                  selectedAgencyType={selectedAgencyType}
+                  onAgencyTypeChange={(value) => {
+                    setSelectedAgencyType(value);
+                    setPage(1);
+                  }}
                 />
               </div>
 

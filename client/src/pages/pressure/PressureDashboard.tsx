@@ -45,6 +45,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { TranslatedText } from "@/components/ui/translated-text";
 import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
+import AgencyTypeFilter from "@/components/dashboard/AgencyTypeFilter";
 import {
   Search,
   AlertTriangle,
@@ -96,6 +97,7 @@ interface PressureData {
   pressure_date_day_6?: string | null;
   pressure_value_7?: number | null;
   pressure_date_day_7?: string | null;
+  agency_type?: string;
   // Additional analysis fields
   number_of_consistent_zero_value_in_pressure?: number | null;
   pressure_less_than_02_bar?: number | null;
@@ -430,6 +432,7 @@ const PressureDashboard: React.FC = () => {
   const [fullyCompletedFilter, setFullyCompletedFilter] =
     useState<string>("all");
   const [schemeStatusFilter, setSchemeStatusFilter] = useState<string>("all");
+  const [selectedAgencyType, setSelectedAgencyType] = useState<string>("ALL");
 
   // Card-specific filter state (only affects table data, not card counts)
   const [selectedCardFilter, setSelectedCardFilter] =
@@ -513,6 +516,7 @@ const PressureDashboard: React.FC = () => {
       selectedCircle,
       selectedDivision,
       selectedSubdivision,
+      selectedAgencyType,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -521,6 +525,9 @@ const PressureDashboard: React.FC = () => {
       if (selectedDivision !== "all") params.append("division", selectedDivision);
       if (selectedSubdivision !== "all")
         params.append("subdivision", selectedSubdivision);
+      if (selectedAgencyType !== 'ALL') {
+        params.append("agencyType", selectedAgencyType);
+      }
 
       const response = await fetch(`/api/pressure/filters?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to fetch filter options");
@@ -535,7 +542,7 @@ const PressureDashboard: React.FC = () => {
     error: pressureError,
     refetch,
   } = useQuery<PressureData[]>({
-    queryKey: ["/api/pressure", selectedRegion, selectedCircle, selectedDivision, selectedSubdivision, selectedBlock, fullyCompletedFilter, schemeStatusFilter],
+    queryKey: ["/api/pressure", selectedRegion, selectedCircle, selectedDivision, selectedSubdivision, selectedBlock, fullyCompletedFilter, schemeStatusFilter, selectedAgencyType],
     queryFn: async () => {
       const params = new URLSearchParams();
 
@@ -571,31 +578,26 @@ const PressureDashboard: React.FC = () => {
         params.append("filterType", backendFilter);
       }
 
-      // Note: we're not applying currentFilter here anymore
-      // This ensures we get all data for the selected region
-      // and will filter in the UI instead
+      if (selectedAgencyType !== 'ALL') {
+        params.append("agencyType", selectedAgencyType);
+      }
 
       const queryString = params.toString();
       const url = `/api/pressure${queryString ? `?${queryString}` : ""}`;
 
-      console.log("Fetching pressure data with URL:", url);
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error("Failed to fetch pressure data");
       }
 
-      const data = await response.json();
-      console.log(
-        `Received ${data.length} pressure records for filters:`, { selectedRegion, selectedCircle, selectedDivision, selectedSubdivision, selectedBlock },
-      );
-      return data;
+      return response.json();
     },
   });
 
   // Fetch dashboard stats
   const { data: dashboardStats, isLoading: isLoadingStats } =
     useQuery<PressureDashboardStats>({
-      queryKey: ["/api/pressure/dashboard-stats", selectedRegion, fullyCompletedFilter, schemeStatusFilter],
+      queryKey: ["/api/pressure/dashboard-stats", selectedRegion, fullyCompletedFilter, schemeStatusFilter, selectedAgencyType],
       queryFn: async () => {
         const params = new URLSearchParams();
 
@@ -619,9 +621,12 @@ const PressureDashboard: React.FC = () => {
           params.append("filterType", backendFilter);
         }
 
+        if (selectedAgencyType !== 'ALL') {
+          params.append("agencyType", selectedAgencyType);
+        }
+
         const queryString = params.toString();
-        const url = `/api/pressure/dashboard-stats${queryString ? `?${queryString}` : ""
-          }`;
+        const url = `/api/pressure/dashboard-stats${queryString ? `?${queryString}` : ""}`;
 
         const response = await fetch(url);
         if (!response.ok) {
@@ -666,7 +671,7 @@ const PressureDashboard: React.FC = () => {
       pressure_connected: string | null;
     }>;
   }>({
-    queryKey: ["/api/pressure/no-water-sensors", selectedRegion, fullyCompletedFilter, schemeStatusFilter],
+    queryKey: ["/api/pressure/no-water-sensors", selectedRegion, fullyCompletedFilter, schemeStatusFilter, selectedAgencyType],
     queryFn: async () => {
       const params = new URLSearchParams();
 
@@ -690,9 +695,12 @@ const PressureDashboard: React.FC = () => {
         params.append("filterType", backendFilter);
       }
 
+      if (selectedAgencyType !== 'ALL') {
+        params.append("agencyType", selectedAgencyType);
+      }
+
       const queryString = params.toString();
-      const url = `/api/pressure/no-water-sensors${queryString ? `?${queryString}` : ""
-        }`;
+      const url = `/api/pressure/no-water-sensors${queryString ? `?${queryString}` : ""}`;
 
       const response = await fetch(url);
       if (!response.ok) {
@@ -700,7 +708,6 @@ const PressureDashboard: React.FC = () => {
       }
 
       const result = await response.json();
-      console.log(`Received pressure no water sensors data:`, result);
       return result.data;
     },
   });
@@ -723,7 +730,7 @@ const PressureDashboard: React.FC = () => {
       pressure_connected: string | null;
     }>;
   }>({
-    queryKey: ["/api/pressure/with-water-sensors", selectedRegion, fullyCompletedFilter, schemeStatusFilter],
+    queryKey: ["/api/pressure/with-water-sensors", selectedRegion, fullyCompletedFilter, schemeStatusFilter, selectedAgencyType],
     queryFn: async () => {
       const params = new URLSearchParams();
 
@@ -747,9 +754,12 @@ const PressureDashboard: React.FC = () => {
         params.append("filterType", backendFilter);
       }
 
+      if (selectedAgencyType !== 'ALL') {
+        params.append("agencyType", selectedAgencyType);
+      }
+
       const queryString = params.toString();
-      const url = `/api/pressure/with-water-sensors${queryString ? `?${queryString}` : ""
-        }`;
+      const url = `/api/pressure/with-water-sensors${queryString ? `?${queryString}` : ""}`;
 
       const response = await fetch(url);
       if (!response.ok) {
@@ -757,7 +767,6 @@ const PressureDashboard: React.FC = () => {
       }
 
       const result = await response.json();
-      console.log(`Received pressure with water sensors data:`, result);
       return result.data;
     },
   });
@@ -765,26 +774,26 @@ const PressureDashboard: React.FC = () => {
   // Fetch scheme status data for filtering
   const { data: schemeStatusData = [], isLoading: isLoadingSchemeStatus } =
     useQuery<any[]>({
-      queryKey: ["/api/schemes", selectedRegion],
+      queryKey: ["/api/schemes", selectedRegion, selectedAgencyType],
       queryFn: async () => {
         const params = new URLSearchParams();
 
         if (selectedRegion && selectedRegion !== "all") {
           params.append("region", selectedRegion);
         }
+        if (selectedAgencyType !== 'ALL') {
+          params.append("agencyType", selectedAgencyType);
+        }
 
         const queryString = params.toString();
         const url = `/api/schemes${queryString ? `?${queryString}` : ""}`;
 
-        console.log("Fetching scheme status data with URL:", url);
         const response = await fetch(url);
         if (!response.ok) {
           throw new Error("Failed to fetch scheme status data");
         }
 
-        const data = await response.json();
-        console.log(`Received ${data.length} scheme status records`);
-        return data;
+        return response.json();
       },
     });
 
@@ -800,6 +809,7 @@ const PressureDashboard: React.FC = () => {
       historicalStartDate,
       historicalEndDate,
       selectedRegion,
+      selectedAgencyType,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -808,6 +818,9 @@ const PressureDashboard: React.FC = () => {
 
       if (selectedRegion && selectedRegion !== "all") {
         params.append("region", selectedRegion);
+      }
+      if (selectedAgencyType !== 'ALL') {
+        params.append("agencyType", selectedAgencyType);
       }
 
       const queryString = params.toString();
@@ -1925,6 +1938,7 @@ const PressureDashboard: React.FC = () => {
         "Division",
         "Sub Division",
         "Block",
+        "Agency Type",
         "Village Name",
         "ESR Name",
         "Water Supply",
@@ -1966,6 +1980,7 @@ const PressureDashboard: React.FC = () => {
             item.division || "N/A",
             item.sub_division || "N/A",
             item.block || "N/A",
+            item.agency_type || "N/A",
             item.village_name || "N/A",
             item.esr_name || "N/A",
             (schemeStatusMap.get(item.scheme_id)?.water_supply) || "No",
@@ -2026,6 +2041,13 @@ const PressureDashboard: React.FC = () => {
       toast({
         title: "Export Successful",
         description: `${data.length} pressure records exported successfully!`,
+      });
+
+      // Track export event
+      trackDataExport("pressure_monitoring", filename, data.length, {
+        region: selectedRegion,
+        agencyType: selectedAgencyType,
+        cardFilter: selectedCardFilter
       });
     } catch (error) {
       console.error("Export error:", error);
@@ -2152,6 +2174,21 @@ const PressureDashboard: React.FC = () => {
               onDivisionChange={handleDivisionChange}
               onSubdivisionChange={handleSubdivisionChange}
               onBlockChange={handleBlockChange}
+            />
+          </div>
+
+          {/* Agency Type Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Agency Type
+            </label>
+            <AgencyTypeFilter
+              selectedAgencyType={selectedAgencyType}
+              onAgencyTypeChange={(value) => {
+                setSelectedAgencyType(value);
+                setPage(1);
+                trackFilterUsage("agency_type_filter", value, undefined, "pressure_dashboard");
+              }}
             />
           </div>
 

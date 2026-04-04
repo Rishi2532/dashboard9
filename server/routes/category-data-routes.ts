@@ -14,7 +14,7 @@ const convertWaterValueToLL = (value: number | null | undefined): number | null 
 
 // Utility function to convert all water values in a record from MLD to LL
 const convertRecordWaterValuesToLL = <T extends Record<string, any>>(record: T): T => {
-  const converted = { ...record };
+  const converted = { ...record } as Record<string, any>;
   const waterFields = ['water_value_day1', 'water_value_day2', 'water_value_day3', 'water_value_day4', 'water_value_day5', 'water_value_day6', 'water_value_day7'];
   
   waterFields.forEach(field => {
@@ -23,8 +23,35 @@ const convertRecordWaterValuesToLL = <T extends Record<string, any>>(record: T):
     }
   });
   
-  return converted;
+  return converted as T;
 };
+
+// Function to get filtered scheme IDs based on filterType, fullyCompleted, and agencyType
+async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: any, agencyType?: string) {
+  const activeFilter = filterType || (fullyCompleted === "true" ? "fully_completed" : undefined);
+  
+  const conditions: any[] = [];
+  if (activeFilter === 'commissioned') {
+    conditions.push(sql`LOWER(${schemeStatuses.water_supply}) = 'yes'`);
+  } else if (activeFilter === 'fully_completed') {
+    conditions.push(sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('completed', 'fully-completed', 'fully completed', 'functionally completed')`);
+  } else if (activeFilter === 'partial' || activeFilter === 'in_progress') {
+    conditions.push(sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('in progress', 'partial', 'ongoing')`);
+  }
+
+  if (agencyType && agencyType !== 'ALL' && agencyType !== 'all') {
+    conditions.push(eq(schemeStatuses.agency_type, agencyType));
+  }
+
+  if (conditions.length > 0) {
+    const rows = await db.select({ scheme_id: schemeStatuses.scheme_id })
+      .from(schemeStatuses)
+      .where(and(...conditions));
+    const ids = rows.map((r: any) => r.scheme_id);
+    return ids.length > 0 ? ids : ['NO_MATCHES'];
+  }
+  return null;
+}
 
 // Helper function to get villages with water for a specific region or all regions
 const getVillagesWithWater = async (region?: string, schemeId?: string) => {
@@ -2311,7 +2338,7 @@ router.get("/esr-capacity", async (req, res) => {
 // Note: This route must be defined BEFORE the generic /:category handler to avoid route conflicts
 router.get("/division-wise-summary", async (req, res) => {
   try {
-    const { region, fullyCompleted, filterType } = req.query;
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
     const db = await getDB();
 
     // Build WHERE conditions based on region filter
@@ -2320,31 +2347,13 @@ router.get("/division-wise-summary", async (req, res) => {
       whereConditions.push(ilike(waterSchemeData.region, region as string));
     }
 
-    // Get filtered scheme IDs based on filterType or fullyCompleted
-    const activeFilter = filterType || (fullyCompleted === "true" ? "fully_completed" : undefined);
-    
-    if (activeFilter && activeFilter !== 'all') {
-      let condition;
-      if (activeFilter === 'commissioned') {
-        condition = sql`LOWER(${schemeStatuses.water_supply}) = 'yes'`;
-      } else if (activeFilter === 'fully_completed') {
-        condition = sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('completed', 'fully-completed', 'fully completed', 'functionally completed')`;
-      } else if (activeFilter === 'partial' || activeFilter === 'in_progress') {
-        condition = sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('in progress', 'partial', 'ongoing')`;
-      }
-
-      if (condition) {
-        const rows = await db.select({ scheme_id: schemeStatuses.scheme_id })
-          .from(schemeStatuses)
-          .where(condition);
-        const ids = rows.map((r: any) => r.scheme_id);
-        
-        if (ids.length > 0) {
-          whereConditions.push(inArray(waterSchemeData.scheme_id, ids));
-        } else {
-          // No schemes match the filter - return empty results
-          whereConditions.push(sql`1=0`);
-        }
+    // Get filtered scheme IDs
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
+    if (filteredIds) {
+      if (filteredIds[0] === 'NO_MATCHES') {
+        whereConditions.push(sql`1=0`);
+      } else {
+        whereConditions.push(inArray(waterSchemeData.scheme_id, filteredIds));
       }
     }
 
@@ -2455,7 +2464,7 @@ router.get("/division-wise-summary", async (req, res) => {
 // Note: This route must be defined BEFORE the generic /:category handler to avoid route conflicts
 router.get("/division-villages", async (req, res) => {
   try {
-    const { region, division, metric, fullyCompleted, filterType } = req.query;
+    const { region, division, metric, fullyCompleted, filterType, agencyType } = req.query;
     
     if (!division) {
       return res.status(400).json({
@@ -2475,31 +2484,13 @@ router.get("/division-villages", async (req, res) => {
       whereConditions.push(ilike(waterSchemeData.region, region as string));
     }
 
-    // Get filtered scheme IDs based on filterType or fullyCompleted
-    const activeFilter = filterType || (fullyCompleted === "true" ? "fully_completed" : undefined);
-    
-    if (activeFilter && activeFilter !== 'all') {
-      let condition;
-      if (activeFilter === 'commissioned') {
-        condition = sql`LOWER(${schemeStatuses.water_supply}) = 'yes'`;
-      } else if (activeFilter === 'fully_completed') {
-        condition = sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('completed', 'fully-completed', 'fully completed', 'functionally completed')`;
-      } else if (activeFilter === 'partial' || activeFilter === 'in_progress') {
-        condition = sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('in progress', 'partial', 'ongoing')`;
-      }
-
-      if (condition) {
-        const rows = await db.select({ scheme_id: schemeStatuses.scheme_id })
-          .from(schemeStatuses)
-          .where(condition);
-        const ids = rows.map((r: any) => r.scheme_id);
-        
-        if (ids.length > 0) {
-          whereConditions.push(inArray(waterSchemeData.scheme_id, ids));
-        } else {
-          // No schemes match the filter - return empty results
-          whereConditions.push(sql`1=0`);
-        }
+    // Get filtered scheme IDs
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
+    if (filteredIds) {
+      if (filteredIds[0] === 'NO_MATCHES') {
+        whereConditions.push(sql`1=0`);
+      } else {
+        whereConditions.push(inArray(waterSchemeData.scheme_id, filteredIds));
       }
     }
 
@@ -2583,7 +2574,7 @@ router.get("/division-villages", async (req, res) => {
 // Export division villages to Excel
 router.get("/division-villages/export", async (req, res) => {
   try {
-    const { region, division, metric, fullyCompleted, filterType } = req.query;
+    const { region, division, metric, fullyCompleted, filterType, agencyType } = req.query;
 
     if (!division) {
       return res.status(400).json({
@@ -2603,31 +2594,13 @@ router.get("/division-villages/export", async (req, res) => {
       whereConditions.push(ilike(waterSchemeData.region, region as string));
     }
 
-    // Get filtered scheme IDs based on filterType or fullyCompleted
-    const activeFilter = filterType || (fullyCompleted === "true" ? "fully_completed" : undefined);
-    
-    if (activeFilter && activeFilter !== 'all') {
-      let condition;
-      if (activeFilter === 'commissioned') {
-        condition = sql`LOWER(${schemeStatuses.water_supply}) = 'yes'`;
-      } else if (activeFilter === 'fully_completed') {
-        condition = sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('completed', 'fully-completed', 'fully completed', 'functionally completed')`;
-      } else if (activeFilter === 'partial' || activeFilter === 'in_progress') {
-        condition = sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('in progress', 'partial', 'ongoing')`;
-      }
-
-      if (condition) {
-        const rows = await db.select({ scheme_id: schemeStatuses.scheme_id })
-          .from(schemeStatuses)
-          .where(condition);
-        const ids = rows.map((r: any) => r.scheme_id);
-        
-        if (ids.length > 0) {
-          whereConditions.push(inArray(waterSchemeData.scheme_id, ids));
-        } else {
-          // No schemes match the filter - return empty results
-          whereConditions.push(sql`1=0`);
-        }
+    // Get filtered scheme IDs
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
+    if (filteredIds) {
+      if (filteredIds[0] === 'NO_MATCHES') {
+        whereConditions.push(sql`1=0`);
+      } else {
+        whereConditions.push(inArray(waterSchemeData.scheme_id, filteredIds));
       }
     }
 
@@ -2792,7 +2765,7 @@ router.get("/division-villages/export", async (req, res) => {
 // Export division-wise summary to Excel
 router.get("/division-wise-summary/export", async (req, res) => {
   try {
-    const { region } = req.query;
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
 
     console.log(
       `Division-wise summary export request for region: ${region || "All Regions"}`,
@@ -2807,25 +2780,13 @@ router.get("/division-wise-summary/export", async (req, res) => {
       whereConditions.push(ilike(waterSchemeData.region, region as string));
     }
 
-    // Get fully completed scheme IDs if filter is enabled
-    const { fullyCompleted } = req.query;
-    if (fullyCompleted === "true") {
-      const fullyCompletedSchemeIds = (await db
-        .select({ scheme_id: schemeStatuses.scheme_id })
-        .from(schemeStatuses)
-        .where(
-          sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN (
-            LOWER('Completed'), 
-            LOWER('Fully-Completed'), 
-            LOWER('Fully Completed'), 
-            LOWER('fully completed')
-          )`
-        )).map(r => r.scheme_id);
-      
-      if (fullyCompletedSchemeIds.length > 0) {
-        whereConditions.push(inArray(waterSchemeData.scheme_id, fullyCompletedSchemeIds));
-      } else {
+    // Get filtered scheme IDs
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
+    if (filteredIds) {
+      if (filteredIds[0] === 'NO_MATCHES') {
         whereConditions.push(sql`1=0`);
+      } else {
+        whereConditions.push(inArray(waterSchemeData.scheme_id, filteredIds));
       }
     }
 

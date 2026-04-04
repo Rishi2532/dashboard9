@@ -332,7 +332,7 @@ async function initializeDatabase() {
     const usersResult = await pool.query(`SELECT COUNT(*) FROM "users"`);
     const usersCount = parseInt(usersResult.rows[0].count, 10);
     
-    if (usersCount === -0) {
+    if (usersCount === 0) {
       console.log('🔄 Creating default admin user...');
       await pool.query(`
         INSERT INTO "users" ("username", "password", "name", "role") 

@@ -91,6 +91,7 @@ export interface WaterSchemeDataFilter {
   minLpcd?: number;
   maxLpcd?: number;
   zeroSupplyForWeek?: boolean;
+  agencyType?: string;
 }
 
 // Filter type for chlorine data queries
@@ -102,6 +103,7 @@ export interface ChlorineDataFilter {
   block?: string;
   minChlorine?: number;
   maxChlorine?: number;
+  agencyType?: string;
   chlorineRange?:
   | "below_0.2"
   | "between_0.2_0.5"
@@ -130,6 +132,7 @@ export interface PressureDataFilter {
   block?: string;
   minPressure?: number;
   maxPressure?: number;
+  agencyType?: string;
   pressureRange?:
   | "below_0.2"
   | "between_0.2_0.7"
@@ -211,6 +214,7 @@ export interface IStorage {
     division?: string,
     subDivision?: string,
     block?: string,
+    agencyType?: string,
   ): Promise<SchemeStatus[]>;
   getSchemesByRegion(
     regionName: string,
@@ -220,6 +224,26 @@ export interface IStorage {
     division?: string,
     subDivision?: string,
     block?: string,
+    agencyType?: string,
+  ): Promise<SchemeStatus[]>;
+  getConsolidatedSchemes(
+    statusFilter?: string,
+    schemeId?: string,
+    circle?: string,
+    division?: string,
+    subDivision?: string,
+    block?: string,
+    agencyType?: string,
+  ): Promise<SchemeStatus[]>;
+  getConsolidatedSchemesByRegion(
+    regionName: string,
+    statusFilter?: string,
+    schemeId?: string,
+    circle?: string,
+    division?: string,
+    subDivision?: string,
+    block?: string,
+    agencyType?: string,
   ): Promise<SchemeStatus[]>;
   getSchemeById(schemeId: string): Promise<SchemeStatus | undefined>;
   getSchemeByIdAndBlock(
@@ -501,7 +525,7 @@ export interface IStorage {
     consistentAboveRangeSensors: number;
     noWaterSensors: number;
   }>;
-  getPressureSensorsWithNoWater(regionName?: string): Promise<{
+  getPressureSensorsWithNoWater(regionName?: string, agencyType?: string): Promise<{
     totalNoWaterSensors: number;
     noWaterSensors: Array<{
       region: string;
@@ -518,7 +542,7 @@ export interface IStorage {
       flow_meter_connected: string | null;
     }>;
   }>;
-  getPressureSensorsWithWater(regionName?: string): Promise<{
+  getPressureSensorsWithWater(regionName?: string, agencyType?: string): Promise<{
     totalWithWaterSensors: number;
     withWaterSensors: Array<{
       region: string;
@@ -1568,6 +1592,16 @@ export class PostgresStorage implements IStorage {
 
         if (filter.block && filter.block !== "all") {
           query = query.where(eq(chlorineData.block, filter.block));
+        }
+
+        if (filter.agencyType && filter.agencyType !== "ALL") {
+          query = query.where(
+            sql`EXISTS (
+              SELECT 1 FROM ${schemeStatuses} 
+              WHERE ${schemeStatuses.scheme_id} = ${chlorineData.scheme_id} 
+              AND ${schemeStatuses.agency_type} = ${filter.agencyType}
+            )`
+          );
         }
 
         if (filter.chlorineRange) {
@@ -3249,7 +3283,7 @@ export class PostgresStorage implements IStorage {
     if (filter.division && filter.division !== 'all') {
       blocksQuery.where(eq(communicationStatus.division, filter.division));
     }
-    const subDivision = filter.subDivision || filter.subdivision;
+    const subDivision = filter.subDivision;
     if (subDivision && subDivision !== 'all') {
       blocksQuery.where(eq(communicationStatus.sub_division, subDivision));
     }
@@ -4972,7 +5006,7 @@ export class PostgresStorage implements IStorage {
   }
 
   // Get sensors with no water by cross-referencing pressure data with water consumption
-  async getPressureSensorsWithNoWater(regionName?: string): Promise<{
+  async getPressureSensorsWithNoWater(regionName?: string, agencyType?: string): Promise<{
     totalNoWaterSensors: number;
     noWaterSensors: Array<{
       region: string;
@@ -4996,10 +5030,21 @@ export class PostgresStorage implements IStorage {
       console.log("Finding pressure sensors with no water...");
 
       // Base SQL query to match pressure sensors with water consumption data
-      const baseConditions =
-        regionName && regionName !== "all"
-          ? sql`cs.region = ${regionName}`
-          : sql`1 = 1`;
+      const baseConditions = [];
+      if (regionName && regionName !== "all") {
+        baseConditions.push(sql`cs.region = ${regionName}`);
+      }
+      if (agencyType && agencyType !== "ALL") {
+        baseConditions.push(
+          sql`EXISTS (
+            SELECT 1 FROM ${schemeStatuses} 
+            WHERE ${schemeStatuses.scheme_id} = cs.scheme_id 
+            AND ${schemeStatuses.agency_type} = ${agencyType}
+          )`
+        );
+      }
+
+      const whereClause = baseConditions.length > 0 ? sql`WHERE ${and(...baseConditions)}` : sql`WHERE 1=1`;
 
       const query = sql`
         SELECT 
@@ -5027,7 +5072,7 @@ export class PostgresStorage implements IStorage {
           cs.village_name = wc.village_name AND
           cs.esr_name = wc.esr_name
         )
-        WHERE ${baseConditions}
+        ${whereClause}
           AND cs.pressure_connected = 'Connected'
           AND cs.pressure_status = 'Online'
           AND (
@@ -5076,7 +5121,7 @@ export class PostgresStorage implements IStorage {
     }
   }
 
-  async getPressureSensorsWithWater(regionName?: string): Promise<{
+  async getPressureSensorsWithWater(regionName?: string, agencyType?: string): Promise<{
     totalWithWaterSensors: number;
     withWaterSensors: Array<{
       region: string;
@@ -5100,10 +5145,21 @@ export class PostgresStorage implements IStorage {
       console.log("Finding pressure sensors with water...");
 
       // Base SQL query to match pressure sensors with water consumption data
-      const baseConditions =
-        regionName && regionName !== "all"
-          ? sql`cs.region = ${regionName}`
-          : sql`1 = 1`;
+      const baseConditions = [];
+      if (regionName && regionName !== "all") {
+        baseConditions.push(sql`cs.region = ${regionName}`);
+      }
+      if (agencyType && agencyType !== "ALL") {
+        baseConditions.push(
+          sql`EXISTS (
+            SELECT 1 FROM ${schemeStatuses} 
+            WHERE ${schemeStatuses.scheme_id} = cs.scheme_id 
+            AND ${schemeStatuses.agency_type} = ${agencyType}
+          )`
+        );
+      }
+
+      const whereClause = baseConditions.length > 0 ? sql`WHERE ${and(...baseConditions)}` : sql`WHERE 1=1`;
 
       const query = sql`
         SELECT 
@@ -5131,7 +5187,7 @@ export class PostgresStorage implements IStorage {
           cs.village_name = wc.village_name AND
           cs.esr_name = wc.esr_name
         )
-        WHERE ${baseConditions}
+        ${whereClause}
           AND cs.pressure_connected = 'Connected'
           AND cs.pressure_status = 'Online'
           AND wc.water_value_day7 IS NOT NULL 
@@ -5677,13 +5733,23 @@ export class PostgresStorage implements IStorage {
           conditions.push(eq(communicationStatus.division, filter.division));
         }
 
-        const subDivision = filter.subDivision || filter.subdivision;
+        const subDivision = filter.subDivision;
         if (subDivision && subDivision !== "all") {
           conditions.push(eq(communicationStatus.sub_division, subDivision));
         }
 
         if (filter.block && filter.block !== "all") {
           conditions.push(eq(communicationStatus.block, filter.block));
+        }
+
+        if (filter.agencyType && filter.agencyType !== "ALL") {
+          conditions.push(
+            sql`EXISTS (
+              SELECT 1 FROM ${schemeStatuses} 
+              WHERE ${schemeStatuses.scheme_id} = ${communicationStatus.scheme_id} 
+              AND ${schemeStatuses.agency_type} = ${filter.agencyType}
+            )`
+          );
         }
 
         if (filter.pressureRange) {
@@ -6022,6 +6088,16 @@ export class PostgresStorage implements IStorage {
           conditions.push(inArray(pressureData.scheme_id, schemeIds));
         }
 
+        if (filter?.agencyType && filter.agencyType !== "ALL") {
+          conditions.push(
+            sql`EXISTS (
+              SELECT 1 FROM ${schemeStatuses} 
+              WHERE ${schemeStatuses.scheme_id} = ${pressureData.scheme_id} 
+              AND ${schemeStatuses.agency_type} = ${filter.agencyType}
+            )`
+          );
+        }
+
         return conditions;
       };
 
@@ -6265,7 +6341,7 @@ export class PostgresStorage implements IStorage {
 
       // Get no water sensors count
       const noWaterResult =
-        await this.getPressureSensorsWithNoWater(regionName);
+        await this.getPressureSensorsWithNoWater(filter?.region, filter?.agencyType);
       const noWaterSensors = noWaterResult.totalNoWaterSensors;
       console.log("No water sensors:", noWaterSensors);
 
@@ -7597,196 +7673,7 @@ export class PostgresStorage implements IStorage {
     return { inserted, updated, removed: 0, errors };
   }
 
-  // Get all water consumption data
-  async getAllWaterConsumption(): Promise<WaterConsumption[]> {
-    try {
-      const db = await getDB();
-      const result = await db.select().from(waterConsumption);
-      return result;
-    } catch (error) {
-      console.error("Error fetching all water consumption data:", error);
-      throw error;
-    }
-  }
 
-  // Get all water consumption data with scheme status information
-  async getAllWaterConsumptionWithSchemeStatus(filter?: any): Promise<any[]> {
-    try {
-      const db = await getDB();
-
-      // Build filter conditions
-      const conditions: any[] = [];
-      if (filter?.region && filter.region !== "all") {
-        conditions.push(eq(waterConsumption.region, filter.region));
-      }
-      if (filter?.circle && filter.circle !== "all") {
-        conditions.push(eq(waterConsumption.circle, filter.circle));
-      }
-      if (filter?.division && filter.division !== "all") {
-        conditions.push(eq(waterConsumption.division, filter.division));
-      }
-      const subDivision = filter?.subDivision || filter?.subdivision;
-      if (subDivision && subDivision !== "all") {
-        conditions.push(eq(waterConsumption.sub_division, subDivision));
-      }
-      if (filter?.block && filter.block !== "all") {
-        conditions.push(eq(waterConsumption.block, filter.block));
-      }
-
-      // Use proper LEFT JOIN to get scheme status data
-      let query = db
-        .select({
-          // Water consumption fields
-          region: waterConsumption.region,
-          circle: waterConsumption.circle,
-          division: waterConsumption.division,
-          sub_division: waterConsumption.sub_division,
-          block: waterConsumption.block,
-          scheme_id: waterConsumption.scheme_id,
-          scheme_name: waterConsumption.scheme_name,
-          village_name: waterConsumption.village_name,
-          esr_name: waterConsumption.esr_name,
-          flow_rate_m3: waterConsumption.flow_rate_m3,
-          flow_meter_connected: waterConsumption.flow_meter_connected,
-          online_status: waterConsumption.online_status,
-          time_duration: waterConsumption.time_duration,
-          esr_capacity: waterConsumption.esr_capacity,
-          water_value_day1: waterConsumption.water_value_day1,
-          water_value_day2: waterConsumption.water_value_day2,
-          water_value_day3: waterConsumption.water_value_day3,
-          water_value_day4: waterConsumption.water_value_day4,
-          water_value_day5: waterConsumption.water_value_day5,
-          water_value_day6: waterConsumption.water_value_day6,
-          water_value_day7: waterConsumption.water_value_day7,
-          water_date_day1: waterConsumption.water_date_day1,
-          water_date_day2: waterConsumption.water_date_day2,
-          water_date_day3: waterConsumption.water_date_day3,
-          water_date_day4: waterConsumption.water_date_day4,
-          water_date_day5: waterConsumption.water_date_day5,
-          water_date_day6: waterConsumption.water_date_day6,
-          water_date_day7: waterConsumption.water_date_day7,
-          consistent_zero_consumption:
-            waterConsumption.consistent_zero_consumption,
-          percentage_consumption_previous_day:
-            waterConsumption.percentage_consumption_previous_day,
-          dashboard_url: waterConsumption.dashboard_url,
-          // Scheme status fields from the JOIN
-          mjp_commissioned: schemeStatuses.mjp_commissioned,
-          mjp_fully_completed: schemeStatuses.mjp_fully_completed,
-          fully_completion_scheme_status:
-            schemeStatuses.fully_completion_scheme_status,
-          water_supply: schemeStatuses.water_supply,
-        })
-        .from(waterConsumption)
-        .leftJoin(
-          schemeStatuses,
-          and(
-            eq(schemeStatuses.scheme_id, waterConsumption.scheme_id),
-            eq(schemeStatuses.block, waterConsumption.block),
-          ),
-        );
-
-      // Apply filters if any
-      if (conditions.length > 0) {
-        query = query.where(and(...conditions));
-      }
-
-      const result = await query;
-
-      return result;
-    } catch (error) {
-      console.error(
-        "Error fetching water consumption data with scheme status:",
-        error,
-      );
-      throw error;
-    }
-  }
-
-  // Get water consumption data by composite key
-  async getWaterConsumptionByCompositeKey(
-    schemeId: string,
-    villageName: string,
-    esrName: string,
-  ): Promise<WaterConsumption | null> {
-    try {
-      const db = await getDB();
-      const result = await db
-        .select()
-        .from(waterConsumption)
-        .where(
-          and(
-            eq(waterConsumption.scheme_id, schemeId),
-            eq(waterConsumption.village_name, villageName),
-            eq(waterConsumption.esr_name, esrName),
-          ),
-        )
-        .limit(1);
-
-      return result[0] || null;
-    } catch (error) {
-      console.error(
-        "Error fetching water consumption data by composite key:",
-        error,
-      );
-      throw error;
-    }
-  }
-
-  // Update water consumption data
-  async updateWaterConsumption(
-    schemeId: string,
-    villageName: string,
-    esrName: string,
-    data: UpdateWaterConsumption,
-  ): Promise<WaterConsumption> {
-    try {
-      const db = await getDB();
-      const result = await db
-        .update(waterConsumption)
-        .set(data)
-        .where(
-          and(
-            eq(waterConsumption.scheme_id, schemeId),
-            eq(waterConsumption.village_name, villageName),
-            eq(waterConsumption.esr_name, esrName),
-          ),
-        )
-        .returning();
-
-      if (result.length === 0) {
-        throw new Error("Water consumption data not found for update");
-      }
-
-      return result[0];
-    } catch (error) {
-      console.error("Error updating water consumption data:", error);
-      throw error;
-    }
-  }
-
-  // Delete water consumption data
-  async deleteWaterConsumption(
-    schemeId: string,
-    villageName: string,
-    esrName: string,
-  ): Promise<void> {
-    try {
-      const db = await getDB();
-      await db
-        .delete(waterConsumption)
-        .where(
-          and(
-            eq(waterConsumption.scheme_id, schemeId),
-            eq(waterConsumption.village_name, villageName),
-            eq(waterConsumption.esr_name, esrName),
-          ),
-        );
-    } catch (error) {
-      console.error("Error deleting water consumption data:", error);
-      throw error;
-    }
-  }
 
   // Get water consumption statistics
   async getWaterConsumptionStats(): Promise<{
@@ -8082,8 +7969,54 @@ export class PostgresStorage implements IStorage {
     division?: string,
     subdivision?: string,
     block?: string,
+    view: "ALL" | "INSTRUMENTED" = "ALL",
   ): Promise<any> {
     const db = await this.ensureInitialized();
+
+    if (view === "INSTRUMENTED") {
+      const regionConditions = [
+        eq(schemeStatuses.fully_completion_scheme_status, "Fully Completed"),
+      ];
+      if (regionName && regionName !== "all") {
+        regionConditions.push(eq(schemeStatuses.region, regionName));
+      }
+      if (circle) regionConditions.push(eq(schemeStatuses.circle, circle));
+      if (division) regionConditions.push(eq(schemeStatuses.division, division));
+      if (subdivision)
+        regionConditions.push(eq(schemeStatuses.sub_division, subdivision));
+      if (block) regionConditions.push(eq(schemeStatuses.block, block));
+
+      const query = db
+        .select({
+          total_schemes: sql<number>`count(distinct ${schemeStatuses.scheme_id})`,
+          schemes_in_operation: sql<number>`count(distinct ${schemeStatuses.scheme_id}) filter (where ${schemeStatuses.water_supply} = 'Yes')`,
+          total_villages: sql<number>`sum(${schemeStatuses.total_villages_integrated})`,
+          completed_villages: sql<number>`sum(${schemeStatuses.fully_completed_villages})`,
+          total_esr: sql<number>`sum(${schemeStatuses.total_esr_integrated})`,
+          completed_esr: sql<number>`sum(${schemeStatuses.no_fully_completed_esr})`,
+          flow_meters: sql<number>`sum(${schemeStatuses.flow_meters_connected})`,
+          rca: sql<number>`sum(${schemeStatuses.residual_chlorine_analyzer_connected})`,
+          pressure: sql<number>`sum(${schemeStatuses.pressure_transmitter_connected})`,
+        })
+        .from(schemeStatuses)
+        .where(and(...regionConditions));
+
+      const result = await query;
+      const data = result[0];
+
+      return {
+        total_schemes: Number(data.total_schemes || 0),
+        schemes_in_operation: Number(data.schemes_in_operation || 0),
+        total_villages: Number(data.total_villages || 0),
+        completed_villages: Number(data.completed_villages || 0),
+        total_esr: Number(data.total_esr || 0),
+        completed_esr: Number(data.completed_esr || 0),
+        flow_meters: Number(data.flow_meters || 0),
+        rca: Number(data.rca || 0),
+        pressure: Number(data.pressure || 0),
+        view: "INSTRUMENTED",
+      };
+    }
 
     let filteredSchemeCount = 0;
 
@@ -8117,6 +8050,7 @@ export class PostgresStorage implements IStorage {
         pressure_transmitter_integrated:
           region.pressure_transmitter_integrated || 0,
         filtered_scheme_count: filteredSchemeCount, // Add the filtered count
+        view: "ALL",
       };
     } else {
       // Get all schemes count from scheme_status table
@@ -8151,7 +8085,11 @@ export class PostgresStorage implements IStorage {
       // Log the dynamically calculated summary for debugging
       console.log("Dynamic region summary calculated:", result[0]);
 
-      return { ...result[0], filtered_scheme_count: filteredSchemeCount }; // Add the filtered count
+      return {
+        ...result[0],
+        filtered_scheme_count: filteredSchemeCount,
+        view: "ALL",
+      }; // Add the filtered count
     }
   }
 
@@ -8241,6 +8179,7 @@ export class PostgresStorage implements IStorage {
     division?: string,
     subDivision?: string,
     block?: string,
+    agencyType?: string,
   ): Promise<SchemeStatus[]> {
     const db = await this.ensureInitialized();
 
@@ -8292,6 +8231,9 @@ export class PostgresStorage implements IStorage {
     if (block && block !== "all") {
       query = query.where(eq(schemeStatuses.block, block));
     }
+    if (agencyType && agencyType !== "ALL") {
+      query = query.where(eq(schemeStatuses.agency_type, agencyType));
+    }
 
     const result = await query.orderBy(
       schemeStatuses.region,
@@ -8313,6 +8255,7 @@ export class PostgresStorage implements IStorage {
     division?: string,
     subDivision?: string,
     block?: string,
+    agencyType?: string,
   ): Promise<SchemeStatus[]> {
     // First, get all schemes using the existing method
     const allSchemes = await this.getAllSchemes(
@@ -8322,6 +8265,7 @@ export class PostgresStorage implements IStorage {
       division,
       subDivision,
       block,
+      agencyType,
     );
 
     // Create a map to group schemes by name
@@ -8431,6 +8375,7 @@ export class PostgresStorage implements IStorage {
     division?: string,
     subDivision?: string,
     block?: string,
+    agencyType?: string,
   ): Promise<SchemeStatus[]> {
     const db = await this.ensureInitialized();
 
@@ -8485,6 +8430,9 @@ export class PostgresStorage implements IStorage {
     if (block && block !== "all") {
       query = query.where(eq(schemeStatuses.block, block));
     }
+    if (agencyType && agencyType !== "ALL") {
+      query = query.where(eq(schemeStatuses.agency_type, agencyType));
+    }
 
     const result = await query.orderBy(schemeStatuses.scheme_name);
 
@@ -8504,6 +8452,7 @@ export class PostgresStorage implements IStorage {
     division?: string,
     subDivision?: string,
     block?: string,
+    agencyType?: string,
   ): Promise<SchemeStatus[]> {
     // First, get all schemes for the region using the existing method
     const regionSchemes = await this.getSchemesByRegion(
@@ -8514,6 +8463,7 @@ export class PostgresStorage implements IStorage {
       division,
       subDivision,
       block,
+      agencyType,
     );
 
     // Create a map to group schemes by name
@@ -8707,7 +8657,7 @@ export class PostgresStorage implements IStorage {
     const result = await query.orderBy(schemeStatuses.block);
 
     // Ensure agency is set correctly for all schemes
-    return result.map((scheme) => this.ensureSchemeAgency(scheme));
+    return result.map((scheme: any) => this.ensureSchemeAgency(scheme));
   }
 
   // New function to get scheme data from the water_scheme_data table based on CSV imports
@@ -9566,6 +9516,16 @@ export class PostgresStorage implements IStorage {
       }
       if (filter.block && filter.block !== "all") {
         conditions.push(eq(waterSchemeData.block, filter.block));
+      }
+
+      if (filter.agencyType && filter.agencyType !== "ALL") {
+        conditions.push(
+          sql`EXISTS (
+            SELECT 1 FROM ${schemeStatuses} 
+            WHERE ${schemeStatuses.scheme_id} = ${waterSchemeData.scheme_id} 
+            AND ${schemeStatuses.agency_type} = ${filter.agencyType}
+          )`
+        );
       }
 
       if (filter.zeroSupplyForWeek) {
@@ -12570,7 +12530,7 @@ export class PostgresStorage implements IStorage {
       const records = await query;
 
       // Apply data freshness filter if specified
-      let filteredRecords = records;
+      let filteredRecords: any[] = records;
       if (filters.data_freshness === "fresh") {
         filteredRecords = records.filter(
           (record) =>

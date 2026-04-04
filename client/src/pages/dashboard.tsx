@@ -1162,6 +1162,7 @@ export default function Dashboard() {
   const [selectedScheme, setSelectedScheme] = useState<SchemeStatus | null>(
     null,
   );
+  const [schemeView, setSchemeView] = useState<"ALL" | "INSTRUMENTED">("ALL");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showEnhancedMap, setShowEnhancedMap] = useState(false);
   const { toast } = useToast();
@@ -1350,11 +1351,17 @@ export default function Dashboard() {
     isLoading: isSummaryLoading,
     refetch: refetchSummary,
   } = useQuery<RegionSummary>({
-    queryKey: ["/api/regions/summary", selectedRegion],
-    queryFn: () =>
-      fetch(
-        `/api/regions/summary${selectedRegion !== "all" ? `?region=${selectedRegion}` : ""}`,
-      ).then((res) => res.json()),
+    queryKey: ["/api/regions/summary", selectedRegion, schemeView],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (selectedRegion !== "all") {
+        params.append("region", selectedRegion);
+      }
+      params.append("view", schemeView);
+      return fetch(`/api/regions/summary?${params.toString()}`).then((res) =>
+        res.json(),
+      );
+    },
   });
 
   // State for status filter
@@ -1718,33 +1725,55 @@ export default function Dashboard() {
 
       {/* Quick Navigation Cards */}
 
-      {/* Region Filter in card */}
-      <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-white rounded-lg border shadow-sm relative z-10">
-        <h2 className="text-base sm:text-lg font-medium mb-2 sm:mb-3 text-blue-800">
+      {/* Filter Dashboard Card */}
+      <div className="mb-4 sm:mb-6 p-4 sm:p-5 bg-white rounded-xl border border-gray-200 shadow-sm relative z-10">
+        <h2 className="text-sm sm:text-base font-semibold mb-4 text-blue-800 flex items-center gap-2">
+          <Filter className="w-4 h-4" />
           Filter Dashboard
         </h2>
-        <RegionFilter
-          regions={regions || []}
-          selectedRegion={selectedRegion}
-          onChange={handleRegionChange}
-        />
-        {/* Add global styling to ensure dropdown is always visible */}
-        <style
-          dangerouslySetInnerHTML={{
-            __html: `
-            .region-select-dropdown {
-              z-index: 9999 !important;
-              position: absolute !important;
-              top: auto !important;
-              bottom: auto !important;
-            }
-            /* Force the portal to render even above maps */
-            [data-radix-popper-content-wrapper] {
-              z-index: 9999 !important;
-            }
-          `,
-          }}
-        />
+        
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
+          {/* Region Selection */}
+          <div className="md:col-span-7 lg:col-span-8">
+            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">
+              Filter by Region
+            </label>
+            <RegionFilter
+              regions={regions || []}
+              selectedRegion={selectedRegion}
+              onChange={handleRegionChange}
+            />
+          </div>
+
+          {/* Scheme View Mode Toggle */}
+          <div className="md:col-span-5 lg:col-span-4">
+            <label className="text-[10px] font-bold text-purple-600 uppercase tracking-widest mb-1.5 block">
+              Scheme View Mode
+            </label>
+            <div className="flex items-center p-1 bg-gray-100/50 rounded-lg border border-gray-200 w-full">
+              <button
+                onClick={() => setSchemeView("ALL")}
+                className={`flex-1 px-4 py-2 text-xs font-bold rounded-md transition-all ${
+                  schemeView === "ALL"
+                    ? "bg-white text-blue-700 shadow-sm border border-blue-100"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                All Schemes
+              </button>
+              <button
+                onClick={() => setSchemeView("INSTRUMENTED")}
+                className={`flex-1 px-4 py-2 text-xs font-bold rounded-md transition-all ${
+                  schemeView === "INSTRUMENTED"
+                    ? "bg-white text-purple-700 shadow-sm border border-purple-100"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Fully Instrumented
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Map and Stats Cards Layout (stacked on mobile, side-by-side on desktop) */}
@@ -1798,6 +1827,7 @@ export default function Dashboard() {
             isLoading={isSummaryLoading}
             layout="compact"
             selectedRegion={selectedRegion}
+            schemeView={schemeView}
           />
         </div>
       </div>

@@ -52,6 +52,7 @@ import {
   Filter,
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/dashboard-layout";
+import AgencyTypeFilter from "@/components/dashboard/AgencyTypeFilter";
 import ExcelJS from "exceljs";
 import { useToast } from "@/hooks/use-toast";
 interface CommunicationOverview {
@@ -106,6 +107,7 @@ interface CommunicationScheme {
   pressure_72h: string;
   flow_meter_0h_72h: string;
   flow_meter_72h: string;
+  agencyType?: string;
 }
 
 interface FilterOptions {
@@ -123,6 +125,7 @@ export default function CommunicationStatusPage() {
   const [selectedDivision, setSelectedDivision] = useState<string>("all");
   const [selectedSubdivision, setSelectedSubdivision] = useState<string>("all");
   const [selectedBlock, setSelectedBlock] = useState<string>("all");
+  const [selectedAgencyType, setSelectedAgencyType] = useState<string>("ALL");
   const [selectedWaterSupply, setSelectedWaterSupply] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -136,6 +139,7 @@ export default function CommunicationStatusPage() {
       selectedDivision,
       selectedSubdivision,
       selectedBlock,
+      selectedAgencyType,
       selectedWaterSupply,
     ],
     queryFn: async () => {
@@ -146,6 +150,7 @@ export default function CommunicationStatusPage() {
       if (selectedSubdivision !== "all")
         params.set("subdivision", selectedSubdivision);
       if (selectedBlock !== "all") params.set("block", selectedBlock);
+      if (selectedAgencyType !== 'ALL') params.set("agencyType", selectedAgencyType);
       if (selectedWaterSupply !== "all") params.set("waterSupply", selectedWaterSupply);
 
       const response = await fetch(
@@ -171,6 +176,7 @@ export default function CommunicationStatusPage() {
       selectedDivision,
       selectedSubdivision,
       selectedBlock,
+      selectedAgencyType,
       selectedWaterSupply,
     ],
     queryFn: async () => {
@@ -181,6 +187,7 @@ export default function CommunicationStatusPage() {
       if (selectedSubdivision !== "all")
         params.set("subdivision", selectedSubdivision);
       if (selectedBlock !== "all") params.set("block", selectedBlock);
+      if (selectedAgencyType !== 'ALL') params.set("agencyType", selectedAgencyType);
       if (selectedWaterSupply !== "all") params.set("waterSupply", selectedWaterSupply);
 
       const response = await fetch(
@@ -197,6 +204,7 @@ export default function CommunicationStatusPage() {
       selectedCircle,
       selectedDivision,
       selectedSubdivision,
+      selectedAgencyType,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -205,6 +213,7 @@ export default function CommunicationStatusPage() {
       if (selectedDivision !== "all") params.set("division", selectedDivision);
       if (selectedSubdivision !== "all")
         params.set("subdivision", selectedSubdivision);
+      if (selectedAgencyType !== 'ALL') params.set("agencyType", selectedAgencyType);
 
       const response = await fetch(
         `/api/communication-status/filters?${params.toString()}`,
@@ -359,6 +368,7 @@ export default function CommunicationStatusPage() {
         "Division",
         "Sub Division",
         "Block",
+        "Agency Type",
         "Scheme ID",
         "Scheme Name",
         "Village Name",
@@ -395,6 +405,7 @@ export default function CommunicationStatusPage() {
           scheme.division || "",
           scheme.sub_division || "",
           scheme.block || "",
+          scheme.agencyType || "NA",
           scheme.scheme_id || "",
           scheme.scheme_name || "",
           scheme.village_name || "",
@@ -438,7 +449,7 @@ export default function CommunicationStatusPage() {
 
       // Set column widths efficiently (added 3 new columns for connection status)
       const colWidths = [
-        15, 35, 25, 25, 12, 12, 12, 12, 12, 18, 18, 18, 15, 15, 15, 15, 12, 12,
+        15, 35, 25, 25, 12, 12, 12, 12, 12, 12, 18, 18, 18, 15, 15, 15, 15, 12, 12,
         12, 12, 12, 12, 15,
       ];
       colWidths.forEach((width, idx) => {
@@ -540,6 +551,7 @@ export default function CommunicationStatusPage() {
         "Division",
         "Sub Division",
         "Block",
+        "Agency Type",
         "Scheme ID",
         "Scheme Name",
         "Village Name",
@@ -562,6 +574,7 @@ export default function CommunicationStatusPage() {
             scheme.division || "",
             scheme.sub_division || "",
             scheme.block || "",
+            scheme.agencyType || "NA",
             scheme.scheme_id || "",
             scheme.scheme_name || "",
             scheme.village_name || "",
@@ -588,7 +601,7 @@ export default function CommunicationStatusPage() {
         });
 
         // Set column widths
-        [15, 35, 25, 25, 12, 12, 12, 12, 12, 15, 15, 15].forEach(
+        [15, 35, 25, 25, 12, 12, 12, 12, 12, 12, 15, 15, 15].forEach(
           (width, idx) => {
             chlorineSheet.getColumn(idx + 1).width = width;
           },
@@ -607,6 +620,7 @@ export default function CommunicationStatusPage() {
             scheme.division || "",
             scheme.sub_division || "",
             scheme.block || "",
+            scheme.agencyType || "NA",
             scheme.scheme_id || "",
             scheme.scheme_name || "",
             scheme.village_name || "",
@@ -633,7 +647,7 @@ export default function CommunicationStatusPage() {
         });
 
         // Set column widths
-        [15, 35, 25, 25, 12, 12, 12, 12, 12, 15, 15, 15].forEach(
+        [15, 35, 25, 25, 12, 12, 12, 12, 12, 12, 15, 15, 15].forEach(
           (width, idx) => {
             pressureSheet.getColumn(idx + 1).width = width;
           },
@@ -651,6 +665,7 @@ export default function CommunicationStatusPage() {
           scheme.division || "",
           scheme.sub_division || "",
           scheme.block || "",
+          scheme.agencyType || "NA",
           scheme.scheme_id || "",
           scheme.scheme_name || "",
           scheme.village_name || "",
@@ -676,7 +691,7 @@ export default function CommunicationStatusPage() {
         });
 
         // Set column widths
-        [15, 35, 25, 25, 12, 12, 12, 12, 12, 15, 15, 15].forEach(
+        [15, 35, 25, 25, 12, 12, 12, 12, 12, 12, 15, 15, 15].forEach(
           (width, idx) => {
             flowSheet.getColumn(idx + 1).width = width;
           },
@@ -838,7 +853,7 @@ export default function CommunicationStatusPage() {
             <CardTitle>Filter Communication Data</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
               <Select
                 value={selectedRegion}
                 onValueChange={(value) => {
@@ -952,6 +967,16 @@ export default function CommunicationStatusPage() {
                   ))}
                 </SelectContent>
               </Select>
+
+              <div className="flex-shrink-0">
+                <AgencyTypeFilter
+                  selectedAgencyType={selectedAgencyType}
+                  onAgencyTypeChange={(value) => {
+                    setSelectedAgencyType(value);
+                    resetPage();
+                  }}
+                />
+              </div>
 
               <Select
                 value={selectedWaterSupply}

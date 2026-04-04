@@ -14,6 +14,15 @@ export interface RegionSummary {
   flow_meter_integrated?: number;
   rca_integrated?: number; // Added to match schema and fix TypeScript error
   pressure_transmitter_integrated?: number; // Added to match schema and fix TypeScript error
+  total_schemes?: number;
+  schemes_in_operation?: number;
+  total_villages?: number;
+  completed_villages?: number;
+  total_esr?: number;
+  completed_esr?: number;
+  flow_meters?: number;
+  rca?: number;
+  pressure?: number;
   updated_at?: string;
 }
 

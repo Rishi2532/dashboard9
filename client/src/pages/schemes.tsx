@@ -3,6 +3,7 @@ import ExcelJS from "exceljs";
 import { useQuery } from "@tanstack/react-query";
 import DashboardLayout from "@/components/dashboard/dashboard-layout";
 import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
+import AgencyTypeFilter from "@/components/dashboard/AgencyTypeFilter";
 import SchemeTable from "@/components/dashboard/scheme-table";
 import SchemeDetailsModal from "@/components/dashboard/scheme-details-modal";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ export default function Schemes() {
   const [selectedDivision, setSelectedDivision] = useState("all");
   const [selectedSubdivision, setSelectedSubdivision] = useState("all");
   const [selectedBlock, setSelectedBlock] = useState("all");
+  const [selectedAgencyType, setSelectedAgencyType] = useState("ALL");
   const [selectedScheme, setSelectedScheme] = useState<SchemeStatus | null>(
     null,
   );
@@ -39,6 +41,7 @@ export default function Schemes() {
       selectedCircle,
       selectedDivision,
       selectedSubdivision,
+      selectedAgencyType,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -47,6 +50,8 @@ export default function Schemes() {
       if (selectedDivision !== "all") params.set("division", selectedDivision);
       if (selectedSubdivision !== "all")
         params.set("subdivision", selectedSubdivision);
+      if (selectedAgencyType !== "ALL")
+        params.set("agencyType", selectedAgencyType);
 
       const response = await fetch(`/api/schemes/filters?${params.toString()}`);
       return response.json();
@@ -63,6 +68,7 @@ export default function Schemes() {
       selectedSubdivision,
       selectedBlock,
       statusFilter,
+      selectedAgencyType,
     ],
     queryFn: () => {
       let url = `/api/schemes`;
@@ -90,6 +96,10 @@ export default function Schemes() {
 
       if (statusFilter !== "all") {
         params.append("status", statusFilter);
+      }
+
+      if (selectedAgencyType !== "ALL") {
+        params.append("agencyType", selectedAgencyType);
       }
 
       if (params.toString()) {
@@ -228,6 +238,9 @@ export default function Schemes() {
       let apiParams = new URLSearchParams();
       if (selectedRegion !== "" && selectedRegion !== "all") {
         apiParams.append("region", selectedRegion);
+      }
+      if (selectedAgencyType !== "ALL") {
+        apiParams.append("agencyType", selectedAgencyType);
       }
 
       // Fetch comprehensive data from multiple endpoints
@@ -638,6 +651,14 @@ export default function Schemes() {
         onSubdivisionChange={handleSubdivisionChange}
         onBlockChange={handleBlockChange}
       />
+
+      <div className="mt-4 mb-6">
+        <AgencyTypeFilter
+          selectedAgencyType={selectedAgencyType}
+          onAgencyTypeChange={setSelectedAgencyType}
+          className="w-full md:w-64"
+        />
+      </div>
 
       <SchemeTable
         schemes={schemes || []}

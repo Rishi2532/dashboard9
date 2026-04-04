@@ -1387,7 +1387,6 @@ export async function initializeTables(db: any) {
       CREATE TABLE IF NOT EXISTS "mqtt_topic_configurations" (
         "id" SERIAL PRIMARY KEY,
         "sr_no" INTEGER,
-        "server" TEXT,
         "region" TEXT,
         "circle" TEXT,
         "division" TEXT,
@@ -1406,6 +1405,23 @@ export async function initializeTables(db: any) {
         "date_of_integration" TEXT
       );
     `);
+
+    // Check if server column exists in mqtt_topic_configurations, add if missing
+    try {
+      const serverColumnCheck = await db.execute(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'mqtt_topic_configurations' AND column_name = 'server';
+      `);
+
+      if (serverColumnCheck.rows.length === 0) {
+        console.log("Adding missing server column to mqtt_topic_configurations table...");
+        await db.execute(`ALTER TABLE "mqtt_topic_configurations" ADD COLUMN "server" TEXT;`);
+        console.log("Successfully added server column to mqtt_topic_configurations table");
+      }
+    } catch (error) {
+      console.error("Error checking/adding server column in mqtt_topic_configurations:", error);
+    }
 
     // Create index on mqtt_topic_configurations for efficient queries
     await db.execute(`

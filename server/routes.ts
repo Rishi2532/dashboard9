@@ -1101,12 +1101,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get region summary (filtered by region if provided)
-  app.get("/api/regions/summary", async (req, res) => {
+    app.get("/api/regions/summary", async (req, res) => {
     try {
       const regionName = req.query.region as string;
+      const view = (req.query.view as "ALL" | "INSTRUMENTED") || "ALL";
       // Handle "all" value as no specific region
       const regionNameToUse = regionName === "all" ? undefined : regionName;
-      const summary = await storage.getRegionSummary(regionNameToUse);
+      const summary = await storage.getRegionSummary(
+        regionNameToUse,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        view,
+      );
       res.json(summary);
     } catch (error) {
       console.error("Error fetching region summary:", error);
@@ -1215,61 +1223,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const circle = req.query.circle as string;
       const division = req.query.division as string;
       const subdivision = req.query.subdivision as string;
+      const agencyType = req.query.agencyType as string;
 
       const db = await storage.getDb();
 
-      // Get regions (always show all regions)
+      // Common condition for agency type
+      const agencyCondition = agencyType && agencyType !== "ALL" 
+        ? eq(schemeStatuses.agency_type, agencyType) 
+        : undefined;
+
+      // Get regions (filtered by agency type if provided)
+      const regionConditions = [];
+      if (agencyCondition) regionConditions.push(agencyCondition);
+      regionConditions.push(sql`${schemeStatuses.region} is not null and ${schemeStatuses.region} != ''`);
+      
       const regionsList = await db
         .selectDistinct({ value: schemeStatuses.region })
         .from(schemeStatuses)
-        .where(
-          sql`${schemeStatuses.region} is not null and ${schemeStatuses.region} != ''`,
-        )
+        .where(and(...regionConditions))
         .orderBy(asc(schemeStatuses.region));
 
-      // Get circles filtered by region
+      // Get circles filtered by region and agency
       const circleConditions = [];
       if (region && region !== "all")
         circleConditions.push(eq(schemeStatuses.region, region));
-      const circleWhereClause =
-        circleConditions.length > 0 ? and(...circleConditions) : undefined;
+      if (agencyCondition) circleConditions.push(agencyCondition);
+      circleConditions.push(sql`${schemeStatuses.circle} is not null and ${schemeStatuses.circle} != ''`);
 
       const circles = await db
         .selectDistinct({ value: schemeStatuses.circle })
         .from(schemeStatuses)
-        .where(
-          circleWhereClause
-            ? and(
-              circleWhereClause,
-              sql`${schemeStatuses.circle} is not null and ${schemeStatuses.circle} != ''`,
-            )
-            : sql`${schemeStatuses.circle} is not null and ${schemeStatuses.circle} != ''`,
-        )
+        .where(and(...circleConditions))
         .orderBy(asc(schemeStatuses.circle));
 
-      // Get divisions filtered by region and circle
+      // Get divisions filtered by region, circle and agency
       const divisionConditions = [];
       if (region && region !== "all")
         divisionConditions.push(eq(schemeStatuses.region, region));
       if (circle && circle !== "all")
         divisionConditions.push(eq(schemeStatuses.circle, circle));
-      const divisionWhereClause =
-        divisionConditions.length > 0 ? and(...divisionConditions) : undefined;
+      if (agencyCondition) divisionConditions.push(agencyCondition);
+      divisionConditions.push(sql`${schemeStatuses.division} is not null and ${schemeStatuses.division} != ''`);
 
       const divisions = await db
         .selectDistinct({ value: schemeStatuses.division })
         .from(schemeStatuses)
-        .where(
-          divisionWhereClause
-            ? and(
-              divisionWhereClause,
-              sql`${schemeStatuses.division} is not null and ${schemeStatuses.division} != ''`,
-            )
-            : sql`${schemeStatuses.division} is not null and ${schemeStatuses.division} != ''`,
-        )
+        .where(and(...divisionConditions))
         .orderBy(asc(schemeStatuses.division));
 
-      // Get subdivisions filtered by region, circle, and division
+      // Get subdivisions filtered by region, circle, division and agency
       const subdivisionConditions = [];
       if (region && region !== "all")
         subdivisionConditions.push(eq(schemeStatuses.region, region));
@@ -1277,25 +1279,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subdivisionConditions.push(eq(schemeStatuses.circle, circle));
       if (division && division !== "all")
         subdivisionConditions.push(eq(schemeStatuses.division, division));
-      const subdivisionWhereClause =
-        subdivisionConditions.length > 0
-          ? and(...subdivisionConditions)
-          : undefined;
+      if (agencyCondition) subdivisionConditions.push(agencyCondition);
+      subdivisionConditions.push(sql`${schemeStatuses.sub_division} is not null and ${schemeStatuses.sub_division} != ''`);
 
       const subdivisions = await db
         .selectDistinct({ value: schemeStatuses.sub_division })
         .from(schemeStatuses)
-        .where(
-          subdivisionWhereClause
-            ? and(
-              subdivisionWhereClause,
-              sql`${schemeStatuses.sub_division} is not null and ${schemeStatuses.sub_division} != ''`,
-            )
-            : sql`${schemeStatuses.sub_division} is not null and ${schemeStatuses.sub_division} != ''`,
-        )
+        .where(and(...subdivisionConditions))
         .orderBy(asc(schemeStatuses.sub_division));
 
-      // Get blocks filtered by all parent geographical levels
+      // Get blocks filtered by all parent geographical levels and agency
       const blockConditions = [];
       if (region && region !== "all")
         blockConditions.push(eq(schemeStatuses.region, region));
@@ -1305,20 +1298,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         blockConditions.push(eq(schemeStatuses.division, division));
       if (subdivision && subdivision !== "all")
         blockConditions.push(eq(schemeStatuses.sub_division, subdivision));
-      const blockWhereClause =
-        blockConditions.length > 0 ? and(...blockConditions) : undefined;
+      if (agencyCondition) blockConditions.push(agencyCondition);
+      blockConditions.push(sql`${schemeStatuses.block} is not null and ${schemeStatuses.block} != ''`);
 
       const blocks = await db
         .selectDistinct({ value: schemeStatuses.block })
         .from(schemeStatuses)
-        .where(
-          blockWhereClause
-            ? and(
-              blockWhereClause,
-              sql`${schemeStatuses.block} is not null and ${schemeStatuses.block} != ''`,
-            )
-            : sql`${schemeStatuses.block} is not null and ${schemeStatuses.block} != ''`,
-        )
+        .where(and(...blockConditions))
         .orderBy(asc(schemeStatuses.block));
 
       res.json({
@@ -1345,6 +1331,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const division = req.query.division as string;
       const subdivision = req.query.subdivision as string;
       const block = req.query.block as string;
+      const agencyType = req.query.agencyType as string;
       const viewType = (req.query.view_type as string) || "summary";
       // Default to consolidated view (true) for summary, non-consolidated (false) for detailed
       const consolidated =
@@ -1352,7 +1339,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         (req.query.consolidated === undefined && viewType === "summary");
 
       console.log(
-        `Request params: region=${regionName}, circle=${circle}, division=${division}, subdivision=${subdivision}, block=${block}, status=${status}, schemeId=${schemeId}, mjpCommissioned=${mjpCommissioned}, mjpFullyCompleted=${mjpFullyCompleted}, consolidated=${consolidated}, viewType=${viewType}`,
+        `Request params: region=${regionName}, circle=${circle}, division=${division}, subdivision=${subdivision}, block=${block}, status=${status}, schemeId=${schemeId}, mjpCommissioned=${mjpCommissioned}, mjpFullyCompleted=${mjpFullyCompleted}, agencyType=${agencyType}, consolidated=${consolidated}, viewType=${viewType}`,
       );
 
       let schemes;
@@ -1361,7 +1348,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Use consolidated schemes for the region
         if (consolidated) {
           console.log(
-            `Filtering for consolidated schemes in region=${regionName}, status=${status}`,
+            `Filtering for consolidated schemes in region=${regionName}, status=${status}, agencyType=${agencyType}`,
           );
           schemes = await storage.getConsolidatedSchemesByRegion(
             regionName,
@@ -1371,11 +1358,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             division,
             subdivision,
             block,
+            agencyType,
           );
         } else {
           // Use original non-consolidated method
           console.log(
-            `Filtering for all scheme instances in region=${regionName}, status=${status}`,
+            `Filtering for all scheme instances in region=${regionName}, status=${status}, agencyType=${agencyType}`,
           );
           schemes = await storage.getSchemesByRegion(
             regionName,
@@ -1385,13 +1373,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             division,
             subdivision,
             block,
+            agencyType,
           );
         }
         console.log(`Found ${schemes.length} schemes for region ${regionName}`);
       } else {
         // Get all schemes across regions
         if (consolidated) {
-          console.log(`Getting consolidated schemes with status=${status}`);
+          console.log(`Getting consolidated schemes with status=${status}, agencyType=${agencyType}`);
           schemes = await storage.getConsolidatedSchemes(
             status,
             schemeId,
@@ -1399,10 +1388,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             division,
             subdivision,
             block,
+            agencyType,
           );
         } else {
           // Use original non-consolidated method
-          console.log(`Getting all scheme instances with status=${status}`);
+          console.log(`Getting all scheme instances with status=${status}, agencyType=${agencyType}`);
           schemes = await storage.getAllSchemes(
             status,
             schemeId,
@@ -1410,6 +1400,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             division,
             subdivision,
             block,
+            agencyType,
           );
         }
         console.log(`Found ${schemes.length} schemes across all regions`);

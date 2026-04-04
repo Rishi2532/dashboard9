@@ -7,7 +7,7 @@ const router = express.Router();
 // Get scheme LPCD data - aggregated from village LPCD data
 router.get('/', async (req, res) => {
   try {
-    const { region, circle, division, subdivision, block, minLpcd, maxLpcd, mjpCommissioned } = req.query;
+    const { region, circle, division, subdivision, block, minLpcd, maxLpcd, mjpCommissioned, agencyType } = req.query;
 
     // Use pg directly for this route to perform complex aggregation
     const { Pool } = pg;
@@ -279,6 +279,12 @@ router.get('/', async (req, res) => {
         queryParams.push(mjpCommissioned);
       }
 
+      // Agency Type filter
+      if (agencyType && agencyType !== 'ALL') {
+        conditions.push('agency_type = $' + (queryParams.length + 1));
+        queryParams.push(agencyType);
+      }
+
       // Add WHERE clause if there are conditions
       if (conditions.length > 0) {
         baseQuery += ' WHERE ' + conditions.join(' AND ');
@@ -307,7 +313,7 @@ router.get('/', async (req, res) => {
 // Get scheme LPCD statistics
 router.get('/lpcd-stats', async (req, res) => {
   try {
-    const { region, circle, division, subdivision, block } = req.query;
+    const { region, circle, division, subdivision, block, agencyType } = req.query;
 
     // Use pg directly for this route
     const { Pool } = pg;
@@ -322,12 +328,19 @@ router.get('/lpcd-stats', async (req, res) => {
             wsd.scheme_id,
             wsd.scheme_name,
             wsd.region,
+            wsd.circle,
+            wsd.division,
+            wsd.sub_division,
+            wsd.block,
             SUM(wsd.population) as total_population,
-            SUM(wsd.water_value_day1) as total_water_day1
+            SUM(wsd.water_value_day1) as total_water_day1,
+            MAX(ss.agency_type) as agency_type
           FROM 
             water_scheme_data wsd
+          LEFT JOIN
+            scheme_status ss ON wsd.scheme_id = ss.scheme_id
           GROUP BY 
-            wsd.scheme_id, wsd.scheme_name, wsd.region
+            wsd.scheme_id, wsd.scheme_name, wsd.region, wsd.circle, wsd.division, wsd.sub_division, wsd.block
         )
         
         SELECT 
@@ -363,6 +376,10 @@ router.get('/lpcd-stats', async (req, res) => {
       if (block && block !== 'all') {
         conditions.push('block = $' + (queryParams.length + 1));
         queryParams.push(block);
+      }
+      if (agencyType && agencyType !== 'ALL') {
+        conditions.push('agency_type = $' + (queryParams.length + 1));
+        queryParams.push(agencyType);
       }
 
       if (conditions.length > 0) {
@@ -409,7 +426,7 @@ router.get('/lpcd-stats', async (req, res) => {
 // Get scheme LPCD historical data with date range functionality
 router.get('/history', async (req, res) => {
   try {
-    const { scheme_id, start_date, end_date, region, circle, division, subdivision, block, limit = '1000', offset = '0' } = req.query;
+    const { scheme_id, start_date, end_date, region, circle, division, subdivision, block, agencyType, limit = '1000', offset = '0' } = req.query;
 
     const { Pool } = pg;
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -477,6 +494,11 @@ router.get('/history', async (req, res) => {
         queryParams.push(subdivision);
       }
 
+      if (agencyType && agencyType !== 'ALL') {
+        query += ` AND h.agency_type = $${paramIndex++}`;
+        queryParams.push(agencyType);
+      }
+
       if (start_date) {
         query += ` AND h.actual_date >= $${paramIndex++}::date`;
         queryParams.push(start_date);
@@ -509,7 +531,7 @@ router.get('/history', async (req, res) => {
 // Export scheme LPCD historical data with streaming for large datasets
 router.get('/export/history', async (req, res) => {
   try {
-    const { scheme_id, start_date, end_date, region, circle, division, subdivision, block, format = 'xlsx' } = req.query;
+    const { scheme_id, start_date, end_date, region, circle, division, subdivision, block, agencyType, format = 'xlsx' } = req.query;
 
     const { Pool } = pg;
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -582,6 +604,11 @@ router.get('/export/history', async (req, res) => {
       if (circle && circle !== 'all') {
         query += ` AND h.circle = $${paramIndex++}`;
         queryParams.push(circle);
+      }
+
+      if (agencyType && agencyType !== 'ALL') {
+        query += ` AND h.agency_type = $${paramIndex++}`;
+        queryParams.push(agencyType);
       }
 
       if (division && division !== 'all') {

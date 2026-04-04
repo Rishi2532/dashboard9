@@ -71,6 +71,7 @@ import { SchemeHistoricalDataChart } from "@/components/dashboard/SchemeHistoric
 import { Pagination } from "@/components/ui/pagination";
 import ExcelJS from "exceljs";
 import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
+import AgencyTypeFilter from "@/components/dashboard/AgencyTypeFilter";
 
 // Types
 export interface SchemeLpcdData {
@@ -165,6 +166,7 @@ const SchemeLpcdDashboard = () => {
   const [fullyCompletedFilter, setFullyCompletedFilter] =
     useState<string>("all");
   const [schemeStatusFilter, setSchemeStatusFilter] = useState<string>("all");
+  const [selectedAgencyType, setSelectedAgencyType] = useState<string>("ALL");
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -196,6 +198,7 @@ const SchemeLpcdDashboard = () => {
       selectedCircle,
       selectedDivision,
       selectedSubdivision,
+      selectedAgencyType,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -204,6 +207,8 @@ const SchemeLpcdDashboard = () => {
       if (selectedDivision !== "all") params.append("division", selectedDivision);
       if (selectedSubdivision !== "all")
         params.append("subdivision", selectedSubdivision);
+      if (selectedAgencyType !== "ALL")
+        params.append("agencyType", selectedAgencyType);
 
       const response = await fetch(`/api/schemes/filters?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to fetch filter options");
@@ -325,6 +330,7 @@ const SchemeLpcdDashboard = () => {
     selectedSubdivision,
     selectedBlock,
     currentFilter,
+    selectedAgencyType,
   ]);
 
   // Fetch all scheme LPCD data
@@ -341,6 +347,7 @@ const SchemeLpcdDashboard = () => {
       selectedDivision,
       selectedSubdivision,
       selectedBlock,
+      selectedAgencyType,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -355,6 +362,8 @@ const SchemeLpcdDashboard = () => {
         params.append("subdivision", selectedSubdivision);
       if (selectedBlock && selectedBlock !== "all")
         params.append("block", selectedBlock);
+      if (selectedAgencyType !== "ALL")
+        params.append("agencyType", selectedAgencyType);
 
       const queryString = params.toString();
       const url = `/api/scheme-lpcd-data${queryString ? `?${queryString}` : ""}`;
@@ -388,6 +397,7 @@ const SchemeLpcdDashboard = () => {
         selectedDivision,
         selectedSubdivision,
         selectedBlock,
+        selectedAgencyType,
       ],
       queryFn: async () => {
         const params = new URLSearchParams();
@@ -402,6 +412,8 @@ const SchemeLpcdDashboard = () => {
           params.append("subdivision", selectedSubdivision);
         if (selectedBlock && selectedBlock !== "all")
           params.append("block", selectedBlock);
+        if (selectedAgencyType !== "ALL")
+          params.append("agencyType", selectedAgencyType);
 
         const queryString = params.toString();
         const url = `/api/schemes${queryString ? `?${queryString}` : ""}`;
@@ -431,6 +443,7 @@ const SchemeLpcdDashboard = () => {
       selectedDivision,
       selectedSubdivision,
       selectedBlock,
+      selectedAgencyType,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -445,6 +458,8 @@ const SchemeLpcdDashboard = () => {
         params.append("subdivision", selectedSubdivision);
       if (selectedBlock && selectedBlock !== "all")
         params.append("block", selectedBlock);
+      if (selectedAgencyType !== "ALL")
+        params.append("agencyType", selectedAgencyType);
 
       const queryString = params.toString();
       const url = `/api/schemes/counts${queryString ? `?${queryString}` : ""}`;
@@ -1281,6 +1296,9 @@ const SchemeLpcdDashboard = () => {
       if (selectedRegion && selectedRegion !== 'all') {
         params.append('region', selectedRegion);
       }
+      if (selectedAgencyType !== 'ALL') {
+        params.append('agencyType', selectedAgencyType);
+      }
 
       const response = await fetch(`/api/scheme-lpcd-data/export/history?${params}`);
       if (!response.ok) throw new Error('Export failed');
@@ -1337,6 +1355,8 @@ const SchemeLpcdDashboard = () => {
           params.append("subdivision", selectedSubdivision);
         if (selectedBlock && selectedBlock !== "all")
           params.append("block", selectedBlock);
+        if (selectedAgencyType !== "ALL")
+          params.append("agencyType", selectedAgencyType);
 
         const queryString = params.toString();
         const url = `/api/water-scheme-data${queryString ? `?${queryString}` : ""}`;
@@ -1743,6 +1763,14 @@ const SchemeLpcdDashboard = () => {
             onBlockChange={handleBlockChange}
             filters={filterOptions}
           />
+          <div className="mt-4 border-t border-blue-100 pt-4 flex items-center gap-4">
+            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Agency Type</p>
+            <AgencyTypeFilter
+              selectedAgencyType={selectedAgencyType}
+              onAgencyTypeChange={setSelectedAgencyType}
+              className="w-48 bg-white"
+            />
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 mb-6">

@@ -420,7 +420,7 @@ export default function IssueReportingForm() {
         <div className="w-full max-w-5xl mx-auto p-4 space-y-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-xl border border-blue-100 shadow-sm">
                 <div>
-                    <h1 className="text-3xl font-bold text-blue-900 tracking-tight">Justification & Issue Reporting</h1>
+                    <h1 className="text-3xl font-bold text-blue-900 tracking-tight">Reason for Non-Compliance</h1>
                     <p className="text-blue-600 mt-1">Structured repository for supply-related discrepancies</p>
                 </div>
                 {user && (

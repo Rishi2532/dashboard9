@@ -4,7 +4,7 @@ import { storage } from "../storage";
 import { ZodError } from "zod";
 import { insertPressureDataSchema, updatePressureDataSchema, appState, schemeStatuses } from "@shared/schema";
 import { getDB } from "../db";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
 import pg from 'pg';
@@ -28,69 +28,60 @@ const requireAdmin = (req: express.Request, res: express.Response, next: express
 };
 
 // Helper function to get filtered scheme IDs
-async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: any) {
-  // If no filter selected, return null to indicate no filtering needed
-  if (!filterType && (!fullyCompleted || fullyCompleted === 'false')) {
-    return null;
-  }
-
+// Helper function to get filtered scheme IDs
+async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: any, agencyType?: string) {
   try {
-    // Handle commissioned filter separately (uses water_supply column)
+    const conditions = [];
+
+    // Handle filterType/fullyCompleted
     if (filterType === 'commissioned') {
-      const results = await db
-        .select({ scheme_id: schemeStatuses.scheme_id })
-        .from(schemeStatuses)
-        .where(sql`LOWER(${schemeStatuses.water_supply}) = 'yes'`);
-
-      const ids = results.map((r: any) => r.scheme_id);
-      return ids.length > 0 ? ids : ['NO_MATCHES'];
-    }
-
-    // Handle other filters (use fully_completion_scheme_status column)
-    let statusConditions: string[] = [];
-
-    // Handle legacy fullyCompleted param for backward compatibility
-    if (fullyCompleted === 'true' && (!filterType || filterType === 'fully_completed')) {
-      statusConditions = ['Completed', 'Fully-Completed', 'Fully Completed', 'fully completed'];
-    } else if (filterType) {
-      switch (filterType) {
-        case 'fully_completed':
-          statusConditions = ['Completed', 'Fully-Completed', 'Fully Completed', 'fully completed'];
-          break;
-        case 'not_connected':
-          statusConditions = ['Not-Connected', 'Not Connected', 'not connected'];
-          break;
-        case 'partially_commissioned':
-          statusConditions = ['Partially Commissioned', 'Partial Commissioned'];
-          break;
-        case 'village_work_inprogress':
-          statusConditions = ['Village work inprogress', 'Village Work In Progress'];
-          break;
-        case 'physically_completed':
-          statusConditions = ['Physically Completed'];
-          break;
-        case 'in_progress':
-          statusConditions = ['In Progress', 'Work in Progress'];
-          break;
-        case 'not_started':
-          statusConditions = ['Not Started'];
-          break;
+      conditions.push(sql`LOWER(${schemeStatuses.water_supply}) = 'yes'`);
+    } else {
+      let statusConditions: string[] = [];
+      if (fullyCompleted === 'true' && (!filterType || filterType === 'fully_completed')) {
+        statusConditions = ['completed', 'fully-completed', 'fully completed', 'functionally completed'];
+      } else if (filterType) {
+        switch (filterType) {
+          case 'fully_completed':
+            statusConditions = ['completed', 'fully-completed', 'fully completed', 'functionally completed'];
+            break;
+          case 'not_connected':
+            statusConditions = ['not-connected', 'not connected'];
+            break;
+          case 'partially_commissioned':
+            statusConditions = ['partially commissioned', 'partial commissioned'];
+            break;
+          case 'village_work_inprogress':
+            statusConditions = ['village work inprogress', 'village work in progress'];
+            break;
+          case 'physically_completed':
+            statusConditions = ['physically completed'];
+            break;
+          case 'in_progress':
+            statusConditions = ['in progress', 'work in progress'];
+            break;
+          case 'not_started':
+            statusConditions = ['not started'];
+            break;
+        }
+      }
+      if (statusConditions.length > 0) {
+        conditions.push(sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN (${sql.join(statusConditions.map(s => sql`${s.toLowerCase()}`), sql`, `)})`);
       }
     }
 
-    // If we have status conditions, query the database
-    if (statusConditions.length > 0) {
+    // Handle agencyType
+    if (agencyType && agencyType !== 'ALL' && agencyType !== 'all') {
+      conditions.push(eq(schemeStatuses.agency_type, agencyType));
+    }
+
+    if (conditions.length > 0) {
       const results = await db
         .select({ scheme_id: schemeStatuses.scheme_id })
         .from(schemeStatuses)
-        .where(
-          sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN (${sql.join(statusConditions.map(s => sql`${s.toLowerCase()}`), sql`, `)})`
-        );
+        .where(and(...conditions));
 
       const ids = results.map((r: any) => r.scheme_id);
-
-      // If matches found, return them. If not, return a special marker or empty list.
-      // Returning ['NO_MATCHES'] to signal that a filter was applied but found nothing.
       return ids.length > 0 ? ids : ['NO_MATCHES'];
     }
   } catch (error) {
@@ -104,7 +95,7 @@ async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: an
 // Get pressure filter options
 router.get("/filters", async (req, res) => {
   try {
-    const { region, circle, division, subDivision, subdivision, block } = req.query;
+    const { region, circle, division, subDivision, subdivision, block, agencyType } = req.query;
 
     const filter: any = {};
     if (region) filter.region = region as string;
@@ -114,6 +105,7 @@ router.get("/filters", async (req, res) => {
     const subDivParam = (subDivision || subdivision) as string | undefined;
     if (subDivParam) filter.subDivision = subDivParam;
     if (block) filter.block = block as string;
+    if (agencyType) filter.agencyType = agencyType as string;
 
     const filterOptions = await storage.getPressureFilterOptions(filter);
     res.json(filterOptions);
@@ -139,6 +131,7 @@ router.get("/historical", async (req, res) => {
       scheme_id: scheme_id as string | undefined,
       village_name: village_name as string | undefined,
       esr_name: esr_name as string | undefined,
+      agencyType: req.query.agencyType as string | undefined,
     };
 
     console.log("Historical pressure data request:", filter);
@@ -156,7 +149,7 @@ router.get("/historical", async (req, res) => {
 // Get all pressure data with optional filters
 router.get("/", async (req, res) => {
   try {
-    const { region, circle, division, subdivision, block, pressureRange, minPressure, maxPressure, fullyCompleted, filterType } = req.query;
+    const { region, circle, division, subdivision, block, pressureRange, minPressure, maxPressure, fullyCompleted, filterType, agencyType } = req.query;
 
     console.log("Pressure API Request Filters:", {
       region,
@@ -177,13 +170,14 @@ router.get("/", async (req, res) => {
     if (division) filter.division = division as string;
     if (subdivision) filter.subDivision = subdivision as string;
     if (block) filter.block = block as string;
+    if (agencyType) filter.agencyType = agencyType as string;
     if (pressureRange) filter.pressureRange = pressureRange as 'below_0.2' | 'between_0.2_0.7' | 'above_0.7' | 'consistent_zero' | 'consistent_below' | 'consistent_optimal' | 'consistent_above';
     if (minPressure) filter.minPressure = parseFloat(minPressure as string);
     if (maxPressure) filter.maxPressure = parseFloat(maxPressure as string);
 
     // Apply scheme status filters
     const db = await getDB();
-    const schemeIds = await getFilteredSchemeIds(db, filterType as string, fullyCompleted as string);
+    const schemeIds = await getFilteredSchemeIds(db, filterType as string, fullyCompleted as string, agencyType as string);
     if (schemeIds) {
       filter.schemeIds = schemeIds;
     }
@@ -215,10 +209,10 @@ router.get("/", async (req, res) => {
 // Get dashboard statistics for pressure data
 router.get("/dashboard-stats", async (req, res) => {
   try {
-    const { region, circle, division, subdivision, block, fullyCompleted, filterType } = req.query;
+    const { region, circle, division, subdivision, block, fullyCompleted, filterType, agencyType } = req.query;
 
     const db = await getDB();
-    const schemeIds = await getFilteredSchemeIds(db, filterType as string, fullyCompleted as string);
+    const schemeIds = await getFilteredSchemeIds(db, filterType as string, fullyCompleted as string, agencyType as string);
 
     // Build filter object with all geographic parameters
     const filter: any = {};
@@ -227,6 +221,7 @@ router.get("/dashboard-stats", async (req, res) => {
     if (division) filter.division = division as string;
     if (subdivision) filter.subdivision = subdivision as string;
     if (block) filter.block = block as string;
+    if (agencyType) filter.agencyType = agencyType as string;
 
     const stats = await storage.getPressureDashboardStats(filter, schemeIds);
 
@@ -269,10 +264,10 @@ router.get("/dashboard-stats", async (req, res) => {
 // Get pressure sensors with no water (cross-referenced with water consumption)
 router.get("/no-water-sensors", async (req, res) => {
   try {
-    const { region } = req.query;
-    console.log("Fetching pressure sensors with no water for region:", region);
+    const { region, agencyType } = req.query;
+    console.log("Fetching pressure sensors with no water for region:", region, "agencyType:", agencyType);
 
-    const result = await storage.getPressureSensorsWithNoWater(region as string | undefined);
+    const result = await storage.getPressureSensorsWithNoWater(region as string | undefined, agencyType as string | undefined);
 
     res.json({
       success: true,
@@ -291,10 +286,10 @@ router.get("/no-water-sensors", async (req, res) => {
 // Get pressure sensors with water (cross-referenced with water consumption)
 router.get("/with-water-sensors", async (req, res) => {
   try {
-    const { region } = req.query;
-    console.log("Fetching pressure sensors with water for region:", region);
+    const { region, agencyType } = req.query;
+    console.log("Fetching pressure sensors with water for region:", region, "agencyType:", agencyType);
 
-    const result = await storage.getPressureSensorsWithWater(region as string | undefined);
+    const result = await storage.getPressureSensorsWithWater(region as string | undefined, agencyType as string | undefined);
 
     res.json({
       success: true,
@@ -313,13 +308,13 @@ router.get("/with-water-sensors", async (req, res) => {
 // Get regional pressure sensor statistics
 router.get("/regional-stats", async (req, res) => {
   try {
-    const { fullyCompleted, filterType } = req.query;
-    console.log("Fetching regional pressure sensor statistics", { fullyCompleted, filterType });
+    const { fullyCompleted, filterType, agencyType } = req.query;
+    console.log("Fetching regional pressure sensor statistics", { fullyCompleted, filterType, agencyType });
 
     const db = await getDB();
 
     let schemeIdFilter = "";
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
     if (filteredIds) {
       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
@@ -416,13 +411,13 @@ router.get("/regional-stats", async (req, res) => {
 // Get pressure division-wise summary 
 router.get("/division-wise-summary", async (req, res) => {
   try {
-    const { region, fullyCompleted, filterType } = req.query;
-    console.log(`Fetching pressure division-wise summary for region: ${region || 'all'}`, { fullyCompleted, filterType });
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
+    console.log(`Fetching pressure division-wise summary for region: ${region || 'all'}`, { fullyCompleted, filterType, agencyType });
 
     const db = await getDB();
 
     let schemeIdFilter = "";
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
     if (filteredIds) {
       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
@@ -488,7 +483,7 @@ router.get("/division-wise-summary", async (req, res) => {
 // Get pressure sensors by division and metric
 router.get("/division-sensors", async (req, res) => {
   try {
-    const { region, division, metric, filterType, fullyCompleted } = req.query;
+    const { region, division, metric, filterType, fullyCompleted, agencyType } = req.query;
 
     if (!division) {
       return res.status(400).json({
@@ -496,7 +491,7 @@ router.get("/division-sensors", async (req, res) => {
       });
     }
 
-    console.log(`Fetching pressure sensors for division: ${division}, metric: ${metric}, region: ${region || 'all'}`);
+    console.log(`Fetching pressure sensors for division: ${division}, metric: ${metric}, region: ${region || 'all'}, agencyType: ${agencyType || 'ALL'}`);
 
     const db = await getDB();
 
@@ -521,7 +516,7 @@ router.get("/division-sensors", async (req, res) => {
 
 
     // Get filtered scheme IDs
-    const filteredSchemeIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredSchemeIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
     let schemeIdCondition = sql``;
     if (filteredSchemeIds) {
       if (filteredSchemeIds.length === 1 && filteredSchemeIds[0] === 'NO_MATCHES') {
@@ -574,7 +569,7 @@ router.get("/division-sensors", async (req, res) => {
 // Export pressure sensors by division to Excel
 router.get("/division-sensors-export", async (req, res) => {
   try {
-    const { region, division, metric, filterType, fullyCompleted } = req.query;
+    const { region, division, metric, filterType, fullyCompleted, agencyType } = req.query;
 
     if (!division) {
       return res.status(400).json({
@@ -582,7 +577,7 @@ router.get("/division-sensors-export", async (req, res) => {
       });
     }
 
-    console.log(`Exporting pressure sensors for division: ${division}, metric: ${metric}, region: ${region || 'all'}`);
+    console.log(`Exporting pressure sensors for division: ${division}, metric: ${metric}, region: ${region || 'all'}, agencyType: ${agencyType || 'ALL'}`);
 
     const db = await getDB();
 
@@ -607,7 +602,7 @@ router.get("/division-sensors-export", async (req, res) => {
 
 
     // Get filtered scheme IDs
-    const filteredSchemeIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredSchemeIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
     let schemeIdCondition = sql``;
     if (filteredSchemeIds) {
       if (filteredSchemeIds.length === 1 && filteredSchemeIds[0] === 'NO_MATCHES') {
@@ -692,8 +687,8 @@ router.get("/division-sensors-export", async (req, res) => {
 // Get day-wise breakdown for pressure sensors
 router.get("/day-wise-breakdown", async (req, res) => {
   try {
-    const { region, fullyCompleted, filterType } = req.query;
-    console.log(`Fetching pressure day-wise breakdown for region: ${region || 'all'}`, { fullyCompleted, filterType });
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
+    console.log(`Fetching pressure day-wise breakdown for region: ${region || 'all'}`, { fullyCompleted, filterType, agencyType });
 
     const db = await getDB();
 
@@ -702,7 +697,7 @@ router.get("/day-wise-breakdown", async (req, res) => {
     // Get filtered scheme IDs if filter is enabled
     // Note: getPressureDayWiseBreakdown currently accepts a Set of IDs or undefined.
     // We reuse getFilteredSchemeIds but converting result to Set.
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
     if (filteredIds) {
       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
@@ -741,9 +736,9 @@ router.get(["/day-wise-sensors/:metric/:days", "/day-wise-sensors"], async (req,
     let { metric, days } = req.params;
     if (!metric) metric = req.query.metric as string;
     if (!days) days = req.query.days as string;
-    const { region, fullyCompleted, filterType } = req.query;
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
 
-    console.log(`Fetching pressure sensors for metric: ${metric}, days: ${days}, region: ${region || 'all'}`, { fullyCompleted, filterType });
+    console.log(`Fetching pressure sensors for metric: ${metric}, days: ${days}, region: ${region || 'all'}, agencyType: ${agencyType || 'ALL'}`, { fullyCompleted, filterType });
 
     if (!['offline', 'below_0_2', 'above_0_7', 'optimal_0_2_0_7'].includes(metric)) {
       return res.status(400).json({
@@ -761,7 +756,7 @@ router.get(["/day-wise-sensors/:metric/:days", "/day-wise-sensors"], async (req,
     const db = await getDB();
 
     let fullyCompletedSchemeIds: Set<string> | undefined;
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
     if (filteredIds) {
       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
@@ -825,9 +820,9 @@ router.get(["/day-wise-sensors-export/:metric/:days", "/day-wise-sensors-export"
     let { metric, days } = req.params;
     if (!metric) metric = req.query.metric as string;
     if (!days) days = req.query.days as string;
-    const { region, fullyCompleted, filterType } = req.query;
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
 
-    console.log(`Exporting pressure sensors for metric: ${metric}, days: ${days}, region: ${region || 'all'}`, { fullyCompleted, filterType });
+    console.log(`Exporting pressure sensors for metric: ${metric}, days: ${days}, region: ${region || 'all'}`, { fullyCompleted, filterType, agencyType });
 
     if (!['offline', 'below_0_2', 'above_0_7', 'optimal_0_2_0_7'].includes(metric)) {
       return res.status(400).json({
@@ -845,7 +840,7 @@ router.get(["/day-wise-sensors-export/:metric/:days", "/day-wise-sensors-export"
     const db = await getDB();
 
     let fullyCompletedSchemeIds: Set<string> | undefined;
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
     if (filteredIds) {
       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
@@ -931,14 +926,14 @@ router.get(["/day-wise-sensors-export/:metric/:days", "/day-wise-sensors-export"
 router.get("/details/:statisticType", async (req, res) => {
   try {
     const { statisticType } = req.params;
-    const { region, fullyCompleted, filterType } = req.query;
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
 
-    console.log(`Fetching detailed ${statisticType} pressure sensors for region: ${region}`, { fullyCompleted, filterType });
+    console.log(`Fetching detailed ${statisticType} pressure sensors for region: ${region}`, { fullyCompleted, filterType, agencyType });
 
     const db = await getDB();
 
     let fullyCompletedSchemeIds: Set<string> | undefined;
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
     if (filteredIds) {
       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
@@ -1114,7 +1109,7 @@ router.get("/details/:statisticType", async (req, res) => {
 router.get(["/details/export/:statisticType", "/details-export/:statisticType"], async (req, res) => {
   try {
     const { statisticType } = req.params;
-    const { region, fullyCompleted, filterType } = req.query;
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
 
     console.log(`Exporting ${statisticType} pressure sensors for region: ${region}`);
 
@@ -1122,7 +1117,7 @@ router.get(["/details/export/:statisticType", "/details-export/:statisticType"],
 
 
     let fullyCompletedSchemeIds: Set<string> | undefined;
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
     if (filteredIds) {
       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
@@ -1324,15 +1319,15 @@ router.get(["/details/export/:statisticType", "/details-export/:statisticType"],
 // Get overall region comparison data for pressure
 router.get("/overall-region-comparison", async (req, res) => {
   try {
-    const { fullyCompleted, filterType } = req.query;
-    console.log("Fetching overall pressure region comparison data", { fullyCompleted, filterType });
+    const { fullyCompleted, filterType, agencyType } = req.query;
+    console.log("Fetching overall pressure region comparison data", { fullyCompleted, filterType, agencyType });
 
     const db = await getDB();
 
     // Get filtered scheme IDs
     let schemeIdFilter = "";
     let communicationStatusSchemeFilter = "";
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
     if (filteredIds) {
       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
@@ -1461,9 +1456,9 @@ router.get("/overall-region-comparison", async (req, res) => {
 router.get("/overall-region-comparison/details/:category", async (req, res) => {
   try {
     const { category } = req.params;
-    const { region, filterType, fullyCompleted } = req.query;
+    const { region, filterType, fullyCompleted, agencyType } = req.query;
 
-    console.log(`Fetching pressure comparison details for category: ${category}, region: ${region}, filter: ${filterType}`);
+    console.log(`Fetching pressure comparison details for category: ${category}, region: ${region}, filter: ${filterType}, agencyType: ${agencyType}`);
 
     const db = await getDB();
 
@@ -1474,7 +1469,7 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
     // Get filtered scheme IDs
     let schemeIdFilter = sql``;
     let communicationStatusSchemeFilter = sql``;
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
     if (filteredIds) {
       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
@@ -1596,9 +1591,9 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
 router.get("/overall-region-comparison/details-export/:category", async (req, res) => {
   try {
     const { category } = req.params;
-    const { region, filterType, fullyCompleted } = req.query;
+    const { region, filterType, fullyCompleted, agencyType } = req.query;
 
-    console.log(`Exporting pressure comparison details for category: ${category}, region: ${region}, filter: ${filterType}`);
+    console.log(`Exporting pressure comparison details for category: ${category}, region: ${region}, filter: ${filterType}, agencyType: ${agencyType}`);
 
     const db = await getDB();
 
@@ -1609,7 +1604,7 @@ router.get("/overall-region-comparison/details-export/:category", async (req, re
     // Get filtered scheme IDs
     let schemeIdFilter = sql``;
     let communicationStatusSchemeFilter = sql``;
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
 
     if (filteredIds) {
       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {

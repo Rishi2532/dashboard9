@@ -49,7 +49,7 @@ router.get("/filters", async (req, res) => {
 // Get all water consumption data with scheme status information
 router.get("/", async (req, res) => {
   try {
-    const { region, circle, division, subdivision, block } = req.query;
+    const { region, circle, division, subdivision, block, agencyType } = req.query;
 
     // Build filter object
     const filter: any = {};
@@ -58,6 +58,7 @@ router.get("/", async (req, res) => {
     if (division) filter.division = division as string;
     if (subdivision) filter.subdivision = subdivision as string;
     if (block) filter.block = block as string;
+    if (agencyType) filter.agencyType = agencyType as string;
 
     const waterConsumptionData =
       await storage.getAllWaterConsumptionWithSchemeStatus(filter);
@@ -222,7 +223,7 @@ router.get("/stats/summary", async (req, res) => {
 // Get historical water consumption data with date range filtering
 router.get('/historical', async (req, res) => {
   try {
-    const { startDate, endDate, region, countOnly } = req.query;
+    const { startDate, endDate, region, countOnly, agencyType } = req.query;
 
     if (!startDate || !endDate) {
       return res.status(400).json({
@@ -260,6 +261,10 @@ router.get('/historical', async (req, res) => {
 
         if (region && region !== 'all') {
           countQuery += ` AND region = '${region}'`;
+        }
+
+        if (agencyType && agencyType !== 'ALL') {
+          countQuery += ` AND EXISTS (SELECT 1 FROM scheme_status ss WHERE ss.scheme_id = water_consumption_history.scheme_id AND ss.agency_type = '${agencyType}')`;
         }
 
         const countResult = await db.execute(countQuery);
@@ -319,6 +324,10 @@ router.get('/historical', async (req, res) => {
         query += ` AND region = '${region}'`;
       }
 
+      if (agencyType && agencyType !== 'ALL') {
+        query += ` AND EXISTS (SELECT 1 FROM scheme_status ss WHERE ss.scheme_id = water_consumption_history.scheme_id AND ss.agency_type = '${agencyType}')`;
+      }
+
       query += ' ORDER BY data_date ASC, village_name ASC, esr_name ASC';
 
       console.log('🔍 Executing historical Water Consumption query with date filtering...');
@@ -349,6 +358,7 @@ router.get('/download/water-consumption-history', async (req, res) => {
       scheme_id,
       village_name,
       esr_name,
+      agencyType,
       format = 'xlsx'
     } = req.query;
 
@@ -409,6 +419,10 @@ router.get('/download/water-consumption-history', async (req, res) => {
       // Add region filter
       if (region && region !== 'all') {
         query += ` AND region = '${region}'`;
+      }
+
+      if (agencyType && agencyType !== 'ALL') {
+        query += ` AND EXISTS (SELECT 1 FROM scheme_status ss WHERE ss.scheme_id = water_consumption_history.scheme_id AND ss.agency_type = '${agencyType}')`;
       }
 
       // Add scheme filter

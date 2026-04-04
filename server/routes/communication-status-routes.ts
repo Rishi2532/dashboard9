@@ -20,6 +20,7 @@ router.get("/overview", async (req, res) => {
     const subdivision = req.query.subdivision as string;
     const block = req.query.block as string;
     const waterSupply = req.query.waterSupply as string;
+    const agencyType = req.query.agencyType as string;
 
     // Build filter conditions
     const conditions = [];
@@ -47,6 +48,17 @@ router.get("/overview", async (req, res) => {
           db.select({ scheme_id: schemeStatuses.scheme_id })
             .from(schemeStatuses)
             .where(subQueryCondition)
+        )
+      );
+    }
+
+    if (agencyType && agencyType !== "all" && agencyType !== "ALL") {
+      conditions.push(
+        inArray(
+          communicationStatus.scheme_id,
+          db.select({ scheme_id: schemeStatuses.scheme_id })
+            .from(schemeStatuses)
+            .where(eq(schemeStatuses.agency_type, agencyType))
         )
       );
     }
@@ -138,6 +150,7 @@ router.get("/schemes", async (req, res) => {
     const subdivision = req.query.subdivision as string;
     const block = req.query.block as string;
     const waterSupply = req.query.waterSupply as string;
+    const agencyType = req.query.agencyType as string;
 
     // Build filter conditions
     const conditions = [];
@@ -165,6 +178,17 @@ router.get("/schemes", async (req, res) => {
           db.select({ scheme_id: schemeStatuses.scheme_id })
             .from(schemeStatuses)
             .where(subQueryCondition)
+        )
+      );
+    }
+
+    if (agencyType && agencyType !== "all" && agencyType !== "ALL") {
+      conditions.push(
+        inArray(
+          communicationStatus.scheme_id,
+          db.select({ scheme_id: schemeStatuses.scheme_id })
+            .from(schemeStatuses)
+            .where(eq(schemeStatuses.agency_type, agencyType))
         )
       );
     }

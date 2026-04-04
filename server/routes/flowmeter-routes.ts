@@ -6,13 +6,23 @@ import ExcelJS from "exceljs";
 const router = Router();
 
 // Function to get filtered scheme IDs (helper)
-async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: any) {
-  if (filterType === 'all' && !fullyCompleted) return null;
+async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: any, agencyType?: string) {
+  const conditions: any[] = [];
   
-  let query = sql`SELECT DISTINCT scheme_id FROM scheme_status WHERE 1 = 1`;
-  if (filterType === 'fully_completed' || fullyCompleted === 'true') {
-    query = sql`${ query } AND water_supply = 'Yes'`;
+  if (filterType === 'commissioned') {
+    conditions.push(sql`LOWER(water_supply) = 'yes'`);
+  } else if (filterType === 'fully_completed' || fullyCompleted === 'true') {
+    conditions.push(sql`LOWER(fully_completion_scheme_status) IN ('completed', 'fully-completed', 'fully completed', 'functionally completed')`);
   }
+
+  if (agencyType && agencyType !== 'ALL' && agencyType !== 'all') {
+    conditions.push(sql`agency_type = ${agencyType}`);
+  }
+
+  if (conditions.length === 0) return null;
+
+  const whereClause = sql.join(conditions, sql` AND `);
+  const query = sql`SELECT DISTINCT scheme_id FROM scheme_status WHERE ${whereClause}`;
   
   const result = await db.execute(query);
   if (result.rows.length === 0) return ['NO_MATCHES'];
@@ -22,10 +32,10 @@ async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: an
 // Get flowmeter statistics online/offline counts by region
 router.get("/overall-region-comparison", async (req, res) => {
   try {
-    const { fullyCompleted, filterType } = req.query;
+    const { fullyCompleted, filterType, agencyType } = req.query;
     const db = await getDB();
 
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
     let schemeIdFilter = "";
     if (filteredIds) {
       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
@@ -68,10 +78,10 @@ region,
 router.get("/overall-region-comparison/details/:category", async (req, res) => {
   try {
     const { category } = req.params;
-    const { region, fullyCompleted, filterType } = req.query;
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
     const db = await getDB();
 
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
     let schemeIdFilter = "";
     if (filteredIds) {
       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
@@ -87,14 +97,14 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
       regionFilter = `AND cs.region = '${String(region).replace(/'/g, "''")}'`;
     }
 
-let statusFilter = "";
-if (category === 'online') {
-  statusFilter = "AND LOWER(cs.flow_meter_status) = 'online'";
-} else if (category === 'offline') {
-  statusFilter = "AND LOWER(cs.flow_meter_status) = 'offline'";
-}
+    let statusFilter = "";
+    if (category === 'online') {
+      statusFilter = "AND LOWER(cs.flow_meter_status) = 'online'";
+    } else if (category === 'offline') {
+      statusFilter = "AND LOWER(cs.flow_meter_status) = 'offline'";
+    }
 
-const query = `
+    const query = `
       SELECT
         cs.region,
         cs.division,
@@ -119,27 +129,27 @@ const query = `
       ORDER BY cs.region, cs.division, cs.village_name
     `;
 
-const result = await db.execute(sql.raw(query));
+    const result = await db.execute(sql.raw(query));
 
-res.json({
-  success: true,
-  data: result.rows,
-  count: result.rows.length
-});
+    res.json({
+      success: true,
+      data: result.rows,
+      count: result.rows.length
+    });
   } catch (error) {
-  console.error("Error fetching flowmeter details:", error);
-  res.status(500).json({ success: false, error: "Failed to fetch flowmeter details" });
-}
+    console.error("Error fetching flowmeter details:", error);
+    res.status(500).json({ success: false, error: "Failed to fetch flowmeter details" });
+  }
 });
 
 // Export flowmeter statistics to Excel (identical query to details)
 router.get("/overall-region-comparison/export/:category", async (req, res) => {
   try {
     const { category } = req.params;
-    const { region, fullyCompleted, filterType } = req.query;
+    const { region, fullyCompleted, filterType, agencyType } = req.query;
     const db = await getDB();
 
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
     let schemeIdFilter = "";
     if (filteredIds) {
       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
@@ -162,16 +172,15 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
       statusFilter = "AND LOWER(cs.flow_meter_status) = 'offline'";
     }
 
-    // Identical to details query — Excel will always match the list
     const query = `
       SELECT
-        cs.region,
-        cs.division,
-        cs.block,
-        cs.village_name,
-        cs.scheme_id,
-        cs.scheme_name,
-        cs.flow_meter_status as status,
+        cs.region || '' as region,
+        cs.division || '' as division,
+        cs.block || '' as block,
+        cs.village_name || '' as village_name,
+        cs.scheme_id || '' as scheme_id,
+        cs.scheme_name || '' as scheme_name,
+        cs.flow_meter_status || '' as status,
         sd.population
       FROM communication_status cs
       LEFT JOIN LATERAL (

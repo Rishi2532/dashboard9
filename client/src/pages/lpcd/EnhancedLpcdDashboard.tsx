@@ -31,6 +31,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
+import AgencyTypeFilter from "@/components/dashboard/AgencyTypeFilter";
 import { useComprehensiveActivityTracker } from "@/hooks/use-comprehensive-activity-tracker";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -175,6 +176,7 @@ const EnhancedLpcdDashboard = () => {
   const [selectedDivision, setSelectedDivision] = useState("all");
   const [selectedSubdivision, setSelectedSubdivision] = useState("all");
   const [selectedBlock, setSelectedBlock] = useState("all");
+  const [selectedAgencyType, setSelectedAgencyType] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentFilter, setCurrentFilter] = useState<LpcdRange>("all");
   const [commissionedFilter, setCommissionedFilter] = useState("all");
@@ -331,6 +333,7 @@ const EnhancedLpcdDashboard = () => {
       selectedCircle,
       selectedDivision,
       selectedSubdivision,
+      selectedAgencyType,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -339,6 +342,8 @@ const EnhancedLpcdDashboard = () => {
       if (selectedDivision !== "all") params.append("division", selectedDivision);
       if (selectedSubdivision !== "all")
         params.append("subdivision", selectedSubdivision);
+      if (selectedAgencyType !== "ALL")
+        params.append("agencyType", selectedAgencyType);
 
       const response = await fetch(`/api/schemes/filters?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to fetch filter options");
@@ -360,6 +365,7 @@ const EnhancedLpcdDashboard = () => {
       selectedDivision,
       selectedSubdivision,
       selectedBlock,
+      selectedAgencyType,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -378,6 +384,9 @@ const EnhancedLpcdDashboard = () => {
       }
       if (selectedBlock && selectedBlock !== "all") {
         params.append("block", selectedBlock);
+      }
+      if (selectedAgencyType !== "ALL") {
+        params.append("agencyType", selectedAgencyType);
       }
 
       const queryString = params.toString();
@@ -541,7 +550,7 @@ const EnhancedLpcdDashboard = () => {
         (window as any).triggerDashboardExport = undefined;
       }
     };
-  }, [allWaterSchemeData, selectedRegion, selectedCircle, selectedDivision, selectedSubdivision, selectedBlock, currentFilter]);
+  }, [allWaterSchemeData, selectedRegion, selectedCircle, selectedDivision, selectedSubdivision, selectedBlock, currentFilter, selectedAgencyType]);
 
   // Fetch region data
   const { data: regionsData = [], isLoading: isLoadingRegions } = useQuery<
@@ -553,12 +562,15 @@ const EnhancedLpcdDashboard = () => {
   // Fetch scheme status data for filtering
   const { data: schemeStatusData = [], isLoading: isLoadingSchemeStatus } =
     useQuery<any[]>({
-      queryKey: ["/api/schemes", selectedRegion],
+      queryKey: ["/api/schemes", selectedRegion, selectedAgencyType],
       queryFn: async () => {
         const params = new URLSearchParams();
 
         if (selectedRegion && selectedRegion !== "all") {
           params.append("region", selectedRegion);
+        }
+        if (selectedAgencyType !== "ALL") {
+          params.append("agencyType", selectedAgencyType);
         }
 
         const queryString = params.toString();
@@ -593,6 +605,9 @@ const EnhancedLpcdDashboard = () => {
 
       if (selectedRegion && selectedRegion !== "all") {
         params.append("region", selectedRegion);
+      }
+      if (selectedAgencyType !== "ALL") {
+        params.append("agencyType", selectedAgencyType);
       }
 
       const url = `/api/water-scheme-data/historical?${params.toString()}`;
@@ -1396,7 +1411,8 @@ const EnhancedLpcdDashboard = () => {
         !lastQueriedDates ||
         lastQueriedDates.start !== historicalStartDate ||
         lastQueriedDates.end !== historicalEndDate ||
-        lastQueriedDates.region !== selectedRegion;
+        lastQueriedDates.region !== selectedRegion ||
+        (lastQueriedDates as any).agencyType !== selectedAgencyType;
 
       if (datesChanged) {
         // Count records first
@@ -1410,6 +1426,9 @@ const EnhancedLpcdDashboard = () => {
 
           if (selectedRegion && selectedRegion !== "all") {
             params.append("region", selectedRegion);
+          }
+          if (selectedAgencyType !== "ALL") {
+            params.append("agencyType", selectedAgencyType);
           }
 
           const url = `/api/water-scheme-data/historical?${params.toString()}`;
@@ -1433,7 +1452,8 @@ const EnhancedLpcdDashboard = () => {
             start: historicalStartDate,
             end: historicalEndDate,
             region: selectedRegion,
-          });
+            agencyType: selectedAgencyType,
+          } as any);
 
           if (count === 0) {
             toast({
@@ -1487,6 +1507,9 @@ const EnhancedLpcdDashboard = () => {
 
       if (lastQueriedDates.region && lastQueriedDates.region !== "all") {
         params.append("region", lastQueriedDates.region);
+      }
+      if ((lastQueriedDates as any).agencyType && (lastQueriedDates as any).agencyType !== "ALL") {
+        params.append("agencyType", (lastQueriedDates as any).agencyType);
       }
 
       const queryString = params.toString();
@@ -2008,6 +2031,14 @@ const EnhancedLpcdDashboard = () => {
                 onBlockChange={handleBlockChange}
                 className="mb-0 grid-cols-2 md:grid-cols-5 gap-2"
               />
+              <div className="mt-2 border-t border-slate-100 pt-2 flex items-center gap-4">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Agency Type</p>
+                <AgencyTypeFilter
+                  selectedAgencyType={selectedAgencyType}
+                  onAgencyTypeChange={setSelectedAgencyType}
+                  className="w-48"
+                />
+              </div>
             </div>
 
             {/* Row 2: Status & Tool Bar */}

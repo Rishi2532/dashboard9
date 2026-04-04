@@ -67,6 +67,7 @@ import {
   Power,
 } from "lucide-react";
 import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
+import AgencyTypeFilter from "@/components/dashboard/AgencyTypeFilter";
 import ExcelJS from "exceljs";
 
 // Define types for Chlorine Data
@@ -204,6 +205,7 @@ const ChlorineDashboard: React.FC = () => {
   const [selectedDivision, setSelectedDivision] = useState<string>("all");
   const [selectedSubdivision, setSelectedSubdivision] = useState<string>("all");
   const [selectedBlock, setSelectedBlock] = useState<string>("all");
+  const [selectedAgencyType, setSelectedAgencyType] = useState<string>("ALL");
 
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [commissionedFilter, setCommissionedFilter] = useState<string>("all");
@@ -326,7 +328,9 @@ const ChlorineDashboard: React.FC = () => {
       selectedRegion,
       selectedCircle,
       selectedDivision,
+      selectedDivision,
       selectedSubdivision,
+      selectedAgencyType,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -336,6 +340,9 @@ const ChlorineDashboard: React.FC = () => {
         params.append("division", selectedDivision);
       if (selectedSubdivision !== "all")
         params.append("subdivision", selectedSubdivision);
+      if (selectedAgencyType !== 'ALL') {
+        params.append("agencyType", selectedAgencyType);
+      }
 
       const response = await fetch(
         `/api/chlorine/filters?${params.toString()}`,
@@ -387,6 +394,7 @@ const ChlorineDashboard: React.FC = () => {
       selectedDivision,
       selectedSubdivision,
       selectedBlock,
+      selectedAgencyType,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -405,6 +413,9 @@ const ChlorineDashboard: React.FC = () => {
       }
       if (selectedBlock && selectedBlock !== "all") {
         params.append("block", selectedBlock);
+      }
+      if (selectedAgencyType !== 'ALL') {
+        params.append("agencyType", selectedAgencyType);
       }
 
       // No longer filtering API requests by card selection
@@ -430,12 +441,15 @@ const ChlorineDashboard: React.FC = () => {
   // Fetch dashboard stats from API - we'll override these with local calculations
   const { data: apiDashboardStats, isLoading: isLoadingStats } =
     useQuery<ChlorineDashboardStats>({
-      queryKey: ["/api/chlorine/dashboard-stats", selectedRegion],
+      queryKey: ["/api/chlorine/dashboard-stats", selectedRegion, selectedAgencyType],
       queryFn: async () => {
         const params = new URLSearchParams();
 
         if (selectedRegion && selectedRegion !== "all") {
           params.append("region", selectedRegion);
+        }
+        if (selectedAgencyType !== 'ALL') {
+          params.append("agencyType", selectedAgencyType);
         }
 
         const queryString = params.toString();
@@ -469,12 +483,15 @@ const ChlorineDashboard: React.FC = () => {
   // Fetch scheme status data for filtering
   const { data: schemeStatusData = [], isLoading: isLoadingSchemeStatus } =
     useQuery<any[]>({
-      queryKey: ["/api/schemes", selectedRegion],
+      queryKey: ["/api/schemes", selectedRegion, selectedAgencyType],
       queryFn: async () => {
         const params = new URLSearchParams();
 
         if (selectedRegion && selectedRegion !== "all") {
           params.append("region", selectedRegion);
+        }
+        if (selectedAgencyType !== 'ALL') {
+          params.append("agencyType", selectedAgencyType);
         }
 
         const queryString = params.toString();
@@ -510,12 +527,15 @@ const ChlorineDashboard: React.FC = () => {
       chlorine_connected: string | null;
     }>;
   }>({
-    queryKey: ["/api/chlorine/no-water-sensors", selectedRegion],
+    queryKey: ["/api/chlorine/no-water-sensors", selectedRegion, selectedAgencyType],
     queryFn: async () => {
       const params = new URLSearchParams();
 
       if (selectedRegion && selectedRegion !== "all") {
         params.append("region", selectedRegion);
+      }
+      if (selectedAgencyType !== 'ALL') {
+        params.append("agencyType", selectedAgencyType);
       }
 
       const queryString = params.toString();
@@ -550,12 +570,15 @@ const ChlorineDashboard: React.FC = () => {
       chlorine_connected: string | null;
     }>;
   }>({
-    queryKey: ["/api/chlorine/with-water-sensors", selectedRegion],
+    queryKey: ["/api/chlorine/with-water-sensors", selectedRegion, selectedAgencyType],
     queryFn: async () => {
       const params = new URLSearchParams();
 
       if (selectedRegion && selectedRegion !== "all") {
         params.append("region", selectedRegion);
+      }
+      if (selectedAgencyType !== 'ALL') {
+        params.append("agencyType", selectedAgencyType);
       }
 
       const queryString = params.toString();
@@ -584,6 +607,7 @@ const ChlorineDashboard: React.FC = () => {
       historicalStartDate,
       historicalEndDate,
       selectedRegion,
+      selectedAgencyType,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -592,6 +616,9 @@ const ChlorineDashboard: React.FC = () => {
 
       if (selectedRegion && selectedRegion !== "all") {
         params.append("region", selectedRegion);
+      }
+      if (selectedAgencyType !== 'ALL') {
+        params.append("agencyType", selectedAgencyType);
       }
 
       const queryString = params.toString();
@@ -1809,6 +1836,7 @@ const ChlorineDashboard: React.FC = () => {
           "Scheme ID": item.scheme_id,
           "Scheme Name": item.scheme_name || "N/A",
           Region: item.region || "N/A",
+          "Agency Type": (item as any).agency_type || "N/A",
           "Village Name": item.village_name || "N/A",
           "ESR Name": item.esr_name || "N/A",
           "Water Supply": item.water_supply || "No",
@@ -1913,6 +1941,7 @@ const ChlorineDashboard: React.FC = () => {
       // Track the data export activity with detailed filter information
       const appliedFilters = {
         region: selectedRegion !== "all" ? selectedRegion : undefined,
+        agencyType: selectedAgencyType !== 'ALL' ? selectedAgencyType : undefined,
         cardFilter:
           selectedCardFilter !== "all" ? selectedCardFilter : undefined,
         searchTerm: searchQuery || undefined,
@@ -2037,6 +2066,17 @@ const ChlorineDashboard: React.FC = () => {
       <div className="bg-white rounded-xl shadow-sm mb-6 p-6 border border-blue-100">
         {/* Filters Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          {/* Agency Type Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Agency Type
+            </label>
+            <AgencyTypeFilter
+              selectedAgencyType={selectedAgencyType}
+              onAgencyTypeChange={setSelectedAgencyType}
+            />
+          </div>
+
           {/* Commissioned Status Filter */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">

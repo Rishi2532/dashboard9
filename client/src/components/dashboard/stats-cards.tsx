@@ -17,6 +17,7 @@ interface StatsCardsProps {
   isLoading: boolean;
   layout?: "normal" | "compact"; // Add layout option for different display modes
   selectedRegion?: string; // Add selectedRegion prop
+  schemeView?: "ALL" | "INSTRUMENTED";
 }
 
 export default function StatsCards({
@@ -24,7 +25,10 @@ export default function StatsCards({
   isLoading,
   layout = "normal",
   selectedRegion = "all",
+  schemeView = "ALL",
 }: StatsCardsProps) {
+  const isInstrumented = schemeView === "INSTRUMENTED";
+
   // Fetch scheme counts with both filtered and total counts
   const { data: schemeCounts } = useQuery<{
     filteredCount: number;
@@ -76,17 +80,37 @@ export default function StatsCards({
     );
   }
 
-  const totalSchemes = data.total_schemes_integrated || 0;
-  const completedSchemes = data.fully_completed_schemes || 0;
-  const totalVillages = data.total_villages_integrated || 0;
-  const completedVillages = data.fully_completed_villages || 0;
-  const totalEsr = data.total_esr_integrated || 0;
-  const completedEsr = data.fully_completed_esr || 0;
+  const totalSchemes = isInstrumented
+    ? data.total_schemes || 0
+    : data.total_schemes_integrated || 0;
+  const completedSchemes = isInstrumented
+    ? data.schemes_in_operation || 0
+    : data.fully_completed_schemes || 0;
+
+  const totalVillages = isInstrumented
+    ? data.total_villages || 0
+    : data.total_villages_integrated || 0;
+  const completedVillages = isInstrumented
+    ? data.completed_villages || 0
+    : data.fully_completed_villages || 0;
+
+  const totalEsr = isInstrumented
+    ? data.total_esr || 0
+    : data.total_esr_integrated || 0;
+  const completedEsr = isInstrumented
+    ? data.completed_esr || 0
+    : data.fully_completed_esr || 0;
+
   const partialEsr = data.partial_esr || 0;
-  const flowMeterIntegrated = data.flow_meter_integrated || 0;
-  const rcaIntegrated = data.rca_integrated || 0;
-  const pressureTransmitterIntegrated =
-    data.pressure_transmitter_integrated || 0;
+  const flowMeterIntegrated = isInstrumented
+    ? data.flow_meters || 0
+    : data.flow_meter_integrated || 0;
+  const rcaIntegrated = isInstrumented
+    ? data.rca || 0
+    : data.rca_integrated || 0;
+  const pressureTransmitterIntegrated = isInstrumented
+    ? data.pressure || 0
+    : data.pressure_transmitter_integrated || 0;
 
   const schemeCompletionPercentage = calculatePercentage(
     completedSchemes,
@@ -128,20 +152,24 @@ export default function StatsCards({
               <GitBranchPlus className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 xl:h-7 xl:w-7 text-white" />
             </div>
             <div className="ml-3 sm:ml-4 md:ml-5 xl:ml-6 flex-1">
-              <h3 className="text-xs sm:text-sm xl:text-base font-medium text-blue-800">
-                Total Schemes{" "}
-                {schemeCounts
-                  ? selectedRegion === "all"
-                    ? `(389)`
-                    : `(${schemeCounts.filteredCount})`
-                  : totalSchemes}
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-xs sm:text-sm xl:text-base font-medium text-blue-800">
+                  {isInstrumented ? "MJP Approved Schemes (389)" : "MJP Approved Schemes"}{" "}
+                  {selectedRegion === "all" ? (isInstrumented ? "" : "(389)") : ""}
+                </h3>
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${isInstrumented
+                  ? "bg-purple-100 text-purple-700 border border-purple-200"
+                  : "bg-blue-100 text-blue-700 border border-blue-200"
+                  }`}>
+                  {isInstrumented ? "Instrumented" : "All"}
+                </span>
+              </div>
               <div className="mt-1 flex items-baseline">
                 <p className="text-xl sm:text-2xl md:text-3xl xl:text-4xl font-bold text-blue-900">
                   {totalSchemes}
                 </p>
                 <p className="ml-1 sm:ml-2 text-xs sm:text-sm xl:text-base text-blue-600">
-                  water schemes
+                  {isInstrumented ? "Fully instrumented schemes" : "water schemes"}
                 </p>
               </div>
             </div>
@@ -152,9 +180,7 @@ export default function StatsCards({
                 Completion Rate
               </span>
               <span className="text-xs sm:text-sm xl:text-base font-bold text-blue-900">
-                {schemeCounts && schemeCounts.filteredCount
-                  ? `${((completedSchemes / schemeCounts.filteredCount) * 100).toFixed(2)}%`
-                  : "0%"}
+                {schemeCompletionPercentage}%
               </span>
             </div>
             <div className="w-full bg-blue-100 rounded-full h-2.5 sm:h-3 xl:h-4 mt-1 sm:mt-2 overflow-hidden">
@@ -165,10 +191,14 @@ export default function StatsCards({
             </div>
             <div className="flex justify-between text-[10px] sm:text-xs xl:text-sm mt-1 xl:mt-2">
               <span className="text-green-600 font-medium">
-                <b>{completedSchemes} Fully Completed</b>
+                <b>
+                  {completedSchemes}{" "}
+                  {isInstrumented ? "Schemes in Operation" : "Fully Completed"}
+                </b>
               </span>
               <span className="text-yellow-600 font-medium">
-                {totalSchemes - completedSchemes} Partially Completed
+                {totalSchemes - completedSchemes}{" "}
+                {isInstrumented ? "Scheduled" : "Partially Completed"}
               </span>
             </div>
 
@@ -185,9 +215,7 @@ export default function StatsCards({
               <div className="flex justify-between text-sm text-blue-700 mt-1">
                 <span>Completion Rate:</span>
                 <span className="font-semibold">
-                  {schemeCounts && schemeCounts.filteredCount
-                    ? `${Math.round((completedSchemes / schemeCounts.filteredCount) * 100)}%`
-                    : "0%"}
+                  {schemeCompletionPercentage}%
                 </span>
               </div>
             </div>
@@ -302,11 +330,11 @@ export default function StatsCards({
                 Total ESR
               </h3>
               <div className="mt-1 flex items-baseline">
-                <p className="text-xl sm:text-2xl md:text-3xl xl:text-4xl font-bold text-purple-900">
+                <p className="text-xl sm:text-2xl md:text-3xl xl:text-4xl font-bold text-teal-900">
                   {totalEsr}
                 </p>
-                <p className="ml-1 sm:ml-2 text-xs sm:text-sm xl:text-base text-purple-600">
-                  ESR tanks integrated
+                <p className="ml-1 sm:ml-2 text-xs sm:text-sm xl:text-base text-teal-600">
+                  ESR integrated
                 </p>
               </div>
             </div>
