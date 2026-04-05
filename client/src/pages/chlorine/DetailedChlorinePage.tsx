@@ -8567,6 +8567,8 @@ const DetailedChlorinePage = () => {
                                                                              if (selectedAgencyType !== 'ALL') {
                                          params.append("agencyType", selectedAgencyType);
                                        }
+                                       if (selectedAgencyType !== 'ALL') params.append('agencyType', selectedAgencyType);
+
                                        window.open(`/api/chlorine/lpcd/region-comparison-total-export?${params.toString()}`, "_blank");
                                     } else {
                                       const params = new URLSearchParams();
@@ -9275,7 +9277,8 @@ const DetailedChlorinePage = () => {
                                 const params = new URLSearchParams();
                                 if (region) params.append("region", region);
                                 if (schemeFilter !== "all") params.append("filterType", schemeFilter);
-                                if (schemeFilter === "fully_completed") params.append("fullyCompleted", "true");
+                                if (schemeFilter === 'fully_completed') params.append('fullyCompleted', 'true');
+                                if (selectedAgencyType !== 'ALL') params.append('agencyType', selectedAgencyType);
 
                                 const url = `/api/chlorine/day-wise-sensors-export/${clickedDayWiseCell.metric}/${clickedDayWiseCell.days}?${params.toString()}`;
                                 window.open(url, "_blank");

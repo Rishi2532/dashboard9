@@ -112,6 +112,7 @@ interface WaterConsumptionRecord {
   fully_completion_scheme_status?: string;
   water_supply?: string;
   agency_type?: string;
+  lremark?: string;
 }
 
 // Define interface for region data
@@ -2377,6 +2378,24 @@ const WaterConsumptionPage: React.FC = () => {
                           borderRadius: "0",
                         }}
                       >
+                        REMARK
+                      </th>
+                      <th
+                        scope="col"
+                        style={{
+                          backgroundColor: "#3b2e7d",
+                          color: "white",
+                          textAlign: "left",
+                          padding: "8px",
+                          border: "none",
+                          fontSize: "14px",
+                          fontFamily: "Poppins, sans-serif",
+                          fontWeight: "600",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.025em",
+                          borderRadius: "0",
+                        }}
+                      >
                         ACTION
                       </th>
                     </tr>
@@ -2587,6 +2606,41 @@ const WaterConsumptionPage: React.FC = () => {
                             <div style={{ display: "inline-block" }}>
                               {getConsumptionStatusBadge(consumptionPercentage)}
                             </div>
+                          </td>
+                          <td
+                            style={{
+                              textAlign: "left",
+                              padding: "8px",
+                              borderBottom: "1px solid #e5e7eb",
+                              backgroundColor: "white",
+                              fontSize: "14px",
+                              fontFamily: "Poppins, sans-serif",
+                              borderRadius: "0",
+                              maxWidth: "150px",
+                            }}
+                            title={record.lremark || "-"}
+                          >
+                            {record.lremark ? (
+                              <span
+                                style={{
+                                  fontSize: "11px",
+                                  fontWeight: "500",
+                                  color: "#b91c1c",
+                                  backgroundColor: "#fef2f2",
+                                  border: "1px solid #fee2e2",
+                                  borderRadius: "4px",
+                                  padding: "4px 8px",
+                                  display: "block",
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                }}
+                              >
+                                {record.lremark}
+                              </span>
+                            ) : (
+                              <span style={{ color: "#94a3b8" }}>-</span>
+                            )}
                           </td>
                           <td
                             style={{

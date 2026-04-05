@@ -61,7 +61,15 @@ router.get('/', async (req, res) => {
     const client = await pool.connect();
 
     try {
-      let query = 'SELECT * FROM water_scheme_data';
+      let query = `
+        SELECT *,
+          (SELECT description FROM helpdesk_tickets ht 
+           WHERE ht.scheme_id = water_scheme_data.scheme_id 
+           AND ht.village_name = water_scheme_data.village_name 
+           AND ht.level = 'Village' 
+           AND ht.status IN ('Open', 'In-Progress') 
+           ORDER BY ht.created_at DESC LIMIT 1) as remark
+        FROM water_scheme_data`;
       const queryParams: any[] = [];
       const conditions: string[] = [];
 

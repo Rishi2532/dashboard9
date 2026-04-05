@@ -7040,6 +7040,59 @@ export class PostgresStorage implements IStorage {
     }
   }
 
+  async getAllWaterConsumptionWithSchemeStatus(filter?: any): Promise<any[]> {
+    await this.initialized;
+    const db = await this.ensureInitialized();
+    try {
+      let query = sql`
+        SELECT 
+          wc.*,
+          ss.agency_type,
+          ss.water_supply,
+          ss.mjp_commissioned,
+          ss.mjp_fully_completed,
+          ss.fully_completion_scheme_status,
+          (SELECT description FROM helpdesk_tickets 
+           WHERE level = 'ESR' 
+           AND scheme_id = wc.scheme_id 
+           AND village_name = wc.village_name 
+           AND esr_name = wc.esr_name 
+           AND status IN ('Open', 'In-Progress') 
+           ORDER BY created_at DESC LIMIT 1) as lremark
+        FROM water_consumption wc
+        LEFT JOIN scheme_status ss ON wc.scheme_id = ss.scheme_id AND wc.block = ss.block
+        WHERE 1=1
+      `;
+
+      if (filter) {
+        if (filter.region && filter.region !== "all") {
+          query = sql`${query} AND wc.region = ${filter.region}`;
+        }
+        if (filter.circle && filter.circle !== "all") {
+          query = sql`${query} AND wc.circle = ${filter.circle}`;
+        }
+        if (filter.division && filter.division !== "all") {
+          query = sql`${query} AND wc.division = ${filter.division}`;
+        }
+        if (filter.subdivision && filter.subdivision !== "all") {
+          query = sql`${query} AND wc.sub_division = ${filter.subdivision}`;
+        }
+        if (filter.block && filter.block !== "all") {
+          query = sql`${query} AND wc.block = ${filter.block}`;
+        }
+        if (filter.agencyType && filter.agencyType !== "ALL") {
+          query = sql`${query} AND ss.agency_type = ${filter.agencyType}`;
+        }
+      }
+
+      const result = await db.execute(query);
+      return result.rows;
+    } catch (error) {
+      console.error("Error getting water consumption with scheme status:", error);
+      throw error;
+    }
+  }
+
   async getWaterConsumptionByScheme(
     schemeId: string,
     block?: string,
@@ -7989,12 +8042,12 @@ export class PostgresStorage implements IStorage {
       const query = db
         .select({
           total_schemes: sql<number>`count(distinct ${schemeStatuses.scheme_id})`,
-          schemes_in_operation: sql<number>`count(distinct ${schemeStatuses.scheme_id}) filter (where ${schemeStatuses.water_supply} = 'Yes')`,
+          schemes_operational: sql<number>`count(distinct ${schemeStatuses.scheme_id}) filter (where ${schemeStatuses.water_supply} = 'Yes')`,
           total_villages: sql<number>`sum(${schemeStatuses.total_villages_integrated})`,
-          completed_villages: sql<number>`sum(${schemeStatuses.fully_completed_villages})`,
+          villages_operational: sql<number>`sum(${schemeStatuses.total_villages_integrated}) filter (where ${schemeStatuses.water_supply} = 'Yes')`,
           total_esr: sql<number>`sum(${schemeStatuses.total_esr_integrated})`,
-          completed_esr: sql<number>`sum(${schemeStatuses.no_fully_completed_esr})`,
-          flow_meters: sql<number>`sum(${schemeStatuses.flow_meters_connected})`,
+          esr_operational: sql<number>`sum(${schemeStatuses.total_esr_integrated}) filter (where ${schemeStatuses.water_supply} = 'Yes')`,
+          flow: sql<number>`sum(${schemeStatuses.flow_meters_connected})`,
           rca: sql<number>`sum(${schemeStatuses.residual_chlorine_analyzer_connected})`,
           pressure: sql<number>`sum(${schemeStatuses.pressure_transmitter_connected})`,
         })
@@ -8006,12 +8059,12 @@ export class PostgresStorage implements IStorage {
 
       return {
         total_schemes: Number(data.total_schemes || 0),
-        schemes_in_operation: Number(data.schemes_in_operation || 0),
+        schemes_operational: Number(data.schemes_operational || 0),
         total_villages: Number(data.total_villages || 0),
-        completed_villages: Number(data.completed_villages || 0),
+        villages_operational: Number(data.villages_operational || 0),
         total_esr: Number(data.total_esr || 0),
-        completed_esr: Number(data.completed_esr || 0),
-        flow_meters: Number(data.flow_meters || 0),
+        esr_operational: Number(data.esr_operational || 0),
+        flow: Number(data.flow || 0),
         rca: Number(data.rca || 0),
         pressure: Number(data.pressure || 0),
         view: "INSTRUMENTED",

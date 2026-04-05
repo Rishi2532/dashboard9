@@ -109,6 +109,7 @@ interface PressureData {
   // Dashboard URL for PI Vision integration
   dashboard_url?: string;
   water_supply?: string;
+  remark?: string;
 }
 
 interface RegionData {
@@ -3243,20 +3244,11 @@ const PressureDashboard: React.FC = () => {
                           </span>
                         )}
                       </TableCell>
-                      <TableCell className="border-b border-blue-200 text-center max-w-[150px] truncate" title={hasIssue ? issues.map((i: any) => i.reason).join(", ") : "-"}>
-                        {hasIssue ? (
-                          <Button
-                            variant="ghost"
-                            className="h-auto p-1 max-w-full justify-start text-red-600 font-medium text-[11px] hover:text-red-700 hover:bg-red-50"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedRemarkDetails({ issues, title: `Remarks for ${item.esr_name}` });
-                            }}
-                          >
-                            <span className="truncate block w-full text-left">
-                              {issues.map((i: any) => i.reason).join(", ")}
-                            </span>
-                          </Button>
+                      <TableCell className="border-b border-blue-200 text-center max-w-[150px] truncate" title={item.remark || "-"}>
+                        {item.remark ? (
+                          <span className="text-[11px] font-medium text-red-700 bg-red-50 border border-red-100 rounded px-2 py-1 truncate block" title={item.remark}>
+                            {item.remark}
+                          </span>
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}

@@ -121,6 +121,7 @@ export interface SchemeLpcdData {
   dashboard_url?: string;
   water_supply?: string;
   agency_type?: string;
+  remark?: string;
 }
 
 export interface RegionData {
@@ -1107,26 +1108,26 @@ const SchemeLpcdDashboard = () => {
       // Helper function to format dates for headers
       const formatDateForHeader = (dateStr: string | null | undefined) => {
         if (!dateStr) return "N/A";
-        
+
         // If it's already in a format with a year (e.g., "01-Jan-2025" or "01-Jan-25"), return as is
         if (/^\d{1,2}[-/][a-zA-Z]{3}[-/]\d{2,4}$/.test(dateStr)) {
           return dateStr;
         }
-        
+
         if (/^\d{1,2}[-/][a-zA-Z]{3}$/.test(dateStr)) {
           const currentYear = new Date().getFullYear();
           return `${dateStr}-${currentYear}`;
         }
-        
+
         try {
           const date = new Date(dateStr);
           if (isNaN(date.getTime())) return dateStr;
-          
+
           if (date.getFullYear() === 2001 && !dateStr.includes("2001")) {
             const currentYear = new Date().getFullYear();
             return `${dateStr}-${currentYear}`;
           }
-          
+
           return date.toLocaleDateString("en-IN", {
             day: "2-digit",
             month: "short",
@@ -2007,7 +2008,7 @@ const SchemeLpcdDashboard = () => {
                       <TableHead className="font-medium">Population</TableHead>
                       <TableHead className="font-medium">LPCD</TableHead>
                       <TableHead className="font-medium">MJP</TableHead>
-                      <TableHead className="font-medium">Agency Type</TableHead>
+
                       <TableHead className="font-medium w-[150px]">Remark</TableHead>
                       <TableHead className="font-medium">Actions</TableHead>
                     </TableRow>
@@ -2079,32 +2080,23 @@ const SchemeLpcdDashboard = () => {
                             <TableCell>
                               <LpcdBadge value={lpcdValue} />
                             </TableCell>
-                             <TableCell>
-                               <Badge
-                                 className={`${scheme.agency_type === "MJP"
-                                   ? "bg-blue-100 text-blue-800 hover:bg-blue-200"
-                                   : scheme.agency_type === "ZP"
-                                     ? "bg-teal-100 text-teal-800 hover:bg-teal-200"
-                                     : "bg-gray-100 text-gray-800 hover:bg-gray-200"
-                                   }`}
-                               >
-                                 {scheme.agency_type || "N/A"}
-                               </Badge>
-                             </TableCell>
-                            <TableCell className="max-w-[150px] truncate" title={hasIssue ? schemeIssues!.map((i: any) => i.reason).join(", ") : "-"}>
-                              {hasIssue ? (
-                                <Button
-                                  variant="ghost"
-                                  className="h-auto p-1 max-w-full justify-start text-red-600 font-medium text-[11px] hover:text-red-700 hover:bg-red-50"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedRemarkDetails({ issues: schemeIssues!, title: `Remarks for ${scheme.scheme_name}` });
-                                  }}
-                                >
-                                  <span className="truncate block w-full text-left">
-                                    {schemeIssues!.map((i: any) => i.reason).join(", ")}
-                                  </span>
-                                </Button>
+                            <TableCell>
+                              <Badge
+                                className={`${scheme.agency_type === "MJP"
+                                  ? "bg-blue-100 text-blue-800 hover:bg-blue-200"
+                                  : scheme.agency_type === "ZP"
+                                    ? "bg-teal-100 text-teal-800 hover:bg-teal-200"
+                                    : "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                                  }`}
+                              >
+                                {scheme.agency_type || "N/A"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="max-w-[150px] truncate" title={scheme.remark || "-"}>
+                              {scheme.remark ? (
+                                <span className="text-[11px] font-medium text-red-700 bg-red-50 border border-red-100 rounded px-2 py-1 truncate block" title={scheme.remark}>
+                                  {scheme.remark}
+                                </span>
                               ) : (
                                 <span className="text-gray-400">-</span>
                               )}

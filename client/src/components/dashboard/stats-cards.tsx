@@ -84,26 +84,26 @@ export default function StatsCards({
     ? data.total_schemes || 0
     : data.total_schemes_integrated || 0;
   const completedSchemes = isInstrumented
-    ? data.schemes_in_operation || 0
+    ? data.schemes_operational || 0
     : data.fully_completed_schemes || 0;
 
   const totalVillages = isInstrumented
     ? data.total_villages || 0
     : data.total_villages_integrated || 0;
   const completedVillages = isInstrumented
-    ? data.completed_villages || 0
+    ? data.villages_operational || 0
     : data.fully_completed_villages || 0;
 
   const totalEsr = isInstrumented
     ? data.total_esr || 0
     : data.total_esr_integrated || 0;
   const completedEsr = isInstrumented
-    ? data.completed_esr || 0
+    ? data.esr_operational || 0
     : data.fully_completed_esr || 0;
 
   const partialEsr = data.partial_esr || 0;
   const flowMeterIntegrated = isInstrumented
-    ? data.flow_meters || 0
+    ? data.flow || 0
     : data.flow_meter_integrated || 0;
   const rcaIntegrated = isInstrumented
     ? data.rca || 0
@@ -116,11 +116,14 @@ export default function StatsCards({
     completedSchemes,
     totalSchemes,
   );
-  const villageCompletionPercentage = calculatePercentage(
-    completedVillages,
-    totalVillages,
-  );
-  const esrCompletionPercentage = calculatePercentage(completedEsr, totalEsr);
+
+  const villageCompletionPercentage = totalVillages > 0
+    ? Number(((completedVillages / totalVillages) * 100).toFixed(2))
+    : 0;
+
+  const esrCompletionPercentage = totalEsr > 0
+    ? Number(((completedEsr / totalEsr) * 100).toFixed(2))
+    : 0;
 
   return (
     <div
@@ -154,7 +157,7 @@ export default function StatsCards({
             <div className="ml-3 sm:ml-4 md:ml-5 xl:ml-6 flex-1">
               <div className="flex items-center gap-2">
                 <h3 className="text-xs sm:text-sm xl:text-base font-medium text-blue-800">
-                  {isInstrumented ? "MJP Approved Schemes (389)" : "MJP Approved Schemes"}{" "}
+                  {isInstrumented ? "Fully Instrumented Schemes" : "Total Schemes"}{" "}
                   {selectedRegion === "all" ? (isInstrumented ? "" : "(389)") : ""}
                 </h3>
                 <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${isInstrumented

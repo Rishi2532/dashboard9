@@ -222,7 +222,12 @@ router.get('/', async (req, res) => {
           pressure_transmitter_connected,
           residual_chlorine_analyzer_connected,
           agency,
-          agency_type
+          agency_type,
+          (SELECT description FROM helpdesk_tickets ht 
+           WHERE ht.scheme_id = scheme_id 
+           AND ht.level = 'Scheme' 
+           AND ht.status IN ('Open', 'In-Progress') 
+           ORDER BY ht.created_at DESC LIMIT 1) as remark
         FROM 
           scheme_aggregation
       `;
@@ -280,9 +285,11 @@ router.get('/', async (req, res) => {
       }
 
       // Agency Type filter
-      if (agencyType && agencyType !== 'ALL') {
-        conditions.push('agency_type = $' + (queryParams.length + 1));
-        queryParams.push(agencyType);
+      const rawAgencyType = Array.isArray(agencyType) ? agencyType[0] : agencyType;
+      const targetAgencyType = typeof rawAgencyType === 'string' ? rawAgencyType : undefined;
+      if (targetAgencyType && targetAgencyType.toUpperCase() !== 'ALL') {
+        conditions.push('UPPER(ss.agency_type) = $' + (queryParams.length + 1));
+        queryParams.push(targetAgencyType.toUpperCase());
       }
 
       // Add WHERE clause if there are conditions
@@ -377,9 +384,11 @@ router.get('/lpcd-stats', async (req, res) => {
         conditions.push('block = $' + (queryParams.length + 1));
         queryParams.push(block);
       }
-      if (agencyType && agencyType !== 'ALL') {
-        conditions.push('agency_type = $' + (queryParams.length + 1));
-        queryParams.push(agencyType);
+      const rawAgencyType = Array.isArray(agencyType) ? agencyType[0] : agencyType;
+      const targetAgencyType = typeof rawAgencyType === 'string' ? rawAgencyType : undefined;
+      if (targetAgencyType && targetAgencyType.toUpperCase() !== 'ALL') {
+        conditions.push('UPPER(agency_type) = $' + (queryParams.length + 1));
+        queryParams.push(targetAgencyType.toUpperCase());
       }
 
       if (conditions.length > 0) {
@@ -494,9 +503,11 @@ router.get('/history', async (req, res) => {
         queryParams.push(subdivision);
       }
 
-      if (agencyType && agencyType !== 'ALL') {
-        query += ` AND h.agency_type = $${paramIndex++}`;
-        queryParams.push(agencyType);
+      const rawAgencyType = Array.isArray(agencyType) ? agencyType[0] : agencyType;
+      const targetAgencyType = typeof rawAgencyType === 'string' ? rawAgencyType : undefined;
+      if (targetAgencyType && targetAgencyType.toUpperCase() !== 'ALL') {
+        query += ` AND UPPER(h.agency_type) = $${paramIndex++}`;
+        queryParams.push(targetAgencyType.toUpperCase());
       }
 
       if (start_date) {
@@ -606,9 +617,11 @@ router.get('/export/history', async (req, res) => {
         queryParams.push(circle);
       }
 
-      if (agencyType && agencyType !== 'ALL') {
-        query += ` AND h.agency_type = $${paramIndex++}`;
-        queryParams.push(agencyType);
+      const rawAgencyType = Array.isArray(agencyType) ? agencyType[0] : agencyType;
+      const targetAgencyType = typeof rawAgencyType === 'string' ? rawAgencyType : undefined;
+      if (targetAgencyType && targetAgencyType.toUpperCase() !== 'ALL') {
+        query += ` AND UPPER(h.agency_type) = $${paramIndex++}`;
+        queryParams.push(targetAgencyType.toUpperCase());
       }
 
       if (division && division !== 'all') {

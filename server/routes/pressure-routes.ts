@@ -29,9 +29,12 @@ const requireAdmin = (req: express.Request, res: express.Response, next: express
 
 // Helper function to get filtered scheme IDs
 // Helper function to get filtered scheme IDs
-async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: any, agencyType?: string) {
+async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: any, agencyType?: string | string[]) {
   try {
     const conditions = [];
+
+    // Handle agencyType normalization (due to potential duplication from frontend)
+    const targetAgencyType = Array.isArray(agencyType) ? agencyType[0] : agencyType;
 
     // Handle filterType/fullyCompleted
     if (filterType === 'commissioned') {
@@ -70,9 +73,9 @@ async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: an
       }
     }
 
-    // Handle agencyType
-    if (agencyType && agencyType !== 'ALL' && agencyType !== 'all') {
-      conditions.push(eq(schemeStatuses.agency_type, agencyType));
+    // Handle agencyType with case-insensitive comparison
+    if (targetAgencyType && targetAgencyType.toUpperCase() !== 'ALL') {
+      conditions.push(sql`UPPER(${schemeStatuses.agency_type}) = ${targetAgencyType.toUpperCase()}`);
     }
 
     if (conditions.length > 0) {
@@ -1070,6 +1073,13 @@ router.get("/details/:statisticType", async (req, res) => {
         pd.pressure_date_day_6,
         pd.pressure_value_7,
         pd.pressure_date_day_7,
+        (SELECT description FROM helpdesk_tickets ht 
+         WHERE ht.scheme_id = cs.scheme_id 
+         AND ht.village_name = cs.village_name 
+         AND ht.esr_name = cs.esr_name 
+         AND ht.level = 'ESR' 
+         AND ht.status IN ('Open', 'In-Progress') 
+         ORDER BY ht.created_at DESC LIMIT 1) as remark,
         pd.dashboard_url
       FROM communication_status cs
       LEFT JOIN water_consumption wc ON (
@@ -1246,6 +1256,13 @@ router.get(["/details/export/:statisticType", "/details-export/:statisticType"],
         pd.pressure_value_7,
         pd.pressure_date_day_7,
         cs.uploaded_at,
+        (SELECT description FROM helpdesk_tickets ht 
+         WHERE ht.scheme_id = cs.scheme_id 
+         AND ht.village_name = cs.village_name 
+         AND ht.esr_name = cs.esr_name 
+         AND ht.level = 'ESR' 
+         AND ht.status IN ('Open', 'In-Progress') 
+         ORDER BY ht.created_at DESC LIMIT 1) as remark,
         pd.dashboard_url
       FROM communication_status cs
       LEFT JOIN water_consumption wc ON (
@@ -1279,6 +1296,7 @@ router.get(["/details/export/:statisticType", "/details-export/:statisticType"],
       'Water Value': row.water_value_day7,
       'Pressure Value (bar)': row.pressure_value_7 !== null ? Number(row.pressure_value_7).toFixed(2) : 'N/A',
       'Pressure Date': row.pressure_date_day_7,
+      'Remark': row.remark,
       'Dashboard URL': row.dashboard_url || 'N/A',
     }));
 

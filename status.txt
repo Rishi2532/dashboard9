@@ -1,0 +1,36 @@
+ M client/src/components/dashboard/stats-cards.tsx
+ M client/src/pages/CommunicationStatusPage.tsx
+ M client/src/pages/chlorine/ChlorineDashboard.tsx
+ M client/src/pages/chlorine/DetailedChlorinePage.tsx
+ M client/src/pages/dashboard.tsx
+ M client/src/pages/helpdesk/IssueReportingForm.tsx
+ M client/src/pages/lpcd/EnhancedLpcdDashboard.tsx
+ M client/src/pages/pressure/PressureDashboard.tsx
+ M client/src/pages/scheme-lpcd/SchemeLpcdDashboard.tsx
+ M client/src/pages/schemes.tsx
+ M client/src/pages/water-consumption.tsx
+ M client/src/types.ts
+ M database_create_scripts.sql
+ M server/init-database.js
+ M server/routes.ts
+ M server/routes/category-data-routes.ts
+ M server/routes/chlorine-routes.ts
+ M server/routes/combined-esr-download-routes.ts
+ M server/routes/communication-status-routes.ts
+ M server/routes/flowmeter-routes.ts
+ M server/routes/pressure-routes.ts
+ M server/routes/scheme-lpcd-routes.ts
+ M server/routes/water-consumption-routes.ts
+ M server/routes/water-scheme-routes.ts
+ M server/setup-db.ts
+ M server/storage.ts
+?? check_console.mjs
+?? client/src/components/dashboard/AgencyTypeFilter.tsx
+?? client/tsc_output.txt
+?? create_issue_reports_table.mjs
+?? find_missing.js
+?? git_status_info.txt
+?? insert_filters.py
+?? status.txt
+?? tmp/
+?? update_exports.py

@@ -130,6 +130,7 @@ export interface WaterSchemeData {
   mjp_fully_completed?: string;
   fully_completion_scheme_status?: string;
   water_supply?: string;
+  remark?: string;
 }
 
 export interface RegionData {
@@ -2969,20 +2970,11 @@ const EnhancedLpcdDashboard = () => {
                                       {getLpcdStatusText(lpcdValue)}
                                     </Badge>
                                   </TableCell>
-                                  <TableCell className="border-b border-blue-200 text-center align-middle max-w-[150px] truncate" title={hasIssue ? allIssues.map((i: any) => i.reason).join(", ") : "-"}>
-                                    {hasIssue ? (
-                                      <Button
-                                        variant="ghost"
-                                        className="h-auto p-1 max-w-full justify-start text-red-600 font-medium text-[11px] hover:text-red-700 hover:bg-red-50"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedRemarkDetails({ issues: allIssues, title: `Remarks for ${scheme.village_name}` });
-                                        }}
-                                      >
-                                        <span className="truncate block w-full text-left">
-                                          {allIssues.map((i: any) => i.reason).join(", ")}
-                                        </span>
-                                      </Button>
+                                  <TableCell className="border-b border-blue-200 text-center align-middle max-w-[150px] truncate" title={scheme.remark || "-"}>
+                                    {scheme.remark ? (
+                                      <span className="text-[11px] font-medium text-red-700 bg-red-50 border border-red-100 rounded px-2 py-1 truncate block" title={scheme.remark}>
+                                        {scheme.remark}
+                                      </span>
                                     ) : (
                                       <span className="text-gray-400">-</span>
                                     )}

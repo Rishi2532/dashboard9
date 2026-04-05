@@ -104,6 +104,7 @@ interface ChlorineData {
   // Dashboard URL for PI Vision integration
   dashboard_url?: string;
   water_supply?: string;
+  remark?: string;
 }
 
 interface RegionData {
@@ -3332,44 +3333,14 @@ const ChlorineDashboard: React.FC = () => {
                               </span>
                             )}
                           </TableCell>
-                          <TableCell
-                            className="text-center font-medium border-b border-blue-200 max-w-[150px] truncate"
-                            title={
-                              (
-                                esrIssuesMap?.get(
-                                  `${item.scheme_id}-${item.village_name}-${item.esr_name}`,
-                                ) || []
-                              ).length > 0
-                                ? (
-                                  esrIssuesMap?.get(
-                                    `${item.scheme_id}-${item.village_name}-${item.esr_name}`,
-                                  ) || []
-                                )
-                                  .map((i: any) => i.reason)
-                                  .join(", ")
-                                : "-"
-                            }
-                          >
-                            {(() => {
-                              const esrKey = `${item.scheme_id}-${item.village_name}-${item.esr_name}`;
-                              const issues = esrIssuesMap?.get(esrKey) || [];
-                              return issues.length > 0 ? (
-                                <Button
-                                  variant="ghost"
-                                  className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedRemarkDetails({ issues, title: `Remarks for ${item.esr_name}` });
-                                  }}
-                                >
-                                  <span className="truncate block w-full text-left">
-                                    {issues.map((i: any) => i.reason).join(", ")}
-                                  </span>
-                                </Button>
-                              ) : (
-                                <span className="text-slate-400">-</span>
-                              );
-                            })()}
+                          <TableCell className="text-center font-medium border-b border-blue-200 max-w-[150px] truncate" title={item.remark || "-"}>
+                            {item.remark ? (
+                              <span className="text-[11px] font-medium text-red-700 bg-red-50 border border-red-100 rounded px-2 py-1 truncate block" title={item.remark}>
+                                {item.remark}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">-</span>
+                            )}
                           </TableCell>
                           <TableCell className="border-b border-blue-200">
                             <Dialog>

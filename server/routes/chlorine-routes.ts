@@ -14,8 +14,11 @@ import { schemeStatuses } from "@shared/schema";
 const router = express.Router();
 
 // Helper to get filtered scheme IDs based on filterType and agencyType
-async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: any, agencyType?: string) {
+async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: any, agencyType?: string | string[]) {
   const activeFilter = filterType || (fullyCompleted === "true" ? "fully_completed" : undefined);
+  
+  // Handle case where agencyType might be an array due to duplicate parameters
+  const targetAgencyType = Array.isArray(agencyType) ? agencyType[0] : agencyType;
 
   const conditions = [];
   if (activeFilter === 'commissioned') {
@@ -26,8 +29,8 @@ async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: an
     conditions.push(sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('in progress', 'partial', 'ongoing')`);
   }
 
-  if (agencyType && agencyType !== 'ALL' && agencyType !== 'all') {
-    conditions.push(eq(schemeStatuses.agency_type, agencyType));
+  if (targetAgencyType && targetAgencyType.toUpperCase() !== 'ALL') {
+    conditions.push(sql`UPPER(${schemeStatuses.agency_type}) = ${targetAgencyType.toUpperCase()}`);
   }
 
   if (conditions.length > 0) {
@@ -1286,8 +1289,14 @@ router.get("/details/:statisticType", async (req, res) => {
         cd.chlorine_value_6,
         cd.chlorine_date_day_6,
         cd.chlorine_value_7,
-        cd.chlorine_value_7,
         cd.chlorine_date_day_7,
+        (SELECT description FROM helpdesk_tickets ht 
+         WHERE ht.scheme_id = cs.scheme_id 
+         AND ht.village_name = cs.village_name 
+         AND ht.esr_name = cs.esr_name 
+         AND ht.level = 'ESR' 
+         AND ht.status IN ('Open', 'In-Progress') 
+         ORDER BY ht.created_at DESC LIMIT 1) as remark,
         cd.dashboard_url
       FROM communication_status cs
       LEFT JOIN water_consumption wc ON (
@@ -4786,6 +4795,12 @@ router.get("/lpcd/details/:statisticType", async (req, res) => {
               cs.scheme_id, cs.scheme_name, cs.village_name, cs.esr_name,
               cs.flow_meter_connected, cs.flow_meter_status,
               ws.population, ws.lpcd_value_day7, ws.water_value_day7, ws.water_date_day7,
+              (SELECT description FROM helpdesk_tickets ht 
+               WHERE ht.scheme_id = cs.scheme_id 
+               AND ht.village_name = cs.village_name 
+               AND ht.level = 'Village' 
+               AND ht.status IN ('Open', 'In-Progress') 
+               ORDER BY ht.created_at DESC LIMIT 1) as remark,
               COALESCE(ws.dashboard_url, (SELECT dashboard_url FROM chlorine_history ch WHERE ch.scheme_id = cs.scheme_id AND ch.village_name = cs.village_name AND ch.dashboard_url IS NOT NULL ORDER BY ch.uploaded_at DESC LIMIT 1)) as dashboard_url
             FROM communication_status cs
             LEFT JOIN water_scheme_data ws ON (
@@ -4807,6 +4822,12 @@ router.get("/lpcd/details/:statisticType", async (req, res) => {
                 ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
                 ws.scheme_id, ws.scheme_name, ws.village_name,
                 ws.population, ws.lpcd_value_day7, ws.water_value_day7, ws.water_date_day7,
+                (SELECT description FROM helpdesk_tickets ht 
+                 WHERE ht.scheme_id = ws.scheme_id 
+                 AND ht.village_name = ws.village_name 
+                 AND ht.level = 'Village' 
+                 AND ht.status IN ('Open', 'In-Progress') 
+                 ORDER BY ht.created_at DESC LIMIT 1) as remark,
                 COALESCE(ws.dashboard_url, (SELECT dashboard_url FROM chlorine_history ch WHERE ch.scheme_id = ws.scheme_id AND ch.village_name = ws.village_name AND ch.dashboard_url IS NOT NULL ORDER BY ch.uploaded_at DESC LIMIT 1)) as dashboard_url
               FROM water_scheme_data ws
               WHERE ws.lpcd_value_day7 IS NOT NULL AND ws.lpcd_value_day7::numeric > 0
@@ -4825,6 +4846,12 @@ router.get("/lpcd/details/:statisticType", async (req, res) => {
                 ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
                 ws.scheme_id, ws.scheme_name, ws.village_name,
                 ws.population, ws.lpcd_value_day7, ws.water_value_day7, ws.water_date_day7,
+                (SELECT description FROM helpdesk_tickets ht 
+                 WHERE ht.scheme_id = ws.scheme_id 
+                 AND ht.village_name = ws.village_name 
+                 AND ht.level = 'Village' 
+                 AND ht.status IN ('Open', 'In-Progress') 
+                 ORDER BY ht.created_at DESC LIMIT 1) as remark,
                 COALESCE(ws.dashboard_url, (SELECT dashboard_url FROM chlorine_history ch WHERE ch.scheme_id = ws.scheme_id AND ch.village_name = ws.village_name AND ch.dashboard_url IS NOT NULL ORDER BY ch.uploaded_at DESC LIMIT 1)) as dashboard_url
               FROM water_scheme_data ws
               WHERE ws.lpcd_value_day7 IS NOT NULL AND ws.lpcd_value_day7::numeric > 55
@@ -4843,6 +4870,12 @@ router.get("/lpcd/details/:statisticType", async (req, res) => {
                 ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
                 ws.scheme_id, ws.scheme_name, ws.village_name,
                 ws.population, ws.lpcd_value_day7, ws.water_value_day7, ws.water_date_day7,
+                (SELECT description FROM helpdesk_tickets ht 
+                 WHERE ht.scheme_id = ws.scheme_id 
+                 AND ht.village_name = ws.village_name 
+                 AND ht.level = 'Village' 
+                 AND ht.status IN ('Open', 'In-Progress') 
+                 ORDER BY ht.created_at DESC LIMIT 1) as remark,
                 COALESCE(ws.dashboard_url, (SELECT dashboard_url FROM chlorine_history ch WHERE ch.scheme_id = ws.scheme_id AND ch.village_name = ws.village_name AND ch.dashboard_url IS NOT NULL ORDER BY ch.uploaded_at DESC LIMIT 1)) as dashboard_url
               FROM water_scheme_data ws
               WHERE ws.lpcd_value_day7 IS NOT NULL 
@@ -4863,6 +4896,12 @@ router.get("/lpcd/details/:statisticType", async (req, res) => {
                 ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
                 ws.scheme_id, ws.scheme_name, ws.village_name,
                 ws.population, ws.lpcd_value_day7, ws.water_value_day7, ws.water_date_day7,
+                (SELECT description FROM helpdesk_tickets ht 
+                 WHERE ht.scheme_id = ws.scheme_id 
+                 AND ht.village_name = ws.village_name 
+                 AND ht.level = 'Village' 
+                 AND ht.status IN ('Open', 'In-Progress') 
+                 ORDER BY ht.created_at DESC LIMIT 1) as remark,
                 COALESCE(ws.dashboard_url, (SELECT dashboard_url FROM chlorine_history ch WHERE ch.scheme_id = ws.scheme_id AND ch.village_name = ws.village_name AND ch.dashboard_url IS NOT NULL ORDER BY ch.uploaded_at DESC LIMIT 1)) as dashboard_url
               FROM water_scheme_data ws
               WHERE ws.lpcd_value_day7 IS NULL OR ws.lpcd_value_day7::numeric = 0
@@ -4902,6 +4941,12 @@ router.get("/lpcd/details/:statisticType", async (req, res) => {
               hs.region, hs.circle, hs.division, hs.sub_division, hs.block,
               hs.scheme_id, hs.scheme_name, hs.village_name, hs.population,
               hs.days_below_55 as consecutive_days,
+              (SELECT description FROM helpdesk_tickets ht 
+               WHERE ht.scheme_id = hs.scheme_id 
+               AND ht.village_name = hs.village_name 
+               AND ht.level = 'Village' 
+               AND ht.status IN ('Open', 'In-Progress') 
+               ORDER BY ht.created_at DESC LIMIT 1) as remark,
               COALESCE(ws.dashboard_url, (SELECT dashboard_url FROM chlorine_history ch WHERE ch.scheme_id = hs.scheme_id AND ch.village_name = hs.village_name AND ch.dashboard_url IS NOT NULL ORDER BY ch.uploaded_at DESC LIMIT 1)) as dashboard_url
             FROM history_stats hs
             LEFT JOIN water_scheme_data ws ON (hs.scheme_id = ws.scheme_id AND hs.village_name = ws.village_name)

@@ -27,9 +27,12 @@ const convertRecordWaterValuesToLL = <T extends Record<string, any>>(record: T):
 };
 
 // Function to get filtered scheme IDs based on filterType, fullyCompleted, and agencyType
-async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: any, agencyType?: string) {
+async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: any, agencyType?: string | string[]) {
   const activeFilter = filterType || (fullyCompleted === "true" ? "fully_completed" : undefined);
   
+  // Handle case where agencyType might be an array due to duplicate parameters
+  const targetAgencyType = Array.isArray(agencyType) ? agencyType[0] : agencyType;
+
   const conditions: any[] = [];
   if (activeFilter === 'commissioned') {
     conditions.push(sql`LOWER(${schemeStatuses.water_supply}) = 'yes'`);
@@ -39,8 +42,8 @@ async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: an
     conditions.push(sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('in progress', 'partial', 'ongoing')`);
   }
 
-  if (agencyType && agencyType !== 'ALL' && agencyType !== 'all') {
-    conditions.push(eq(schemeStatuses.agency_type, agencyType));
+  if (targetAgencyType && targetAgencyType.toUpperCase() !== 'ALL') {
+    conditions.push(sql`UPPER(${schemeStatuses.agency_type}) = ${targetAgencyType.toUpperCase()}`);
   }
 
   if (conditions.length > 0) {
@@ -108,7 +111,14 @@ const getVillagesWithWater = async (region?: string, schemeId?: string) => {
       block: waterSchemeData.block,
       esr_name: waterConsumption.esr_name,
       esr_capacity: waterConsumption.esr_capacity,
-      flow_meter_connected: waterConsumption.flow_meter_connected
+      flow_meter_connected: waterConsumption.flow_meter_connected,
+      lremark: sql<string>`(SELECT description FROM helpdesk_tickets ht 
+        WHERE ht.scheme_id = ${waterConsumption.scheme_id} 
+        AND ht.village_name = ${waterConsumption.village_name} 
+        AND ht.esr_name = ${waterConsumption.esr_name} 
+        AND ht.level = 'ESR' 
+        AND ht.status IN ('Open', 'In-Progress') 
+        ORDER BY ht.created_at DESC LIMIT 1)`
     })
     .from(waterSchemeData)
     .leftJoin(
@@ -157,6 +167,7 @@ const getVillagesWithWater = async (region?: string, schemeId?: string) => {
         esr_name: row.esr_name,
         esr_capacity: row.esr_capacity,
         flow_meter_connected: row.flow_meter_connected,
+        lremark: (row as any).lremark,
         has_esr_data: row.esr_name ? true : false
       });
     }
@@ -220,7 +231,14 @@ const getVillagesNoWater = async (region?: string, schemeId?: string) => {
       block: waterSchemeData.block,
       esr_name: waterConsumption.esr_name,
       esr_capacity: waterConsumption.esr_capacity,
-      flow_meter_connected: waterConsumption.flow_meter_connected
+      flow_meter_connected: waterConsumption.flow_meter_connected,
+      lremark: sql<string>`(SELECT description FROM helpdesk_tickets ht 
+        WHERE ht.scheme_id = ${waterConsumption.scheme_id} 
+        AND ht.village_name = ${waterConsumption.village_name} 
+        AND ht.esr_name = ${waterConsumption.esr_name} 
+        AND ht.level = 'ESR' 
+        AND ht.status IN ('Open', 'In-Progress') 
+        ORDER BY ht.created_at DESC LIMIT 1)`
     })
     .from(waterSchemeData)
     .leftJoin(
@@ -269,6 +287,7 @@ const getVillagesNoWater = async (region?: string, schemeId?: string) => {
         esr_name: row.esr_name,
         esr_capacity: row.esr_capacity,
         flow_meter_connected: row.flow_meter_connected,
+        lremark: (row as any).lremark,
         has_esr_data: row.esr_name ? true : false
       });
     }
@@ -436,7 +455,14 @@ const getVillagesAbove55LPCD = async (region?: string, schemeId?: string) => {
       block: waterSchemeData.block,
       esr_name: waterConsumption.esr_name,
       esr_capacity: waterConsumption.esr_capacity,
-      flow_meter_connected: waterConsumption.flow_meter_connected
+      flow_meter_connected: waterConsumption.flow_meter_connected,
+      lremark: sql<string>`(SELECT description FROM helpdesk_tickets ht 
+        WHERE ht.scheme_id = ${waterConsumption.scheme_id} 
+        AND ht.village_name = ${waterConsumption.village_name} 
+        AND ht.esr_name = ${waterConsumption.esr_name} 
+        AND ht.level = 'ESR' 
+        AND ht.status IN ('Open', 'In-Progress') 
+        ORDER BY ht.created_at DESC LIMIT 1)`
     })
     .from(waterSchemeData)
     .leftJoin(
@@ -485,6 +511,7 @@ const getVillagesAbove55LPCD = async (region?: string, schemeId?: string) => {
         esr_name: row.esr_name,
         esr_capacity: row.esr_capacity,
         flow_meter_connected: row.flow_meter_connected,
+        lremark: (row as any).lremark,
         has_esr_data: row.esr_name ? true : false
       });
     }
@@ -549,7 +576,14 @@ const getVillagesBelow55LPCD = async (region?: string, schemeId?: string) => {
       block: waterSchemeData.block,
       esr_name: waterConsumption.esr_name,
       esr_capacity: waterConsumption.esr_capacity,
-      flow_meter_connected: waterConsumption.flow_meter_connected
+      flow_meter_connected: waterConsumption.flow_meter_connected,
+      lremark: sql<string>`(SELECT description FROM helpdesk_tickets ht 
+        WHERE ht.scheme_id = ${waterConsumption.scheme_id} 
+        AND ht.village_name = ${waterConsumption.village_name} 
+        AND ht.esr_name = ${waterConsumption.esr_name} 
+        AND ht.level = 'ESR' 
+        AND ht.status IN ('Open', 'In-Progress') 
+        ORDER BY ht.created_at DESC LIMIT 1)`
     })
     .from(waterSchemeData)
     .leftJoin(
@@ -598,6 +632,7 @@ const getVillagesBelow55LPCD = async (region?: string, schemeId?: string) => {
         esr_name: row.esr_name,
         esr_capacity: row.esr_capacity,
         flow_meter_connected: row.flow_meter_connected,
+        lremark: (row as any).lremark,
         has_esr_data: row.esr_name ? true : false
       });
     }
@@ -2225,6 +2260,13 @@ router.get("/reliable-water-consumption", async (req, res) => {
         esr_capacity: waterConsumption.esr_capacity,
         flow_meter_connected: waterConsumption.flow_meter_connected,
         online_status: waterConsumption.online_status,
+        lremark: sql<string>`(SELECT description FROM helpdesk_tickets ht 
+          WHERE ht.scheme_id = ${waterConsumption.scheme_id} 
+          AND ht.village_name = ${waterConsumption.village_name} 
+          AND ht.esr_name = ${waterConsumption.esr_name} 
+          AND ht.level = 'ESR' 
+          AND ht.status IN ('Open', 'In-Progress') 
+          ORDER BY ht.created_at DESC LIMIT 1)`,
         // Water consumption data (7 days)
         water_value_day1: waterConsumption.water_value_day1,
         water_value_day2: waterConsumption.water_value_day2,
