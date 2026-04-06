@@ -63,13 +63,19 @@ router.get("/esrs/:schemeId/:villageName", async (req, res) => {
     try {
         const db = await getDB();
         
-        // Fetch unique ESR names from both water_consumption and water_consumption_history
-        // Using a highly resilient tiered matching strategy
+        // Fetch unique ESR names from ALL possible data sources
+        // This ensures ESRs appear regardless of which sensors (Water, Cl, Pr) are integrated
         const result: any = await db.execute(sql`
             WITH unioned_data AS (
                 SELECT esr_name, scheme_id, scheme_name, village_name FROM water_consumption
                 UNION ALL
                 SELECT esr_name, scheme_id, scheme_name, village_name FROM water_consumption_history
+                UNION ALL
+                SELECT esr_name, scheme_id, scheme_name, village_name FROM communication_status
+                UNION ALL
+                SELECT esr_name, scheme_id, scheme_name, village_name FROM chlorine_data
+                UNION ALL
+                SELECT esr_name, scheme_id, scheme_name, village_name FROM pressure_data
             ),
             matching_esrs AS (
                 -- Level 1: Strict/Lenient Scheme ID match
@@ -79,22 +85,21 @@ router.get("/esrs/:schemeId/:villageName", async (req, res) => {
                 
                 UNION ALL
                 
-                -- Level 2: Scheme Name match (handles common special character/spacing issues)
+                -- Level 2: Scheme Name match
                 SELECT esr_name, 2 as priority FROM unioned_data 
                 WHERE TRIM(LOWER(scheme_name)) = TRIM(LOWER(${schemeName as string}))
                 AND (TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName})) OR TRIM(LOWER(village_name)) ILIKE TRIM(LOWER(${villageName})) || '%')
 
                 UNION ALL
                 
-                -- Level 3: Fuzzy Scheme Name match (if scheme name in consumption table is slightly different)
+                -- Level 3: Fuzzy Scheme Name match
                 SELECT esr_name, 3 as priority FROM unioned_data 
                 WHERE scheme_name ILIKE '%' || ${schemeName as string ? (schemeName as string).split(' ')[0] : ''} || '%'
                 AND (TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName})) OR TRIM(LOWER(village_name)) ILIKE TRIM(LOWER(${villageName})) || '%')
                 
                 UNION ALL
 
-                -- Level 4: Village Name Fallback (If no scheme match, just find by village)
-                -- This is safe because user has already navigated the hierarchy
+                -- Level 4: Village Name Fallback
                 SELECT esr_name, 4 as priority FROM unioned_data 
                 WHERE (TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName})) OR TRIM(LOWER(village_name)) ILIKE TRIM(LOWER(${villageName})) || '%')
             )
