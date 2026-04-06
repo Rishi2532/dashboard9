@@ -64,40 +64,61 @@ router.get("/esrs/:schemeId/:villageName", async (req, res) => {
         const db = await getDB();
         
         // Fetch unique ESR names from both water_consumption and water_consumption_history
-        // Using multiple matching strategies (ID, Name, and ILIKE) for maximum robustness
+        // Using a highly resilient tiered matching strategy
         const result: any = await db.execute(sql`
-            WITH matching_esrs AS (
-                -- Strategy 1: Match by Scheme ID and Village Name (Lenient)
-                SELECT esr_name FROM water_consumption 
+            WITH unioned_data AS (
+                SELECT esr_name, scheme_id, scheme_name, village_name FROM water_consumption
+                UNION ALL
+                SELECT esr_name, scheme_id, scheme_name, village_name FROM water_consumption_history
+            ),
+            matching_esrs AS (
+                -- Level 1: Strict/Lenient Scheme ID match
+                SELECT esr_name, 1 as priority FROM unioned_data 
                 WHERE (TRIM(LOWER(scheme_id)) = TRIM(LOWER(${schemeId})) OR TRIM(LOWER(scheme_id)) = TRIM(LOWER(REPLACE(${schemeId}, ' ', ''))))
                 AND (TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName})) OR TRIM(LOWER(village_name)) ILIKE TRIM(LOWER(${villageName})) || '%')
                 
-                UNION
+                UNION ALL
                 
-                -- Strategy 2: Match by Scheme Name and Village Name (Lenient Backup)
-                SELECT esr_name FROM water_consumption 
+                -- Level 2: Scheme Name match (handles common special character/spacing issues)
+                SELECT esr_name, 2 as priority FROM unioned_data 
                 WHERE TRIM(LOWER(scheme_name)) = TRIM(LOWER(${schemeName as string}))
                 AND (TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName})) OR TRIM(LOWER(village_name)) ILIKE TRIM(LOWER(${villageName})) || '%')
 
-                UNION
+                UNION ALL
                 
-                -- Historical Records - Strategy 1
-                SELECT esr_name FROM water_consumption_history 
-                WHERE (TRIM(LOWER(scheme_id)) = TRIM(LOWER(${schemeId})) OR TRIM(LOWER(scheme_id)) = TRIM(LOWER(REPLACE(${schemeId}, ' ', ''))))
+                -- Level 3: Fuzzy Scheme Name match (if scheme name in consumption table is slightly different)
+                SELECT esr_name, 3 as priority FROM unioned_data 
+                WHERE scheme_name ILIKE '%' || ${schemeName as string ? (schemeName as string).split(' ')[0] : ''} || '%'
                 AND (TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName})) OR TRIM(LOWER(village_name)) ILIKE TRIM(LOWER(${villageName})) || '%')
+                
+                UNION ALL
 
-                UNION
-
-                -- Historical Records - Strategy 2
-                SELECT esr_name FROM water_consumption_history 
-                WHERE TRIM(LOWER(scheme_name)) = TRIM(LOWER(${schemeName as string}))
-                AND (TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName})) OR TRIM(LOWER(village_name)) ILIKE TRIM(LOWER(${villageName})) || '%')
+                -- Level 4: Village Name Fallback (If no scheme match, just find by village)
+                -- This is safe because user has already navigated the hierarchy
+                SELECT esr_name, 4 as priority FROM unioned_data 
+                WHERE (TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName})) OR TRIM(LOWER(village_name)) ILIKE TRIM(LOWER(${villageName})) || '%')
             )
-            SELECT esr_name FROM matching_esrs ORDER BY esr_name
+            SELECT DISTINCT esr_name FROM matching_esrs 
+            WHERE esr_name IS NOT NULL AND esr_name <> ''
+            ORDER BY esr_name
         `);
 
-        const esrs = result.rows.map((row: any) => ({
-            esr_name: row.esr_name
+        // If even Level 4 fails, try one last check with raw village name without dot
+        let esrsList = result.rows;
+        if (esrsList.length === 0 && villageName.endsWith('.')) {
+            const strippedVillage = villageName.slice(0, -1);
+            const secondaryResult: any = await db.execute(sql`
+                SELECT DISTINCT esr_name FROM (
+                    SELECT esr_name FROM water_consumption WHERE village_name ILIKE ${strippedVillage} || '%'
+                    UNION
+                    SELECT esr_name FROM water_consumption_history WHERE village_name ILIKE ${strippedVillage} || '%'
+                ) t WHERE esr_name IS NOT NULL AND esr_name <> ''
+            `);
+            esrsList = secondaryResult.rows;
+        }
+
+        const esrs = esrsList.map((row: any) => ({
+            esr_name: row.esr_name,
         }));
 
         res.json(esrs);
