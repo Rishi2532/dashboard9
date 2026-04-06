@@ -60,19 +60,20 @@ router.get("/esrs/:schemeId/:villageName", async (req, res) => {
     const { schemeId, villageName } = req.params;
     try {
         const db = await getDB();
-        const esrs = await db
-            .select({
-                esr_name: waterConsumptionHistory.esr_name,
-            })
-            .from(waterConsumptionHistory)
-            .where(
-                and(
-                    eq(waterConsumptionHistory.scheme_id, schemeId),
-                    eq(waterConsumptionHistory.village_name, villageName)
-                )
-            )
-            .groupBy(waterConsumptionHistory.esr_name)
-            .orderBy(waterConsumptionHistory.esr_name);
+        
+        // Fetch unique ESR names from both water_consumption and water_consumption_history
+        const result: any = await db.execute(sql`
+            SELECT esr_name FROM water_consumption 
+                WHERE scheme_id = ${schemeId} AND village_name = ${villageName}
+            UNION
+            SELECT esr_name FROM water_consumption_history 
+                WHERE scheme_id = ${schemeId} AND village_name = ${villageName}
+            ORDER BY esr_name
+        `);
+
+        const esrs = result.rows.map((row: any) => ({
+            esr_name: row.esr_name
+        }));
 
         res.json(esrs);
     } catch (error) {
