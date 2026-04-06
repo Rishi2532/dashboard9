@@ -64,10 +64,12 @@ router.get("/esrs/:schemeId/:villageName", async (req, res) => {
         // Fetch unique ESR names from both water_consumption and water_consumption_history
         const result: any = await db.execute(sql`
             SELECT esr_name FROM water_consumption 
-                WHERE scheme_id = ${schemeId} AND village_name = ${villageName}
+                WHERE TRIM(LOWER(scheme_id)) = TRIM(LOWER(${schemeId})) 
+                AND TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName}))
             UNION
             SELECT esr_name FROM water_consumption_history 
-                WHERE scheme_id = ${schemeId} AND village_name = ${villageName}
+                WHERE TRIM(LOWER(scheme_id)) = TRIM(LOWER(${schemeId})) 
+                AND TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName}))
             ORDER BY esr_name
         `);
 
