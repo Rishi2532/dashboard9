@@ -259,8 +259,10 @@ export default function IssueReportingForm() {
         queryKey: ["/api/issue-reporting/esrs", watchSchemeId, watchVillageName, watchSchemeName],
         queryFn: () => {
              const params = new URLSearchParams();
+             if (watchSchemeId) params.append("schemeId", watchSchemeId);
+             if (watchVillageName) params.append("villageName", watchVillageName);
              if (watchSchemeName) params.append("schemeName", watchSchemeName);
-             return apiRequest(`/api/issue-reporting/esrs/${encodeURIComponent(watchSchemeId || "")}/${encodeURIComponent(watchVillageName || "")}?${params.toString()}`);
+             return apiRequest(`/api/issue-reporting/esrs?${params.toString()}`);
         },
         enabled: !!watchSchemeId && !!watchVillageName,
     });

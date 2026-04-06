@@ -56,15 +56,21 @@ router.get("/villages/:schemeId", async (req, res) => {
 });
 
 // 3. Get ESRs for a village
-router.get("/esrs/:schemeId/:villageName", async (req, res) => {
-    const { schemeId, villageName } = req.params;
-    const { schemeName } = req.query;
+router.get("/esrs", async (req, res) => {
+    const { schemeId, villageName, schemeName } = req.query as { 
+        schemeId?: string, 
+        villageName?: string, 
+        schemeName?: string 
+    };
     
+    if (!schemeId || !villageName) {
+        return res.json([]);
+    }
+
     try {
         const db = await getDB();
         
-        // Fetch unique ESR names from ALL possible data sources
-        // This ensures ESRs appear regardless of which sensors (Water, Cl, Pr) are integrated
+        // Tiered Matching Strategy
         const result: any = await db.execute(sql`
             WITH unioned_data AS (
                 SELECT esr_name, scheme_id, scheme_name, village_name FROM water_consumption
@@ -78,51 +84,37 @@ router.get("/esrs/:schemeId/:villageName", async (req, res) => {
                 SELECT esr_name, scheme_id, scheme_name, village_name FROM pressure_data
             ),
             matching_esrs AS (
-                -- Level 1: Strict/Lenient Scheme ID match
+                -- Level 1: Match by ID and Village Name
                 SELECT esr_name, 1 as priority FROM unioned_data 
                 WHERE (TRIM(LOWER(scheme_id)) = TRIM(LOWER(${schemeId})) OR TRIM(LOWER(scheme_id)) = TRIM(LOWER(REPLACE(${schemeId}, ' ', ''))))
                 AND (TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName})) OR TRIM(LOWER(village_name)) ILIKE TRIM(LOWER(${villageName})) || '%')
                 
                 UNION ALL
                 
-                -- Level 2: Scheme Name match
+                -- Level 2: Match by Scheme Name and Village Name
                 SELECT esr_name, 2 as priority FROM unioned_data 
-                WHERE TRIM(LOWER(scheme_name)) = TRIM(LOWER(${schemeName as string}))
+                WHERE TRIM(LOWER(scheme_name)) = TRIM(LOWER(${schemeName || ""}))
                 AND (TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName})) OR TRIM(LOWER(village_name)) ILIKE TRIM(LOWER(${villageName})) || '%')
 
                 UNION ALL
                 
-                -- Level 3: Fuzzy Scheme Name match
+                -- Level 3: Fuzzy Scheme Match
                 SELECT esr_name, 3 as priority FROM unioned_data 
-                WHERE scheme_name ILIKE '%' || ${schemeName as string ? (schemeName as string).split(' ')[0] : ''} || '%'
+                WHERE scheme_name ILIKE '%' || ${schemeName ? schemeName.split(' ')[0] : ''} || '%'
                 AND (TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName})) OR TRIM(LOWER(village_name)) ILIKE TRIM(LOWER(${villageName})) || '%')
                 
                 UNION ALL
 
-                -- Level 4: Village Name Fallback
+                -- Level 4: Village Base Name Fallback (Strongest for cases like Paldhi Bk vs Paldhi)
                 SELECT esr_name, 4 as priority FROM unioned_data 
-                WHERE (TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName})) OR TRIM(LOWER(village_name)) ILIKE TRIM(LOWER(${villageName})) || '%')
+                WHERE village_name ILIKE ${villageName.split(' ')[0]} || '%'
             )
             SELECT DISTINCT esr_name FROM matching_esrs 
             WHERE esr_name IS NOT NULL AND esr_name <> ''
             ORDER BY esr_name
         `);
 
-        // If even Level 4 fails, try one last check with raw village name without dot
-        let esrsList = result.rows;
-        if (esrsList.length === 0 && villageName.endsWith('.')) {
-            const strippedVillage = villageName.slice(0, -1);
-            const secondaryResult: any = await db.execute(sql`
-                SELECT DISTINCT esr_name FROM (
-                    SELECT esr_name FROM water_consumption WHERE village_name ILIKE ${strippedVillage} || '%'
-                    UNION
-                    SELECT esr_name FROM water_consumption_history WHERE village_name ILIKE ${strippedVillage} || '%'
-                ) t WHERE esr_name IS NOT NULL AND esr_name <> ''
-            `);
-            esrsList = secondaryResult.rows;
-        }
-
-        const esrs = esrsList.map((row: any) => ({
+        const esrs = result.rows.map((row: any) => ({
             esr_name: row.esr_name,
         }));
 
