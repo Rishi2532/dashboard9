@@ -62,14 +62,15 @@ router.get("/esrs/:schemeId/:villageName", async (req, res) => {
         const db = await getDB();
         
         // Fetch unique ESR names from both water_consumption and water_consumption_history
+        // Using ILIKE and TRIM for maximum compatibility across different data sources
         const result: any = await db.execute(sql`
             SELECT esr_name FROM water_consumption 
-                WHERE TRIM(LOWER(scheme_id)) = TRIM(LOWER(${schemeId})) 
-                AND TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName}))
+                WHERE (TRIM(LOWER(scheme_id)) = TRIM(LOWER(${schemeId})) OR TRIM(LOWER(scheme_id)) = TRIM(LOWER(REPLACE(${schemeId}, ' ', ''))))
+                AND (TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName})) OR TRIM(LOWER(village_name)) ILIKE TRIM(LOWER(${villageName})) || '%')
             UNION
             SELECT esr_name FROM water_consumption_history 
-                WHERE TRIM(LOWER(scheme_id)) = TRIM(LOWER(${schemeId})) 
-                AND TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName}))
+                WHERE (TRIM(LOWER(scheme_id)) = TRIM(LOWER(${schemeId})) OR TRIM(LOWER(scheme_id)) = TRIM(LOWER(REPLACE(${schemeId}, ' ', ''))))
+                AND (TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName})) OR TRIM(LOWER(village_name)) ILIKE TRIM(LOWER(${villageName})) || '%')
             ORDER BY esr_name
         `);
 
