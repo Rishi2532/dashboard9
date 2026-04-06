@@ -56,76 +56,23 @@ router.get("/villages/:schemeId", async (req, res) => {
 });
 
 // 3. Get ESRs for a village
-router.get("/esrs", async (req, res) => {
-    const { schemeId, villageName, schemeName } = req.query as { 
-        schemeId?: string, 
-        villageName?: string, 
-        schemeName?: string 
-    };
-    
-    console.log(`[ESR-FETCH] Received request: schemeId=${schemeId}, villageName=${villageName}, schemeName=${schemeName}`);
-
-    if (!schemeId || !villageName) {
-        console.warn("[ESR-FETCH] Missing required parameters: schemeId or villageName");
-        return res.json([]);
-    }
-
+router.get("/esrs/:schemeId/:villageName", async (req, res) => {
+    const { schemeId, villageName } = req.params;
     try {
         const db = await getDB();
-        
-        // Prepare base names for fuzzy matching
-        const schemeBase = schemeName ? schemeName.split(' ')[0] : '';
-        const villageBase = villageName ? villageName.split(' ')[0] : '';
-
-        // Tiered Matching Strategy
-        const result: any = await db.execute(sql`
-            WITH unioned_data AS (
-                SELECT esr_name, scheme_id, scheme_name, village_name FROM water_consumption
-                UNION ALL
-                SELECT esr_name, scheme_id, scheme_name, village_name FROM water_consumption_history
-                UNION ALL
-                SELECT esr_name, scheme_id, scheme_name, village_name FROM communication_status
-                UNION ALL
-                SELECT esr_name, scheme_id, scheme_name, village_name FROM chlorine_data
-                UNION ALL
-                SELECT esr_name, scheme_id, scheme_name, village_name FROM pressure_data
-            ),
-            matching_esrs AS (
-                -- Level 1: Match by ID and Village Name (Exact or Prefix)
-                SELECT esr_name, 1 as priority FROM unioned_data 
-                WHERE (TRIM(LOWER(scheme_id)) = TRIM(LOWER(${schemeId})) OR TRIM(LOWER(scheme_id)) = TRIM(LOWER(REPLACE(${schemeId}, ' ', ''))))
-                AND (TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName})) OR TRIM(LOWER(village_name)) ILIKE TRIM(LOWER(${villageName})) || '%')
-                
-                UNION ALL
-                
-                -- Level 2: Match by Scheme Name and Village Name
-                SELECT esr_name, 2 as priority FROM unioned_data 
-                WHERE (TRIM(LOWER(scheme_name)) = TRIM(LOWER(${schemeName || ""})) OR scheme_name ILIKE ${schemeName || ""} || '%')
-                AND (TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName})) OR TRIM(LOWER(village_name)) ILIKE TRIM(LOWER(${villageName})) || '%')
-
-                UNION ALL
-                
-                -- Level 3: Fuzzy Scheme Match (using first word of scheme)
-                SELECT esr_name, 3 as priority FROM unioned_data 
-                WHERE scheme_name ILIKE '%' || ${schemeBase} || '%'
-                AND (TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName})) OR TRIM(LOWER(village_name)) ILIKE TRIM(LOWER(${villageName})) || '%')
-                
-                UNION ALL
-
-                -- Level 4: Village Base Name Fallback (Matches first word of village)
-                SELECT esr_name, 4 as priority FROM unioned_data 
-                WHERE (TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName})) OR village_name ILIKE ${villageBase} || '%')
+        const esrs = await db
+            .select({
+                esr_name: waterConsumptionHistory.esr_name,
+            })
+            .from(waterConsumptionHistory)
+            .where(
+                and(
+                    eq(waterConsumptionHistory.scheme_id, schemeId),
+                    eq(waterConsumptionHistory.village_name, villageName)
+                )
             )
-            SELECT DISTINCT esr_name FROM matching_esrs 
-            WHERE esr_name IS NOT NULL AND esr_name <> ''
-            ORDER BY esr_name
-        `);
-
-        console.log(`[ESR-FETCH] Found ${result.rows.length} ESRs for ${villageName}`);
-
-        const esrs = result.rows.map((row: any) => ({
-            esr_name: row.esr_name,
-        }));
+            .groupBy(waterConsumptionHistory.esr_name)
+            .orderBy(waterConsumptionHistory.esr_name);
 
         res.json(esrs);
     } catch (error) {
