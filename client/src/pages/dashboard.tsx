@@ -1162,7 +1162,9 @@ export default function Dashboard() {
   const [selectedScheme, setSelectedScheme] = useState<SchemeStatus | null>(
     null,
   );
-  const [schemeView, setSchemeView] = useState<"ALL" | "INSTRUMENTED">("ALL");
+  const [schemeView, setSchemeView] = useState<"ALL" | "INSTRUMENTED">(
+    "INSTRUMENTED",
+  );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showEnhancedMap, setShowEnhancedMap] = useState(false);
   const { toast } = useToast();
