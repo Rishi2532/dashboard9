@@ -493,8 +493,8 @@ const SchemeLpcdDashboard = () => {
   const activeIssuesMap = React.useMemo(() => {
     const map = new Map<string, any[]>();
     activeIssues.forEach((issue: any) => {
-      // Filter for Scheme-level issues only (no village_name)
-      if (issue.scheme_id && !issue.village_name) {
+      // Filter for Scheme-level issues only
+      if (issue.scheme_id && issue.problem_level === "Scheme") {
         if (!map.has(issue.scheme_id)) {
           map.set(issue.scheme_id, []);
         }
@@ -2092,11 +2092,20 @@ const SchemeLpcdDashboard = () => {
                                 {scheme.agency_type || "N/A"}
                               </Badge>
                             </TableCell>
-                            <TableCell className="max-w-[150px] truncate" title={scheme.remark || "-"}>
-                              {scheme.remark ? (
-                                <span className="text-[11px] font-medium text-red-700 bg-red-50 border border-red-100 rounded px-2 py-1 truncate block" title={scheme.remark}>
-                                  {scheme.remark}
-                                </span>
+                            <TableCell className="max-w-[150px]">
+                              {schemeIssues && schemeIssues.length > 0 ? (
+                                <Button
+                                  variant="ghost"
+                                  className="h-auto p-1 max-w-full justify-start text-red-600 font-medium text-[11px] hover:text-red-700 hover:bg-red-50"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedRemarkDetails({ issues: schemeIssues, title: `Issues for ${scheme.scheme_name}` });
+                                  }}
+                                >
+                                  <span className="truncate w-full text-left">
+                                    {schemeIssues.map((i: any) => i.reason).join(", ")}
+                                  </span>
+                                </Button>
                               ) : (
                                 <span className="text-gray-400">-</span>
                               )}

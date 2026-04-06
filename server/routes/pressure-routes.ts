@@ -66,6 +66,10 @@ async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: an
           case 'not_started':
             statusConditions = ['not started'];
             break;
+          case 'partial_operation':
+            statusConditions = ['completed', 'fully-completed', 'fully completed', 'functionally completed'];
+            conditions.push(sql`(${schemeStatuses.water_supply} IS NULL OR TRIM(${schemeStatuses.water_supply}) = '')`);
+            break;
         }
       }
       if (statusConditions.length > 0) {
@@ -1574,10 +1578,12 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
           pd.pressure_date_day_7 as pressure_date,
           cs.pressure_status,
           cs.pressure_last_seen as pressure_last_seen,
-          pd.dashboard_url
+          pd.dashboard_url,
+          ss.agency_type
         FROM communication_status cs
         FULL OUTER JOIN pressure_data pd ON (cs.scheme_id = pd.scheme_id AND cs.village_name = pd.village_name AND cs.esr_name = pd.esr_name)
         LEFT JOIN water_consumption wc ON (cs.scheme_id = wc.scheme_id AND cs.village_name = wc.village_name AND cs.esr_name = wc.esr_name)
+        LEFT JOIN scheme_status ss ON COALESCE(cs.scheme_id, pd.scheme_id) = ss.scheme_id AND COALESCE(cs.block, pd.block) = ss.block
         WHERE COALESCE(cs.pressure_connected, 'Not Connected') = 'Connected'
           ${customRegionFilter}
           ${categoryCondition}
@@ -1729,6 +1735,7 @@ router.get("/overall-region-comparison/details-export/:category", async (req, re
       Region: row.region,
       Circle: row.circle,
       Division: row.division,
+      Agency: row.agency_type,
       'Sub Division': row.sub_division,
       Block: row.block,
       'Scheme ID': row.scheme_id,

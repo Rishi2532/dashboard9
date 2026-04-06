@@ -3134,9 +3134,10 @@ const DetailedChlorinePage = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Schemes</SelectItem>
-                  <SelectItem value="commissioned">Schemes in Operation</SelectItem>
+                  <SelectItem value="commissioned">Fully Operational Schemes</SelectItem>
                   <SelectItem value="fully_completed">Fully Instrumented Schemes</SelectItem>
-                  <SelectItem value="in_progress">Partial (In Progress)</SelectItem>
+                  <SelectItem value="partial_operation">Partially Operational Schemes</SelectItem>
+                  <SelectItem value="in_progress">Partially instrumented schemes</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -8564,12 +8565,12 @@ const DetailedChlorinePage = () => {
                                       if (schemeFilter === "fully_completed") {
                                         params.append("fullyCompleted", "true");
                                       }
-                                                                             if (selectedAgencyType !== 'ALL') {
-                                         params.append("agencyType", selectedAgencyType);
-                                       }
-                                       if (selectedAgencyType !== 'ALL') params.append('agencyType', selectedAgencyType);
+                                      if (selectedAgencyType !== 'ALL') {
+                                        params.append("agencyType", selectedAgencyType);
+                                      }
+                                      if (selectedAgencyType !== 'ALL') params.append('agencyType', selectedAgencyType);
 
-                                       window.open(`/api/chlorine/lpcd/region-comparison-total-export?${params.toString()}`, "_blank");
+                                      window.open(`/api/chlorine/lpcd/region-comparison-total-export?${params.toString()}`, "_blank");
                                     } else {
                                       const params = new URLSearchParams();
                                       if (clickedLpcdRegionComparisonCell.region && clickedLpcdRegionComparisonCell.region !== "All Regions") {
@@ -15737,7 +15738,7 @@ const DetailedChlorinePage = () => {
                           flowmeterDetails.data &&
                           flowmeterDetails.data.length > 0 ? (
                           <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-indigo-200/60 dark:border-indigo-800/60 rounded-xl m-3 shadow-sm">
-                            <Table className="table-fixed w-full min-w-[1000px]">
+                            <Table className="table-fixed w-full min-w-[1100px]">
                               <TableHeader className="sticky top-0 z-10">
                                 <TableRow className="bg-indigo-800 dark:bg-indigo-900">
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-indigo-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
@@ -15748,6 +15749,9 @@ const DetailedChlorinePage = () => {
                                   </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-indigo-50 !px-4 !py-3.5 w-[130px] border-r border-white/10">
                                     Village
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-indigo-50 !px-4 !py-3.5 w-[140px] border-r border-white/10">
+                                    ESR Name
                                   </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-indigo-50 !px-4 !py-3.5 w-[180px] border-r border-white/10">
                                     Scheme Name
@@ -15766,7 +15770,7 @@ const DetailedChlorinePage = () => {
                               <TableBody>
                                 {flowmeterDetails.data.map((item: any, idx: number) => (
                                   <TableRow
-                                    key={`${item.scheme_id}-${item.village_name}-${idx}`}
+                                    key={`${item.scheme_id}-${item.village_name}-${item.esr_name}-${idx}`}
                                     className={`transition-all duration-200 hover:bg-indigo-50/70 dark:hover:bg-indigo-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-indigo-50/40 dark:bg-indigo-950/20"}`}
                                   >
                                     <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-indigo-100/80 dark:border-indigo-900/60 truncate">
@@ -15777,6 +15781,9 @@ const DetailedChlorinePage = () => {
                                     </TableCell>
                                     <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-indigo-100/80 dark:border-indigo-900/60 truncate">
                                       {item.village_name}
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-indigo-100/80 dark:border-indigo-900/60 truncate font-semibold">
+                                      {item.esr_name}
                                     </TableCell>
                                     <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-indigo-100/80 dark:border-indigo-900/60 truncate">
                                       {item.dashboard_url ? (

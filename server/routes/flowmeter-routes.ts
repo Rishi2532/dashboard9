@@ -13,6 +13,8 @@ async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: an
     conditions.push(sql`LOWER(water_supply) = 'yes'`);
   } else if (filterType === 'fully_completed' || fullyCompleted === 'true') {
     conditions.push(sql`LOWER(fully_completion_scheme_status) IN ('completed', 'fully-completed', 'fully completed', 'functionally completed')`);
+  } else if (filterType === 'partial_operation') {
+    conditions.push(sql`LOWER(fully_completion_scheme_status) IN ('completed', 'fully-completed', 'fully completed', 'functionally completed') AND (water_supply IS NULL OR TRIM(water_supply) = '')`);
   }
 
   if (agencyType && agencyType !== 'ALL' && agencyType !== 'all') {
@@ -47,15 +49,16 @@ router.get("/overall-region-comparison", async (req, res) => {
     }
 
     const query = `
-SELECT
-region,
-  COUNT(CASE WHEN LOWER(flow_meter_status) = 'online' THEN 1 END) as online_count,
-  COUNT(CASE WHEN LOWER(flow_meter_status) = 'offline' THEN 1 END) as offline_count
-      FROM communication_status
-      WHERE region IS NOT NULL
-      ${ schemeIdFilter }
-      GROUP BY region
-      ORDER BY region
+      SELECT
+        cs.region,
+        COUNT(DISTINCT CASE WHEN LOWER(cs.flow_meter_status) = 'online' THEN cs.scheme_id || '-' || cs.village_name || '-' || cs.esr_name END) as online_count,
+        COUNT(DISTINCT CASE WHEN LOWER(cs.flow_meter_status) = 'offline' THEN cs.scheme_id || '-' || cs.village_name || '-' || cs.esr_name END) as offline_count
+      FROM communication_status cs
+      WHERE cs.region IS NOT NULL
+      AND cs.flow_meter_connected = 'Connected'
+      ${schemeIdFilter}
+      GROUP BY cs.region
+      ORDER BY cs.region
     `;
 
     const result = await db.execute(sql.raw(query));
@@ -110,23 +113,39 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
         cs.division,
         cs.block,
         cs.village_name,
+        cs.esr_name,
         cs.scheme_id,
         cs.scheme_name,
         cs.flow_meter_status as status,
         sd.population,
-        sd.dashboard_url
+        COALESCE(cd.dashboard_url, pd.dashboard_url, sd.dashboard_url) as dashboard_url,
+        ss.agency_type
       FROM communication_status cs
+      LEFT JOIN scheme_status ss ON cs.scheme_id = ss.scheme_id AND cs.block = ss.block
       LEFT JOIN LATERAL (
         SELECT population, dashboard_url
         FROM water_scheme_data
-        WHERE scheme_id = cs.scheme_id AND village_name = cs.village_name
+        WHERE scheme_id = cs.scheme_id AND village_name = cs.village_name AND block = cs.block
         LIMIT 1
       ) sd ON true
+      LEFT JOIN LATERAL (
+        SELECT dashboard_url
+        FROM chlorine_data
+        WHERE scheme_id = cs.scheme_id AND village_name = cs.village_name AND esr_name = cs.esr_name
+        LIMIT 1
+      ) cd ON true
+      LEFT JOIN LATERAL (
+        SELECT dashboard_url
+        FROM pressure_data
+        WHERE scheme_id = cs.scheme_id AND village_name = cs.village_name AND esr_name = cs.esr_name
+        LIMIT 1
+      ) pd ON true
       WHERE cs.region IS NOT NULL
+      AND cs.flow_meter_connected = 'Connected'
       ${schemeIdFilter}
       ${regionFilter}
       ${statusFilter}
-      ORDER BY cs.region, cs.division, cs.village_name
+      ORDER BY cs.region, cs.division, cs.village_name, cs.esr_name
     `;
 
     const result = await db.execute(sql.raw(query));
@@ -178,22 +197,26 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
         cs.division || '' as division,
         cs.block || '' as block,
         cs.village_name || '' as village_name,
+        cs.esr_name || '' as esr_name,
         cs.scheme_id || '' as scheme_id,
         cs.scheme_name || '' as scheme_name,
         cs.flow_meter_status || '' as status,
-        sd.population
+        sd.population,
+        ss.agency_type || '' as agency_type
       FROM communication_status cs
+      LEFT JOIN scheme_status ss ON cs.scheme_id = ss.scheme_id AND cs.block = ss.block
       LEFT JOIN LATERAL (
         SELECT population
         FROM water_scheme_data
-        WHERE scheme_id = cs.scheme_id AND village_name = cs.village_name
+        WHERE scheme_id = cs.scheme_id AND village_name = cs.village_name AND block = cs.block
         LIMIT 1
       ) sd ON true
       WHERE cs.region IS NOT NULL
+      AND cs.flow_meter_connected = 'Connected'
       ${schemeIdFilter}
       ${regionFilter}
       ${statusFilter}
-      ORDER BY cs.region, cs.division, cs.village_name
+      ORDER BY cs.region, cs.division, cs.village_name, cs.esr_name
     `;
 
     const result = await db.execute(sql.raw(query));
@@ -204,8 +227,10 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
     worksheet.columns = [
       { header: 'Region', key: 'region', width: 18 },
       { header: 'Division', key: 'division', width: 18 },
+      { header: 'Agency', key: 'agency_type', width: 12 },
       { header: 'Block', key: 'block', width: 18 },
       { header: 'Village', key: 'village_name', width: 22 },
+      { header: 'ESR Name', key: 'esr_name', width: 22 },
       { header: 'Scheme ID', key: 'scheme_id', width: 18 },
       { header: 'Scheme Name', key: 'scheme_name', width: 35 },
       { header: 'Flow Meter Status', key: 'status', width: 20 },

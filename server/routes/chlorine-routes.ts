@@ -27,6 +27,8 @@ async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: an
     conditions.push(sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('completed', 'fully-completed', 'fully completed', 'functionally completed')`);
   } else if (activeFilter === 'partial' || activeFilter === 'in_progress') {
     conditions.push(sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('in progress', 'partial', 'ongoing')`);
+  } else if (activeFilter === 'partial_operation') {
+    conditions.push(sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('completed', 'fully-completed', 'fully completed', 'functionally completed') AND (${schemeStatuses.water_supply} IS NULL OR TRIM(${schemeStatuses.water_supply}) = '')`);
   }
 
   if (targetAgencyType && targetAgencyType.toUpperCase() !== 'ALL') {
@@ -2624,23 +2626,25 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
         // We need to fetch details similar to other cases but aggregated
         query = `
             WITH weekly_data AS (
-                SELECT DISTINCT ON (scheme_id, village_name, block, data_date)
-                    region, circle, division, sub_division, block,
-                    scheme_id, scheme_name, village_name, population,
-                    lpcd_value, water_value, data_date, dashboard_url
-                FROM water_scheme_data_history
-                WHERE region IS NOT NULL
-                ${regionFilter}
-                ${schemeIdFilterGeneric}
+                SELECT DISTINCT ON (wh.scheme_id, wh.village_name, wh.block, wh.data_date)
+                    wh.region, wh.circle, wh.division, wh.sub_division, wh.block,
+                    wh.scheme_id, wh.scheme_name, wh.village_name, wh.population,
+                    wh.lpcd_value, wh.water_value, wh.data_date, wh.dashboard_url,
+                    ss.agency_type
+                FROM water_scheme_data_history wh
+                LEFT JOIN scheme_status ss ON wh.scheme_id = ss.scheme_id AND wh.block = ss.block
+                WHERE wh.region IS NOT NULL
+                ${regionFilter.replace('region', 'wh.region')}
+                ${schemeIdFilterGeneric.replace(/scheme_id/g, 'wh.scheme_id')}
                 AND (
-                    data_date IN (${dateParams})
+                    wh.data_date IN (${dateParams})
                     OR
                     TO_CHAR(TO_DATE(CASE 
-                       WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN data_date
+                       WHEN wh.data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN wh.data_date
                        ELSE '01-Jan-2000'
                     END, 'DD-Mon-YY'), 'DD-Mon') IN (${dateParams})
                 )
-                ORDER BY scheme_id, village_name, block, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC
+                ORDER BY wh.scheme_id, wh.village_name, wh.block, wh.data_date, (wh.lpcd_value IS NOT NULL AND TRIM(wh.lpcd_value::text) != '') DESC, wh.uploaded_at DESC
             ),
             village_stats AS (
                 SELECT
@@ -2653,7 +2657,8 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
                       THEN ROUND((SUM(COALESCE(NULLIF(TRIM(water_value::text), '')::numeric, 0)) / 7.0), 2)
                       ELSE 0 
                     END as water_value_day7,
-                    MAX(data_date) as water_date_day7
+                    MAX(data_date) as water_date_day7,
+                    MAX(agency_type) as agency_type
                 FROM weekly_data
                 GROUP BY region, scheme_id, block, village_name
                 HAVING ${havingCondition}
@@ -2852,8 +2857,10 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
                 ws.scheme_id, ws.scheme_name, ws.village_name,
                 ws.population, ws.lpcd_value_day7 as lpcd_value, ws.lpcd_date_day7 as lpcd_date,
                 ws.water_value_day7, ws.water_date_day7,
-                COALESCE(ws.dashboard_url, (SELECT dashboard_url FROM chlorine_history ch WHERE ch.scheme_id = ws.scheme_id AND ch.village_name = ws.village_name AND ch.dashboard_url IS NOT NULL ORDER BY ch.uploaded_at DESC LIMIT 1)) as dashboard_url
+                COALESCE(ws.dashboard_url, (SELECT dashboard_url FROM chlorine_history ch WHERE ch.scheme_id = ws.scheme_id AND ch.village_name = ws.village_name AND ch.dashboard_url IS NOT NULL ORDER BY ch.uploaded_at DESC LIMIT 1)) as dashboard_url,
+                ss.agency_type
               FROM water_scheme_data ws
+              LEFT JOIN scheme_status ss ON ws.scheme_id = ss.scheme_id AND ws.block = ss.block
               WHERE ws.lpcd_value_day7 IS NOT NULL AND ws.lpcd_value_day7 >= 55
               ${region ? 'AND ws.region = $1' : ''}
               ${schemeIdFilterGeneric.replace('scheme_id', 'ws.scheme_id')}

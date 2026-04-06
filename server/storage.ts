@@ -3111,6 +3111,7 @@ export class PostgresStorage implements IStorage {
       water_date_day7: string | null;
       water_value_day7: number | null;
       chlorine_connected: string | null;
+      agency_type: string | null;
     }>;
   }> {
     await this.initialized;

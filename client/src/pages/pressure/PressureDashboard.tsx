@@ -258,8 +258,8 @@ const PressureDashboard: React.FC = () => {
     const eMap = new Map<string, any[]>();
 
     activeIssues.forEach((issue: any) => {
-      // ESR level issues (has esr_name)
-      if (issue.scheme_id && issue.village_name && issue.esr_name) {
+      // ESR level issues only
+      if (issue.scheme_id && issue.village_name && issue.esr_name && issue.problem_level === "ESR") {
         const key = `${issue.scheme_id}-${issue.village_name}-${issue.esr_name}`;
         if (!eMap.has(key)) {
           eMap.set(key, []);
@@ -1880,7 +1880,7 @@ const PressureDashboard: React.FC = () => {
 
       const formatDateForHeader = (dateStr: string | null | undefined) => {
         if (!dateStr) return "N/A";
-        
+
         // If it's already a short date format like "15-Feb" or "15/02" without a year
         if (/^\d{1,2}[-/][a-zA-Z]{3}$/.test(dateStr)) {
           // Append the current year to ensure accuracy instead of JS defaulting to 2001
@@ -1891,7 +1891,7 @@ const PressureDashboard: React.FC = () => {
         try {
           const date = new Date(dateStr);
           if (isNaN(date.getTime())) return dateStr;
-          
+
           if (date.getFullYear() === 2001 && !dateStr.includes("2001")) {
             const currentYear = new Date().getFullYear();
             return `${dateStr}-${currentYear}`;
@@ -3244,11 +3244,20 @@ const PressureDashboard: React.FC = () => {
                           </span>
                         )}
                       </TableCell>
-                      <TableCell className="border-b border-blue-200 text-center max-w-[150px] truncate" title={item.remark || "-"}>
-                        {item.remark ? (
-                          <span className="text-[11px] font-medium text-red-700 bg-red-50 border border-red-100 rounded px-2 py-1 truncate block" title={item.remark}>
-                            {item.remark}
-                          </span>
+                      <TableCell className="border-b border-blue-200 text-center max-w-[150px]">
+                        {issues.length > 0 ? (
+                          <Button
+                            variant="ghost"
+                            className="h-auto p-1 max-w-full justify-start text-red-600 font-medium text-[11px] hover:text-red-700 hover:bg-red-50"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedRemarkDetails({ issues, title: `Issues for ${item.esr_name}, ${item.village_name}` });
+                            }}
+                          >
+                            <span className="truncate w-full text-left">
+                              {issues.map((i: any) => i.reason).join(", ")}
+                            </span>
+                          </Button>
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}

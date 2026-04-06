@@ -59,11 +59,13 @@ import {
   BarChart3,
   Waves,
   AlertCircle,
+  MapPin,
 } from "lucide-react";
 import ExcelJS from "exceljs";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -187,6 +189,10 @@ const WaterConsumptionPage: React.FC = () => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [selectedRecord, setSelectedRecord] =
     useState<WaterConsumptionRecord | null>(null);
+  const [selectedRemarkDetails, setSelectedRemarkDetails] = useState<{
+    title: string;
+    issues: any[];
+  } | null>(null);
 
   // Fetch active issues
   const { data: activeIssues = [] } = useQuery({
@@ -202,29 +208,12 @@ const WaterConsumptionPage: React.FC = () => {
   });
 
   // Create lookup maps for issues
-  const { schemeIssuesMap, villageIssuesMap, esrIssuesMap } = useMemo(() => {
-    const sMap = new Map<string, any[]>();
-    const vMap = new Map<string, any[]>();
+  const { esrIssuesMap } = useMemo(() => {
     const eMap = new Map<string, any[]>();
 
     activeIssues.forEach((issue: any) => {
-      // Scheme level issues (no village_name)
-      if (issue.scheme_id && !issue.village_name) {
-        if (!sMap.has(issue.scheme_id)) {
-          sMap.set(issue.scheme_id, []);
-        }
-        sMap.get(issue.scheme_id)?.push(issue);
-      }
-      // Village level issues (has village_name but no esr_name)
-      else if (issue.scheme_id && issue.village_name && !issue.esr_name) {
-        const key = `${issue.scheme_id}-${issue.village_name}`;
-        if (!vMap.has(key)) {
-          vMap.set(key, []);
-        }
-        vMap.get(key)?.push(issue);
-      }
-      // ESR level issues (has esr_name)
-      else if (issue.scheme_id && issue.village_name && issue.esr_name) {
+      // ESR level issues only
+      if (issue.scheme_id && issue.village_name && issue.esr_name && issue.problem_level === "ESR") {
         const key = `${issue.scheme_id}-${issue.village_name}-${issue.esr_name}`;
         if (!eMap.has(key)) {
           eMap.set(key, []);
@@ -233,7 +222,7 @@ const WaterConsumptionPage: React.FC = () => {
       }
     });
 
-    return { schemeIssuesMap: sMap, villageIssuesMap: vMap, esrIssuesMap: eMap };
+    return { esrIssuesMap: eMap };
   }, [activeIssues]);
 
   // Fetch all water consumption data
@@ -2618,26 +2607,20 @@ const WaterConsumptionPage: React.FC = () => {
                               borderRadius: "0",
                               maxWidth: "150px",
                             }}
-                            title={record.lremark || "-"}
                           >
-                            {record.lremark ? (
-                              <span
-                                style={{
-                                  fontSize: "11px",
-                                  fontWeight: "500",
-                                  color: "#b91c1c",
-                                  backgroundColor: "#fef2f2",
-                                  border: "1px solid #fee2e2",
-                                  borderRadius: "4px",
-                                  padding: "4px 8px",
-                                  display: "block",
-                                  whiteSpace: "nowrap",
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
+                            {allIssues.length > 0 ? (
+                              <Button
+                                variant="ghost"
+                                className="h-auto p-1 max-w-full justify-start text-red-600 font-medium text-[11px] hover:text-red-700 hover:bg-red-50"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedRemarkDetails({ issues: allIssues, title: `Issues for ${record.esr_name}, ${record.village_name}` });
                                 }}
                               >
-                                {record.lremark}
-                              </span>
+                                <span className="truncate w-full text-left">
+                                  {allIssues.map((i: any) => i.reason).join(", ")}
+                                </span>
+                              </Button>
                             ) : (
                               <span style={{ color: "#94a3b8" }}>-</span>
                             )}
@@ -2918,6 +2901,62 @@ const WaterConsumptionPage: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+      {/* Remark Details Dialog */}
+      {selectedRemarkDetails && (
+        <Dialog
+          open={!!selectedRemarkDetails}
+          onOpenChange={(open) => !open && setSelectedRemarkDetails(null)}
+        >
+          <DialogContent className="max-w-2xl bg-white border-none shadow-2xl p-0 overflow-hidden">
+            <div className="bg-gradient-to-r from-red-600 via-rose-600 to-red-700 p-6 flex justify-between items-center text-white relative">
+              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+              <div className="relative z-10 flex-1 pr-6">
+                <DialogTitle className="text-xl md:text-2xl font-bold flex items-center gap-3">
+                  <AlertCircle className="h-6 w-6 md:h-8 md:w-8 text-red-200" />
+                  <span className="tracking-tight">Issue Details</span>
+                </DialogTitle>
+                <DialogDescription className="text-red-100 mt-2 font-medium flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  <span>{selectedRemarkDetails.title}</span>
+                </DialogDescription>
+              </div>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[70vh] bg-slate-50">
+              <div className="space-y-4">
+                {selectedRemarkDetails.issues.map((issue: any, index: number) => (
+                  <div key={index} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                    <div className="flex justify-between items-start mb-3 gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider">
+                            {issue.problem_level ? `${issue.problem_level} Level`.toUpperCase() : (issue.category || "General")}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right flex flex-col items-end">
+                        <div className="text-sm font-medium text-slate-900">
+                          {issue.creator_name || issue.reported_by || "Field Engineer"}
+                        </div>
+                        <div className="text-xs text-slate-500 mt-0.5 whitespace-nowrap">
+                          {new Date(issue.created_at || new Date()).toLocaleString('en-US', {
+                            month: 'short', day: 'numeric', year: 'numeric',
+                            hour: 'numeric', minute: '2-digit', hour12: true
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-100">
+                      <p className="text-sm text-slate-700 font-medium">
+                        {issue.reason || issue.issue_description}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </DashboardLayout>
   );
 };
