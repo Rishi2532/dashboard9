@@ -250,13 +250,13 @@ export default function IssueReportingForm() {
 
     const { data: villages, isLoading: isLoadingVillages } = useQuery<Village[]>({
         queryKey: ["/api/issue-reporting/villages", watchSchemeId],
-        queryFn: () => apiRequest(`/api/issue-reporting/villages/${watchSchemeId}`),
+        queryFn: () => apiRequest(`/api/issue-reporting/villages/${encodeURIComponent(watchSchemeId || "")}`),
         enabled: !!watchSchemeId,
     });
 
     const { data: esrs, isLoading: isLoadingEsrs } = useQuery<ESR[]>({
         queryKey: ["/api/issue-reporting/esrs", watchSchemeId, watchVillageName],
-        queryFn: () => apiRequest(`/api/issue-reporting/esrs/${watchSchemeId}/${watchVillageName}`),
+        queryFn: () => apiRequest(`/api/issue-reporting/esrs/${encodeURIComponent(watchSchemeId || "")}/${encodeURIComponent(watchVillageName || "")}`),
         enabled: !!watchSchemeId && !!watchVillageName,
     });
 
