@@ -157,14 +157,14 @@ export default function StatsCards({
             <div className="ml-3 sm:ml-4 md:ml-5 xl:ml-6 flex-1">
               <div className="flex items-center gap-2">
                 <h3 className="text-xs sm:text-sm xl:text-base font-medium text-blue-800">
-                  {isInstrumented ? "Fully Instrumented Schemes" : "Total Schemes"}{" "}
+                  {isInstrumented ? "MJP Approved Schemes(389)" : "Total Schemes"}{" "}
                   {selectedRegion === "all" ? (isInstrumented ? "" : "(389)") : ""}
                 </h3>
                 <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${isInstrumented
                   ? "bg-purple-100 text-purple-700 border border-purple-200"
                   : "bg-blue-100 text-blue-700 border border-blue-200"
                   }`}>
-                  {isInstrumented ? "Instrumented" : "All"}
+
                 </span>
               </div>
               <div className="mt-1 flex items-baseline">
@@ -172,7 +172,7 @@ export default function StatsCards({
                   {totalSchemes}
                 </p>
                 <p className="ml-1 sm:ml-2 text-xs sm:text-sm xl:text-base text-blue-600">
-                  {isInstrumented ? "Fully instrumented schemes" : "water schemes"}
+                  {isInstrumented ? "Fully instrumented (IoT) schemes" : "water schemes"}
                 </p>
               </div>
             </div>
@@ -196,12 +196,12 @@ export default function StatsCards({
               <span className="text-green-600 font-medium">
                 <b>
                   {completedSchemes}{" "}
-                  {isInstrumented ? "Schemes in Operation" : "Fully Completed"}
+                  {isInstrumented ? "Fully Operational Schemes" : "Fully Completed"}
                 </b>
               </span>
               <span className="text-yellow-600 font-medium">
                 {totalSchemes - completedSchemes}{" "}
-                {isInstrumented ? "Scheduled" : "Partially Completed"}
+                {isInstrumented ? "Partial" : "Partially Completed"}
               </span>
             </div>
 
@@ -279,7 +279,12 @@ export default function StatsCards({
             </div>
             <div className="flex justify-between text-[10px] sm:text-xs xl:text-sm mt-1 xl:mt-2">
               <span className="text-green-600 font-medium">
-                <b>{completedVillages} Fully Completed</b>
+                <b>
+                  {completedVillages}{" "}
+                  {isInstrumented
+                    ? "Fully Operational Villages"
+                    : "Fully Completed"}
+                </b>
               </span>
               <span className="text-yellow-600 font-medium">
                 {totalVillages - completedVillages} Partially Completed
@@ -293,7 +298,12 @@ export default function StatsCards({
                 <span className="font-semibold">{totalVillages}</span>
               </div>
               <div className="flex justify-between text-sm text-amber-700 mt-1">
-                <span>Fully Completed:</span>
+                <span>
+                  {isInstrumented
+                    ? "Fully Operational Villages"
+                    : "Fully Completed"}
+                  :
+                </span>
                 <span className="font-semibold">{completedVillages}</span>
               </div>
               <div className="flex justify-between text-sm text-amber-700 mt-1">
@@ -362,7 +372,7 @@ export default function StatsCards({
                 <b>{completedEsr} Fully Completed</b>
               </span>
               <span className="text-yellow-600 font-medium">
-                {partialEsr} Partially Completed
+                {totalEsr - completedEsr} Partially Completed
               </span>
             </div>
 
