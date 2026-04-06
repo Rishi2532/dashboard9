@@ -239,6 +239,7 @@ export default function IssueReportingForm() {
 
     const watchLevel = form.watch("problem_level");
     const watchSchemeId = form.watch("scheme_id");
+    const watchSchemeName = form.watch("scheme_name");
     const watchVillageName = form.watch("village_name");
     const watchEsrName = form.watch("esr_name");
 
@@ -255,8 +256,12 @@ export default function IssueReportingForm() {
     });
 
     const { data: esrs, isLoading: isLoadingEsrs } = useQuery<ESR[]>({
-        queryKey: ["/api/issue-reporting/esrs", watchSchemeId, watchVillageName],
-        queryFn: () => apiRequest(`/api/issue-reporting/esrs/${encodeURIComponent(watchSchemeId || "")}/${encodeURIComponent(watchVillageName || "")}`),
+        queryKey: ["/api/issue-reporting/esrs", watchSchemeId, watchVillageName, watchSchemeName],
+        queryFn: () => {
+             const params = new URLSearchParams();
+             if (watchSchemeName) params.append("schemeName", watchSchemeName);
+             return apiRequest(`/api/issue-reporting/esrs/${encodeURIComponent(watchSchemeId || "")}/${encodeURIComponent(watchVillageName || "")}?${params.toString()}`);
+        },
         enabled: !!watchSchemeId && !!watchVillageName,
     });
 

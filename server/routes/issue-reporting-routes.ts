@@ -58,20 +58,42 @@ router.get("/villages/:schemeId", async (req, res) => {
 // 3. Get ESRs for a village
 router.get("/esrs/:schemeId/:villageName", async (req, res) => {
     const { schemeId, villageName } = req.params;
+    const { schemeName } = req.query;
+    
     try {
         const db = await getDB();
         
         // Fetch unique ESR names from both water_consumption and water_consumption_history
-        // Using ILIKE and TRIM for maximum compatibility across different data sources
+        // Using multiple matching strategies (ID, Name, and ILIKE) for maximum robustness
         const result: any = await db.execute(sql`
-            SELECT esr_name FROM water_consumption 
+            WITH matching_esrs AS (
+                -- Strategy 1: Match by Scheme ID and Village Name (Lenient)
+                SELECT esr_name FROM water_consumption 
                 WHERE (TRIM(LOWER(scheme_id)) = TRIM(LOWER(${schemeId})) OR TRIM(LOWER(scheme_id)) = TRIM(LOWER(REPLACE(${schemeId}, ' ', ''))))
                 AND (TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName})) OR TRIM(LOWER(village_name)) ILIKE TRIM(LOWER(${villageName})) || '%')
-            UNION
-            SELECT esr_name FROM water_consumption_history 
+                
+                UNION
+                
+                -- Strategy 2: Match by Scheme Name and Village Name (Lenient Backup)
+                SELECT esr_name FROM water_consumption 
+                WHERE TRIM(LOWER(scheme_name)) = TRIM(LOWER(${schemeName as string}))
+                AND (TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName})) OR TRIM(LOWER(village_name)) ILIKE TRIM(LOWER(${villageName})) || '%')
+
+                UNION
+                
+                -- Historical Records - Strategy 1
+                SELECT esr_name FROM water_consumption_history 
                 WHERE (TRIM(LOWER(scheme_id)) = TRIM(LOWER(${schemeId})) OR TRIM(LOWER(scheme_id)) = TRIM(LOWER(REPLACE(${schemeId}, ' ', ''))))
                 AND (TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName})) OR TRIM(LOWER(village_name)) ILIKE TRIM(LOWER(${villageName})) || '%')
-            ORDER BY esr_name
+
+                UNION
+
+                -- Historical Records - Strategy 2
+                SELECT esr_name FROM water_consumption_history 
+                WHERE TRIM(LOWER(scheme_name)) = TRIM(LOWER(${schemeName as string}))
+                AND (TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName})) OR TRIM(LOWER(village_name)) ILIKE TRIM(LOWER(${villageName})) || '%')
+            )
+            SELECT esr_name FROM matching_esrs ORDER BY esr_name
         `);
 
         const esrs = result.rows.map((row: any) => ({
