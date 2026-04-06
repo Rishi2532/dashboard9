@@ -262,7 +262,9 @@ export default function IssueReportingForm() {
              if (watchSchemeId) params.append("schemeId", watchSchemeId);
              if (watchVillageName) params.append("villageName", watchVillageName);
              if (watchSchemeName) params.append("schemeName", watchSchemeName);
-             return apiRequest(`/api/issue-reporting/esrs?${params.toString()}`);
+             const url = `/api/issue-reporting/esrs?${params.toString()}`;
+             console.log(`Fetching ESRs from: ${url}`);
+             return apiRequest(url);
         },
         enabled: !!watchSchemeId && !!watchVillageName,
     });

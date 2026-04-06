@@ -63,13 +63,20 @@ router.get("/esrs", async (req, res) => {
         schemeName?: string 
     };
     
+    console.log(`[ESR-FETCH] Received request: schemeId=${schemeId}, villageName=${villageName}, schemeName=${schemeName}`);
+
     if (!schemeId || !villageName) {
+        console.warn("[ESR-FETCH] Missing required parameters: schemeId or villageName");
         return res.json([]);
     }
 
     try {
         const db = await getDB();
         
+        // Prepare base names for fuzzy matching
+        const schemeBase = schemeName ? schemeName.split(' ')[0] : '';
+        const villageBase = villageName ? villageName.split(' ')[0] : '';
+
         // Tiered Matching Strategy
         const result: any = await db.execute(sql`
             WITH unioned_data AS (
@@ -84,7 +91,7 @@ router.get("/esrs", async (req, res) => {
                 SELECT esr_name, scheme_id, scheme_name, village_name FROM pressure_data
             ),
             matching_esrs AS (
-                -- Level 1: Match by ID and Village Name
+                -- Level 1: Match by ID and Village Name (Exact or Prefix)
                 SELECT esr_name, 1 as priority FROM unioned_data 
                 WHERE (TRIM(LOWER(scheme_id)) = TRIM(LOWER(${schemeId})) OR TRIM(LOWER(scheme_id)) = TRIM(LOWER(REPLACE(${schemeId}, ' ', ''))))
                 AND (TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName})) OR TRIM(LOWER(village_name)) ILIKE TRIM(LOWER(${villageName})) || '%')
@@ -93,26 +100,28 @@ router.get("/esrs", async (req, res) => {
                 
                 -- Level 2: Match by Scheme Name and Village Name
                 SELECT esr_name, 2 as priority FROM unioned_data 
-                WHERE TRIM(LOWER(scheme_name)) = TRIM(LOWER(${schemeName || ""}))
+                WHERE (TRIM(LOWER(scheme_name)) = TRIM(LOWER(${schemeName || ""})) OR scheme_name ILIKE ${schemeName || ""} || '%')
                 AND (TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName})) OR TRIM(LOWER(village_name)) ILIKE TRIM(LOWER(${villageName})) || '%')
 
                 UNION ALL
                 
-                -- Level 3: Fuzzy Scheme Match
+                -- Level 3: Fuzzy Scheme Match (using first word of scheme)
                 SELECT esr_name, 3 as priority FROM unioned_data 
-                WHERE scheme_name ILIKE '%' || ${schemeName ? schemeName.split(' ')[0] : ''} || '%'
+                WHERE scheme_name ILIKE '%' || ${schemeBase} || '%'
                 AND (TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName})) OR TRIM(LOWER(village_name)) ILIKE TRIM(LOWER(${villageName})) || '%')
                 
                 UNION ALL
 
-                -- Level 4: Village Base Name Fallback (Strongest for cases like Paldhi Bk vs Paldhi)
+                -- Level 4: Village Base Name Fallback (Matches first word of village)
                 SELECT esr_name, 4 as priority FROM unioned_data 
-                WHERE village_name ILIKE ${villageName.split(' ')[0]} || '%'
+                WHERE (TRIM(LOWER(village_name)) = TRIM(LOWER(${villageName})) OR village_name ILIKE ${villageBase} || '%')
             )
             SELECT DISTINCT esr_name FROM matching_esrs 
             WHERE esr_name IS NOT NULL AND esr_name <> ''
             ORDER BY esr_name
         `);
+
+        console.log(`[ESR-FETCH] Found ${result.rows.length} ESRs for ${villageName}`);
 
         const esrs = result.rows.map((row: any) => ({
             esr_name: row.esr_name,
