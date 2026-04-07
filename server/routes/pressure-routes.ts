@@ -37,8 +37,15 @@ async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: an
     const targetAgencyType = Array.isArray(agencyType) ? agencyType[0] : agencyType;
 
     // Handle filterType/fullyCompleted
-    if (filterType === 'commissioned') {
+    if (filterType && filterType.startsWith('commissioned')) {
       conditions.push(sql`LOWER(${schemeStatuses.water_supply}) = 'yes'`);
+      if (filterType === 'commissioned_full') {
+        conditions.push(sql`LOWER(${schemeStatuses.water_supply_status}) = 'full'`);
+      } else if (filterType === 'commissioned_partial') {
+        conditions.push(sql`LOWER(${schemeStatuses.water_supply_status}) = 'partial'`);
+      } else if (filterType === 'commissioned_no') {
+        conditions.push(sql`LOWER(${schemeStatuses.water_supply_status}) = 'no'`);
+      }
     } else {
       let statusConditions: string[] = [];
       if (fullyCompleted === 'true' && (!filterType || filterType === 'fully_completed')) {
@@ -66,9 +73,12 @@ async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: an
           case 'not_started':
             statusConditions = ['not started'];
             break;
-          case 'partial_operation':
+          case 'common_filter':
             statusConditions = ['completed', 'fully-completed', 'fully completed', 'functionally completed'];
-            conditions.push(sql`(${schemeStatuses.water_supply} IS NULL OR TRIM(${schemeStatuses.water_supply}) = '')`);
+            conditions.push(sql`LOWER(${schemeStatuses.water_supply}) = 'yes'`);
+            break;
+          case 'mjp_commissioned_yes':
+            conditions.push(sql`LOWER(${schemeStatuses.mjp_commissioned}) = 'yes'`);
             break;
         }
       }
@@ -530,7 +540,7 @@ router.get("/division-sensors", async (req, res) => {
         schemeIdCondition = sql`AND 1=0`;
       } else {
         const ids = filteredSchemeIds;
-        const inClause = ids.map(id => `'${id}'`).join(',');
+        const inClause = ids.map((id: any) => `'${id}'`).join(',');
         schemeIdCondition = sql.raw(`AND pd.scheme_id IN (${inClause})`);
       }
     }
@@ -616,7 +626,7 @@ router.get("/division-sensors-export", async (req, res) => {
         schemeIdCondition = sql`AND 1=0`;
       } else {
         const ids = filteredSchemeIds;
-        const inClause = ids.map(id => `'${id}'`).join(',');
+        const inClause = ids.map((id: any) => `'${id}'`).join(',');
         schemeIdCondition = sql.raw(`AND pd.scheme_id IN (${inClause})`);
       }
     }

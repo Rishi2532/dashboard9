@@ -58,6 +58,7 @@ const schemeFields = [
   { value: "mjp_fully_completed", label: "MJP Fully Completed", required: false },
   { value: "water_supply", label: "Water Supply", required: false },
   { value: "agency_type", label: "Agency Type (MJP/ZP)", required: false },
+  { value: "water_supply_status", label: "Water Supply Status", required: false },
 ];
 
 const regionFields = [

@@ -34,12 +34,23 @@ async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: an
   const targetAgencyType = Array.isArray(agencyType) ? agencyType[0] : agencyType;
 
   const conditions: any[] = [];
-  if (activeFilter === 'commissioned') {
+  if (activeFilter && activeFilter.startsWith('commissioned')) {
     conditions.push(sql`LOWER(${schemeStatuses.water_supply}) = 'yes'`);
+    if (activeFilter === 'commissioned_full') {
+      conditions.push(sql`LOWER(${schemeStatuses.water_supply_status}) = 'full'`);
+    } else if (activeFilter === 'commissioned_partial') {
+      conditions.push(sql`LOWER(${schemeStatuses.water_supply_status}) = 'partial'`);
+    } else if (activeFilter === 'commissioned_no') {
+      conditions.push(sql`LOWER(${schemeStatuses.water_supply_status}) = 'no'`);
+    }
   } else if (activeFilter === 'fully_completed') {
     conditions.push(sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('completed', 'fully-completed', 'fully completed', 'functionally completed')`);
   } else if (activeFilter === 'partial' || activeFilter === 'in_progress') {
     conditions.push(sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('in progress', 'partial', 'ongoing')`);
+  } else if (activeFilter === 'common_filter') {
+    conditions.push(sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('completed', 'fully-completed', 'fully completed', 'functionally completed') AND LOWER(${schemeStatuses.water_supply}) = 'yes'`);
+  } else if (activeFilter === 'mjp_commissioned_yes') {
+    conditions.push(sql`LOWER(${schemeStatuses.mjp_commissioned}) = 'yes'`);
   }
 
   if (targetAgencyType && targetAgencyType.toUpperCase() !== 'ALL') {

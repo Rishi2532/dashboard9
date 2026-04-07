@@ -208,6 +208,8 @@ function parseFieldValue(fieldName: string, value: string): any {
   } else if (fieldName === "agency_type") {
     // For agency_type, accept MJP or ZP values exactly as entered
     return String(value).trim();
+  } else if (fieldName === "water_supply_status") {
+    return String(value).trim();
   } else if (fieldName.includes("date")) {
     // Try to parse as date if it looks like a date
     const dateValue = new Date(value);
@@ -407,6 +409,7 @@ async function updateDatabaseRecords(
           mjp_fully_completed: item.mjp_fully_completed || undefined,
           water_supply: item.water_supply || undefined,
           agency_type: item.agency_type || undefined,
+          water_supply_status: item.water_supply_status || undefined,
           dashboard_url: generateDashboardUrl(item) || item.dashboard_url || undefined,
         };
 
