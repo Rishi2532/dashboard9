@@ -3140,9 +3140,9 @@ const DetailedChlorinePage = () => {
                 <SelectContent>
                   <SelectItem value="all">All Schemes</SelectItem>
                   <SelectItem value="commissioned">100% Civil work Completed</SelectItem>
-                  <SelectItem value="fully_completed">Fully Instrumented Schemes</SelectItem>
-                  <SelectItem value="in_progress">Partially instrumented schemes</SelectItem>
-                  <SelectItem value="common_filter">Common filter</SelectItem>
+                  <SelectItem value="fully_completed">Fully Instrumented Schemes(IoT)</SelectItem>
+                  <SelectItem value="in_progress">Partially instrumented schemes(IoT)</SelectItem>
+                  <SelectItem value="common_filter">Common filter(IoT + MJP)</SelectItem>
                   <SelectItem value="mjp_commissioned_yes">Commissioned</SelectItem>
                 </SelectContent>
               </Select>
