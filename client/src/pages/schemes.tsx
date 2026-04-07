@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import ExcelJS from "exceljs";
 import { useQuery } from "@tanstack/react-query";
 import DashboardLayout from "@/components/dashboard/dashboard-layout";
@@ -10,6 +10,14 @@ import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { SchemeStatus, Region } from "@/types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Schemes() {
   const [selectedRegion, setSelectedRegion] = useState("all");
@@ -17,12 +25,19 @@ export default function Schemes() {
   const [selectedDivision, setSelectedDivision] = useState("all");
   const [selectedSubdivision, setSelectedSubdivision] = useState("all");
   const [selectedBlock, setSelectedBlock] = useState("all");
-  const [selectedAgencyType, setSelectedAgencyType] = useState("ALL");
   const [selectedScheme, setSelectedScheme] = useState<SchemeStatus | null>(
     null,
   );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [uiSchemeFilter, setUiSchemeFilter] = useState<string>("commissioned");
+  const [waterSupplyStatus, setWaterSupplyStatus] = useState<string>("All");
+  const [selectedAgencyType, setSelectedAgencyType] = useState<string>("ALL");
+  
+  const schemeFilter = uiSchemeFilter === "commissioned" && waterSupplyStatus !== "All"
+    ? `commissioned_${waterSupplyStatus.toLowerCase()}`
+    : uiSchemeFilter;
+
   const [currentFilteredSchemes, setCurrentFilteredSchemes] = useState<
     SchemeStatus[]
   >([]);
@@ -42,6 +57,7 @@ export default function Schemes() {
       selectedDivision,
       selectedSubdivision,
       selectedAgencyType,
+      schemeFilter,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -52,6 +68,13 @@ export default function Schemes() {
         params.set("subdivision", selectedSubdivision);
       if (selectedAgencyType !== "ALL")
         params.set("agencyType", selectedAgencyType);
+      
+      if (schemeFilter !== "all") {
+        params.append("filterType", schemeFilter);
+      }
+      if (schemeFilter === "fully_completed") {
+        params.append("fullyCompleted", "true");
+      }
 
       const response = await fetch(`/api/schemes/filters?${params.toString()}`);
       return response.json();
@@ -69,6 +92,7 @@ export default function Schemes() {
       selectedBlock,
       statusFilter,
       selectedAgencyType,
+      schemeFilter,
     ],
     queryFn: () => {
       let url = `/api/schemes`;
@@ -101,6 +125,12 @@ export default function Schemes() {
       if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
       }
+
+      // We now handle specialized filtering on the frontend for exact logic
+      // params.append("filterType", schemeFilter);
+      // if (schemeFilter === "fully_completed") {
+      //   params.append("fullyCompleted", "true");
+      // }
 
       if (params.toString()) {
         url += `?${params.toString()}`;
@@ -166,7 +196,57 @@ export default function Schemes() {
     setIsModalOpen(false);
   };
 
-  // Listen for chatbot events
+  // Frontend filtering logic with exact requirements
+  const globallyFilteredSchemes = useMemo(() => {
+    if (!schemes) return [];
+    let filtered = [...schemes];
+
+    if (uiSchemeFilter !== "all") {
+      filtered = filtered.filter((record) => {
+        const status = record; // Assuming record is the scheme status object
+        if (!status) return true;
+
+        if (uiSchemeFilter === "commissioned") {
+          // 100% Civil work Completed: water_supply = Yes
+          const isCivilCompleted = status.water_supply === "Yes";
+          if (!isCivilCompleted) return false;
+
+          // Water supply status tabs: Full, Partial, No
+          if (waterSupplyStatus === "All") return true;
+          return status.water_supply_status === waterSupplyStatus;
+        }
+
+        if (uiSchemeFilter === "fully_completed") {
+          // Fully Instrumented: fully_completion_scheme_status = Fully Completed or Completed
+          const statusValue = String(status.fully_completion_scheme_status || "");
+          return statusValue === "Fully Completed" || statusValue === "Completed";
+        }
+
+        if (uiSchemeFilter === "in_progress") {
+          // Partially instrumented: fully_completion_scheme_status = In Progress
+          return status.fully_completion_scheme_status === "In Progress";
+        }
+
+        if (uiSchemeFilter === "common_filter") {
+          // Common filter: (fully_completion_scheme_status = Fully Completed or Completed) AND water_supply = Yes
+          const statusValue = String(status.fully_completion_scheme_status || "");
+          const isInstrumented = statusValue === "Fully Completed" || statusValue === "Completed";
+          const isCivilCompleted = status.water_supply === "Yes";
+          return isInstrumented && isCivilCompleted;
+        }
+
+        if (uiSchemeFilter === "mjp_commissioned_yes") {
+          // Commissioned: mjp_commissioned = Yes
+          return status.mjp_commissioned === "Yes";
+        }
+
+        return true;
+      });
+    }
+
+    return filtered;
+  }, [schemes, uiSchemeFilter, waterSupplyStatus]);
+
   useEffect(() => {
     const handleChatbotRegionFilter = (event: CustomEvent) => {
       const { region } = event.detail;
@@ -184,9 +264,9 @@ export default function Schemes() {
       if (pageType === 'schemes') {
         // Wait for data to be available, then export
         setTimeout(() => {
-          if (currentFilteredSchemes && currentFilteredSchemes.length > 0) {
+          if (globallyFilteredSchemes && globallyFilteredSchemes.length > 0) {
             exportToExcel();
-            console.log("Excel export triggered for Schemes data with", currentFilteredSchemes.length, "records");
+            console.log("Excel export triggered for Schemes data with", globallyFilteredSchemes.length, "records");
           } else {
             console.log("No filtered schemes data available for export");
           }
@@ -215,11 +295,11 @@ export default function Schemes() {
         (window as any).triggerDashboardExport = undefined;
       }
     };
-  }, [currentFilteredSchemes]);
+  }, [globallyFilteredSchemes]);
 
   const exportComprehensiveReport = async () => {
     try {
-      const allFilteredSchemes = currentFilteredSchemes;
+      const allFilteredSchemes = globallyFilteredSchemes;
       if (allFilteredSchemes.length === 0) {
         toast({
           title: "No Data To Export",
@@ -469,7 +549,7 @@ export default function Schemes() {
 
   const exportToExcel = async () => {
     try {
-      const allFilteredSchemes = currentFilteredSchemes;
+      const allFilteredSchemes = globallyFilteredSchemes;
       if (allFilteredSchemes.length === 0) {
         toast({
           title: "No Data To Export",
@@ -652,7 +732,37 @@ export default function Schemes() {
         onBlockChange={handleBlockChange}
       />
 
-      <div className="mt-4 mb-6">
+      <div className="flex flex-wrap items-center gap-3 mt-4 mb-6 bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter:</span>
+        <Select value={uiSchemeFilter} onValueChange={setUiSchemeFilter}>
+          <SelectTrigger className="w-[240px] bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
+            <SelectValue placeholder="Select Filter" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Schemes</SelectItem>
+            <SelectItem value="commissioned">100% Civil work Completed</SelectItem>
+            <SelectItem value="fully_completed">Fully Instrumented Schemes</SelectItem>
+            <SelectItem value="in_progress">Partially instrumented schemes</SelectItem>
+            <SelectItem value="common_filter">Common filter</SelectItem>
+            <SelectItem value="mjp_commissioned_yes">Commissioned</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {uiSchemeFilter === "commissioned" && (
+          <>
+            <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2"></div>
+            <Tabs value={waterSupplyStatus} onValueChange={setWaterSupplyStatus} className="m-0">
+              <TabsList className="h-10 bg-gray-100 dark:bg-gray-800 p-1 border border-gray-200 dark:border-gray-700">
+                <TabsTrigger value="All" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-blue-600 data-[state=active]:text-white">All Water Supply</TabsTrigger>
+                <TabsTrigger value="Full" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Full</TabsTrigger>
+                <TabsTrigger value="Partial" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partial</TabsTrigger>
+                <TabsTrigger value="No" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-red-500 data-[state=active]:text-white">No</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </>
+        )}
+
+        <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2"></div>
         <AgencyTypeFilter
           selectedAgencyType={selectedAgencyType}
           onAgencyTypeChange={setSelectedAgencyType}
@@ -661,7 +771,7 @@ export default function Schemes() {
       </div>
 
       <SchemeTable
-        schemes={schemes || []}
+        schemes={globallyFilteredSchemes || []}
         isLoading={isSchemesLoading}
         onViewDetails={handleViewSchemeDetails}
         onNavigateToDetails={handleNavigateToSchemeDetails}

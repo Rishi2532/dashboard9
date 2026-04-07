@@ -317,14 +317,6 @@ const PressureDashboard: React.FC = () => {
       "regionFilterChange",
       handleRegionFilterChange as EventListener,
     );
-    window.addEventListener(
-      "mjpCommissionedFilterChange",
-      handleMjpCommissionedFilterChange as EventListener,
-    );
-    window.addEventListener(
-      "mjpFullyCompletedFilterChange",
-      handleMjpFullyCompletedFilterChange as EventListener,
-    );
     // Add chatbot event handlers
     const handleChatbotRegionFilter = (event: CustomEvent) => {
       const { region } = event.detail;
@@ -345,20 +337,13 @@ const PressureDashboard: React.FC = () => {
 
       // Only respond if this is the right page type
       if (pageType === "pressure") {
-        // Wait for data to be filtered properly (same timing as chlorine page)
+        // Wait for data to be filtered properly
         setTimeout(() => {
           if (filteredData && filteredData.length > 0) {
             exportToExcel(
               filteredData,
               `Pressure_Data_${selectedRegion}_${selectedCardFilter}_${new Date().toISOString().split("T")[0]}`,
             );
-            console.log(
-              "Excel export triggered for Pressure data with",
-              filteredData.length,
-              "total records",
-            );
-          } else {
-            console.log("No Pressure data available for export");
           }
         }, 1500);
       }
@@ -395,14 +380,6 @@ const PressureDashboard: React.FC = () => {
         handleRegionFilterChange as EventListener,
       );
       window.removeEventListener(
-        "mjpCommissionedFilterChange",
-        handleMjpCommissionedFilterChange as EventListener,
-      );
-      window.removeEventListener(
-        "mjpFullyCompletedFilterChange",
-        handleMjpFullyCompletedFilterChange as EventListener,
-      );
-      window.removeEventListener(
         "statusFilterChange",
         handleStatusFilterChange as EventListener,
       );
@@ -429,9 +406,8 @@ const PressureDashboard: React.FC = () => {
   const [selectedSubdivision, setSelectedSubdivision] = useState<string>("all");
   const [selectedBlock, setSelectedBlock] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [commissionedFilter, setCommissionedFilter] = useState<string>("all");
-  const [fullyCompletedFilter, setFullyCompletedFilter] =
-    useState<string>("all");
+  const [uiSchemeFilter, setUiSchemeFilter] = useState<string>("all");
+  const [waterSupplyStatus, setWaterSupplyStatus] = useState<string>("All");
   const [schemeStatusFilter, setSchemeStatusFilter] = useState<string>("all");
   const [selectedAgencyType, setSelectedAgencyType] = useState<string>("ALL");
 
@@ -543,7 +519,7 @@ const PressureDashboard: React.FC = () => {
     error: pressureError,
     refetch,
   } = useQuery<PressureData[]>({
-    queryKey: ["/api/pressure", selectedRegion, selectedCircle, selectedDivision, selectedSubdivision, selectedBlock, fullyCompletedFilter, schemeStatusFilter, selectedAgencyType],
+    queryKey: ["/api/pressure", selectedRegion, selectedCircle, selectedDivision, selectedSubdivision, selectedBlock, uiSchemeFilter, waterSupplyStatus, schemeStatusFilter, selectedAgencyType],
     queryFn: async () => {
       const params = new URLSearchParams();
 
@@ -563,8 +539,11 @@ const PressureDashboard: React.FC = () => {
         params.append("block", selectedBlock);
       }
 
-      if (fullyCompletedFilter && fullyCompletedFilter !== "all") {
-        params.append("fullyCompleted", fullyCompletedFilter);
+      if (uiSchemeFilter && uiSchemeFilter !== "all") {
+        params.append("uiSchemeFilter", uiSchemeFilter);
+      }
+      if (waterSupplyStatus && waterSupplyStatus !== "All") {
+        params.append("waterSupplyStatus", waterSupplyStatus);
       }
 
       if (schemeStatusFilter && schemeStatusFilter !== "all") {
@@ -598,7 +577,7 @@ const PressureDashboard: React.FC = () => {
   // Fetch dashboard stats
   const { data: dashboardStats, isLoading: isLoadingStats } =
     useQuery<PressureDashboardStats>({
-      queryKey: ["/api/pressure/dashboard-stats", selectedRegion, fullyCompletedFilter, schemeStatusFilter, selectedAgencyType],
+      queryKey: ["/api/pressure/dashboard-stats", selectedRegion, uiSchemeFilter, waterSupplyStatus, schemeStatusFilter, selectedAgencyType],
       queryFn: async () => {
         const params = new URLSearchParams();
 
@@ -606,8 +585,12 @@ const PressureDashboard: React.FC = () => {
           params.append("region", selectedRegion);
         }
 
-        if (fullyCompletedFilter && fullyCompletedFilter !== "all") {
-          params.append("fullyCompleted", fullyCompletedFilter);
+        // Pass unified filter states to backend
+        if (uiSchemeFilter !== "all") {
+          params.append("filterType", uiSchemeFilter);
+        }
+        if (waterSupplyStatus !== "All") {
+          params.append("waterSupplyStatus", waterSupplyStatus);
         }
 
         if (schemeStatusFilter && schemeStatusFilter !== "all") {
@@ -619,7 +602,7 @@ const PressureDashboard: React.FC = () => {
           else if (schemeStatusFilter === "Connected") backendFilter = "connected";
           else if (schemeStatusFilter === "Not-Connected") backendFilter = "not_connected";
 
-          params.append("filterType", backendFilter);
+          params.append("schemeStatus", backendFilter);
         }
 
         if (selectedAgencyType !== 'ALL') {
@@ -672,7 +655,7 @@ const PressureDashboard: React.FC = () => {
       pressure_connected: string | null;
     }>;
   }>({
-    queryKey: ["/api/pressure/no-water-sensors", selectedRegion, fullyCompletedFilter, schemeStatusFilter, selectedAgencyType],
+    queryKey: ["/api/pressure/no-water-sensors", selectedRegion, uiSchemeFilter, waterSupplyStatus, schemeStatusFilter, selectedAgencyType],
     queryFn: async () => {
       const params = new URLSearchParams();
 
@@ -680,8 +663,11 @@ const PressureDashboard: React.FC = () => {
         params.append("region", selectedRegion);
       }
 
-      if (fullyCompletedFilter && fullyCompletedFilter !== "all") {
-        params.append("fullyCompleted", fullyCompletedFilter);
+      if (uiSchemeFilter !== "all") {
+        params.append("filterType", uiSchemeFilter);
+      }
+      if (waterSupplyStatus !== "All") {
+        params.append("waterSupplyStatus", waterSupplyStatus);
       }
 
       if (schemeStatusFilter && schemeStatusFilter !== "all") {
@@ -693,7 +679,7 @@ const PressureDashboard: React.FC = () => {
         else if (schemeStatusFilter === "Connected") backendFilter = "connected";
         else if (schemeStatusFilter === "Not-Connected") backendFilter = "not_connected";
 
-        params.append("filterType", backendFilter);
+        params.append("schemeStatus", backendFilter);
       }
 
       if (selectedAgencyType !== 'ALL') {
@@ -731,7 +717,7 @@ const PressureDashboard: React.FC = () => {
       pressure_connected: string | null;
     }>;
   }>({
-    queryKey: ["/api/pressure/with-water-sensors", selectedRegion, fullyCompletedFilter, schemeStatusFilter, selectedAgencyType],
+    queryKey: ["/api/pressure/with-water-sensors", selectedRegion, uiSchemeFilter, waterSupplyStatus, schemeStatusFilter, selectedAgencyType],
     queryFn: async () => {
       const params = new URLSearchParams();
 
@@ -739,8 +725,11 @@ const PressureDashboard: React.FC = () => {
         params.append("region", selectedRegion);
       }
 
-      if (fullyCompletedFilter && fullyCompletedFilter !== "all") {
-        params.append("fullyCompleted", fullyCompletedFilter);
+      if (uiSchemeFilter && uiSchemeFilter !== "all") {
+        params.append("filterType", uiSchemeFilter);
+      }
+      if (waterSupplyStatus && waterSupplyStatus !== "All") {
+        params.append("waterSupplyStatus", waterSupplyStatus);
       }
 
       if (schemeStatusFilter && schemeStatusFilter !== "all") {
@@ -989,44 +978,20 @@ const PressureDashboard: React.FC = () => {
     };
   };
 
-  // Handler for commissioned filter changes
-  const handleCommissionedFilterChange = (value: string) => {
-    setCommissionedFilter(value);
-
-    // Track filter usage
-    if (value !== "all") {
-      trackFilterUsage("commissioned", value, undefined, "pressure_dashboard");
-    }
-
-    // If "Not Commissioned", reset and disable "Fully Completed" filter
-    if (value === "No") {
-      setFullyCompletedFilter("all");
-    }
-
-    // Reset page to 1 when filter changes
+  // Handler for Universal Filter changes
+  const handleUniversalFilterChange = (value: string) => {
+    setUiSchemeFilter(value);
     setPage(1);
+    
+    // Clear water supply status if not in commissioned mode
+    if (value !== "commissioned") {
+      setWaterSupplyStatus("All");
+    }
   };
 
-  // Handler for fully completed filter changes
-  const handleFullyCompletedFilterChange = (value: string) => {
-    setFullyCompletedFilter(value);
-
-    // Track filter usage
-    if (value !== "all") {
-      trackFilterUsage(
-        "fullyCompleted",
-        value,
-        undefined,
-        "pressure_dashboard",
-      );
-    }
-
-    // If "Fully Completed", set "Commissioned" to "Yes"
-    if (value === "Fully Completed") {
-      setCommissionedFilter("Yes");
-    }
-
-    // Reset page to 1 when filter changes
+  // Handler for Water Supply status changes
+  const handleWaterSupplyStatusChange = (value: string) => {
+    setWaterSupplyStatus(value);
     setPage(1);
   };
 
@@ -1065,7 +1030,7 @@ const PressureDashboard: React.FC = () => {
     trackPageVisit("Pressure Dashboard");
   }, [trackPageVisit]);
 
-  // Create scheme status map
+  // Shared map of scheme IDs to their status data for efficient filtering
   const schemeStatusMap = useMemo(() => {
     const map = new Map();
     if (schemeStatusData && schemeStatusData.length > 0) {
@@ -1224,32 +1189,47 @@ const PressureDashboard: React.FC = () => {
       });
     }
 
-    // Create a map of scheme IDs to their scheme status data for filtering
-    const schemeStatusMap = new Map();
-    if (schemeStatusData && schemeStatusData.length > 0) {
-      schemeStatusData.forEach((status) => {
-        schemeStatusMap.set(status.scheme_id, status);
-      });
-    }
+    // Use the shared schemeStatusMap for filtering logic
+    if (uiSchemeFilter !== "all") {
+      filtered = filtered.filter((scheme) => {
+        const status = schemeStatusMap.get(scheme.scheme_id);
+        if (!status) return true;
 
-    // Apply commissioned status filter
-    if (commissionedFilter !== "all") {
-      filtered = filtered.filter((item) => {
-        // Get scheme status from the map using scheme_id
-        const status = schemeStatusMap.get(item.scheme_id);
-        if (commissionedFilter === "Water Supply") {
-          return status && status.water_supply === "Yes";
+        if (uiSchemeFilter === "commissioned") {
+          // 100% Civil work Completed means water_supply = Yes
+          const isCivilCompleted = status.water_supply === "Yes";
+          if (!isCivilCompleted) return false;
+
+          // If civil completed, check specific water supply status tabs
+          if (waterSupplyStatus === "All") return true;
+          return status.water_supply_status === waterSupplyStatus;
         }
-        return status && status.mjp_commissioned === commissionedFilter;
-      });
-    }
 
-    // Apply fully completed filter
-    if (fullyCompletedFilter !== "all") {
-      filtered = filtered.filter((item) => {
-        // Get scheme status from the map using scheme_id
-        const status = schemeStatusMap.get(item.scheme_id);
-        return status && status.mjp_fully_completed === fullyCompletedFilter;
+        if (uiSchemeFilter === "fully_completed") {
+          // Fully Instrumented Schemes: fully_completion_scheme_status = Fully Completed or Completed
+          const statusValue = String(status.fully_completion_scheme_status || "");
+          return statusValue === "Fully Completed" || statusValue === "Completed";
+        }
+
+        if (uiSchemeFilter === "in_progress") {
+          // Partially instrumented: fully_completion_scheme_status = In Progress
+          return status.fully_completion_scheme_status === "In Progress";
+        }
+
+        if (uiSchemeFilter === "common_filter") {
+          // Common filter: fully_completion_scheme_status = Fully Completed or Completed AND water_supply = Yes
+          const statusValue = String(status.fully_completion_scheme_status || "");
+          const isInstrumented = statusValue === "Fully Completed" || statusValue === "Completed";
+          const isCivilCompleted = status.water_supply === "Yes";
+          return isInstrumented && isCivilCompleted;
+        }
+
+        if (uiSchemeFilter === "mjp_commissioned_yes") {
+          // Commissioned: mjp_commissioned = Yes
+          return status.mjp_commissioned === "Yes";
+        }
+
+        return true;
       });
     }
 
@@ -1272,14 +1252,12 @@ const PressureDashboard: React.FC = () => {
     allPressureData,
     selectedRegion,
     searchQuery,
-    commissionedFilter,
-    fullyCompletedFilter,
-    schemeStatusFilter,
-    schemeStatusData,
     sensorStatusFilter,
     communicationStatusData,
-    noWaterSensorsData,
-    withWaterSensorsData,
+    schemeStatusMap,
+    uiSchemeFilter,
+    waterSupplyStatus,
+    schemeStatusFilter,
   ]);
 
   // Calculate data for summary cards (excludes sensor status and range filters)
@@ -1303,24 +1281,40 @@ const PressureDashboard: React.FC = () => {
       filtered = filtered.filter((item) => item.region === selectedRegion);
     }
 
-    // Apply commissioned filter
-    if (commissionedFilter !== "all") {
-      filtered = filtered.filter((item) => {
-        // Get scheme status from the map using scheme_id
-        const status = schemeStatusMap.get(item.scheme_id);
-        if (commissionedFilter === "Water Supply") {
-          return status && status.water_supply === "Yes";
-        }
-        return status && status.mjp_commissioned === commissionedFilter;
-      });
-    }
+    // Apply Universal Filter logic to summary stats
+    if (uiSchemeFilter !== "all") {
+      filtered = filtered.filter((scheme) => {
+        const status = schemeStatusMap.get(scheme.scheme_id);
+        if (!status) return true;
 
-    // Apply fully completed filter
-    if (fullyCompletedFilter !== "all") {
-      filtered = filtered.filter((item) => {
-        // Get scheme status from the map using scheme_id
-        const status = schemeStatusMap.get(item.scheme_id);
-        return status && status.mjp_fully_completed === fullyCompletedFilter;
+        if (uiSchemeFilter === "commissioned") {
+          const isCivilCompleted = status.water_supply === "Yes";
+          if (!isCivilCompleted) return false;
+          if (waterSupplyStatus === "All") return true;
+          return status.water_supply_status === waterSupplyStatus;
+        }
+
+        if (uiSchemeFilter === "fully_completed") {
+          const statusValue = String(status.fully_completion_scheme_status || "");
+          return statusValue === "Fully Completed" || statusValue === "Completed";
+        }
+
+        if (uiSchemeFilter === "in_progress") {
+          return status.fully_completion_scheme_status === "In Progress";
+        }
+
+        if (uiSchemeFilter === "common_filter") {
+          const statusValue = String(status.fully_completion_scheme_status || "");
+          const isInstrumented = statusValue === "Fully Completed" || statusValue === "Completed";
+          const isCivilCompleted = status.water_supply === "Yes";
+          return isInstrumented && isCivilCompleted;
+        }
+
+        if (uiSchemeFilter === "mjp_commissioned_yes") {
+          return status.mjp_commissioned === "Yes";
+        }
+
+        return true;
       });
     }
 
@@ -1345,10 +1339,10 @@ const PressureDashboard: React.FC = () => {
     allPressureData,
     selectedRegion,
     searchQuery,
-    commissionedFilter,
-    fullyCompletedFilter,
+    uiSchemeFilter,
+    waterSupplyStatus,
     schemeStatusFilter,
-    schemeStatusData,
+    schemeStatusMap,
   ]);
 
   // Calculate sensor status counts for pressure sensors using summary stats data (excludes range/sensor filters)
@@ -1593,8 +1587,8 @@ const PressureDashboard: React.FC = () => {
     allPressureData,
     searchQuery,
     selectedRegion,
-    commissionedFilter,
-    fullyCompletedFilter,
+    uiSchemeFilter,
+    waterSupplyStatus,
     schemeStatusFilter,
     schemeStatusData,
     selectedCardFilter,
@@ -2193,76 +2187,58 @@ const PressureDashboard: React.FC = () => {
             />
           </div>
 
-          {/* Scheme Readiness */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Scheme Readiness
-            </label>
-            <Select
-              value={commissionedFilter}
-              onValueChange={(value) => {
-                setCommissionedFilter(value);
-                setPage(1);
-              }}
-              data-testid="select-scheme-readiness"
-            >
-              <SelectTrigger className="bg-white border border-blue-200 shadow-sm h-11">
-                <SelectValue placeholder="Scheme Readiness" />
+          <div className="flex-1 min-w-[240px]">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Universal Filter</label>
+            <Select value={uiSchemeFilter} onValueChange={handleUniversalFilterChange}>
+              <SelectTrigger className="w-full bg-white border-blue-200 h-11 shadow-sm">
+                <SelectValue placeholder="Select Filter" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Scheme Readiness</SelectItem>
-                <SelectItem value="Yes">Commissioned</SelectItem>
-                <SelectItem value="No">Not Commissioned</SelectItem>
-                <SelectItem value="Water Supply">Water Supply</SelectItem>
+                <SelectItem value="all">All Schemes</SelectItem>
+                <SelectItem value="commissioned">100% Civil work Completed</SelectItem>
+                <SelectItem value="fully_completed">Fully Instrumented Schemes</SelectItem>
+                <SelectItem value="in_progress">Partially instrumented schemes</SelectItem>
+                <SelectItem value="common_filter">Common filter</SelectItem>
+                <SelectItem value="mjp_commissioned_yes">Commissioned</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {/* Scheme Status (MJP) */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Scheme Status
-            </label>
-            <Select
-              value={fullyCompletedFilter}
-              onValueChange={(value) => {
-                setFullyCompletedFilter(value);
-                setPage(1);
-              }}
-              data-testid="select-mjp-status"
-            >
-              <SelectTrigger
-                className={`bg-white border border-blue-200 shadow-sm h-11 ${commissionedFilter === "No" ? "opacity-50" : ""
-                  }`}
-              >
-                <SelectValue placeholder="Scheme Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="Fully Completed">Fully Completed</SelectItem>
-                <SelectItem value="In Progress">In Progress</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {uiSchemeFilter === "commissioned" && (
+            <div className="flex-1 min-w-[300px]">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Water Supply Status</label>
+              <div className="bg-white border border-blue-100 p-0.5 shadow-sm rounded-md w-full overflow-x-auto">
+                <div className="flex min-w-[280px]">
+                  <button 
+                    onClick={() => handleWaterSupplyStatusChange("All")}
+                    className={`flex-1 px-3 py-2 text-xs font-medium rounded-sm transition-colors ${waterSupplyStatus === "All" ? "bg-blue-600 text-white" : "hover:bg-blue-50 text-blue-600"}`}
+                  >All</button>
+                  <button 
+                    onClick={() => handleWaterSupplyStatusChange("Full")}
+                    className={`flex-1 px-3 py-2 text-xs font-medium rounded-sm transition-colors ${waterSupplyStatus === "Full" ? "bg-emerald-600 text-white" : "hover:bg-emerald-50 text-emerald-600"}`}
+                  >Full</button>
+                  <button 
+                    onClick={() => handleWaterSupplyStatusChange("Partial")}
+                    className={`flex-1 px-3 py-2 text-xs font-medium rounded-sm transition-colors ${waterSupplyStatus === "Partial" ? "bg-amber-500 text-white" : "hover:bg-amber-50 text-amber-500"}`}
+                  >Partial</button>
+                  <button 
+                    onClick={() => handleWaterSupplyStatusChange("No")}
+                    className={`flex-1 px-3 py-2 text-xs font-medium rounded-sm transition-colors ${waterSupplyStatus === "No" ? "bg-red-500 text-white" : "hover:bg-red-50 text-red-500"}`}
+                  >No</button>
+                </div>
+              </div>
+            </div>
+          )}
 
-          {/* Connection Status */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Connection Status
-            </label>
-            <Select
-              value={schemeStatusFilter}
-              onValueChange={(value) => {
-                setSchemeStatusFilter(value);
-                setPage(1);
-              }}
-              data-testid="select-connection-status"
-            >
-              <SelectTrigger className="bg-white border border-blue-200 shadow-sm h-11">
-                <SelectValue placeholder="All" />
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-sm font-medium text-gray-700 mb-2">IoT Status</label>
+            <Select value={schemeStatusFilter} onValueChange={handleSchemeStatusFilterChange}>
+              <SelectTrigger className="w-full bg-white border-blue-200 h-11 shadow-sm">
+                <SelectValue placeholder="IoT Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="all">All IoT Status</SelectItem>
+                <SelectItem value="Connected">Connected</SelectItem>
                 <SelectItem value="Fully Completed">Fully Completed</SelectItem>
                 <SelectItem value="In Progress">In Progress</SelectItem>
                 <SelectItem value="Not-Connected">Not Connected</SelectItem>

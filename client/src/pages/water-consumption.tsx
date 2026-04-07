@@ -179,9 +179,8 @@ const WaterConsumptionPage: React.FC = () => {
     end: string;
     region: string;
   } | null>(null);
-  const [commissionedFilter, setCommissionedFilter] = useState<string>("all");
-  const [fullyCompletedFilter, setFullyCompletedFilter] =
-    useState<string>("all");
+  const [uiSchemeFilter, setUiSchemeFilter] = useState<string>("all");
+  const [waterSupplyStatus, setWaterSupplyStatus] = useState<string>("All");
   const [iotStatus, setIotStatus] = useState<string>("all");
 
   // Pagination state
@@ -639,34 +638,46 @@ const WaterConsumptionPage: React.FC = () => {
       });
     }
 
-    // Apply MJP commissioned filter - use frontend join with schemeStatusData
-    if (commissionedFilter !== "all") {
+    // Universal scheme filter logic with exact requirements
+    if (uiSchemeFilter !== "all") {
       filtered = filtered.filter((record) => {
-        // Get scheme status from the map using scheme_id
         const status = schemeStatusMap.get(record.scheme_id);
+        if (!status) return true;
 
-        if (commissionedFilter === "Water Supply") {
-          return status && status.water_supply === "Yes";
-        } else if (commissionedFilter === "Yes") {
-          return status && status.mjp_commissioned === "Yes";
-        } else if (commissionedFilter === "No") {
-          return status && status.mjp_commissioned === "No";
+        if (uiSchemeFilter === "commissioned") {
+          // 100% Civil work Completed: water_supply = Yes
+          const isCivilCompleted = status.water_supply === "Yes";
+          if (!isCivilCompleted) return false;
+
+          // Water supply status tabs: Full, Partial, No
+          if (waterSupplyStatus === "All") return true;
+          return status.water_supply_status === waterSupplyStatus;
         }
-        return true;
-      });
-    }
 
-    // Apply MJP fully completed filter - use frontend join with schemeStatusData
-    if (fullyCompletedFilter !== "all") {
-      filtered = filtered.filter((record) => {
-        // Get scheme status from the map using scheme_id
-        const status = schemeStatusMap.get(record.scheme_id);
-
-        if (fullyCompletedFilter === "Fully Completed") {
-          return status && status.mjp_fully_completed === "Fully Completed";
-        } else if (fullyCompletedFilter === "In Progress") {
-          return status && status.mjp_fully_completed === "In Progress";
+        if (uiSchemeFilter === "fully_completed") {
+          // Fully Instrumented: fully_completion_scheme_status = Fully Completed or Completed
+          const statusValue = String(status.fully_completion_scheme_status || "");
+          return statusValue === "Fully Completed" || statusValue === "Completed";
         }
+
+        if (uiSchemeFilter === "in_progress") {
+          // Partially instrumented: fully_completion_scheme_status = In Progress
+          return status.fully_completion_scheme_status === "In Progress";
+        }
+
+        if (uiSchemeFilter === "common_filter") {
+          // Common filter: (fully_completion_scheme_status = Fully Completed or Completed) AND water_supply = Yes
+          const statusValue = String(status.fully_completion_scheme_status || "");
+          const isInstrumented = statusValue === "Fully Completed" || statusValue === "Completed";
+          const isCivilCompleted = status.water_supply === "Yes";
+          return isInstrumented && isCivilCompleted;
+        }
+
+        if (uiSchemeFilter === "mjp_commissioned_yes") {
+          // Commissioned: mjp_commissioned = Yes
+          return status.mjp_commissioned === "Yes";
+        }
+
         return true;
       });
     }
@@ -694,8 +705,8 @@ const WaterConsumptionPage: React.FC = () => {
     selectedSubdivision,
     selectedBlock,
     searchTerm,
-    commissionedFilter,
-    fullyCompletedFilter,
+    uiSchemeFilter,
+    waterSupplyStatus,
     iotStatus,
     schemeStatusData,
   ]);
@@ -991,24 +1002,19 @@ const WaterConsumptionPage: React.FC = () => {
     setPage(1); // Reset pagination when filter changes
   };
 
-  // Handle MJP commissioned status change (same logic as EnhancedLpcdDashboard)
-  const handleCommissionedFilterChange = (status: string) => {
-    setCommissionedFilter(status);
-
-    // If "Not Commissioned", reset and disable "Fully Completed" filter (same as EnhancedLpcdDashboard)
-    if (status === "No") {
-      setFullyCompletedFilter("all");
-    }
-
-    // Reset page to 1 when filter changes
+  // Handle Universal Filter change
+  const handleUniversalFilterChange = (val: string) => {
+    setUiSchemeFilter(val);
     setPage(1);
+    // Reset water supply status if not in commissioned mode
+    if (val !== "commissioned") {
+      setWaterSupplyStatus("All");
+    }
   };
 
-  // Handle MJP fully completed status change (same logic as EnhancedLpcdDashboard)
-  const handleFullyCompletedFilterChange = (status: string) => {
-    setFullyCompletedFilter(status);
-
-    // Reset page to 1 when filter changes
+  // Handle Water Supply status change
+  const handleWaterSupplyStatusChange = (val: string) => {
+    setWaterSupplyStatus(val);
     setPage(1);
   };
 
@@ -1785,71 +1791,58 @@ const WaterConsumptionPage: React.FC = () => {
               {/* Other Filters Row */}
               <div className="flex flex-col lg:flex-row gap-4">
 
-                {/* MJP Civil Status Filter Box */}
-                <div className="flex-1">
-                  <div className="border border-blue-200 p-3 rounded-lg shadow-sm bg-white flex flex-col items-center">
-                    <span className="text-blue-700 font-semibold mb-2">
-                      MJP Civil Status
-                    </span>
-                    <div className="flex gap-2">
-                      {/* Commissioned Status Filter */}
-                      <Select
-                        value={commissionedFilter}
-                        onValueChange={handleCommissionedFilterChange}
-                      >
-                        <SelectTrigger className="w-[120px] bg-white border border-blue-200 shadow-sm">
-                          <SelectValue placeholder="Commissioned" />
-                        </SelectTrigger>
-                        <SelectContent className="border border-blue-100">
-                          <SelectItem value="all">All Status</SelectItem>
-                          <SelectItem value="Yes">Commissioned</SelectItem>
-                          <SelectItem value="No">Not Commissioned</SelectItem>
-                          <SelectItem value="Water Supply">Water Supply</SelectItem>
-                        </SelectContent>
-                      </Select>
-
-                      {/* MJP Fully Completed Filter */}
-                      <Select
-                        value={fullyCompletedFilter}
-                        onValueChange={handleFullyCompletedFilterChange}
-                        disabled={commissionedFilter === "No"}
-                      >
-                        <SelectTrigger className="w-[120px] bg-white border border-blue-200 shadow-sm">
-                          <SelectValue placeholder="Completion" />
-                        </SelectTrigger>
-                        <SelectContent className="border border-blue-100">
-                          <SelectItem value="all">All Status</SelectItem>
-                          <SelectItem
-                            value="Fully Completed"
-                            disabled={commissionedFilter === "No"}
-                          >
-                            Fully Completed
-                          </SelectItem>
-                          <SelectItem
-                            value="In Progress"
-                            disabled={commissionedFilter === "No"}
-                          >
-                            In Progress
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
+                <div className="flex-1 min-w-[200px]">
+                  <label className="block text-sm font-medium text-blue-700 mb-2">Universal Filter</label>
+                  <Select value={uiSchemeFilter} onValueChange={handleUniversalFilterChange}>
+                    <SelectTrigger className="w-full bg-white border-blue-200 h-11 shadow-sm">
+                      <SelectValue placeholder="Select Filter" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Schemes</SelectItem>
+                      <SelectItem value="commissioned">100% Civil work Completed</SelectItem>
+                      <SelectItem value="fully_completed">Fully Instrumented Schemes</SelectItem>
+                      <SelectItem value="in_progress">Partially instrumented schemes</SelectItem>
+                      <SelectItem value="common_filter">Common filter</SelectItem>
+                      <SelectItem value="mjp_commissioned_yes">Commissioned</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                <div className="flex-1">
-                  <Select
-                    value={iotStatus}
-                    onValueChange={handleIotStatusFilterChange}
-                  >
-                    <SelectTrigger>
+                {uiSchemeFilter === "commissioned" && (
+                  <div className="flex-1 min-w-[280px]">
+                    <label className="block text-sm font-medium text-blue-700 mb-2">Water Supply Status</label>
+                    <div className="bg-white border border-blue-100 p-0.5 shadow-sm rounded-md w-full overflow-x-auto">
+                      <div className="flex min-w-[280px]">
+                        <button 
+                          onClick={() => handleWaterSupplyStatusChange("All")}
+                          className={`flex-1 px-3 py-2 text-xs font-medium rounded-sm transition-colors ${waterSupplyStatus === "All" ? "bg-blue-600 text-white" : "hover:bg-blue-50 text-blue-600"}`}
+                        >All</button>
+                        <button 
+                          onClick={() => handleWaterSupplyStatusChange("Full")}
+                          className={`flex-1 px-3 py-2 text-xs font-medium rounded-sm transition-colors ${waterSupplyStatus === "Full" ? "bg-emerald-600 text-white" : "hover:bg-emerald-50 text-emerald-600"}`}
+                        >Full</button>
+                        <button 
+                          onClick={() => handleWaterSupplyStatusChange("Partial")}
+                          className={`flex-1 px-3 py-2 text-xs font-medium rounded-sm transition-colors ${waterSupplyStatus === "Partial" ? "bg-amber-500 text-white" : "hover:bg-amber-50 text-amber-500"}`}
+                        >Partial</button>
+                        <button 
+                          onClick={() => handleWaterSupplyStatusChange("No")}
+                          className={`flex-1 px-3 py-2 text-xs font-medium rounded-sm transition-colors ${waterSupplyStatus === "No" ? "bg-red-500 text-white" : "hover:bg-red-50 text-red-500"}`}
+                        >No</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex-1 min-w-[180px]">
+                  <label className="block text-sm font-medium text-blue-700 mb-2">IoT Status</label>
+                  <Select value={iotStatus} onValueChange={(val) => { setIotStatus(val); setPage(1); }}>
+                    <SelectTrigger className="w-full bg-white border-blue-200 h-11 shadow-sm">
                       <SelectValue placeholder="IoT Status" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All IoT Status</SelectItem>
-                      <SelectItem value="Fully Completed">
-                        Fully Completed
-                      </SelectItem>
+                      <SelectItem value="Fully Completed">Fully Completed</SelectItem>
                       <SelectItem value="In Progress">In Progress</SelectItem>
                     </SelectContent>
                   </Select>

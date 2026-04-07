@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -209,10 +210,13 @@ const ChlorineDashboard: React.FC = () => {
   const [selectedAgencyType, setSelectedAgencyType] = useState<string>("ALL");
 
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [commissionedFilter, setCommissionedFilter] = useState<string>("all");
-  const [fullyCompletedFilter, setFullyCompletedFilter] =
-    useState<string>("all");
   const [schemeStatusFilter, setSchemeStatusFilter] = useState<string>("all");
+  const [uiSchemeFilter, setUiSchemeFilter] = useState<string>("commissioned");
+  const [waterSupplyStatus, setWaterSupplyStatus] = useState<string>("All");
+
+  const schemeFilter = uiSchemeFilter === "commissioned" && waterSupplyStatus !== "All"
+    ? `commissioned_${waterSupplyStatus.toLowerCase()}`
+    : uiSchemeFilter;
 
   // Card-specific filter state (only affects table data, not card values)
   const [selectedCardFilter, setSelectedCardFilter] =
@@ -396,27 +400,29 @@ const ChlorineDashboard: React.FC = () => {
       selectedSubdivision,
       selectedBlock,
       selectedAgencyType,
+      schemeFilter,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
 
-      if (selectedRegion && selectedRegion !== "all") {
+      if (selectedRegion && selectedRegion !== "all")
         params.append("region", selectedRegion);
-      }
-      if (selectedCircle && selectedCircle !== "all") {
+      if (selectedCircle && selectedCircle !== "all")
         params.append("circle", selectedCircle);
-      }
-      if (selectedDivision && selectedDivision !== "all") {
+      if (selectedDivision && selectedDivision !== "all")
         params.append("division", selectedDivision);
-      }
-      if (selectedSubdivision && selectedSubdivision !== "all") {
-        params.append("subDivision", selectedSubdivision);
-      }
-      if (selectedBlock && selectedBlock !== "all") {
+      if (selectedSubdivision && selectedSubdivision !== "all")
+        params.append("sub_division", selectedSubdivision); // Corrected to sub_division
+      if (selectedBlock && selectedBlock !== "all")
         params.append("block", selectedBlock);
-      }
-      if (selectedAgencyType !== 'ALL') {
+      if (selectedAgencyType !== "ALL")
         params.append("agencyType", selectedAgencyType);
+
+      if (schemeFilter !== "all") {
+        params.append("filterType", schemeFilter);
+      }
+      if (schemeFilter === "fully_completed") {
+        params.append("fullyCompleted", "true");
       }
 
       // No longer filtering API requests by card selection
@@ -651,140 +657,6 @@ const ChlorineDashboard: React.FC = () => {
     return null;
   };
 
-  // Temporary placeholder - will be moved after globallyFilteredData is defined
-
-  // Calculate range statistics for sensors WITH water - use local data for consistency with filtering
-  const calculateWithWaterRangeStats = useMemo(() => {
-    if (!allChlorineData || !withWaterSensorsData?.withWaterSensors) {
-      return {
-        belowRange: 0,
-        optimal: 0,
-        above: 0,
-        totalCount: 0,
-        noData: 0,
-        regionalBreakdown: {},
-      };
-    }
-
-    // Get sensor IDs that have water
-    const withWaterSensorIds = new Set(
-      withWaterSensorsData.withWaterSensors.map(
-        (sensor: any) =>
-          `${sensor.scheme_id}|${sensor.village_name}|${sensor.esr_name}`,
-      ),
-    );
-
-    let belowRange = 0,
-      optimal = 0,
-      above = 0;
-    const regionalBreakdown: Record<
-      string,
-      { belowRange: number; optimal: number; above: number }
-    > = {};
-
-    allChlorineData.forEach((data) => {
-      const sensorKey = `${data.scheme_id}|${data.village_name}|${data.esr_name}`;
-
-      // Only count sensors that have water
-      if (withWaterSensorIds.has(sensorKey)) {
-        const currentValue = getCurrentChlorineValue(data);
-        const region = data.region || "Unknown";
-
-        if (!regionalBreakdown[region]) {
-          regionalBreakdown[region] = { belowRange: 0, optimal: 0, above: 0 };
-        }
-
-        if (currentValue !== null && !isNaN(currentValue)) {
-          if (currentValue < 0.2) {
-            belowRange++;
-            regionalBreakdown[region].belowRange++;
-          } else if (currentValue >= 0.2 && currentValue <= 0.5) {
-            optimal++;
-            regionalBreakdown[region].optimal++;
-          } else {
-            above++;
-            regionalBreakdown[region].above++;
-          }
-        }
-        // Null/blank values are NOT counted in any range category
-      }
-    });
-
-    const totalCount = withWaterSensorIds.size;
-    const sumRanges = belowRange + optimal + above;
-    const noData = Math.max(totalCount - sumRanges, 0);
-
-    console.log("Chlorine with water range calculations:", {
-      belowRange,
-      optimal,
-      above,
-      totalCount,
-      sumRanges,
-      noData,
-      regionalBreakdown,
-    });
-    return {
-      belowRange,
-      optimal,
-      above,
-      totalCount,
-      noData,
-      regionalBreakdown,
-    };
-  }, [allChlorineData, withWaterSensorsData]);
-
-  // Calculate range statistics for sensors WITHOUT water
-  const calculateWithoutWaterRangeStats = useMemo(() => {
-    if (!allChlorineData || !noWaterSensorsData?.noWaterSensors) {
-      return { belowRange: 0, optimal: 0, above: 0, totalCount: 0, noData: 0 };
-    }
-
-    // Get sensor IDs that have no water
-    const noWaterSensorIds = new Set(
-      noWaterSensorsData.noWaterSensors.map(
-        (sensor: any) =>
-          `${sensor.region}|${sensor.circle}|${sensor.division}|${sensor.sub_division}|${sensor.block}|${sensor.village_name}|${sensor.esr_name}`,
-      ),
-    );
-
-    let belowRange = 0,
-      optimal = 0,
-      above = 0;
-
-    allChlorineData.forEach((data) => {
-      const sensorKey = `${data.region}|${data.circle}|${data.division}|${data.sub_division}|${data.block}|${data.village_name}|${data.esr_name}`;
-
-      // Only count sensors that have no water
-      if (noWaterSensorIds.has(sensorKey)) {
-        const currentValue = getCurrentChlorineValue(data);
-        if (currentValue !== null && !isNaN(currentValue)) {
-          if (currentValue < 0.2) {
-            belowRange++;
-          } else if (currentValue >= 0.2 && currentValue <= 0.5) {
-            optimal++;
-          } else {
-            above++;
-          }
-        }
-        // Null/blank values are NOT counted in any range category
-      }
-    });
-
-    const totalCount = noWaterSensorIds.size;
-    const sumRanges = belowRange + optimal + above;
-    const noData = Math.max(totalCount - sumRanges, 0);
-
-    console.log("Chlorine without water range calculations:", {
-      belowRange,
-      optimal,
-      above,
-      totalCount,
-      sumRanges,
-      noData,
-    });
-    return { belowRange, optimal, above, totalCount, noData };
-  }, [allChlorineData, noWaterSensorsData]);
-
   // Get the CSS class and status text based on chlorine value
   const getChlorineStatusInfo = (value: number | null) => {
     if (value === null)
@@ -817,51 +689,6 @@ const ChlorineDashboard: React.FC = () => {
       textColor: "text-orange-800",
       icon: <AlertCircle className="h-5 w-5 text-orange-600" />,
     };
-  };
-
-  // Handler for commissioned filter changes
-  const handleCommissionedFilterChange = (value: string) => {
-    setCommissionedFilter(value);
-
-    // Track filter usage
-    if (value !== "all") {
-      trackFilterUsage(
-        "commissioned_status",
-        value,
-        filteredData.length,
-        "chlorine_dashboard",
-      );
-    }
-
-    // If "Not Commissioned", maintain the fully completed filter value
-    // We'll handle the filtering logic differently
-
-    // Reset page to 1 when filter changes
-    setPage(1);
-  };
-
-  // Handler for fully completed filter changes
-  const handleFullyCompletedFilterChange = (value: string) => {
-    setFullyCompletedFilter(value);
-
-    // Track filter usage
-    if (value !== "all") {
-      trackFilterUsage(
-        "completion_status",
-        value,
-        filteredData.length,
-        "chlorine_dashboard",
-      );
-    }
-
-    // If "Fully Completed", set "Commissioned" to "Yes" if not already set
-    if (value === "Fully Completed" && commissionedFilter === "No") {
-      // Automatically adjust the commissioned filter to allow the selection
-      setCommissionedFilter("Yes");
-    }
-
-    // Reset page to 1 when filter changes
-    setPage(1);
   };
 
   // Handler for scheme status filter changes
@@ -910,76 +737,6 @@ const ChlorineDashboard: React.FC = () => {
     return map;
   }, [schemeStatusData]);
 
-  // Calculate data for summary cards (excludes sensor status and range filters)
-  const summaryStatsData = useMemo(() => {
-    let filtered = [...allChlorineData];
-
-    // Apply search filter if query exists
-    if (searchQuery.trim() !== "") {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (item) =>
-          item.scheme_name?.toLowerCase().includes(query) ||
-          item.region?.toLowerCase().includes(query) ||
-          item.village_name?.toLowerCase().includes(query) ||
-          item.esr_name?.toLowerCase().includes(query),
-      );
-    }
-
-    // Double-check region filtering to ensure only data from selected region is shown
-    if (selectedRegion && selectedRegion !== "all") {
-      filtered = filtered.filter((item) => item.region === selectedRegion);
-    }
-
-    // Apply commissioned filter
-    if (commissionedFilter !== "all") {
-      filtered = filtered.filter((item) => {
-        // Get scheme status from the map using scheme_id
-        const status = schemeStatusMap.get(item.scheme_id);
-        if (commissionedFilter === "Water Supply") {
-          return status && status.water_supply === "Yes";
-        }
-        return status && status.mjp_commissioned === commissionedFilter;
-      });
-    }
-
-    // Apply fully completed filter
-    if (fullyCompletedFilter !== "all") {
-      filtered = filtered.filter((item) => {
-        // Get scheme status from the map using scheme_id
-        const status = schemeStatusMap.get(item.scheme_id);
-        return status && status.mjp_fully_completed === fullyCompletedFilter;
-      });
-    }
-
-    // Apply scheme status filter
-    if (schemeStatusFilter !== "all") {
-      filtered = filtered.filter((item) => {
-        // Get scheme status from the map using scheme_id
-        const status = schemeStatusMap.get(item.scheme_id);
-        if (!status) return false;
-
-        if (schemeStatusFilter === "Connected") {
-          return status.fully_completion_scheme_status !== "Not-Connected";
-        }
-        return status.fully_completion_scheme_status === schemeStatusFilter;
-      });
-    }
-
-    // NOTE: Do NOT apply sensor status filter here - this data is for summary cards only
-
-    return filtered;
-  }, [
-    allChlorineData,
-    selectedRegion,
-    searchQuery,
-    commissionedFilter,
-    fullyCompletedFilter,
-    schemeStatusFilter,
-    schemeStatusMap,
-  ]);
-
-  // Calculate dashboard stats locally based on filtered data
   // Apply global filters to data for both cards and table
   const globallyFilteredData = useMemo(() => {
     let filtered = [...allChlorineData];
@@ -1067,36 +824,46 @@ const ChlorineDashboard: React.FC = () => {
       });
     }
 
-    // Use the pre-created scheme status map for filtering
-
-
     // Apply commissioned status filter
-    if (commissionedFilter !== "all") {
-      filtered = filtered.filter((item) => {
-        // Get scheme status from the map using scheme_id
-        const status = schemeStatusMap.get(item.scheme_id);
-        if (commissionedFilter === "Water Supply") {
-          return status && status.water_supply === "Yes";
+    if (schemeFilter !== "all" || uiSchemeFilter !== "all") {
+      filtered = filtered.filter((scheme) => {
+        const status = schemeStatusMap.get(scheme.scheme_id);
+        if (!status) return false;
+
+        if (uiSchemeFilter === "commissioned") {
+          if (waterSupplyStatus !== "All") {
+            return status.water_supply_status === waterSupplyStatus;
+          }
+          return status.water_supply === "Yes";
         }
-        return status && status.mjp_commissioned === commissionedFilter;
-      });
-    }
+        
+        if (uiSchemeFilter === "fully_completed") {
+          const statusValue = String(status.fully_completion_scheme_status || "").toLowerCase();
+          return statusValue === "fully completed" || statusValue === "completed" || statusValue === "fully_completed";
+        }
 
+        if (uiSchemeFilter === "in_progress") {
+          return status.fully_completion_scheme_status === "In Progress";
+        }
 
-    // Apply fully completed filter
-    if (fullyCompletedFilter !== "all") {
-      filtered = filtered.filter((item) => {
-        // Get scheme status from the map using scheme_id
-        const status = schemeStatusMap.get(item.scheme_id);
-        return status && status.mjp_fully_completed === fullyCompletedFilter;
+        if (uiSchemeFilter === "common_filter") {
+          const statusValue = String(status.fully_completion_scheme_status || "").toLowerCase();
+          return (statusValue === "fully completed" || statusValue === "completed" || statusValue === "fully_completed") && status.water_supply === "Yes";
+        }
+
+        if (uiSchemeFilter === "mjp_commissioned_yes") {
+          return status.mjp_commissioned === "Yes";
+        }
+
+        return true;
       });
     }
 
     // Apply scheme status filter
     if (schemeStatusFilter !== "all") {
-      filtered = filtered.filter((item) => {
+      filtered = filtered.filter((scheme) => {
         // Get scheme status from the map using scheme_id
-        const status = schemeStatusMap.get(item.scheme_id);
+        const status = schemeStatusMap.get(scheme.scheme_id);
         if (!status) return false;
 
         if (schemeStatusFilter === "Connected") {
@@ -1106,34 +873,33 @@ const ChlorineDashboard: React.FC = () => {
       });
     }
 
-    // No need for additional filtering here as global filters are already applied in globallyFilteredData
-
     return filtered;
   }, [
     allChlorineData,
     selectedRegion,
     searchQuery,
-    commissionedFilter,
-    fullyCompletedFilter,
+    schemeFilter,
+    uiSchemeFilter,
+    waterSupplyStatus,
     schemeStatusFilter,
-    schemeStatusData,
+    schemeStatusMap,
     sensorStatusFilter,
     communicationStatusData,
     noWaterSensorsData,
     withWaterSensorsData,
   ]);
 
-  // Calculate sensor status counts for chlorine sensors using summary stats data (excludes range/sensor filters)
+  // Calculate sensor status counts for chlorine sensors using globally filtered data
   const calculateChlorineSensorStatus = useMemo((): ChlorineSensorStatus => {
     const status = { connected: 0, online: 0, offline: 0, noWater: 0 };
 
-    if (!summaryStatsData || !communicationStatusData) {
+    if (!globallyFilteredData || !communicationStatusData) {
       return status;
     }
 
-    // Create a map of the full hierarchy from summary filtered chlorine data for exact matching
+    // Create a map of the full hierarchy from globally filtered chlorine data
     const chlorineLocationKeys = new Set(
-      summaryStatsData.map(
+      globallyFilteredData.map(
         (item) =>
           `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`,
       ),
@@ -1147,22 +913,18 @@ const ChlorineDashboard: React.FC = () => {
           (comm) => comm.region === selectedRegion,
         );
 
-    // Use Sets to track unique ESR names to avoid double counting
+    // Use Sets to track unique ESR names
     const uniqueConnectedESRs = new Set<string>();
     const uniqueOnlineESRs = new Set<string>();
     const uniqueOfflineESRs = new Set<string>();
 
     filteredCommStatus.forEach((commStatus) => {
-      // Create the location key for this communication status record
       const commLocationKey = `${commStatus.region}|${commStatus.circle}|${commStatus.division}|${commStatus.sub_division}|${commStatus.block}|${commStatus.village_name}|${commStatus.esr_name}`;
 
-      // Only count if this exact location hierarchy has chlorine data
       if (chlorineLocationKeys.has(commLocationKey)) {
-        // Count connected sensors (match exact database values)
         if (commStatus.chlorine_connected === "Connected") {
           uniqueConnectedESRs.add(commLocationKey);
 
-          // Count online/offline status for connected sensors (match exact database values)
           if (commStatus.chlorine_status === "Online") {
             uniqueOnlineESRs.add(commLocationKey);
           } else if (commStatus.chlorine_status === "Offline") {
@@ -1176,8 +938,7 @@ const ChlorineDashboard: React.FC = () => {
     status.online = uniqueOnlineESRs.size;
     status.offline = uniqueOfflineESRs.size;
 
-    // Calculate no water sensors count from the filtered data
-    // Count sensors from filtered data that appear in the no water sensors list
+    // Calculate no water sensors count
     if (noWaterSensorsData?.noWaterSensors) {
       const noWaterLocationKeys = new Set(
         noWaterSensorsData.noWaterSensors.map(
@@ -1186,8 +947,7 @@ const ChlorineDashboard: React.FC = () => {
         ),
       );
 
-      // Count how many of our summary filtered chlorine sensors have no water
-      status.noWater = summaryStatsData.filter((item) => {
+      status.noWater = globallyFilteredData.filter((item) => {
         const locationKey = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`;
         return noWaterLocationKeys.has(locationKey);
       }).length;
@@ -1195,13 +955,132 @@ const ChlorineDashboard: React.FC = () => {
 
     return status;
   }, [
-    summaryStatsData,
+    globallyFilteredData,
     communicationStatusData,
     selectedRegion,
     noWaterSensorsData,
+    withWaterSensorsData,
   ]);
 
-  // Calculate card statistics based on the globally filtered data
+  // Calculate statistics for the "With Water" section
+  const calculateWithWaterRangeStats = useMemo(() => {
+    const stats = {
+      total: 0,
+      belowRange: 0,
+      optimal: 0,
+      above: 0,
+      noData: 0,
+      consistentZero: 0,
+    };
+
+    if (!withWaterSensorsData?.withWaterSensors || !globallyFilteredData) {
+      return stats;
+    }
+
+    const withWaterLocationKeys = new Set(
+      withWaterSensorsData.withWaterSensors.map(
+        (sensor: any) =>
+          `${sensor.region}|${sensor.circle}|${sensor.division}|${sensor.sub_division}|${sensor.block}|${sensor.village_name}|${sensor.esr_name}`,
+      ),
+    );
+
+    const filteredWithWater = globallyFilteredData.filter((item) => {
+      const locationKey = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`;
+      return withWaterLocationKeys.has(locationKey);
+    });
+
+    stats.total = filteredWithWater.length;
+
+    filteredWithWater.forEach((item) => {
+      const latestValue = getCurrentChlorineValue(item);
+
+      if (latestValue === null) {
+        stats.noData++;
+      } else if (latestValue < 0.2 && latestValue >= 0) {
+        stats.belowRange++;
+      } else if (latestValue >= 0.2 && latestValue <= 0.5) {
+        stats.optimal++;
+      } else if (latestValue > 0.5) {
+        stats.above++;
+      }
+
+      if ((item.number_of_consistent_zero_value_in_chlorine || 0) === 7) {
+        stats.consistentZero++;
+      }
+    });
+
+    return stats;
+  }, [withWaterSensorsData, globallyFilteredData, getCurrentChlorineValue]);
+
+  // Calculate statistics for the "No Water" section
+  const calculateWithoutWaterRangeStats = useMemo(() => {
+    const stats = {
+      total: 0,
+      belowRange: 0,
+      optimal: 0,
+      above: 0,
+      noData: 0,
+      consistentZero: 0,
+    };
+
+    if (!noWaterSensorsData?.noWaterSensors || !globallyFilteredData) {
+      return stats;
+    }
+
+    const noWaterLocationKeys = new Set(
+      noWaterSensorsData.noWaterSensors.map(
+        (sensor: any) =>
+          `${sensor.region}|${sensor.circle}|${sensor.division}|${sensor.sub_division}|${sensor.block}|${sensor.village_name}|${sensor.esr_name}`,
+      ),
+    );
+
+    const filteredNoWater = globallyFilteredData.filter((item) => {
+      const locationKey = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`;
+      return noWaterLocationKeys.has(locationKey);
+    });
+
+    stats.total = filteredNoWater.length;
+
+    filteredNoWater.forEach((item) => {
+      const latestValue = getCurrentChlorineValue(item);
+
+      if (latestValue === null) {
+        stats.noData++;
+      } else if (latestValue < 0.2 && latestValue >= 0) {
+        stats.belowRange++;
+      } else if (latestValue >= 0.2 && latestValue <= 0.5) {
+        stats.optimal++;
+      } else if (latestValue > 0.5) {
+        stats.above++;
+      }
+
+      if ((item.number_of_consistent_zero_value_in_chlorine || 0) === 7) {
+        stats.consistentZero++;
+      }
+    });
+
+    return stats;
+  }, [noWaterSensorsData, globallyFilteredData, getCurrentChlorineValue]);
+
+  // Handler for commissioned status filter changes (legacy, keeping for compatibility if needed elsewhere)
+  const [commissionedFilter, setCommissionedFilter] = useState<string>("all");
+  const handleCommissionedFilterChange = (value: string) => {
+    setCommissionedFilter(value);
+    if (value === "all") setUiSchemeFilter("all");
+    else if (value === "Yes") setUiSchemeFilter("mjp_commissioned_yes");
+    else if (value === "No") setUiSchemeFilter("all");
+    else if (value === "Water Supply") setUiSchemeFilter("commissioned");
+    setPage(1);
+  };
+
+  const [fullyCompletedFilter, setFullyCompletedFilter] = useState<string>("all");
+  const handleFullyCompletedFilterChange = (value: string) => {
+    setFullyCompletedFilter(value);
+    if (value === "all") setUiSchemeFilter("all");
+    else if (value === "Fully Completed") setUiSchemeFilter("fully_completed");
+    else if (value === "In Progress") setUiSchemeFilter("in_progress");
+    setPage(1);
+  };
   const updatedCardStats = useMemo(() => {
     if (!apiDashboardStats) return null;
 
@@ -1341,86 +1220,13 @@ const ChlorineDashboard: React.FC = () => {
       });
     }
 
-    // Apply sensor status filter for table only
-    if (sensorStatusFilter && sensorStatusFilter !== "all") {
-      filtered = filtered.filter((item) => {
-        const commStatus = communicationStatusData.find(
-          (comm) =>
-            comm.region === item.region &&
-            comm.circle === item.circle &&
-            comm.division === item.division &&
-            comm.sub_division === item.sub_division &&
-            comm.block === item.block &&
-            comm.village_name === item.village_name &&
-            comm.esr_name === item.esr_name,
-        );
-
-        if (!commStatus) return false;
-
-        if (sensorStatusFilter === "connected") {
-          return commStatus.chlorine_connected === "Connected";
-        } else if (sensorStatusFilter === "online") {
-          return (
-            commStatus.chlorine_connected === "Connected" &&
-            commStatus.chlorine_status === "Online"
-          );
-        } else if (sensorStatusFilter === "offline") {
-          return (
-            commStatus.chlorine_connected === "Connected" &&
-            commStatus.chlorine_status === "Offline"
-          );
-        } else if (sensorStatusFilter === "noWater") {
-          // Check if this ESR is in the no-water sensors list
-          if (noWaterSensorsData?.noWaterSensors) {
-            return noWaterSensorsData.noWaterSensors.some(
-              (sensor) =>
-                sensor.region === item.region &&
-                sensor.circle === item.circle &&
-                sensor.division === item.division &&
-                sensor.sub_division === item.sub_division &&
-                sensor.block === item.block &&
-                sensor.scheme_id === item.scheme_id &&
-                sensor.village_name === item.village_name &&
-                sensor.esr_name === item.esr_name,
-            );
-          }
-          return false;
-        } else if (sensorStatusFilter === "withWater") {
-          // Check if this ESR is in the with-water sensors list
-          if (withWaterSensorsData?.withWaterSensors) {
-            return withWaterSensorsData.withWaterSensors.some(
-              (sensor) =>
-                sensor.region === item.region &&
-                sensor.circle === item.circle &&
-                sensor.division === item.division &&
-                sensor.sub_division === item.sub_division &&
-                sensor.block === item.block &&
-                sensor.scheme_id === item.scheme_id &&
-                sensor.village_name === item.village_name &&
-                sensor.esr_name === item.esr_name,
-            );
-          }
-          return false;
-        }
-
-        return false;
-      });
-    }
-
     return filtered;
   }, [
     globallyFilteredData,
     selectedCardFilter,
-    sensorStatusFilter,
-    communicationStatusData,
-    showHistoricalData,
-    historicalChlorineData,
-    searchQuery,
-    noWaterSensorsData,
-    withWaterSensorsData,
   ]);
 
-  // Listen for filter changes from chatbot (moved here after filteredData is declared)
+  // Listen for filter changes from chatbot
   useEffect(() => {
     const handleRegionFilterChange = (event: CustomEvent) => {
       const { region } = event.detail;
@@ -1434,7 +1240,8 @@ const ChlorineDashboard: React.FC = () => {
         "Chlorine Dashboard received MJP commissioned filter:",
         mjpCommissioned,
       );
-      setCommissionedFilter(mjpCommissioned ? "true" : "all");
+      setUiSchemeFilter(mjpCommissioned ? "commissioned" : "all");
+      setPage(1);
     };
 
     const handleMjpFullyCompletedFilterChange = (event: CustomEvent) => {
@@ -1443,7 +1250,8 @@ const ChlorineDashboard: React.FC = () => {
         "Chlorine Dashboard received MJP fully completed filter:",
         mjpFullyCompleted,
       );
-      setFullyCompletedFilter(mjpFullyCompleted ? "true" : "all");
+      setUiSchemeFilter(mjpFullyCompleted ? "fully_completed" : "all");
+      setPage(1);
     };
 
     const handleStatusFilterChange = (event: CustomEvent) => {
@@ -1946,10 +1754,6 @@ const ChlorineDashboard: React.FC = () => {
         cardFilter:
           selectedCardFilter !== "all" ? selectedCardFilter : undefined,
         searchTerm: searchQuery || undefined,
-        commissionedStatus:
-          commissionedFilter !== "all" ? commissionedFilter : undefined,
-        completionStatus:
-          fullyCompletedFilter !== "all" ? fullyCompletedFilter : undefined,
         iotStatus:
           schemeStatusFilter !== "all" ? schemeStatusFilter : undefined,
       };
@@ -2065,74 +1869,55 @@ const ChlorineDashboard: React.FC = () => {
 
       {/* Filters Section - Grid-based layout like PressureDashboard */}
       <div className="bg-white rounded-xl shadow-sm mb-6 p-6 border border-blue-100">
-        {/* Filters Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-          {/* Agency Type Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Agency Type
-            </label>
+        <div className="flex flex-wrap items-center gap-4 mb-6">
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Agency Type</label>
             <AgencyTypeFilter
               selectedAgencyType={selectedAgencyType}
               onAgencyTypeChange={setSelectedAgencyType}
+              className="w-full h-11"
             />
           </div>
 
-          {/* Commissioned Status Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Scheme Readiness
-            </label>
-            <Select
-              value={commissionedFilter}
-              onValueChange={handleCommissionedFilterChange}
-              data-testid="select-commissioned-status"
-            >
-              <SelectTrigger className="bg-white border border-blue-200 shadow-sm h-11">
-                <SelectValue placeholder="Scheme Readiness" />
+          <div className="flex-1 min-w-[240px]">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Universal Filter</label>
+            <Select value={uiSchemeFilter} onValueChange={setUiSchemeFilter}>
+              <SelectTrigger className="w-full bg-white border-blue-200 h-11 shadow-sm">
+                <SelectValue placeholder="Select Filter" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Scheme Readiness</SelectItem>
-                <SelectItem value="Yes">Commissioned</SelectItem>
-                <SelectItem value="No">Not Commissioned</SelectItem>
-                <SelectItem value="Water Supply">Water Supply</SelectItem>
+                <SelectItem value="all">All Schemes</SelectItem>
+                <SelectItem value="commissioned">100% Civil work Completed</SelectItem>
+                <SelectItem value="fully_completed">Fully Instrumented Schemes</SelectItem>
+                <SelectItem value="in_progress">Partially instrumented schemes</SelectItem>
+                <SelectItem value="common_filter">Common filter</SelectItem>
+                <SelectItem value="mjp_commissioned_yes">Commissioned</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {/* Completion Status Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Completion Status
-            </label>
-            <Select
-              value={fullyCompletedFilter}
-              onValueChange={handleFullyCompletedFilterChange}
-              data-testid="select-completion-status"
-            >
-              <SelectTrigger className="bg-white border border-blue-200 shadow-sm h-11">
-                <SelectValue placeholder="All Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="Fully Completed">Fully Completed</SelectItem>
-                <SelectItem value="In Progress">In Progress</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {uiSchemeFilter === "commissioned" && (
+            <div className="flex-1 min-w-[300px]">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Water Supply Status</label>
+              <Tabs value={waterSupplyStatus} onValueChange={setWaterSupplyStatus} className="m-0">
+                <TabsList className="h-11 bg-white border border-blue-100 p-0.5 shadow-sm w-full">
+                  <TabsTrigger value="All" className="flex-1 px-4 h-10 text-xs font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white">All</TabsTrigger>
+                  <TabsTrigger value="Full" className="flex-1 px-4 h-10 text-xs font-medium data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Full</TabsTrigger>
+                  <TabsTrigger value="Partial" className="flex-1 px-4 h-10 text-xs font-medium data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partial</TabsTrigger>
+                  <TabsTrigger value="No" className="flex-1 px-4 h-10 text-xs font-medium data-[state=active]:bg-red-500 data-[state=active]:text-white">No</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          )}
 
-          {/* IoT Status Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              IoT Status
-            </label>
-            <Select
-              value={schemeStatusFilter}
-              onValueChange={handleSchemeStatusFilterChange}
-              data-testid="select-iot-status"
-            >
-              <SelectTrigger className="bg-white border border-blue-200 shadow-sm h-11">
-                <SelectValue placeholder="All IoT Status" />
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-sm font-medium text-gray-700 mb-2">IoT Status</label>
+            <Select value={schemeStatusFilter} onValueChange={(value) => {
+              setSchemeStatusFilter(value);
+              setPage(1);
+            }}>
+              <SelectTrigger className="w-full bg-white border-blue-200 h-11 shadow-sm">
+                <SelectValue placeholder="IoT Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All IoT Status</SelectItem>
@@ -2144,8 +1929,10 @@ const ChlorineDashboard: React.FC = () => {
             </Select>
           </div>
         </div>
+      </div>
 
-        {/* Search and Actions Row */}
+      {/* Search and Actions Row - Now part of its own container for consistency */}
+      <div className="bg-white rounded-xl shadow-sm mb-6 p-6 border border-blue-100">
         <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center">
           {/* Search ESRs */}
           <div className="flex-1">
@@ -2283,7 +2070,7 @@ const ChlorineDashboard: React.FC = () => {
                   disabled={isLoadingHistorical}
                 >
                   <Download className="h-4 w-4" />
-                  Export to Excel ({updatedCardStats?.totalSensors || 0})
+                  <span>Export to Excel ({historicalChlorineData.length})</span>
                 </Button>
               </div>
             </div>
@@ -2305,7 +2092,7 @@ const ChlorineDashboard: React.FC = () => {
       </div>
 
       {/* Status Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4 mb-6">
+      <div className="grid gap-4 md:grid-cols-5 mb-6">
         {/* Connected Sensors Card */}
         <Card
           className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${sensorStatusFilter === "connected"
@@ -2427,22 +2214,7 @@ const ChlorineDashboard: React.FC = () => {
                 Sensors with Water
               </h3>
               <p className="text-2xl font-bold text-blue-600">
-                {(() => {
-                  // Calculate "with water" count from filtered data
-                  if (!withWaterSensorsData?.withWaterSensors) return 0;
-
-                  const withWaterLocationKeys = new Set(
-                    withWaterSensorsData.withWaterSensors.map(
-                      (sensor: any) =>
-                        `${sensor.region}|${sensor.circle}|${sensor.division}|${sensor.sub_division}|${sensor.block}|${sensor.village_name}|${sensor.esr_name}`,
-                    ),
-                  );
-
-                  return globallyFilteredData.filter((item) => {
-                    const locationKey = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`;
-                    return withWaterLocationKeys.has(locationKey);
-                  }).length;
-                })()}
+                {calculateWithWaterRangeStats.total}
               </p>
               <p className="text-xs text-blue-600/70">
                 Connected sensors with water
@@ -2473,22 +2245,7 @@ const ChlorineDashboard: React.FC = () => {
                 onClick={() => handleTotalCardClick("withWater")}
               >
                 <p className="text-3xl font-bold text-blue-600">
-                  {(() => {
-                    // Use same calculation as top card for consistency
-                    if (!withWaterSensorsData?.withWaterSensors) return 0;
-
-                    const withWaterLocationKeys = new Set(
-                      withWaterSensorsData.withWaterSensors.map(
-                        (sensor: any) =>
-                          `${sensor.region}|${sensor.circle}|${sensor.division}|${sensor.sub_division}|${sensor.block}|${sensor.village_name}|${sensor.esr_name}`,
-                      ),
-                    );
-
-                    return globallyFilteredData.filter((item) => {
-                      const locationKey = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`;
-                      return withWaterLocationKeys.has(locationKey);
-                    }).length;
-                  })()}
+                  {calculateWithWaterRangeStats.total}
                 </p>
                 <p className="text-sm text-blue-600/80 font-medium">
                   Total sensors with water
@@ -3900,14 +3657,14 @@ const ChlorineDashboard: React.FC = () => {
                   </DialogTitle>
                   <DialogDescription className="text-red-100 mt-2 font-medium flex items-center gap-2">
                     <MapPin className="h-4 w-4" />
-                    <span>{selectedRemarkDetails.title}</span>
+                    <span>{selectedRemarkDetails?.title}</span>
                   </DialogDescription>
                 </div>
               </div>
 
               <div className="p-6 overflow-y-auto max-h-[70vh] bg-slate-50">
                 <div className="space-y-4">
-                  {selectedRemarkDetails.issues.map((issue: any, index: number) => (
+                  {selectedRemarkDetails?.issues.map((issue: any, index: number) => (
                     <div key={index} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
                       <div className="flex justify-between items-start mb-3 gap-4">
                         <div className="flex-1">

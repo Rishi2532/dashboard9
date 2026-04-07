@@ -163,11 +163,14 @@ const SchemeLpcdDashboard = () => {
   const [currentFilter, setCurrentFilter] = useState<LpcdRange>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [showCharts, setShowCharts] = useState<boolean>(true);
-  const [commissionedFilter, setCommissionedFilter] = useState<string>("all");
-  const [fullyCompletedFilter, setFullyCompletedFilter] =
-    useState<string>("all");
   const [schemeStatusFilter, setSchemeStatusFilter] = useState<string>("all");
   const [selectedAgencyType, setSelectedAgencyType] = useState<string>("ALL");
+  const [uiSchemeFilter, setUiSchemeFilter] = useState<string>("commissioned");
+  const [waterSupplyStatus, setWaterSupplyStatus] = useState<string>("All");
+
+  const schemeFilter = uiSchemeFilter === "commissioned" && waterSupplyStatus !== "All"
+    ? `commissioned_${waterSupplyStatus.toLowerCase()}`
+    : uiSchemeFilter;
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -607,23 +610,37 @@ const SchemeLpcdDashboard = () => {
     }
 
     // Apply commissioned status filter
-    if (commissionedFilter !== "all") {
+    if (schemeFilter !== "all" || uiSchemeFilter !== "all") {
       filtered = filtered.filter((scheme) => {
-        // Get scheme status from the map
         const status = schemeStatusMap.get(scheme.scheme_id);
-        if (commissionedFilter === "Water Supply") {
-          return status && status.water_supply === "Yes";
-        }
-        return status && status.mjp_commissioned === commissionedFilter;
-      });
-    }
+        if (!status) return false;
 
-    // Apply fully completed filter
-    if (fullyCompletedFilter !== "all") {
-      filtered = filtered.filter((scheme) => {
-        // Get scheme status from the map
-        const status = schemeStatusMap.get(scheme.scheme_id);
-        return status && status.mjp_fully_completed === fullyCompletedFilter;
+        if (uiSchemeFilter === "commissioned") {
+          if (waterSupplyStatus !== "All") {
+            return status.water_supply_status === waterSupplyStatus;
+          }
+          return status.water_supply === "Yes";
+        }
+        
+        if (uiSchemeFilter === "fully_completed") {
+          const statusValue = String(status.fully_completion_scheme_status || "").toLowerCase();
+          return statusValue === "fully completed" || statusValue === "completed" || statusValue === "fully_completed";
+        }
+
+        if (uiSchemeFilter === "in_progress") {
+          return status.fully_completion_scheme_status === "In Progress";
+        }
+
+        if (uiSchemeFilter === "common_filter") {
+          const statusValue = String(status.fully_completion_scheme_status || "").toLowerCase();
+          return (statusValue === "fully completed" || statusValue === "completed" || statusValue === "fully_completed") && status.water_supply === "Yes";
+        }
+
+        if (uiSchemeFilter === "mjp_commissioned_yes") {
+          return status.mjp_commissioned === "Yes";
+        }
+
+        return true;
       });
     }
 
@@ -787,23 +804,37 @@ const SchemeLpcdDashboard = () => {
     }
 
     // Apply commissioned status filter
-    if (commissionedFilter !== "all") {
+    if (schemeFilter !== "all" || uiSchemeFilter !== "all") {
       filtered = filtered.filter((scheme) => {
-        // Get scheme status from the map
         const status = schemeStatusMap.get(scheme.scheme_id);
-        if (commissionedFilter === "Water Supply") {
-          return status && status.water_supply === "Yes";
-        }
-        return status && status.mjp_commissioned === commissionedFilter;
-      });
-    }
+        if (!status) return false;
 
-    // Apply fully completed filter
-    if (fullyCompletedFilter !== "all") {
-      filtered = filtered.filter((scheme) => {
-        // Get scheme status from the map
-        const status = schemeStatusMap.get(scheme.scheme_id);
-        return status && status.mjp_fully_completed === fullyCompletedFilter;
+        if (uiSchemeFilter === "commissioned") {
+          if (waterSupplyStatus !== "All") {
+            return status.water_supply_status === waterSupplyStatus;
+          }
+          return status.water_supply === "Yes";
+        }
+        
+        if (uiSchemeFilter === "fully_completed") {
+          const statusValue = String(status.fully_completion_scheme_status || "").toLowerCase();
+          return statusValue === "fully completed" || statusValue === "completed" || statusValue === "fully_completed";
+        }
+
+        if (uiSchemeFilter === "in_progress") {
+          return status.fully_completion_scheme_status === "In Progress";
+        }
+
+        if (uiSchemeFilter === "common_filter") {
+          const statusValue = String(status.fully_completion_scheme_status || "").toLowerCase();
+          return (statusValue === "fully completed" || statusValue === "completed" || statusValue === "fully_completed") && status.water_supply === "Yes";
+        }
+
+        if (uiSchemeFilter === "mjp_commissioned_yes") {
+          return status.mjp_commissioned === "Yes";
+        }
+
+        return true;
       });
     }
 
@@ -1796,76 +1827,63 @@ const SchemeLpcdDashboard = () => {
             )}
           </div>
 
-          {/* Commissioned Status Filter */}
-          <Select
-            value={commissionedFilter}
-            onValueChange={(value) => {
-              setCommissionedFilter(value);
+          {/* Unified Scheme Filter */}
+          <div className="flex flex-wrap items-center gap-3 bg-white p-2 rounded-lg border border-blue-200 shadow-sm">
+            <span className="text-sm font-medium text-blue-700 ml-1">Filter:</span>
+            <Select value={uiSchemeFilter} onValueChange={(val) => {
+              setUiSchemeFilter(val);
               setPage(1);
-              if (
-                value === "No" &&
-                fullyCompletedFilter === "Fully Completed"
-              ) {
-                setFullyCompletedFilter("In Progress");
-              }
-            }}
-          >
-            <SelectTrigger className="w-[180px] bg-white border border-blue-200 shadow-sm">
-              <SelectValue placeholder="Scheme Readiness" />
-            </SelectTrigger>
-            <SelectContent className="border border-blue-100">
-              <SelectItem value="all">Scheme Readiness</SelectItem>
-              <SelectItem value="Yes">Commissioned</SelectItem>
-              <SelectItem value="No">Not Commissioned</SelectItem>
-              <SelectItem value="Water Supply">Water Supply</SelectItem>
-            </SelectContent>
-          </Select>
+            }}>
+              <SelectTrigger className="w-[220px] bg-white border-blue-200">
+                <SelectValue placeholder="Select Filter" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Schemes</SelectItem>
+                <SelectItem value="commissioned">100% Civil work Completed</SelectItem>
+                <SelectItem value="fully_completed">Fully Instrumented Schemes</SelectItem>
+                <SelectItem value="in_progress">Partially instrumented schemes</SelectItem>
+                <SelectItem value="common_filter">Common filter</SelectItem>
+                <SelectItem value="mjp_commissioned_yes">Commissioned</SelectItem>
+              </SelectContent>
+            </Select>
 
-          {/* MJP Fully Completed Filter */}
-          <Select
-            value={fullyCompletedFilter}
-            onValueChange={(value) => {
-              setFullyCompletedFilter(value);
-              setPage(1);
-              if (value === "Fully Completed" && commissionedFilter !== "Yes") {
-                setCommissionedFilter("Yes");
-              }
-            }}
-          >
-            <SelectTrigger className="w-[180px] bg-white border border-blue-200 shadow-sm">
-              <SelectValue placeholder="Completion Status" />
-            </SelectTrigger>
-            <SelectContent className="border border-blue-100">
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem
-                value="Fully Completed"
-                disabled={commissionedFilter === "No"}
-              >
-                Fully Completed
-              </SelectItem>
-              <SelectItem value="In Progress">In Progress</SelectItem>
-            </SelectContent>
-          </Select>
+            {uiSchemeFilter === "commissioned" && (
+              <>
+                <div className="h-6 w-px bg-blue-200 mx-1"></div>
+                <Tabs value={waterSupplyStatus} onValueChange={(val) => {
+                  setWaterSupplyStatus(val);
+                  setPage(1);
+                }} className="m-0">
+                  <TabsList className="h-9 bg-blue-50 border border-blue-100 p-0.5">
+                    <TabsTrigger value="All" className="text-xs h-8 data-[state=active]:bg-blue-600 data-[state=active]:text-white">All</TabsTrigger>
+                    <TabsTrigger value="Full" className="text-xs h-8 data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Full</TabsTrigger>
+                    <TabsTrigger value="Partial" className="text-xs h-8 data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partial</TabsTrigger>
+                    <TabsTrigger value="No" className="text-xs h-8 data-[state=active]:bg-red-500 data-[state=active]:text-white">No</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </>
+            )}
 
-          {/* Scheme Status Filter */}
-          <Select
-            value={schemeStatusFilter}
-            onValueChange={(value) => {
-              setSchemeStatusFilter(value);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-[180px] bg-white border border-blue-200 shadow-sm">
-              <SelectValue placeholder="IoT Status" />
-            </SelectTrigger>
-            <SelectContent className="border border-blue-100">
-              <SelectItem value="all">All IoT Status</SelectItem>
-              <SelectItem value="Connected">Connected</SelectItem>
-              <SelectItem value="Fully Completed">Fully Completed</SelectItem>
-              <SelectItem value="In Progress">In Progress</SelectItem>
-              <SelectItem value="Not-Connected">Not Connected</SelectItem>
-            </SelectContent>
-          </Select>
+            <div className="h-6 w-px bg-blue-200 mx-1"></div>
+            <Select
+              value={schemeStatusFilter}
+              onValueChange={(value) => {
+                setSchemeStatusFilter(value);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-[180px] bg-white border-blue-200">
+                <SelectValue placeholder="IoT Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All IoT Status</SelectItem>
+                <SelectItem value="Connected">Connected</SelectItem>
+                <SelectItem value="Fully Completed">Fully Completed</SelectItem>
+                <SelectItem value="In Progress">In Progress</SelectItem>
+                <SelectItem value="Not-Connected">Not Connected</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
           <Button
             variant="outline"
@@ -2132,7 +2150,45 @@ const SchemeLpcdDashboard = () => {
                                         {scheme.region} • Block: {scheme.block}
                                       </DialogDescription>
                                     </DialogHeader>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                    <div className="flex flex-wrap items-center gap-3 mb-6 bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter:</span>
+        <Select value={uiSchemeFilter} onValueChange={setUiSchemeFilter}>
+          <SelectTrigger className="w-[240px] bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
+            <SelectValue placeholder="Select Filter" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Schemes</SelectItem>
+            <SelectItem value="commissioned">100% Civil work Completed</SelectItem>
+            <SelectItem value="fully_completed">Fully Instrumented Schemes</SelectItem>
+            <SelectItem value="in_progress">Partially instrumented schemes</SelectItem>
+            <SelectItem value="common_filter">Common filter</SelectItem>
+            <SelectItem value="mjp_commissioned_yes">Commissioned</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {uiSchemeFilter === "commissioned" && (
+          <>
+            <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2"></div>
+            <Tabs value={waterSupplyStatus} onValueChange={setWaterSupplyStatus} className="m-0">
+              <TabsList className="h-10 bg-gray-100 dark:bg-gray-800 p-1 border border-gray-200 dark:border-gray-700">
+                <TabsTrigger value="All" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-blue-600 data-[state=active]:text-white">All Water Supply</TabsTrigger>
+                <TabsTrigger value="Full" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Full</TabsTrigger>
+                <TabsTrigger value="Partial" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partial</TabsTrigger>
+                <TabsTrigger value="No" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-red-500 data-[state=active]:text-white">No</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </>
+        )}
+
+        <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2"></div>
+        <AgencyTypeFilter
+          selectedAgencyType={selectedAgencyType}
+          onAgencyTypeChange={setSelectedAgencyType}
+          className="w-full md:w-64"
+        />
+      </div>
+
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-4">
                                       <div className="space-y-4">
                                         <div>
                                           <h3 className="font-medium text-gray-700 mb-1">

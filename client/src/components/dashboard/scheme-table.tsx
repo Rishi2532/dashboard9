@@ -66,11 +66,6 @@ export default function SchemeTable({
   const { trackSchemeDataLinkClick } = useDashboardTracking();
   const [searchTerm, setSearchTerm] = useState("");
   const [schemeIdSearch, setSchemeIdSearch] = useState("");
-  const [localStatusFilter, setLocalStatusFilter] =
-    useState<string>(statusFilter);
-  const [commissionedFilter, setCommissionedFilter] = useState<string>("all");
-  const [fullyCompletedFilter, setFullyCompletedFilter] =
-    useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
@@ -90,58 +85,30 @@ export default function SchemeTable({
     staleTime: 5 * 60 * 1000, // 5 minutes
   }) as { data: any };
 
-  // If statusFilter prop changes, update local state
-  useEffect(() => {
-    setLocalStatusFilter(statusFilter);
-  }, [statusFilter]);
-
   // Make filter states globally accessible for export function
   useEffect(() => {
     // Add filter states to the window object for the export function to use
     (window as any).schemeTableFilters = {
-      statusFilter: localStatusFilter,
-      commissionedFilter,
-      fullyCompletedFilter,
+      statusFilter,
     };
-  }, [localStatusFilter, commissionedFilter, fullyCompletedFilter]);
+  }, [statusFilter]);
 
   // Ensure schemes is an array before filtering
   const schemesArray = Array.isArray(schemes) ? schemes : [];
 
-  // Filter schemes by scheme name, scheme ID, and all filter options
+  // Filter schemes by scheme name and scheme ID
   const filteredSchemes = schemesArray.filter((scheme) => {
     const matchesNameSearch =
       searchTerm === "" ||
-      scheme.scheme_name.toLowerCase().includes(searchTerm.toLowerCase());
+      (scheme.scheme_name &&
+        scheme.scheme_name.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const matchesIdSearch =
       schemeIdSearch === "" ||
       (scheme.scheme_id &&
         scheme.scheme_id.toLowerCase().includes(schemeIdSearch.toLowerCase()));
 
-    const matchesStatusFilter =
-      localStatusFilter === "all" ||
-      (localStatusFilter === "Connected"
-        ? scheme.fully_completion_scheme_status !== "Not-Connected"
-        : scheme.fully_completion_scheme_status === localStatusFilter);
-
-    const matchesCommissionedFilter =
-      commissionedFilter === "all" ||
-      (commissionedFilter === "Water Supply"
-        ? scheme.water_supply === "Yes"
-        : scheme.mjp_commissioned === commissionedFilter);
-
-    const matchesFullyCompletedFilter =
-      fullyCompletedFilter === "all" ||
-      scheme.mjp_fully_completed === fullyCompletedFilter;
-
-    return (
-      matchesNameSearch &&
-      matchesIdSearch &&
-      matchesStatusFilter &&
-      matchesCommissionedFilter &&
-      matchesFullyCompletedFilter
-    );
+    return matchesNameSearch && matchesIdSearch;
   });
 
   // Notify parent component whenever filtered schemes change
@@ -232,108 +199,14 @@ export default function SchemeTable({
           </div>
         </div>
 
-        {/* Right side: Filters */}
+        {/* Right side: Status indicator */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
-          {/* Centered Dashboard Integration container */}
-          <div className="flex justify-center w-full sm:w-auto">
-            <div className="border border-gray-200 bg-sky-50 rounded-2xl px-4 py-4 shadow-sm w-full sm:w-72">
-              <h2 className="text-center font-semibold text-sm sm:text-base mb-4">
-                Dashboard Integration
-              </h2>
-              <Select
-                value={localStatusFilter}
-                onValueChange={(value) => {
-                  setLocalStatusFilter(value);
-                  setCurrentPage(1);
-                  if (onStatusFilterChange) onStatusFilterChange(value);
-                }}
-              >
-                <SelectTrigger className="w-full sm:w-full h-12 text-base">
-                  <SelectValue placeholder="IoT Integration Status" />
-                </SelectTrigger>
-                <SelectContent className="text-base">
-                  <SelectItem
-                    value="all"
-                    className="flex justify-center text-center w-full"
-                  >
-                    IoT Integration Status
-                  </SelectItem>
-
-                  <SelectItem value="Connected" className="text-center">
-                    Connected
-                  </SelectItem>
-                  <SelectItem value="Fully Completed" className="text-center">
-                    Fully Completed
-                  </SelectItem>
-                  <SelectItem value="In Progress" className="text-center">
-                    In Progress
-                  </SelectItem>
-                  <SelectItem value="Not-Connected" className="text-center">
-                    Not Connected
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* MJP Status box */}
-          {/* MJP Status box */}
-          <div className="border border-gray-200 bg-sky-50 rounded-2xl px-4 py-4 shadow-sm w-full sm:w-auto">
-            <h2 className="text-center font-semibold text-sm sm:text-base mb-4">
-              MJP Civil Status
+          <div className="border border-gray-200 bg-sky-50 rounded-2xl px-6 py-3 shadow-sm w-full sm:w-auto min-w-[200px]">
+            <h2 className="text-center font-semibold text-sm mb-1 text-gray-700">
+              Active Filter
             </h2>
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-              <Select
-                value={commissionedFilter}
-                onValueChange={(value) => {
-                  setCommissionedFilter(value);
-                  setCurrentPage(1);
-                  if (
-                    value === "No" &&
-                    fullyCompletedFilter === "Fully Completed"
-                  ) {
-                    setFullyCompletedFilter("In Progress");
-                  }
-                }}
-              >
-                <SelectTrigger className="w-full sm:w-52 h-9 sm:h-10 lg:h-11 text-xs sm:text-sm lg:text-base">
-                  <SelectValue placeholder="Commissioned" />
-                </SelectTrigger>
-                <SelectContent className="text-xs sm:text-sm lg:text-base">
-                  <SelectItem value="all">Scheme Readiness</SelectItem>
-                  <SelectItem value="Yes">Commissioned</SelectItem>
-                  <SelectItem value="No">Not Commissioned</SelectItem>
-                  <SelectItem value="Water Supply">Water Supply</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={fullyCompletedFilter}
-                onValueChange={(value) => {
-                  setFullyCompletedFilter(value);
-                  setCurrentPage(1);
-                  if (
-                    value === "Fully Completed" &&
-                    commissionedFilter !== "Yes"
-                  ) {
-                    setCommissionedFilter("Yes");
-                  }
-                }}
-              >
-                <SelectTrigger className="w-full sm:w-52 h-9 sm:h-10 lg:h-11 text-xs sm:text-sm lg:text-base">
-                  <SelectValue placeholder="Fully Completed" />
-                </SelectTrigger>
-                <SelectContent className="text-xs sm:text-sm lg:text-base">
-                  <SelectItem value="all">Scheme Status</SelectItem>
-                  <SelectItem
-                    value="Fully Completed"
-                    disabled={commissionedFilter === "No"}
-                  >
-                    Fully Completed
-                  </SelectItem>
-                  <SelectItem value="In Progress">In Progress</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="text-center text-sm font-medium text-blue-800">
+              {statusFilter === "all" ? "All IoT Status" : getStatusDisplayName(statusFilter as SchemeCompletionStatus)}
             </div>
           </div>
         </div>
