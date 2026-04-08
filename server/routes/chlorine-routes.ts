@@ -10,91 +10,11 @@ import ExcelJS from 'exceljs';
 import pg from 'pg';
 import { sql, and, eq } from "drizzle-orm";
 import { schemeStatuses } from "@shared/schema";
+import { getFilteredSchemeIds, getISOWeekInfo } from "./filter-utils";
 
 const router = express.Router();
 
 // Helper to get filtered scheme IDs based on filterType and agencyType
-async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: any, agencyType?: string | string[]) {
-  const activeFilter = filterType || (fullyCompleted === "true" ? "fully_completed" : undefined);
-  
-  // Handle case where agencyType might be an array due to duplicate parameters
-  const targetAgencyType = Array.isArray(agencyType) ? agencyType[0] : agencyType;
-
-  const conditions = [];
-  if (activeFilter && activeFilter.startsWith('commissioned')) {
-    conditions.push(sql`LOWER(${schemeStatuses.water_supply}) = 'yes'`);
-    if (activeFilter === 'commissioned_full') {
-      conditions.push(sql`LOWER(${schemeStatuses.water_supply_status}) = 'full'`);
-    } else if (activeFilter === 'commissioned_partial') {
-      conditions.push(sql`LOWER(${schemeStatuses.water_supply_status}) = 'partial'`);
-    } else if (activeFilter === 'commissioned_no') {
-      conditions.push(sql`LOWER(${schemeStatuses.water_supply_status}) = 'no'`);
-    }
-  } else if (activeFilter === 'fully_completed') {
-    conditions.push(sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('completed', 'fully-completed', 'fully completed', 'functionally completed')`);
-  } else if (activeFilter === 'partial' || activeFilter === 'in_progress') {
-    conditions.push(sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('in progress', 'partial', 'ongoing')`);
-  } else if (activeFilter === 'common_filter') {
-    conditions.push(sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('completed', 'fully-completed', 'fully completed', 'functionally completed') AND LOWER(${schemeStatuses.water_supply}) = 'yes'`);
-  } else if (activeFilter === 'mjp_commissioned_yes') {
-    conditions.push(sql`LOWER(${schemeStatuses.mjp_commissioned}) = 'yes'`);
-  }
-
-  if (targetAgencyType && targetAgencyType.toUpperCase() !== 'ALL') {
-    conditions.push(sql`UPPER(${schemeStatuses.agency_type}) = ${targetAgencyType.toUpperCase()}`);
-  }
-
-  if (conditions.length > 0) {
-    const rows = await db.select({ scheme_id: schemeStatuses.scheme_id })
-      .from(schemeStatuses)
-      .where(and(...conditions));
-    const ids = rows.map((r: any) => r.scheme_id);
-    return ids.length > 0 ? ids : ['NO_MATCHES'];
-  }
-  return null;
-}
-
-// Helper function to get dates for a specific ISO week, offset by a number of weeks
-function getISOWeekInfo(weekOffset: number = 0): { dates: string[], weekNum: number, startStr: string, endStr: string } {
-  const now = new Date();
-  // Get the most recent Sunday (end of last complete week)
-  const lastSunday = new Date(now);
-  lastSunday.setDate(now.getDate() - now.getDay());
-  lastSunday.setHours(23, 59, 59, 999);
-
-  // Get the Monday of that week
-  const lastMonday = new Date(lastSunday);
-  lastMonday.setDate(lastSunday.getDate() - 6);
-  lastMonday.setHours(0, 0, 0, 0);
-
-  // Apply week offset
-  if (weekOffset > 0) {
-    lastMonday.setDate(lastMonday.getDate() - (weekOffset * 7));
-  }
-
-  // Generate the 7 dates
-  const dates: string[] = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(lastMonday);
-    d.setDate(lastMonday.getDate() + i);
-    const dayStr = String(d.getDate()).padStart(2, '0');
-    const monthStr = d.toLocaleString('en-US', { month: 'short' });
-    dates.push(`${dayStr}-${monthStr}`);
-  }
-
-  // Calculate week number
-  const target = new Date(lastMonday);
-  const dayNr = (lastMonday.getDay() + 6) % 7;
-  target.setDate(target.getDate() - dayNr + 3);
-  const firstThursday = target.valueOf();
-  target.setMonth(0, 1);
-  if (target.getDay() !== 4) {
-    target.setMonth(0, 1 + ((4 - target.getDay() + 7) % 7));
-  }
-  const weekNum = 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
-
-  return { dates, weekNum, startStr: dates[0], endStr: dates[6] };
-}
 
 // Get weekly average LPCD statistics
 router.get("/weekly-lpcd/stats", async (req, res) => {

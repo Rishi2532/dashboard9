@@ -8,6 +8,7 @@ import { eq, sql, and } from "drizzle-orm";
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
 import pg from 'pg';
+import { getFilteredSchemeIds } from "./filter-utils";
 
 const router = express.Router();
 
@@ -26,88 +27,6 @@ const requireAdmin = (req: express.Request, res: express.Response, next: express
   }
   next();
 };
-
-// Helper function to get filtered scheme IDs
-// Helper function to get filtered scheme IDs
-async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: any, agencyType?: string | string[]) {
-  try {
-    const conditions = [];
-
-    // Handle agencyType normalization (due to potential duplication from frontend)
-    const targetAgencyType = Array.isArray(agencyType) ? agencyType[0] : agencyType;
-
-    // Handle filterType/fullyCompleted
-    if (filterType && filterType.startsWith('commissioned')) {
-      conditions.push(sql`LOWER(${schemeStatuses.water_supply}) = 'yes'`);
-      if (filterType === 'commissioned_full') {
-        conditions.push(sql`LOWER(${schemeStatuses.water_supply_status}) = 'full'`);
-      } else if (filterType === 'commissioned_partial') {
-        conditions.push(sql`LOWER(${schemeStatuses.water_supply_status}) = 'partial'`);
-      } else if (filterType === 'commissioned_no') {
-        conditions.push(sql`LOWER(${schemeStatuses.water_supply_status}) = 'no'`);
-      }
-    } else {
-      let statusConditions: string[] = [];
-      if (fullyCompleted === 'true' && (!filterType || filterType === 'fully_completed')) {
-        statusConditions = ['completed', 'fully-completed', 'fully completed', 'functionally completed'];
-      } else if (filterType) {
-        switch (filterType) {
-          case 'fully_completed':
-            statusConditions = ['completed', 'fully-completed', 'fully completed', 'functionally completed'];
-            break;
-          case 'not_connected':
-            statusConditions = ['not-connected', 'not connected'];
-            break;
-          case 'partially_commissioned':
-            statusConditions = ['partially commissioned', 'partial commissioned'];
-            break;
-          case 'village_work_inprogress':
-            statusConditions = ['village work inprogress', 'village work in progress'];
-            break;
-          case 'physically_completed':
-            statusConditions = ['physically completed'];
-            break;
-          case 'in_progress':
-            statusConditions = ['in progress', 'work in progress'];
-            break;
-          case 'not_started':
-            statusConditions = ['not started'];
-            break;
-          case 'common_filter':
-            statusConditions = ['completed', 'fully-completed', 'fully completed', 'functionally completed'];
-            conditions.push(sql`LOWER(${schemeStatuses.water_supply}) = 'yes'`);
-            break;
-          case 'mjp_commissioned_yes':
-            conditions.push(sql`LOWER(${schemeStatuses.mjp_commissioned}) = 'yes'`);
-            break;
-        }
-      }
-      if (statusConditions.length > 0) {
-        conditions.push(sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN (${sql.join(statusConditions.map(s => sql`${s.toLowerCase()}`), sql`, `)})`);
-      }
-    }
-
-    // Handle agencyType with case-insensitive comparison
-    if (targetAgencyType && targetAgencyType.toUpperCase() !== 'ALL') {
-      conditions.push(sql`UPPER(${schemeStatuses.agency_type}) = ${targetAgencyType.toUpperCase()}`);
-    }
-
-    if (conditions.length > 0) {
-      const results = await db
-        .select({ scheme_id: schemeStatuses.scheme_id })
-        .from(schemeStatuses)
-        .where(and(...conditions));
-
-      const ids = results.map((r: any) => r.scheme_id);
-      return ids.length > 0 ? ids : ['NO_MATCHES'];
-    }
-  } catch (error) {
-    console.error("Error fetching filtered scheme IDs:", error);
-    return [];
-  }
-
-  return null;
-}
 
 // Get pressure filter options
 router.get("/filters", async (req, res) => {
@@ -192,9 +111,15 @@ router.get("/", async (req, res) => {
     if (minPressure) filter.minPressure = parseFloat(minPressure as string);
     if (maxPressure) filter.maxPressure = parseFloat(maxPressure as string);
 
+    // Combine filters for specialized water supply logic
+    const { uiSchemeFilter, waterSupplyStatus } = req.query;
+    const activeFilter = (uiSchemeFilter || filterType) && waterSupplyStatus && waterSupplyStatus !== "All" && (uiSchemeFilter === "commissioned" || uiSchemeFilter === "fully_completed" || filterType === "commissioned" || filterType === "fully_completed")
+      ? `${uiSchemeFilter || filterType}_${(waterSupplyStatus as string).toLowerCase()}`
+      : (uiSchemeFilter || filterType) as string;
+
     // Apply scheme status filters
     const db = await getDB();
-    const schemeIds = await getFilteredSchemeIds(db, filterType as string, fullyCompleted as string, agencyType as string);
+    const schemeIds = await getFilteredSchemeIds(db, activeFilter, fullyCompleted as string, agencyType as string);
     if (schemeIds) {
       filter.schemeIds = schemeIds;
     }
@@ -226,10 +151,15 @@ router.get("/", async (req, res) => {
 // Get dashboard statistics for pressure data
 router.get("/dashboard-stats", async (req, res) => {
   try {
-    const { region, circle, division, subdivision, block, fullyCompleted, filterType, agencyType } = req.query;
+    const { region, circle, division, subdivision, block, fullyCompleted, filterType, agencyType, uiSchemeFilter, waterSupplyStatus: queryWaterSupplyStatus } = req.query;
+
+    // Combine filters for specialized water supply logic
+    const activeFilter = (uiSchemeFilter || filterType) && queryWaterSupplyStatus && queryWaterSupplyStatus !== "All" && (uiSchemeFilter === "commissioned" || uiSchemeFilter === "fully_completed" || filterType === "commissioned" || filterType === "fully_completed")
+      ? `${uiSchemeFilter || filterType}_${(queryWaterSupplyStatus as string).toLowerCase()}`
+      : (uiSchemeFilter || filterType) as string;
 
     const db = await getDB();
-    const schemeIds = await getFilteredSchemeIds(db, filterType as string, fullyCompleted as string, agencyType as string);
+    const schemeIdsForStats = await getFilteredSchemeIds(db, activeFilter, fullyCompleted as string, agencyType as string);
 
     // Build filter object with all geographic parameters
     const filter: any = {};
@@ -240,7 +170,7 @@ router.get("/dashboard-stats", async (req, res) => {
     if (block) filter.block = block as string;
     if (agencyType) filter.agencyType = agencyType as string;
 
-    const stats = await storage.getPressureDashboardStats(filter, schemeIds);
+    const stats = await storage.getPressureDashboardStats(filter, schemeIdsForStats);
 
     // Get last import statistics from app_state
     try {

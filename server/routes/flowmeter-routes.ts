@@ -2,43 +2,11 @@ import { Router } from "express";
 import { getDB } from "../db";
 import { sql } from "drizzle-orm";
 import ExcelJS from "exceljs";
+import { getFilteredSchemeIds } from "./filter-utils";
 
 const router = Router();
 
 // Function to get filtered scheme IDs (helper)
-async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: any, agencyType?: string) {
-  const conditions: any[] = [];
-  
-  if (filterType && filterType.startsWith('commissioned')) {
-    conditions.push(sql`LOWER(water_supply) = 'yes'`);
-    if (filterType === 'commissioned_full') {
-      conditions.push(sql`LOWER(water_supply_status) = 'full'`);
-    } else if (filterType === 'commissioned_partial') {
-      conditions.push(sql`LOWER(water_supply_status) = 'partial'`);
-    } else if (filterType === 'commissioned_no') {
-      conditions.push(sql`LOWER(water_supply_status) = 'no'`);
-    }
-  } else if (filterType === 'fully_completed' || fullyCompleted === 'true') {
-    conditions.push(sql`LOWER(fully_completion_scheme_status) IN ('completed', 'fully-completed', 'fully completed', 'functionally completed')`);
-  } else if (filterType === 'common_filter') {
-    conditions.push(sql`LOWER(fully_completion_scheme_status) IN ('completed', 'fully-completed', 'fully completed', 'functionally completed') AND LOWER(water_supply) = 'yes'`);
-  } else if (filterType === 'mjp_commissioned_yes') {
-    conditions.push(sql`LOWER(mjp_commissioned) = 'yes'`);
-  }
-
-  if (agencyType && agencyType !== 'ALL' && agencyType !== 'all') {
-    conditions.push(sql`agency_type = ${agencyType}`);
-  }
-
-  if (conditions.length === 0) return null;
-
-  const whereClause = sql.join(conditions, sql` AND `);
-  const query = sql`SELECT DISTINCT scheme_id FROM scheme_status WHERE ${whereClause}`;
-  
-  const result = await db.execute(query);
-  if (result.rows.length === 0) return ['NO_MATCHES'];
-  return result.rows.map((r: any) => r.scheme_id);
-}
 
 // Get flowmeter statistics online/offline counts by region
 router.get("/overall-region-comparison", async (req, res) => {

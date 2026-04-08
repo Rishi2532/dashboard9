@@ -486,8 +486,8 @@ const DetailedChlorinePage = () => {
   const [selectedAgencyType, setSelectedAgencyType] = useState<string>("ALL");
   const [waterSupplyStatus, setWaterSupplyStatus] = useState<string>("All");
 
-  const schemeFilter = uiSchemeFilter === "commissioned" && waterSupplyStatus !== "All"
-    ? `commissioned_${waterSupplyStatus.toLowerCase()}`
+  const schemeFilter = (uiSchemeFilter === "commissioned" || uiSchemeFilter === "fully_completed") && waterSupplyStatus !== "All"
+    ? `${uiSchemeFilter}_${waterSupplyStatus.toLowerCase()}`
     : uiSchemeFilter;
 
   // Debug: Log filter changes
@@ -3147,7 +3147,7 @@ const DetailedChlorinePage = () => {
                 </SelectContent>
               </Select>
 
-              {uiSchemeFilter === "commissioned" && (
+              {(uiSchemeFilter === "commissioned" || uiSchemeFilter === "fully_completed") && (
                 <>
                   <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2"></div>
                   <Tabs value={waterSupplyStatus} onValueChange={setWaterSupplyStatus} className="m-0">
