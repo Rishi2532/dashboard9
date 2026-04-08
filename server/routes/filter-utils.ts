@@ -48,6 +48,82 @@ export function getISOWeekInfo(weekOffset: number = 0): { dates: string[], weekN
 }
 
 /**
+ * Helper function to get dates for a rolling 7-day window based on the latest data in the database.
+ * Used for the new rolling LPCD calculation requirement.
+ */
+export async function getRollingWindowInfo(db: any, weekOffset: number = 0): Promise<{ dates: string[], startStr: string, endStr: string, anchorDate: Date }> {
+  // 1. Find the maximum date across both history tables
+  // Optimizing by looking at the most recent entries by ID first, as these usually contain the newest data
+  const villageMaxDateResult = await db.execute(sql`
+    SELECT data_date FROM water_scheme_data_history 
+    ORDER BY id DESC LIMIT 1
+  `);
+  
+  const schemeMaxDateResult = await db.execute(sql`
+    SELECT data_date FROM scheme_lpcd_data_history 
+    ORDER BY id DESC LIMIT 1
+  `);
+
+  const parseDate = (dateStr: string | null): Date => {
+    if (!dateStr) return new Date(0);
+    // Format is likely DD-Mon-YY or DD-Mon
+    const parts = dateStr.split('-');
+    if (parts.length < 2) return new Date(0);
+    
+    const day = parseInt(parts[0]);
+    const monthStr = parts[1];
+    const yearStr = parts[2] || '2026'; // Default to current year if missing
+    
+    const months: Record<string, number> = {
+      'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
+      'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
+    };
+    
+    const month = months[monthStr.charAt(0).toUpperCase() + monthStr.slice(1).toLowerCase()] || 0;
+    const year = yearStr.length === 2 ? 2000 + parseInt(yearStr) : parseInt(yearStr);
+    
+    return new Date(year, month, day);
+  };
+
+  const vMax = parseDate(villageMaxDateResult.rows[0]?.data_date);
+  const sMax = parseDate(schemeMaxDateResult.rows[0]?.data_date);
+  
+  // Use the overall maximum date as the anchor
+  let anchorDate = vMax > sMax ? vMax : sMax;
+  
+  // fallback if no data
+  if (anchorDate.getTime() === 0) {
+    anchorDate = new Date();
+  }
+
+  // 2. Apply offset (N shifts of 7 days)
+  const endDate = new Date(anchorDate);
+  endDate.setDate(anchorDate.getDate() - (weekOffset * 7));
+  
+  const startDate = new Date(endDate);
+  startDate.setDate(endDate.getDate() - 6);
+
+  // 3. Generate the 7 dates in DD-Mon format
+  const dates: string[] = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(startDate);
+    d.setDate(startDate.getDate() + i);
+    const dayStr = String(d.getDate()).padStart(2, '0');
+    const monthStr = d.toLocaleString('en-US', { month: 'short' });
+    dates.push(`${dayStr}-${monthStr}`);
+  }
+
+  return { 
+    dates, 
+    startStr: dates[0], 
+    endStr: dates[6],
+    anchorDate: anchorDate
+  };
+}
+
+
+
+/**
  * Enhanced function to get filtered scheme IDs based on filterType, fullyCompleted, and agencyType.
  * Supports specialized water supply filters for Fully Instrumented Schemes.
  */
@@ -88,7 +164,8 @@ export async function getFilteredSchemeIds(db: any, filterType: any, fullyComple
     if (baseIds.length === 0) return ['NO_MATCHES'];
 
     // 2. Filter for those with weekly average LPCD = 0
-    const weekInfo = getISOWeekInfo(0);
+    const weekInfo = await getRollingWindowInfo(db, 0);
+
     const dateList = weekInfo.dates.map(d => `'${d}'`).join(',');
     
     // We use raw SQL to calculate average from history table

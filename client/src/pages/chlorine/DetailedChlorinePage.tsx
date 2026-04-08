@@ -12549,7 +12549,7 @@ const DetailedChlorinePage = () => {
                                           size="icon"
                                           className="h-6 w-6 text-violet-600 hover:text-violet-800 hover:bg-violet-200"
                                           onClick={() => setWeekOffset(prev => prev + 1)}
-                                          title="Previous Week"
+                                          title="Previous 7 Days"
                                         >
                                           <ChevronLeft className="h-4 w-4" />
                                         </Button>
@@ -12559,7 +12559,7 @@ const DetailedChlorinePage = () => {
                                           className="h-6 w-6 text-violet-600 hover:text-violet-800 disabled:opacity-20 hover:bg-violet-200"
                                           onClick={() => setWeekOffset(prev => Math.max(0, prev - 1))}
                                           disabled={weekOffset === 0}
-                                          title="Next Week"
+                                          title="Next 7 Days"
                                         >
                                           <ChevronRight className="h-4 w-4" />
                                         </Button>
@@ -13344,7 +13344,7 @@ const DetailedChlorinePage = () => {
                                             size="icon"
                                             className="h-6 w-6 text-purple-600 hover:text-purple-800 hover:bg-purple-200"
                                             onClick={() => setWeekOffset(prev => prev + 1)}
-                                            title="Previous Week"
+                                            title="Previous 7 Days"
                                           >
                                             <ChevronLeft className="h-4 w-4" />
                                           </Button>
@@ -13354,7 +13354,7 @@ const DetailedChlorinePage = () => {
                                             className="h-6 w-6 text-purple-600 hover:text-purple-800 disabled:opacity-20 hover:bg-purple-200"
                                             onClick={() => setWeekOffset(prev => Math.max(0, prev - 1))}
                                             disabled={weekOffset === 0}
-                                            title="Next Week"
+                                            title="Next 7 Days"
                                           >
                                             <ChevronRight className="h-4 w-4" />
                                           </Button>

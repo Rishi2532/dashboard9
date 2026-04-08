@@ -56,8 +56,13 @@ router.get("/villages/:schemeId", async (req, res) => {
 });
 
 // 3. Get ESRs for a village
-router.get("/esrs/:schemeId/:villageName", async (req, res) => {
-    const { schemeId, villageName } = req.params;
+router.get("/esrs", async (req, res) => {
+    const { schemeId, villageName } = req.query;
+    
+    if (!schemeId || !villageName) {
+        return res.status(400).json({ message: "schemeId and villageName are required" });
+    }
+
     try {
         const db = await getDB();
         const esrs = await db
@@ -67,8 +72,8 @@ router.get("/esrs/:schemeId/:villageName", async (req, res) => {
             .from(waterConsumptionHistory)
             .where(
                 and(
-                    eq(waterConsumptionHistory.scheme_id, schemeId),
-                    eq(waterConsumptionHistory.village_name, villageName)
+                    eq(waterConsumptionHistory.scheme_id, schemeId as string),
+                    eq(waterConsumptionHistory.village_name, villageName as string)
                 )
             )
             .groupBy(waterConsumptionHistory.esr_name)
@@ -80,6 +85,7 @@ router.get("/esrs/:schemeId/:villageName", async (req, res) => {
         res.status(500).json({ message: "Failed to fetch ESRs" });
     }
 });
+
 
 // 4. Get current status (LPCD or Water Consumption)
 router.get("/status", async (req, res) => {

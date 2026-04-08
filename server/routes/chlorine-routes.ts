@@ -10,7 +10,8 @@ import ExcelJS from 'exceljs';
 import pg from 'pg';
 import { sql, and, eq } from "drizzle-orm";
 import { schemeStatuses } from "@shared/schema";
-import { getFilteredSchemeIds, getISOWeekInfo } from "./filter-utils";
+import { getFilteredSchemeIds, getRollingWindowInfo } from "./filter-utils";
+
 
 const router = express.Router();
 
@@ -20,21 +21,20 @@ const router = express.Router();
 router.get("/weekly-lpcd/stats", async (req, res) => {
   try {
     const weekOffset = parseInt(req.query.weekOffset as string) || 0;
-    const weekInfo = getISOWeekInfo(weekOffset);
+    const db = await getDB();
+    
+    // Use the new rolling window helper
+    const weekInfo = await getRollingWindowInfo(db, weekOffset);
     console.log(`Weekly LPCD Stats Request for weekOffset ${weekOffset}:`, weekInfo);
 
     const { fullyCompleted, filterType, agencyType } = req.query;
-    console.log(`Weekly LPCD Stats Request for: ${weekInfo.weekNum}`, { fullyCompleted, filterType, agencyType });
-
-    const db = await getDB();
+    console.log(`Weekly LPCD Stats Request (Rolling):`, { fullyCompleted, filterType, agencyType, dates: weekInfo.dates });
 
     // Get filtered scheme IDs
     const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
     let fullyCompletedSchemeIds: Set<string> | undefined;
 
     if (filteredIds) {
-      // If filter returns NO_MATCHES string array, keep it as empty set or special handling
-      // For simple set passing:
       fullyCompletedSchemeIds = new Set(filteredIds);
     }
 
@@ -47,9 +47,10 @@ router.get("/weekly-lpcd/stats", async (req, res) => {
       success: true,
       villageStats,
       schemeStats,
-      weekLabel: `Week ${weekInfo.weekNum} (${weekInfo.startStr} - ${weekInfo.endStr})`,
+      weekLabel: `${weekInfo.startStr} - ${weekInfo.endStr}`,
       dates: weekInfo.dates
     });
+
   } catch (error) {
     console.error("Error fetching weekly LPCD stats:", error);
     res.status(500).json({ error: "Failed to fetch weekly stats" });

@@ -230,15 +230,15 @@ const EnhancedLpcdDashboard = () => {
     const vMap = new Map<string, any[]>();
 
     activeIssues.forEach((issue: any) => {
-      // Scheme level issues (no village_name)
-      if (issue.scheme_id && !issue.village_name) {
+      // Scheme level issues
+      if (issue.scheme_id && issue.problem_level === "Scheme") {
         if (!sMap.has(issue.scheme_id)) {
           sMap.set(issue.scheme_id, []);
         }
         sMap.get(issue.scheme_id)?.push(issue);
       }
-      // Village level issues
-      else if (issue.scheme_id && issue.village_name) {
+      // Village level issues only
+      if (issue.scheme_id && issue.village_name && issue.problem_level === "Village") {
         const key = `${issue.scheme_id}-${issue.village_name}`;
         if (!vMap.has(key)) {
           vMap.set(key, []);
@@ -813,7 +813,7 @@ const EnhancedLpcdDashboard = () => {
           }
           return status.water_supply === "Yes";
         }
-        
+
         if (uiSchemeFilter === "fully_completed") {
           const statusValue = String(status.fully_completion_scheme_status || "").toLowerCase();
           return statusValue === "fully completed" || statusValue === "completed" || statusValue === "fully_completed";
@@ -1106,12 +1106,12 @@ const EnhancedLpcdDashboard = () => {
   };
 
   // Handler for scheme status filter changes
-    const handleSchemeStatusFilterChange = (value: string) => {
-      setSchemeStatusFilter(value);
+  const handleSchemeStatusFilterChange = (value: string) => {
+    setSchemeStatusFilter(value);
 
-      // Reset page to 1 when filter changes
-      setPage(1);
-    };
+    // Reset page to 1 when filter changes
+    setPage(1);
+  };
 
   // Get LPCD status badge color
   const getLpcdStatusColor = (lpcdValue: number | null): string => {
@@ -1155,26 +1155,26 @@ const EnhancedLpcdDashboard = () => {
         // Helper function to format date for better readability in Excel
         const formatDateForHeader = (dateStr: string | null | undefined) => {
           if (!dateStr) return "N/A";
-          
+
           // If it's already in a format with a year (e.g., "01-Jan-2025" or "01-Jan-25"), return as is
           if (/^\d{1,2}[-/][a-zA-Z]{3}[-/]\d{2,4}$/.test(dateStr)) {
             return dateStr;
           }
-          
+
           if (/^\d{1,2}[-/][a-zA-Z]{3}$/.test(dateStr)) {
             const currentYear = new Date().getFullYear();
             return `${dateStr}-${currentYear}`;
           }
-          
+
           try {
             const date = new Date(dateStr);
             if (isNaN(date.getTime())) return dateStr;
-            
+
             if (date.getFullYear() === 2001 && !dateStr.includes("2001")) {
               const currentYear = new Date().getFullYear();
               return `${dateStr}-${currentYear}`;
             }
-            
+
             return date.toLocaleDateString("en-IN", {
               day: "2-digit",
               month: "short",
@@ -1869,45 +1869,45 @@ const EnhancedLpcdDashboard = () => {
               </div>
 
               {/* Filters Row */}
-          <div className="flex flex-wrap items-center gap-3 mb-6 bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter:</span>
-            <Select value={uiSchemeFilter} onValueChange={setUiSchemeFilter}>
-              <SelectTrigger className="w-[240px] bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
-                <SelectValue placeholder="Select Filter" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Schemes</SelectItem>
-                <SelectItem value="commissioned">100% Civil work Completed</SelectItem>
-                <SelectItem value="fully_completed">Fully Instrumented Schemes</SelectItem>
-                <SelectItem value="in_progress">Partially instrumented schemes</SelectItem>
-                <SelectItem value="common_filter">Common filter</SelectItem>
-                <SelectItem value="mjp_commissioned_yes">Commissioned</SelectItem>
-              </SelectContent>
-            </Select>
+              <div className="flex flex-wrap items-center gap-3 mb-6 bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter:</span>
+                <Select value={uiSchemeFilter} onValueChange={setUiSchemeFilter}>
+                  <SelectTrigger className="w-[240px] bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
+                    <SelectValue placeholder="Select Filter" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Schemes</SelectItem>
+                    <SelectItem value="commissioned">100% Civil work Completed</SelectItem>
+                    <SelectItem value="fully_completed">Fully Instrumented Schemes</SelectItem>
+                    <SelectItem value="in_progress">Partially instrumented schemes</SelectItem>
+                    <SelectItem value="common_filter">Common filter</SelectItem>
+                    <SelectItem value="mjp_commissioned_yes">Commissioned</SelectItem>
+                  </SelectContent>
+                </Select>
 
-            {uiSchemeFilter === "commissioned" && (
-              <>
+                {uiSchemeFilter === "commissioned" && (
+                  <>
+                    <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2"></div>
+                    <Tabs value={waterSupplyStatus} onValueChange={setWaterSupplyStatus} className="m-0">
+                      <TabsList className="h-10 bg-gray-100 dark:bg-gray-800 p-1 border border-gray-200 dark:border-gray-700">
+                        <TabsTrigger value="All" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-blue-600 data-[state=active]:text-white">All Water Supply</TabsTrigger>
+                        <TabsTrigger value="Full" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Full</TabsTrigger>
+                        <TabsTrigger value="Partial" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partial</TabsTrigger>
+                        <TabsTrigger value="No" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-red-500 data-[state=active]:text-white">No</TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                  </>
+                )}
+
                 <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2"></div>
-                <Tabs value={waterSupplyStatus} onValueChange={setWaterSupplyStatus} className="m-0">
-                  <TabsList className="h-10 bg-gray-100 dark:bg-gray-800 p-1 border border-gray-200 dark:border-gray-700">
-                    <TabsTrigger value="All" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-blue-600 data-[state=active]:text-white">All Water Supply</TabsTrigger>
-                    <TabsTrigger value="Full" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Full</TabsTrigger>
-                    <TabsTrigger value="Partial" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partial</TabsTrigger>
-                    <TabsTrigger value="No" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-red-500 data-[state=active]:text-white">No</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </>
-            )}
+                <AgencyTypeFilter
+                  selectedAgencyType={selectedAgencyType}
+                  onAgencyTypeChange={setSelectedAgencyType}
+                  className="w-full md:w-64"
+                />
+              </div>
 
-            <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2"></div>
-            <AgencyTypeFilter
-              selectedAgencyType={selectedAgencyType}
-              onAgencyTypeChange={setSelectedAgencyType}
-              className="w-full md:w-64"
-            />
-          </div>
-
-          {/* Cards for Summary Stats */}
+              {/* Cards for Summary Stats */}
               <div>
                 <h3 className="text-lg font-semibold mb-3 bg-white p-2 rounded shadow-sm border border-blue-100">
                   Water Consumption (LL)
@@ -2949,11 +2949,9 @@ const EnhancedLpcdDashboard = () => {
                               const lpcdValue = getLatestLpcdValue(scheme);
                               const isEven = index % 2 === 0;
 
-                              // Check for active issues
-                              const schemeLevelIssues = schemeIssuesMap.get(scheme.scheme_id) || [];
+                              // Check for active issues — only village-level shown here
                               const villageLevelIssues = villageIssuesMap.get(`${scheme.scheme_id}-${scheme.village_name}`) || [];
-                              const allIssues = [...schemeLevelIssues, ...villageLevelIssues];
-                              const hasIssue = allIssues.length > 0;
+                              const hasIssue = villageLevelIssues.length > 0;
                               return (
                                 <TableRow
                                   // IMPORTANT: Key includes block field to handle duplicate villages across blocks
@@ -3013,11 +3011,23 @@ const EnhancedLpcdDashboard = () => {
                                       {getLpcdStatusText(lpcdValue)}
                                     </Badge>
                                   </TableCell>
-                                  <TableCell className="border-b border-blue-200 text-center align-middle max-w-[150px] truncate" title={scheme.remark || "-"}>
-                                    {scheme.remark ? (
-                                      <span className="text-[11px] font-medium text-red-700 bg-red-50 border border-red-100 rounded px-2 py-1 truncate block" title={scheme.remark}>
-                                        {scheme.remark}
-                                      </span>
+                                  <TableCell className="border-b border-blue-200 text-center align-middle max-w-[150px]">
+                                    {villageLevelIssues.length > 0 ? (
+                                      <Button
+                                        variant="ghost"
+                                        className="h-auto p-1 max-w-full justify-start text-red-600 font-medium text-[11px] hover:text-red-700 hover:bg-red-50"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedRemarkDetails({
+                                            issues: villageLevelIssues,
+                                            title: `Issues for ${scheme.village_name} (${scheme.scheme_name})`,
+                                          });
+                                        }}
+                                      >
+                                        <span className="truncate w-full text-left">
+                                          {villageLevelIssues.map((i: any) => i.reason).join(", ")}
+                                        </span>
+                                      </Button>
                                     ) : (
                                       <span className="text-gray-400">-</span>
                                     )}
