@@ -52,16 +52,20 @@ export function getISOWeekInfo(weekOffset: number = 0): { dates: string[], weekN
  * Used for the new rolling LPCD calculation requirement.
  */
 export async function getRollingWindowInfo(db: any, weekOffset: number = 0): Promise<{ dates: string[], startStr: string, endStr: string, anchorDate: Date }> {
-  // 1. Find the maximum date across both history tables
-  // Optimizing by looking at the most recent entries by ID first, as these usually contain the newest data
-  const villageMaxDateResult = await db.execute(sql`
-    SELECT data_date FROM water_scheme_data_history 
-    ORDER BY id DESC LIMIT 1
+  // 1. Find the maximum date across both history tables by parsing strings
+  // We'll get a sample of recent records to determine the latest date
+  const villageDatesResult = await db.execute(sql`
+    SELECT data_date FROM (
+      SELECT data_date, id FROM water_scheme_data_history 
+      ORDER BY id DESC LIMIT 500
+    ) t
   `);
   
-  const schemeMaxDateResult = await db.execute(sql`
-    SELECT data_date FROM scheme_lpcd_data_history 
-    ORDER BY id DESC LIMIT 1
+  const schemeDatesResult = await db.execute(sql`
+    SELECT data_date FROM (
+      SELECT data_date, id FROM scheme_lpcd_data_history 
+      ORDER BY id DESC LIMIT 500
+    ) t
   `);
 
   const parseDate = (dateStr: string | null): Date => {
@@ -72,7 +76,6 @@ export async function getRollingWindowInfo(db: any, weekOffset: number = 0): Pro
     
     const day = parseInt(parts[0]);
     const monthStr = parts[1];
-    const yearStr = parts[2] || '2026'; // Default to current year if missing
     
     const months: Record<string, number> = {
       'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
@@ -80,21 +83,27 @@ export async function getRollingWindowInfo(db: any, weekOffset: number = 0): Pro
     };
     
     const month = months[monthStr.charAt(0).toUpperCase() + monthStr.slice(1).toLowerCase()] || 0;
-    const year = yearStr.length === 2 ? 2000 + parseInt(yearStr) : parseInt(yearStr);
+    
+    let year = 2026; // Default to 2026 for this project phase
+    if (parts.length > 2) {
+      const yearPart = parts[2];
+      year = yearPart.length === 2 ? 2000 + parseInt(yearPart) : parseInt(yearPart);
+    } else {
+      // If year is missing (DD-Mon), we assume current year (2026)
+      // but if day/month is ahead of now, might be last year. 
+      // For this project, mostly 2026.
+    }
     
     return new Date(year, month, day);
   };
 
-  const vMax = parseDate(villageMaxDateResult.rows[0]?.data_date);
-  const sMax = parseDate(schemeMaxDateResult.rows[0]?.data_date);
+  const allDates: Date[] = [
+    ...villageDatesResult.rows.map((r: any) => parseDate(r.data_date)),
+    ...schemeDatesResult.rows.map((r: any) => parseDate(r.data_date))
+  ].filter(d => d.getTime() > 0);
   
   // Use the overall maximum date as the anchor
-  let anchorDate = vMax > sMax ? vMax : sMax;
-  
-  // fallback if no data
-  if (anchorDate.getTime() === 0) {
-    anchorDate = new Date();
-  }
+  let anchorDate = allDates.length > 0 ? new Date(Math.max(...allDates.map(d => d.getTime()))) : new Date();
 
   // 2. Apply offset (N shifts of 7 days)
   const endDate = new Date(anchorDate);
