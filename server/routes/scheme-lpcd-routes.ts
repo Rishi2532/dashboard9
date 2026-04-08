@@ -19,217 +19,90 @@ router.get('/', async (req, res) => {
       // and aggregate the data by scheme
 
       let baseQuery = `
-        -- First, get a clean, deduplicated view of the raw village data with correct LPCD counts
-        WITH village_counts AS (
+        WITH ranked_history AS (
           SELECT 
-            scheme_id,
-            block,
-            village_name,
-            CASE WHEN lpcd_value_day7 >= 55 THEN 1 ELSE 0 END as is_above_55,
-            CASE WHEN lpcd_value_day7 < 55 AND lpcd_value_day7 > 0 THEN 1 ELSE 0 END as is_below_55,
-            CASE WHEN lpcd_value_day7 = 0 OR lpcd_value_day7 IS NULL THEN 1 ELSE 0 END as is_zero_supply
-          FROM water_scheme_data
+            h.*,
+            CASE 
+              WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
+              WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
+              WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
+                CASE
+                  WHEN TO_DATE(data_date || '-' || TO_CHAR(COALESCE(uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY') > (COALESCE(uploaded_at, CURRENT_DATE) + interval '1 month')
+                  THEN TO_DATE(data_date || '-' || (TO_CHAR(COALESCE(uploaded_at, CURRENT_DATE), 'YYYY')::int - 1), 'DD-Mon-YYYY')
+                  ELSE TO_DATE(data_date || '-' || TO_CHAR(COALESCE(uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY')
+                END
+              ELSE NULL 
+            END as parsed_date,
+            ROW_NUMBER() OVER (PARTITION BY scheme_id, block ORDER BY 
+              CASE 
+                WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
+                WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
+                WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
+                  CASE
+                    WHEN TO_DATE(data_date || '-' || TO_CHAR(COALESCE(uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY') > (COALESCE(uploaded_at, CURRENT_DATE) + interval '1 month')
+                    THEN TO_DATE(data_date || '-' || (TO_CHAR(COALESCE(uploaded_at, CURRENT_DATE), 'YYYY')::int - 1), 'DD-Mon-YYYY')
+                    ELSE TO_DATE(data_date || '-' || TO_CHAR(COALESCE(uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY')
+                  END
+                ELSE NULL 
+              END DESC NULLS LAST, uploaded_at DESC) as rn
+          FROM scheme_lpcd_data_history h
         ),
-        
-        -- Create deduplicated village data with only one row per village
-        deduplicated_villages AS (
-          SELECT DISTINCT ON (scheme_id, block, village_name)
-            scheme_id,
-            scheme_name,
-            region,
-            circle,
-            division,
-            sub_division,
-            block,
-            village_name,
-            population,
-            lpcd_value_day7,
-            water_value_day1,
-            water_value_day2,
-            water_value_day3,
-            water_value_day4,
-            water_value_day5,
-            water_value_day6,
-            water_value_day7
-          FROM water_scheme_data
-          ORDER BY scheme_id, block, village_name, lpcd_value_day7 DESC NULLS LAST
+        latest_periods AS (
+          SELECT * FROM ranked_history WHERE rn <= 7
         ),
-        
-        -- First summarize by village to get single status per village
-        village_status AS (
-          SELECT
-            scheme_id,
+        scheme_pivot AS (
+          SELECT 
+            scheme_id, 
             block,
-            village_name,
-            MAX(is_above_55) as has_above_55,
-            MAX(is_below_55) as has_below_55,
-            MAX(is_zero_supply) as has_zero_supply
-          FROM village_counts
-          GROUP BY scheme_id, block, village_name
-        ),
-        
-        -- Then aggregate to scheme/block level
-        lpcd_aggregation AS (
-          SELECT
-            scheme_id,
-            block,
-            COUNT(DISTINCT village_name) as total_villages,
-            SUM(CASE WHEN has_above_55 > 0 THEN 1 ELSE 0 END) as villages_above_55,
-            SUM(CASE WHEN has_below_55 > 0 THEN 1 ELSE 0 END) as villages_below_55,
-            SUM(CASE WHEN has_above_55 = 0 AND has_below_55 = 0 THEN 1 ELSE 0 END) as villages_zero_supply
-          FROM village_status
+            MAX(CASE WHEN rn = 7 THEN lpcd_value END) as lpcd_value_day1,
+            MAX(CASE WHEN rn = 6 THEN lpcd_value END) as lpcd_value_day2,
+            MAX(CASE WHEN rn = 5 THEN lpcd_value END) as lpcd_value_day3,
+            MAX(CASE WHEN rn = 4 THEN lpcd_value END) as lpcd_value_day4,
+            MAX(CASE WHEN rn = 3 THEN lpcd_value END) as lpcd_value_day5,
+            MAX(CASE WHEN rn = 2 THEN lpcd_value END) as lpcd_value_day6,
+            MAX(CASE WHEN rn = 1 THEN lpcd_value END) as lpcd_value_day7,
+            
+            MAX(CASE WHEN rn = 7 THEN water_value END) as total_water_day1,
+            MAX(CASE WHEN rn = 6 THEN water_value END) as total_water_day2,
+            MAX(CASE WHEN rn = 5 THEN water_value END) as total_water_day3,
+            MAX(CASE WHEN rn = 4 THEN water_value END) as total_water_day4,
+            MAX(CASE WHEN rn = 3 THEN water_value END) as total_water_day5,
+            MAX(CASE WHEN rn = 2 THEN water_value END) as total_water_day6,
+            MAX(CASE WHEN rn = 1 THEN water_value END) as total_water_day7,
+            
+            MAX(CASE WHEN rn = 7 THEN data_date END) as water_date_day1,
+            MAX(CASE WHEN rn = 6 THEN data_date END) as water_date_day2,
+            MAX(CASE WHEN rn = 5 THEN data_date END) as water_date_day3,
+            MAX(CASE WHEN rn = 4 THEN data_date END) as water_date_day4,
+            MAX(CASE WHEN rn = 3 THEN data_date END) as water_date_day5,
+            MAX(CASE WHEN rn = 2 THEN data_date END) as water_date_day6,
+            MAX(CASE WHEN rn = 1 THEN data_date END) as water_date_day7,
+            
+            MAX(CASE WHEN rn = 1 THEN total_population END) as total_population,
+            MAX(CASE WHEN rn = 1 THEN total_villages END) as total_villages,
+            MAX(CASE WHEN rn = 1 THEN villages_below_55 END) as villages_below_55,
+            MAX(CASE WHEN rn = 1 THEN villages_above_55 END) as villages_above_55,
+            MAX(CASE WHEN rn = 1 THEN villages_zero_supply END) as villages_zero_supply
+          FROM latest_periods
           GROUP BY scheme_id, block
-        ),
-
-        -- Now aggregate the deduplicated data with correct village counts
-        scheme_aggregation AS (
-          SELECT 
-            wsd.scheme_id,
-            wsd.scheme_name,
-            wsd.region,
-            wsd.circle,
-            wsd.division,
-            wsd.sub_division,
-            wsd.block,
-            SUM(wsd.population) as total_population,
-            
-            -- Water supply aggregation for ALL 7 days
-            SUM(wsd.water_value_day1) as total_water_day1,
-            SUM(wsd.water_value_day2) as total_water_day2,
-            SUM(wsd.water_value_day3) as total_water_day3,
-            SUM(wsd.water_value_day4) as total_water_day4,
-            SUM(wsd.water_value_day5) as total_water_day5,
-            SUM(wsd.water_value_day6) as total_water_day6,
-            SUM(wsd.water_value_day7) as total_water_day7,
-            
-            -- Keep the date values (will be the same per scheme)
-            MAX(ws.water_date_day1) as water_date_day1,
-            MAX(ws.water_date_day2) as water_date_day2,
-            MAX(ws.water_date_day3) as water_date_day3,
-            MAX(ws.water_date_day4) as water_date_day4,
-            MAX(ws.water_date_day5) as water_date_day5,
-            MAX(ws.water_date_day6) as water_date_day6,
-            MAX(ws.water_date_day7) as water_date_day7,
-            MAX(ws.lpcd_date_day1) as lpcd_date_day1,
-            MAX(ws.lpcd_date_day2) as lpcd_date_day2,
-            MAX(ws.lpcd_date_day3) as lpcd_date_day3,
-            MAX(ws.lpcd_date_day4) as lpcd_date_day4,
-            MAX(ws.lpcd_date_day5) as lpcd_date_day5,
-            MAX(ws.lpcd_date_day6) as lpcd_date_day6,
-            MAX(ws.lpcd_date_day7) as lpcd_date_day7,
-            
-            -- Use the pre-calculated village counts from lpcd_aggregation
-            la.total_villages,
-            la.villages_below_55,
-            la.villages_above_55,
-            la.villages_zero_supply,
-            
-            -- Additional scheme info from scheme_status
-            -- Additional scheme info from scheme_status
-            MAX(ss.dashboard_url) as dashboard_url,
-            MAX(ss.mjp_commissioned) as mjp_commissioned,
-            MAX(ss.fully_completed_villages) as fully_completed_villages,
-            MAX(ss.total_villages_integrated) as total_villages_integrated,
-            MAX(ss.total_number_of_esr) as total_number_of_esr,
-            MAX(ss.total_esr_integrated) as total_esr_integrated,
-            MAX(ss.no_fully_completed_esr) as no_fully_completed_esr,
-            MAX(ss.fully_completion_scheme_status) as fully_completion_scheme_status,
-            MAX(ss.scheme_functional_status) as scheme_functional_status,
-            MAX(ss.flow_meters_connected) as flow_meters_connected,
-            MAX(ss.pressure_transmitter_connected) as pressure_transmitter_connected,
-            MAX(ss.residual_chlorine_analyzer_connected) as residual_chlorine_analyzer_connected,
-            MAX(ss.agency) as agency,
-            MAX(ss.agency_type) as agency_type
-          FROM 
-            deduplicated_villages wsd
-          JOIN
-            lpcd_aggregation la ON wsd.scheme_id = la.scheme_id AND wsd.block = la.block
-          LEFT JOIN
-            water_scheme_data ws ON 
-              wsd.scheme_id = ws.scheme_id AND 
-              wsd.block = ws.block AND 
-              wsd.village_name = ws.village_name
-          LEFT JOIN
-            scheme_status ss ON wsd.scheme_id = ss.scheme_id
-          GROUP BY 
-            wsd.scheme_id, wsd.scheme_name, wsd.region, wsd.circle, wsd.division, wsd.sub_division, wsd.block,
-            la.total_villages, la.villages_below_55, la.villages_above_55, la.villages_zero_supply
         )
-        
-        -- Calculate the LPCD values for each scheme using the formula:
-        -- (Total water supply * 100000) / Total population
         SELECT 
-          scheme_id,
-          scheme_name,
-          region,
-          circle,
-          division,
-          sub_division,
-          block,
-          total_population,
-          total_villages,
-          villages_below_55,
-          villages_above_55,
-          villages_zero_supply,
-          
-          -- Calculate the LPCD values for each day
-          CASE WHEN total_population > 0 THEN ROUND((total_water_day1 * 100000) / total_population, 2) ELSE 0 END as lpcd_value_day1,
-          CASE WHEN total_population > 0 THEN ROUND((total_water_day2 * 100000) / total_population, 2) ELSE 0 END as lpcd_value_day2,
-          CASE WHEN total_population > 0 THEN ROUND((total_water_day3 * 100000) / total_population, 2) ELSE 0 END as lpcd_value_day3,
-          CASE WHEN total_population > 0 THEN ROUND((total_water_day4 * 100000) / total_population, 2) ELSE 0 END as lpcd_value_day4,
-          CASE WHEN total_population > 0 THEN ROUND((total_water_day5 * 100000) / total_population, 2) ELSE 0 END as lpcd_value_day5,
-          CASE WHEN total_population > 0 THEN ROUND((total_water_day6 * 100000) / total_population, 2) ELSE 0 END as lpcd_value_day6,
-          -- For day7, calculate using total_water_day7 (FIXED - was using day6 before)
-          CASE WHEN total_population > 0 THEN ROUND((total_water_day7 * 100000) / total_population, 2) ELSE 0 END as lpcd_value_day7,
-          
-          -- Keep water supply totals for ALL 7 days
-          total_water_day1,
-          total_water_day2,
-          total_water_day3,
-          total_water_day4,
-          total_water_day5,
-          total_water_day6,
-          total_water_day7,
-          
-          -- Dates for ALL 7 days
-          water_date_day1,
-          water_date_day2,
-          water_date_day3,
-          water_date_day4,
-          water_date_day5,
-          water_date_day6,
-          water_date_day7,
-          lpcd_date_day1,
-          lpcd_date_day2,
-          lpcd_date_day3,
-          lpcd_date_day4,
-          lpcd_date_day5,
-          lpcd_date_day6,
-          lpcd_date_day7,
-          
-          -- Additional scheme info
-          dashboard_url,
-          mjp_commissioned,
-          -- NEW: Add these columns to support CombinedSchemesWidget
-          fully_completed_villages,
-          total_villages_integrated,
-          total_number_of_esr,
-          total_esr_integrated,
-          no_fully_completed_esr,
-          fully_completion_scheme_status,
-          scheme_functional_status,
-          flow_meters_connected,
-          pressure_transmitter_connected,
-          residual_chlorine_analyzer_connected,
-          agency,
-          agency_type,
+          sp.*,
+          ss.scheme_name, ss.region, ss.circle, ss.division, ss.sub_division, 
+          ss.dashboard_url, ss.mjp_commissioned, ss.fully_completed_villages, 
+          ss.total_villages_integrated, ss.total_number_of_esr, ss.total_esr_integrated, 
+          ss.no_fully_completed_esr, ss.fully_completion_scheme_status, ss.scheme_functional_status, 
+          ss.flow_meters_connected, ss.pressure_transmitter_connected, 
+          ss.residual_chlorine_analyzer_connected, ss.agency, ss.agency_type,
           (SELECT description FROM helpdesk_tickets ht 
-           WHERE ht.scheme_id = scheme_id 
+           WHERE ht.scheme_id = sp.scheme_id 
            AND ht.level = 'Scheme' 
            AND ht.status IN ('Open', 'In-Progress') 
            ORDER BY ht.created_at DESC LIMIT 1) as remark
         FROM 
-          scheme_aggregation
+          scheme_pivot sp
+        LEFT JOIN
+          scheme_status ss ON sp.scheme_id = ss.scheme_id AND sp.block = ss.block
       `;
 
       // Add WHERE clause for filtering
@@ -266,15 +139,13 @@ router.get('/', async (req, res) => {
         queryParams.push(block);
       }
 
-      // LPCD minimum filter
       if (minLpcd) {
-        conditions.push('CASE WHEN total_population > 0 THEN ROUND((total_water_day7 * 100000) / total_population, 2) ELSE 0 END >= $' + (queryParams.length + 1));
+        conditions.push(`lpcd_value_day7 >= $${queryParams.length + 1}`);
         queryParams.push(Number(minLpcd));
       }
 
-      // LPCD maximum filter
       if (maxLpcd) {
-        conditions.push('CASE WHEN total_population > 0 THEN ROUND((total_water_day7 * 100000) / total_population, 2) ELSE 0 END < $' + (queryParams.length + 1));
+        conditions.push(`lpcd_value_day7 < $${queryParams.length + 1}`);
         queryParams.push(Number(maxLpcd));
       }
 
@@ -330,34 +201,46 @@ router.get('/lpcd-stats', async (req, res) => {
     try {
       // First, get aggregated scheme data
       let aggregatedDataQuery = `
-        WITH scheme_aggregation AS (
+        WITH ranked_history AS (
           SELECT 
-            wsd.scheme_id,
-            wsd.scheme_name,
-            wsd.region,
-            wsd.circle,
-            wsd.division,
-            wsd.sub_division,
-            wsd.block,
-            SUM(wsd.population) as total_population,
-            SUM(wsd.water_value_day1) as total_water_day1,
-            MAX(ss.agency_type) as agency_type
-          FROM 
-            water_scheme_data wsd
-          LEFT JOIN
-            scheme_status ss ON wsd.scheme_id = ss.scheme_id
-          GROUP BY 
-            wsd.scheme_id, wsd.scheme_name, wsd.region, wsd.circle, wsd.division, wsd.sub_division, wsd.block
+            scheme_id, block, lpcd_value, total_population,
+            CASE 
+              WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
+              WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
+              WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
+                CASE
+                  WHEN TO_DATE(data_date || '-' || TO_CHAR(COALESCE(uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY') > (COALESCE(uploaded_at, CURRENT_DATE) + interval '1 month')
+                  THEN TO_DATE(data_date || '-' || (TO_CHAR(COALESCE(uploaded_at, CURRENT_DATE), 'YYYY')::int - 1), 'DD-Mon-YYYY')
+                  ELSE TO_DATE(data_date || '-' || TO_CHAR(COALESCE(uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY')
+                END
+              ELSE NULL 
+            END as parsed_date,
+            ROW_NUMBER() OVER (PARTITION BY scheme_id, block ORDER BY 
+              CASE 
+                WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
+                WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
+                WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
+                  CASE
+                    WHEN TO_DATE(data_date || '-' || TO_CHAR(COALESCE(uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY') > (COALESCE(uploaded_at, CURRENT_DATE) + interval '1 month')
+                    THEN TO_DATE(data_date || '-' || (TO_CHAR(COALESCE(uploaded_at, CURRENT_DATE), 'YYYY')::int - 1), 'DD-Mon-YYYY')
+                    ELSE TO_DATE(data_date || '-' || TO_CHAR(COALESCE(uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY')
+                  END
+                ELSE NULL 
+              END DESC NULLS LAST, uploaded_at DESC) as rn
+          FROM scheme_lpcd_data_history
+        ),
+        latest_scheme_data AS (
+          SELECT rh.*, ss.region, ss.circle, ss.division, ss.sub_division, ss.agency_type
+          FROM ranked_history rh
+          LEFT JOIN scheme_status ss ON rh.scheme_id = ss.scheme_id AND rh.block = ss.block
+          WHERE rn = 1
         )
-        
         SELECT 
           scheme_id,
-          scheme_name,
-          region,
-          total_population,
-          CASE WHEN total_population > 0 THEN ROUND((total_water_day1 * 100000) / total_population, 2) ELSE 0 END as lpcd_value_day1
+          lpcd_value as lpcd_value_day7,
+          region, circle, division, sub_division, block, agency_type
         FROM 
-          scheme_aggregation
+          latest_scheme_data
       `;
 
       // Add WHERE clauses for geographic filtering
@@ -409,7 +292,7 @@ router.get('/lpcd-stats', async (req, res) => {
 
       // Count schemes in different LPCD ranges
       schemeData.rows.forEach((scheme) => {
-        const lpcdValue = parseFloat(scheme.lpcd_value_day1);
+        const lpcdValue = parseFloat(scheme.lpcd_value_day7);
 
         if (lpcdValue === 0) {
           stats.zero_lpcd_count += 1;
@@ -461,8 +344,10 @@ router.get('/history', async (req, res) => {
                 WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+-\\d{2}$' THEN TO_DATE(h.data_date, 'DD-Mon-YY')
                 ELSE NULL
               END
-            ) as actual_date
+            ) as actual_date,
+            ss.agency_type
           FROM scheme_lpcd_data_history h
+          LEFT JOIN scheme_status ss ON h.scheme_id = ss.scheme_id AND h.block = ss.block
         )
         SELECT 
           *
@@ -584,8 +469,9 @@ router.get('/export/history', async (req, res) => {
             h.lpcd_value,
             h.dashboard_url,
             h.mjp_commissioned,
-            h.agency_type
+            ss.agency_type
           FROM scheme_lpcd_data_history h
+          LEFT JOIN scheme_status ss ON h.scheme_id = ss.scheme_id AND h.block = ss.block
         )
         SELECT 
           *,
@@ -737,7 +623,8 @@ router.get('/export/history', async (req, res) => {
             scheme.block,
             scheme.total_population,
             scheme.total_villages,
-            scheme.mjp_commissioned || ''
+            scheme.mjp_commissioned || '',
+            scheme.agency_type || ''
           ];
 
           uniqueDates.forEach(date => {
@@ -785,7 +672,7 @@ router.get('/export/history', async (req, res) => {
         // CSV format with pivot structure
         const headerRow = [
           'Scheme ID', 'Scheme Name', 'Region', 'Circle', 'Division', 'Sub Division', 'Block',
-          'Total Population', 'Total Villages', 'MJP Commissioned'
+          'Total Population', 'Total Villages', 'MJP Commissioned', 'Agency Type'
         ];
 
         formattedDates.forEach(date => {
@@ -815,7 +702,8 @@ router.get('/export/history', async (req, res) => {
             scheme.block,
             scheme.total_population,
             scheme.total_villages,
-            scheme.mjp_commissioned || ''
+            scheme.mjp_commissioned || '',
+            `"${(scheme.agency_type || '').replace(/"/g, '""')}"`
           ];
 
           uniqueDates.forEach(date => {
@@ -952,7 +840,18 @@ router.post('/populate-history', async (req, res) => {
                    villages_zero_supply, data_date, water_value, lpcd_value, upload_batch_id, 
                    dashboard_url, mjp_commissioned)
                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
-                  ON CONFLICT (scheme_id, block, data_date) DO NOTHING
+                  ON CONFLICT (scheme_id, block, data_date) 
+                  DO UPDATE SET 
+                    total_population = EXCLUDED.total_population,
+                    total_villages = EXCLUDED.total_villages,
+                    villages_below_55 = EXCLUDED.villages_below_55,
+                    villages_above_55 = EXCLUDED.villages_above_55,
+                    villages_zero_supply = EXCLUDED.villages_zero_supply,
+                    water_value = EXCLUDED.water_value,
+                    lpcd_value = EXCLUDED.lpcd_value,
+                    upload_batch_id = EXCLUDED.upload_batch_id,
+                    mjp_commissioned = EXCLUDED.mjp_commissioned,
+                    uploaded_at = CURRENT_TIMESTAMP
                 `;
 
                 const values = [

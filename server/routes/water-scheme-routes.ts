@@ -1327,7 +1327,18 @@ async function importDataToDatabase(data: any[], isExcel: boolean, isLpcdTemplat
                    villages_zero_supply, data_date, water_value, lpcd_value, upload_batch_id, 
                    dashboard_url, mjp_commissioned)
                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
-                  ON CONFLICT (scheme_id, block, data_date) DO NOTHING
+                  ON CONFLICT (scheme_id, block, data_date) 
+                  DO UPDATE SET 
+                    total_population = EXCLUDED.total_population,
+                    total_villages = EXCLUDED.total_villages,
+                    villages_below_55 = EXCLUDED.villages_below_55,
+                    villages_above_55 = EXCLUDED.villages_above_55,
+                    villages_zero_supply = EXCLUDED.villages_zero_supply,
+                    water_value = EXCLUDED.water_value,
+                    lpcd_value = EXCLUDED.lpcd_value,
+                    upload_batch_id = EXCLUDED.upload_batch_id,
+                    mjp_commissioned = EXCLUDED.mjp_commissioned,
+                    uploaded_at = CURRENT_TIMESTAMP
                 `;
 
                 const values = [

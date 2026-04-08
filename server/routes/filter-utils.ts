@@ -149,7 +149,7 @@ export async function getFilteredSchemeIds(db: any, filterType: any, fullyComple
   }
 
   // Common condition definitions
-  const rule1Condition = sql`TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN ('fully completed', 'completed', 'in progress')`;
+  const rule1Condition = sql`TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN ('fully completed', 'completed', 'connected', 'in progress')`;
   const rule3Condition = sql`TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN ('fully completed', 'completed')`;
   const rule5Condition = sql`TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN ('fully completed', 'completed') AND TRIM(LOWER(${schemeStatuses.water_supply})) = 'yes'`;
 
@@ -199,6 +199,7 @@ export async function getFilteredSchemeIds(db: any, filterType: any, fullyComple
   if (activeFilter === 'all' || activeFilter === 'All') {
     conditions.push(rule1Condition);
   } else if (activeFilter === 'commissioned') {
+    conditions.push(rule1Condition);
     conditions.push(sql`TRIM(LOWER(${schemeStatuses.water_supply})) = 'yes'`);
   } else if (activeFilter === 'fully_completed') {
     conditions.push(rule3Condition);
@@ -233,6 +234,7 @@ export async function getFilteredSchemeIds(db: any, filterType: any, fullyComple
   if (statusSuffix) {
     if (activeFilter === 'commissioned') {
       const baseConditions = [
+        rule1Condition,
         sql`LOWER(${schemeStatuses.water_supply}) = 'yes'`
       ];
       if (targetAgencyType && targetAgencyType.toUpperCase() !== 'ALL') {
