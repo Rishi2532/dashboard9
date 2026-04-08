@@ -281,37 +281,39 @@ router.get("/regional-stats", async (req, res) => {
     const client = await pool.connect();
 
     try {
+      // Get all unique regions from scheme_status starting point
       const regionsResult = await client.query(`
-        SELECT DISTINCT region FROM communication_status cs WHERE region IS NOT NULL ${schemeIdFilter} ORDER BY region
+        SELECT DISTINCT region FROM scheme_status ss WHERE region IS NOT NULL ${schemeIdFilter.replace(/cs\.scheme_id/g, 'ss.scheme_id')} ORDER BY region
       `);
       const regions = regionsResult.rows.map((row: any) => row.region);
       console.log(`Found ${regions.length} regions`);
 
       const regionalStats = await Promise.all(
         regions.map(async (region: string) => {
-          const bkey = "TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, '')))";
           const statsResult = await client.query(`
             SELECT 
-              COUNT(DISTINCT TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, '')))) as total_connected,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as total_online,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Offline' AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as offline_with_no_water,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Offline' AND wc.water_value_day7 > 0 THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as offline_with_water,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Offline' THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as total_offline,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND wc.water_value_day7 > 0 THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as online_with_water,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as online_without_water,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND wc.water_value_day7 > 0 AND pd.pressure_value_7 BETWEEN 0.2 AND 0.7 THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as online_with_water_pressure_optimal,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND wc.water_value_day7 > 0 AND pd.pressure_value_7 > 0.7 THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as online_with_water_pressure_above,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND wc.water_value_day7 > 0 AND pd.pressure_value_7 < 0.2 THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as online_with_water_pressure_below,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) AND pd.pressure_value_7 BETWEEN 0.2 AND 0.7 THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as online_without_water_pressure_optimal,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) AND pd.pressure_value_7 > 0.7 THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as online_without_water_pressure_above,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) AND pd.pressure_value_7 < 0.2 THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as online_without_water_pressure_below,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Offline' AND CURRENT_TIMESTAMP - cs.pressure_last_seen >= INTERVAL '7 days' THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as offline_since_7days,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Offline' AND CURRENT_TIMESTAMP - cs.pressure_last_seen >= INTERVAL '30 days' THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as offline_since_30days,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Offline' AND CURRENT_TIMESTAMP - cs.pressure_last_seen >= INTERVAL '3 days' THEN TRIM(UPPER(COALESCE(cs.scheme_id, ''))) || '-' || TRIM(UPPER(COALESCE(cs.village_name, ''))) || '-' || TRIM(UPPER(COALESCE(cs.esr_name, ''))) END) as offline_since_3days
-            FROM communication_status cs
+              COUNT(DISTINCT ss.scheme_id) as total_schemes,
+              COUNT(DISTINCT CASE WHEN cs.pressure_connected = 'Connected' THEN cs.id END) as total_connected,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' THEN cs.id END) as total_online,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Offline' AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) THEN cs.id END) as offline_with_no_water,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Offline' AND wc.water_value_day7 > 0 THEN cs.id END) as offline_with_water,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Offline' THEN cs.id END) as total_offline,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND wc.water_value_day7 > 0 THEN cs.id END) as online_with_water,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) THEN cs.id END) as online_without_water,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND wc.water_value_day7 > 0 AND pd.pressure_value_7 BETWEEN 0.2 AND 0.7 THEN cs.id END) as online_with_water_pressure_optimal,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND wc.water_value_day7 > 0 AND pd.pressure_value_7 > 0.7 THEN cs.id END) as online_with_water_pressure_above,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND wc.water_value_day7 > 0 AND pd.pressure_value_7 < 0.2 THEN cs.id END) as online_with_water_pressure_below,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) AND pd.pressure_value_7 BETWEEN 0.2 AND 0.7 THEN cs.id END) as online_without_water_pressure_optimal,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) AND pd.pressure_value_7 > 0.7 THEN cs.id END) as online_without_water_pressure_above,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) AND pd.pressure_value_7 < 0.2 THEN cs.id END) as online_without_water_pressure_below,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Offline' AND CURRENT_TIMESTAMP - cs.pressure_last_seen >= INTERVAL '7 days' THEN cs.id END) as offline_since_7days,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Offline' AND CURRENT_TIMESTAMP - cs.pressure_last_seen >= INTERVAL '30 days' THEN cs.id END) as offline_since_30days,
+              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Offline' AND CURRENT_TIMESTAMP - cs.pressure_last_seen >= INTERVAL '3 days' THEN cs.id END) as offline_since_3days
+            FROM scheme_status ss
+            LEFT JOIN communication_status cs ON (ss.scheme_id = cs.scheme_id AND cs.pressure_connected = 'Connected')
             LEFT JOIN water_consumption wc ON (cs.scheme_id = wc.scheme_id AND cs.village_name = wc.village_name)
             LEFT JOIN pressure_data pd ON (cs.scheme_id = pd.scheme_id AND cs.village_name = pd.village_name AND cs.esr_name = pd.esr_name)
-            WHERE cs.region = $1 AND cs.pressure_connected = 'Connected' ${schemeIdFilter}
+            WHERE ss.region = $1 ${schemeIdFilter.replace(/cs\.scheme_id/g, 'ss.scheme_id')}
           `, [region]);
 
           const row = statsResult.rows[0] || {};
@@ -381,33 +383,34 @@ router.get("/division-wise-summary", async (req, res) => {
 
     const result = await db.execute(sql`
       SELECT 
-        region,
-        division,
-        COUNT(DISTINCT scheme_id || '-' || village_name || '-' || esr_name) as total_sensors,
+        ss.region,
+        ss.division,
+        COUNT(DISTINCT ss.scheme_id) as total_schemes,
         COUNT(DISTINCT CASE 
-          WHEN pressure_value_7::numeric > 0 AND pressure_value_7::numeric < 0.2 
-          THEN scheme_id || '-' || village_name || '-' || esr_name 
+          WHEN pd.pressure_value_7::numeric > 0 AND pd.pressure_value_7::numeric < 0.2 
+          THEN pd.scheme_id || '-' || pd.village_name || '-' || pd.esr_name 
         END) as below_0_2,
         COUNT(DISTINCT CASE 
-          WHEN pressure_value_7::numeric >= 0.2 AND pressure_value_7::numeric <= 0.7 
-          THEN scheme_id || '-' || village_name || '-' || esr_name 
+          WHEN pd.pressure_value_7::numeric >= 0.2 AND pd.pressure_value_7::numeric <= 0.7 
+          THEN pd.scheme_id || '-' || pd.village_name || '-' || pd.esr_name 
         END) as optimal,
         COUNT(DISTINCT CASE 
-          WHEN pressure_value_7::numeric > 0.7 
-          THEN scheme_id || '-' || village_name || '-' || esr_name 
+          WHEN pd.pressure_value_7::numeric > 0.7 
+          THEN pd.scheme_id || '-' || pd.village_name || '-' || pd.esr_name 
         END) as above_0_7
-      FROM pressure_data
-      WHERE pressure_value_7 IS NOT NULL
-      ${region && region !== 'All Regions' ? sql`AND LOWER(region) = LOWER(${region})` : sql``}
-      ${schemeIdFilter ? sql.raw(schemeIdFilter) : sql``}
-      GROUP BY region, division
-      ORDER BY region, division
+      FROM scheme_status ss
+      LEFT JOIN pressure_data pd ON ss.scheme_id = pd.scheme_id
+      WHERE 1=1
+      ${region && region !== 'All Regions' ? sql`AND LOWER(ss.region) = LOWER(${region})` : sql``}
+      ${sql.raw(schemeIdFilter.replace(/scheme_id/g, 'ss.scheme_id'))}
+      GROUP BY ss.region, ss.division
+      ORDER BY ss.region, ss.division
     `);
 
     const divisionSummary = result.rows.map((row: any) => ({
       region: row.region || "",
       division: row.division || "Unknown",
-      totalSensors: parseInt(row.total_sensors) || 0,
+      totalSensors: parseInt(row.total_schemes) || 0,
       sensorsBelow02: parseInt(row.below_0_2) || 0,
       sensorsOptimal: parseInt(row.optimal) || 0,
       sensorsAbove07: parseInt(row.above_0_7) || 0,

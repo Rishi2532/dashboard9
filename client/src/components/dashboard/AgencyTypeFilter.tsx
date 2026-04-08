@@ -15,13 +15,17 @@ export default function AgencyTypeFilter({
     const options = [
         { label: "All Agencies", value: "ALL" },
         { label: "MJP", value: "MJP" },
-        { label: "ZP", value: "ZP" },
+        { label: "Contractor", value: "Contractor" },
+        { label: "GP", value: "GP" },
+        { label: "ZP-Self", value: "ZP-Self" },
+        { label: "ZP-Shikarsamiti", value: "ZP-Shikarsamiti" },
+        { label: "Not Assigned", value: "Agency Not Assigned" },
     ];
 
     return (
         <div className={`flex flex-col space-y-1.5 ${className}`}>
             <Label className="text-[10px] font-bold text-slate-400 uppercase ml-1 tracking-wider">Agency Selection</Label>
-            <div className="flex p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit border border-slate-200 dark:border-slate-700 shadow-sm">
+            <div className="flex flex-wrap gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-full max-w-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
                 {options.map((option) => (
                     <Button
                         key={option.value}

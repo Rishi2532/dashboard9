@@ -325,78 +325,66 @@ router.get("/regional-stats", async (req, res) => {
     const client = await pool.connect();
 
     try {
-      // Get all unique regions from communication status
+      // Get all unique regions from scheme_status starting point to ensure we don't miss any
       const regionsResult = await client.query(`
         SELECT DISTINCT region 
-        FROM communication_status cs
+        FROM scheme_status ss
         WHERE region IS NOT NULL 
-        ${schemeIdFilter}
+        ${schemeIdFilter.replace(/cs\.scheme_id/g, 'ss.scheme_id')}
         ORDER BY region
       `);
       const regions = regionsResult.rows.map((row: { region: string }) => row.region);
 
       console.log(`Found ${regions.length} regions to process`);
-      /*
-      - [ ] Verification
-          - [x] Compare UI counts with Export counts for various metrics.
-          - [x] Confirm Excel file content reflects January 2026 data correctly.
-          - [x] Update walkthrough.
-      - [/] Village LPCD Weekly Average Verification
-          - [/] Investigate week average calculation logic.
-          - [ ] Run verification script for Amravati region (29-Dec to 04-Jan).
-          - [ ] Compare database result with UI value (265).
-      */
+
       // Calculate statistics for each region
       const regionalStats = await Promise.all(
         regions.map(async (region: string) => {
           const statsResult = await client.query(`
             SELECT 
+              COUNT(DISTINCT ss.scheme_id) as total_schemes,
               COUNT(DISTINCT CASE WHEN cs.chlorine_connected = 'Connected' THEN cs.id END) as total_connected,
               COUNT(DISTINCT CASE WHEN cs.chlorine_connected = 'Connected' AND cs.chlorine_status = 'Online' THEN cs.id END) as total_online,
-              COUNT(DISTINCT CASE WHEN cs.chlorine_connected = 'Connected' AND cs.chlorine_status = 'Offline' AND (wc.water_value_day7 IS NULL OR CAST(wc.water_value_day7 AS text) = '0' OR wc.water_value_day7 = 0) THEN cs.id END) as offline_with_no_water,
-              COUNT(DISTINCT CASE WHEN cs.chlorine_connected = 'Connected' AND cs.chlorine_status = 'Offline' AND wc.water_value_day7 IS NOT NULL AND wc.water_value_day7 > 0 THEN cs.id END) as offline_with_water,
+              COUNT(DISTINCT CASE WHEN cs.chlorine_connected = 'Connected' AND cs.chlorine_status = 'Offline' AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) THEN cs.id END) as offline_with_no_water,
+              COUNT(DISTINCT CASE WHEN cs.chlorine_connected = 'Connected' AND cs.chlorine_status = 'Offline' AND wc.water_value_day7 > 0 THEN cs.id END) as offline_with_water,
               COUNT(DISTINCT CASE WHEN cs.chlorine_connected = 'Connected' AND cs.chlorine_status = 'Offline' THEN cs.id END) as total_offline,
               COUNT(DISTINCT CASE 
                 WHEN cs.chlorine_connected = 'Connected' 
                   AND cs.chlorine_status = 'Online' 
-                  AND wc.water_value_day7 IS NOT NULL 
-                  AND CAST(wc.water_value_day7 AS text) != '0'
                   AND wc.water_value_day7 > 0
                 THEN cs.id 
               END) as online_with_water,
               COUNT(DISTINCT CASE 
                 WHEN cs.chlorine_connected = 'Connected' 
                   AND cs.chlorine_status = 'Online' 
-                  AND (wc.water_value_day7 IS NULL OR CAST(wc.water_value_day7 AS text) = '0' OR wc.water_value_day7 = 0)
+                  AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0)
                 THEN cs.id 
               END) as online_without_water,
               COUNT(DISTINCT CASE 
                 WHEN cs.chlorine_connected = 'Connected' 
                   AND cs.chlorine_status = 'Online' 
-                  AND wc.water_value_day7 IS NOT NULL AND wc.water_value_day7 > 0
-                  AND cd.chlorine_value_7 IS NOT NULL 
+                  AND wc.water_value_day7 > 0
                   AND cd.chlorine_value_7 >= 0.2 AND cd.chlorine_value_7 <= 0.5
                 THEN cs.id 
               END) as online_with_water_chlorine_optimal,
               COUNT(DISTINCT CASE 
                 WHEN cs.chlorine_connected = 'Connected' 
                   AND cs.chlorine_status = 'Online' 
-                  AND wc.water_value_day7 IS NOT NULL AND wc.water_value_day7 > 0
-                  AND cd.chlorine_value_7 IS NOT NULL AND cd.chlorine_value_7 > 0.5
+                  AND wc.water_value_day7 > 0
+                  AND cd.chlorine_value_7 > 0.5
                 THEN cs.id 
               END) as online_with_water_chlorine_above,
               COUNT(DISTINCT CASE 
                 WHEN cs.chlorine_connected = 'Connected' 
                   AND cs.chlorine_status = 'Online' 
-                  AND wc.water_value_day7 IS NOT NULL AND wc.water_value_day7 > 0
-                  AND cd.chlorine_value_7 IS NOT NULL AND cd.chlorine_value_7 < 0.2
+                  AND wc.water_value_day7 > 0
+                  AND cd.chlorine_value_7 < 0.2
                 THEN cs.id 
               END) as online_with_water_chlorine_below,
               COUNT(DISTINCT CASE 
                 WHEN cs.chlorine_connected = 'Connected' 
                   AND cs.chlorine_status = 'Online' 
                   AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0)
-                  AND cd.chlorine_value_7 IS NOT NULL 
                   AND cd.chlorine_value_7 >= 0.2 AND cd.chlorine_value_7 <= 0.5
                 THEN cs.id 
               END) as online_without_water_chlorine_optimal,
@@ -404,14 +392,14 @@ router.get("/regional-stats", async (req, res) => {
                 WHEN cs.chlorine_connected = 'Connected' 
                   AND cs.chlorine_status = 'Online' 
                   AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0)
-                  AND cd.chlorine_value_7 IS NOT NULL AND cd.chlorine_value_7 > 0.5
+                  AND cd.chlorine_value_7 > 0.5
                 THEN cs.id 
               END) as online_without_water_chlorine_above,
               COUNT(DISTINCT CASE 
                 WHEN cs.chlorine_connected = 'Connected' 
                   AND cs.chlorine_status = 'Online' 
                   AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0)
-                  AND cd.chlorine_value_7 IS NOT NULL AND cd.chlorine_value_7 < 0.2
+                  AND cd.chlorine_value_7 < 0.2
                 THEN cs.id 
               END) as online_without_water_chlorine_below,
               COUNT(DISTINCT CASE 
@@ -435,30 +423,19 @@ router.get("/regional-stats", async (req, res) => {
                   AND CURRENT_TIMESTAMP - cs.last_seen >= INTERVAL '3 days'
                 THEN cs.id 
               END) as offline_since_3days
-            FROM communication_status cs
+            FROM scheme_status ss
+            LEFT JOIN communication_status cs ON (ss.scheme_id = cs.scheme_id)
             LEFT JOIN water_consumption wc ON (
-              cs.region = wc.region AND
-              cs.circle = wc.circle AND
-              cs.division = wc.division AND
-              cs.sub_division = wc.sub_division AND
-              cs.block = wc.block AND
               cs.scheme_id = wc.scheme_id AND
-              cs.scheme_name = wc.scheme_name AND
               cs.village_name = wc.village_name AND
               cs.esr_name = wc.esr_name
             )
             LEFT JOIN chlorine_data cd ON (
-              cs.region = cd.region AND
-              cs.circle = cd.circle AND
-              cs.division = cd.division AND
-              cs.sub_division = cd.sub_division AND
-              cs.block = cd.block AND
               cs.scheme_id = cd.scheme_id AND
-              cs.scheme_name = cd.scheme_name AND
               cs.village_name = cd.village_name AND
               cs.esr_name = cd.esr_name
             )
-            WHERE cs.region = $1 ${schemeIdFilter}
+            WHERE ss.region = $1 ${schemeIdFilter.replace(/cs\.scheme_id/g, 'ss.scheme_id')}
           `, [region]);
 
           const row = statsResult.rows[0] || {};
@@ -532,43 +509,45 @@ router.get("/division-wise-summary", async (req, res) => {
     }
 
     // Build SQL query to aggregate chlorine data by division
+    // Starting from scheme_status ensures all 225 schemes are counted
     const result = await db.execute(sql`
       SELECT 
-        region,
-        division,
-        COUNT(DISTINCT scheme_id || '-' || village_name || '-' || esr_name) as total_rcas,
+        ss.region,
+        ss.division,
+        COUNT(DISTINCT ss.scheme_id) as total_schemes,
         COUNT(DISTINCT CASE 
-          WHEN chlorine_value_7::numeric > 0 AND chlorine_value_7::numeric < 0.2 
-          THEN scheme_id || '-' || village_name || '-' || esr_name 
+          WHEN cd.chlorine_value_7::numeric > 0 AND cd.chlorine_value_7::numeric < 0.2 
+          THEN cd.scheme_id || '-' || cd.village_name || '-' || cd.esr_name 
         END) as below_0_2,
         COUNT(DISTINCT CASE 
-          WHEN chlorine_value_7::numeric >= 0.2 AND chlorine_value_7::numeric <= 0.5 
-          THEN scheme_id || '-' || village_name || '-' || esr_name 
+          WHEN cd.chlorine_value_7::numeric >= 0.2 AND cd.chlorine_value_7::numeric <= 0.5 
+          THEN cd.scheme_id || '-' || cd.village_name || '-' || cd.esr_name 
         END) as optimal,
         COUNT(DISTINCT CASE 
-          WHEN chlorine_value_7::numeric > 0.5 
-          THEN scheme_id || '-' || village_name || '-' || esr_name 
+          WHEN cd.chlorine_value_7::numeric > 0.5 
+          THEN cd.scheme_id || '-' || cd.village_name || '-' || cd.esr_name 
         END) as above_0_5
-      FROM chlorine_data
-      WHERE chlorine_value_7 IS NOT NULL
-      ${region && region !== 'All Regions' ? sql`AND LOWER(region) = LOWER(${region})` : sql``}
-      ${sql.raw(schemeIdFilter)}
-      GROUP BY region, division
-      ORDER BY region, division
+      FROM scheme_status ss
+      LEFT JOIN chlorine_data cd ON ss.scheme_id = cd.scheme_id
+      WHERE 1=1
+      ${region && region !== 'All Regions' ? sql`AND LOWER(ss.region) = LOWER(${region})` : sql``}
+      ${sql.raw(schemeIdFilter.replace(/scheme_id/g, 'ss.scheme_id'))}
+      GROUP BY ss.region, ss.division
+      ORDER BY ss.region, ss.division
     `);
 
     // Transform the result
     const divisionSummary = result.rows.map((row: {
       region: string | null;
       division: string | null;
-      total_rcas: string | number;
+      total_schemes: string | number;
       below_0_2: string | number;
       optimal: string | number;
       above_0_5: string | number;
     }) => ({
       region: row.region || "",
       division: row.division || "Unknown",
-      totalRCAs: parseInt(row.total_rcas as string) || 0,
+      totalRCAs: parseInt(row.total_schemes as string) || 0,
       rcasBelow02: parseInt(row.below_0_2 as string) || 0,
       rcasOptimal: parseInt(row.optimal as string) || 0,
       rcasAbove05: parseInt(row.above_0_5 as string) || 0,
@@ -7040,10 +7019,10 @@ router.get("/scheme-lpcd/region-comparison", async (req, res) => {
             ) as latest_lpcd_value,
             total_water_day7 as latest_water_value
           FROM (
-            SELECT DISTINCT ON (region, scheme_name) *
+            SELECT DISTINCT ON (scheme_id) *
             FROM scheme_calculated_values
             WHERE scheme_name IS NOT NULL AND BTRIM(scheme_name) <> ''
-            ORDER BY region, scheme_name, block
+            ORDER BY scheme_id, block
           ) calculated
           WHERE region IS NOT NULL
           ${schemeIdFilter}
@@ -7270,10 +7249,10 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
             ) as latest_lpcd_value,
             total_water_day7 as latest_water_value
           FROM (
-            SELECT DISTINCT ON (region, scheme_name) *
+            SELECT DISTINCT ON (scheme_id) *
             FROM scheme_calculated_values
             WHERE scheme_name IS NOT NULL AND BTRIM(scheme_name) <> ''
-            ORDER BY region, scheme_name, block
+            ORDER BY scheme_id, block
           ) calculated
         ),
         latest_history AS (

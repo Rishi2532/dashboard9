@@ -621,7 +621,7 @@ const SchemeLpcdDashboard = () => {
           }
           return status.water_supply === "Yes";
         }
-        
+
         if (uiSchemeFilter === "fully_completed") {
           const statusValue = String(status.fully_completion_scheme_status || "").toLowerCase();
           return statusValue === "fully completed" || statusValue === "completed" || statusValue === "fully_completed";
@@ -815,7 +815,7 @@ const SchemeLpcdDashboard = () => {
           }
           return status.water_supply === "Yes";
         }
-        
+
         if (uiSchemeFilter === "fully_completed") {
           const statusValue = String(status.fully_completion_scheme_status || "").toLowerCase();
           return statusValue === "fully completed" || statusValue === "completed" || statusValue === "fully_completed";
@@ -1847,22 +1847,6 @@ const SchemeLpcdDashboard = () => {
               </SelectContent>
             </Select>
 
-            {uiSchemeFilter === "commissioned" && (
-              <>
-                <div className="h-6 w-px bg-blue-200 mx-1"></div>
-                <Tabs value={waterSupplyStatus} onValueChange={(val) => {
-                  setWaterSupplyStatus(val);
-                  setPage(1);
-                }} className="m-0">
-                  <TabsList className="h-9 bg-blue-50 border border-blue-100 p-0.5">
-                    <TabsTrigger value="All" className="text-xs h-8 data-[state=active]:bg-blue-600 data-[state=active]:text-white">All</TabsTrigger>
-                    <TabsTrigger value="Full" className="text-xs h-8 data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Full</TabsTrigger>
-                    <TabsTrigger value="Partial" className="text-xs h-8 data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partial</TabsTrigger>
-                    <TabsTrigger value="No" className="text-xs h-8 data-[state=active]:bg-red-500 data-[state=active]:text-white">No</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </>
-            )}
 
             <div className="h-6 w-px bg-blue-200 mx-1"></div>
             <Select
@@ -2150,45 +2134,9 @@ const SchemeLpcdDashboard = () => {
                                         {scheme.region} • Block: {scheme.block}
                                       </DialogDescription>
                                     </DialogHeader>
-                                    <div className="flex flex-wrap items-center gap-3 mb-6 bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter:</span>
-        <Select value={uiSchemeFilter} onValueChange={setUiSchemeFilter}>
-          <SelectTrigger className="w-[240px] bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
-            <SelectValue placeholder="Select Filter" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Schemes</SelectItem>
-            <SelectItem value="commissioned">100% Civil work Completed</SelectItem>
-            <SelectItem value="fully_completed">Fully Instrumented Schemes</SelectItem>
-            <SelectItem value="in_progress">Partially instrumented schemes</SelectItem>
-            <SelectItem value="common_filter">Common filter</SelectItem>
-            <SelectItem value="mjp_commissioned_yes">Commissioned</SelectItem>
-          </SelectContent>
-        </Select>
 
-        {uiSchemeFilter === "commissioned" && (
-          <>
-            <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2"></div>
-            <Tabs value={waterSupplyStatus} onValueChange={setWaterSupplyStatus} className="m-0">
-              <TabsList className="h-10 bg-gray-100 dark:bg-gray-800 p-1 border border-gray-200 dark:border-gray-700">
-                <TabsTrigger value="All" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-blue-600 data-[state=active]:text-white">All Water Supply</TabsTrigger>
-                <TabsTrigger value="Full" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Full</TabsTrigger>
-                <TabsTrigger value="Partial" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partial</TabsTrigger>
-                <TabsTrigger value="No" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-red-500 data-[state=active]:text-white">No</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </>
-        )}
 
-        <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2"></div>
-        <AgencyTypeFilter
-          selectedAgencyType={selectedAgencyType}
-          onAgencyTypeChange={setSelectedAgencyType}
-          className="w-full md:w-64"
-        />
-      </div>
-
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-4">
+                                    <div className="mb-6 grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-4">
                                       <div className="space-y-4">
                                         <div>
                                           <h3 className="font-medium text-gray-700 mb-1">

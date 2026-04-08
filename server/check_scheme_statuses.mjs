@@ -28,6 +28,24 @@ async function checkSchemeStatuses() {
       console.log(`  "${row.status}" → ${row.count} schemes`);
     });
     console.log('─'.repeat(60));
+
+    // Detail check for Fully Completed
+    const detailQuery = `
+      SELECT scheme_id, scheme_name, region, district
+      FROM scheme_status
+      WHERE LOWER(fully_completion_scheme_status) = 'fully completed'
+    `;
+    const detailRes = await pool.query(detailQuery);
+    console.log('\nDetailed List of "Fully Completed" Schemes:');
+    detailRes.rows.forEach(r => {
+      console.log(`- ID: ${r.scheme_id}, Region: "${r.region}", Name: ${r.scheme_name}`);
+    });
+    
+    const uniqueIds = new Set(detailRes.rows.map(r => r.scheme_id));
+    console.log(`\nUnique IDs count: ${uniqueIds.size}`);
+    
+    const noRegion = detailRes.rows.filter(r => !r.region || r.region.trim() === '');
+    console.log(`Missing Region count: ${noRegion.length}`);
     
     // Test specific filters
     console.log('\n=== Testing Filter Matches ===\n');

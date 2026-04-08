@@ -486,7 +486,7 @@ const DetailedChlorinePage = () => {
   const [selectedAgencyType, setSelectedAgencyType] = useState<string>("ALL");
   const [waterSupplyStatus, setWaterSupplyStatus] = useState<string>("All");
 
-  const schemeFilter = (uiSchemeFilter === "commissioned" || uiSchemeFilter === "fully_completed") && waterSupplyStatus !== "All"
+  const schemeFilter = uiSchemeFilter !== "all" && waterSupplyStatus !== "All"
     ? `${uiSchemeFilter}_${waterSupplyStatus.toLowerCase()}`
     : uiSchemeFilter;
 
@@ -3158,6 +3158,11 @@ const DetailedChlorinePage = () => {
                       <TabsTrigger value="No" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-red-500 data-[state=active]:text-white">No</TabsTrigger>
                     </TabsList>
                   </Tabs>
+                </>
+              )}
+
+              {uiSchemeFilter !== "all" && (
+                <>
                   <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2"></div>
                   <AgencyTypeFilter
                     selectedAgencyType={selectedAgencyType}
