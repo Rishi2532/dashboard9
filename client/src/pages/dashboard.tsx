@@ -1733,7 +1733,7 @@ export default function Dashboard() {
           <Filter className="w-4 h-4" />
           Filter Dashboard
         </h2>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
           {/* Region Selection */}
           <div className="md:col-span-7 lg:col-span-8">
@@ -1755,23 +1755,21 @@ export default function Dashboard() {
             <div className="flex items-center p-1 bg-gray-100/50 rounded-lg border border-gray-200 w-full">
               <button
                 onClick={() => setSchemeView("ALL")}
-                className={`flex-1 px-4 py-2 text-xs font-bold rounded-md transition-all ${
-                  schemeView === "ALL"
+                className={`flex-1 px-4 py-2 text-xs font-bold rounded-md transition-all ${schemeView === "ALL"
                     ? "bg-white text-blue-700 shadow-sm border border-blue-100"
                     : "text-gray-500 hover:text-gray-700"
-                }`}
+                  }`}
               >
                 All Schemes
               </button>
               <button
                 onClick={() => setSchemeView("INSTRUMENTED")}
-                className={`flex-1 px-4 py-2 text-xs font-bold rounded-md transition-all ${
-                  schemeView === "INSTRUMENTED"
+                className={`flex-1 px-4 py-2 text-xs font-bold rounded-md transition-all ${schemeView === "INSTRUMENTED"
                     ? "bg-white text-purple-700 shadow-sm border border-purple-100"
                     : "text-gray-500 hover:text-gray-700"
-                }`}
+                  }`}
               >
-                Fully Instrumented Schemes
+                100% Civil Work Completed Schemes(MVS)
               </button>
             </div>
           </div>

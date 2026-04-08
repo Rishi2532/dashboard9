@@ -8033,7 +8033,7 @@ export class PostgresStorage implements IStorage {
 
     if (view === "INSTRUMENTED") {
       const regionConditions = [
-        eq(schemeStatuses.fully_completion_scheme_status, "Fully Completed"),
+        eq(schemeStatuses.water_supply, "Yes"),
       ];
       if (regionName && regionName !== "all") {
         regionConditions.push(eq(schemeStatuses.region, regionName));
@@ -8047,11 +8047,14 @@ export class PostgresStorage implements IStorage {
       const query = db
         .select({
           total_schemes: sql<number>`count(distinct ${schemeStatuses.scheme_id})`,
-          schemes_operational: sql<number>`count(distinct ${schemeStatuses.scheme_id}) filter (where ${schemeStatuses.water_supply} = 'Yes')`,
+          schemes_operational: sql<number>`count(distinct ${schemeStatuses.scheme_id}) filter (where TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN ('fully completed', 'completed', 'in progress'))`,
+          schemes_fully_completed: sql<number>`count(distinct ${schemeStatuses.scheme_id}) filter (where TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN ('fully completed', 'completed', 'in progress') AND ${schemeStatuses.water_supply_status} = 'Full')`,
           total_villages: sql<number>`sum(${schemeStatuses.total_villages_integrated})`,
-          villages_operational: sql<number>`sum(${schemeStatuses.total_villages_integrated}) filter (where ${schemeStatuses.water_supply} = 'Yes')`,
+          villages_operational: sql<number>`sum(${schemeStatuses.total_villages_integrated}) filter (where TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN ('fully completed', 'completed', 'in progress'))`,
+          villages_fully_completed: sql<number>`sum(${schemeStatuses.total_villages_integrated}) filter (where TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN ('fully completed', 'completed', 'in progress') AND ${schemeStatuses.water_supply_status} = 'Full')`,
           total_esr: sql<number>`sum(${schemeStatuses.total_esr_integrated})`,
-          esr_operational: sql<number>`sum(${schemeStatuses.total_esr_integrated}) filter (where ${schemeStatuses.water_supply} = 'Yes')`,
+          esr_operational: sql<number>`sum(${schemeStatuses.total_esr_integrated}) filter (where TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN ('fully completed', 'completed', 'in progress'))`,
+          esr_fully_completed: sql<number>`sum(${schemeStatuses.total_esr_integrated}) filter (where TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN ('fully completed', 'completed', 'in progress') AND ${schemeStatuses.water_supply_status} = 'Full')`,
           flow: sql<number>`sum(${schemeStatuses.flow_meters_connected})`,
           rca: sql<number>`sum(${schemeStatuses.residual_chlorine_analyzer_connected})`,
           pressure: sql<number>`sum(${schemeStatuses.pressure_transmitter_connected})`,
@@ -8065,10 +8068,13 @@ export class PostgresStorage implements IStorage {
       return {
         total_schemes: Number(data.total_schemes || 0),
         schemes_operational: Number(data.schemes_operational || 0),
+        schemes_fully_completed: Number(data.schemes_fully_completed || 0),
         total_villages: Number(data.total_villages || 0),
         villages_operational: Number(data.villages_operational || 0),
+        villages_fully_completed: Number(data.villages_fully_completed || 0),
         total_esr: Number(data.total_esr || 0),
         esr_operational: Number(data.esr_operational || 0),
+        esr_fully_completed: Number(data.esr_fully_completed || 0),
         flow: Number(data.flow || 0),
         rca: Number(data.rca || 0),
         pressure: Number(data.pressure || 0),

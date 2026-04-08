@@ -21,7 +21,7 @@ export interface RegionSummary {
   total_regions: number;
   total_esr_integrated: number;
   fully_completed_esr: number;
-  partial_esr: number;  // Changed from partial_esr to match the SQL column name
+  partial_esr: number;  
   total_villages_integrated: number;
   fully_completed_villages: number;
   partially_integrated_villages: number;
@@ -29,8 +29,23 @@ export interface RegionSummary {
   fully_completed_schemes: number;
   partially_completed_schemes: number;
   flow_meter_integrated: number;
-  rca_integrated: number; // Added this field to match what's being used in stats-cards.tsx
-  pressure_transmitter_integrated: number; // Added this field to match what's being used in stats-cards.tsx
+  rca_integrated: number; 
+  pressure_transmitter_integrated: number; 
+  
+  // Instrumented view specific fields
+  total_schemes?: number;
+  schemes_operational?: number;
+  schemes_fully_completed?: number;
+  total_villages?: number;
+  villages_operational?: number;
+  villages_fully_completed?: number;
+  total_esr?: number;
+  esr_operational?: number;
+  esr_fully_completed?: number;
+  flow?: number;
+  rca?: number;
+  pressure?: number;
+  
   last_updated_at: string;
 }
 

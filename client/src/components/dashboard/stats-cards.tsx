@@ -86,6 +86,12 @@ export default function StatsCards({
   const completedSchemes = isInstrumented
     ? data.schemes_operational || 0
     : data.fully_completed_schemes || 0;
+  const bottomSchemesIntegrated = isInstrumented
+    ? data.schemes_operational || 0
+    : totalSchemes;
+  const bottomFullyCompletedSchemes = isInstrumented
+    ? data.schemes_fully_completed || 0
+    : completedSchemes;
 
   const totalVillages = isInstrumented
     ? data.total_villages || 0
@@ -93,6 +99,12 @@ export default function StatsCards({
   const completedVillages = isInstrumented
     ? data.villages_operational || 0
     : data.fully_completed_villages || 0;
+  const bottomVillagesIntegrated = isInstrumented
+    ? data.villages_operational || 0
+    : totalVillages;
+  const bottomFullyCompletedVillages = isInstrumented
+    ? data.villages_fully_completed || 0
+    : completedVillages;
 
   const totalEsr = isInstrumented
     ? data.total_esr || 0
@@ -100,6 +112,12 @@ export default function StatsCards({
   const completedEsr = isInstrumented
     ? data.esr_operational || 0
     : data.fully_completed_esr || 0;
+  const bottomEsrIntegrated = isInstrumented
+    ? data.esr_operational || 0
+    : totalEsr;
+  const bottomFullyCompletedEsr = isInstrumented
+    ? data.esr_fully_completed || 0
+    : completedEsr;
 
   const partialEsr = data.partial_esr || 0;
   const flowMeterIntegrated = isInstrumented
@@ -172,7 +190,7 @@ export default function StatsCards({
                   {totalSchemes}
                 </p>
                 <p className="ml-1 sm:ml-2 text-xs sm:text-sm xl:text-base text-blue-600">
-                  {isInstrumented ? "Fully instrumented (IoT) schemes" : "water schemes"}
+                  {isInstrumented ? "100% Civil Work Completed Schemes(MVS)" : "water schemes"}
                 </p>
               </div>
             </div>
@@ -196,7 +214,7 @@ export default function StatsCards({
               <span className="text-green-600 font-medium">
                 <b>
                   {completedSchemes}{" "}
-                  {isInstrumented ? "Fully Operational Schemes" : "Fully Completed"}
+                  {isInstrumented ? "Connected to IoT" : "Fully Completed"}
                 </b>
               </span>
               <span className="text-yellow-600 font-medium">
@@ -208,17 +226,17 @@ export default function StatsCards({
             {/* Additional large-screen details */}
             <div className="hidden 2xl:block mt-4 pt-4 border-t border-blue-100">
               <div className="flex justify-between text-sm text-blue-700">
-                <span>Schemes Integrated:</span>
-                <span className="font-semibold">{totalSchemes}</span>
+                <span>Schemes in Operation</span>
+                <span className="font-semibold">{bottomSchemesIntegrated}</span>
               </div>
               <div className="flex justify-between text-sm text-blue-700 mt-1">
-                <span>Fully Completed:</span>
-                <span className="font-semibold">{completedSchemes}</span>
+                <span>Fully Operational Schemes:</span>
+                <span className="font-semibold">{bottomFullyCompletedSchemes}</span>
               </div>
               <div className="flex justify-between text-sm text-blue-700 mt-1">
                 <span>Completion Rate:</span>
                 <span className="font-semibold">
-                  {schemeCompletionPercentage}%
+                  {calculatePercentage(bottomFullyCompletedSchemes, bottomSchemesIntegrated)}%
                 </span>
               </div>
             </div>
@@ -294,8 +312,13 @@ export default function StatsCards({
             {/* Additional large-screen details */}
             <div className="hidden 2xl:block mt-4 pt-4 border-t border-amber-100">
               <div className="flex justify-between text-sm text-amber-700">
-                <span>Villages Integrated:</span>
-                <span className="font-semibold">{totalVillages}</span>
+                <span>
+                  {isInstrumented
+                    ? "Villages In Operation:"
+                    : "Villages Integrated"}
+                  :
+                </span>
+                <span className="font-semibold">{bottomVillagesIntegrated}</span>
               </div>
               <div className="flex justify-between text-sm text-amber-700 mt-1">
                 <span>
@@ -304,12 +327,12 @@ export default function StatsCards({
                     : "Fully Completed"}
                   :
                 </span>
-                <span className="font-semibold">{completedVillages}</span>
+                <span className="font-semibold">{bottomFullyCompletedVillages}</span>
               </div>
               <div className="flex justify-between text-sm text-amber-700 mt-1">
                 <span>Fully Completion Rate:</span>
                 <span className="font-semibold">
-                  {villageCompletionPercentage}%
+                  {calculatePercentage(bottomFullyCompletedVillages, bottomVillagesIntegrated)}%
                 </span>
               </div>
             </div>
@@ -379,17 +402,27 @@ export default function StatsCards({
             {/* Additional large-screen details */}
             <div className="hidden 2xl:block mt-4 pt-4 border-t border-purple-100">
               <div className="flex justify-between text-sm text-purple-700">
-                <span>ESRs Integrated:</span>
-                <span className="font-semibold">{totalEsr}</span>
+                <span>
+                  {isInstrumented
+                    ? "ESRs In Operation"
+                    : "ESRs Integrated"}
+                  :
+                </span>
+                <span className="font-semibold">{bottomEsrIntegrated}</span>
               </div>
               <div className="flex justify-between text-sm text-purple-700 mt-1">
-                <span>Fully Completed:</span>
-                <span className="font-semibold">{completedEsr}</span>
+                <span>
+                  {isInstrumented
+                    ? "Fully Operational ESRs"
+                    : "Fully Completed ESRs"}
+                  :
+                </span>
+                <span className="font-semibold">{bottomFullyCompletedEsr}</span>
               </div>
               <div className="flex justify-between text-sm text-purple-700 mt-1">
                 <span>Fully Completion Rate:</span>
                 <span className="font-semibold">
-                  {esrCompletionPercentage}%
+                  {calculatePercentage(bottomFullyCompletedEsr, bottomEsrIntegrated)}%
                 </span>
               </div>
             </div>

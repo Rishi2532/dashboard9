@@ -157,10 +157,10 @@ export async function getFilteredSchemeIds(db: any, filterType: any, fullyComple
     }
   }
 
-  // Common condition definitions
-  const rule1Condition = sql`TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN ('fully completed', 'completed', 'connected', 'in progress')`;
-  const rule3Condition = sql`TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN ('fully completed', 'completed')`;
-  const rule5Condition = sql`TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN ('fully completed', 'completed') AND TRIM(LOWER(${schemeStatuses.water_supply})) = 'yes'`;
+  // Strictly: water_supply = 'Yes' AND status IN ('Fully Completed', 'Connected', 'In Progress')
+  const rule1Condition = sql`TRIM(LOWER(${schemeStatuses.water_supply})) = 'yes' AND TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN ('fully completed', 'connected', 'in progress')`;
+  const rule3Condition = rule1Condition; // Use the same strict rule for base filtering
+  const rule5Condition = rule1Condition;
 
   // IF statusSuffix is 'no', we need the special rolling LPCD logic
   // This logic is specifically for instrumented schemes that report 0 LPCD
