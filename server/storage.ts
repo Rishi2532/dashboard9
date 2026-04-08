@@ -4900,24 +4900,18 @@ export class PostgresStorage implements IStorage {
 
     try {
       const schemeFilter = fullyCompletedSchemeIds && fullyCompletedSchemeIds.size > 0
-        ? sql.raw(`AND scheme_id IN (${Array.from(fullyCompletedSchemeIds).map(id => `'${id}'`).join(',')})`)
+        ? sql`AND scheme_id IN (${sql.join(Array.from(fullyCompletedSchemeIds).map(id => sql`${id}`), sql`, `)})`
         : sql``;
 
-      // Handle empty set (NO_MATCHES case)
-      if (fullyCompletedSchemeIds && fullyCompletedSchemeIds.size === 0) {
-        // If we have a filter but no IDs matched, then no results should avail.
-        // However, if the Set is passed as undefined/null, we show all.
-        // If it is passed as empty set (meaning filter was applied but 0 found), we should probably block.
-        // BUT, usually we pass undefined if 'all'.
-        // Let's assume if Set is provided but empty, it might mean "match nothing".
-        // But looking at other functions, we usually pass undefined if no filter.
-        // If schemeFilter string is empty, it means no filter.
-      }
-
       const query = sql`
-        WITH deduplicated_history AS (
+        WITH all_villages AS (
+          SELECT DISTINCT region, scheme_id, village_name, block
+          FROM communication_status
+          WHERE 1=1 ${schemeFilter}
+        ),
+        deduplicated_history AS (
           SELECT DISTINCT ON (scheme_id, village_name, block, data_date)
-            region, scheme_id, village_name, block, lpcd_value, data_date
+            scheme_id, village_name, block, lpcd_value, data_date
           FROM water_scheme_data_history
           WHERE (
             data_date IN (${sql.join(dateStrings.map(d => sql`${d}`), sql`, `)})
@@ -4932,19 +4926,21 @@ export class PostgresStorage implements IStorage {
         ),
         village_averages AS (
           SELECT 
-            region,
-            scheme_id,
-            village_name,
-            block,
-            SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), '')::numeric, 0)) / 7.0 as avg_lpcd
-          FROM deduplicated_history
-          GROUP BY region, scheme_id, village_name, block
+            v.region,
+            v.scheme_id,
+            v.village_name,
+            v.block,
+            SUM(COALESCE(NULLIF(TRIM(h.lpcd_value::text), '')::numeric, 0)) as total_lpcd,
+            COUNT(DISTINCT CASE WHEN NULLIF(TRIM(h.lpcd_value::text), '') IS NOT NULL THEN h.data_date END) as days_with_data
+          FROM all_villages v
+          LEFT JOIN deduplicated_history h ON v.scheme_id = h.scheme_id AND v.village_name = h.village_name AND v.block = h.block
+          GROUP BY v.region, v.scheme_id, v.village_name, v.block
         )
         SELECT 
           region,
-          COUNT(CASE WHEN avg_lpcd >= 55 THEN 1 END)::integer as above_55,
-          COUNT(CASE WHEN avg_lpcd < 55 AND avg_lpcd > 0 THEN 1 END)::integer as below_55,
-          COUNT(CASE WHEN avg_lpcd = 0 OR avg_lpcd IS NULL THEN 1 END)::integer as no_water
+          COUNT(CASE WHEN days_with_data > 0 AND (total_lpcd / days_with_data) >= 55 THEN 1 END)::integer as above_55,
+          COUNT(CASE WHEN days_with_data > 0 AND (total_lpcd / days_with_data) < 55 AND (total_lpcd / days_with_data) > 0 THEN 1 END)::integer as below_55,
+          COUNT(CASE WHEN days_with_data = 0 OR (total_lpcd / days_with_data) = 0 THEN 1 END)::integer as no_water
         FROM village_averages
         GROUP BY region;
       `;
@@ -4963,38 +4959,45 @@ export class PostgresStorage implements IStorage {
 
     try {
       const schemeFilter = fullyCompletedSchemeIds && fullyCompletedSchemeIds.size > 0
-        ? sql.raw(`AND scheme_id IN (${Array.from(fullyCompletedSchemeIds).map(id => `'${id}'`).join(',')})`)
+        ? sql`AND scheme_id IN (${sql.join(Array.from(fullyCompletedSchemeIds).map(id => sql`${id}`), sql`, `)})`
         : sql``;
 
       const query = sql`
-        WITH scheme_averages AS (
+        WITH all_schemes AS (
+          SELECT DISTINCT region, scheme_id, block
+          FROM scheme_status
+          WHERE 1=1 ${schemeFilter}
+        ),
+        deduplicated AS (
+          SELECT DISTINCT ON (scheme_id, data_date)
+            scheme_id, lpcd_value, data_date
+          FROM scheme_lpcd_data_history
+          WHERE (
+            data_date IN (${sql.join(dateStrings.map(d => sql`${d}`), sql`, `)})
+            OR
+            TO_CHAR(TO_DATE(CASE 
+               WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN data_date
+               ELSE '01-Jan-2000'
+            END, 'DD-Mon-YY'), 'DD-Mon') IN (${sql.join(dateStrings.map(d => sql`${d}`), sql`, `)})
+          )
+          ${schemeFilter}
+          ORDER BY scheme_id, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC
+        ),
+        scheme_averages AS (
           SELECT 
-            region,
-            scheme_id,
-            block,
-            SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), '')::numeric, 0)) / 7.0 as avg_lpcd
-          FROM (
-            SELECT DISTINCT ON (region, scheme_id, block, data_date)
-              region, scheme_id, block, lpcd_value, data_date
-            FROM scheme_lpcd_data_history
-            WHERE (
-              data_date IN (${sql.join(dateStrings.map(d => sql`${d}`), sql`, `)})
-              OR
-              TO_CHAR(TO_DATE(CASE 
-                 WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN data_date
-                 ELSE '01-Jan-2000'
-              END, 'DD-Mon-YY'), 'DD-Mon') IN (${sql.join(dateStrings.map(d => sql`${d}`), sql`, `)})
-            )
-            ${schemeFilter}
-            ORDER BY region, scheme_id, block, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC
-          ) deduplicated
-          GROUP BY region, scheme_id, block
+            s.region,
+            s.scheme_id,
+            SUM(COALESCE(NULLIF(TRIM(h.lpcd_value::text), '')::numeric, 0)) as total_lpcd,
+            COUNT(DISTINCT CASE WHEN NULLIF(TRIM(h.lpcd_value::text), '') IS NOT NULL THEN h.data_date END) as days_with_data
+          FROM all_schemes s
+          LEFT JOIN deduplicated h ON s.scheme_id = h.scheme_id
+          GROUP BY s.region, s.scheme_id
         )
         SELECT 
           region,
-          COUNT(CASE WHEN avg_lpcd >= 55 THEN 1 END)::integer as above_55,
-          COUNT(CASE WHEN avg_lpcd < 55 AND avg_lpcd > 0 THEN 1 END)::integer as below_55,
-          COUNT(CASE WHEN avg_lpcd = 0 OR avg_lpcd IS NULL THEN 1 END)::integer as no_water
+          COUNT(CASE WHEN days_with_data > 0 AND (total_lpcd / days_with_data) >= 55 THEN 1 END)::integer as above_55,
+          COUNT(CASE WHEN days_with_data > 0 AND (total_lpcd / days_with_data) < 55 AND (total_lpcd / days_with_data) > 0 THEN 1 END)::integer as below_55,
+          COUNT(CASE WHEN days_with_data = 0 OR (total_lpcd / days_with_data) = 0 THEN 1 END)::integer as no_water
         FROM scheme_averages
         GROUP BY region;
       `;
