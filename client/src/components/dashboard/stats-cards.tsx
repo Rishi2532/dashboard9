@@ -275,7 +275,9 @@ export default function StatsCards({
                   {totalVillages}
                 </p>
                 <p className="ml-1 sm:ml-2 text-xs sm:text-sm xl:text-base text-amber-600">
-                  villages integrated
+                  {isInstrumented
+                    ? "Villages in 100% Civil Work Completed Schemes(MVS)"
+                    : "Villages Integrated"}
                 </p>
               </div>
             </div>
@@ -374,7 +376,9 @@ export default function StatsCards({
                   {totalEsr}
                 </p>
                 <p className="ml-1 sm:ml-2 text-xs sm:text-sm xl:text-base text-teal-600">
-                  ESR integrated
+                  {isInstrumented
+                    ? "ESR In 100% Civil Work Completed Schemes(MVS)"
+                    : "ESR Integrated"}
                 </p>
               </div>
             </div>

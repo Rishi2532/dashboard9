@@ -5534,7 +5534,7 @@ export class PostgresStorage implements IStorage {
                   WHEN chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN TO_DATE(chlorine_date, 'DD-Mon-YY')
                   WHEN chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(chlorine_date, 'YYYY-MM-DD')
                   WHEN chlorine_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN TO_DATE(chlorine_date, 'DD/MM/YYYY')
-                  WHEN chlorine_date ~ '^[0-9]+\\.?[0-9]*$' THEN (TO_DATE('1899-12-30', 'YYYY-MM-DD') + (INTERVAL '1 day' * CAST(chlorine_date AS NUMERIC)))::date 
+                  WHEN chlorine_date ~ '^[0-9]+\\.?[0-9]*$' AND CAST(chlorine_date AS NUMERIC) < 1000000 THEN (TO_DATE('1899-12-30', 'YYYY-MM-DD') + (INTERVAL '1 day' * CAST(chlorine_date AS NUMERIC)))::date 
                   ELSE NULL
                 END
               ) as actual_timestamp
@@ -12517,7 +12517,7 @@ export class PostgresStorage implements IStorage {
                   WHEN p.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN TO_DATE(p.pressure_date, 'DD-Mon-YY')
                   WHEN p.pressure_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(p.pressure_date, 'YYYY-MM-DD')
                   WHEN p.pressure_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN TO_DATE(p.pressure_date, 'DD/MM/YYYY')
-                  WHEN p.pressure_date ~ '^[0-9]+\\.?[0-9]*$' THEN (TO_DATE('1899-12-30', 'YYYY-MM-DD') + (INTERVAL '1 day' * CAST(p.pressure_date AS NUMERIC)))::date 
+                  WHEN p.pressure_date ~ '^[0-9]+\\.?[0-9]*$' AND CAST(p.pressure_date AS NUMERIC) < 1000000 THEN (TO_DATE('1899-12-30', 'YYYY-MM-DD') + (INTERVAL '1 day' * CAST(p.pressure_date AS NUMERIC)))::date 
                   ELSE NULL
                 END
               ) as actual_timestamp
