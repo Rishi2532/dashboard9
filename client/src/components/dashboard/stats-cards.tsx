@@ -268,7 +268,9 @@ export default function StatsCards({
             </div>
             <div className="ml-3 sm:ml-4 md:ml-5 xl:ml-6 flex-1">
               <h3 className="text-xs sm:text-sm xl:text-base font-medium text-amber-800">
-                Total Villages
+                {isInstrumented
+                  ? "Total Villages "
+                  : "Total Villages"}
               </h3>
               <div className="mt-1 flex items-baseline">
                 <p className="text-xl sm:text-2xl md:text-3xl xl:text-4xl font-bold text-amber-900">
@@ -276,7 +278,7 @@ export default function StatsCards({
                 </p>
                 <p className="ml-1 sm:ml-2 text-xs sm:text-sm xl:text-base text-amber-600">
                   {isInstrumented
-                    ? "Villages in 100% Civil Work Completed Schemes(MVS)"
+                    ? ""
                     : "Villages Integrated"}
                 </p>
               </div>

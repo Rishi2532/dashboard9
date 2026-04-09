@@ -2744,24 +2744,7 @@ const PressureDashboard: React.FC = () => {
               <Droplet className="h-6 w-6 text-red-600 mr-2" />
               Sensors with No Water
             </h3>
-            <div className="grid gap-4 mb-4">
-              {/* Total No Water - Now Clickable */}
-              <div
-                className={`cursor-pointer text-center p-4 bg-red-50 rounded-lg border border-red-200 hover:shadow-lg transition-all duration-200 ${sensorStatusFilter === "noWater" &&
-                  selectedWithoutWaterFilter === "all"
-                  ? "ring-2 ring-red-500 ring-offset-2"
-                  : ""
-                  } transform hover:scale-[1.01]`}
-                onClick={() => handleTotalCardClick("noWater")}
-              >
-                <p className="text-3xl font-bold text-red-600">
-                  {calculatePressureSensorStatus.noWater}
-                </p>
-                <p className="text-sm text-red-600/80 font-medium">
-                  Total sensors with no water
-                </p>
-              </div>
-            </div>
+
             <div className="grid gap-3">
               {/* Below Range Card - No Water */}
               <Card
