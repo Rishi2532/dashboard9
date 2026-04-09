@@ -1587,9 +1587,62 @@ export async function initializeTables(db: any) {
       console.error("Error adding pressure_last_seen column to communication_status:", error);
     }
 
+
+    // PERMANENT FIX: Synchronize all sequences to prevent duplicate key errors (common after manual data imports/migrations)
+    await synchronizeSequences(db);
+
     console.log("Database tables initialized successfully");
   } catch (error) {
     console.error("Error initializing database tables:", error);
     throw error;
+  }
+}
+
+/**
+ * Synchronizes all PostgreSQL sequences in the 'public' schema with their current table data.
+ * This prevents "duplicate key value violates unique constraint" errors that occur when
+ * a sequence's next value is lower than the actual maximum ID in the table.
+ */
+export async function synchronizeSequences(db: any) {
+  try {
+    console.log("🔄 Synchronizing database sequences with actual data...");
+    
+    // This dynamic SQL block finds all columns with nextval() defaults and resets their sequences
+    await db.execute(`
+      DO $$ 
+      DECLARE 
+          r RECORD;
+          seq_name TEXT;
+          max_id BIGINT;
+      BEGIN
+          -- Loop through all columns that have a nextval() default in the public schema
+          FOR r IN (
+              SELECT table_name, column_name, column_default 
+              FROM information_schema.columns 
+              WHERE column_default LIKE 'nextval%' 
+              AND table_schema = 'public'
+          ) 
+          LOOP
+              -- Get the underlying sequence name
+              seq_name := pg_get_serial_sequence(r.table_name, r.column_name);
+              
+              IF seq_name IS NOT NULL THEN
+                  -- Find the maximum ID in the table
+                  EXECUTE 'SELECT COALESCE(MAX(' || quote_ident(r.column_name) || '), 0) FROM ' || quote_ident(r.table_name) INTO max_id;
+                  
+                  -- Reset the sequence to max_id + 1
+                  -- We use setval(seq, max_id + 1, false) to ensure the next nextval() returns max_id + 1
+                  PERFORM setval(seq_name, max_id + 1, false);
+                  
+                  -- RAISE NOTICE 'Synchronized sequence % for table %.% to %', seq_name, 'public', r.table_name, max_id + 1;
+              END IF;
+          END LOOP;
+      END $$;
+    `);
+    
+    console.log("✅ All database sequences synchronized successfully");
+  } catch (error) {
+    console.error("❌ Error synchronizing database sequences:", error);
+    // We don't throw here to allow the rest of the app to start even if maintenance fails
   }
 }

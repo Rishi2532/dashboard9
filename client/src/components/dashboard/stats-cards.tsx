@@ -198,7 +198,7 @@ export default function StatsCards({
           <div className="mt-3 sm:mt-4 md:mt-6 xl:mt-8">
             <div className="flex justify-between items-center">
               <span className="text-xs sm:text-sm xl:text-base font-medium text-blue-800">
-                Completion Rate
+                Fully Completion Rate
               </span>
               <span className="text-xs sm:text-sm xl:text-base font-bold text-blue-900">
                 {schemeCompletionPercentage}%
@@ -233,12 +233,12 @@ export default function StatsCards({
                 <span>Fully Operational Schemes:</span>
                 <span className="font-semibold">{bottomFullyCompletedSchemes}</span>
               </div>
-              <div className="flex justify-between text-sm text-blue-700 mt-1">
+              {/* <div className="flex justify-between text-sm text-blue-700 mt-1">
                 <span>Completion Rate:</span>
                 <span className="font-semibold">
                   {calculatePercentage(bottomFullyCompletedSchemes, bottomSchemesIntegrated)}%
                 </span>
-              </div>
+              </div> */}
             </div>
           </div>
         </CardContent>
@@ -335,12 +335,12 @@ export default function StatsCards({
                 </span>
                 <span className="font-semibold">{bottomFullyCompletedVillages}</span>
               </div>
-              <div className="flex justify-between text-sm text-amber-700 mt-1">
+              {/* <div className="flex justify-between text-sm text-amber-700 mt-1">
                 <span>Fully Completion Rate:</span>
                 <span className="font-semibold">
                   {calculatePercentage(bottomFullyCompletedVillages, bottomVillagesIntegrated)}%
                 </span>
-              </div>
+              </div> */}
             </div>
           </div>
         </CardContent>
@@ -436,12 +436,12 @@ export default function StatsCards({
                 </span>
                 <span className="font-semibold">{bottomFullyCompletedEsr}</span>
               </div>
-              <div className="flex justify-between text-sm text-purple-700 mt-1">
+              {/* <div className="flex justify-between text-sm text-purple-700 mt-1">
                 <span>Fully Completion Rate:</span>
                 <span className="font-semibold">
                   {calculatePercentage(bottomFullyCompletedEsr, bottomEsrIntegrated)}%
                 </span>
-              </div>
+              </div> */}
             </div>
           </div>
         </CardContent>
