@@ -65,7 +65,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 
-import { AlertCircle, MapPin } from "lucide-react";
+import { AlertCircle, MapPin, Users, Activity, Zap, Layers, Award, Info } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SchemeHistoricalDataChart } from "@/components/dashboard/SchemeHistoricalDataChart";
 import { Pagination } from "@/components/ui/pagination";
@@ -2124,180 +2124,206 @@ const SchemeLpcdDashboard = () => {
                                       <Eye className="h-4 w-4" />
                                     </Button>
                                   </DialogTrigger>
-                                  <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
-                                    <DialogHeader>
-                                      <DialogTitle className="text-xl">
-                                        {scheme.scheme_name}
-                                      </DialogTitle>
-                                      <DialogDescription className="text-sm">
-                                        Scheme ID: {scheme.scheme_id} • Region:{" "}
-                                        {scheme.region} • Block: {scheme.block}
-                                      </DialogDescription>
-                                    </DialogHeader>
-
-
-                                    <div className="mb-6 grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-4">
-                                      <div className="space-y-4">
-                                        <div>
-                                          <h3 className="font-medium text-gray-700 mb-1">
-                                            Location Details
-                                          </h3>
-                                          <p>
-                                            <span className="font-medium">
-                                              Region:
-                                            </span>{" "}
-                                            {scheme.region || "N/A"}
-                                          </p>
-                                          <p>
-                                            <span className="font-medium">
-                                              Circle:
-                                            </span>{" "}
-                                            {scheme.circle || "N/A"}
-                                          </p>
-                                          <p>
-                                            <span className="font-medium">
-                                              Division:
-                                            </span>{" "}
-                                            {scheme.division || "N/A"}
-                                          </p>
-                                          <p>
-                                            <span className="font-medium">
-                                              Sub Division:
-                                            </span>{" "}
-                                            {scheme.sub_division || "N/A"}
-                                          </p>
-                                          <p>
-                                            <span className="font-medium">
-                                              Block:
-                                            </span>{" "}
-                                            {scheme.block || "N/A"}
-                                          </p>
-                                        </div>
-                                        <div>
-                                          <h3 className="font-medium text-gray-700 mb-1">
-                                            Key Metrics
-                                          </h3>
-                                          <p>
-                                            <span className="font-medium">
-                                              Total Population:
-                                            </span>{" "}
-                                            {scheme.total_population?.toLocaleString() ||
-                                              "0"}
-                                          </p>
-                                          <p>
-                                            <span className="font-medium">
-                                              Total Villages:
-                                            </span>{" "}
-                                            {scheme.total_villages}
-                                          </p>
-                                          <p>
-                                            <span className="font-medium">
-                                              Villages Above 55 LPCD:
-                                            </span>{" "}
-                                            {scheme.villages_above_55}
-                                          </p>
-                                          <p>
-                                            <span className="font-medium">
-                                              Villages Below 55 LPCD:
-                                            </span>{" "}
-                                            {scheme.villages_below_55}
-                                          </p>
-                                        </div>
-                                        <div>
-                                          <h3 className="font-medium text-gray-700 mb-1">
-                                            Current Status
-                                          </h3>
-                                          <p>
-                                            <span className="font-medium">
-                                              MJP Commissioned:
-                                            </span>{" "}
-                                            {scheme.mjp_commissioned ||
-                                              "Unknown"}
-                                          </p>
-                                          <p>
-                                            <span className="font-medium">
-                                              Current LPCD:
-                                            </span>{" "}
-                                            {lpcdValue !== null
-                                              ? Number(lpcdValue).toFixed(2) +
-                                              "L"
-                                              : "N/A"}
-                                          </p>
-                                          <p>
-                                            <span className="font-medium">
-                                              Water Supply Status:
-                                            </span>{" "}
-                                            {getLpcdStatusText(lpcdValue)}
-                                          </p>
-                                        </div>
-                                      </div>
-                                      <div className="space-y-4">
-                                        <div>
-                                          <h3 className="font-medium text-gray-700 mb-2">
-                                            LPCD History
-                                          </h3>
-                                          <div className="space-y-2">
-                                            {[1, 2, 3, 4, 5, 6, 7].map(
-                                              (day) => {
-                                                const value = scheme[
-                                                  `lpcd_value_day${day}` as keyof SchemeLpcdData
-                                                ] as number;
-                                                const date = scheme[
-                                                  `lpcd_date_day${day}` as keyof SchemeLpcdData
-                                                ] as string;
-                                                if (
-                                                  value === undefined ||
-                                                  value === null
-                                                )
-                                                  return null;
-
-                                                return (
-                                                  <div
-                                                    key={`day-${day}`}
-                                                    className="flex justify-between items-center p-2 rounded bg-blue-50"
-                                                  >
-                                                    <span className="text-sm text-gray-600">
-                                                      {date
-                                                        ? formatLpcdDate(date)
-                                                        : `Day ${day}`}
-                                                    </span>
-                                                    <LpcdBadge value={value} />
-                                                  </div>
-                                                );
-                                              },
-                                            )}
+                                  <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto p-0 border-none shadow-2xls bg-white rounded-xl">
+                                    {/* Premium Header */}
+                                    <div className="relative bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 p-8 rounded-t-xl text-white overflow-hidden">
+                                      <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+                                      <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-400/10 rounded-full translate-y-1/2 -translate-x-1/2 blur-2xl"></div>
+                                      
+                                      <div className="relative z-10">
+                                        <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-6">
+                                          <div className="flex-1">
+                                            <div className="flex items-center gap-3 mb-3">
+                                              <span className="bg-blue-400/20 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest text-blue-100 border border-blue-400/30">
+                                               Scheme Details
+                                              </span>
+                                              <Badge className={`${scheme.mjp_commissioned === "Yes" ? "bg-emerald-400/20 text-emerald-100 border-emerald-400/30" : "bg-amber-400/20 text-amber-100 border-amber-400/30"} backdrop-blur-sm`}>
+                                                {scheme.mjp_commissioned === "Yes" ? "Commissioned" : "Not Commissioned"}
+                                              </Badge>
+                                            </div>
+                                            <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-2">
+                                              {scheme.scheme_name || "Unnamed Scheme"}
+                                            </h2>
+                                            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-blue-100/90 text-sm font-medium">
+                                              <div className="flex items-center gap-2">
+                                                <Info className="h-4 w-4 text-blue-300" />
+                                                ID: <span className="text-white">{scheme.scheme_id}</span>
+                                              </div>
+                                              <div className="flex items-center gap-2">
+                                                <MapPin className="h-4 w-4 text-blue-300" />
+                                                <span className="text-white">{scheme.region}</span> • <span className="text-white">{scheme.block}</span>
+                                              </div>
+                                            </div>
                                           </div>
+                                          
+                                          {scheme.dashboard_url && (
+                                            <Button asChild className="bg-white text-blue-800 hover:bg-blue-50 font-bold shadow-lg h-12 px-6 rounded-xl shrink-0 transition-all hover:scale-105 active:scale-95">
+                                              <a href={getDashboardUrlForScheme(scheme)} target="_blank" rel="noopener noreferrer">
+                                                <ExternalLink className="h-5 w-5 mr-2" />
+                                                View Live Dashboard
+                                              </a>
+                                            </Button>
+                                          )}
                                         </div>
-
-                                        {scheme.dashboard_url && (
-                                          <div className="mt-4">
-                                            <h3 className="font-medium text-gray-700 mb-2">
-                                              PI Vision Dashboard
-                                            </h3>
-                                            <a
-                                              href={getDashboardUrlForScheme(
-                                                scheme,
-                                              )}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="inline-flex items-center px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition"
-                                            >
-                                              <ExternalLink className="h-4 w-4 mr-2" />
-                                              Open PI Vision Dashboard
-                                            </a>
-                                          </div>
-                                        )}
                                       </div>
                                     </div>
 
-                                    {/* Historical Data Chart */}
-                                    <div className="mt-6 border-t pt-6">
-                                      <SchemeHistoricalDataChart
-                                        schemeId={scheme.scheme_id}
-                                        schemeName={scheme.scheme_name}
-                                        region={scheme.region}
-                                        block={scheme.block}
-                                      />
+                                    <div className="p-8">
+                                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-8">
+                                        {/* Left Side: Detail Cards */}
+                                        <div className="lg:col-span-8 space-y-6">
+                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            {/* card: Location */}
+                                            <Card className="border-none shadow-sm bg-slate-50/50 overflow-hidden group hover:shadow-md transition-shadow duration-300">
+                                              <div className="bg-blue-600 h-1.5 w-full"></div>
+                                              <CardHeader className="pb-2">
+                                                <div className="flex items-center gap-2 text-blue-700 mb-1">
+                                                  <Layers className="h-4 w-4" />
+                                                  <CardTitle className="text-xs font-bold uppercase tracking-wider">Geographic Scope</CardTitle>
+                                                </div>
+                                              </CardHeader>
+                                              <CardContent className="space-y-3">
+                                                <div className="flex justify-between items-center py-1 border-b border-slate-200/60 last:border-0">
+                                                  <span className="text-sm font-medium text-slate-500">Circle</span>
+                                                  <span className="text-sm font-bold text-slate-800">{scheme.circle || "N/A"}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center py-1 border-b border-slate-200/60 last:border-0">
+                                                  <span className="text-sm font-medium text-slate-500">Division</span>
+                                                  <span className="text-sm font-bold text-slate-800">{scheme.division || "N/A"}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center py-1 border-b border-slate-200/60 last:border-0">
+                                                  <span className="text-sm font-medium text-slate-500">Sub-Division</span>
+                                                  <span className="text-sm font-bold text-slate-800">{scheme.sub_division || "N/A"}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center py-1">
+                                                  <span className="text-sm font-medium text-slate-500">Block</span>
+                                                  <span className="text-sm font-bold text-slate-800">{scheme.block || "N/A"}</span>
+                                                </div>
+                                              </CardContent>
+                                            </Card>
+
+                                            {/* card: Population & Metrics */}
+                                            <Card className="border-none shadow-sm bg-slate-50/50 overflow-hidden group hover:shadow-md transition-shadow duration-300">
+                                              <div className="bg-indigo-600 h-1.5 w-full"></div>
+                                              <CardHeader className="pb-2">
+                                                <div className="flex items-center gap-2 text-indigo-700 mb-1">
+                                                  <Users className="h-4 w-4" />
+                                                  <CardTitle className="text-xs font-bold uppercase tracking-wider">Demographics & Reach</CardTitle>
+                                                </div>
+                                              </CardHeader>
+                                              <CardContent className="space-y-3">
+                                                <div className="flex justify-between items-center py-1 border-b border-slate-200/60 last:border-0">
+                                                  <span className="text-sm font-medium text-slate-500">Total Population</span>
+                                                  <span className="text-sm font-bold text-slate-800">{scheme.total_population?.toLocaleString() || "0"}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center py-1 border-b border-slate-200/60 last:border-0">
+                                                  <span className="text-sm font-medium text-slate-500">Total Villages</span>
+                                                  <span className="text-sm font-bold text-slate-800">{scheme.total_villages}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center py-1 border-b border-slate-200/60 last:border-0">
+                                                  <span className="text-sm font-medium text-slate-500">Supply Above 55 LPCD</span>
+                                                  <span className="text-sm font-bold text-emerald-600 px-2 py-0.5 bg-emerald-50 rounded italic">{scheme.villages_above_55} Villages</span>
+                                                </div>
+                                                <div className="flex justify-between items-center py-1">
+                                                  <span className="text-sm font-medium text-slate-500">Supply Below 55 LPCD</span>
+                                                  <span className="text-sm font-bold text-red-600 px-2 py-0.5 bg-red-50 rounded italic">{scheme.villages_below_55} Villages</span>
+                                                </div>
+                                              </CardContent>
+                                            </Card>
+                                          </div>
+
+                                          {/* Key Status & Performance */}
+                                          <Card className="border-none shadow-sm bg-slate-50/50 overflow-hidden">
+                                            <div className="bg-emerald-600 h-1.5 w-full"></div>
+                                            <div className="p-6">
+                                              <div className="flex items-center gap-2 text-emerald-700 mb-6">
+                                                <Activity className="h-4 w-4" />
+                                                <CardTitle className="text-xs font-bold uppercase tracking-wider">Live Performance Status</CardTitle>
+                                              </div>
+                                              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                                <div className="flex flex-col gap-1 border-r border-slate-200 last:border-0">
+                                                  <span className="text-xs font-semibold text-slate-400 uppercase">Agency Type</span>
+                                                  <span className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                                    <Award className="h-5 w-5 text-amber-500" />
+                                                    {scheme.agency_type || "N/A"}
+                                                  </span>
+                                                </div>
+                                                <div className="flex flex-col gap-1 border-r border-slate-200 last:border-0">
+                                                  <span className="text-xs font-semibold text-slate-400 uppercase">Current LPCD</span>
+                                                  <span className={`text-xl font-extrabold flex items-center gap-2 ${Number(lpcdValue) >= 55 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                                    <Zap className="h-5 w-5" />
+                                                    {lpcdValue !== null ? Number(lpcdValue).toFixed(2) + " L" : "N/A"}
+                                                  </span>
+                                                </div>
+                                                <div className="flex flex-col gap-1">
+                                                  <span className="text-xs font-semibold text-slate-400 uppercase">Water Supply</span>
+                                                  <div className="flex items-center gap-2">
+                                                    <div className={`h-2.5 w-2.5 rounded-full animate-pulse ${Number(lpcdValue) >= 55 ? 'bg-emerald-500' : 'bg-amber-500'}`}></div>
+                                                    <span className={`text-lg font-bold ${Number(lpcdValue) >= 55 ? 'text-emerald-700' : 'text-amber-700'}`}>
+                                                      {getLpcdStatusText(lpcdValue)}
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </Card>
+                                        </div>
+
+                                        {/* Right Side: History Sidebar */}
+                                        <div className="lg:col-span-4 gap-6">
+                                          <Card className="h-full border-none shadow-sm bg-slate-50/50 flex flex-col">
+                                            <div className="bg-slate-700 h-1.5 w-full"></div>
+                                            <CardHeader className="pb-4">
+                                              <div className="flex items-center gap-2 text-slate-700 mb-1">
+                                                <Calendar className="h-4 w-4" />
+                                                <CardTitle className="text-xs font-bold uppercase tracking-wider">7-Day LPCD History</CardTitle>
+                                              </div>
+                                            </CardHeader>
+                                            <CardContent className="flex-1 px-4 overflow-hidden">
+                                              <div className="space-y-3 overflow-y-auto pr-2 max-h-[350px] custom-scrollbar">
+                                                {[1, 2, 3, 4, 5, 6, 7].map((day) => {
+                                                  const value = scheme[`lpcd_value_day${day}` as keyof SchemeLpcdData] as number;
+                                                  const date = scheme[`lpcd_date_day${day}` as keyof SchemeLpcdData] as string;
+                                                  if (value === undefined || value === null) return null;
+
+                                                  return (
+                                                    <div key={`day-${day}`} className="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-100 shadow-sm group hover:border-blue-200 transition-colors">
+                                                      <div className="flex flex-col">
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Day {day}</span>
+                                                        <span className="text-sm font-semibold text-slate-700">
+                                                          {date ? formatLpcdDate(date) : `Reading ${day}`}
+                                                        </span>
+                                                      </div>
+                                                      <LpcdBadge value={value} />
+                                                    </div>
+                                                  );
+                                                })}
+                                              </div>
+                                            </CardContent>
+                                          </Card>
+                                        </div>
+                                      </div>
+
+                                      {/* Historical Data Chart */}
+                                      <div className="mt-8 pt-8 border-t border-slate-100">
+                                        <div className="flex items-center gap-3 mb-6">
+                                          <div className="p-2 bg-blue-100 rounded-lg">
+                                            <BarChart3 className="h-5 w-5 text-blue-700" />
+                                          </div>
+                                          <div>
+                                            <h3 className="text-lg font-bold text-slate-800 tracking-tight">Supply Trends Analysis</h3>
+                                            <p className="text-xs text-slate-500 font-medium italic">Visualize water supply distribution and historical performance over time.</p>
+                                          </div>
+                                        </div>
+                                        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                                          <SchemeHistoricalDataChart
+                                            schemeId={scheme.scheme_id}
+                                            schemeName={scheme.scheme_name}
+                                            region={scheme.region}
+                                            block={scheme.block}
+                                          />
+                                        </div>
+                                      </div>
                                     </div>
                                   </DialogContent>
                                 </Dialog>

@@ -33,7 +33,7 @@ export default function Schemes() {
   const [uiSchemeFilter, setUiSchemeFilter] = useState<string>("commissioned");
   const [waterSupplyStatus, setWaterSupplyStatus] = useState<string>("All");
   const [selectedAgencyType, setSelectedAgencyType] = useState<string>("ALL");
-  
+
   const schemeFilter = uiSchemeFilter === "commissioned" && waterSupplyStatus !== "All"
     ? `commissioned_${waterSupplyStatus.toLowerCase()}`
     : uiSchemeFilter;
@@ -68,7 +68,7 @@ export default function Schemes() {
         params.set("subdivision", selectedSubdivision);
       if (selectedAgencyType !== "ALL")
         params.set("agencyType", selectedAgencyType);
-      
+
       if (schemeFilter !== "all") {
         params.append("filterType", schemeFilter);
       }
@@ -753,10 +753,10 @@ export default function Schemes() {
             <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2"></div>
             <Tabs value={waterSupplyStatus} onValueChange={setWaterSupplyStatus} className="m-0">
               <TabsList className="h-10 bg-gray-100 dark:bg-gray-800 p-1 border border-gray-200 dark:border-gray-700">
-                <TabsTrigger value="All" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-blue-600 data-[state=active]:text-white">All Water Supply</TabsTrigger>
-                <TabsTrigger value="Full" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Full</TabsTrigger>
-                <TabsTrigger value="Partial" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partial</TabsTrigger>
-                <TabsTrigger value="No" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-red-500 data-[state=active]:text-white">No</TabsTrigger>
+                <TabsTrigger value="All" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-blue-600 data-[state=active]:text-white">All Schemes</TabsTrigger>
+                <TabsTrigger value="Full" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Fully Operational</TabsTrigger>
+                <TabsTrigger value="Partial" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partially Operational</TabsTrigger>
+                <TabsTrigger value="No" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-red-500 data-[state=active]:text-white">Not Operational</TabsTrigger>
               </TabsList>
             </Tabs>
           </>

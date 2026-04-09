@@ -310,7 +310,7 @@ export default function StatsCards({
                 {totalVillages - completedVillages} {" "}
 
                 <b>{isInstrumented
-                  ? "Partially Operational"
+                  ? "Not Connected"
                   : "Partially Completed"}</b>
               </span>
             </div>
@@ -410,7 +410,7 @@ export default function StatsCards({
                 <b>{totalEsr - completedEsr}{" "}
 
                   {isInstrumented
-                    ? "Partially Operational"
+                    ? "Not Connected"
                     : "Partially Completed"}</b>
 
               </span>

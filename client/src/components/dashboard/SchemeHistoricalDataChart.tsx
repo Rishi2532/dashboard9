@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { CalendarIcon, Download } from "lucide-react";
+import { CalendarIcon, Download, Info } from "lucide-react";
 import { format, subDays } from "date-fns";
 
 interface SchemeHistoricalDataPoint {
@@ -118,18 +118,16 @@ export function SchemeHistoricalDataChart({ schemeId, schemeName, region, block 
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          Historical Trends for {schemeName}
-          <Button onClick={exportHistoricalData} size="sm" variant="outline" data-testid="button-export-scheme-history">
-            <Download className="h-4 w-4 mr-2" />
-            Export Data
-          </Button>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 gap-4 mb-6">
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <h3 className="text-lg font-bold text-slate-800">Historical Trends for {schemeName}</h3>
+        <Button onClick={exportHistoricalData} size="sm" variant="outline" className="border-slate-200 text-slate-600 hover:bg-slate-50" data-testid="button-export-scheme-history">
+          <Download className="h-4 w-4 mr-2" />
+          Export Data
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="start-date">Start Date</Label>
             <div className="relative">
@@ -158,7 +156,7 @@ export function SchemeHistoricalDataChart({ schemeId, schemeName, region, block 
           </div>
         </div>
 
-        <Button onClick={handleDateRangeUpdate} className="mb-6" data-testid="button-update-scheme-hist-range">
+        <Button onClick={handleDateRangeUpdate} variant="default" className="bg-blue-600 hover:bg-blue-700 h-10 px-6 rounded-lg font-bold shadow-sm" data-testid="button-update-scheme-hist-range">
           Update Date Range
         </Button>
 
@@ -176,11 +174,17 @@ export function SchemeHistoricalDataChart({ schemeId, schemeName, region, block 
                 />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip
-                  labelFormatter={(value) => `Date: ${value}`}
+                  labelFormatter={(value) => `Date: ${format(new Date(value), 'dd MMM yyyy')}`}
                   formatter={(value, name) => [
                     value ? Number(value).toFixed(2) : 'N/A',
-                    name === 'water' ? 'Water Value' : 'LPCD Value'
+                    name
                   ]}
+                  contentStyle={{ 
+                    borderRadius: '12px', 
+                    border: 'none', 
+                    boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                    padding: '12px'
+                  }}
                 />
                 <Legend />
                 <Line
@@ -210,10 +214,10 @@ export function SchemeHistoricalDataChart({ schemeId, schemeName, region, block 
           </div>
         )}
 
-        <div className="mt-4 text-sm text-muted-foreground">
-          Showing {chartData.length} data points from {startDate} to {endDate}
+        <div className="mt-4 flex items-center gap-2 text-xs font-medium text-slate-400">
+          <Info className="h-3 w-3" />
+          <span>Showing {chartData.length} data points from {format(new Date(startDate), 'dd MMM yyyy')} to {format(new Date(endDate), 'dd MMM yyyy')}</span>
         </div>
-      </CardContent>
-    </Card>
-  );
-}
+      </div>
+    );
+  }
