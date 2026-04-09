@@ -157,10 +157,16 @@ export async function getFilteredSchemeIds(db: any, filterType: any, fullyComple
     }
   }
 
-  // Strictly: water_supply = 'Yes' AND status IN ('Fully Completed', 'Connected', 'In Progress')
-  const rule1Condition = sql`TRIM(LOWER(${schemeStatuses.water_supply})) = 'yes' AND TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN ('fully completed', 'connected', 'in progress')`;
-  const rule3Condition = rule1Condition; // Use the same strict rule for base filtering
-  const rule5Condition = rule1Condition;
+  // Unified classification conditions based on user requirements
+  const allSchemesStatusList = ['fully completed', 'completed', 'in progress', 'connected'];
+  const instrumentedStatusList = ['fully completed', 'completed', 'connected', 'fully-completed', 'fully_completed'];
+
+  const ruleAllSchemes = sql`TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN (${sql.raw(allSchemesStatusList.map(s => `'${s}'`).join(','))})`;
+  const ruleCivilWorkCompleted = sql`TRIM(LOWER(${schemeStatuses.water_supply})) = 'yes' AND TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN ('fully completed', 'completed', 'in progress')`;
+  const ruleFullyInstrumented = sql`TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN (${sql.raw(instrumentedStatusList.map(s => `'${s}'`).join(','))})`;
+  const rulePartiallyInstrumented = sql`TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) = 'in progress'`;
+  const ruleCommonMjpIot = sql`TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN (${sql.raw(instrumentedStatusList.map(s => `'${s}'`).join(','))}) AND TRIM(LOWER(${schemeStatuses.water_supply})) = 'yes'`;
+  const ruleMjpCommissioned = sql`TRIM(LOWER(${schemeStatuses.mjp_commissioned})) = 'yes'`;
 
   // IF statusSuffix is 'no', we need the special rolling LPCD logic
   // This logic is specifically for instrumented schemes that report 0 LPCD
@@ -206,18 +212,17 @@ export async function getFilteredSchemeIds(db: any, filterType: any, fullyComple
   const conditions: any[] = [];
   
   if (activeFilter === 'all' || activeFilter === 'All') {
-    conditions.push(rule1Condition);
+    conditions.push(ruleAllSchemes);
   } else if (activeFilter === 'commissioned') {
-    conditions.push(rule1Condition);
-    conditions.push(sql`TRIM(LOWER(${schemeStatuses.water_supply})) = 'yes'`);
+    conditions.push(ruleCivilWorkCompleted);
   } else if (activeFilter === 'fully_completed') {
-    conditions.push(rule3Condition);
+    conditions.push(ruleFullyInstrumented);
   } else if (activeFilter === 'partial' || activeFilter === 'in_progress') {
-    conditions.push(sql`TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) = 'in progress'`);
+    conditions.push(rulePartiallyInstrumented);
   } else if (activeFilter === 'common_filter') {
-    conditions.push(rule5Condition);
+    conditions.push(ruleCommonMjpIot);
   } else if (activeFilter === 'mjp_commissioned_yes') {
-    conditions.push(sql`TRIM(LOWER(${schemeStatuses.mjp_commissioned})) = 'yes'`);
+    conditions.push(ruleMjpCommissioned);
   } else if (activeFilter === 'not_connected') {
     conditions.push(sql`TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN ('not-connected', 'not connected')`);
   } else if (activeFilter === 'partially_commissioned') {
@@ -243,8 +248,7 @@ export async function getFilteredSchemeIds(db: any, filterType: any, fullyComple
   if (statusSuffix) {
     if (activeFilter === 'commissioned') {
       const baseConditions = [
-        rule1Condition,
-        sql`LOWER(${schemeStatuses.water_supply}) = 'yes'`
+        ruleCivilWorkCompleted
       ];
       if (targetAgencyType && targetAgencyType.toUpperCase() !== 'ALL') {
          if (targetAgencyType === "Agency Not Assigned") {
@@ -266,34 +270,11 @@ export async function getFilteredSchemeIds(db: any, filterType: any, fullyComple
 
       if (statusSuffix === 'full') {
         const result = await db.execute(sql`
-          WITH scheme_averages AS (
-            SELECT 
-              scheme_id,
-              SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), '')::numeric, 0)) / 7.0 as avg_lpcd
-            FROM (
-              SELECT DISTINCT ON (scheme_id, block, data_date)
-                scheme_id, lpcd_value, data_date
-              FROM scheme_lpcd_data_history
-              WHERE scheme_id IN (${sql.raw(idPlaceholder)})
-              AND (
-                data_date IN (${sql.raw(dateList)})
-                OR
-                TO_CHAR(TO_DATE(CASE 
-                   WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN data_date
-                   ELSE '01-Jan-2000'
-                END, 'DD-Mon-YY'), 'DD-Mon') IN (${sql.raw(dateList)})
-              )
-              ORDER BY scheme_id, block, data_date, uploaded_at DESC
-            ) deduplicated
-            GROUP BY scheme_id
-          )
           SELECT s.scheme_id 
           FROM scheme_status s
-          JOIN scheme_averages l ON s.scheme_id = l.scheme_id
           WHERE s.scheme_id IN (${sql.raw(idPlaceholder)})
           AND LOWER(s.water_supply) = 'yes'
           AND LOWER(s.water_supply_status) = 'full'
-          AND l.avg_lpcd > 0
         `);
         const ids = result.rows.map((r: any) => r.scheme_id);
         return ids.length > 0 ? ids : ['NO_MATCHES'];
@@ -327,6 +308,7 @@ export async function getFilteredSchemeIds(db: any, filterType: any, fullyComple
           WHERE s.scheme_id IN (${sql.raw(idPlaceholder)})
           AND LOWER(s.water_supply) = 'yes'
           AND l.avg_lpcd = 0
+          AND (s.water_supply_status IS NULL OR LOWER(s.water_supply_status) != 'full')
         `);
         const ids = result.rows.map((r: any) => r.scheme_id);
         return ids.length > 0 ? ids : ['NO_MATCHES'];
@@ -345,7 +327,7 @@ export async function getFilteredSchemeIds(db: any, filterType: any, fullyComple
     } else if (activeFilter === 'fully_completed') {
        // Logic for Fully Instrumented Schemes (IoT)
        const baseConditions = [
-         sql`LOWER(${schemeStatuses.fully_completion_scheme_status}) IN ('completed', 'fully-completed', 'fully completed', 'functionally completed')`
+         ruleFullyInstrumented
        ];
        if (targetAgencyType && targetAgencyType.toUpperCase() !== 'ALL') {
           if (targetAgencyType === "Agency Not Assigned") {
@@ -365,39 +347,15 @@ export async function getFilteredSchemeIds(db: any, filterType: any, fullyComple
        const weekInfo = await getRollingWindowInfo(db, 0);
        const dateList = weekInfo.dates.map(d => `'${d}'`).join(',');
  
-       if (statusSuffix === 'full') {
-         const result = await db.execute(sql`
-           WITH scheme_averages AS (
-             SELECT 
-               scheme_id,
-               SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), '')::numeric, 0)) / 7.0 as avg_lpcd
-             FROM (
-               SELECT DISTINCT ON (scheme_id, block, data_date)
-                 scheme_id, lpcd_value, data_date
-               FROM scheme_lpcd_data_history
-               WHERE scheme_id IN (${sql.raw(idPlaceholder)})
-               AND (
-                 data_date IN (${sql.raw(dateList)})
-                 OR
-                 TO_CHAR(TO_DATE(CASE 
-                    WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN data_date
-                    ELSE '01-Jan-2000'
-                 END, 'DD-Mon-YY'), 'DD-Mon') IN (${sql.raw(dateList)})
-               )
-               ORDER BY scheme_id, block, data_date, uploaded_at DESC
-             ) deduplicated
-             GROUP BY scheme_id
-           )
-           SELECT s.scheme_id 
-           FROM scheme_status s
-           JOIN scheme_averages l ON s.scheme_id = l.scheme_id
-           WHERE s.scheme_id IN (${sql.raw(idPlaceholder)})
-           AND LOWER(s.water_supply) = 'yes'
-           AND LOWER(s.water_supply_status) = 'full'
-           AND l.avg_lpcd > 0
-         `);
-         const ids = result.rows.map((r: any) => r.scheme_id);
-         return ids.length > 0 ? ids : ['NO_MATCHES'];
+      if (statusSuffix === 'full') {
+        const result = await db.execute(sql`
+          SELECT s.scheme_id 
+          FROM scheme_status s
+          WHERE s.scheme_id IN (${sql.raw(idPlaceholder)})
+          AND LOWER(s.water_supply_status) = 'full'
+        `);
+        const ids = result.rows.map((r: any) => r.scheme_id);
+        return ids.length > 0 ? ids : ['NO_MATCHES'];
  
        } else if (statusSuffix === 'no') {
          const result = await db.execute(sql`
@@ -427,6 +385,7 @@ export async function getFilteredSchemeIds(db: any, filterType: any, fullyComple
            JOIN scheme_averages l ON s.scheme_id = l.scheme_id
            WHERE s.scheme_id IN (${sql.raw(idPlaceholder)})
            AND l.avg_lpcd = 0
+          AND (s.water_supply_status IS NULL OR LOWER(s.water_supply_status) != 'full')
          `);
          const ids = result.rows.map((r: any) => r.scheme_id);
          return ids.length > 0 ? ids : ['NO_MATCHES'];
@@ -471,7 +430,7 @@ export async function getFilteredSchemeIds(db: any, filterType: any, fullyComple
   // unless explicitly requested otherwise (but the user wants consistent logic)
   const allRows = await db.select({ scheme_id: schemeStatuses.scheme_id })
     .from(schemeStatuses)
-    .where(rule1Condition);
+    .where(ruleAllSchemes);
   const allIds = Array.from(new Set<string>(allRows.map((r: any) => r.scheme_id)));
   return allIds.length > 0 ? allIds : ['NO_MATCHES'];
 }

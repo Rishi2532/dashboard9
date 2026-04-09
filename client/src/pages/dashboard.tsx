@@ -1756,8 +1756,8 @@ export default function Dashboard() {
               <button
                 onClick={() => setSchemeView("ALL")}
                 className={`flex-1 px-4 py-2 text-xs font-bold rounded-md transition-all ${schemeView === "ALL"
-                    ? "bg-white text-blue-700 shadow-sm border border-blue-100"
-                    : "text-gray-500 hover:text-gray-700"
+                  ? "bg-white text-blue-700 shadow-sm border border-blue-100"
+                  : "text-gray-500 hover:text-gray-700"
                   }`}
               >
                 All Schemes
@@ -1765,8 +1765,8 @@ export default function Dashboard() {
               <button
                 onClick={() => setSchemeView("INSTRUMENTED")}
                 className={`flex-1 px-4 py-2 text-xs font-bold rounded-md transition-all ${schemeView === "INSTRUMENTED"
-                    ? "bg-white text-purple-700 shadow-sm border border-purple-100"
-                    : "text-gray-500 hover:text-gray-700"
+                  ? "bg-white text-purple-700 shadow-sm border border-purple-100"
+                  : "text-gray-500 hover:text-gray-700"
                   }`}
               >
                 100% Civil Work Completed Schemes(MVS)
@@ -1833,10 +1833,10 @@ export default function Dashboard() {
       </div>
 
       {/* Mini Tables Section */}
-      <MiniTablesSection selectedRegion={selectedRegion} />
+      {/*<MiniTablesSection selectedRegion={selectedRegion} />*/}
 
       {/* Full-width Population Cards Section */}
-      <div className="mb-4 sm:mb-6">
+      {/*<div className="mb-4 sm:mb-6">
         <div className="bg-gradient-to-r from-slate-50 via-white to-slate-50 p-4 sm:p-6 rounded-lg border border-slate-200 shadow-md">
           <div className="flex items-center mb-4">
             <h2 className="text-lg sm:text-xl font-semibold text-slate-800 flex items-center">
@@ -1851,7 +1851,7 @@ export default function Dashboard() {
           </div>
           <FlipPopulationCards selectedRegion={selectedRegion} />
         </div>
-      </div>
+      </div>*/}
 
       {/* Region Comparison Chart - Full Width */}
       <div className="mb-4 sm:mb-6">
@@ -1859,7 +1859,7 @@ export default function Dashboard() {
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-3">
             <h2 className="text-sm sm:text-base font-semibold text-blue-800 flex items-center mb-2 sm:mb-0">
               <span className="w-1.5 h-6 bg-blue-500 rounded-sm mr-2"></span>
-              Region Wise Project Status
+              Region Wise IoT Project Status
             </h2>
             <div className="flex flex-wrap space-x-2 items-center text-[8px] sm:text-[10px]">
               <span className="flex items-center">

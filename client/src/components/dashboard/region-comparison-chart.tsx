@@ -193,13 +193,13 @@ export default function RegionComparisonChart({
                   ...allData.filter((v: any) => typeof v === "number"),
                 );
               }
-              
+
               // Calculate the nearest higher round number efficiently
               if (maxValue === 0) return 10;
-              
+
               // Add 10% padding to maxValue
               const paddedMax = maxValue * 1.1;
-              
+
               // Find the appropriate scale based on the magnitude
               let scale;
               if (paddedMax <= 10) {
@@ -213,7 +213,7 @@ export default function RegionComparisonChart({
               } else {
                 scale = 100;
               }
-              
+
               // Round up to the nearest scale interval
               return Math.ceil(paddedMax / scale) * scale;
             },
@@ -274,7 +274,7 @@ export default function RegionComparisonChart({
               display: !isMobile, // Hide on mobile
               text: isMobile
                 ? "Tap to filter"
-                : "Region Wise Project Status (Click to Toggle)",
+                : "Region Wise IoT Project Status (Click to Toggle)",
               font: {
                 size: isMobile ? 12 : isTablet ? 14 : 18,
                 weight: "bold",
