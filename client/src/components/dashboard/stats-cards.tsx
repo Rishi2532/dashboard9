@@ -175,7 +175,7 @@ export default function StatsCards({
             <div className="ml-3 sm:ml-4 md:ml-5 xl:ml-6 flex-1">
               <div className="flex items-center gap-2">
                 <h3 className="text-xs sm:text-sm xl:text-base font-medium text-blue-800">
-                  {isInstrumented ? "MJP Approved Schemes(389)" : "Total Schemes"}{" "}
+                  {isInstrumented ? "MJP Approved MVS Schemes(389)" : "Total Schemes"}{" "}
                   {selectedRegion === "all" ? (isInstrumented ? "" : "(389)") : ""}
                 </h3>
                 <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${isInstrumented
@@ -219,7 +219,7 @@ export default function StatsCards({
               </span>
               <span className="text-yellow-600 font-medium">
                 {totalSchemes - completedSchemes}{" "}
-                {isInstrumented ? "Partial" : "Partially Completed"}
+                {isInstrumented ? "Not Connected" : "Partially Completed"}
               </span>
             </div>
 
@@ -300,12 +300,16 @@ export default function StatsCards({
                 <b>
                   {completedVillages}{" "}
                   {isInstrumented
-                    ? "Fully Operational Villages"
+                    ? "Operational Villages"
                     : "Fully Completed"}
                 </b>
               </span>
               <span className="text-yellow-600 font-medium">
-                {totalVillages - completedVillages} Partially Completed
+                {totalVillages - completedVillages} {" "}
+
+                <b>{isInstrumented
+                  ? "Partially Operational"
+                  : "Partially Completed"}</b>
               </span>
             </div>
 
@@ -392,10 +396,19 @@ export default function StatsCards({
             </div>
             <div className="flex justify-between text-[10px] sm:text-xs xl:text-sm mt-1 xl:mt-2">
               <span className="text-green-600 font-medium">
-                <b>{completedEsr} Fully Completed</b>
+                <b>{completedEsr}{" "}
+                  {isInstrumented
+                    ? "Operational ESRs"
+                    : "Fully Completed"}
+                  :</b>
               </span>
               <span className="text-yellow-600 font-medium">
-                {totalEsr - completedEsr} Partially Completed
+                <b>{totalEsr - completedEsr}{" "}
+
+                  {isInstrumented
+                    ? "Partially Operational"
+                    : "Partially Completed"}</b>
+
               </span>
             </div>
 
