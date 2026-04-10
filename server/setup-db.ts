@@ -221,6 +221,30 @@ export async function initializeTables(db: any) {
       console.error("Error checking for MJP columns in scheme_status:", error);
     }
 
+    // Add water_supply, agency_type, water_supply_status columns to scheme_status if missing
+    try {
+      const extraColsResult = await db.execute(`
+        SELECT column_name FROM information_schema.columns 
+        WHERE table_name = 'scheme_status' AND column_name IN ('water_supply', 'agency_type', 'water_supply_status');
+      `);
+      const existingExtraCols = extraColsResult.rows.map((r: any) => r.column_name);
+
+      if (!existingExtraCols.includes("water_supply")) {
+        await db.execute(`ALTER TABLE "scheme_status" ADD COLUMN "water_supply" TEXT;`);
+        console.log("Added water_supply column to scheme_status");
+      }
+      if (!existingExtraCols.includes("agency_type")) {
+        await db.execute(`ALTER TABLE "scheme_status" ADD COLUMN "agency_type" TEXT;`);
+        console.log("Added agency_type column to scheme_status");
+      }
+      if (!existingExtraCols.includes("water_supply_status")) {
+        await db.execute(`ALTER TABLE "scheme_status" ADD COLUMN "water_supply_status" TEXT;`);
+        console.log("Added water_supply_status column to scheme_status");
+      }
+    } catch (error) {
+      console.error("Error adding extra columns to scheme_status:", error);
+    }
+
     // Create users table
     await db.execute(`
       CREATE TABLE IF NOT EXISTS "users" (
@@ -1340,14 +1364,84 @@ export async function initializeTables(db: any) {
       ON "vendor" ("email");
     `);
 
+    // Create global_summary table for dashboard-wide metrics
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS "global_summary" (
+        "id" SERIAL PRIMARY KEY,
+        "total_schemes_integrated" INTEGER,
+        "fully_completed_schemes" INTEGER,
+        "total_villages_integrated" INTEGER,
+        "fully_completed_villages" INTEGER,
+        "total_esr_integrated" INTEGER,
+        "fully_completed_esr" INTEGER,
+        "flow_meter_integrated" INTEGER,
+        "rca_integrated" INTEGER,
+        "pressure_transmitter_integrated" INTEGER
+      );
+    `);
+
+    // Create user_login_logs table for session tracking
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS "user_login_logs" (
+        "id" SERIAL PRIMARY KEY,
+        "user_id" INTEGER NOT NULL REFERENCES "users"("id"),
+        "username" TEXT NOT NULL,
+        "user_name" TEXT,
+        "login_time" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        "logout_time" TIMESTAMP WITH TIME ZONE,
+        "session_duration" INTEGER,
+        "ip_address" TEXT,
+        "user_agent" TEXT,
+        "session_id" TEXT,
+        "is_active" BOOLEAN DEFAULT TRUE
+      );
+    `);
+
+    // Create issue_reports table for tracking reported problems
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS "issue_reports" (
+        "id" SERIAL PRIMARY KEY,
+        "problem_level" TEXT NOT NULL,
+        "region" TEXT NOT NULL,
+        "scheme_id" TEXT NOT NULL,
+        "scheme_name" TEXT NOT NULL,
+        "village_name" TEXT,
+        "esr_name" TEXT,
+        "status_value" TEXT NOT NULL,
+        "reason" TEXT NOT NULL,
+        "sensor_type" TEXT,
+        "status" TEXT DEFAULT 'Active' NOT NULL,
+        "resolution_remark" TEXT,
+        "resolved_at" TIMESTAMP WITH TIME ZONE,
+        "created_by" INTEGER NOT NULL REFERENCES "users"("id"),
+        "creator_name" TEXT,
+        "created_at" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+      );
+    `);
+
     // Create MQTT topics last seen table with proper timezone handling
     await db.execute(`
       CREATE TABLE IF NOT EXISTS "topics_last_seen" (
         "topic_id" TEXT PRIMARY KEY,
         "last_value" TEXT,
-        "last_seen" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        "last_seen" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        "broker_server" TEXT
       );
     `);
+
+    // Add broker_server column to topics_last_seen if missing
+    try {
+      const brokerServerCheck = await db.execute(`
+        SELECT column_name FROM information_schema.columns 
+        WHERE table_name = 'topics_last_seen' AND column_name = 'broker_server';
+      `);
+      if (brokerServerCheck.rows.length === 0) {
+        await db.execute(`ALTER TABLE "topics_last_seen" ADD COLUMN "broker_server" TEXT;`);
+        console.log("Added broker_server column to topics_last_seen");
+      }
+    } catch (error) {
+      console.error("Error checking/adding broker_server column:", error);
+    }
 
     // CRITICAL FIX: Normalize any IST-shifted timestamps to proper UTC
     // This migration handles existing data that may have been written with +5.5h offset

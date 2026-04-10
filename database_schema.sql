@@ -56,8 +56,23 @@ CREATE TABLE IF NOT EXISTS scheme_status (
   mjp_fully_completed TEXT,
   water_supply TEXT,
   agency_type TEXT,
+  water_supply_status TEXT,
   dashboard_url TEXT,
   UNIQUE(scheme_id, block)
+);
+
+-- Global Summary table for dashboard-wide metrics
+CREATE TABLE IF NOT EXISTS global_summary (
+  id SERIAL PRIMARY KEY,
+  total_schemes_integrated INTEGER,
+  fully_completed_schemes INTEGER,
+  total_villages_integrated INTEGER,
+  fully_completed_villages INTEGER,
+  total_esr_integrated INTEGER,
+  fully_completed_esr INTEGER,
+  flow_meter_integrated INTEGER,
+  rca_integrated INTEGER,
+  pressure_transmitter_integrated INTEGER
 );
 
 -- App State table
@@ -548,4 +563,24 @@ CREATE TABLE IF NOT EXISTS vendor (
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
   UNIQUE(region, email)
+);
+
+-- Issue Reports table
+CREATE TABLE IF NOT EXISTS issue_reports (
+  id SERIAL PRIMARY KEY,
+  problem_level TEXT NOT NULL,
+  region TEXT NOT NULL,
+  scheme_id TEXT NOT NULL,
+  scheme_name TEXT NOT NULL,
+  village_name TEXT,
+  esr_name TEXT,
+  status_value TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  sensor_type TEXT,
+  status TEXT DEFAULT 'Active' NOT NULL,
+  resolution_remark TEXT,
+  resolved_at TIMESTAMP WITH TIME ZONE,
+  created_by INTEGER NOT NULL REFERENCES users(id),
+  creator_name TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
 );
