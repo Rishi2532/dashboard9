@@ -163,18 +163,29 @@ export default function SchemeTable({
 
   // Calculate totals from filtered schemes
   const overallTotals = useMemo(() => {
-    return filteredSchemes.reduce(
+    return filteredSchemes.reduce<{
+      totalVillages: number;
+      integratedVillages: number;
+      totalFullyCompletedVillages: number;
+      totalEsr: number;
+      integratedEsr: number;
+      totalFullyCompletedEsr: number;
+    }>(
       (acc, scheme) => {
         acc.totalVillages += scheme.number_of_village || 0;
+        acc.integratedVillages += scheme.total_villages_integrated || 0;
         acc.totalFullyCompletedVillages += scheme.fully_completed_villages || 0;
         acc.totalEsr += scheme.total_number_of_esr || 0;
+        acc.integratedEsr += scheme.total_esr_integrated || 0;
         acc.totalFullyCompletedEsr += scheme.no_fully_completed_esr || 0;
         return acc;
       },
       {
         totalVillages: 0,
+        integratedVillages: 0,
         totalFullyCompletedVillages: 0,
         totalEsr: 0,
+        integratedEsr: 0,
         totalFullyCompletedEsr: 0,
       }
     );
@@ -285,19 +296,19 @@ export default function SchemeTable({
                   <TableHead className="text-xs sm:text-sm lg:text-base p-2 sm:p-3 lg:p-4 xl:p-5 text-blue-800 font-semibold border-b border-blue-200 text-center">
                     <div className="flex justify-center">
                       No. of Villages
-                      <span className="px-3 py-1 bg-green-100 rounded-full text-green-800 text-sm font-medium ml-2">
-                        {overallTotals.totalFullyCompletedVillages}/
+                      {/* <span className="px-3 py-1 bg-green-100 rounded-full text-green-800 text-sm font-medium ml-2">
+                        {overallTotals.integratedVillages}/
                         {overallTotals.totalVillages}
-                      </span>
+                      </span> */}
                     </div>
                   </TableHead>
                   <TableHead className="text-xs sm:text-sm lg:text-base p-2 sm:p-3 lg:p-4 xl:p-5 text-blue-800 font-semibold border-b border-blue-200 text-center">
                     <div className="flex justify-center">
                       ESR{" "}
-                      <span className="px-3 py-1 bg-purple-100 rounded-full text-purple-800 text-sm font-medium">
-                        {overallTotals.totalFullyCompletedEsr}/
+                      {/* <span className="px-3 py-1 bg-purple-100 rounded-full text-purple-800 text-sm font-medium ml-2">
+                        {overallTotals.integratedEsr}/
                         {overallTotals.totalEsr}
-                      </span>
+                      </span> */}
                     </div>
                   </TableHead>
                   <TableHead className="text-xs sm:text-sm lg:text-base p-2 sm:p-3 lg:p-4 xl:p-5 text-blue-800 font-semibold border-b border-blue-200 text-center">
@@ -368,7 +379,7 @@ export default function SchemeTable({
                       <TableCell className="p-2 sm:p-3 lg:p-4 xl:p-5 text-xs sm:text-sm lg:text-base text-center border-b border-gray-100">
                         <div className="flex items-center justify-center">
                           <span className="font-medium">
-                            {scheme.fully_completed_villages || 0}
+                            {scheme.total_villages_integrated || 0}
                           </span>
                           <span className="text-neutral-400 mx-1">/</span>
                           <span>{scheme.number_of_village || 0}</span>
@@ -378,7 +389,7 @@ export default function SchemeTable({
                             className="bg-blue-600 h-1.5 rounded-full"
                             style={{
                               width: `${calcPercentage(
-                                scheme.fully_completed_villages,
+                                scheme.total_villages_integrated,
                                 scheme.number_of_village,
                               )}%`,
                             }}
@@ -388,7 +399,7 @@ export default function SchemeTable({
                       <TableCell className="p-2 sm:p-3 lg:p-4 xl:p-5 text-xs sm:text-sm lg:text-base text-center border-b border-gray-100">
                         <div className="flex items-center justify-center">
                           <span className="font-medium">
-                            {scheme.no_fully_completed_esr || 0}
+                            {scheme.total_esr_integrated || 0}
                           </span>
                           <span className="text-neutral-400 mx-1">/</span>
                           <span className="text-purple-600 font-medium">
@@ -400,7 +411,7 @@ export default function SchemeTable({
                             className="bg-purple-500 h-1.5 rounded-full"
                             style={{
                               width: `${calcPercentage(
-                                scheme.no_fully_completed_esr,
+                                scheme.total_esr_integrated,
                                 scheme.total_number_of_esr,
                               )}%`,
                             }}
