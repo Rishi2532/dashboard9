@@ -74,6 +74,8 @@ import { Separator } from "@/components/ui/separator";
 import DashboardLayout from "@/components/dashboard/dashboard-layout";
 import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
 import AgencyTypeFilter from "@/components/dashboard/AgencyTypeFilter";
+import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
+import FilterBar from "@/components/dashboard/FilterBar";
 
 // Define interface for water consumption data
 interface WaterConsumptionRecord {
@@ -1589,289 +1591,190 @@ const WaterConsumptionPage: React.FC = () => {
 
   return (
     <DashboardLayout>
-      <div className="container mx-auto p-6">
-      <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-100 pb-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-neutral-900 flex items-center gap-3">
-            <TranslatedText>Water Consumption Dashboard</TranslatedText>
-          </h1>
-          <p className="text-neutral-500 mt-1 max-w-2xl">
-            <TranslatedText>
-              Monitor and analyze water consumption data across ESR locations with real-time IoT status tracking
-            </TranslatedText>
-          </p>
+      <div className="container mx-auto p-4">
+        <DashboardPageHeader
+          title="Water Consumption Dashboard"
+          subtitle="Monitor and analyze water consumption data across ESR locations with real-time IoT status tracking"
+          isLoading={isLoading}
+          onRefresh={() => refetch()}
+          onExport={() => exportToExcel()}
+          exportCount={filteredData.length}
+          onToggleHistory={() => setShowHistoricalData(!showHistoricalData)}
+          showHistoricalData={showHistoricalData}
+        />
+
+        {/* ESR Metrics Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+          {/* Card 1 */}
+          <Card
+            className="cursor-pointer hover:shadow-lg transition-all duration-200 relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-blue-50 via-white to-blue-50"
+            onClick={() => handleFilterChange("all")}
+          >
+            <div className="absolute top-0 right-0 w-20 h-20 bg-blue-500/10 rounded-full -mr-10 -mt-10"></div>
+            <CardContent className="p-4 text-center relative">
+              <div className="p-2 bg-blue-500/10 rounded-lg mx-auto mb-2 w-fit">
+                <BarChart3 className="w-5 h-5 text-blue-600" />
+              </div>
+              <div className="text-2xl font-bold text-blue-600">
+                {cardMetrics.totalIntegrated}
+              </div>
+              <div className="text-blue-900 text-sm font-medium">
+                Total ESR
+              </div>
+              <div className="text-blue-700 text-xs">Integrated</div>
+            </CardContent>
+          </Card>
+
+          {/* Card 2 */}
+          <Card
+            className="cursor-pointer hover:shadow-lg transition-all duration-200 relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-green-50 via-white to-green-50"
+            onClick={() => handleFilterChange("has_water_latest")}
+          >
+            <div className="absolute top-0 right-0 w-20 h-20 bg-green-500/10 rounded-full -mr-10 -mt-10"></div>
+            <CardContent className="p-4 text-center relative">
+              <div className="p-2 bg-green-500/10 rounded-lg mx-auto mb-2 w-fit">
+                <Waves className="w-5 h-5 text-green-600" />
+              </div>
+              <div className="text-2xl font-bold text-green-600">
+                {cardMetrics.hasWaterLatest}
+              </div>
+              <div className="text-green-900 text-sm font-medium">
+                With Water
+              </div>
+              <div className="text-green-700 text-xs">Latest Consumption</div>
+            </CardContent>
+          </Card>
+
+          {/* Card 3 */}
+          <Card
+            className="cursor-pointer hover:shadow-lg transition-all duration-200 relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-red-50 via-white to-red-50"
+            onClick={() => handleFilterChange("high_consumption")}
+          >
+            <div className="absolute top-0 right-0 w-20 h-20 bg-red-500/10 rounded-full -mr-10 -mt-10"></div>
+            <CardContent className="p-4 text-center relative">
+              <div className="p-2 bg-red-500/10 rounded-lg mx-auto mb-2 w-fit">
+                <Gauge className="w-5 h-5 text-red-600" />
+              </div>
+              <div className="text-2xl font-bold text-red-600">
+                {cardMetrics.highConsumption}
+              </div>
+              <div className="text-red-900 text-sm font-medium">
+                High
+              </div>
+              <div className="text-red-700 text-xs">Water Consumption &gt;ESR Capacity</div>
+            </CardContent>
+          </Card>
+
+          {/* Card 4 */}
+          <Card
+            className="cursor-pointer hover:shadow-lg transition-all duration-200 relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-yellow-50 via-white to-yellow-50"
+            onClick={() => handleFilterChange("partial_data")}
+          >
+            <div className="absolute top-0 right-0 w-20 h-20 bg-yellow-500/10 rounded-full -mr-10 -mt-10"></div>
+            <CardContent className="p-4 text-center relative">
+              <div className="p-2 bg-yellow-500/10 rounded-lg mx-auto mb-2 w-fit">
+                <AlertCircle className="w-5 h-5 text-yellow-600" />
+              </div>
+              <div className="text-2xl font-bold text-yellow-600">
+                {cardMetrics.partialData}
+              </div>
+              <div className="text-yellow-900 text-sm font-medium">
+                Incomplete
+              </div>
+              <div className="text-yellow-700 text-xs">Data Missing &lt;7 Days</div>
+            </CardContent>
+          </Card>
+
+          {/* Card 5 */}
+          <Card
+            className="cursor-pointer hover:shadow-lg transition-all duration-200 relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-orange-50 via-white to-orange-50"
+            onClick={() => handleFilterChange("zero_consumption_week")}
+          >
+            <div className="absolute top-0 right-0 w-20 h-20 bg-orange-500/10 rounded-full -mr-10 -mt-10"></div>
+            <CardContent className="p-4 text-center relative">
+              <div className="p-2 bg-orange-500/10 rounded-lg mx-auto mb-2 w-fit">
+                <Ban className="w-5 h-5 text-orange-600" />
+              </div>
+              <div className="text-2xl font-bold text-orange-600">
+                {cardMetrics.zeroConsumptionWeek}
+              </div>
+              <div className="text-orange-900 text-sm font-medium">
+                No Supply
+              </div>
+              <div className="text-orange-700 text-xs">Zero Water for 7 Days</div>
+            </CardContent>
+          </Card>
+
+          {/* Card 6 */}
+          <Card
+            className="cursor-pointer hover:shadow-lg transition-all duration-200 relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-purple-50 via-white to-purple-50"
+            onClick={() => handleFilterChange("abrupt_consumption")}
+          >
+            <div className="absolute top-0 right-0 w-20 h-20 bg-purple-500/10 rounded-full -mr-10 -mt-10"></div>
+            <CardContent className="p-4 text-center relative">
+              <div className="p-2 bg-purple-500/10 rounded-lg mx-auto mb-2 w-fit">
+                <Gauge className="w-5 h-5 text-purple-600" />
+              </div>
+              <div className="text-2xl font-bold text-purple-600">
+                {cardMetrics.abruptConsumption}
+              </div>
+              <div className="text-purple-900 text-sm font-medium">
+                Abrupt
+              </div>
+              <div className="text-purple-700 text-xs">
+                water Consumption &gt;1000% of ESR Capacity
+              </div>
+            </CardContent>
+          </Card>
         </div>
-        <div className="flex flex-col items-start md:items-end text-right">
-          <p className="text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full flex items-center gap-2">
-            <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
-            <TranslatedText>Dashboard Updated</TranslatedText>:{" "}
-            {new Date().toLocaleDateString("en-IN", {
-              year: "numeric",
-              month: "short",
-              day: "numeric",
-            })}{" "}
-            at{" "}
-            {new Date().toLocaleTimeString("en-IN", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </p>
-        </div>
-      </div>
-            {/* ESR Metrics Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-              {/* Total ESR Integrated */}
-              <Card
-                className="cursor-pointer hover:shadow-lg transition-all duration-200 relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-blue-50 via-white to-blue-50"
-                onClick={() => handleFilterChange("all")}
-              >
-                <div className="absolute top-0 right-0 w-20 h-20 bg-blue-500/10 rounded-full -mr-10 -mt-10"></div>
-                <CardContent className="p-4 text-center relative">
-                  <div className="p-2 bg-blue-500/10 rounded-lg mx-auto mb-2 w-fit">
-                    <BarChart3 className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div className="text-2xl font-bold text-blue-600">
-                    {cardMetrics.totalIntegrated}
-                  </div>
-                  <div className="text-blue-900 text-sm font-medium">
-                    Total ESR
-                  </div>
-                  <div className="text-blue-700 text-xs">Integrated</div>
-                </CardContent>
-              </Card>
 
-              {/* ESR with Water (Latest Day) */}
-              <Card
-                className="cursor-pointer hover:shadow-lg transition-all duration-200 relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-green-50 via-white to-green-50"
-                onClick={() => handleFilterChange("has_water_latest")}
-              >
-                <div className="absolute top-0 right-0 w-20 h-20 bg-green-500/10 rounded-full -mr-10 -mt-10"></div>
-                <CardContent className="p-4 text-center relative">
-                  <div className="p-2 bg-green-500/10 rounded-lg mx-auto mb-2 w-fit">
-                    <Droplets className="w-5 h-5 text-green-600" />
-                  </div>
-                  <div className="text-2xl font-bold text-green-600">
-                    {cardMetrics.withWaterLatest}
-                  </div>
-                  <div className="text-green-900 text-sm font-medium">
-                    ESR with Water
-                  </div>
-                  {/* <div className="text-green-700 text-xs">Latest Day</div> */}
-                </CardContent>
-              </Card>
-
-              {/* ESR without Water (Latest Day) */}
-              <Card
-                className="cursor-pointer hover:shadow-lg transition-all duration-200 relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-red-50 via-white to-red-50"
-                onClick={() => handleFilterChange("no_water_latest")}
-              >
-                <div className="absolute top-0 right-0 w-20 h-20 bg-red-500/10 rounded-full -mr-10 -mt-10"></div>
-                <CardContent className="p-4 text-center relative">
-                  <div className="p-2 bg-red-500/10 rounded-lg mx-auto mb-2 w-fit">
-                    <AlertTriangle className="w-5 h-5 text-red-600" />
-                  </div>
-                  <div className="text-2xl font-bold text-red-600">
-                    {cardMetrics.withoutWaterLatest}
-                  </div>
-                  <div className="text-red-900 text-sm font-medium">
-                    ESR with no Water
-                  </div>
-                  {/* <div className="text-red-700 text-xs">Latest Day</div> */}
-                </CardContent>
-              </Card>
-
-              {/* Continuous Water Supply (Week) */}
-              <Card
-                className="cursor-pointer hover:shadow-lg transition-all duration-200 relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-teal-50 via-white to-teal-50"
-                onClick={() => handleFilterChange("continuous_water_week")}
-              >
-                <div className="absolute top-0 right-0 w-20 h-20 bg-teal-500/10 rounded-full -mr-10 -mt-10"></div>
-                <CardContent className="p-4 text-center relative">
-                  <div className="p-2 bg-teal-500/10 rounded-lg mx-auto mb-2 w-fit">
-                    <Waves className="w-5 h-5 text-teal-600" />
-                  </div>
-                  <div className="text-2xl font-bold text-teal-600">
-                    {cardMetrics.continuousWaterWeek}
-                  </div>
-                  <div className="text-teal-900 text-sm font-medium">
-                    Consisten Water Supply{" "}
-                  </div>
-                  <div className="text-teal-700 text-xs">For a Week</div>
-                </CardContent>
-              </Card>
-
-              {/* Continuous No Water (Week) */}
-              <Card
-                className="cursor-pointer hover:shadow-lg transition-all duration-200 relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-orange-50 via-white to-orange-50"
-                onClick={() => handleFilterChange("continuous_no_water_week")}
-              >
-                <div className="absolute top-0 right-0 w-20 h-20 bg-orange-500/10 rounded-full -mr-10 -mt-10"></div>
-                <CardContent className="p-4 text-center relative">
-                  <div className="p-2 bg-orange-500/10 rounded-lg mx-auto mb-2 w-fit">
-                    <Ban className="w-5 h-5 text-orange-600" />
-                  </div>
-                  <div className="text-2xl font-bold text-orange-600">
-                    {cardMetrics.continuousNoWaterWeek}
-                  </div>
-                  <div className="text-orange-900 text-sm font-medium">
-                    {" "}
-                    Consistent Zero Water Suppy
-                  </div>
-                  <div className="text-orange-700 text-xs">For a Week</div>
-                </CardContent>
-              </Card>
-
-              {/* Abrupt Consumption (>1000%) */}
-              <Card
-                className="cursor-pointer hover:shadow-lg transition-all duration-200 relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-purple-50 via-white to-purple-50"
-                onClick={() => handleFilterChange("abrupt_consumption")}
-              >
-                <div className="absolute top-0 right-0 w-20 h-20 bg-purple-500/10 rounded-full -mr-10 -mt-10"></div>
-                <CardContent className="p-4 text-center relative">
-                  <div className="p-2 bg-purple-500/10 rounded-lg mx-auto mb-2 w-fit">
-                    <Gauge className="w-5 h-5 text-purple-600" />
-                  </div>
-                  <div className="text-2xl font-bold text-purple-600">
-                    {cardMetrics.abruptConsumption}
-                  </div>
-                  <div className="text-purple-900 text-sm font-medium">
-                    Abrupt
-                  </div>
-                  <div className="text-purple-700 text-xs">
-                    water Consumption &gt;1000% of ESR Capacity
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-                  <GeographicalFilters
-        selectedRegion={selectedRegion}
-        selectedCircle={selectedCircle}
-        selectedDivision={selectedDivision}
-        selectedSubdivision={selectedSubdivision}
-        selectedBlock={selectedBlock}
-        onRegionChange={handleRegionChange}
-        onCircleChange={handleCircleChange}
-        onDivisionChange={handleDivisionChange}
-        onSubdivisionChange={handleSubdivisionChange}
-        onBlockChange={handleBlockChange}
-        filters={filterOptions}
-      />
-
-      <div className="bg-white rounded-xl shadow-sm mb-8 border border-gray-200 overflow-hidden">
-        <div className="p-5 flex flex-col xl:flex-row gap-6 items-stretch xl:items-end">
-          {/* Main Filters Row */}
-          <div className="flex flex-wrap gap-4 items-end flex-grow">
+        <FilterBar
+          filterOptions={filterOptions}
+          selectedRegion={selectedRegion}
+          selectedCircle={selectedCircle}
+          selectedDivision={selectedDivision}
+          selectedSubdivision={selectedSubdivision}
+          selectedBlock={selectedBlock}
+          onRegionChange={handleRegionChange}
+          onCircleChange={handleCircleChange}
+          onDivisionChange={handleDivisionChange}
+          onSubdivisionChange={handleSubdivisionChange}
+          onBlockChange={handleBlockChange}
+          selectedAgencyType={selectedAgencyType}
+          onAgencyTypeChange={(v) => { setSelectedAgencyType(v); setPage(1); }}
+          searchQuery={searchQuery}
+          onSearchChange={(v) => { setSearchQuery(v); setPage(1); }}
+          searchPlaceholder="Search by ESR, village or scheme..."
+          resultCount={filteredData.length}
+          resultLabel="ESR records"
+          extraFilters={
             <div className="w-full sm:w-64">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Agency Type</label>
-              <AgencyTypeFilter
-                selectedAgencyType={selectedAgencyType}
-                onAgencyTypeChange={(value) => {
-                  setSelectedAgencyType(value);
-                  setPage(1);
-                }}
-                variant="select"
-                hideLabel
-                className="w-full"
-              />
-            </div>
-
-            <div className="flex-grow sm:flex-grow-0 sm:w-64">
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">IoT Status</label>
               <Select value={iotStatus} onValueChange={(val) => { setIotStatus(val); setPage(1); }}>
-                <SelectTrigger className="h-11 border-gray-200 shadow-sm text-sm">
-                  <SelectValue placeholder="IoT Status" />
+                <SelectTrigger className="h-11 border-gray-200 shadow-sm">
+                  <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All IoT Status</SelectItem>
-                  <SelectItem value="Fully Completed">Fully Completed</SelectItem>
-                  <SelectItem value="In Progress">In Progress</SelectItem>
+                  <SelectItem value="Connected">Connected</SelectItem>
+                  <SelectItem value="Not-Connected">Not Connected</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+          }
+          onClearAll={() => {
+            setSelectedRegion("all");
+            setSelectedCircle("all");
+            setSelectedDivision("all");
+            setSelectedSubdivision("all");
+            setSelectedBlock("all");
+            setSearchQuery("");
+            setSelectedAgencyType("ALL");
+            setIotStatus("all");
+            handleFilterChange("all");
+          }}
+        />
 
-            {uiSchemeFilter === "commissioned" && (
-              <div className="flex-grow sm:flex-grow-0 sm:w-64">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Water Supply</label>
-                <div className="bg-white border border-gray-200 p-1 shadow-sm rounded-md w-full h-11 flex items-center">
-                  <div className="flex w-full">
-                    <button 
-                      onClick={() => handleWaterSupplyStatusChange("All")}
-                      className={`flex-1 px-2 py-1.5 text-[10px] font-bold uppercase tracking-tight rounded-sm transition-colors ${waterSupplyStatus === "All" ? "bg-blue-600 text-white" : "hover:bg-blue-50 text-blue-600"}`}
-                    >All</button>
-                    <button 
-                      onClick={() => handleWaterSupplyStatusChange("Full")}
-                      className={`flex-1 px-2 py-1.5 text-[10px] font-bold uppercase tracking-tight rounded-sm transition-colors ${waterSupplyStatus === "Full" ? "bg-emerald-600 text-white" : "hover:bg-emerald-50 text-emerald-600"}`}
-                    >Full</button>
-                    <button 
-                      onClick={() => handleWaterSupplyStatusChange("Partial")}
-                      className={`flex-1 px-2 py-1.5 text-[10px] font-bold uppercase tracking-tight rounded-sm transition-colors ${waterSupplyStatus === "Partial" ? "bg-amber-500 text-white" : "hover:bg-amber-50 text-amber-500"}`}
-                    >Partial</button>
-                    <button 
-                      onClick={() => handleWaterSupplyStatusChange("No")}
-                      className={`flex-1 px-2 py-1.5 text-[10px] font-bold uppercase tracking-tight rounded-sm transition-colors ${waterSupplyStatus === "No" ? "bg-red-500 text-white" : "hover:bg-red-50 text-red-500"}`}
-                    >No</button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="flex-grow sm:flex-grow-0 sm:w-80 relative">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Search ESRs</label>
-              <div className="relative">
-                <Search className="absolute left-3.5 top-1/2 h-4 w-4 text-gray-400 -translate-y-1/2" />
-                <Input
-                  placeholder="Search by scheme or village..."
-                  className="pl-10 pr-10 border-gray-200 focus:ring-blue-500 focus:border-blue-500 h-11 shadow-sm"
-                  value={searchTerm}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                />
-                {searchTerm && (
-                  <button
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    onClick={() => handleSearchChange("")}
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Action Row */}
-          <div className="flex flex-wrap gap-3 mt-2 xl:mt-0">
-            <Button
-              onClick={() => {
-                const filename = `Water_Consumption_${selectedRegion}_${currentFilter}_${new Date().toISOString().split("T")[0]}`;
-                exportToExcel(filteredData, filename);
-              }}
-              variant="outline"
-              className="bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 gap-2 h-11 px-5 shadow-sm"
-            >
-              <DownloadIcon className="h-4 w-4" />
-              <span>Export</span>
-              <span className="text-emerald-600/60 font-medium ml-1">({filteredData.length})</span>
-            </Button>
-            
-            <Button
-              onClick={() => setShowHistoricalData(!showHistoricalData)}
-              variant={showHistoricalData ? "default" : "outline"}
-              className={`flex items-center gap-2 h-11 px-5 shadow-sm ${showHistoricalData ? 'bg-blue-600' : 'bg-white border-gray-200'}`}
-            >
-              <History className="h-4 w-4" />
-              <span>{showHistoricalData ? "Current Mode" : "Analysis Mode"}</span>
-            </Button>
-
-            <Button
-              onClick={() => {}} // Use refetch if available or appropriate
-              variant="outline"
-              className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 gap-2 h-11 px-5 shadow-sm"
-            >
-              <RefreshCw className="h-4 w-4" />
-              <span>Refresh</span>
-            </Button>
-          </div>
-        </div>
-      </div>
 
             {/* Historical Data Date Selection */}
             {showHistoricalData && (

@@ -1674,10 +1674,9 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout>
-      <div className="container mx-auto p-6">
-        {/* Add ComponentTypeFilter for highlighting components when asked about through chatbot */}
-        <ComponentTypeFilter
-          onFilterChange={(componentType) => {
+      {/* Add ComponentTypeFilter for highlighting components when asked about through chatbot */}
+      <ComponentTypeFilter
+        onFilterChange={(componentType) => {
           console.log(
             `Dashboard received component filter change: ${componentType}`,
           );
@@ -1923,18 +1922,34 @@ export default function Dashboard() {
                   : `Showing water schemes in ${selectedRegion} region. Use the chatbot to filter other regions.`}
             </p>
           </div>
+          {/* <span className="hidden sm:flex items-center text-xs text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+            <span className="font-medium">
+              {isFiltering ? geoFilteredSchemes.length : schemes.length}
+            </span>
+            <span className="ml-1">
+              scheme
+              {(isFiltering ? geoFilteredSchemes.length : schemes.length) !== 1
+                ? "s"
+                : ""}{" "}
+              found
+            </span>
+          </span> */}
         </div>
-        <SchemeTable
-          schemes={isFiltering ? geoFilteredSchemes : schemes || []}
-          isLoading={
-            isFiltering ? isGeoFilteredSchemesLoading : isSchemesLoading
-          }
-          onViewDetails={handleViewSchemeDetails}
-          statusFilter={statusFilter}
-          onStatusFilterChange={handleStatusFilterChange}
-          onFilteredSchemesChange={handleFilteredSchemesChange}
-          selectedRegion={selectedRegion}
-        />
+        <div className="w-full overflow-x-auto bg-gradient-to-r from-blue-50/30 via-white to-blue-50/30 rounded-lg p-2">
+          <div className="min-w-[650px]">
+            <SchemeTable
+              schemes={isFiltering ? geoFilteredSchemes : schemes || []}
+              isLoading={
+                isFiltering ? isGeoFilteredSchemesLoading : isSchemesLoading
+              }
+              onViewDetails={handleViewSchemeDetails}
+              statusFilter={statusFilter}
+              onStatusFilterChange={handleStatusFilterChange}
+              onFilteredSchemesChange={handleFilteredSchemesChange}
+              selectedRegion={selectedRegion}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Scheme Details Modal */}
@@ -1944,8 +1959,7 @@ export default function Dashboard() {
         onClose={handleCloseModal}
       />
 
-        {/* AI Assistant Chatbot is now managed globally in App.tsx */}
-      </div>
+      {/* AI Assistant Chatbot is now managed globally in App.tsx */}
     </DashboardLayout>
   );
 }

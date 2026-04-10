@@ -546,13 +546,13 @@ export default function SchemeDetailsModal({
                   alt="ESR"
                   className="h-4 w-4 mr-1"
                 />
-                ESR Integration
+                Reservoir Integration
               </h4>
               <div className="bg-neutral-50 rounded-lg p-2">
                 {/* ESR integrated */}
                 <div className="flex justify-between mb-1 mt-2">
                   <span className="text-xs text-neutral-500">
-                    ESR integrated
+                    Reservoir integrated
                   </span>
                   <span className="text-xs font-semibold text-neutral-700">
                     {esrIntegrated} / {totalEsr}
@@ -571,7 +571,7 @@ export default function SchemeDetailsModal({
                 {/* Fully completed ESR */}
                 <div className="flex justify-between mb-1 mt-2">
                   <span className="text-xs text-neutral-500">
-                    Fully completed ESR
+                    Fully completed Reservoirs
                   </span>
                   <span className="text-xs font-semibold text-neutral-700">
                     {currentScheme.no_fully_completed_esr || 0} / {totalEsr}

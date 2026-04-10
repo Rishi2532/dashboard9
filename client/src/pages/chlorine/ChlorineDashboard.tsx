@@ -1713,33 +1713,29 @@ const ChlorineDashboard: React.FC = () => {
   return (
     <div className="container mx-auto p-4">
       {/* Header with Date */}
-      <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-100 pb-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-neutral-900 flex items-center gap-3">
-            <TranslatedText>Chlorine Dashboard</TranslatedText>
-          </h1>
-          <p className="text-neutral-500 mt-1 max-w-2xl">
-            <TranslatedText>
-              Monitor residual chlorine levels across water schemes and ESRs
-            </TranslatedText>
-          </p>
-        </div>
-        <div className="flex flex-col items-start md:items-end text-right">
-          <p className="text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full flex items-center gap-2">
-            <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
-            <TranslatedText>Dashboard Updated</TranslatedText>:{" "}
-            {new Date().toLocaleDateString("en-IN", {
-              year: "numeric",
-              month: "short",
-              day: "numeric",
-            })}{" "}
-            at{" "}
-            {new Date().toLocaleTimeString("en-IN", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </p>
-        </div>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+          <TranslatedText>Chlorine Dashboard</TranslatedText>
+        </h1>
+        <p className="text-gray-500 mt-1">
+          <TranslatedText>
+            Monitor residual chlorine levels across water schemes and ESRs
+          </TranslatedText>
+        </p>
+        <p className="text-sm text-blue-600 font-medium mt-2">
+          <TranslatedText>Dashboard Updated</TranslatedText>:{" "}
+          {new Date().toLocaleDateString("en-IN", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          })}{" "}
+          <TranslatedText>at</TranslatedText>{" "}
+          {new Date().toLocaleTimeString("en-IN", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </p>
       </div>
 
       <GeographicalFilters
@@ -1756,84 +1752,105 @@ const ChlorineDashboard: React.FC = () => {
         onBlockChange={handleBlockChange}
       />
 
-      <div className="bg-white rounded-xl shadow-sm mb-8 border border-gray-200 overflow-hidden">
-        <div className="p-5 flex flex-col xl:flex-row gap-6 items-stretch xl:items-end">
-          {/* Filters Row */}
-          <div className="flex flex-wrap gap-4 items-end flex-grow">
-            <div className="w-full sm:w-64">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Agency Type</label>
-              <AgencyTypeFilter
-                selectedAgencyType={selectedAgencyType}
-                onAgencyTypeChange={setSelectedAgencyType}
-                variant="select"
-                hideLabel
-                className="w-full"
-              />
-            </div>
+      {/* Filters Section - Grid-based layout like PressureDashboard */}
+      <div className="bg-white rounded-xl shadow-sm mb-6 p-6 border border-blue-100">
+        <div className="flex-1 min-w-[200px]">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Agency Type</label>
+          <AgencyTypeFilter
+            selectedAgencyType={selectedAgencyType}
+            onAgencyTypeChange={setSelectedAgencyType}
+            className="w-full h-11"
+          />
+        </div>
+      </div>
 
-            <div className="flex-grow sm:flex-grow-0 sm:w-80 relative">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Search ESRs</label>
-              <div className="relative">
-                <Search className="absolute left-3.5 top-1/2 h-4 w-4 text-gray-400 -translate-y-1/2" />
-                <Input
-                  placeholder="Search by scheme, village or ESR..."
-                  className="pl-10 pr-10 border-gray-200 focus:ring-blue-500 focus:border-blue-500 h-11 shadow-sm"
-                  value={searchQuery}
-                  onChange={(e) => {
-                    const newValue = e.target.value;
-                    setSearchQuery(newValue);
-                    setPage(1);
-                  }}
-                />
-                {searchQuery && (
-                  <button
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    onClick={() => setSearchQuery("")}
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
+      {/* Search and Actions Row - Now part of its own container for consistency */}
+      <div className="bg-white rounded-xl shadow-sm mb-6 p-6 border border-blue-100">
+        <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center">
+          {/* Search ESRs */}
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Search ESRs
+            </label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 text-gray-400 -translate-y-1/2" />
+              <Input
+                placeholder="Search by scheme, village or ESR name..."
+                className="pl-9 pr-10 py-2 border-blue-200 focus:ring-blue-500 focus:border-blue-500 h-11"
+                value={searchQuery}
+                onChange={(e) => {
+                  const newValue = e.target.value;
+                  setSearchQuery(newValue);
+                  setPage(1);
+                  if (newValue.trim().length > 2) {
+                    setTimeout(() => {
+                      if (searchQuery === newValue) {
+                        trackFilterUsage(
+                          "search",
+                          newValue,
+                          filteredData.length,
+                          "chlorine_dashboard",
+                        );
+                      }
+                    }, 1000);
+                  }
+                }}
+                data-testid="input-search-esr"
+              />
+              {searchQuery && (
+                <button
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  onClick={() => setSearchQuery("")}
+                  data-testid="button-clear-search"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Action Row */}
-          <div className="flex flex-wrap gap-3 mt-2 xl:mt-0">
+          {/* Action Buttons */}
+          <div className="flex gap-2 md:self-end">
             <Button
               onClick={() =>
                 exportToExcel(
-                  globallyFilteredData,
-                  `Chlorine_Data_${selectedRegion}_${new Date().toISOString().split("T")[0]}`,
+                  filteredData,
+                  `Chlorine_Data_${selectedRegion}_${selectedCardFilter}_${new Date().toISOString().split("T")[0]}`,
                 )
               }
               variant="outline"
-              className="bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 gap-2 h-11 px-5 shadow-sm"
+              className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100 gap-2 h-11 px-4"
+              data-testid="button-export-excel"
             >
               <Download className="h-4 w-4" />
-              <span>Export</span>
-              <span className="text-emerald-600/60 font-medium ml-1">({globallyFilteredData.length})</span>
+              <span className="hidden sm:inline">Export to Excel</span>
+              <span className="sm:hidden">Export</span>
+              {filteredData.length > 0 ? ` (${filteredData.length})` : ""}
             </Button>
-            
             <Button
               onClick={() => setShowHistoricalData(!showHistoricalData)}
               variant={showHistoricalData ? "default" : "outline"}
-              className={`flex items-center gap-2 h-11 px-5 shadow-sm ${showHistoricalData ? 'bg-blue-600' : 'bg-white border-gray-200'}`}
+              className="flex items-center gap-2 h-11 px-4"
+              data-testid="button-historical-data"
             >
               <History className="h-4 w-4" />
-              <span>{showHistoricalData ? "Current Mode" : "Analysis Mode"}</span>
+              <span className="hidden sm:inline">
+                {showHistoricalData ? "Current Data" : "Historical Data"}
+              </span>
+              <span className="sm:hidden">History</span>
             </Button>
-
             <Button
               onClick={() => refetch()}
               variant="outline"
-              className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 gap-2 h-11 px-5 shadow-sm"
+              className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 gap-2 h-11 px-4"
+              data-testid="button-refresh-data"
             >
               <RefreshCw className="h-4 w-4" />
-              <span>Refresh</span>
+              <span className="hidden sm:inline">Refresh Data</span>
+              <span className="sm:hidden">Refresh</span>
             </Button>
           </div>
         </div>
-      </div>
 
         {/* Historical Data Date Selection */}
         {showHistoricalData && (
@@ -1905,6 +1922,8 @@ const ChlorineDashboard: React.FC = () => {
             )}
           </div>
         )}
+      </div>
+
       {/* Status Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4 mb-6">
         {/* Connected Sensors Card */}
@@ -2161,145 +2180,7 @@ const ChlorineDashboard: React.FC = () => {
         </div>
 
         {/* Consistent Pattern Cards (For All Connected Sensors) */}
-        <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-          <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-            <Activity className="h-6 w-6 text-gray-600 mr-2" />
-            Consistent Patterns (All Connected Sensors)
-          </h3>
-          <div className="grid gap-4 md:grid-cols-5">
-            {/* Consistent Zero Card */}
-            <Card
-              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "consistent_zero"
-                ? "ring-2 ring-gray-500 ring-offset-2"
-                : ""
-                } transform hover:scale-[1.01]`}
-              onClick={() => handleCardClick("consistent_zero")}
-            >
-              <CardContent className="p-4 flex items-center">
-                <div className="bg-gray-100 p-3 rounded-full mr-4">
-                  <div className="h-5 w-5 text-gray-700 flex items-center justify-center text-xs font-bold">
-                    0
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-gray-800">
-                    Consistent Zero
-                  </h4>
-                  <p className="text-2xl font-bold text-gray-700">
-                    {updatedCardStats?.consistentZeroSensors || 0}
-                  </p>
-                  <p className="text-xs text-gray-600/70">
-                    Zero chlorine 7 days
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
 
-            {/* Consistent Below Range Card */}
-            <Card
-              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "consistent_below"
-                ? "ring-2 ring-red-500 ring-offset-2"
-                : ""
-                } transform hover:scale-[1.01]`}
-              onClick={() => handleCardClick("consistent_below")}
-            >
-              <CardContent className="p-4 flex items-center">
-                <div className="bg-red-100 p-3 rounded-full mr-4">
-                  <AlertTriangle className="h-5 w-5 text-red-700" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-red-800">
-                    Consistent Below
-                  </h4>
-                  <p className="text-2xl font-bold text-red-600">
-                    {updatedCardStats?.consistentBelowRangeSensors || 0}
-                  </p>
-                  <p className="text-xs text-red-600/70">
-                    &lt;0.2mg/l for 7 days
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Consistent Optimal Range Card */}
-            <Card
-              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "consistent_optimal"
-                ? "ring-2 ring-green-500 ring-offset-2"
-                : ""
-                } transform hover:scale-[1.01]`}
-              onClick={() => handleCardClick("consistent_optimal")}
-            >
-              <CardContent className="p-4 flex items-center">
-                <div className="bg-green-100 p-3 rounded-full mr-4">
-                  <CheckCircle className="h-5 w-5 text-green-700" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-green-800">
-                    Consistent Optimal
-                  </h4>
-                  <p className="text-2xl font-bold text-green-600">
-                    {updatedCardStats?.consistentOptimalSensors || 0}
-                  </p>
-                  <p className="text-xs text-green-600/70">
-                    0.2-0.5mg/l for 7 days
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Consistent Above Range Card */}
-            <Card
-              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "consistent_above"
-                ? "ring-2 ring-orange-500 ring-offset-2"
-                : ""
-                } transform hover:scale-[1.01]`}
-              onClick={() => handleCardClick("consistent_above")}
-            >
-              <CardContent className="p-4 flex items-center">
-                <div className="bg-orange-100 p-3 rounded-full mr-4">
-                  <AlertCircle className="h-5 w-5 text-orange-700" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-orange-800">
-                    Consistent Above
-                  </h4>
-                  <p className="text-2xl font-bold text-orange-600">
-                    {updatedCardStats?.consistentAboveRangeSensors || 0}
-                  </p>
-                  <p className="text-xs text-orange-600/70">
-                    &gt;0.5mg/l for 7 days
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Show All Sensors */}
-            <Card
-              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "all"
-                ? "ring-2 ring-teal-500 ring-offset-2"
-                : ""
-                } transform hover:scale-[1.01]`}
-              onClick={() => handleCardClick("all")}
-            >
-              <CardContent className="p-4 flex items-center">
-                <div className="bg-teal-100 p-3 rounded-full mr-4">
-                  <div className="h-5 w-5 text-teal-700 flex items-center justify-center text-xs font-bold">
-                    All
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-teal-800">All Sensors</h4>
-                  <p className="text-2xl font-bold text-teal-600">
-                    {updatedCardStats?.totalSensors || 0}
-                  </p>
-                  <p className="text-xs text-teal-600/70">
-                    Total connected sensors
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
       </div>
 
       {/* Regional Summary Mini-Table - Always Visible */}

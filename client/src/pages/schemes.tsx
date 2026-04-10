@@ -685,35 +685,36 @@ export default function Schemes() {
 
   return (
     <DashboardLayout>
-      <div className="container mx-auto p-6">
-        <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">
-            Schemes Management
-          </h1>
-          <p className="mt-1 text-sm text-neutral-500">
-            View and manage all water schemes across regions
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <Button
-            onClick={exportComprehensiveReport}
-            disabled={isSchemesLoading || currentFilteredSchemes.length === 0}
-            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm h-10"
-            data-testid="button-comprehensive-excel"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Comprehensive Excel ({currentFilteredSchemes.length})
-          </Button>
-          <Button
-            onClick={exportToExcel}
-            disabled={isSchemesLoading || currentFilteredSchemes.length === 0}
-            className="bg-green-600 hover:bg-green-700 text-white shadow-sm h-10"
-            data-testid="button-export-excel"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Standard Excel ({currentFilteredSchemes.length})
-          </Button>
+      <div className="mb-6">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-semibold text-neutral-900">
+              Schemes Management
+            </h1>
+            <p className="mt-1 text-sm text-neutral-500">
+              View and manage all water schemes across regions
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Button
+              onClick={exportComprehensiveReport}
+              disabled={isSchemesLoading || currentFilteredSchemes.length === 0}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              data-testid="button-comprehensive-excel"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Comprehensive Excel Report ({currentFilteredSchemes.length})
+            </Button>
+            <Button
+              onClick={exportToExcel}
+              disabled={isSchemesLoading || currentFilteredSchemes.length === 0}
+              className="bg-green-600 hover:bg-green-700 text-white"
+              data-testid="button-export-excel"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export to Excel ({currentFilteredSchemes.length})
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -731,31 +732,28 @@ export default function Schemes() {
         onBlockChange={handleBlockChange}
       />
 
-      <div className="flex flex-wrap items-center gap-4 mt-6 mb-8 bg-blue-50/50 p-4 rounded-xl border border-blue-100/50 shadow-sm">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-blue-800 uppercase tracking-wider">Operational Filters</span>
-          <div className="h-4 w-px bg-blue-200 mx-2 hidden sm:block"></div>
-        </div>
+      <div className="flex flex-wrap items-center gap-3 mt-4 mb-6 bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+
 
         {uiSchemeFilter === "commissioned" && (
-          <Tabs value={waterSupplyStatus} onValueChange={setWaterSupplyStatus} className="m-0">
-            <TabsList className="h-10 bg-white p-1 border border-gray-200 shadow-sm">
-              <TabsTrigger value="All" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-blue-600 data-[state=active]:text-white">All Schemes</TabsTrigger>
-              <TabsTrigger value="Full" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Fully Operational</TabsTrigger>
-              <TabsTrigger value="Partial" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partially Operational</TabsTrigger>
-              <TabsTrigger value="No" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-red-500 data-[state=active]:text-white">Not Operational</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <>
+            <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2"></div>
+            <Tabs value={waterSupplyStatus} onValueChange={setWaterSupplyStatus} className="m-0">
+              <TabsList className="h-10 bg-gray-100 dark:bg-gray-800 p-1 border border-gray-200 dark:border-gray-700">
+                <TabsTrigger value="All" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-blue-600 data-[state=active]:text-white">All Schemes</TabsTrigger>
+                <TabsTrigger value="Full" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Fully Operational</TabsTrigger>
+                <TabsTrigger value="Partial" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partially Operational</TabsTrigger>
+                <TabsTrigger value="No" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-red-500 data-[state=active]:text-white">Not Operational</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </>
         )}
 
-        <div className="h-4 w-px bg-blue-200 mx-2 hidden sm:block"></div>
-        
+        <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2"></div>
         <AgencyTypeFilter
           selectedAgencyType={selectedAgencyType}
           onAgencyTypeChange={setSelectedAgencyType}
-          variant="select"
-          hideLabel
-          className="w-full sm:w-64"
+          className="w-full md:w-64"
         />
       </div>
 
@@ -775,7 +773,6 @@ export default function Schemes() {
         isOpen={isModalOpen}
         onClose={handleCloseModal}
       />
-      </div>
     </DashboardLayout>
   );
 }

@@ -2132,197 +2132,261 @@ const PressureDashboard: React.FC = () => {
 
   return (
     <div className="container mx-auto p-4">
-      <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-100 pb-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-neutral-900 flex items-center gap-3">
-            <TranslatedText>Pressure Dashboard</TranslatedText>
-          </h1>
-          <p className="text-neutral-500 mt-1 max-w-2xl">
-            <TranslatedText>
-              Monitor water pressure levels across water schemes and ESRs
-            </TranslatedText>
-          </p>
-        </div>
-        <div className="flex flex-col items-start md:items-end text-right">
-          <p className="text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full flex items-center gap-2">
-            <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
-            <TranslatedText>Dashboard Updated</TranslatedText>:{" "}
-            {new Date().toLocaleDateString("en-IN", {
-              year: "numeric",
-              month: "short",
-              day: "numeric",
-            })}{" "}
-            at{" "}
-            {new Date().toLocaleTimeString("en-IN", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </p>
-        </div>
+      {/* Header with Date */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+          <TranslatedText>Pressure Dashboard</TranslatedText>
+        </h1>
+        <p className="text-gray-500 mt-1">
+          <TranslatedText>
+            Monitor water pressure levels across water schemes and ESRs
+          </TranslatedText>
+        </p>
+        <p className="text-sm text-blue-600 font-medium mt-2">
+          <TranslatedText>Dashboard Updated</TranslatedText>:{" "}
+          {new Date().toLocaleDateString("en-IN", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          })}{" "}
+          <TranslatedText>at</TranslatedText>{" "}
+          {new Date().toLocaleTimeString("en-IN", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </p>
       </div>
 
-      <GeographicalFilters
-        filters={filterOptions}
-        selectedRegion={selectedRegion}
-        selectedCircle={selectedCircle}
-        selectedDivision={selectedDivision}
-        selectedSubdivision={selectedSubdivision}
-        selectedBlock={selectedBlock}
-        onRegionChange={handleRegionChange}
-        onCircleChange={handleCircleChange}
-        onDivisionChange={handleDivisionChange}
-        onSubdivisionChange={handleSubdivisionChange}
-        onBlockChange={handleBlockChange}
-      />
+      <div className="bg-white rounded-xl shadow-sm mb-6 p-6 border border-blue-100">
+        {/* Filters Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          {/* Geographic Filters */}
+          <div className="lg:col-span-4">
+            <GeographicalFilters
+              filters={filterOptions}
+              selectedRegion={selectedRegion}
+              selectedCircle={selectedCircle}
+              selectedDivision={selectedDivision}
+              selectedSubdivision={selectedSubdivision}
+              selectedBlock={selectedBlock}
+              onRegionChange={handleRegionChange}
+              onCircleChange={handleCircleChange}
+              onDivisionChange={handleDivisionChange}
+              onSubdivisionChange={handleSubdivisionChange}
+              onBlockChange={handleBlockChange}
+            />
+          </div>
 
-      <div className="bg-white rounded-xl shadow-sm mb-8 border border-gray-200 overflow-hidden">
-        <div className="p-5 flex flex-col xl:flex-row gap-6 items-stretch xl:items-end">
-          {/* Filters Row */}
-          <div className="flex flex-wrap gap-4 items-end flex-grow">
-            <div className="w-full sm:w-64">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Agency Type</label>
-              <AgencyTypeFilter
-                selectedAgencyType={selectedAgencyType}
-                onAgencyTypeChange={setSelectedAgencyType}
-                className="w-full h-11 border-gray-200 shadow-sm"
-              />
-            </div>
+          {/* Agency Type Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Agency Type
+            </label>
+            <AgencyTypeFilter
+              selectedAgencyType={selectedAgencyType}
+              onAgencyTypeChange={(value) => {
+                setSelectedAgencyType(value);
+                setPage(1);
+                trackFilterUsage("agency_type_filter", value, undefined, "pressure_dashboard");
+              }}
+            />
+          </div>
 
-            <div className="flex-grow sm:flex-grow-0 sm:w-80 relative">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Search ESRs</label>
-              <div className="relative">
-                <Search className="absolute left-3.5 top-1/2 h-4 w-4 text-gray-400 -translate-y-1/2" />
-                <Input
-                  placeholder="Search by scheme, village or ESR name..."
-                  className="pl-10 pr-10 border-gray-200 focus:ring-blue-500 focus:border-blue-500 h-11 shadow-sm"
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setPage(1);
-                  }}
-                />
-                {searchQuery && (
+
+
+          {uiSchemeFilter === "commissioned" && (
+            <div className="flex-1 min-w-[300px]">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Water Supply Status</label>
+              <div className="bg-white border border-blue-100 p-0.5 shadow-sm rounded-md w-full overflow-x-auto">
+                <div className="flex min-w-[280px]">
                   <button
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    onClick={() => setSearchQuery("")}
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
+                    onClick={() => handleWaterSupplyStatusChange("All")}
+                    className={`flex-1 px-3 py-2 text-xs font-medium rounded-sm transition-colors ${waterSupplyStatus === "All" ? "bg-blue-600 text-white" : "hover:bg-blue-50 text-blue-600"}`}
+                  >All</button>
+                  <button
+                    onClick={() => handleWaterSupplyStatusChange("Full")}
+                    className={`flex-1 px-3 py-2 text-xs font-medium rounded-sm transition-colors ${waterSupplyStatus === "Full" ? "bg-emerald-600 text-white" : "hover:bg-emerald-50 text-emerald-600"}`}
+                  >Full</button>
+                  <button
+                    onClick={() => handleWaterSupplyStatusChange("Partial")}
+                    className={`flex-1 px-3 py-2 text-xs font-medium rounded-sm transition-colors ${waterSupplyStatus === "Partial" ? "bg-amber-500 text-white" : "hover:bg-amber-50 text-amber-500"}`}
+                  >Partial</button>
+                  <button
+                    onClick={() => handleWaterSupplyStatusChange("No")}
+                    className={`flex-1 px-3 py-2 text-xs font-medium rounded-sm transition-colors ${waterSupplyStatus === "No" ? "bg-red-500 text-white" : "hover:bg-red-50 text-red-500"}`}
+                  >No</button>
+                </div>
               </div>
+            </div>
+          )}
+
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-sm font-medium text-gray-700 mb-2">IoT Status</label>
+            <Select value={schemeStatusFilter} onValueChange={handleSchemeStatusFilterChange}>
+              <SelectTrigger className="w-full bg-white border-blue-200 h-11 shadow-sm">
+                <SelectValue placeholder="IoT Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All IoT Status</SelectItem>
+                <SelectItem value="Connected">Connected</SelectItem>
+                <SelectItem value="Fully Completed">Fully Completed</SelectItem>
+                <SelectItem value="In Progress">In Progress</SelectItem>
+                <SelectItem value="Not-Connected">Not Connected</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Search and Actions Row */}
+        <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center">
+          {/* Search ESRs */}
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Search ESRs
+            </label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 text-gray-400 -translate-y-1/2" />
+              <Input
+                placeholder="Search by scheme, village or ESR name..."
+                className="pl-9 pr-10 py-2 border-blue-200 focus:ring-blue-500 focus:border-blue-500 h-11"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
+                data-testid="input-search-esr"
+              />
+              {searchQuery && (
+                <button
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  onClick={() => setSearchQuery("")}
+                  data-testid="button-clear-search"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Action Row */}
-          <div className="flex flex-wrap gap-3 mt-2 xl:mt-0">
+          {/* Action Buttons */}
+          <div className="flex gap-2 md:self-end">
             <Button
               onClick={() =>
                 exportToExcel(
                   filteredData,
-                  `Pressure_Data_${selectedRegion}_${new Date().toISOString().split("T")[0]}`,
+                  `Pressure_Data_${selectedRegion}_${selectedCardFilter}_${new Date().toISOString().split("T")[0]
+                  }`,
                 )
               }
               variant="outline"
-              className="bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 gap-2 h-11 px-5 shadow-sm"
+              className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100 gap-2 h-11 px-4"
+              data-testid="button-export-excel"
             >
               <Download className="h-4 w-4" />
-              <span>Export</span>
-              <span className="text-emerald-600/60 font-medium ml-1">({filteredData.length})</span>
+              <span className="hidden sm:inline">Export to Excel</span>
+              <span className="sm:hidden">Export</span>
+              {filteredData.length > 0 ? ` (${filteredData.length})` : ""}
             </Button>
-
             <Button
               onClick={() => setShowHistoricalData(!showHistoricalData)}
               variant={showHistoricalData ? "default" : "outline"}
-              className={`flex items-center gap-2 h-11 px-5 shadow-sm ${showHistoricalData ? 'bg-blue-600' : 'bg-white border-gray-200'}`}
+              className="flex items-center gap-2 h-11 px-4"
+              data-testid="button-historical-data"
             >
               <History className="h-4 w-4" />
-              <span>{showHistoricalData ? "Current Mode" : "Analysis Mode"}</span>
+              <span className="hidden sm:inline">
+                {showHistoricalData ? "Current Data" : "Historical Data"}
+              </span>
+              <span className="sm:hidden">History</span>
             </Button>
-
             <Button
               onClick={() => refetch()}
               variant="outline"
-              className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 gap-2 h-11 px-5 shadow-sm"
+              className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 gap-2 h-11 px-4"
+              data-testid="button-refresh-data"
             >
               <RefreshCw className="h-4 w-4" />
-              <span>Refresh</span>
+              <span className="hidden sm:inline">Refresh Data</span>
+              <span className="sm:hidden">Refresh</span>
             </Button>
           </div>
         </div>
+
+        {/* Historical Data Date Selection */}
+        {showHistoricalData && (
+          <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex flex-col md:flex-row gap-4 items-center">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-blue-600" />
+                <span className="text-sm font-medium text-blue-700">
+                  Select Date Range for Historical Data
+                </span>
+              </div>
+
+              <div className="flex flex-col md:flex-row gap-4 items-center">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-600">Start Date</label>
+                  <Input
+                    type="date"
+                    value={historicalStartDate}
+                    onChange={(e) => setHistoricalStartDate(e.target.value)}
+                    className="w-40"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-600">End Date</label>
+                  <Input
+                    type="date"
+                    value={historicalEndDate}
+                    onChange={(e) => setHistoricalEndDate(e.target.value)}
+                    className="w-40"
+                  />
+                </div>
+
+                <Button
+                  onClick={() => refetchHistorical()}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2 mt-4 md:mt-0"
+                  disabled={isLoadingHistorical}
+                >
+                  <TrendingUp className="h-4 w-4" />
+                  Query Historical Data
+                </Button>
+
+                <Button
+                  onClick={exportHistoricalData}
+                  variant="default"
+                  size="sm"
+                  className="flex items-center gap-2 mt-4 md:mt-0 bg-blue-600 hover:bg-blue-700"
+                  disabled={isLoadingHistorical}
+                >
+                  <Download className="h-4 w-4" />
+                  Export to Excel ({updatedCardStats?.totalSensors || 0})
+                </Button>
+              </div>
+            </div>
+
+            {historicalPressureData.length > 0 && (
+              <div className="mt-3 text-sm text-green-700">
+                Found {historicalPressureData.length} historical records (
+                {historicalStartDate} to {historicalEndDate})
+              </div>
+            )}
+
+            {historicalError && (
+              <div className="mt-3 text-sm text-red-700">
+                Error loading historical data. Please try again.
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Historical Data Date Selection */}
-      {showHistoricalData && (
-        <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <div className="flex flex-col md:flex-row gap-4 items-center">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-blue-600" />
-              <span className="text-sm font-medium text-blue-700">
-                Select Date Range for Historical Data
-              </span>
-            </div>
-
-            <div className="flex flex-col md:flex-row gap-4 items-center">
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-gray-600">Start Date</label>
-                <Input
-                  type="date"
-                  value={historicalStartDate}
-                  onChange={(e) => setHistoricalStartDate(e.target.value)}
-                  className="w-40"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-gray-600">End Date</label>
-                <Input
-                  type="date"
-                  value={historicalEndDate}
-                  onChange={(e) => setHistoricalEndDate(e.target.value)}
-                  className="w-40"
-                />
-              </div>
-
-              <Button
-                onClick={() => refetchHistorical()}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-2 mt-4 md:mt-0"
-                disabled={isLoadingHistorical}
-              >
-                <TrendingUp className="h-4 w-4" />
-                Query Historical Data
-              </Button>
-
-              <Button
-                onClick={exportHistoricalData}
-                variant="default"
-                size="sm"
-                className="flex items-center gap-2 mt-4 md:mt-0 bg-blue-600 hover:bg-blue-700"
-                disabled={isLoadingHistorical}
-              >
-                <Download className="h-4 w-4" />
-                Export to Excel ({updatedCardStats?.totalSensors || 0})
-              </Button>
-            </div>
-          </div>
-
-          {historicalPressureData.length > 0 && (
-            <div className="mt-3 text-sm text-green-700">
-              Found {historicalPressureData.length} historical records (
-              {historicalStartDate} to {historicalEndDate})
-            </div>
-          )}
-
-          {historicalError && (
-            <div className="mt-3 text-sm text-red-700">
-              Error loading historical data. Please try again.
-            </div>
-
-          )}
-
-          {/* Import Statistics Card */}
-          {/* {dashboardStats?.lastImport && (
+      {/* Import Statistics Card */}
+      {/* {dashboardStats?.lastImport && (
         <div className="bg-white rounded-xl shadow-md mb-6 p-4 border border-blue-100">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div>
@@ -2356,1184 +2420,1184 @@ const PressureDashboard: React.FC = () => {
         </div>
       )} */}
 
-          {/* Status Summary Cards */}
-          <div className="grid gap-4 md:grid-cols-4 mb-6">
-            {/* Connected Sensors Card */}
+      {/* Status Summary Cards */}
+      <div className="grid gap-4 md:grid-cols-4 mb-6">
+        {/* Connected Sensors Card */}
+        <Card
+          className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${sensorStatusFilter === "connected"
+            ? "ring-2 ring-blue-500 ring-offset-2"
+            : ""
+            } transform hover:scale-[1.02]`}
+          onClick={() => handleSensorStatusClick("connected")}
+        >
+          <CardContent className="p-4 flex items-center">
+            <div className="bg-blue-100 p-3 rounded-full mr-4">
+              <Wifi className="h-6 w-6 text-blue-700" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-blue-800 mb-1">
+                Connected Sensors
+              </h3>
+              <p className="text-2xl font-bold text-blue-600">
+                {calculatePressureSensorStatus.connected}
+              </p>
+              <p className="text-xs text-blue-600/70">
+                Pressure sensors connected
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Online Sensors Card */}
+        <Card
+          className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${sensorStatusFilter === "online"
+            ? "ring-2 ring-green-500 ring-offset-2"
+            : ""
+            } transform hover:scale-[1.02]`}
+          onClick={() => handleSensorStatusClick("online")}
+        >
+          <CardContent className="p-4 flex items-center">
+            <div className="bg-green-100 p-3 rounded-full mr-4">
+              <Zap className="h-6 w-6 text-green-700" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-green-800 mb-1">
+                Online Sensors
+              </h3>
+              <p className="text-2xl font-bold text-green-600">
+                {calculatePressureSensorStatus.online}
+              </p>
+              <p className="text-xs text-green-600/70">
+                Currently online & active
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Offline Sensors Card */}
+        <Card
+          className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${sensorStatusFilter === "offline"
+            ? "ring-2 ring-orange-500 ring-offset-2"
+            : ""
+            } transform hover:scale-[1.02]`}
+          onClick={() => handleSensorStatusClick("offline")}
+        >
+          <CardContent className="p-4 flex items-center">
+            <div className="bg-orange-100 p-3 rounded-full mr-4">
+              <WifiOff className="h-6 w-6 text-orange-700" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-orange-800 mb-1">
+                Offline Sensors
+              </h3>
+              <p className="text-2xl font-bold text-orange-600">
+                {calculatePressureSensorStatus.offline}
+              </p>
+              <p className="text-xs text-orange-600/70">
+                Connected but offline
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+
+
+        {/* Sensors with Water Card */}
+        <Card
+          className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${sensorStatusFilter === "withWater"
+            ? "ring-2 ring-blue-500 ring-offset-2"
+            : ""
+            } transform hover:scale-[1.02]`}
+          onClick={() => handleSensorStatusClick("withWater")}
+        >
+          <CardContent className="p-4 flex items-center">
+            <div className="bg-blue-100 p-3 rounded-full mr-4">
+              <Droplet className="h-6 w-6 text-blue-700" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-blue-800 mb-1">
+                Sensors with Water
+              </h3>
+              <p className="text-2xl font-bold text-blue-600">
+                {(() => {
+                  // Calculate "with water" count from filtered data for top card
+                  if (!withWaterSensorsData?.withWaterSensors) return 0;
+
+                  const withWaterLocationKeys = new Set(
+                    withWaterSensorsData.withWaterSensors.map(
+                      (sensor: any) =>
+                        `${sensor.region}|${sensor.circle}|${sensor.division}|${sensor.sub_division}|${sensor.block}|${sensor.village_name}|${sensor.esr_name}`,
+                    ),
+                  );
+
+                  return globallyFilteredData.filter((item) => {
+                    const locationKey = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`;
+                    return withWaterLocationKeys.has(locationKey);
+                  }).length;
+                })()}
+              </p>
+              <p className="text-xs text-blue-600/70">
+                Connected sensors with water
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Dashboard Cards - Separated by Water Status */}
+      <div className="grid gap-6 mb-8">
+        {/* Main Range Cards - Two Sections */}
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* With Water Section */}
+          <div className="bg-white rounded-xl shadow-md p-6 border border-blue-200">
+            <h3 className="text-xl font-bold text-blue-800 mb-4 flex items-center">
+              <Droplet className="h-6 w-6 text-blue-600 mr-2" />
+              Sensors with Water
+            </h3>
+            <div className="grid gap-4 mb-4">
+              {/* Total With Water - Now Clickable */}
+              <div
+                className={`cursor-pointer text-center p-4 bg-blue-50 rounded-lg border border-blue-200 hover:shadow-lg transition-all duration-200 ${sensorStatusFilter === "withWater" &&
+                  selectedWithWaterFilter === "all"
+                  ? "ring-2 ring-blue-500 ring-offset-2"
+                  : ""
+                  } transform hover:scale-[1.01]`}
+                onClick={() => handleTotalCardClick("withWater")}
+              >
+                <p className="text-3xl font-bold text-blue-600">
+                  {(() => {
+                    // Calculate "with water" count from filtered data
+                    if (!withWaterSensorsData?.withWaterSensors) return 0;
+
+                    const withWaterLocationKeys = new Set(
+                      withWaterSensorsData.withWaterSensors.map(
+                        (sensor: any) =>
+                          `${sensor.region}|${sensor.circle}|${sensor.division}|${sensor.sub_division}|${sensor.block}|${sensor.village_name}|${sensor.esr_name}`,
+                      ),
+                    );
+
+                    return globallyFilteredData.filter((item) => {
+                      const locationKey = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`;
+                      return withWaterLocationKeys.has(locationKey);
+                    }).length;
+                  })()}
+                </p>
+                <p className="text-sm text-blue-600/80 font-medium">
+                  Total sensors with water
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-3">
+              {/* Below Range Card - With Water */}
+              <Card
+                className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedWithWaterFilter === "below_0.2"
+                  ? "ring-2 ring-red-500 ring-offset-2"
+                  : ""
+                  } transform hover:scale-[1.01]`}
+                onClick={() => handleWithWaterCardClick("below_0.2")}
+              >
+                <CardContent className="p-4 flex items-center">
+                  <div className="bg-red-100 p-3 rounded-full mr-4">
+                    <AlertTriangle className="h-5 w-5 text-red-700" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-red-800">Below Range</h4>
+                    <p className="text-2xl font-bold text-red-600">
+                      {calculateWithWaterRangeStats.belowRange || 0}
+                    </p>
+                    <p className="text-xs text-red-600/70">
+                      Pressure &lt;0.2 bar
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Optimal Range Card - With Water */}
+              <Card
+                className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedWithWaterFilter === "between_0.2_0.7"
+                  ? "ring-2 ring-green-500 ring-offset-2"
+                  : ""
+                  } transform hover:scale-[1.01]`}
+                onClick={() => handleWithWaterCardClick("between_0.2_0.7")}
+              >
+                <CardContent className="p-4 flex items-center">
+                  <div className="bg-green-100 p-3 rounded-full mr-4">
+                    <CheckCircle className="h-5 w-5 text-green-700" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-green-800">
+                      Optimal Range
+                    </h4>
+                    <p className="text-2xl font-bold text-green-600">
+                      {calculateWithWaterRangeStats.optimal || 0}
+                    </p>
+                    <p className="text-xs text-green-600/70">
+                      Pressure 0.2-0.7 bar
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Above Range Card - With Water */}
+              <Card
+                className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedWithWaterFilter === "above_0.7"
+                  ? "ring-2 ring-orange-500 ring-offset-2"
+                  : ""
+                  } transform hover:scale-[1.01]`}
+                onClick={() => handleWithWaterCardClick("above_0.7")}
+              >
+                <CardContent className="p-4 flex items-center">
+                  <div className="bg-orange-100 p-3 rounded-full mr-4">
+                    <AlertCircle className="h-5 w-5 text-orange-700" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-orange-800">
+                      Above Range
+                    </h4>
+                    <p className="text-2xl font-bold text-orange-600">
+                      {calculateWithWaterRangeStats.above || 0}
+                    </p>
+                    <p className="text-xs text-orange-600/70">
+                      Pressure &gt;0.7 bar
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* No Data Info Card */}
+              {calculateWithWaterRangeStats.noData > 0 && (
+                <div
+                  className="bg-gray-50 border border-gray-300 rounded-lg p-3"
+                  data-testid="with-water-no-data-note"
+                >
+                  <div className="flex items-start gap-2">
+                    <div className="text-gray-500 mt-0.5">
+                      <svg
+                        className="h-4 w-4"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs font-medium text-gray-700">
+                        <span className="font-bold">
+                          {calculateWithWaterRangeStats.noData}
+                        </span>{" "}
+                        sensor
+                        {calculateWithWaterRangeStats.noData !== 1
+                          ? "s"
+                          : ""}{" "}
+                        with no pressure data
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Numbers above exclude sensors with blank pressure values
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+        </div>
+
+        {/* Consistent Pattern Cards (For All Connected Sensors) */}
+        <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
+          <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+            <Activity className="h-6 w-6 text-gray-600 mr-2" />
+            Consistent Patterns (All Connected Sensors)
+          </h3>
+          <div className="grid gap-4 md:grid-cols-5">
+            {/* Consistent Zero Card */}
             <Card
-              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${sensorStatusFilter === "connected"
-                ? "ring-2 ring-blue-500 ring-offset-2"
+              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "consistent_zero"
+                ? "ring-2 ring-gray-500 ring-offset-2"
                 : ""
-                } transform hover:scale-[1.02]`}
-              onClick={() => handleSensorStatusClick("connected")}
+                } transform hover:scale-[1.01]`}
+              onClick={() => handleCardClick("consistent_zero")}
             >
               <CardContent className="p-4 flex items-center">
-                <div className="bg-blue-100 p-3 rounded-full mr-4">
-                  <Wifi className="h-6 w-6 text-blue-700" />
+                <div className="bg-gray-100 p-3 rounded-full mr-4">
+                  <div className="h-5 w-5 text-gray-700 flex items-center justify-center text-xs font-bold">
+                    0
+                  </div>
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-blue-800 mb-1">
-                    Connected Sensors
-                  </h3>
-                  <p className="text-2xl font-bold text-blue-600">
-                    {calculatePressureSensorStatus.connected}
+                  <h4 className="font-semibold text-gray-800">
+                    Consistent Zero
+                  </h4>
+                  <p className="text-2xl font-bold text-gray-700">
+                    {updatedCardStats?.consistentZeroSensors || 0}
                   </p>
-                  <p className="text-xs text-blue-600/70">
-                    Pressure sensors connected
+                  <p className="text-xs text-gray-600/70">
+                    Zero pressure 7 days
                   </p>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Online Sensors Card */}
+            {/* Consistent Below Range Card */}
             <Card
-              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${sensorStatusFilter === "online"
+              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "consistent_below"
+                ? "ring-2 ring-red-500 ring-offset-2"
+                : ""
+                } transform hover:scale-[1.01]`}
+              onClick={() => handleCardClick("consistent_below")}
+            >
+              <CardContent className="p-4 flex items-center">
+                <div className="bg-red-100 p-3 rounded-full mr-4">
+                  <AlertTriangle className="h-5 w-5 text-red-700" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-red-800">
+                    Consistent Below
+                  </h4>
+                  <p className="text-2xl font-bold text-red-600">
+                    {updatedCardStats?.consistentBelowRangeSensors || 0}
+                  </p>
+                  <p className="text-xs text-red-600/70">
+                    &lt;0.2 bar for 7 days
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Consistent Optimal Range Card */}
+            <Card
+              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "consistent_optimal"
                 ? "ring-2 ring-green-500 ring-offset-2"
                 : ""
-                } transform hover:scale-[1.02]`}
-              onClick={() => handleSensorStatusClick("online")}
+                } transform hover:scale-[1.01]`}
+              onClick={() => handleCardClick("consistent_optimal")}
             >
               <CardContent className="p-4 flex items-center">
                 <div className="bg-green-100 p-3 rounded-full mr-4">
-                  <Zap className="h-6 w-6 text-green-700" />
+                  <CheckCircle className="h-5 w-5 text-green-700" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-green-800 mb-1">
-                    Online Sensors
-                  </h3>
+                  <h4 className="font-semibold text-green-800">
+                    Consistent Optimal
+                  </h4>
                   <p className="text-2xl font-bold text-green-600">
-                    {calculatePressureSensorStatus.online}
+                    {updatedCardStats?.consistentOptimalSensors || 0}
                   </p>
                   <p className="text-xs text-green-600/70">
-                    Currently online & active
+                    0.2-0.7 bar for 7 days
                   </p>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Offline Sensors Card */}
+            {/* Consistent Above Range Card */}
             <Card
-              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${sensorStatusFilter === "offline"
+              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "consistent_above"
                 ? "ring-2 ring-orange-500 ring-offset-2"
                 : ""
-                } transform hover:scale-[1.02]`}
-              onClick={() => handleSensorStatusClick("offline")}
+                } transform hover:scale-[1.01]`}
+              onClick={() => handleCardClick("consistent_above")}
             >
               <CardContent className="p-4 flex items-center">
                 <div className="bg-orange-100 p-3 rounded-full mr-4">
-                  <WifiOff className="h-6 w-6 text-orange-700" />
+                  <AlertCircle className="h-5 w-5 text-orange-700" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-orange-800 mb-1">
-                    Offline Sensors
-                  </h3>
+                  <h4 className="font-semibold text-orange-800">
+                    Consistent Above
+                  </h4>
                   <p className="text-2xl font-bold text-orange-600">
-                    {calculatePressureSensorStatus.offline}
+                    {updatedCardStats?.consistentAboveRangeSensors || 0}
                   </p>
                   <p className="text-xs text-orange-600/70">
-                    Connected but offline
+                    &gt;0.7 bar for 7 days
                   </p>
                 </div>
               </CardContent>
             </Card>
 
-
-
-            {/* Sensors with Water Card */}
+            {/* Show All Sensors */}
             <Card
-              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${sensorStatusFilter === "withWater"
+              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "all"
                 ? "ring-2 ring-blue-500 ring-offset-2"
                 : ""
-                } transform hover:scale-[1.02]`}
-              onClick={() => handleSensorStatusClick("withWater")}
+                } transform hover:scale-[1.01]`}
+              onClick={() => handleCardClick("all")}
             >
               <CardContent className="p-4 flex items-center">
                 <div className="bg-blue-100 p-3 rounded-full mr-4">
-                  <Droplet className="h-6 w-6 text-blue-700" />
+                  <Gauge className="h-5 w-5 text-blue-700" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-blue-800 mb-1">
-                    Sensors with Water
-                  </h3>
+                  <h4 className="font-semibold text-blue-800">All Sensors</h4>
                   <p className="text-2xl font-bold text-blue-600">
-                    {(() => {
-                      // Calculate "with water" count from filtered data for top card
-                      if (!withWaterSensorsData?.withWaterSensors) return 0;
-
-                      const withWaterLocationKeys = new Set(
-                        withWaterSensorsData.withWaterSensors.map(
-                          (sensor: any) =>
-                            `${sensor.region}|${sensor.circle}|${sensor.division}|${sensor.sub_division}|${sensor.block}|${sensor.village_name}|${sensor.esr_name}`,
-                        ),
-                      );
-
-                      return globallyFilteredData.filter((item) => {
-                        const locationKey = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`;
-                        return withWaterLocationKeys.has(locationKey);
-                      }).length;
-                    })()}
+                    {updatedCardStats?.totalSensors || 0}
                   </p>
                   <p className="text-xs text-blue-600/70">
-                    Connected sensors with water
+                    Total connected sensors
                   </p>
                 </div>
               </CardContent>
             </Card>
           </div>
+        </div>
+      </div>
 
-          {/* Dashboard Cards - Separated by Water Status */}
-          <div className="grid gap-6 mb-8">
-            {/* Main Range Cards - Two Sections */}
-            <div className="grid gap-6 md:grid-cols-2">
-              {/* With Water Section */}
-              <div className="bg-white rounded-xl shadow-md p-6 border border-blue-200">
-                <h3 className="text-xl font-bold text-blue-800 mb-4 flex items-center">
-                  <Droplet className="h-6 w-6 text-blue-600 mr-2" />
-                  Sensors with Water
-                </h3>
-                <div className="grid gap-4 mb-4">
-                  {/* Total With Water - Now Clickable */}
-                  <div
-                    className={`cursor-pointer text-center p-4 bg-blue-50 rounded-lg border border-blue-200 hover:shadow-lg transition-all duration-200 ${sensorStatusFilter === "withWater" &&
-                      selectedWithWaterFilter === "all"
-                      ? "ring-2 ring-blue-500 ring-offset-2"
-                      : ""
-                      } transform hover:scale-[1.01]`}
-                    onClick={() => handleTotalCardClick("withWater")}
-                  >
-                    <p className="text-3xl font-bold text-blue-600">
-                      {(() => {
-                        // Calculate "with water" count from filtered data
-                        if (!withWaterSensorsData?.withWaterSensors) return 0;
+      {/* Current Filter Label */}
+      <div className="mb-6">
+        <h2 className="text-xl font-bold text-gray-800">
+          {getFilterTitle(selectedCardFilter)}
+          <Badge
+            variant="outline"
+            className="ml-2 text-blue-600 border-blue-200 bg-blue-50"
+          >
+            {filteredData.length} ESR Records
+          </Badge>
+        </h2>
+      </div>
 
-                        const withWaterLocationKeys = new Set(
-                          withWaterSensorsData.withWaterSensors.map(
-                            (sensor: any) =>
-                              `${sensor.region}|${sensor.circle}|${sensor.division}|${sensor.sub_division}|${sensor.block}|${sensor.village_name}|${sensor.esr_name}`,
-                          ),
-                        );
+      {/* Regional Summary Mini-Table - Always Visible */}
+      {(() => {
+        const summary: Record<string, number> = {};
 
-                        return globallyFilteredData.filter((item) => {
-                          const locationKey = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`;
-                          return withWaterLocationKeys.has(locationKey);
-                        }).length;
-                      })()}
-                    </p>
-                    <p className="text-sm text-blue-600/80 font-medium">
-                      Total sensors with water
-                    </p>
-                  </div>
-                </div>
-                <div className="grid gap-3">
-                  {/* Below Range Card - With Water */}
-                  <Card
-                    className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedWithWaterFilter === "below_0.2"
-                      ? "ring-2 ring-red-500 ring-offset-2"
-                      : ""
-                      } transform hover:scale-[1.01]`}
-                    onClick={() => handleWithWaterCardClick("below_0.2")}
-                  >
-                    <CardContent className="p-4 flex items-center">
-                      <div className="bg-red-100 p-3 rounded-full mr-4">
-                        <AlertTriangle className="h-5 w-5 text-red-700" />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-red-800">Below Range</h4>
-                        <p className="text-2xl font-bold text-red-600">
-                          {calculateWithWaterRangeStats.belowRange || 0}
-                        </p>
-                        <p className="text-xs text-red-600/70">
-                          Pressure &lt;0.2 bar
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
+        // Use the filtered data to calculate regional summary
+        filteredData.forEach((record) => {
+          const region = record.region || "Unknown";
+          summary[region] = (summary[region] || 0) + 1;
+        });
 
-                  {/* Optimal Range Card - With Water */}
-                  <Card
-                    className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedWithWaterFilter === "between_0.2_0.7"
-                      ? "ring-2 ring-green-500 ring-offset-2"
-                      : ""
-                      } transform hover:scale-[1.01]`}
-                    onClick={() => handleWithWaterCardClick("between_0.2_0.7")}
-                  >
-                    <CardContent className="p-4 flex items-center">
-                      <div className="bg-green-100 p-3 rounded-full mr-4">
-                        <CheckCircle className="h-5 w-5 text-green-700" />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-green-800">
-                          Optimal Range
-                        </h4>
-                        <p className="text-2xl font-bold text-green-600">
-                          {calculateWithWaterRangeStats.optimal || 0}
-                        </p>
-                        <p className="text-xs text-green-600/70">
-                          Pressure 0.2-0.7 bar
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
+        // Define the regional hierarchy order as requested
+        const regionOrder = [
+          "Amravati",
+          "Nashik",
+          "Nagpur",
+          "Chhatrapati Sambhajinagar",
+          "Pune",
+          "Konkan",
+        ];
 
-                  {/* Above Range Card - With Water */}
-                  <Card
-                    className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedWithWaterFilter === "above_0.7"
-                      ? "ring-2 ring-orange-500 ring-offset-2"
-                      : ""
-                      } transform hover:scale-[1.01]`}
-                    onClick={() => handleWithWaterCardClick("above_0.7")}
-                  >
-                    <CardContent className="p-4 flex items-center">
-                      <div className="bg-orange-100 p-3 rounded-full mr-4">
-                        <AlertCircle className="h-5 w-5 text-orange-700" />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-orange-800">
-                          Above Range
-                        </h4>
-                        <p className="text-2xl font-bold text-orange-600">
-                          {calculateWithWaterRangeStats.above || 0}
-                        </p>
-                        <p className="text-xs text-orange-600/70">
-                          Pressure &gt;0.7 bar
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
+        const regionalSummary = Object.entries(summary)
+          .map(([region, count]) => ({ region, count }))
+          .sort((a, b) => {
+            const aIndex = regionOrder.indexOf(a.region);
+            const bIndex = regionOrder.indexOf(b.region);
+            // If region not found in order, put it at the end
+            if (aIndex === -1) return 1;
+            if (bIndex === -1) return -1;
+            return aIndex - bIndex;
+          });
 
-                  {/* No Data Info Card */}
-                  {calculateWithWaterRangeStats.noData > 0 && (
-                    <div
-                      className="bg-gray-50 border border-gray-300 rounded-lg p-3"
-                      data-testid="with-water-no-data-note"
-                    >
-                      <div className="flex items-start gap-2">
-                        <div className="text-gray-500 mt-0.5">
-                          <svg
-                            className="h-4 w-4"
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-xs font-medium text-gray-700">
-                            <span className="font-bold">
-                              {calculateWithWaterRangeStats.noData}
-                            </span>{" "}
-                            sensor
-                            {calculateWithWaterRangeStats.noData !== 1
-                              ? "s"
-                              : ""}{" "}
-                            with no pressure data
-                          </p>
-                          <p className="text-xs text-gray-500 mt-0.5">
-                            Numbers above exclude sensors with blank pressure values
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-            </div>
-
-            {/* Consistent Pattern Cards (For All Connected Sensors) */}
-            <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-              <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                <Activity className="h-6 w-6 text-gray-600 mr-2" />
-                Consistent Patterns (All Connected Sensors)
-              </h3>
-              <div className="grid gap-4 md:grid-cols-5">
-                {/* Consistent Zero Card */}
-                <Card
-                  className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "consistent_zero"
-                    ? "ring-2 ring-gray-500 ring-offset-2"
-                    : ""
-                    } transform hover:scale-[1.01]`}
-                  onClick={() => handleCardClick("consistent_zero")}
-                >
-                  <CardContent className="p-4 flex items-center">
-                    <div className="bg-gray-100 p-3 rounded-full mr-4">
-                      <div className="h-5 w-5 text-gray-700 flex items-center justify-center text-xs font-bold">
-                        0
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-gray-800">
-                        Consistent Zero
-                      </h4>
-                      <p className="text-2xl font-bold text-gray-700">
-                        {updatedCardStats?.consistentZeroSensors || 0}
-                      </p>
-                      <p className="text-xs text-gray-600/70">
-                        Zero pressure 7 days
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Consistent Below Range Card */}
-                <Card
-                  className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "consistent_below"
-                    ? "ring-2 ring-red-500 ring-offset-2"
-                    : ""
-                    } transform hover:scale-[1.01]`}
-                  onClick={() => handleCardClick("consistent_below")}
-                >
-                  <CardContent className="p-4 flex items-center">
-                    <div className="bg-red-100 p-3 rounded-full mr-4">
-                      <AlertTriangle className="h-5 w-5 text-red-700" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-red-800">
-                        Consistent Below
-                      </h4>
-                      <p className="text-2xl font-bold text-red-600">
-                        {updatedCardStats?.consistentBelowRangeSensors || 0}
-                      </p>
-                      <p className="text-xs text-red-600/70">
-                        &lt;0.2 bar for 7 days
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Consistent Optimal Range Card */}
-                <Card
-                  className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "consistent_optimal"
-                    ? "ring-2 ring-green-500 ring-offset-2"
-                    : ""
-                    } transform hover:scale-[1.01]`}
-                  onClick={() => handleCardClick("consistent_optimal")}
-                >
-                  <CardContent className="p-4 flex items-center">
-                    <div className="bg-green-100 p-3 rounded-full mr-4">
-                      <CheckCircle className="h-5 w-5 text-green-700" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-green-800">
-                        Consistent Optimal
-                      </h4>
-                      <p className="text-2xl font-bold text-green-600">
-                        {updatedCardStats?.consistentOptimalSensors || 0}
-                      </p>
-                      <p className="text-xs text-green-600/70">
-                        0.2-0.7 bar for 7 days
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Consistent Above Range Card */}
-                <Card
-                  className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "consistent_above"
-                    ? "ring-2 ring-orange-500 ring-offset-2"
-                    : ""
-                    } transform hover:scale-[1.01]`}
-                  onClick={() => handleCardClick("consistent_above")}
-                >
-                  <CardContent className="p-4 flex items-center">
-                    <div className="bg-orange-100 p-3 rounded-full mr-4">
-                      <AlertCircle className="h-5 w-5 text-orange-700" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-orange-800">
-                        Consistent Above
-                      </h4>
-                      <p className="text-2xl font-bold text-orange-600">
-                        {updatedCardStats?.consistentAboveRangeSensors || 0}
-                      </p>
-                      <p className="text-xs text-orange-600/70">
-                        &gt;0.7 bar for 7 days
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Show All Sensors */}
-                <Card
-                  className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "all"
-                    ? "ring-2 ring-blue-500 ring-offset-2"
-                    : ""
-                    } transform hover:scale-[1.01]`}
-                  onClick={() => handleCardClick("all")}
-                >
-                  <CardContent className="p-4 flex items-center">
-                    <div className="bg-blue-100 p-3 rounded-full mr-4">
-                      <Gauge className="h-5 w-5 text-blue-700" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-blue-800">All Sensors</h4>
-                      <p className="text-2xl font-bold text-blue-600">
-                        {updatedCardStats?.totalSensors || 0}
-                      </p>
-                      <p className="text-xs text-blue-600/70">
-                        Total connected sensors
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </div>
-
-          {/* Current Filter Label */}
+        return regionalSummary.length > 0 ? (
           <div className="mb-6">
-            <h2 className="text-xl font-bold text-gray-800">
-              {getFilterTitle(selectedCardFilter)}
-              <Badge
-                variant="outline"
-                className="ml-2 text-blue-600 border-blue-200 bg-blue-50"
-              >
-                {filteredData.length} ESR Records
-              </Badge>
-            </h2>
-          </div>
-
-          {/* Regional Summary Mini-Table - Always Visible */}
-          {(() => {
-            const summary: Record<string, number> = {};
-
-            // Use the filtered data to calculate regional summary
-            filteredData.forEach((record) => {
-              const region = record.region || "Unknown";
-              summary[region] = (summary[region] || 0) + 1;
-            });
-
-            // Define the regional hierarchy order as requested
-            const regionOrder = [
-              "Amravati",
-              "Nashik",
-              "Nagpur",
-              "Chhatrapati Sambhajinagar",
-              "Pune",
-              "Konkan",
-            ];
-
-            const regionalSummary = Object.entries(summary)
-              .map(([region, count]) => ({ region, count }))
-              .sort((a, b) => {
-                const aIndex = regionOrder.indexOf(a.region);
-                const bIndex = regionOrder.indexOf(b.region);
-                // If region not found in order, put it at the end
-                if (aIndex === -1) return 1;
-                if (bIndex === -1) return -1;
-                return aIndex - bIndex;
-              });
-
-            return regionalSummary.length > 0 ? (
-              <div className="mb-6">
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
-                  <h3 className="text-lg font-semibold text-blue-800 mb-3 flex items-center">
-                    <BarChart3 className="mr-2 h-5 w-5" />
-                    Regional Summary -{" "}
-                    {selectedCardFilter === "all"
-                      ? "All ESR Locations"
-                      : getFilterTitle(selectedCardFilter)}
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-                    {regionalSummary.map(({ region, count }) => (
-                      <div
-                        key={region}
-                        className="bg-white rounded-lg p-3 border border-blue-100 shadow-sm hover:shadow-md transition-shadow"
-                      >
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-blue-600 mb-1">
-                            {count.toLocaleString()}
-                          </div>
-                          <div className="text-xs font-medium text-gray-600 uppercase tracking-wide">
-                            {region}
-                          </div>
-                        </div>
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+              <h3 className="text-lg font-semibold text-blue-800 mb-3 flex items-center">
+                <BarChart3 className="mr-2 h-5 w-5" />
+                Regional Summary -{" "}
+                {selectedCardFilter === "all"
+                  ? "All ESR Locations"
+                  : getFilterTitle(selectedCardFilter)}
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+                {regionalSummary.map(({ region, count }) => (
+                  <div
+                    key={region}
+                    className="bg-white rounded-lg p-3 border border-blue-100 shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-600 mb-1">
+                        {count.toLocaleString()}
                       </div>
-                    ))}
+                      <div className="text-xs font-medium text-gray-600 uppercase tracking-wide">
+                        {region}
+                      </div>
+                    </div>
                   </div>
-                  <div className="mt-3 text-sm text-blue-600 font-medium">
-                    Total ESR Count:{" "}
-                    {regionalSummary
-                      .reduce((sum, item) => sum + item.count, 0)
-                      .toLocaleString()}
-                  </div>
-                </div>
+                ))}
               </div>
-            ) : null;
-          })()}
+              <div className="mt-3 text-sm text-blue-600 font-medium">
+                Total ESR Count:{" "}
+                {regionalSummary
+                  .reduce((sum, item) => sum + item.count, 0)
+                  .toLocaleString()}
+              </div>
+            </div>
+          </div>
+        ) : null;
+      })()}
 
-          {/* Data Table */}
-          <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200 mb-6">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader className="bg-blue-50">
-                  <TableRow className="pressure-item">
-                    <TableHead className="font-semibold text-blue-800 border-b border-blue-200">
-                      Region
-                    </TableHead>
-                    <TableHead className="font-semibold text-blue-800 border-b border-blue-200">
-                      Scheme ID
-                    </TableHead>
-                    <TableHead className="font-semibold text-blue-800 border-b border-blue-200">
-                      Scheme Name
-                    </TableHead>
-                    <TableHead className="font-semibold text-blue-800 border-b border-blue-200">
-                      Village
-                    </TableHead>
-                    <TableHead className="font-semibold text-blue-800 border-b border-blue-200">
-                      ESR
-                    </TableHead>
-                    <TableHead className="font-semibold text-blue-800 border-b border-blue-200">
-                      Latest Pressure (bar)
-                    </TableHead>
-                    <TableHead className="font-semibold text-blue-800 border-b border-blue-200">
-                      Status
-                    </TableHead>
-                    <TableHead className="font-semibold text-blue-800 border-b border-blue-200">
-                      PI Vision
-                    </TableHead>
-                    <TableHead className="font-semibold text-blue-800 border-b border-blue-200 text-center w-[120px]">
-                      Remark
-                    </TableHead>
-                    <TableHead className="font-semibold text-blue-800 border-b border-blue-200 text-right">
-                      Actions
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedData.length > 0 ? (
-                    paginatedData.map((item, idx) => {
-                      const latestPressure = getCurrentPressureValue(item);
-                      const statusInfo = getPressureStatusInfo(latestPressure);
-                      const esrKey = `${item.scheme_id}-${item.village_name}-${item.esr_name}`;
-                      const issues = esrIssuesMap?.get(esrKey) || [];
-                      const hasIssue = issues.length > 0;
+      {/* Data Table */}
+      <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200 mb-6">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader className="bg-blue-50">
+              <TableRow className="pressure-item">
+                <TableHead className="font-semibold text-blue-800 border-b border-blue-200">
+                  Region
+                </TableHead>
+                <TableHead className="font-semibold text-blue-800 border-b border-blue-200">
+                  Scheme ID
+                </TableHead>
+                <TableHead className="font-semibold text-blue-800 border-b border-blue-200">
+                  Scheme Name
+                </TableHead>
+                <TableHead className="font-semibold text-blue-800 border-b border-blue-200">
+                  Village
+                </TableHead>
+                <TableHead className="font-semibold text-blue-800 border-b border-blue-200">
+                  ESR
+                </TableHead>
+                <TableHead className="font-semibold text-blue-800 border-b border-blue-200">
+                  Latest Pressure (bar)
+                </TableHead>
+                <TableHead className="font-semibold text-blue-800 border-b border-blue-200">
+                  Status
+                </TableHead>
+                <TableHead className="font-semibold text-blue-800 border-b border-blue-200">
+                  PI Vision
+                </TableHead>
+                <TableHead className="font-semibold text-blue-800 border-b border-blue-200 text-center w-[120px]">
+                  Remark
+                </TableHead>
+                <TableHead className="font-semibold text-blue-800 border-b border-blue-200 text-right">
+                  Actions
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paginatedData.length > 0 ? (
+                paginatedData.map((item, idx) => {
+                  const latestPressure = getCurrentPressureValue(item);
+                  const statusInfo = getPressureStatusInfo(latestPressure);
+                  const esrKey = `${item.scheme_id}-${item.village_name}-${item.esr_name}`;
+                  const issues = esrIssuesMap?.get(esrKey) || [];
+                  const hasIssue = issues.length > 0;
 
-                      return (
-                        <TableRow
-                          key={`${item.scheme_id}-${item.village_name}-${item.esr_name}-${idx}`}
-                          className={`pressure-item ${statusInfo.className} hover:bg-blue-100 border-b border-blue-200 ${hasIssue ? "border-l-4 border-l-red-500 bg-red-50/30" : ""}`}
-                        >
-                          <TableCell className="font-medium border-b border-blue-200">
-                            {item.region}
-                          </TableCell>
-                          <TableCell className="font-mono text-sm border-b border-blue-200">
-                            {item.scheme_id}
-                          </TableCell>
-                          <TableCell className="border-b border-blue-200">
-                            {item.scheme_name}
-                          </TableCell>
-                          <TableCell className="border-b border-blue-200">
-                            {item.village_name}
-                          </TableCell>
-                          <TableCell className="border-b border-blue-200">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-blue-900 truncate max-w-[150px]" title={item.esr_name}>
-                                {item.esr_name}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="border-b border-blue-200">
-                            {latestPressure !== null ? (
-                              <span className="font-semibold">
-                                {typeof latestPressure === "number"
-                                  ? latestPressure.toFixed(2)
-                                  : latestPressure}{" "}
-                                bar
-                              </span>
-                            ) : (
-                              <span className="text-gray-400">No data</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="border-b border-blue-200">
-                            <div className="flex items-center">
-                              {statusInfo.icon && statusInfo.icon}
-                              <span
-                                className={`ml-1 ${statusInfo.textColor || "text-gray-500"
-                                  }`}
-                              >
-                                {statusInfo.statusText}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="border-b border-blue-200">
-                            {item.dashboard_url ? (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="py-1 px-2 h-8 text-xs"
-                                onClick={() => {
-                                  // Track external dashboard access
-                                  trackDashboardAccess(
-                                    item.dashboard_url!,
-                                    "PI Vision Pressure Dashboard",
-                                  );
-                                  window.open(item.dashboard_url, "_blank");
-                                }}
-                              >
-                                <Gauge className="h-3.5 w-3.5 mr-1" /> View
-                              </Button>
-                            ) : (
-                              <span className="text-xs text-gray-400">
-                                Not available
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell className="border-b border-blue-200 text-center max-w-[150px]">
-                            {issues.length > 0 ? (
-                              <Button
-                                variant="ghost"
-                                className="h-auto p-1 max-w-full justify-start text-red-600 font-medium text-[11px] hover:text-red-700 hover:bg-red-50"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedRemarkDetails({ issues, title: `Issues for ${item.esr_name}, ${item.village_name}` });
-                                }}
-                              >
-                                <span className="truncate w-full text-left">
-                                  {issues.map((i: any) => i.reason).join(", ")}
-                                </span>
-                              </Button>
-                            ) : (
-                              <span className="text-gray-400">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right border-b border-blue-200">
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                                  onClick={() => setSelectedESR(item)}
-                                >
-                                  View Details
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="max-w-4xl h-[90vh] overflow-y-auto bg-white">
-                                {selectedESR && (
-                                  <>
-                                    <DialogHeader>
-                                      <DialogTitle className="text-xl font-bold flex items-center gap-2">
-                                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                          <Gauge className="h-5 w-5 text-blue-600" />
-                                        </div>
-                                        {selectedESR.esr_name} -{" "}
-                                        {selectedESR.village_name}
-                                      </DialogTitle>
-                                      <DialogDescription>
-                                        Detailed pressure monitoring data for this
-                                        ESR
-                                      </DialogDescription>
-                                    </DialogHeader>
+                  return (
+                    <TableRow
+                      key={`${item.scheme_id}-${item.village_name}-${item.esr_name}-${idx}`}
+                      className={`pressure-item ${statusInfo.className} hover:bg-blue-100 border-b border-blue-200 ${hasIssue ? "border-l-4 border-l-red-500 bg-red-50/30" : ""}`}
+                    >
+                      <TableCell className="font-medium border-b border-blue-200">
+                        {item.region}
+                      </TableCell>
+                      <TableCell className="font-mono text-sm border-b border-blue-200">
+                        {item.scheme_id}
+                      </TableCell>
+                      <TableCell className="border-b border-blue-200">
+                        {item.scheme_name}
+                      </TableCell>
+                      <TableCell className="border-b border-blue-200">
+                        {item.village_name}
+                      </TableCell>
+                      <TableCell className="border-b border-blue-200">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-blue-900 truncate max-w-[150px]" title={item.esr_name}>
+                            {item.esr_name}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="border-b border-blue-200">
+                        {latestPressure !== null ? (
+                          <span className="font-semibold">
+                            {typeof latestPressure === "number"
+                              ? latestPressure.toFixed(2)
+                              : latestPressure}{" "}
+                            bar
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">No data</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="border-b border-blue-200">
+                        <div className="flex items-center">
+                          {statusInfo.icon && statusInfo.icon}
+                          <span
+                            className={`ml-1 ${statusInfo.textColor || "text-gray-500"
+                              }`}
+                          >
+                            {statusInfo.statusText}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="border-b border-blue-200">
+                        {item.dashboard_url ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="py-1 px-2 h-8 text-xs"
+                            onClick={() => {
+                              // Track external dashboard access
+                              trackDashboardAccess(
+                                item.dashboard_url!,
+                                "PI Vision Pressure Dashboard",
+                              );
+                              window.open(item.dashboard_url, "_blank");
+                            }}
+                          >
+                            <Gauge className="h-3.5 w-3.5 mr-1" /> View
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-gray-400">
+                            Not available
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="border-b border-blue-200 text-center max-w-[150px]">
+                        {issues.length > 0 ? (
+                          <Button
+                            variant="ghost"
+                            className="h-auto p-1 max-w-full justify-start text-red-600 font-medium text-[11px] hover:text-red-700 hover:bg-red-50"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedRemarkDetails({ issues, title: `Issues for ${item.esr_name}, ${item.village_name}` });
+                            }}
+                          >
+                            <span className="truncate w-full text-left">
+                              {issues.map((i: any) => i.reason).join(", ")}
+                            </span>
+                          </Button>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right border-b border-blue-200">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                              onClick={() => setSelectedESR(item)}
+                            >
+                              View Details
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-4xl h-[90vh] overflow-y-auto bg-white">
+                            {selectedESR && (
+                              <>
+                                <DialogHeader>
+                                  <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                      <Gauge className="h-5 w-5 text-blue-600" />
+                                    </div>
+                                    {selectedESR.esr_name} -{" "}
+                                    {selectedESR.village_name}
+                                  </DialogTitle>
+                                  <DialogDescription>
+                                    Detailed pressure monitoring data for this
+                                    ESR
+                                  </DialogDescription>
+                                </DialogHeader>
 
-                                    <div className="py-4">
-                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                        <div className="bg-blue-50/50 rounded-lg p-4 border border-blue-100">
-                                          <h3 className="text-sm font-medium text-blue-800 mb-3">
-                                            ESR Information
-                                          </h3>
+                                <div className="py-4">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                    <div className="bg-blue-50/50 rounded-lg p-4 border border-blue-100">
+                                      <h3 className="text-sm font-medium text-blue-800 mb-3">
+                                        ESR Information
+                                      </h3>
 
-                                          <div className="space-y-3">
-                                            <div className="flex justify-between items-center border-b border-blue-100 pb-2">
-                                              <span className="text-sm text-blue-700">
-                                                Region
-                                              </span>
-                                              <span className="font-medium">
-                                                {selectedESR.region}
-                                              </span>
-                                            </div>
-
-                                            <div className="flex justify-between items-center border-b border-blue-100 pb-2">
-                                              <span className="text-sm text-blue-700">
-                                                Scheme ID
-                                              </span>
-                                              <span className="font-medium font-mono">
-                                                {selectedESR.scheme_id}
-                                              </span>
-                                            </div>
-
-                                            <div className="flex justify-between items-center border-b border-blue-100 pb-2">
-                                              <span className="text-sm text-blue-700">
-                                                Scheme
-                                              </span>
-                                              <span className="font-medium">
-                                                {selectedESR.scheme_name}
-                                              </span>
-                                            </div>
-
-                                            <div className="flex justify-between items-center border-b border-blue-100 pb-2">
-                                              <span className="text-sm text-blue-700">
-                                                Village
-                                              </span>
-                                              <span className="font-medium">
-                                                {selectedESR.village_name}
-                                              </span>
-                                            </div>
-                                          </div>
+                                      <div className="space-y-3">
+                                        <div className="flex justify-between items-center border-b border-blue-100 pb-2">
+                                          <span className="text-sm text-blue-700">
+                                            Region
+                                          </span>
+                                          <span className="font-medium">
+                                            {selectedESR.region}
+                                          </span>
                                         </div>
 
-                                        <div className="bg-gradient-to-br from-blue-50 to-white rounded-lg p-4 border border-blue-100 flex flex-col">
-                                          <h3 className="text-sm font-medium text-blue-800 mb-3">
-                                            Current Status
-                                          </h3>
-
-                                          {(() => {
-                                            const latestValue =
-                                              getCurrentPressureValue(selectedESR);
-                                            const statusInfo =
-                                              getPressureStatusInfo(latestValue);
-
-                                            let statusBgClass = "bg-gray-100";
-                                            let statusTextClass = "text-gray-800";
-
-                                            if (latestValue !== null) {
-                                              if (latestValue < 0.2) {
-                                                statusBgClass = "bg-red-100";
-                                                statusTextClass = "text-red-800";
-                                              } else if (
-                                                latestValue >= 0.2 &&
-                                                latestValue <= 0.7
-                                              ) {
-                                                statusBgClass = "bg-green-100";
-                                                statusTextClass = "text-green-800";
-                                              } else {
-                                                statusBgClass = "bg-orange-100";
-                                                statusTextClass = "text-orange-800";
-                                              }
-                                            }
-
-                                            return (
-                                              <div
-                                                className={`${statusBgClass} rounded-lg p-4 flex-1 flex flex-col justify-center items-center`}
-                                              >
-                                                <div className="flex items-center gap-2 mb-2">
-                                                  {statusInfo.icon}
-                                                  <span
-                                                    className={`text-lg font-bold ${statusTextClass}`}
-                                                  >
-                                                    {statusInfo.statusText}
-                                                  </span>
-                                                </div>
-
-                                                <div className="text-4xl font-bold mb-2">
-                                                  {latestValue !== null ? (
-                                                    <span
-                                                      className={statusTextClass}
-                                                    >
-                                                      {latestValue.toFixed(2)}
-                                                    </span>
-                                                  ) : (
-                                                    "—"
-                                                  )}
-                                                </div>
-
-                                                <div
-                                                  className={`text-sm ${statusTextClass}`}
-                                                >
-                                                  bar
-                                                </div>
-
-                                                <div className="mt-4 text-xs text-gray-600">
-                                                  Target Range: 0.2-0.7 bar
-                                                </div>
-                                              </div>
-                                            );
-                                          })()}
+                                        <div className="flex justify-between items-center border-b border-blue-100 pb-2">
+                                          <span className="text-sm text-blue-700">
+                                            Scheme ID
+                                          </span>
+                                          <span className="font-medium font-mono">
+                                            {selectedESR.scheme_id}
+                                          </span>
                                         </div>
-                                      </div>
 
-                                      <div className="border-t border-gray-200 pt-6">
-                                        <h3 className="font-medium text-lg mb-4 text-blue-800 flex items-center gap-2">
-                                          <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
-                                            <AlertCircle className="h-3 w-3 text-blue-600" />
-                                          </div>
-                                          7-Day Pressure History
-                                        </h3>
-                                        <div className="grid grid-cols-7 gap-3">
-                                          {[1, 2, 3, 4, 5, 6, 7].map((day) => {
-                                            const value =
-                                              selectedESR[
-                                              `pressure_value_${day}` as keyof PressureData
-                                              ];
-                                            const numValue =
-                                              value !== undefined && value !== null
-                                                ? Number(value)
-                                                : null;
-                                            const dateValue =
-                                              selectedESR[
-                                              `pressure_date_day_${day}` as keyof PressureData
-                                              ];
-                                            const { className: dayClassName } =
-                                              getPressureStatusInfo(numValue);
-
-                                            let cardBgClass =
-                                              "bg-white border-gray-200";
-                                            let valueTextClass = "text-gray-400";
-
-                                            if (numValue !== null) {
-                                              if (numValue < 0.2) {
-                                                cardBgClass =
-                                                  "bg-gradient-to-br from-red-50 to-white border-red-200";
-                                                valueTextClass = "text-red-600";
-                                              } else if (
-                                                numValue >= 0.2 &&
-                                                numValue <= 0.7
-                                              ) {
-                                                cardBgClass =
-                                                  "bg-gradient-to-br from-green-50 to-white border-green-200";
-                                                valueTextClass = "text-green-600";
-                                              } else {
-                                                cardBgClass =
-                                                  "bg-gradient-to-br from-orange-50 to-white border-orange-200";
-                                                valueTextClass = "text-orange-600";
-                                              }
-                                            }
-
-                                            return (
-                                              <div
-                                                key={`pressure-day-${day}`}
-                                                className={`${cardBgClass} p-3 rounded-md text-center shadow-sm border relative overflow-hidden`}
-                                              >
-                                                <div className="relative">
-                                                  <p className="text-xs text-gray-700 font-medium">
-                                                    Day {day}
-                                                  </p>
-                                                  <p
-                                                    className={`text-xl font-bold ${valueTextClass}`}
-                                                  >
-                                                    {numValue !== null
-                                                      ? numValue.toFixed(2)
-                                                      : "—"}
-                                                  </p>
-                                                  <p className="text-xs text-gray-500 truncate">
-                                                    {dateValue || "No data"}
-                                                  </p>
-                                                </div>
-                                              </div>
-                                            );
-                                          })}
+                                        <div className="flex justify-between items-center border-b border-blue-100 pb-2">
+                                          <span className="text-sm text-blue-700">
+                                            Scheme
+                                          </span>
+                                          <span className="font-medium">
+                                            {selectedESR.scheme_name}
+                                          </span>
                                         </div>
-                                      </div>
 
-                                      <div className="mt-6 bg-blue-50/50 rounded-lg p-4 border border-blue-100">
-                                        <h4 className="font-medium text-blue-800 mb-3">
-                                          7-Day Analysis
-                                        </h4>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                          <div className="bg-white p-3 rounded border border-red-100">
-                                            <p className="text-sm text-red-700 mb-1">
-                                              Below Range Days
-                                            </p>
-                                            <p className="text-xl font-bold text-red-600">
-                                              {(() => {
-                                                let count = 0;
-                                                for (let day = 1; day <= 7; day++) {
-                                                  const value =
-                                                    selectedESR[
-                                                    `pressure_value_${day}` as keyof PressureData
-                                                    ];
-                                                  const numValue =
-                                                    value !== undefined &&
-                                                      value !== null
-                                                      ? Number(value)
-                                                      : null;
-                                                  if (
-                                                    numValue !== null &&
-                                                    numValue >= 0 &&
-                                                    numValue < 0.2
-                                                  ) {
-                                                    count++;
-                                                  }
-                                                }
-                                                return count;
-                                              })()}
-                                            </p>
-                                          </div>
-                                          <div className="bg-white p-3 rounded border border-green-100">
-                                            <p className="text-sm text-green-700 mb-1">
-                                              Optimal Range Days
-                                            </p>
-                                            <p className="text-xl font-bold text-green-600">
-                                              {(() => {
-                                                let count = 0;
-                                                for (let day = 1; day <= 7; day++) {
-                                                  const value =
-                                                    selectedESR[
-                                                    `pressure_value_${day}` as keyof PressureData
-                                                    ];
-                                                  const numValue =
-                                                    value !== undefined &&
-                                                      value !== null
-                                                      ? Number(value)
-                                                      : null;
-                                                  if (
-                                                    numValue !== null &&
-                                                    numValue >= 0.2 &&
-                                                    numValue <= 0.7
-                                                  ) {
-                                                    count++;
-                                                  }
-                                                }
-                                                return count;
-                                              })()}
-                                            </p>
-                                          </div>
-                                          <div className="bg-white p-3 rounded border border-orange-100">
-                                            <p className="text-sm text-orange-700 mb-1">
-                                              Above Range Days
-                                            </p>
-                                            <p className="text-xl font-bold text-orange-600">
-                                              {(() => {
-                                                let count = 0;
-                                                for (let day = 1; day <= 7; day++) {
-                                                  const value =
-                                                    selectedESR[
-                                                    `pressure_value_${day}` as keyof PressureData
-                                                    ];
-                                                  const numValue =
-                                                    value !== undefined &&
-                                                      value !== null
-                                                      ? Number(value)
-                                                      : null;
-                                                  if (
-                                                    numValue !== null &&
-                                                    numValue > 0.7
-                                                  ) {
-                                                    count++;
-                                                  }
-                                                }
-                                                return count;
-                                              })()}
-                                            </p>
-                                          </div>
-                                          <div className="bg-white p-3 rounded border border-gray-200">
-                                            <p className="text-sm text-gray-700 mb-1">
-                                              Zero Pressure Days
-                                            </p>
-                                            <p className="text-xl font-bold text-gray-600">
-                                              {(() => {
-                                                let count = 0;
-                                                for (let day = 1; day <= 7; day++) {
-                                                  const value =
-                                                    selectedESR[
-                                                    `pressure_value_${day}` as keyof PressureData
-                                                    ];
-                                                  const numValue =
-                                                    value !== undefined &&
-                                                      value !== null
-                                                      ? Number(value)
-                                                      : null;
-                                                  if (numValue === 0) {
-                                                    count++;
-                                                  }
-                                                }
-                                                return count;
-                                              })()}
-                                            </p>
-                                          </div>
-                                        </div>
-                                      </div>
-
-                                      {/* PI Vision Dashboard Link */}
-                                      <div className="mt-6 pt-6 border-t border-gray-200">
-                                        <div className="flex justify-between items-center">
-                                          <div>
-                                            <h3 className="font-medium text-blue-800">
-                                              PI Vision Dashboard
-                                            </h3>
-                                            <p className="text-sm text-gray-500">
-                                              View detailed historical pressure data
-                                              in PI Vision
-                                            </p>
-                                          </div>
-                                          {selectedESR.dashboard_url ? (
-                                            <Button
-                                              variant="outline"
-                                              className="border-blue-200 text-blue-600 hover:bg-blue-50"
-                                              onClick={() =>
-                                                window.open(
-                                                  selectedESR.dashboard_url,
-                                                  "_blank",
-                                                )
-                                              }
-                                            >
-                                              <Gauge className="h-4 w-4 mr-2" />{" "}
-                                              Open Dashboard
-                                            </Button>
-                                          ) : (
-                                            <Button
-                                              variant="outline"
-                                              disabled
-                                              className="opacity-50"
-                                            >
-                                              <Gauge className="h-4 w-4 mr-2" />{" "}
-                                              Dashboard Not Available
-                                            </Button>
-                                          )}
+                                        <div className="flex justify-between items-center border-b border-blue-100 pb-2">
+                                          <span className="text-sm text-blue-700">
+                                            Village
+                                          </span>
+                                          <span className="font-medium">
+                                            {selectedESR.village_name}
+                                          </span>
                                         </div>
                                       </div>
                                     </div>
-                                  </>
-                                )}
-                              </DialogContent>
-                            </Dialog>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  ) : (
-                    <TableRow>
-                      <TableCell
-                        colSpan={9}
-                        className="text-center py-8 text-gray-500"
-                      >
-                        {allPressureData.length === 0 ? (
-                          <>No pressure data available for this region</>
-                        ) : (
-                          <>No results match your search criteria</>
-                        )}
+
+                                    <div className="bg-gradient-to-br from-blue-50 to-white rounded-lg p-4 border border-blue-100 flex flex-col">
+                                      <h3 className="text-sm font-medium text-blue-800 mb-3">
+                                        Current Status
+                                      </h3>
+
+                                      {(() => {
+                                        const latestValue =
+                                          getCurrentPressureValue(selectedESR);
+                                        const statusInfo =
+                                          getPressureStatusInfo(latestValue);
+
+                                        let statusBgClass = "bg-gray-100";
+                                        let statusTextClass = "text-gray-800";
+
+                                        if (latestValue !== null) {
+                                          if (latestValue < 0.2) {
+                                            statusBgClass = "bg-red-100";
+                                            statusTextClass = "text-red-800";
+                                          } else if (
+                                            latestValue >= 0.2 &&
+                                            latestValue <= 0.7
+                                          ) {
+                                            statusBgClass = "bg-green-100";
+                                            statusTextClass = "text-green-800";
+                                          } else {
+                                            statusBgClass = "bg-orange-100";
+                                            statusTextClass = "text-orange-800";
+                                          }
+                                        }
+
+                                        return (
+                                          <div
+                                            className={`${statusBgClass} rounded-lg p-4 flex-1 flex flex-col justify-center items-center`}
+                                          >
+                                            <div className="flex items-center gap-2 mb-2">
+                                              {statusInfo.icon}
+                                              <span
+                                                className={`text-lg font-bold ${statusTextClass}`}
+                                              >
+                                                {statusInfo.statusText}
+                                              </span>
+                                            </div>
+
+                                            <div className="text-4xl font-bold mb-2">
+                                              {latestValue !== null ? (
+                                                <span
+                                                  className={statusTextClass}
+                                                >
+                                                  {latestValue.toFixed(2)}
+                                                </span>
+                                              ) : (
+                                                "—"
+                                              )}
+                                            </div>
+
+                                            <div
+                                              className={`text-sm ${statusTextClass}`}
+                                            >
+                                              bar
+                                            </div>
+
+                                            <div className="mt-4 text-xs text-gray-600">
+                                              Target Range: 0.2-0.7 bar
+                                            </div>
+                                          </div>
+                                        );
+                                      })()}
+                                    </div>
+                                  </div>
+
+                                  <div className="border-t border-gray-200 pt-6">
+                                    <h3 className="font-medium text-lg mb-4 text-blue-800 flex items-center gap-2">
+                                      <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
+                                        <AlertCircle className="h-3 w-3 text-blue-600" />
+                                      </div>
+                                      7-Day Pressure History
+                                    </h3>
+                                    <div className="grid grid-cols-7 gap-3">
+                                      {[1, 2, 3, 4, 5, 6, 7].map((day) => {
+                                        const value =
+                                          selectedESR[
+                                          `pressure_value_${day}` as keyof PressureData
+                                          ];
+                                        const numValue =
+                                          value !== undefined && value !== null
+                                            ? Number(value)
+                                            : null;
+                                        const dateValue =
+                                          selectedESR[
+                                          `pressure_date_day_${day}` as keyof PressureData
+                                          ];
+                                        const { className: dayClassName } =
+                                          getPressureStatusInfo(numValue);
+
+                                        let cardBgClass =
+                                          "bg-white border-gray-200";
+                                        let valueTextClass = "text-gray-400";
+
+                                        if (numValue !== null) {
+                                          if (numValue < 0.2) {
+                                            cardBgClass =
+                                              "bg-gradient-to-br from-red-50 to-white border-red-200";
+                                            valueTextClass = "text-red-600";
+                                          } else if (
+                                            numValue >= 0.2 &&
+                                            numValue <= 0.7
+                                          ) {
+                                            cardBgClass =
+                                              "bg-gradient-to-br from-green-50 to-white border-green-200";
+                                            valueTextClass = "text-green-600";
+                                          } else {
+                                            cardBgClass =
+                                              "bg-gradient-to-br from-orange-50 to-white border-orange-200";
+                                            valueTextClass = "text-orange-600";
+                                          }
+                                        }
+
+                                        return (
+                                          <div
+                                            key={`pressure-day-${day}`}
+                                            className={`${cardBgClass} p-3 rounded-md text-center shadow-sm border relative overflow-hidden`}
+                                          >
+                                            <div className="relative">
+                                              <p className="text-xs text-gray-700 font-medium">
+                                                Day {day}
+                                              </p>
+                                              <p
+                                                className={`text-xl font-bold ${valueTextClass}`}
+                                              >
+                                                {numValue !== null
+                                                  ? numValue.toFixed(2)
+                                                  : "—"}
+                                              </p>
+                                              <p className="text-xs text-gray-500 truncate">
+                                                {dateValue || "No data"}
+                                              </p>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+
+                                  <div className="mt-6 bg-blue-50/50 rounded-lg p-4 border border-blue-100">
+                                    <h4 className="font-medium text-blue-800 mb-3">
+                                      7-Day Analysis
+                                    </h4>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                      <div className="bg-white p-3 rounded border border-red-100">
+                                        <p className="text-sm text-red-700 mb-1">
+                                          Below Range Days
+                                        </p>
+                                        <p className="text-xl font-bold text-red-600">
+                                          {(() => {
+                                            let count = 0;
+                                            for (let day = 1; day <= 7; day++) {
+                                              const value =
+                                                selectedESR[
+                                                `pressure_value_${day}` as keyof PressureData
+                                                ];
+                                              const numValue =
+                                                value !== undefined &&
+                                                  value !== null
+                                                  ? Number(value)
+                                                  : null;
+                                              if (
+                                                numValue !== null &&
+                                                numValue >= 0 &&
+                                                numValue < 0.2
+                                              ) {
+                                                count++;
+                                              }
+                                            }
+                                            return count;
+                                          })()}
+                                        </p>
+                                      </div>
+                                      <div className="bg-white p-3 rounded border border-green-100">
+                                        <p className="text-sm text-green-700 mb-1">
+                                          Optimal Range Days
+                                        </p>
+                                        <p className="text-xl font-bold text-green-600">
+                                          {(() => {
+                                            let count = 0;
+                                            for (let day = 1; day <= 7; day++) {
+                                              const value =
+                                                selectedESR[
+                                                `pressure_value_${day}` as keyof PressureData
+                                                ];
+                                              const numValue =
+                                                value !== undefined &&
+                                                  value !== null
+                                                  ? Number(value)
+                                                  : null;
+                                              if (
+                                                numValue !== null &&
+                                                numValue >= 0.2 &&
+                                                numValue <= 0.7
+                                              ) {
+                                                count++;
+                                              }
+                                            }
+                                            return count;
+                                          })()}
+                                        </p>
+                                      </div>
+                                      <div className="bg-white p-3 rounded border border-orange-100">
+                                        <p className="text-sm text-orange-700 mb-1">
+                                          Above Range Days
+                                        </p>
+                                        <p className="text-xl font-bold text-orange-600">
+                                          {(() => {
+                                            let count = 0;
+                                            for (let day = 1; day <= 7; day++) {
+                                              const value =
+                                                selectedESR[
+                                                `pressure_value_${day}` as keyof PressureData
+                                                ];
+                                              const numValue =
+                                                value !== undefined &&
+                                                  value !== null
+                                                  ? Number(value)
+                                                  : null;
+                                              if (
+                                                numValue !== null &&
+                                                numValue > 0.7
+                                              ) {
+                                                count++;
+                                              }
+                                            }
+                                            return count;
+                                          })()}
+                                        </p>
+                                      </div>
+                                      <div className="bg-white p-3 rounded border border-gray-200">
+                                        <p className="text-sm text-gray-700 mb-1">
+                                          Zero Pressure Days
+                                        </p>
+                                        <p className="text-xl font-bold text-gray-600">
+                                          {(() => {
+                                            let count = 0;
+                                            for (let day = 1; day <= 7; day++) {
+                                              const value =
+                                                selectedESR[
+                                                `pressure_value_${day}` as keyof PressureData
+                                                ];
+                                              const numValue =
+                                                value !== undefined &&
+                                                  value !== null
+                                                  ? Number(value)
+                                                  : null;
+                                              if (numValue === 0) {
+                                                count++;
+                                              }
+                                            }
+                                            return count;
+                                          })()}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* PI Vision Dashboard Link */}
+                                  <div className="mt-6 pt-6 border-t border-gray-200">
+                                    <div className="flex justify-between items-center">
+                                      <div>
+                                        <h3 className="font-medium text-blue-800">
+                                          PI Vision Dashboard
+                                        </h3>
+                                        <p className="text-sm text-gray-500">
+                                          View detailed historical pressure data
+                                          in PI Vision
+                                        </p>
+                                      </div>
+                                      {selectedESR.dashboard_url ? (
+                                        <Button
+                                          variant="outline"
+                                          className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                                          onClick={() =>
+                                            window.open(
+                                              selectedESR.dashboard_url,
+                                              "_blank",
+                                            )
+                                          }
+                                        >
+                                          <Gauge className="h-4 w-4 mr-2" />{" "}
+                                          Open Dashboard
+                                        </Button>
+                                      ) : (
+                                        <Button
+                                          variant="outline"
+                                          disabled
+                                          className="opacity-50"
+                                        >
+                                          <Gauge className="h-4 w-4 mr-2" />{" "}
+                                          Dashboard Not Available
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </DialogContent>
+                        </Dialog>
                       </TableCell>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                  );
+                })
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={9}
+                    className="text-center py-8 text-gray-500"
+                  >
+                    {allPressureData.length === 0 ? (
+                      <>No pressure data available for this region</>
+                    ) : (
+                      <>No results match your search criteria</>
+                    )}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      {/* Pagination */}
+      {
+        filteredData.length > itemsPerPage && (
+          <div className="flex justify-center mb-8">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (page > 1) setPage(page - 1);
+                    }}
+                    className={page === 1 ? "opacity-50 pointer-events-none" : ""}
+                  />
+                </PaginationItem>
+
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  // Logic to show 5 pages around the current page
+                  let pageNumber = page;
+                  if (page < 3) {
+                    pageNumber = i + 1;
+                  } else if (page > totalPages - 2) {
+                    pageNumber = totalPages - 4 + i;
+                  } else {
+                    pageNumber = page - 2 + i;
+                  }
+
+                  // Ensure page number is within bounds
+                  if (pageNumber < 1) pageNumber = 1;
+                  if (pageNumber > totalPages) pageNumber = totalPages;
+
+                  return (
+                    <PaginationItem key={`page-${pageNumber}`}>
+                      <PaginationLink
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setPage(pageNumber);
+                        }}
+                        isActive={page === pageNumber}
+                      >
+                        {pageNumber}
+                      </PaginationLink>
+                    </PaginationItem>
+                  );
+                })}
+
+                <PaginationItem>
+                  <PaginationNext
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (page < totalPages) setPage(page + 1);
+                    }}
+                    className={
+                      page === totalPages ? "opacity-50 pointer-events-none" : ""
+                    }
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
           </div>
+        )
+      }
 
-          {/* Pagination */}
-          {
-            filteredData.length > itemsPerPage && (
-              <div className="flex justify-center mb-8">
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          if (page > 1) setPage(page - 1);
-                        }}
-                        className={page === 1 ? "opacity-50 pointer-events-none" : ""}
-                      />
-                    </PaginationItem>
-
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      // Logic to show 5 pages around the current page
-                      let pageNumber = page;
-                      if (page < 3) {
-                        pageNumber = i + 1;
-                      } else if (page > totalPages - 2) {
-                        pageNumber = totalPages - 4 + i;
-                      } else {
-                        pageNumber = page - 2 + i;
-                      }
-
-                      // Ensure page number is within bounds
-                      if (pageNumber < 1) pageNumber = 1;
-                      if (pageNumber > totalPages) pageNumber = totalPages;
-
-                      return (
-                        <PaginationItem key={`page-${pageNumber}`}>
-                          <PaginationLink
-                            href="#"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              setPage(pageNumber);
-                            }}
-                            isActive={page === pageNumber}
-                          >
-                            {pageNumber}
-                          </PaginationLink>
-                        </PaginationItem>
-                      );
-                    })}
-
-                    <PaginationItem>
-                      <PaginationNext
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          if (page < totalPages) setPage(page + 1);
-                        }}
-                        className={
-                          page === totalPages ? "opacity-50 pointer-events-none" : ""
-                        }
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
+      {/* Remark Details Dialog */}
+      {selectedRemarkDetails && (
+        <Dialog
+          open={!!selectedRemarkDetails}
+          onOpenChange={(open) => !open && setSelectedRemarkDetails(null)}
+        >
+          <DialogContent className="max-w-2xl bg-white border-none shadow-2xl p-0 overflow-hidden">
+            <div className="bg-gradient-to-r from-red-600 via-rose-600 to-red-700 p-6 flex justify-between items-center text-white relative">
+              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+              <div className="relative z-10 flex-1 pr-6">
+                <DialogTitle className="text-xl md:text-2xl font-bold flex items-center gap-3">
+                  <AlertCircle className="h-6 w-6 md:h-8 md:w-8 text-red-200" />
+                  <span className="tracking-tight">Issue Details</span>
+                </DialogTitle>
+                <DialogDescription className="text-red-100 mt-2 font-medium flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  <span>{selectedRemarkDetails.title}</span>
+                </DialogDescription>
               </div>
-            )
-          }
+            </div>
 
-          {/* Remark Details Dialog */}
-          {selectedRemarkDetails && (
-            <Dialog
-              open={!!selectedRemarkDetails}
-              onOpenChange={(open) => !open && setSelectedRemarkDetails(null)}
-            >
-              <DialogContent className="max-w-2xl bg-white border-none shadow-2xl p-0 overflow-hidden">
-                <div className="bg-gradient-to-r from-red-600 via-rose-600 to-red-700 p-6 flex justify-between items-center text-white relative">
-                  <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-                  <div className="relative z-10 flex-1 pr-6">
-                    <DialogTitle className="text-xl md:text-2xl font-bold flex items-center gap-3">
-                      <AlertCircle className="h-6 w-6 md:h-8 md:w-8 text-red-200" />
-                      <span className="tracking-tight">Issue Details</span>
-                    </DialogTitle>
-                    <DialogDescription className="text-red-100 mt-2 font-medium flex items-center gap-2">
-                      <MapPin className="h-4 w-4" />
-                      <span>{selectedRemarkDetails.title}</span>
-                    </DialogDescription>
-                  </div>
-                </div>
-
-                <div className="p-6 overflow-y-auto max-h-[70vh] bg-slate-50">
-                  <div className="space-y-4">
-                    {selectedRemarkDetails.issues.map((issue: any, index: number) => (
-                      <div key={index} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-                        <div className="flex justify-between items-start mb-3 gap-4">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider">
-                                {issue.problem_level ? `${issue.problem_level} Level`.toUpperCase() : (issue.category || "General")}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="text-right flex flex-col items-end">
-                            <div className="text-sm font-medium text-slate-900">
-                              {issue.creator_name || issue.reported_by || "Field Engineer"}
-                            </div>
-                            <div className="text-xs text-slate-500 mt-0.5 whitespace-nowrap">
-                              {new Date(issue.created_at || new Date()).toLocaleString('en-US', {
-                                month: 'short', day: 'numeric', year: 'numeric',
-                                hour: 'numeric', minute: '2-digit', hour12: true
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-100">
-                          <p className="text-sm text-slate-700 font-medium">
-                            {issue.reason || issue.issue_description}
-                          </p>
-                          {issue.remarks && (
-                            <p className="text-sm text-slate-600 mt-2 pt-2 border-t border-slate-200">
-                              <span className="font-semibold text-slate-800">Additional Remarks:</span> {issue.remarks}
-                            </p>
-                          )}
+            <div className="p-6 overflow-y-auto max-h-[70vh] bg-slate-50">
+              <div className="space-y-4">
+                {selectedRemarkDetails.issues.map((issue: any, index: number) => (
+                  <div key={index} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                    <div className="flex justify-between items-start mb-3 gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider">
+                            {issue.problem_level ? `${issue.problem_level} Level`.toUpperCase() : (issue.category || "General")}
+                          </span>
                         </div>
                       </div>
-                    ))}
+                      <div className="text-right flex flex-col items-end">
+                        <div className="text-sm font-medium text-slate-900">
+                          {issue.creator_name || issue.reported_by || "Field Engineer"}
+                        </div>
+                        <div className="text-xs text-slate-500 mt-0.5 whitespace-nowrap">
+                          {new Date(issue.created_at || new Date()).toLocaleString('en-US', {
+                            month: 'short', day: 'numeric', year: 'numeric',
+                            hour: 'numeric', minute: '2-digit', hour12: true
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-100">
+                      <p className="text-sm text-slate-700 font-medium">
+                        {issue.reason || issue.issue_description}
+                      </p>
+                      {issue.remarks && (
+                        <p className="text-sm text-slate-600 mt-2 pt-2 border-t border-slate-200">
+                          <span className="font-semibold text-slate-800">Additional Remarks:</span> {issue.remarks}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-          )}
+                ))}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
-        </div>
-      );
+    </div>
+  );
 };
 
-      export default PressureDashboard;
+export default PressureDashboard;

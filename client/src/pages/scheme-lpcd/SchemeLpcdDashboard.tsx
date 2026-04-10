@@ -2114,13 +2114,13 @@ const SchemeLpcdDashboard = () => {
                                     <div className="relative bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 p-8 rounded-t-xl text-white overflow-hidden">
                                       <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
                                       <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-400/10 rounded-full translate-y-1/2 -translate-x-1/2 blur-2xl"></div>
-                                      
+
                                       <div className="relative z-10">
                                         <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-6">
                                           <div className="flex-1">
                                             <div className="flex items-center gap-3 mb-3">
                                               <span className="bg-blue-400/20 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest text-blue-100 border border-blue-400/30">
-                                               Scheme Details
+                                                Scheme Details
                                               </span>
                                               <Badge className={`${scheme.mjp_commissioned === "Yes" ? "bg-emerald-400/20 text-emerald-100 border-emerald-400/30" : "bg-amber-400/20 text-amber-100 border-amber-400/30"} backdrop-blur-sm`}>
                                                 {scheme.mjp_commissioned === "Yes" ? "Commissioned" : "Not Commissioned"}
@@ -2140,7 +2140,7 @@ const SchemeLpcdDashboard = () => {
                                               </div>
                                             </div>
                                           </div>
-                                          
+
                                           {scheme.dashboard_url && (
                                             <Button asChild className="bg-white text-blue-800 hover:bg-blue-50 font-bold shadow-lg h-12 px-6 rounded-xl shrink-0 transition-all hover:scale-105 active:scale-95">
                                               <a href={getDashboardUrlForScheme(scheme)} target="_blank" rel="noopener noreferrer">

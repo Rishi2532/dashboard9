@@ -5,7 +5,7 @@ import SchemeLpcdDashboard from "./scheme-lpcd/SchemeLpcdDashboard";
 const SchemeLpcdPage = () => {
   return (
     <DashboardLayout>
-      <div className="flex h-full">
+      <div className="flex">
         <div className="hidden lg:block">
           <Sidebar />
         </div>

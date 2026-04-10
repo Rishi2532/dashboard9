@@ -195,37 +195,53 @@ export default function SchemeTable({
     <Card className="bg-white shadow mb-8">
       <CardHeader className="px-3 py-3 sm:px-4 sm:py-5 lg:px-6 lg:py-6 xl:px-8 xl:py-6 flex flex-col sm:flex-row justify-between items-start space-y-4 sm:space-y-0">
         {/* Left side: Title + Description + Search bars */}
-        <div className="flex flex-col space-y-3 sm:space-y-4 w-full">
+        <div className="flex flex-col space-y-3 sm:space-y-4 w-full sm:w-1/2">
+          <div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <CardTitle className="text-base sm:text-lg lg:text-xl xl:text-2xl font-medium text-neutral-900">
+                Scheme Status
+              </CardTitle>
+              <span className="px-3 py-1 bg-blue-100 rounded-full text-blue-800 text-sm font-medium">
+                {filteredSchemes.length} schemes found
+              </span>
+            </div>
+            <CardDescription className="mt-1 max-w-2xl text-xs sm:text-sm lg:text-base text-neutral-500">
+              Details of water schemes and their current status
+            </CardDescription>
+          </div>
 
           {/* Search bars */}
-          <div className="flex flex-wrap gap-3 w-full items-end">
-            <div className="relative flex-grow sm:flex-grow-0 sm:w-64 xl:w-72">
-              <span className="text-xs font-semibold text-gray-500 mb-1 block">Search Scheme</span>
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-                <Input
-                  id="schemeSearch"
-                  placeholder="Enter name..."
-                  className="pl-9 w-full text-xs sm:text-sm lg:text-base h-10 lg:h-11 shadow-sm border-gray-200"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
+          <div className="flex flex-col md:flex-row gap-3 w-full">
+            <div className="relative w-full sm:w-64 xl:w-60">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+              <Input
+                id="schemeSearch"
+                placeholder="Search scheme name..."
+                className="pl-9 w-full text-xs sm:text-sm lg:text-base h-9 sm:h-10 lg:h-11"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
 
-            <div className="relative w-28 sm:w-32 xl:w-40">
-              <span className="text-xs font-semibold text-gray-500 mb-1 block">Scheme ID</span>
+            <div className="relative w-full sm:w-40 xl:w-44">
               <Input
                 id="schemeIdSearch"
-                placeholder="ID..."
-                className="w-full text-xs sm:text-sm lg:text-base h-10 lg:h-11 font-mono shadow-sm border-gray-200"
+                placeholder="Scheme ID..."
+                className="w-full text-xs sm:text-sm lg:text-base h-9 sm:h-10 lg:h-11 font-mono"
                 value={schemeIdSearch}
                 onChange={(e) => setSchemeIdSearch(e.target.value)}
               />
             </div>
+          </div>
+        </div>
 
-            <div className="relative w-48 sm:w-56 xl:w-64">
-              <span className="text-xs font-semibold text-gray-500 mb-1 block">Integration Status</span>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
+          {/* Centered Dashboard Integration container */}
+          <div className="flex justify-center w-full sm:w-auto">
+            <div className="border border-gray-200 bg-sky-50 rounded-2xl px-4 py-4 shadow-sm w-full sm:w-72">
+              <h2 className="text-center font-semibold text-sm sm:text-base mb-4">
+                Dashboard Integration
+              </h2>
               <Select
                 value={localStatusFilter}
                 onValueChange={(value) => {
@@ -234,20 +250,28 @@ export default function SchemeTable({
                   if (onStatusFilterChange) onStatusFilterChange(value);
                 }}
               >
-                <SelectTrigger className="w-full h-10 lg:h-11 text-xs sm:text-sm lg:text-base shadow-sm border-gray-200 bg-white">
-                  <SelectValue placeholder="All Status" />
+                <SelectTrigger className="w-full sm:w-full h-12 text-base">
+                  <SelectValue placeholder="IoT Integration Status" />
                 </SelectTrigger>
-                <SelectContent className="text-sm">
-                  <SelectItem value="all">All IoT Status</SelectItem>
-                  <SelectItem value="Connected">Connected</SelectItem>
-                  <SelectItem value="Not-Connected">Not Connected</SelectItem>
+                <SelectContent className="text-base">
+                  <SelectItem
+                    value="all"
+                    className="flex justify-center text-center w-full"
+                  >
+                    IoT Integration Status
+                  </SelectItem>
+
+                  <SelectItem value="Connected" className="text-center">
+                    Connected
+                  </SelectItem>
+                  <SelectItem value="Not-Connected" className="text-center">
+                    Not Connected
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
         </div>
-
-
       </CardHeader>
 
       <CardContent className="px-0 py-0">
@@ -270,19 +294,21 @@ export default function SchemeTable({
                   </TableHead>
 
                   <TableHead className="text-xs sm:text-sm lg:text-base p-2 sm:p-3 lg:p-4 xl:p-5 text-blue-800 font-semibold border-b border-blue-200 text-center">
-                    <div className="flex flex-col items-center justify-center gap-1">
-                      <span>No. of Villages</span>
-                      <span className="px-2 py-0.5 bg-green-100 rounded-full text-green-800 text-[10px] sm:text-xs font-semibold">
-                        {overallTotals.integratedVillages} / {overallTotals.totalVillages}
-                      </span>
+                    <div className="flex justify-center">
+                      No. of Villages
+                      {/* <span className="px-3 py-1 bg-green-100 rounded-full text-green-800 text-sm font-medium ml-2">
+                        {overallTotals.integratedVillages}/
+                        {overallTotals.totalVillages}
+                      </span> */}
                     </div>
                   </TableHead>
                   <TableHead className="text-xs sm:text-sm lg:text-base p-2 sm:p-3 lg:p-4 xl:p-5 text-blue-800 font-semibold border-b border-blue-200 text-center">
-                    <div className="flex flex-col items-center justify-center gap-1">
-                      <span>ESR</span>
-                      <span className="px-2 py-0.5 bg-purple-100 rounded-full text-purple-800 text-[10px] sm:text-xs font-semibold">
-                        {overallTotals.integratedEsr} / {overallTotals.totalEsr}
-                      </span>
+                    <div className="flex justify-center">
+                      ESR{" "}
+                      {/* <span className="px-3 py-1 bg-purple-100 rounded-full text-purple-800 text-sm font-medium ml-2">
+                        {overallTotals.integratedEsr}/
+                        {overallTotals.totalEsr}
+                      </span> */}
                     </div>
                   </TableHead>
                   <TableHead className="text-xs sm:text-sm lg:text-base p-2 sm:p-3 lg:p-4 xl:p-5 text-blue-800 font-semibold border-b border-blue-200 text-center">
