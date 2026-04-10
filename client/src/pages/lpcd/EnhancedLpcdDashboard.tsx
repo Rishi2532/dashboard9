@@ -79,8 +79,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
-import AgencyTypeFilter from "@/components/dashboard/AgencyTypeFilter";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import FilterBar from "@/components/dashboard/FilterBar";
 
