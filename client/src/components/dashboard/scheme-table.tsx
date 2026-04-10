@@ -68,9 +68,7 @@ export default function SchemeTable({
   const [schemeIdSearch, setSchemeIdSearch] = useState("");
   const [localStatusFilter, setLocalStatusFilter] =
     useState<string>(statusFilter);
-  const [commissionedFilter, setCommissionedFilter] = useState<string>("all");
-  const [fullyCompletedFilter, setFullyCompletedFilter] =
-    useState<string>("all");
+  const [commissionedFilter, setCommissionedFilter] = useState<string>("Water Supply");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
@@ -101,9 +99,8 @@ export default function SchemeTable({
     (window as any).schemeTableFilters = {
       statusFilter: localStatusFilter,
       commissionedFilter,
-      fullyCompletedFilter,
     };
-  }, [localStatusFilter, commissionedFilter, fullyCompletedFilter]);
+  }, [localStatusFilter, commissionedFilter]);
 
   // Ensure schemes is an array before filtering
   const schemesArray = Array.isArray(schemes) ? schemes : [];
@@ -131,16 +128,11 @@ export default function SchemeTable({
         ? scheme.water_supply === "Yes"
         : scheme.mjp_commissioned === commissionedFilter);
 
-    const matchesFullyCompletedFilter =
-      fullyCompletedFilter === "all" ||
-      scheme.mjp_fully_completed === fullyCompletedFilter;
-
     return (
       matchesNameSearch &&
       matchesIdSearch &&
       matchesStatusFilter &&
-      matchesCommissionedFilter &&
-      matchesFullyCompletedFilter
+      matchesCommissionedFilter
     );
   });
 
@@ -261,76 +253,9 @@ export default function SchemeTable({
                   <SelectItem value="Connected" className="text-center">
                     Connected
                   </SelectItem>
-                  <SelectItem value="Fully Completed" className="text-center">
-                    Fully Completed
-                  </SelectItem>
-                  <SelectItem value="In Progress" className="text-center">
-                    In Progress
-                  </SelectItem>
                   <SelectItem value="Not-Connected" className="text-center">
                     Not Connected
                   </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* MJP Status box */}
-          {/* MJP Status box */}
-          <div className="border border-gray-200 bg-sky-50 rounded-2xl px-4 py-4 shadow-sm w-full sm:w-auto">
-            <h2 className="text-center font-semibold text-sm sm:text-base mb-4">
-              MJP Civil Status
-            </h2>
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-              <Select
-                value={commissionedFilter}
-                onValueChange={(value) => {
-                  setCommissionedFilter(value);
-                  setCurrentPage(1);
-                  if (
-                    value === "No" &&
-                    fullyCompletedFilter === "Fully Completed"
-                  ) {
-                    setFullyCompletedFilter("In Progress");
-                  }
-                }}
-              >
-                <SelectTrigger className="w-full sm:w-52 h-9 sm:h-10 lg:h-11 text-xs sm:text-sm lg:text-base">
-                  <SelectValue placeholder="Commissioned" />
-                </SelectTrigger>
-                <SelectContent className="text-xs sm:text-sm lg:text-base">
-                  <SelectItem value="all">Scheme Readiness</SelectItem>
-                  <SelectItem value="Yes">Commissioned</SelectItem>
-                  <SelectItem value="No">Not Commissioned</SelectItem>
-                  <SelectItem value="Water Supply">Water Supply</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={fullyCompletedFilter}
-                onValueChange={(value) => {
-                  setFullyCompletedFilter(value);
-                  setCurrentPage(1);
-                  if (
-                    value === "Fully Completed" &&
-                    commissionedFilter !== "Yes"
-                  ) {
-                    setCommissionedFilter("Yes");
-                  }
-                }}
-              >
-                <SelectTrigger className="w-full sm:w-52 h-9 sm:h-10 lg:h-11 text-xs sm:text-sm lg:text-base">
-                  <SelectValue placeholder="Fully Completed" />
-                </SelectTrigger>
-                <SelectContent className="text-xs sm:text-sm lg:text-base">
-                  <SelectItem value="all">Scheme Status</SelectItem>
-                  <SelectItem
-                    value="Fully Completed"
-                    disabled={commissionedFilter === "No"}
-                  >
-                    Fully Completed
-                  </SelectItem>
-                  <SelectItem value="In Progress">In Progress</SelectItem>
                 </SelectContent>
               </Select>
             </div>

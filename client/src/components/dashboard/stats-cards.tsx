@@ -485,9 +485,6 @@ export default function StatsCards({
                     Number(rcaIntegrated) +
                     Number(pressureTransmitterIntegrated)}
                 </p>
-                <p className="ml-1 sm:ml-2 text-xs sm:text-sm xl:text-base text-emerald-600">
-                  components
-                </p>
               </div>
             </div>
           </div>
