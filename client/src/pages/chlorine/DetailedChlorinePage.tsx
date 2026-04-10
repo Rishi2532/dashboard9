@@ -463,7 +463,7 @@ const DetailedChlorinePage = () => {
     } | null>(null);
 
   // LPCD sub-tab: Village or Scheme (within LPCD main tab)
-  const [lpcdSubTab, setLpcdSubTab] = useState<"village" | "scheme">("village");
+  const [lpcdSubTab, setLpcdSubTab] = useState<"village" | "scheme">("scheme");
 
   // Scheme LPCD state variables
   const [schemeLpcdRegionalRegion, setSchemeLpcdRegionalRegion] =
@@ -3224,6 +3224,20 @@ const DetailedChlorinePage = () => {
                 <span className="text-sm font-medium text-gray-600 dark:text-gray-400 mr-2">View:</span>
                 <button
                   onClick={() => {
+                    setLpcdSubTab("scheme");
+                    setClickedLPCDCell(null);
+                  }}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-medium text-sm transition-all ${lpcdSubTab === "scheme"
+                    ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    }`}
+                  data-testid="lpcd-sub-tab-scheme"
+                >
+                  <Building2 className="h-4 w-4" />
+                  Scheme LPCD
+                </button>
+                <button
+                  onClick={() => {
                     setLpcdSubTab("village");
                     setClickedSchemeLPCDCell(null);
                     setClickedSchemeDivisionCell(null);
@@ -3238,20 +3252,6 @@ const DetailedChlorinePage = () => {
                 >
                   <Home className="h-4 w-4" />
                   Village LPCD
-                </button>
-                <button
-                  onClick={() => {
-                    setLpcdSubTab("scheme");
-                    setClickedLPCDCell(null);
-                  }}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-medium text-sm transition-all ${lpcdSubTab === "scheme"
-                    ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md"
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                    }`}
-                  data-testid="lpcd-sub-tab-scheme"
-                >
-                  <Building2 className="h-4 w-4" />
-                  Scheme LPCD
                 </button>
               </div>
             )}
