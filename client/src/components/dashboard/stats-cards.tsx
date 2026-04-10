@@ -423,7 +423,7 @@ export default function StatsCards({
               <div className="flex justify-between text-sm text-purple-700">
                 <span>
                   {isInstrumented
-                    ? "ESRs In Operation"
+                    ? "ESRs In (Fully + Partially) Operational Schemes"
                     : "ESRs Integrated"}
                   :
                 </span>
@@ -432,7 +432,7 @@ export default function StatsCards({
               <div className="flex justify-between text-sm text-purple-700 mt-1">
                 <span>
                   {isInstrumented
-                    ? "Fully Operational ESRs"
+                    ? "ESRs In Fully Operational Schemes"
                     : "Fully Completed ESRs"}
                   :
                 </span>
