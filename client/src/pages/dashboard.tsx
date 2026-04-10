@@ -1926,13 +1926,13 @@ export default function Dashboard() {
             <span className="font-medium">
               {isFiltering ? geoFilteredSchemes.length : schemes.length}
             </span>
-            <span className="ml-1">
+            {/* <span className="ml-1">
               scheme
               {(isFiltering ? geoFilteredSchemes.length : schemes.length) !== 1
                 ? "s"
                 : ""}{" "}
               found
-            </span>
+            </span> */}
           </span>
         </div>
         <div className="w-full overflow-x-auto bg-gradient-to-r from-blue-50/30 via-white to-blue-50/30 rounded-lg p-2">
