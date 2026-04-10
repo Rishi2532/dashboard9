@@ -1830,22 +1830,7 @@ const SchemeLpcdDashboard = () => {
           {/* Unified Scheme Filter */}
           <div className="flex flex-wrap items-center gap-3 bg-white p-2 rounded-lg border border-blue-200 shadow-sm">
             <span className="text-sm font-medium text-blue-700 ml-1">Filter:</span>
-            <Select value={uiSchemeFilter} onValueChange={(val) => {
-              setUiSchemeFilter(val);
-              setPage(1);
-            }}>
-              <SelectTrigger className="w-[220px] bg-white border-blue-200">
-                <SelectValue placeholder="Select Filter" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Schemes</SelectItem>
-                <SelectItem value="commissioned">100% Civil work Completed</SelectItem>
-                <SelectItem value="fully_completed">Fully Instrumented Schemes</SelectItem>
-                <SelectItem value="in_progress">Partially instrumented schemes</SelectItem>
-                <SelectItem value="common_filter">Common filter</SelectItem>
-                <SelectItem value="mjp_commissioned_yes">Commissioned</SelectItem>
-              </SelectContent>
-            </Select>
+
 
 
             <div className="h-6 w-px bg-blue-200 mx-1"></div>

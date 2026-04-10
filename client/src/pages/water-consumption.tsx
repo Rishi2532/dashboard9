@@ -179,7 +179,7 @@ const WaterConsumptionPage: React.FC = () => {
     end: string;
     region: string;
   } | null>(null);
-  const [uiSchemeFilter, setUiSchemeFilter] = useState<string>("all");
+  const [uiSchemeFilter, setUiSchemeFilter] = useState<string>("commissioned");
   const [waterSupplyStatus, setWaterSupplyStatus] = useState<string>("All");
   const [iotStatus, setIotStatus] = useState<string>("all");
 
@@ -1791,22 +1791,7 @@ const WaterConsumptionPage: React.FC = () => {
               {/* Other Filters Row */}
               <div className="flex flex-col lg:flex-row gap-4">
 
-                <div className="flex-1 min-w-[200px]">
-                  <label className="block text-sm font-medium text-blue-700 mb-2">Universal Filter</label>
-                  <Select value={uiSchemeFilter} onValueChange={handleUniversalFilterChange}>
-                    <SelectTrigger className="w-full bg-white border-blue-200 h-11 shadow-sm">
-                      <SelectValue placeholder="Select Filter" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Schemes</SelectItem>
-                      <SelectItem value="commissioned">100% Civil work Completed</SelectItem>
-                      <SelectItem value="fully_completed">Fully Instrumented Schemes</SelectItem>
-                      <SelectItem value="in_progress">Partially instrumented schemes</SelectItem>
-                      <SelectItem value="common_filter">Common filter</SelectItem>
-                      <SelectItem value="mjp_commissioned_yes">Commissioned</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+
 
                 {uiSchemeFilter === "commissioned" && (
                   <div className="flex-1 min-w-[280px]">

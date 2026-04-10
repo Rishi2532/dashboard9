@@ -492,7 +492,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Chlorine Dashboard operations
-  async getChlorineDashboardStats(regionName?: string): Promise<{
+  async getChlorineDashboardStats(filter?: ChlorineDataFilter): Promise<{
     totalSensors: number;
     belowRangeSensors: number;
     optimalRangeSensors: number;
@@ -517,7 +517,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getChlorineSensorsWithNoWater(regionName?: string): Promise<{
+  async getChlorineSensorsWithNoWater(filter?: ChlorineDataFilter): Promise<{
     totalNoWaterSensors: number;
     noWaterSensors: Array<{
       region: string;
@@ -540,7 +540,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getChlorineSensorsWithWater(regionName?: string): Promise<{
+  async getChlorineSensorsWithWater(filter?: ChlorineDataFilter): Promise<{
     totalWithWaterSensors: number;
     withWaterSensors: Array<{
       region: string;

@@ -198,7 +198,7 @@ export default function StatsCards({
           <div className="mt-3 sm:mt-4 md:mt-6 xl:mt-8">
             <div className="flex justify-between items-center">
               <span className="text-xs sm:text-sm xl:text-base font-medium text-blue-800">
-                Fully Completion Rate
+                IoT Integration Rate
               </span>
               <span className="text-xs sm:text-sm xl:text-base font-bold text-blue-900">
                 {schemeCompletionPercentage}%
@@ -226,7 +226,7 @@ export default function StatsCards({
             {/* Additional large-screen details */}
             <div className="hidden 2xl:block mt-4 pt-4 border-t border-blue-100">
               <div className="flex justify-between text-sm text-blue-700">
-                <span>Schemes in Operation</span>
+                <span>Fully + Partially Operational Schemes</span>
                 <span className="font-semibold">{bottomSchemesIntegrated}</span>
               </div>
               <div className="flex justify-between text-sm text-blue-700 mt-1">
@@ -287,7 +287,7 @@ export default function StatsCards({
           <div className="mt-3 sm:mt-4 md:mt-6 xl:mt-8">
             <div className="flex justify-between items-center">
               <span className="text-xs sm:text-sm xl:text-base font-medium text-amber-800">
-                Fully Completion Rate
+                IoT Integration Rate
               </span>
               <span className="text-xs sm:text-sm xl:text-base font-bold text-amber-900">
                 {villageCompletionPercentage}%
@@ -322,7 +322,7 @@ export default function StatsCards({
               <div className="flex justify-between text-sm text-amber-700">
                 <span>
                   {isInstrumented
-                    ? "Villages In Operation:"
+                    ? "Villages Under (Fully + Partially) Operational Schemes"
                     : "Villages Integrated"}
                   :
                 </span>
@@ -331,7 +331,7 @@ export default function StatsCards({
               <div className="flex justify-between text-sm text-amber-700 mt-1">
                 <span>
                   {isInstrumented
-                    ? "Fully Operational Villages"
+                    ? "Villages Under Fully Operational Schemes"
                     : "Fully Completed"}
                   :
                 </span>
@@ -388,7 +388,7 @@ export default function StatsCards({
           <div className="mt-3 sm:mt-4 md:mt-6 xl:mt-8">
             <div className="flex justify-between items-center">
               <span className="text-xs sm:text-sm xl:text-base font-medium text-purple-800">
-                Fully Completion Rate
+                IoT Integration Rate
               </span>
               <span className="text-xs sm:text-sm xl:text-base font-bold text-purple-900">
                 {esrCompletionPercentage}%

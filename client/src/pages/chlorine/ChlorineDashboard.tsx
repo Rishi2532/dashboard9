@@ -171,7 +171,6 @@ interface ChlorineSensorStatus {
   connected: number;
   online: number;
   offline: number;
-  noWater: number;
 }
 
 type ChlorineRange =
@@ -189,7 +188,6 @@ type SensorStatusFilter =
   | "connected"
   | "online"
   | "offline"
-  | "noWater"
   | "withWater";
 
 const ChlorineDashboard: React.FC = () => {
@@ -224,8 +222,6 @@ const ChlorineDashboard: React.FC = () => {
 
   // Separate selection states for with water and without water sections
   const [selectedWithWaterFilter, setSelectedWithWaterFilter] =
-    useState<ChlorineRange>("all");
-  const [selectedWithoutWaterFilter, setSelectedWithoutWaterFilter] =
     useState<ChlorineRange>("all");
 
   // Sensor status filter state
@@ -516,48 +512,6 @@ const ChlorineDashboard: React.FC = () => {
       },
     });
 
-  // Fetch chlorine sensors with no water data
-  const { data: noWaterSensorsData } = useQuery<{
-    totalNoWaterSensors: number;
-    noWaterSensors: Array<{
-      region: string;
-      circle: string;
-      division: string;
-      sub_division: string;
-      block: string;
-      scheme_id: string;
-      scheme_name: string;
-      village_name: string;
-      esr_name: string;
-      water_date_day7: string | null;
-      water_value_day7: number | null;
-      chlorine_connected: string | null;
-    }>;
-  }>({
-    queryKey: ["/api/chlorine/no-water-sensors", selectedRegion, selectedAgencyType],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-
-      if (selectedRegion && selectedRegion !== "all") {
-        params.append("region", selectedRegion);
-      }
-      if (selectedAgencyType !== 'ALL') {
-        params.append("agencyType", selectedAgencyType);
-      }
-
-      const queryString = params.toString();
-      const url = `/api/chlorine/no-water-sensors${queryString ? `?${queryString}` : ""}`;
-
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error("Failed to fetch chlorine sensors with no water");
-      }
-
-      const result = await response.json();
-      console.log(`Received chlorine no water sensors data:`, result);
-      return result.data;
-    },
-  });
 
   // Fetch chlorine sensors with water data
   const { data: withWaterSensorsData } = useQuery<{
@@ -836,7 +790,7 @@ const ChlorineDashboard: React.FC = () => {
           }
           return status.water_supply === "Yes";
         }
-        
+
         if (uiSchemeFilter === "fully_completed") {
           const statusValue = String(status.fully_completion_scheme_status || "").toLowerCase();
           return statusValue === "fully completed" || statusValue === "completed" || statusValue === "fully_completed";
@@ -883,15 +837,12 @@ const ChlorineDashboard: React.FC = () => {
     waterSupplyStatus,
     schemeStatusFilter,
     schemeStatusMap,
-    sensorStatusFilter,
-    communicationStatusData,
-    noWaterSensorsData,
     withWaterSensorsData,
   ]);
 
   // Calculate sensor status counts for chlorine sensors using globally filtered data
   const calculateChlorineSensorStatus = useMemo((): ChlorineSensorStatus => {
-    const status = { connected: 0, online: 0, offline: 0, noWater: 0 };
+    const status = { connected: 0, online: 0, offline: 0 };
 
     if (!globallyFilteredData || !communicationStatusData) {
       return status;
@@ -935,30 +886,15 @@ const ChlorineDashboard: React.FC = () => {
     });
 
     status.connected = uniqueConnectedESRs.size;
+
     status.online = uniqueOnlineESRs.size;
     status.offline = uniqueOfflineESRs.size;
-
-    // Calculate no water sensors count
-    if (noWaterSensorsData?.noWaterSensors) {
-      const noWaterLocationKeys = new Set(
-        noWaterSensorsData.noWaterSensors.map(
-          (sensor: any) =>
-            `${sensor.region}|${sensor.circle}|${sensor.division}|${sensor.sub_division}|${sensor.block}|${sensor.village_name}|${sensor.esr_name}`,
-        ),
-      );
-
-      status.noWater = globallyFilteredData.filter((item) => {
-        const locationKey = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`;
-        return noWaterLocationKeys.has(locationKey);
-      }).length;
-    }
 
     return status;
   }, [
     globallyFilteredData,
     communicationStatusData,
     selectedRegion,
-    noWaterSensorsData,
     withWaterSensorsData,
   ]);
 
@@ -1012,55 +948,6 @@ const ChlorineDashboard: React.FC = () => {
     return stats;
   }, [withWaterSensorsData, globallyFilteredData, getCurrentChlorineValue]);
 
-  // Calculate statistics for the "No Water" section
-  const calculateWithoutWaterRangeStats = useMemo(() => {
-    const stats = {
-      total: 0,
-      belowRange: 0,
-      optimal: 0,
-      above: 0,
-      noData: 0,
-      consistentZero: 0,
-    };
-
-    if (!noWaterSensorsData?.noWaterSensors || !globallyFilteredData) {
-      return stats;
-    }
-
-    const noWaterLocationKeys = new Set(
-      noWaterSensorsData.noWaterSensors.map(
-        (sensor: any) =>
-          `${sensor.region}|${sensor.circle}|${sensor.division}|${sensor.sub_division}|${sensor.block}|${sensor.village_name}|${sensor.esr_name}`,
-      ),
-    );
-
-    const filteredNoWater = globallyFilteredData.filter((item) => {
-      const locationKey = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`;
-      return noWaterLocationKeys.has(locationKey);
-    });
-
-    stats.total = filteredNoWater.length;
-
-    filteredNoWater.forEach((item) => {
-      const latestValue = getCurrentChlorineValue(item);
-
-      if (latestValue === null) {
-        stats.noData++;
-      } else if (latestValue < 0.2 && latestValue >= 0) {
-        stats.belowRange++;
-      } else if (latestValue >= 0.2 && latestValue <= 0.5) {
-        stats.optimal++;
-      } else if (latestValue > 0.5) {
-        stats.above++;
-      }
-
-      if ((item.number_of_consistent_zero_value_in_chlorine || 0) === 7) {
-        stats.consistentZero++;
-      }
-    });
-
-    return stats;
-  }, [noWaterSensorsData, globallyFilteredData, getCurrentChlorineValue]);
 
   // Handler for commissioned status filter changes (legacy, keeping for compatibility if needed elsewhere)
   const [commissionedFilter, setCommissionedFilter] = useState<string>("all");
@@ -1435,7 +1322,6 @@ const ChlorineDashboard: React.FC = () => {
     } else {
       // Apply the new filter
       setSelectedWithWaterFilter(range);
-      setSelectedWithoutWaterFilter("all"); // Clear selection in other section
       setSelectedCardFilter(range); // Also set the main filter for table filtering
 
       // Set sensor status filter to withWater to show only sensors with water in table
@@ -1499,7 +1385,6 @@ const ChlorineDashboard: React.FC = () => {
       // Apply the new filter
       // Clear range selections in both sections
       setSelectedWithWaterFilter("all");
-      setSelectedWithoutWaterFilter("all");
       setSelectedCardFilter("all");
 
       // Set sensor status filter to show only the selected water status
@@ -1869,7 +1754,6 @@ const ChlorineDashboard: React.FC = () => {
 
       {/* Filters Section - Grid-based layout like PressureDashboard */}
       <div className="bg-white rounded-xl shadow-sm mb-6 p-6 border border-blue-100">
-        <div className="flex flex-wrap items-center gap-4 mb-6">
           <div className="flex-1 min-w-[200px]">
             <label className="block text-sm font-medium text-gray-700 mb-2">Agency Type</label>
             <AgencyTypeFilter
@@ -1878,58 +1762,7 @@ const ChlorineDashboard: React.FC = () => {
               className="w-full h-11"
             />
           </div>
-
-          <div className="flex-1 min-w-[240px]">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Universal Filter</label>
-            <Select value={uiSchemeFilter} onValueChange={setUiSchemeFilter}>
-              <SelectTrigger className="w-full bg-white border-blue-200 h-11 shadow-sm">
-                <SelectValue placeholder="Select Filter" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Schemes</SelectItem>
-                <SelectItem value="commissioned">100% Civil work Completed</SelectItem>
-                <SelectItem value="fully_completed">Fully Instrumented Schemes</SelectItem>
-                <SelectItem value="in_progress">Partially instrumented schemes</SelectItem>
-                <SelectItem value="common_filter">Common filter</SelectItem>
-                <SelectItem value="mjp_commissioned_yes">Commissioned</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {uiSchemeFilter === "commissioned" && (
-            <div className="flex-1 min-w-[300px]">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Water Supply Status</label>
-              <Tabs value={waterSupplyStatus} onValueChange={setWaterSupplyStatus} className="m-0">
-                <TabsList className="h-11 bg-white border border-blue-100 p-0.5 shadow-sm w-full">
-                  <TabsTrigger value="All" className="flex-1 px-4 h-10 text-xs font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white">All</TabsTrigger>
-                  <TabsTrigger value="Full" className="flex-1 px-4 h-10 text-xs font-medium data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Full</TabsTrigger>
-                  <TabsTrigger value="Partial" className="flex-1 px-4 h-10 text-xs font-medium data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partial</TabsTrigger>
-                  <TabsTrigger value="No" className="flex-1 px-4 h-10 text-xs font-medium data-[state=active]:bg-red-500 data-[state=active]:text-white">No</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
-          )}
-
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-sm font-medium text-gray-700 mb-2">IoT Status</label>
-            <Select value={schemeStatusFilter} onValueChange={(value) => {
-              setSchemeStatusFilter(value);
-              setPage(1);
-            }}>
-              <SelectTrigger className="w-full bg-white border-blue-200 h-11 shadow-sm">
-                <SelectValue placeholder="IoT Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All IoT Status</SelectItem>
-                <SelectItem value="Connected">Connected</SelectItem>
-                <SelectItem value="Fully Completed">Fully Completed</SelectItem>
-                <SelectItem value="In Progress">In Progress</SelectItem>
-                <SelectItem value="Not-Connected">Not Connected</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
         </div>
-      </div>
 
       {/* Search and Actions Row - Now part of its own container for consistency */}
       <div className="bg-white rounded-xl shadow-sm mb-6 p-6 border border-blue-100">
@@ -2092,7 +1925,7 @@ const ChlorineDashboard: React.FC = () => {
       </div>
 
       {/* Status Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-5 mb-6">
+      <div className="grid gap-4 md:grid-cols-4 mb-6">
         {/* Connected Sensors Card */}
         <Card
           className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${sensorStatusFilter === "connected"
@@ -2171,31 +2004,6 @@ const ChlorineDashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* No Water Sensors Card - Clickable */}
-        <Card
-          className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${sensorStatusFilter === "noWater"
-            ? "ring-2 ring-red-500 ring-offset-2"
-            : ""
-            } transform hover:scale-[1.02]`}
-          onClick={() => handleSensorStatusClick("noWater")}
-        >
-          <CardContent className="p-4 flex items-center">
-            <div className="bg-red-100 p-3 rounded-full mr-4">
-              <Droplet className="h-6 w-6 text-red-700" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-red-800 mb-1">
-                Sensors with No Water
-              </h3>
-              <p className="text-2xl font-bold text-red-600">
-                {calculateChlorineSensorStatus.noWater}
-              </p>
-              <p className="text-xs text-red-600/70">
-                Connected sensors with no water
-              </p>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Sensors with Water Card - Clickable */}
         <Card
@@ -2226,8 +2034,8 @@ const ChlorineDashboard: React.FC = () => {
 
       {/* Dashboard Cards - Separated by Water Status */}
       <div className="grid gap-6 mb-8">
-        {/* Main Range Cards - Two Sections */}
-        <div className="grid gap-6 md:grid-cols-2">
+        {/* Main Range Cards - One Section */}
+        <div className="grid gap-6 md:grid-cols-1">
           {/* With Water Section */}
           <div className="bg-white rounded-xl shadow-md p-6 border border-blue-200">
             <h3 className="text-xl font-bold text-blue-800 mb-4 flex items-center">
@@ -2356,131 +2164,6 @@ const ChlorineDashboard: React.FC = () => {
                         </span>{" "}
                         sensor
                         {calculateWithWaterRangeStats.noData !== 1
-                          ? "s"
-                          : ""}{" "}
-                        with no chlorine data
-                      </p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        Numbers above exclude sensors with blank chlorine values
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* No Water Section */}
-          <div className="bg-white rounded-xl shadow-md p-6 border border-red-200">
-            <h3 className="text-xl font-bold text-red-800 mb-4 flex items-center">
-              <Droplet className="h-6 w-6 text-red-600 mr-2" />
-              Sensors with No Water
-            </h3>
-
-            <div className="grid gap-3">
-              {/* Below Range Card - No Water */}
-              <Card
-                className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedWithoutWaterFilter === "below_0.2"
-                  ? "ring-2 ring-red-500 ring-offset-2"
-                  : ""
-                  } transform hover:scale-[1.01]`}
-                onClick={() => handleWithoutWaterCardClick("below_0.2")}
-              >
-                <CardContent className="p-4 flex items-center">
-                  <div className="bg-red-100 p-3 rounded-full mr-4">
-                    <AlertTriangle className="h-5 w-5 text-red-700" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-red-800">Below Range</h4>
-                    <p className="text-2xl font-bold text-red-600">
-                      {calculateWithoutWaterRangeStats.belowRange || 0}
-                    </p>
-                    <p className="text-xs text-red-600/70">
-                      Chlorine &lt;0.2mg/l
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Optimal Range Card - No Water */}
-              <Card
-                className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedWithoutWaterFilter === "between_0.2_0.5"
-                  ? "ring-2 ring-green-500 ring-offset-2"
-                  : ""
-                  } transform hover:scale-[1.01]`}
-                onClick={() => handleWithoutWaterCardClick("between_0.2_0.5")}
-              >
-                <CardContent className="p-4 flex items-center">
-                  <div className="bg-green-100 p-3 rounded-full mr-4">
-                    <CheckCircle className="h-5 w-5 text-green-700" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-green-800">
-                      Optimal Range
-                    </h4>
-                    <p className="text-2xl font-bold text-green-600">
-                      {calculateWithoutWaterRangeStats.optimal || 0}
-                    </p>
-                    <p className="text-xs text-green-600/70">
-                      Chlorine 0.2-0.5mg/l
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Above Range Card - No Water */}
-              <Card
-                className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedWithoutWaterFilter === "above_0.5"
-                  ? "ring-2 ring-orange-500 ring-offset-2"
-                  : ""
-                  } transform hover:scale-[1.01]`}
-                onClick={() => handleWithoutWaterCardClick("above_0.5")}
-              >
-                <CardContent className="p-4 flex items-center">
-                  <div className="bg-orange-100 p-3 rounded-full mr-4">
-                    <AlertCircle className="h-5 w-5 text-orange-700" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-orange-800">
-                      Above Range
-                    </h4>
-                    <p className="text-2xl font-bold text-orange-600">
-                      {calculateWithoutWaterRangeStats.above || 0}
-                    </p>
-                    <p className="text-xs text-orange-600/70">
-                      Chlorine &gt;0.5mg/l
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* No Data Info Card */}
-              {calculateWithoutWaterRangeStats.noData > 0 && (
-                <div
-                  className="bg-gray-50 border border-gray-300 rounded-lg p-3"
-                  data-testid="no-water-no-data-note"
-                >
-                  <div className="flex items-start gap-2">
-                    <div className="text-gray-500 mt-0.5">
-                      <svg
-                        className="h-4 w-4"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs font-medium text-gray-700">
-                        <span className="font-bold">
-                          {calculateWithoutWaterRangeStats.noData}
-                        </span>{" "}
-                        sensor
-                        {calculateWithoutWaterRangeStats.noData !== 1
                           ? "s"
                           : ""}{" "}
                         with no chlorine data

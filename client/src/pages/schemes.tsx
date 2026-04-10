@@ -733,20 +733,7 @@ export default function Schemes() {
       />
 
       <div className="flex flex-wrap items-center gap-3 mt-4 mb-6 bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter:</span>
-        <Select value={uiSchemeFilter} onValueChange={setUiSchemeFilter}>
-          <SelectTrigger className="w-[240px] bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
-            <SelectValue placeholder="Select Filter" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Schemes</SelectItem>
-            <SelectItem value="commissioned">100% Civil work Completed</SelectItem>
-            <SelectItem value="fully_completed">Fully Instrumented Schemes</SelectItem>
-            <SelectItem value="in_progress">Partially instrumented schemes</SelectItem>
-            <SelectItem value="common_filter">Common filter</SelectItem>
-            <SelectItem value="mjp_commissioned_yes">Commissioned</SelectItem>
-          </SelectContent>
-        </Select>
+
 
         {uiSchemeFilter === "commissioned" && (
           <>

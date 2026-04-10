@@ -2049,20 +2049,7 @@ const EnhancedLpcdDashboard = () => {
             {/* Row 2: Status & Tool Bar */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
               <div className="space-y-1 overflow-visible">
-                <p className="text-[10px] font-bold text-slate-400 uppercase ml-1 tracking-wider">Scheme Filter</p>
-                <Select value={uiSchemeFilter} onValueChange={setUiSchemeFilter}>
-                  <SelectTrigger className="h-8 text-xs bg-white border-slate-200 px-2">
-                    <SelectValue placeholder="Select Filter" />
-                  </SelectTrigger>
-                  <SelectContent className="z-[9999]">
-                    <SelectItem value="all">All Schemes</SelectItem>
-                    <SelectItem value="commissioned">100% Civil work Completed</SelectItem>
-                    <SelectItem value="fully_completed">Fully Instrumented Schemes</SelectItem>
-                    <SelectItem value="in_progress">Partially instrumented schemes</SelectItem>
-                    <SelectItem value="common_filter">Common filter</SelectItem>
-                    <SelectItem value="mjp_commissioned_yes">Commissioned</SelectItem>
-                  </SelectContent>
-                </Select>
+
               </div>
 
               {uiSchemeFilter === "commissioned" && (

@@ -40,6 +40,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -406,7 +412,7 @@ const PressureDashboard: React.FC = () => {
   const [selectedSubdivision, setSelectedSubdivision] = useState<string>("all");
   const [selectedBlock, setSelectedBlock] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [uiSchemeFilter, setUiSchemeFilter] = useState<string>("all");
+  const [uiSchemeFilter, setUiSchemeFilter] = useState<string>("commissioned");
   const [waterSupplyStatus, setWaterSupplyStatus] = useState<string>("All");
   const [schemeStatusFilter, setSchemeStatusFilter] = useState<string>("all");
   const [selectedAgencyType, setSelectedAgencyType] = useState<string>("ALL");
@@ -2187,22 +2193,7 @@ const PressureDashboard: React.FC = () => {
             />
           </div>
 
-          <div className="flex-1 min-w-[240px]">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Universal Filter</label>
-            <Select value={uiSchemeFilter} onValueChange={handleUniversalFilterChange}>
-              <SelectTrigger className="w-full bg-white border-blue-200 h-11 shadow-sm">
-                <SelectValue placeholder="Select Filter" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Schemes</SelectItem>
-                <SelectItem value="commissioned">100% Civil work Completed</SelectItem>
-                <SelectItem value="fully_completed">Fully Instrumented Schemes</SelectItem>
-                <SelectItem value="in_progress">Partially instrumented schemes</SelectItem>
-                <SelectItem value="common_filter">Common filter</SelectItem>
-                <SelectItem value="mjp_commissioned_yes">Commissioned</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+
 
           {uiSchemeFilter === "commissioned" && (
             <div className="flex-1 min-w-[300px]">
@@ -2509,31 +2500,7 @@ const PressureDashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* No Water Sensors Card */}
-        <Card
-          className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${sensorStatusFilter === "noWater"
-            ? "ring-2 ring-red-500 ring-offset-2"
-            : ""
-            } transform hover:scale-[1.02]`}
-          onClick={() => handleSensorStatusClick("noWater")}
-        >
-          <CardContent className="p-4 flex items-center">
-            <div className="bg-red-100 p-3 rounded-full mr-4">
-              <Droplet className="h-6 w-6 text-red-700" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-red-800 mb-1">
-                Sensors with No Water
-              </h3>
-              <p className="text-2xl font-bold text-red-600">
-                {calculatePressureSensorStatus.noWater}
-              </p>
-              <p className="text-xs text-red-600/70">
-                Connected sensors with no water
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+
 
         {/* Sensors with Water Card */}
         <Card
@@ -2738,130 +2705,6 @@ const PressureDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* No Water Section */}
-          <div className="bg-white rounded-xl shadow-md p-6 border border-red-200">
-            <h3 className="text-xl font-bold text-red-800 mb-4 flex items-center">
-              <Droplet className="h-6 w-6 text-red-600 mr-2" />
-              Sensors with No Water
-            </h3>
-
-            <div className="grid gap-3">
-              {/* Below Range Card - No Water */}
-              <Card
-                className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedWithoutWaterFilter === "below_0.2"
-                  ? "ring-2 ring-red-500 ring-offset-2"
-                  : ""
-                  } transform hover:scale-[1.01]`}
-                onClick={() => handleWithoutWaterCardClick("below_0.2")}
-              >
-                <CardContent className="p-4 flex items-center">
-                  <div className="bg-red-100 p-3 rounded-full mr-4">
-                    <AlertTriangle className="h-5 w-5 text-red-700" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-red-800">Below Range</h4>
-                    <p className="text-2xl font-bold text-red-600">
-                      {calculateWithoutWaterRangeStats.belowRange || 0}
-                    </p>
-                    <p className="text-xs text-red-600/70">
-                      Pressure &lt;0.2 bar
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Optimal Range Card - No Water */}
-              <Card
-                className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedWithoutWaterFilter === "between_0.2_0.7"
-                  ? "ring-2 ring-green-500 ring-offset-2"
-                  : ""
-                  } transform hover:scale-[1.01]`}
-                onClick={() => handleWithoutWaterCardClick("between_0.2_0.7")}
-              >
-                <CardContent className="p-4 flex items-center">
-                  <div className="bg-green-100 p-3 rounded-full mr-4">
-                    <CheckCircle className="h-5 w-5 text-green-700" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-green-800">
-                      Optimal Range
-                    </h4>
-                    <p className="text-2xl font-bold text-green-600">
-                      {calculateWithoutWaterRangeStats.optimal || 0}
-                    </p>
-                    <p className="text-xs text-green-600/70">
-                      Pressure 0.2-0.7 bar
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Above Range Card - No Water */}
-              <Card
-                className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedWithoutWaterFilter === "above_0.7"
-                  ? "ring-2 ring-orange-500 ring-offset-2"
-                  : ""
-                  } transform hover:scale-[1.01]`}
-                onClick={() => handleWithoutWaterCardClick("above_0.7")}
-              >
-                <CardContent className="p-4 flex items-center">
-                  <div className="bg-orange-100 p-3 rounded-full mr-4">
-                    <AlertCircle className="h-5 w-5 text-orange-700" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-orange-800">
-                      Above Range
-                    </h4>
-                    <p className="text-2xl font-bold text-orange-600">
-                      {calculateWithoutWaterRangeStats.above || 0}
-                    </p>
-                    <p className="text-xs text-orange-600/70">
-                      Pressure &gt;0.7 bar
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* No Data Info Card */}
-              {calculateWithoutWaterRangeStats.noData > 0 && (
-                <div
-                  className="bg-gray-50 border border-gray-300 rounded-lg p-3"
-                  data-testid="no-water-no-data-note"
-                >
-                  <div className="flex items-start gap-2">
-                    <div className="text-gray-500 mt-0.5">
-                      <svg
-                        className="h-4 w-4"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs font-medium text-gray-700">
-                        <span className="font-bold">
-                          {calculateWithoutWaterRangeStats.noData}
-                        </span>{" "}
-                        sensor
-                        {calculateWithoutWaterRangeStats.noData !== 1
-                          ? "s"
-                          : ""}{" "}
-                        with no pressure data
-                      </p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        Numbers above exclude sensors with blank pressure values
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
         </div>
 
         {/* Consistent Pattern Cards (For All Connected Sensors) */}
