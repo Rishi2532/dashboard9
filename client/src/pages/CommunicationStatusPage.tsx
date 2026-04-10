@@ -834,169 +834,241 @@ export default function CommunicationStatusPage() {
 
   return (
     <DashboardLayout>
-      <div className="container mx-auto p-6 space-y-6">
-        <div className="flex justify-between items-center">
+      <div className="container mx-auto p-6">
+        <div className="mb-0 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-100 pb-6">
           <div>
-            <h1 className="text-3xl font-bold">
+            <h1 className="text-3xl font-bold tracking-tight text-neutral-900 flex items-center gap-3">
               Communication Status Dashboard
             </h1>
-            <p className="text-muted-foreground">
-              Real-time monitoring of communication infrastructure across
-              Maharashtra
+            <p className="text-neutral-500 mt-1 max-w-2xl">
+              Real-time monitoring of IoT sensor communication and uptime across sites
+            </p>
+          </div>
+          <div className="flex flex-col items-start md:items-end text-right">
+            <p className="text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full flex items-center gap-2">
+              <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+              Last Updated: {new Date().toLocaleDateString("en-IN", {
+                year: 'numeric', month: 'short', day: 'numeric'
+              })} at {new Date().toLocaleTimeString("en-IN", {
+                hour: '2-digit', minute: '2-digit'
+              })}
             </p>
           </div>
         </div>
 
-        {/* Filters */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Filter Communication Data</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
-              <Select
-                value={selectedRegion}
-                onValueChange={(value) => {
-                  setSelectedRegion(value);
-                  // Reset dependent filters when region changes
-                  setSelectedCircle("all");
-                  setSelectedDivision("all");
-                  setSelectedSubdivision("all");
-                  setSelectedBlock("all");
-                  resetPage();
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Region" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Regions</SelectItem>
-                  {filters?.regions?.map((region: string) => (
-                    <SelectItem key={region} value={region}>
-                      {region}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={selectedCircle}
-                onValueChange={(value) => {
-                  setSelectedCircle(value);
-                  // Reset dependent filters when circle changes
-                  setSelectedDivision("all");
-                  setSelectedSubdivision("all");
-                  setSelectedBlock("all");
-                  resetPage();
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Circle" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Circles</SelectItem>
-                  {filters?.circles?.map((circle: string) => (
-                    <SelectItem key={circle} value={circle}>
-                      {circle}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={selectedDivision}
-                onValueChange={(value) => {
-                  setSelectedDivision(value);
-                  // Reset dependent filters when division changes
-                  setSelectedSubdivision("all");
-                  setSelectedBlock("all");
-                  resetPage();
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Division" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Divisions</SelectItem>
-                  {filters?.divisions?.map((division: string) => (
-                    <SelectItem key={division} value={division}>
-                      {division}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={selectedSubdivision}
-                onValueChange={(value) => {
-                  setSelectedSubdivision(value);
-                  // Reset dependent filters when subdivision changes
-                  setSelectedBlock("all");
-                  resetPage();
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Sub Division" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Sub Divisions</SelectItem>
-                  {filters?.subdivisions?.map((subdivision: string) => (
-                    <SelectItem key={subdivision} value={subdivision}>
-                      {subdivision}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={selectedBlock}
-                onValueChange={(value) => {
-                  setSelectedBlock(value);
-                  resetPage();
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Block" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Blocks</SelectItem>
-                  {filters?.blocks?.map((block: string) => (
-                    <SelectItem key={block} value={block}>
-                      {block}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <div className="flex-shrink-0">
-                <AgencyTypeFilter
-                  selectedAgencyType={selectedAgencyType}
-                  onAgencyTypeChange={(value) => {
-                    setSelectedAgencyType(value);
+        <div className="bg-white rounded-xl shadow-sm mb-8 border border-gray-200 overflow-hidden mt-6">
+          <div className="p-5 flex flex-col gap-6">
+            {/* Geographical Hierarchy */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Region</label>
+                <Select
+                  value={selectedRegion}
+                  onValueChange={(value) => {
+                    setSelectedRegion(value);
+                    setSelectedCircle("all");
+                    setSelectedDivision("all");
+                    setSelectedSubdivision("all");
+                    setSelectedBlock("all");
                     resetPage();
                   }}
-                />
+                >
+                  <SelectTrigger className="h-10 border-gray-200 shadow-sm text-sm">
+                    <SelectValue placeholder="Select Region" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Regions</SelectItem>
+                    {filters?.regions?.map((region: string) => (
+                      <SelectItem key={region} value={region}>{region}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
-              <Select
-                value={selectedWaterSupply}
-                onValueChange={(value) => {
-                  setSelectedWaterSupply(value);
-                  resetPage();
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Water Supply" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="Yes">Yes</SelectItem>
-                  <SelectItem value="No">No</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Circle</label>
+                <Select
+                  value={selectedCircle}
+                  onValueChange={(value) => {
+                    setSelectedCircle(value);
+                    setSelectedDivision("all");
+                    setSelectedSubdivision("all");
+                    setSelectedBlock("all");
+                    resetPage();
+                  }}
+                >
+                  <SelectTrigger className="h-10 border-gray-200 shadow-sm text-sm">
+                    <SelectValue placeholder="Select Circle" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Circles</SelectItem>
+                    {filters?.circles?.map((circle: string) => (
+                      <SelectItem key={circle} value={circle}>{circle}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Division</label>
+                <Select
+                  value={selectedDivision}
+                  onValueChange={(value) => {
+                    setSelectedDivision(value);
+                    setSelectedSubdivision("all");
+                    setSelectedBlock("all");
+                    resetPage();
+                  }}
+                >
+                  <SelectTrigger className="h-10 border-gray-200 shadow-sm text-sm">
+                    <SelectValue placeholder="Select Division" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Divisions</SelectItem>
+                    {filters?.divisions?.map((division: string) => (
+                      <SelectItem key={division} value={division}>{division}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Sub Division</label>
+                <Select
+                  value={selectedSubdivision}
+                  onValueChange={(value) => {
+                    setSelectedSubdivision(value);
+                    setSelectedBlock("all");
+                    resetPage();
+                  }}
+                >
+                  <SelectTrigger className="h-10 border-gray-200 shadow-sm text-sm">
+                    <SelectValue placeholder="Select Sub Division" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sub Divisions</SelectItem>
+                    {filters?.subdivisions?.map((subdivision: string) => (
+                      <SelectItem key={subdivision} value={subdivision}>{subdivision}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Block</label>
+                <Select
+                  value={selectedBlock}
+                  onValueChange={(value) => {
+                    setSelectedBlock(value);
+                    resetPage();
+                  }}
+                >
+                  <SelectTrigger className="h-10 border-gray-200 shadow-sm text-sm">
+                    <SelectValue placeholder="Select Block" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Blocks</SelectItem>
+                    {filters?.blocks?.map((block: string) => (
+                      <SelectItem key={block} value={block}>{block}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          </CardContent>
-        </Card>
+
+            {/* Functional Filters & Actions Row */}
+            <div className="flex flex-col xl:flex-row gap-6 items-stretch xl:items-end border-t border-gray-50 pt-5">
+              <div className="flex flex-wrap gap-4 items-end flex-grow">
+                <div className="w-full sm:w-64">
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Agency Type</label>
+                  <AgencyTypeFilter
+                    selectedAgencyType={selectedAgencyType}
+                    onAgencyTypeChange={(value) => {
+                      setSelectedAgencyType(value);
+                      resetPage();
+                    }}
+                    variant="select"
+                    hideLabel
+                    className="w-full"
+                  />
+                </div>
+
+                <div className="flex-grow sm:flex-grow-0 sm:w-64">
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Water Supply</label>
+                  <Select
+                    value={selectedWaterSupply}
+                    onValueChange={(value) => {
+                      setSelectedWaterSupply(value);
+                      resetPage();
+                    }}
+                  >
+                    <SelectTrigger className="h-11 border-gray-200 shadow-sm text-sm">
+                      <SelectValue placeholder="Water Supply" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Water Supply</SelectItem>
+                      <SelectItem value="Yes">Yes</SelectItem>
+                      <SelectItem value="No">No</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex-grow sm:flex-grow-0 sm:w-80 relative">
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Search Schemes</label>
+                  <div className="relative">
+                    <Search className="absolute left-3.5 top-1/2 h-4 w-4 text-gray-400 -translate-y-1/2" />
+                    <Input
+                      placeholder="Search name or ID..."
+                      className="pl-10 pr-10 border-gray-200 focus:ring-blue-500 focus:border-blue-500 h-11 shadow-sm"
+                      value={searchTerm}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        resetPage();
+                      }}
+                    />
+                    {searchTerm && (
+                      <button
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        onClick={() => { setSearchTerm(""); resetPage(); }}
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  onClick={handleExcelDownload}
+                  variant="outline"
+                  className="bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 gap-2 h-11 px-5 shadow-sm"
+                >
+                  <Download className="h-4 w-4" />
+                  <span>Export</span>
+                </Button>
+
+                <Button
+                  onClick={handle72HoursOfflineExport}
+                  variant="outline"
+                  className="bg-red-50 border-red-200 text-red-700 hover:bg-red-100 gap-2 h-11 px-5 shadow-sm"
+                >
+                  <AlertTriangle className="h-4 w-4" />
+                  <span>Offline 72h+</span>
+                </Button>
+
+                <Button
+                  onClick={() => refetchSchemes()}
+                  variant="outline"
+                  className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 h-11 w-11 p-0 shadow-sm"
+                  title="Refresh data"
+                >
+                  <Activity className={`h-4 w-4 ${schemesLoading ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Enhanced Overview Cards */}
         {!overviewLoading && overview && (
@@ -1469,11 +1541,11 @@ export default function CommunicationStatusPage() {
                     </Pagination>
                   </div>
                 )}
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </DashboardLayout>
-  );
+          </>
+        )}
+      </CardContent>
+    </Card>
+  </div>
+</DashboardLayout>
+          );
 }

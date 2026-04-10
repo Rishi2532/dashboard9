@@ -1713,29 +1713,33 @@ const ChlorineDashboard: React.FC = () => {
   return (
     <div className="container mx-auto p-4">
       {/* Header with Date */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-          <TranslatedText>Chlorine Dashboard</TranslatedText>
-        </h1>
-        <p className="text-gray-500 mt-1">
-          <TranslatedText>
-            Monitor residual chlorine levels across water schemes and ESRs
-          </TranslatedText>
-        </p>
-        <p className="text-sm text-blue-600 font-medium mt-2">
-          <TranslatedText>Dashboard Updated</TranslatedText>:{" "}
-          {new Date().toLocaleDateString("en-IN", {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          })}{" "}
-          <TranslatedText>at</TranslatedText>{" "}
-          {new Date().toLocaleTimeString("en-IN", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        </p>
+      <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-100 pb-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-neutral-900 flex items-center gap-3">
+            <TranslatedText>Chlorine Dashboard</TranslatedText>
+          </h1>
+          <p className="text-neutral-500 mt-1 max-w-2xl">
+            <TranslatedText>
+              Monitor residual chlorine levels across water schemes and ESRs
+            </TranslatedText>
+          </p>
+        </div>
+        <div className="flex flex-col items-start md:items-end text-right">
+          <p className="text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full flex items-center gap-2">
+            <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+            <TranslatedText>Dashboard Updated</TranslatedText>:{" "}
+            {new Date().toLocaleDateString("en-IN", {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+            })}{" "}
+            at{" "}
+            {new Date().toLocaleTimeString("en-IN", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </p>
+        </div>
       </div>
 
       <GeographicalFilters
@@ -1752,105 +1756,84 @@ const ChlorineDashboard: React.FC = () => {
         onBlockChange={handleBlockChange}
       />
 
-      {/* Filters Section - Grid-based layout like PressureDashboard */}
-      <div className="bg-white rounded-xl shadow-sm mb-6 p-6 border border-blue-100">
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Agency Type</label>
-            <AgencyTypeFilter
-              selectedAgencyType={selectedAgencyType}
-              onAgencyTypeChange={setSelectedAgencyType}
-              className="w-full h-11"
-            />
-          </div>
-        </div>
-
-      {/* Search and Actions Row - Now part of its own container for consistency */}
-      <div className="bg-white rounded-xl shadow-sm mb-6 p-6 border border-blue-100">
-        <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center">
-          {/* Search ESRs */}
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Search ESRs
-            </label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 text-gray-400 -translate-y-1/2" />
-              <Input
-                placeholder="Search by scheme, village or ESR name..."
-                className="pl-9 pr-10 py-2 border-blue-200 focus:ring-blue-500 focus:border-blue-500 h-11"
-                value={searchQuery}
-                onChange={(e) => {
-                  const newValue = e.target.value;
-                  setSearchQuery(newValue);
-                  setPage(1);
-                  if (newValue.trim().length > 2) {
-                    setTimeout(() => {
-                      if (searchQuery === newValue) {
-                        trackFilterUsage(
-                          "search",
-                          newValue,
-                          filteredData.length,
-                          "chlorine_dashboard",
-                        );
-                      }
-                    }, 1000);
-                  }
-                }}
-                data-testid="input-search-esr"
+      <div className="bg-white rounded-xl shadow-sm mb-8 border border-gray-200 overflow-hidden">
+        <div className="p-5 flex flex-col xl:flex-row gap-6 items-stretch xl:items-end">
+          {/* Filters Row */}
+          <div className="flex flex-wrap gap-4 items-end flex-grow">
+            <div className="w-full sm:w-64">
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Agency Type</label>
+              <AgencyTypeFilter
+                selectedAgencyType={selectedAgencyType}
+                onAgencyTypeChange={setSelectedAgencyType}
+                variant="select"
+                hideLabel
+                className="w-full"
               />
-              {searchQuery && (
-                <button
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  onClick={() => setSearchQuery("")}
-                  data-testid="button-clear-search"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
+            </div>
+
+            <div className="flex-grow sm:flex-grow-0 sm:w-80 relative">
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Search ESRs</label>
+              <div className="relative">
+                <Search className="absolute left-3.5 top-1/2 h-4 w-4 text-gray-400 -translate-y-1/2" />
+                <Input
+                  placeholder="Search by scheme, village or ESR..."
+                  className="pl-10 pr-10 border-gray-200 focus:ring-blue-500 focus:border-blue-500 h-11 shadow-sm"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    const newValue = e.target.value;
+                    setSearchQuery(newValue);
+                    setPage(1);
+                  }}
+                />
+                {searchQuery && (
+                  <button
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    onClick={() => setSearchQuery("")}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-2 md:self-end">
+          {/* Action Row */}
+          <div className="flex flex-wrap gap-3 mt-2 xl:mt-0">
             <Button
               onClick={() =>
                 exportToExcel(
-                  filteredData,
-                  `Chlorine_Data_${selectedRegion}_${selectedCardFilter}_${new Date().toISOString().split("T")[0]}`,
+                  globallyFilteredData,
+                  `Chlorine_Data_${selectedRegion}_${new Date().toISOString().split("T")[0]}`,
                 )
               }
               variant="outline"
-              className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100 gap-2 h-11 px-4"
-              data-testid="button-export-excel"
+              className="bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 gap-2 h-11 px-5 shadow-sm"
             >
               <Download className="h-4 w-4" />
-              <span className="hidden sm:inline">Export to Excel</span>
-              <span className="sm:hidden">Export</span>
-              {filteredData.length > 0 ? ` (${filteredData.length})` : ""}
+              <span>Export</span>
+              <span className="text-emerald-600/60 font-medium ml-1">({globallyFilteredData.length})</span>
             </Button>
+            
             <Button
               onClick={() => setShowHistoricalData(!showHistoricalData)}
               variant={showHistoricalData ? "default" : "outline"}
-              className="flex items-center gap-2 h-11 px-4"
-              data-testid="button-historical-data"
+              className={`flex items-center gap-2 h-11 px-5 shadow-sm ${showHistoricalData ? 'bg-blue-600' : 'bg-white border-gray-200'}`}
             >
               <History className="h-4 w-4" />
-              <span className="hidden sm:inline">
-                {showHistoricalData ? "Current Data" : "Historical Data"}
-              </span>
-              <span className="sm:hidden">History</span>
+              <span>{showHistoricalData ? "Current Mode" : "Analysis Mode"}</span>
             </Button>
+
             <Button
               onClick={() => refetch()}
               variant="outline"
-              className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 gap-2 h-11 px-4"
-              data-testid="button-refresh-data"
+              className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 gap-2 h-11 px-5 shadow-sm"
             >
               <RefreshCw className="h-4 w-4" />
-              <span className="hidden sm:inline">Refresh Data</span>
-              <span className="sm:hidden">Refresh</span>
+              <span>Refresh</span>
             </Button>
           </div>
         </div>
+      </div>
 
         {/* Historical Data Date Selection */}
         {showHistoricalData && (
@@ -1922,8 +1905,6 @@ const ChlorineDashboard: React.FC = () => {
             )}
           </div>
         )}
-      </div>
-
       {/* Status Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4 mb-6">
         {/* Connected Sensors Card */}

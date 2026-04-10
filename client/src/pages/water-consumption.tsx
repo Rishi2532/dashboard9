@@ -1589,34 +1589,35 @@ const WaterConsumptionPage: React.FC = () => {
 
   return (
     <DashboardLayout>
-      <div className="w-full py-6">
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>
-              <TranslatedText>Water Consumption Dashboard</TranslatedText>
-            </CardTitle>
-            <CardDescription>
-              <TranslatedText>
-                Monitor and analyze water consumption data across ESR locations
-                with real-time IoT status tracking
-              </TranslatedText>
-            </CardDescription>
-            <p className="text-sm text-blue-600 font-medium mt-2">
-              <TranslatedText>Dashboard Updated</TranslatedText>:{" "}
-              {new Date().toLocaleDateString("en-IN", {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}{" "}
-              <TranslatedText>at</TranslatedText>{" "}
-              {new Date().toLocaleTimeString("en-IN", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </p>
-          </CardHeader>
-          <CardContent>
+      <div className="container mx-auto p-6">
+      <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-100 pb-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-neutral-900 flex items-center gap-3">
+            <TranslatedText>Water Consumption Dashboard</TranslatedText>
+          </h1>
+          <p className="text-neutral-500 mt-1 max-w-2xl">
+            <TranslatedText>
+              Monitor and analyze water consumption data across ESR locations with real-time IoT status tracking
+            </TranslatedText>
+          </p>
+        </div>
+        <div className="flex flex-col items-start md:items-end text-right">
+          <p className="text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full flex items-center gap-2">
+            <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+            <TranslatedText>Dashboard Updated</TranslatedText>:{" "}
+            {new Date().toLocaleDateString("en-IN", {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+            })}{" "}
+            at{" "}
+            {new Date().toLocaleTimeString("en-IN", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </p>
+        </div>
+      </div>
             {/* ESR Metrics Cards */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
               {/* Total ESR Integrated */}
@@ -1742,282 +1743,135 @@ const WaterConsumptionPage: React.FC = () => {
                 </CardContent>
               </Card>
             </div>
+                  <GeographicalFilters
+        selectedRegion={selectedRegion}
+        selectedCircle={selectedCircle}
+        selectedDivision={selectedDivision}
+        selectedSubdivision={selectedSubdivision}
+        selectedBlock={selectedBlock}
+        onRegionChange={handleRegionChange}
+        onCircleChange={handleCircleChange}
+        onDivisionChange={handleDivisionChange}
+        onSubdivisionChange={handleSubdivisionChange}
+        onBlockChange={handleBlockChange}
+        filters={filterOptions}
+      />
 
-            {/* Search and Filters Section */}
-            <div className="space-y-4 mb-6">
-              {/* Search Bar */}
+      <div className="bg-white rounded-xl shadow-sm mb-8 border border-gray-200 overflow-hidden">
+        <div className="p-5 flex flex-col xl:flex-row gap-6 items-stretch xl:items-end">
+          {/* Main Filters Row */}
+          <div className="flex flex-wrap gap-4 items-end flex-grow">
+            <div className="w-full sm:w-64">
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Agency Type</label>
+              <AgencyTypeFilter
+                selectedAgencyType={selectedAgencyType}
+                onAgencyTypeChange={(value) => {
+                  setSelectedAgencyType(value);
+                  setPage(1);
+                }}
+                variant="select"
+                hideLabel
+                className="w-full"
+              />
+            </div>
+
+            <div className="flex-grow sm:flex-grow-0 sm:w-64">
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">IoT Status</label>
+              <Select value={iotStatus} onValueChange={(val) => { setIotStatus(val); setPage(1); }}>
+                <SelectTrigger className="h-11 border-gray-200 shadow-sm text-sm">
+                  <SelectValue placeholder="IoT Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All IoT Status</SelectItem>
+                  <SelectItem value="Fully Completed">Fully Completed</SelectItem>
+                  <SelectItem value="In Progress">In Progress</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {uiSchemeFilter === "commissioned" && (
+              <div className="flex-grow sm:flex-grow-0 sm:w-64">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Water Supply</label>
+                <div className="bg-white border border-gray-200 p-1 shadow-sm rounded-md w-full h-11 flex items-center">
+                  <div className="flex w-full">
+                    <button 
+                      onClick={() => handleWaterSupplyStatusChange("All")}
+                      className={`flex-1 px-2 py-1.5 text-[10px] font-bold uppercase tracking-tight rounded-sm transition-colors ${waterSupplyStatus === "All" ? "bg-blue-600 text-white" : "hover:bg-blue-50 text-blue-600"}`}
+                    >All</button>
+                    <button 
+                      onClick={() => handleWaterSupplyStatusChange("Full")}
+                      className={`flex-1 px-2 py-1.5 text-[10px] font-bold uppercase tracking-tight rounded-sm transition-colors ${waterSupplyStatus === "Full" ? "bg-emerald-600 text-white" : "hover:bg-emerald-50 text-emerald-600"}`}
+                    >Full</button>
+                    <button 
+                      onClick={() => handleWaterSupplyStatusChange("Partial")}
+                      className={`flex-1 px-2 py-1.5 text-[10px] font-bold uppercase tracking-tight rounded-sm transition-colors ${waterSupplyStatus === "Partial" ? "bg-amber-500 text-white" : "hover:bg-amber-50 text-amber-500"}`}
+                    >Partial</button>
+                    <button 
+                      onClick={() => handleWaterSupplyStatusChange("No")}
+                      className={`flex-1 px-2 py-1.5 text-[10px] font-bold uppercase tracking-tight rounded-sm transition-colors ${waterSupplyStatus === "No" ? "bg-red-500 text-white" : "hover:bg-red-50 text-red-500"}`}
+                    >No</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex-grow sm:flex-grow-0 sm:w-80 relative">
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Search ESRs</label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Search className="absolute left-3.5 top-1/2 h-4 w-4 text-gray-400 -translate-y-1/2" />
                 <Input
-                  placeholder="Search schemes, villages, ESRs..."
+                  placeholder="Search by scheme or village..."
+                  className="pl-10 pr-10 border-gray-200 focus:ring-blue-500 focus:border-blue-500 h-11 shadow-sm"
                   value={searchTerm}
                   onChange={(e) => handleSearchChange(e.target.value)}
-                  className="pl-10"
                 />
-              </div>
-
-              {/* Geographic Filters Row */}
-              <div className="mb-2">
-                <GeographicalFilters
-                  selectedRegion={selectedRegion}
-                  selectedCircle={selectedCircle}
-                  selectedDivision={selectedDivision}
-                  selectedSubdivision={selectedSubdivision}
-                  selectedBlock={selectedBlock}
-                  onRegionChange={handleRegionChange}
-                  onCircleChange={handleCircleChange}
-                  onDivisionChange={handleDivisionChange}
-                  onSubdivisionChange={handleSubdivisionChange}
-                  onBlockChange={handleBlockChange}
-                  filters={filterOptions}
-                  className="mb-0"
-                />
-              </div>
-
-              {/* Agency Type Filter Row */}
-              <div className="mb-4 w-full max-w-xs">
-                <label className="block text-sm font-medium text-blue-700 mb-1">
-                  Agency Type
-                </label>
-                <AgencyTypeFilter
-                  selectedAgencyType={selectedAgencyType}
-                  onAgencyTypeChange={(value) => {
-                    setSelectedAgencyType(value);
-                    setPage(1);
-                  }}
-                />
-              </div>
-
-              {/* Other Filters Row */}
-              <div className="flex flex-col lg:flex-row gap-4">
-
-
-
-                {uiSchemeFilter === "commissioned" && (
-                  <div className="flex-1 min-w-[280px]">
-                    <label className="block text-sm font-medium text-blue-700 mb-2">Water Supply Status</label>
-                    <div className="bg-white border border-blue-100 p-0.5 shadow-sm rounded-md w-full overflow-x-auto">
-                      <div className="flex min-w-[280px]">
-                        <button 
-                          onClick={() => handleWaterSupplyStatusChange("All")}
-                          className={`flex-1 px-3 py-2 text-xs font-medium rounded-sm transition-colors ${waterSupplyStatus === "All" ? "bg-blue-600 text-white" : "hover:bg-blue-50 text-blue-600"}`}
-                        >All</button>
-                        <button 
-                          onClick={() => handleWaterSupplyStatusChange("Full")}
-                          className={`flex-1 px-3 py-2 text-xs font-medium rounded-sm transition-colors ${waterSupplyStatus === "Full" ? "bg-emerald-600 text-white" : "hover:bg-emerald-50 text-emerald-600"}`}
-                        >Full</button>
-                        <button 
-                          onClick={() => handleWaterSupplyStatusChange("Partial")}
-                          className={`flex-1 px-3 py-2 text-xs font-medium rounded-sm transition-colors ${waterSupplyStatus === "Partial" ? "bg-amber-500 text-white" : "hover:bg-amber-50 text-amber-500"}`}
-                        >Partial</button>
-                        <button 
-                          onClick={() => handleWaterSupplyStatusChange("No")}
-                          className={`flex-1 px-3 py-2 text-xs font-medium rounded-sm transition-colors ${waterSupplyStatus === "No" ? "bg-red-500 text-white" : "hover:bg-red-50 text-red-500"}`}
-                        >No</button>
-                      </div>
-                    </div>
-                  </div>
+                {searchTerm && (
+                  <button
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    onClick={() => handleSearchChange("")}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 )}
-
-                <div className="flex-1 min-w-[180px]">
-                  <label className="block text-sm font-medium text-blue-700 mb-2">IoT Status</label>
-                  <Select value={iotStatus} onValueChange={(val) => { setIotStatus(val); setPage(1); }}>
-                    <SelectTrigger className="w-full bg-white border-blue-200 h-11 shadow-sm">
-                      <SelectValue placeholder="IoT Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All IoT Status</SelectItem>
-                      <SelectItem value="Fully Completed">Fully Completed</SelectItem>
-                      <SelectItem value="In Progress">In Progress</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex-1">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-between"
-                      >
-                        <Filter className="mr-2 h-4 w-4" />
-                        Consumption Filter
-                        <ChevronDown className="ml-2 h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="max-h-[400px] overflow-y-auto">
-                      <DropdownMenuLabel>
-                        Filter by Consumption Percentage
-                      </DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => handleFilterChange("all")}
-                      >
-                        All ESR Locations
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      {/* Percentage-based filters */}
-                      <DropdownMenuItem
-                        onClick={() => handleFilterChange("percentage_0_25")}
-                      >
-                        0-25% Consumption
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleFilterChange("percentage_25_50")}
-                      >
-                        25-50% Consumption
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleFilterChange("percentage_50_75")}
-                      >
-                        50-75% Consumption
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleFilterChange("percentage_75_100")}
-                      >
-                        75-100% Consumption
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleFilterChange("percentage_100_125")}
-                      >
-                        100-125% Consumption
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleFilterChange("percentage_125_150")}
-                      >
-                        125-150% Consumption
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleFilterChange("percentage_150_200")}
-                      >
-                        150-200% Consumption
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleFilterChange("percentage_200_300")}
-                      >
-                        200-300% Consumption
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleFilterChange("percentage_300_400")}
-                      >
-                        300-400% Consumption
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleFilterChange("percentage_400_500")}
-                      >
-                        400-500% Consumption
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleFilterChange("percentage_500_600")}
-                      >
-                        500-600% Consumption
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleFilterChange("percentage_600_700")}
-                      >
-                        600-700% Consumption
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleFilterChange("percentage_700_800")}
-                      >
-                        700-800% Consumption
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleFilterChange("percentage_800_900")}
-                      >
-                        800-900% Consumption
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() =>
-                          handleFilterChange("percentage_900_1000")
-                        }
-                      >
-                        900-1000% Consumption
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() =>
-                          handleFilterChange("percentage_above_1000")
-                        }
-                      >
-                        &gt;1000% Consumption
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      {/* Original filters */}
-                      <DropdownMenuItem
-                        onClick={() => handleFilterChange("zero_consumption")}
-                      >
-                        Zero Consumption
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleFilterChange("connected")}
-                      >
-                        Flow Meter Connected
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleFilterChange("not_connected")}
-                      >
-                        Flow Meter Not Connected
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                {/* Excel Export Dropdown */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
-                    >
-                      <FileSpreadsheet className="mr-2 h-4 w-4" />
-                      Export Excel
-                      <ChevronDown className="ml-2 h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuLabel>Export Options</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() =>
-                        exportToExcel(
-                          filteredData,
-                          `Water_Consumption_${currentFilter}_${selectedRegion}_${new Date().toISOString().split("T")[0]
-                          }`,
-                        )
-                      }
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Export Filtered Data
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() =>
-                        exportToExcel(
-                          allWaterConsumptionData,
-                          `Water_Consumption_All_ESR_${new Date().toISOString().split("T")[0]
-                          }`,
-                        )
-                      }
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Export All ESR Locations
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                {/* Historical Data Button */}
-                <Button
-                  onClick={() => setShowHistoricalData(!showHistoricalData)}
-                  variant="outline"
-                  className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
-                  data-testid="button-toggle-historical"
-                >
-                  <Calendar className="mr-2 h-4 w-4" />
-                  Historical Data
-                </Button>
               </div>
             </div>
+          </div>
+
+          {/* Action Row */}
+          <div className="flex flex-wrap gap-3 mt-2 xl:mt-0">
+            <Button
+              onClick={() => {
+                const filename = `Water_Consumption_${selectedRegion}_${currentFilter}_${new Date().toISOString().split("T")[0]}`;
+                exportToExcel(filteredData, filename);
+              }}
+              variant="outline"
+              className="bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 gap-2 h-11 px-5 shadow-sm"
+            >
+              <DownloadIcon className="h-4 w-4" />
+              <span>Export</span>
+              <span className="text-emerald-600/60 font-medium ml-1">({filteredData.length})</span>
+            </Button>
+            
+            <Button
+              onClick={() => setShowHistoricalData(!showHistoricalData)}
+              variant={showHistoricalData ? "default" : "outline"}
+              className={`flex items-center gap-2 h-11 px-5 shadow-sm ${showHistoricalData ? 'bg-blue-600' : 'bg-white border-gray-200'}`}
+            >
+              <History className="h-4 w-4" />
+              <span>{showHistoricalData ? "Current Mode" : "Analysis Mode"}</span>
+            </Button>
+
+            <Button
+              onClick={() => {}} // Use refetch if available or appropriate
+              variant="outline"
+              className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 gap-2 h-11 px-5 shadow-sm"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span>Refresh</span>
+            </Button>
+          </div>
+        </div>
+      </div>
 
             {/* Historical Data Date Selection */}
             {showHistoricalData && (
@@ -2876,8 +2730,7 @@ const WaterConsumptionPage: React.FC = () => {
                 )}
               </>
             )}
-          </CardContent>
-        </Card>
+
       </div>
       {/* Remark Details Dialog */}
       {selectedRemarkDetails && (

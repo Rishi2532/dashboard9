@@ -2041,6 +2041,8 @@ const EnhancedLpcdDashboard = () => {
                 <AgencyTypeFilter
                   selectedAgencyType={selectedAgencyType}
                   onAgencyTypeChange={setSelectedAgencyType}
+                  variant="select"
+                  hideLabel
                   className="w-48"
                 />
               </div>

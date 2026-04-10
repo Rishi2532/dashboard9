@@ -71,145 +71,168 @@ export default function ESRDashboard() {
   const regions = esrStats?.map((stat: ESRStats) => stat.region_name) || [];
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">ESR Monitoring Dashboard</h1>
-          <p className="text-muted-foreground">Real-time monitoring of Elevated Storage Reservoirs across Maharashtra</p>
-        </div>
-      </div>
-
-      {/* Regional Statistics Cards */}
-      {!statsLoading && esrStats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {esrStats.map((stat: ESRStats) => (
-            <Card key={stat.region_name} className="hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center">
-                  <BarChart3 className="w-5 h-5 mr-2 text-blue-500" />
-                  {stat.region_name}
-                </CardTitle>
-                <CardDescription>{stat.total_esr} ESR Locations</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm flex items-center">
-                      <Droplets className="w-4 h-4 mr-1 text-blue-400" />
-                      Chlorine
-                    </span>
-                    <span className="text-sm font-medium">
-                      {stat.online_chlorine}/{stat.connected_chlorine}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm flex items-center">
-                      <Activity className="w-4 h-4 mr-1 text-orange-400" />
-                      Pressure
-                    </span>
-                    <span className="text-sm font-medium">
-                      {stat.online_pressure}/{stat.connected_pressure}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm flex items-center">
-                      <Zap className="w-4 h-4 mr-1 text-green-400" />
-                      Flow Meter
-                    </span>
-                    <span className="text-sm font-medium">
-                      {stat.online_flow_meter}/{stat.connected_flow_meter}
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filter ESR Data</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-4">
-            <Select value={selectedRegion} onValueChange={setSelectedRegion}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Select Region" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Regions</SelectItem>
-                {regions.map((region) => (
-                  <SelectItem key={region} value={region}>{region}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            
-            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Select Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="Online">Online</SelectItem>
-                <SelectItem value="Offline">Offline</SelectItem>
-                <SelectItem value="Unknown">Unknown</SelectItem>
-              </SelectContent>
-            </Select>
+    <div className="container mx-auto p-6">
+      <div className="space-y-8">
+        <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-100 pb-6">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-neutral-900 flex items-center gap-3">
+              ESR Monitoring Dashboard
+            </h1>
+            <p className="text-neutral-500 mt-1 max-w-2xl">
+              Real-time monitoring of Elevated Storage Reservoirs across Maharashtra
+            </p>
           </div>
-        </CardContent>
-      </Card>
+          <div className="flex flex-col items-start md:items-end text-right">
+            <p className="text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full flex items-center gap-2">
+              <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+              Last Updated: {new Date().toLocaleDateString("en-IN", {
+                year: 'numeric', month: 'short', day: 'numeric'
+              })} at {new Date().toLocaleTimeString("en-IN", {
+                hour: '2-digit', minute: '2-digit'
+              })}
+            </p>
+          </div>
+        </div>
 
-      {/* ESR Data Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>ESR Monitoring Details</CardTitle>
-          <CardDescription>
-            Detailed view of all ESR monitoring status
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {esrLoading ? (
-            <div className="text-center py-8">Loading ESR data...</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Region</TableHead>
-                  <TableHead>Village</TableHead>
-                  <TableHead>ESR Name</TableHead>
-                  <TableHead>Sensors</TableHead>
-                  <TableHead>Chlorine</TableHead>
-                  <TableHead>Pressure</TableHead>
-                  <TableHead>Flow Meter</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {esrData?.data?.map((esr: ESRMonitoring) => (
-                  <TableRow key={esr.id}>
-                    <TableCell className="font-medium">{esr.region_name}</TableCell>
-                    <TableCell>{esr.village_name}</TableCell>
-                    <TableCell>{esr.esr_name}</TableCell>
-                    <TableCell>
-                      <div className="flex space-x-1">
-                        {getConnectedIcon(esr.chlorine_connected)}
-                        {getConnectedIcon(esr.pressure_connected)}
-                        {getConnectedIcon(esr.flow_meter_connected)}
-                      </div>
-                    </TableCell>
-                    <TableCell>{getStatusBadge(esr.chlorine_status)}</TableCell>
-                    <TableCell>{getStatusBadge(esr.pressure_status)}</TableCell>
-                    <TableCell>{getStatusBadge(esr.flow_meter_status)}</TableCell>
-                    <TableCell>{getStatusBadge(esr.overall_status)}</TableCell>
+        {/* Regional Statistics Cards */}
+        {!statsLoading && esrStats && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {esrStats.map((stat: ESRStats) => (
+              <Card key={stat.region_name} className="hover:shadow-lg transition-shadow">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center">
+                    <BarChart3 className="w-5 h-5 mr-2 text-blue-500" />
+                    {stat.region_name}
+                  </CardTitle>
+                  <CardDescription>{stat.total_esr} ESR Locations</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm flex items-center">
+                        <Droplets className="w-4 h-4 mr-1 text-blue-400" />
+                        Chlorine
+                      </span>
+                      <span className="text-sm font-medium">
+                        {stat.online_chlorine}/{stat.connected_chlorine}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm flex items-center">
+                        <Activity className="w-4 h-4 mr-1 text-orange-400" />
+                        Pressure
+                      </span>
+                      <span className="text-sm font-medium">
+                        {stat.online_pressure}/{stat.connected_pressure}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm flex items-center">
+                        <Zap className="w-4 h-4 mr-1 text-green-400" />
+                        Flow Meter
+                      </span>
+                      <span className="text-sm font-medium">
+                        {stat.online_flow_meter}/{stat.connected_flow_meter}
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="p-5 flex flex-col md:flex-row gap-6 items-end">
+            <div className="flex-1 max-w-sm">
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">Region</label>
+              <Select value={selectedRegion} onValueChange={setSelectedRegion}>
+                <SelectTrigger className="h-11 border-gray-200 shadow-sm">
+                  <SelectValue placeholder="Select Region" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Regions</SelectItem>
+                  {regions.map((region: string) => (
+                    <SelectItem key={region} value={region}>{region}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex-1 max-w-sm">
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">Status</label>
+              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                <SelectTrigger className="h-11 border-gray-200 shadow-sm">
+                  <SelectValue placeholder="Select Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="Online">Online</SelectItem>
+                  <SelectItem value="Offline">Offline</SelectItem>
+                  <SelectItem value="Unknown">Unknown</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex gap-3">
+               <Button variant="outline" className="h-11 border-gray-200 text-blue-700 bg-blue-50 hover:bg-blue-100 flex items-center gap-2 px-5 shadow-sm">
+                  <Activity className="h-4 w-4" />
+                  Refresh Data
+               </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* ESR Data Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>ESR Monitoring Details</CardTitle>
+            <CardDescription>
+              Detailed view of all ESR monitoring status
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {esrLoading ? (
+              <div className="text-center py-8">Loading ESR data...</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Region</TableHead>
+                    <TableHead>Village</TableHead>
+                    <TableHead>ESR Name</TableHead>
+                    <TableHead>Sensors</TableHead>
+                    <TableHead>Chlorine</TableHead>
+                    <TableHead>Pressure</TableHead>
+                    <TableHead>Flow Meter</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {esrData?.data?.map((esr: ESRMonitoring) => (
+                    <TableRow key={esr.id}>
+                      <TableCell className="font-medium">{esr.region_name}</TableCell>
+                      <TableCell>{esr.village_name}</TableCell>
+                      <TableCell>{esr.esr_name}</TableCell>
+                      <TableCell>
+                        <div className="flex space-x-1">
+                          {getConnectedIcon(esr.chlorine_connected)}
+                          {getConnectedIcon(esr.pressure_connected)}
+                          {getConnectedIcon(esr.flow_meter_connected)}
+                        </div>
+                      </TableCell>
+                      <TableCell>{getStatusBadge(esr.chlorine_status)}</TableCell>
+                      <TableCell>{getStatusBadge(esr.pressure_status)}</TableCell>
+                      <TableCell>{getStatusBadge(esr.flow_meter_status)}</TableCell>
+                      <TableCell>{getStatusBadge(esr.overall_status)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
-}
+}
