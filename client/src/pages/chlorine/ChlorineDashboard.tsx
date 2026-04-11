@@ -2047,155 +2047,104 @@ const ChlorineDashboard: React.FC = () => {
         </Card>
       </div>
 
-      {/* Dashboard Cards - Separated by Water Status */}
-      <div className="grid gap-6 mb-8">
-        {/* Main Range Cards - One Section */}
-        <div className="grid gap-6 md:grid-cols-1">
-          {/* With Water Section */}
-          <div className="bg-white rounded-xl shadow-md p-6 border border-blue-200">
-            <h3 className="text-xl font-bold text-blue-800 mb-4 flex items-center">
-              <Droplet className="h-6 w-6 text-blue-600 mr-2" />
-              Sensors with Water
-            </h3>
-            <div className="grid gap-4 mb-4">
-              {/* Total With Water - Now Clickable */}
-              <div
-                className={`cursor-pointer text-center p-4 bg-blue-50 rounded-lg border border-blue-200 hover:shadow-lg transition-all duration-200 ${sensorStatusFilter === "withWater" &&
-                  selectedWithWaterFilter === "all"
-                  ? "ring-2 ring-blue-500 ring-offset-2"
-                  : ""
-                  } transform hover:scale-[1.01]`}
-                onClick={() => handleTotalCardClick("withWater")}
-              >
-                <p className="text-3xl font-bold text-blue-600">
-                  {calculateWithWaterRangeStats.total}
-                </p>
-                <p className="text-sm text-blue-600/80 font-medium">
-                  Total sensors with water
-                </p>
+      {/* Sensors with Water — Redesigned */}
+      <div className="mb-8">
+        <div className="bg-gradient-to-br from-blue-50 via-cyan-50 to-sky-50 rounded-xl shadow-md p-5 border border-blue-200">
+
+          {/* Header: title on left, total badge on right */}
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className="bg-blue-600 p-2.5 rounded-xl shadow-sm">
+                <Droplet className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-blue-900">Sensors with Water</h3>
+                <p className="text-xs text-blue-500/80">Chlorine readings from water-active sensors</p>
               </div>
             </div>
-            <div className="grid gap-3">
-              {/* Below Range Card - With Water */}
-              <Card
-                className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedWithWaterFilter === "below_0.2"
-                  ? "ring-2 ring-red-500 ring-offset-2"
-                  : ""
-                  } transform hover:scale-[1.01]`}
-                onClick={() => handleWithWaterCardClick("below_0.2")}
-              >
-                <CardContent className="p-4 flex items-center">
-                  <div className="bg-red-100 p-3 rounded-full mr-4">
-                    <AlertTriangle className="h-5 w-5 text-red-700" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-red-800">Below Range</h4>
-                    <p className="text-2xl font-bold text-red-600">
-                      {calculateWithWaterRangeStats.belowRange || 0}
-                    </p>
-                    <p className="text-xs text-red-600/70">
-                      Chlorine &lt;0.2mg/l
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Optimal Range Card - With Water */}
-              <Card
-                className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedWithWaterFilter === "between_0.2_0.5"
-                  ? "ring-2 ring-green-500 ring-offset-2"
-                  : ""
-                  } transform hover:scale-[1.01]`}
-                onClick={() => handleWithWaterCardClick("between_0.2_0.5")}
-              >
-                <CardContent className="p-4 flex items-center">
-                  <div className="bg-green-100 p-3 rounded-full mr-4">
-                    <CheckCircle className="h-5 w-5 text-green-700" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-green-800">
-                      Optimal Range
-                    </h4>
-                    <p className="text-2xl font-bold text-green-600">
-                      {calculateWithWaterRangeStats.optimal || 0}
-                    </p>
-                    <p className="text-xs text-green-600/70">
-                      Chlorine 0.2-0.5mg/l
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Above Range Card - With Water */}
-              <Card
-                className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedWithWaterFilter === "above_0.5"
-                  ? "ring-2 ring-orange-500 ring-offset-2"
-                  : ""
-                  } transform hover:scale-[1.01]`}
-                onClick={() => handleWithWaterCardClick("above_0.5")}
-              >
-                <CardContent className="p-4 flex items-center">
-                  <div className="bg-orange-100 p-3 rounded-full mr-4">
-                    <AlertCircle className="h-5 w-5 text-orange-700" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-orange-800">
-                      Above Range
-                    </h4>
-                    <p className="text-2xl font-bold text-orange-600">
-                      {calculateWithWaterRangeStats.above || 0}
-                    </p>
-                    <p className="text-xs text-orange-600/70">
-                      Chlorine &gt;0.5mg/l
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* No Data Info Card */}
-              {calculateWithWaterRangeStats.noData > 0 && (
-                <div
-                  className="bg-gray-50 border border-gray-300 rounded-lg p-3"
-                  data-testid="with-water-no-data-note"
-                >
-                  <div className="flex items-start gap-2">
-                    <div className="text-gray-500 mt-0.5">
-                      <svg
-                        className="h-4 w-4"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs font-medium text-gray-700">
-                        <span className="font-bold">
-                          {calculateWithWaterRangeStats.noData}
-                        </span>{" "}
-                        sensor
-                        {calculateWithWaterRangeStats.noData !== 1
-                          ? "s"
-                          : ""}{" "}
-                        with no chlorine data
-                      </p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        Numbers above exclude sensors with blank chlorine values
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
+            <div
+              className={`cursor-pointer text-center px-5 py-2.5 bg-white rounded-xl border-2 hover:shadow-md transition-all duration-200 min-w-[88px] ${
+                sensorStatusFilter === "withWater" && selectedWithWaterFilter === "all"
+                  ? "border-blue-500 ring-2 ring-blue-400 ring-offset-2"
+                  : "border-blue-200 hover:border-blue-400"
+              }`}
+              onClick={() => handleTotalCardClick("withWater")}
+            >
+              <p className="text-3xl font-bold text-blue-700">{calculateWithWaterRangeStats.total}</p>
+              <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Total</p>
             </div>
           </div>
+
+          {/* 3-column range cards */}
+          <div className="grid grid-cols-3 gap-3">
+            {/* Below Range */}
+            <div
+              className={`cursor-pointer bg-white rounded-xl border border-red-100 border-t-4 border-t-red-500 p-4 text-center hover:shadow-md transition-all duration-200 ${
+                selectedWithWaterFilter === "below_0.2" ? "ring-2 ring-red-400 ring-offset-2" : ""
+              }`}
+              onClick={() => handleWithWaterCardClick("below_0.2")}
+            >
+              <div className="flex justify-center mb-2">
+                <div className="bg-red-100 p-2 rounded-full">
+                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                </div>
+              </div>
+              <p className="text-3xl font-bold text-red-600 mb-1">{calculateWithWaterRangeStats.belowRange || 0}</p>
+              <p className="text-xs font-semibold text-red-700">Below Range</p>
+              <p className="text-[10px] text-red-400 mt-0.5">&lt;0.2 mg/l</p>
+            </div>
+
+            {/* Optimal Range */}
+            <div
+              className={`cursor-pointer bg-white rounded-xl border border-green-100 border-t-4 border-t-green-500 p-4 text-center hover:shadow-md transition-all duration-200 ${
+                selectedWithWaterFilter === "between_0.2_0.5" ? "ring-2 ring-green-400 ring-offset-2" : ""
+              }`}
+              onClick={() => handleWithWaterCardClick("between_0.2_0.5")}
+            >
+              <div className="flex justify-center mb-2">
+                <div className="bg-green-100 p-2 rounded-full">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                </div>
+              </div>
+              <p className="text-3xl font-bold text-green-600 mb-1">{calculateWithWaterRangeStats.optimal || 0}</p>
+              <p className="text-xs font-semibold text-green-700">Optimal Range</p>
+              <p className="text-[10px] text-green-400 mt-0.5">0.2–0.5 mg/l</p>
+            </div>
+
+            {/* Above Range */}
+            <div
+              className={`cursor-pointer bg-white rounded-xl border border-orange-100 border-t-4 border-t-orange-500 p-4 text-center hover:shadow-md transition-all duration-200 ${
+                selectedWithWaterFilter === "above_0.5" ? "ring-2 ring-orange-400 ring-offset-2" : ""
+              }`}
+              onClick={() => handleWithWaterCardClick("above_0.5")}
+            >
+              <div className="flex justify-center mb-2">
+                <div className="bg-orange-100 p-2 rounded-full">
+                  <AlertCircle className="h-4 w-4 text-orange-600" />
+                </div>
+              </div>
+              <p className="text-3xl font-bold text-orange-600 mb-1">{calculateWithWaterRangeStats.above || 0}</p>
+              <p className="text-xs font-semibold text-orange-700">Above Range</p>
+              <p className="text-[10px] text-orange-400 mt-0.5">&gt;0.5 mg/l</p>
+            </div>
+          </div>
+
+          {/* No Data note */}
+          {calculateWithWaterRangeStats.noData > 0 && (
+            <div
+              className="mt-3 flex items-center gap-2 bg-white/80 rounded-lg px-3 py-2 border border-gray-200"
+              data-testid="with-water-no-data-note"
+            >
+              <svg className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+              <p className="text-xs text-gray-500">
+                <span className="font-bold text-gray-700">{calculateWithWaterRangeStats.noData}</span>{" "}
+                sensor{calculateWithWaterRangeStats.noData !== 1 ? "s" : ""} with no chlorine data — excluded from range counts above
+              </p>
+            </div>
+          )}
         </div>
-
-        {/* Consistent Pattern Cards (For All Connected Sensors) */}
-
       </div>
 
       {/* Regional Summary Mini-Table - Always Visible */}
