@@ -137,6 +137,8 @@ type WaterConsumptionFilterType =
   | "no_water_latest"
   | "continuous_water_week"
   | "continuous_no_water_week"
+  | "zero_consumption_week"
+  | "partial_data"
   | "abrupt_consumption"
   | "percentage_0_25"
   | "percentage_25_50"
@@ -753,6 +755,17 @@ const WaterConsumptionPage: React.FC = () => {
             return hasContinuousWaterForWeek(record);
           case "continuous_no_water_week":
             return hasContinuousNoWaterForWeek(record);
+          case "zero_consumption_week":
+            return hasContinuousNoWaterForWeek(record);
+          case "partial_data": {
+            const days = [
+              record.water_value_day1, record.water_value_day2, record.water_value_day3,
+              record.water_value_day4, record.water_value_day5, record.water_value_day6,
+              record.water_value_day7,
+            ];
+            const nonNullCount = days.filter(v => v !== null && v !== undefined).length;
+            return nonNullCount > 0 && nonNullCount < 7;
+          }
           case "abrupt_consumption":
             return hasAbruptConsumption(record);
           // Percentage-based filters
