@@ -2158,91 +2158,86 @@ const PressureDashboard: React.FC = () => {
         </p>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm mb-6 p-6 border border-blue-100">
-        {/* Filters Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-          {/* Geographic Filters */}
-          <div className="lg:col-span-4">
-            <GeographicalFilters
-              filters={filterOptions}
-              selectedRegion={selectedRegion}
-              selectedCircle={selectedCircle}
-              selectedDivision={selectedDivision}
-              selectedSubdivision={selectedSubdivision}
-              selectedBlock={selectedBlock}
-              onRegionChange={handleRegionChange}
-              onCircleChange={handleCircleChange}
-              onDivisionChange={handleDivisionChange}
-              onSubdivisionChange={handleSubdivisionChange}
-              onBlockChange={handleBlockChange}
-            />
-          </div>
-
-          {/* Agency Type Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Agency Type
-            </label>
-            <AgencyTypeFilter
-              selectedAgencyType={selectedAgencyType}
-              onAgencyTypeChange={(value) => {
-                setSelectedAgencyType(value);
-                setPage(1);
-                trackFilterUsage("agency_type_filter", value, undefined, "pressure_dashboard");
-              }}
-            />
-          </div>
-
-
-
-          {uiSchemeFilter === "commissioned" && (
-            <div className="flex-1 min-w-[300px]">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Water Supply Status</label>
-              <div className="bg-white border border-blue-100 p-0.5 shadow-sm rounded-md w-full overflow-x-auto">
-                <div className="flex min-w-[280px]">
-                  <button
-                    onClick={() => handleWaterSupplyStatusChange("All")}
-                    className={`flex-1 px-3 py-2 text-xs font-medium rounded-sm transition-colors ${waterSupplyStatus === "All" ? "bg-blue-600 text-white" : "hover:bg-blue-50 text-blue-600"}`}
-                  >All</button>
-                  <button
-                    onClick={() => handleWaterSupplyStatusChange("Full")}
-                    className={`flex-1 px-3 py-2 text-xs font-medium rounded-sm transition-colors ${waterSupplyStatus === "Full" ? "bg-emerald-600 text-white" : "hover:bg-emerald-50 text-emerald-600"}`}
-                  >Full</button>
-                  <button
-                    onClick={() => handleWaterSupplyStatusChange("Partial")}
-                    className={`flex-1 px-3 py-2 text-xs font-medium rounded-sm transition-colors ${waterSupplyStatus === "Partial" ? "bg-amber-500 text-white" : "hover:bg-amber-50 text-amber-500"}`}
-                  >Partial</button>
-                  <button
-                    onClick={() => handleWaterSupplyStatusChange("No")}
-                    className={`flex-1 px-3 py-2 text-xs font-medium rounded-sm transition-colors ${waterSupplyStatus === "No" ? "bg-red-500 text-white" : "hover:bg-red-50 text-red-500"}`}
-                  >No</button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-sm font-medium text-gray-700 mb-2">IoT Status</label>
-            <Select value={schemeStatusFilter} onValueChange={handleSchemeStatusFilterChange}>
-              <SelectTrigger className="w-full bg-white border-blue-200 h-11 shadow-sm">
-                <SelectValue placeholder="IoT Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All IoT Status</SelectItem>
-                <SelectItem value="Connected">Connected</SelectItem>
-                <SelectItem value="Fully Completed">Fully Completed</SelectItem>
-                <SelectItem value="In Progress">In Progress</SelectItem>
-                <SelectItem value="Not-Connected">Not Connected</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+      <div className="bg-white rounded-xl shadow-sm mb-6 border border-slate-200 overflow-hidden">
+        {/* Agency Type Tabs */}
+        <div className="px-4 pt-4 pb-3 border-b border-slate-100">
+          <AgencyTypeFilter
+            selectedAgencyType={selectedAgencyType}
+            onAgencyTypeChange={(value) => {
+              setSelectedAgencyType(value);
+              setPage(1);
+              trackFilterUsage("agency_type_filter", value, undefined, "pressure_dashboard");
+            }}
+          />
         </div>
 
-        {/* Search and Actions Row */}
-        <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center">
+        {/* Scheme Filter Tabs */}
+        <div className="px-4 py-3 border-b border-slate-100">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Scheme Filter</p>
+          <Tabs value={uiSchemeFilter} onValueChange={(v) => { setUiSchemeFilter(v); setPage(1); }}>
+            <TabsList className="h-8 p-0.5 bg-slate-100 border border-slate-200 gap-0.5">
+              <TabsTrigger value="all" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-white data-[state=active]:text-slate-700 data-[state=active]:shadow-sm">All</TabsTrigger>
+              <TabsTrigger value="commissioned" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white">Commissioned</TabsTrigger>
+              <TabsTrigger value="fully_completed" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-green-600 data-[state=active]:text-white">Fully Instrumented</TabsTrigger>
+              <TabsTrigger value="in_progress" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-amber-500 data-[state=active]:text-white">In Progress</TabsTrigger>
+              <TabsTrigger value="common_filter" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-purple-600 data-[state=active]:text-white">Common Filter</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
+        {/* Water Supply sub-tabs when Commissioned is selected */}
+        {uiSchemeFilter === "commissioned" && (
+          <div className="px-4 py-3 bg-blue-50 border-b border-blue-100">
+            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-2">Water Supply Status</p>
+            <Tabs value={waterSupplyStatus} onValueChange={(v) => handleWaterSupplyStatusChange(v)}>
+              <TabsList className="h-8 p-0.5 bg-white border border-blue-200 gap-0.5">
+                <TabsTrigger value="All" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white">All</TabsTrigger>
+                <TabsTrigger value="Full" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Fully Operational</TabsTrigger>
+                <TabsTrigger value="Partial" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partially Operational</TabsTrigger>
+                <TabsTrigger value="No" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-red-500 data-[state=active]:text-white">Not Operational</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+        )}
+
+        {/* Geographical Filters */}
+        <div className="px-4 py-3 border-b border-slate-100">
+          <GeographicalFilters
+            filters={filterOptions}
+            selectedRegion={selectedRegion}
+            selectedCircle={selectedCircle}
+            selectedDivision={selectedDivision}
+            selectedSubdivision={selectedSubdivision}
+            selectedBlock={selectedBlock}
+            onRegionChange={handleRegionChange}
+            onCircleChange={handleCircleChange}
+            onDivisionChange={handleDivisionChange}
+            onSubdivisionChange={handleSubdivisionChange}
+            onBlockChange={handleBlockChange}
+          />
+        </div>
+
+        {/* IoT Status + Search + Actions Row */}
+        <div className="px-4 py-4">
+          <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-end">
+            <div className="min-w-[180px]">
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">IoT Status</label>
+              <Select value={schemeStatusFilter} onValueChange={handleSchemeStatusFilterChange}>
+                <SelectTrigger className="w-full bg-white border-slate-200">
+                  <SelectValue placeholder="IoT Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All IoT Status</SelectItem>
+                  <SelectItem value="Connected">Connected</SelectItem>
+                  <SelectItem value="Fully Completed">Fully Completed</SelectItem>
+                  <SelectItem value="In Progress">In Progress</SelectItem>
+                  <SelectItem value="Not-Connected">Not Connected</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           {/* Search ESRs */}
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
               Search ESRs
             </label>
             <div className="relative">
@@ -2312,10 +2307,11 @@ const PressureDashboard: React.FC = () => {
             </Button>
           </div>
         </div>
+        </div>
 
         {/* Historical Data Date Selection */}
         {showHistoricalData && (
-          <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="mt-4 p-4 mx-4 mb-4 bg-blue-50 rounded-lg border border-blue-200">
             <div className="flex flex-col md:flex-row gap-4 items-center">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-blue-600" />

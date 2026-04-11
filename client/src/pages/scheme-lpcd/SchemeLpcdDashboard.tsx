@@ -1751,37 +1751,95 @@ const SchemeLpcdDashboard = () => {
   // Main render
   return (
     <div className="w-full py-6 container mx-auto px-4">
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-8 gap-4">
-        <div className="bg-gradient-to-r from-blue-50 to-white p-4 rounded-lg border-l-4 border-blue-600 shadow-sm">
-          <h1 className="text-3xl font-bold text-blue-900">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3">
+        <div className="bg-gradient-to-r from-blue-50 to-white px-5 py-4 rounded-lg border-l-4 border-blue-600 shadow-sm">
+          <h1 className="text-2xl font-bold text-blue-900">
             <TranslatedText>Scheme LPCD Dashboard</TranslatedText>
           </h1>
-          <p className="text-blue-700 font-medium mt-1">
-            <TranslatedText>
-              Monitor water supply at scheme level (Litres Per Capita per Day)
-            </TranslatedText>
-          </p>
-          <p className="text-sm text-blue-600 font-medium mt-2">
-            <TranslatedText>Dashboard Updated</TranslatedText>:{" "}
-            {new Date().toLocaleDateString("en-IN", {
-              weekday: "long",
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}{" "}
-            <TranslatedText>at</TranslatedText>{" "}
-            {new Date().toLocaleTimeString("en-IN", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
+          <p className="text-blue-600 text-sm mt-0.5">
+            <TranslatedText>Monitor water supply at scheme level (Litres Per Capita per Day)</TranslatedText>
           </p>
         </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            className="border-blue-200 text-blue-700 hover:bg-blue-50"
+          >
+            <RefreshCw className="h-4 w-4 mr-1.5" /> Refresh
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportToExcel}
+            className="border-blue-200 text-blue-700 hover:bg-blue-50"
+            data-testid="button-export-excel"
+          >
+            <FileSpreadsheet className="h-4 w-4 mr-1.5" /> Export
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowHistoricalDialog(true)}
+            className="border-blue-200 text-blue-700 hover:bg-blue-50"
+            data-testid="button-export-historical"
+          >
+            <History className="h-4 w-4 mr-1.5" /> History
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowCharts(!showCharts)}
+            className="border-blue-200 text-blue-700 hover:bg-blue-50"
+          >
+            {showCharts ? <><ChartBarOff className="h-4 w-4 mr-1.5" /> Hide Charts</> : <><BarChart3 className="h-4 w-4 mr-1.5" /> Show Charts</>}
+          </Button>
+        </div>
+      </div>
 
-        <div className="bg-blue-50/50 p-6 rounded-xl border border-blue-100 shadow-sm mb-8">
-          <div className="flex items-center gap-2 mb-4 text-blue-800">
-            <Filter className="h-5 w-5" />
-            <h3 className="font-semibold text-lg">Geographical Filters</h3>
+      {/* Unified Filter Panel */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
+        {/* Agency Type Tabs */}
+        <div className="px-4 pt-4 pb-3 border-b border-slate-100">
+          <AgencyTypeFilter
+            selectedAgencyType={selectedAgencyType}
+            onAgencyTypeChange={setSelectedAgencyType}
+          />
+        </div>
+
+        {/* Scheme Filter Tabs */}
+        <div className="px-4 py-3 border-b border-slate-100">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Scheme Filter</p>
+          <Tabs value={uiSchemeFilter} onValueChange={(v) => { setUiSchemeFilter(v); setPage(1); }}>
+            <TabsList className="h-8 p-0.5 bg-slate-100 border border-slate-200 gap-0.5">
+              <TabsTrigger value="all" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-white data-[state=active]:text-slate-700 data-[state=active]:shadow-sm">All</TabsTrigger>
+              <TabsTrigger value="commissioned" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white">Commissioned</TabsTrigger>
+              <TabsTrigger value="fully_completed" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-green-600 data-[state=active]:text-white">Fully Instrumented</TabsTrigger>
+              <TabsTrigger value="in_progress" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-amber-500 data-[state=active]:text-white">In Progress</TabsTrigger>
+              <TabsTrigger value="common_filter" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-purple-600 data-[state=active]:text-white">Common Filter</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
+        {/* Water Supply sub-tabs when Commissioned is selected */}
+        {uiSchemeFilter === "commissioned" && (
+          <div className="px-4 py-3 bg-blue-50 border-b border-blue-100">
+            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-2">Water Supply Status</p>
+            <Tabs value={waterSupplyStatus} onValueChange={(v) => { setWaterSupplyStatus(v); setPage(1); }}>
+              <TabsList className="h-8 p-0.5 bg-white border border-blue-200 gap-0.5">
+                <TabsTrigger value="All" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white">All</TabsTrigger>
+                <TabsTrigger value="Full" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Fully Operational</TabsTrigger>
+                <TabsTrigger value="Partial" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partially Operational</TabsTrigger>
+                <TabsTrigger value="No" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-red-500 data-[state=active]:text-white">Not Operational</TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
+        )}
+
+        {/* Geo Filters */}
+        <div className="px-4 py-3 border-b border-slate-100">
           <GeographicalFilters
             selectedRegion={selectedRegion}
             selectedCircle={selectedCircle}
@@ -1795,53 +1853,29 @@ const SchemeLpcdDashboard = () => {
             onBlockChange={handleBlockChange}
             filters={filterOptions}
           />
-          <div className="mt-4 border-t border-blue-100 pt-4 flex items-center gap-4">
-            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Agency Type</p>
-            <AgencyTypeFilter
-              selectedAgencyType={selectedAgencyType}
-              onAgencyTypeChange={setSelectedAgencyType}
-              className="w-48 bg-white"
-            />
-          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 mb-6">
-          <div className="relative w-64">
+        {/* Search + IoT Status row */}
+        <div className="px-4 py-3 flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+          <div className="relative flex-1 min-w-0">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search</p>
             <Input
               type="search"
               placeholder="Search scheme name or ID..."
               value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setPage(1); // Reset page on search
-              }}
-              className="pr-8 border-blue-200 shadow-sm"
+              onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+              className="border-slate-200 bg-white pr-8 w-full"
             />
             {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-blue-500 hover:text-blue-700"
-              >
+              <button onClick={() => setSearchQuery("")} className="absolute right-2 bottom-2 text-slate-400 hover:text-slate-600">
                 <X className="h-4 w-4" />
               </button>
             )}
           </div>
-
-          {/* Unified Scheme Filter */}
-          <div className="flex flex-wrap items-center gap-3 bg-white p-2 rounded-lg border border-blue-200 shadow-sm">
-            <span className="text-sm font-medium text-blue-700 ml-1">Filter:</span>
-
-
-
-            <div className="h-6 w-px bg-blue-200 mx-1"></div>
-            <Select
-              value={schemeStatusFilter}
-              onValueChange={(value) => {
-                setSchemeStatusFilter(value);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="w-[180px] bg-white border-blue-200">
+          <div className="min-w-[180px]">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">IoT Status</p>
+            <Select value={schemeStatusFilter} onValueChange={(value) => { setSchemeStatusFilter(value); setPage(1); }}>
+              <SelectTrigger className="w-full bg-white border-slate-200">
                 <SelectValue placeholder="IoT Status" />
               </SelectTrigger>
               <SelectContent>
@@ -1853,51 +1887,6 @@ const SchemeLpcdDashboard = () => {
               </SelectContent>
             </Select>
           </div>
-
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => refetch()}
-            title="Refresh data"
-            className="border-blue-200 shadow-sm text-blue-700 hover:bg-blue-50"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={exportToExcel}
-            title="Export to Excel"
-            className="border-blue-200 shadow-sm text-blue-700 hover:bg-blue-50"
-            data-testid="button-export-excel"
-          >
-            <FileSpreadsheet className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setShowHistoricalDialog(true)}
-            title="Export Historical Data"
-            className="border-blue-200 shadow-sm text-blue-700 hover:bg-blue-50"
-            data-testid="button-export-historical"
-          >
-            <History className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setShowCharts(!showCharts)}
-            className="border-blue-200 shadow-sm text-blue-700 hover:bg-blue-50"
-          >
-            {showCharts ? (
-              <>
-                <ChartBarOff className="h-4 w-4 mr-2" /> Hide Charts
-              </>
-            ) : (
-              <>
-                <BarChart3 className="h-4 w-4 mr-2" /> Show Charts
-              </>
-            )}
-          </Button>
         </div>
       </div>
 
