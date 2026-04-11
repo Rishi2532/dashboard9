@@ -80,7 +80,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
-import FilterBar from "@/components/dashboard/FilterBar";
 
 // Types
 export interface WaterSchemeData {
@@ -1990,62 +1989,18 @@ const EnhancedLpcdDashboard = () => {
         showCharts={showCharts}
       />
 
-      <div className="w-full">
-        <FilterBar
-          filterOptions={filterOptions}
-          selectedRegion={selectedRegion}
-          selectedCircle={selectedCircle}
-          selectedDivision={selectedDivision}
-          selectedSubdivision={selectedSubdivision}
-          selectedBlock={selectedBlock}
-          onRegionChange={handleRegionChange}
-          onCircleChange={handleCircleChange}
-          onDivisionChange={handleDivisionChange}
-          onSubdivisionChange={handleSubdivisionChange}
-          onBlockChange={handleBlockChange}
-          selectedAgencyType={selectedAgencyType}
-          onAgencyTypeChange={setSelectedAgencyType}
-          searchQuery={searchQuery}
-          onSearchChange={(v) => { setSearchQuery(v); setPage(1); }}
-          searchPlaceholder="Search by scheme or village..."
-          resultCount={filteredSchemes.length}
-          resultLabel="schemes"
-          rightActions={
-            <div className="space-y-1 min-w-[120px]">
-              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider ml-1">IoT Status</p>
-              <Select value={schemeStatusFilter} onValueChange={handleSchemeStatusFilterChange}>
-                <SelectTrigger className="h-8 text-xs bg-white border-slate-200 px-2">
-                  <SelectValue placeholder="IoT Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All IoT Status</SelectItem>
-                  <SelectItem value="Connected">Connected</SelectItem>
-                  <SelectItem value="Fully Completed">Fully Completed</SelectItem>
-                  <SelectItem value="In Progress">In Progress</SelectItem>
-                  <SelectItem value="Not-Connected">Not Connected</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          }
-          onClearAll={() => {
-            setSelectedRegion("all");
-            setSelectedCircle("all");
-            setSelectedDivision("all");
-            setSelectedSubdivision("all");
-            setSelectedBlock("all");
-            setCurrentFilter("all");
-            setSearchQuery("");
-            setSelectedAgencyType("ALL");
-            setUiSchemeFilter("all");
-            setWaterSupplyStatus("All");
-            setSchemeStatusFilter("all");
-          }}
-        />
-      </div>
+      {/* Unified Filter Panel */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
+        {/* Agency Type Row */}
+        <div className="px-4 pt-4 pb-3 border-b border-slate-100">
+          <AgencyTypeFilter
+            selectedAgencyType={selectedAgencyType}
+            onAgencyTypeChange={setSelectedAgencyType}
+          />
+        </div>
 
-      {/* Water Supply Status Tabs */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-4 overflow-hidden">
-        <div className="px-4 py-3 bg-blue-50">
+        {/* Water Supply Status Tabs */}
+        <div className="px-4 py-3 bg-blue-50 border-b border-blue-100">
           <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-2">Water Supply Status</p>
           <Tabs value={waterSupplyStatus} onValueChange={(v) => { setWaterSupplyStatus(v); setPage(1); }}>
             <TabsList className="h-8 p-0.5 bg-white border border-blue-200 gap-0.5">
@@ -2055,6 +2010,91 @@ const EnhancedLpcdDashboard = () => {
               <TabsTrigger value="No" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-red-500 data-[state=active]:text-white">Not Operational</TabsTrigger>
             </TabsList>
           </Tabs>
+        </div>
+
+        {/* Geographical Filters */}
+        <div className="px-4 py-3 border-b border-slate-100">
+          <GeographicalFilters
+            filters={filterOptions}
+            selectedRegion={selectedRegion}
+            selectedCircle={selectedCircle}
+            selectedDivision={selectedDivision}
+            selectedSubdivision={selectedSubdivision}
+            selectedBlock={selectedBlock}
+            onRegionChange={handleRegionChange}
+            onCircleChange={handleCircleChange}
+            onDivisionChange={handleDivisionChange}
+            onSubdivisionChange={handleSubdivisionChange}
+            onBlockChange={handleBlockChange}
+          />
+        </div>
+
+        {/* Search + IoT Status + Actions Row */}
+        <div className="px-4 py-3 flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+          <div className="relative flex-1 min-w-0">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search</p>
+            <Input
+              type="search"
+              placeholder="Search by scheme or village..."
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+              className="border-slate-200 bg-white pr-8 w-full"
+            />
+            {searchQuery && (
+              <button onClick={() => { setSearchQuery(""); setPage(1); }} className="absolute right-2 bottom-2 text-slate-400 hover:text-slate-600">
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          <div className="min-w-[180px]">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">IoT Status</p>
+            <Select value={schemeStatusFilter} onValueChange={handleSchemeStatusFilterChange}>
+              <SelectTrigger className="w-full bg-white border-slate-200">
+                <SelectValue placeholder="IoT Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All IoT Status</SelectItem>
+                <SelectItem value="Connected">Connected</SelectItem>
+                <SelectItem value="Fully Completed">Fully Completed</SelectItem>
+                <SelectItem value="In Progress">In Progress</SelectItem>
+                <SelectItem value="Not-Connected">Not Connected</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSelectedRegion("all");
+                setSelectedCircle("all");
+                setSelectedDivision("all");
+                setSelectedSubdivision("all");
+                setSelectedBlock("all");
+                setCurrentFilter("all");
+                setSearchQuery("");
+                setSelectedAgencyType("ALL");
+                setUiSchemeFilter("all");
+                setWaterSupplyStatus("All");
+                setSchemeStatusFilter("all");
+              }}
+              className="h-9 w-9 p-0 text-slate-400 hover:text-red-500 hover:bg-red-50"
+              title="Clear all filters"
+            >
+              <FilterX className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="bg-slate-50 border-t border-slate-100 px-4 py-1.5 flex justify-between items-center">
+          <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
+            <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block animate-pulse" />
+            Live Data Feed
+          </div>
+          <div className="text-[10px] font-medium text-slate-600">
+            Showing <span className="text-blue-600 font-bold">{filteredSchemes.length.toLocaleString()}</span> schemes
+          </div>
         </div>
       </div>
 
