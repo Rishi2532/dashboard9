@@ -867,13 +867,15 @@ const PressureDashboard: React.FC = () => {
 
     let belowRange = 0,
       optimal = 0,
-      above = 0;
+      above = 0,
+      filteredWithWaterCount = 0;
 
     allPressureData.forEach((data) => {
       const sensorKey = `${data.region}|${data.circle}|${data.division}|${data.sub_division}|${data.block}|${data.village_name}|${data.esr_name}`;
 
       // Only count sensors that have water
       if (withWaterSensorIds.has(sensorKey)) {
+        filteredWithWaterCount++;
         const currentValue = getCurrentPressureValue(data);
         if (currentValue !== null && !isNaN(currentValue)) {
           if (currentValue < 0.2) {
@@ -888,7 +890,7 @@ const PressureDashboard: React.FC = () => {
       }
     });
 
-    const totalCount = withWaterSensorIds.size;
+    const totalCount = filteredWithWaterCount;
     const sumRanges = belowRange + optimal + above;
     const noData = Math.max(totalCount - sumRanges, 0);
 
