@@ -71,11 +71,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/dashboard/dashboard-layout";
 import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
 import AgencyTypeFilter from "@/components/dashboard/AgencyTypeFilter";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
-import FilterBar from "@/components/dashboard/FilterBar";
 
 // Define interface for water consumption data
 interface WaterConsumptionRecord {
@@ -1815,44 +1815,68 @@ const WaterConsumptionPage: React.FC = () => {
           </Card>
         </div>
 
-        <FilterBar
-          filterOptions={filterOptions}
-          selectedRegion={selectedRegion}
-          selectedCircle={selectedCircle}
-          selectedDivision={selectedDivision}
-          selectedSubdivision={selectedSubdivision}
-          selectedBlock={selectedBlock}
-          onRegionChange={handleRegionChange}
-          onCircleChange={handleCircleChange}
-          onDivisionChange={handleDivisionChange}
-          onSubdivisionChange={handleSubdivisionChange}
-          onBlockChange={handleBlockChange}
-          selectedAgencyType={selectedAgencyType}
-          onAgencyTypeChange={(v) => {
-            setSelectedAgencyType(v);
-            setPage(1);
-          }}
-          searchQuery={searchTerm}
-          onSearchChange={(v) => {
-            setSearchTerm(v);
-            setPage(1);
-          }}
-          searchPlaceholder="Search by ESR, village or scheme..."
-          resultCount={filteredData.length}
-          resultLabel="ESR records"
-          extraFilters={
-            <div className="w-full sm:w-64">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">
-                IoT Status
-              </label>
-              <Select
-                value={iotStatus}
-                onValueChange={(val) => {
-                  setIotStatus(val);
+        {/* Unified Filter Panel */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
+          {/* Geographical Filters */}
+          <div className="px-4 pt-4 pb-3 border-b border-slate-100">
+            <GeographicalFilters
+              filters={filterOptions}
+              selectedRegion={selectedRegion}
+              selectedCircle={selectedCircle}
+              selectedDivision={selectedDivision}
+              selectedSubdivision={selectedSubdivision}
+              selectedBlock={selectedBlock}
+              onRegionChange={handleRegionChange}
+              onCircleChange={handleCircleChange}
+              onDivisionChange={handleDivisionChange}
+              onSubdivisionChange={handleSubdivisionChange}
+              onBlockChange={handleBlockChange}
+            />
+          </div>
+
+          {/* Agency Type + Water Supply Status on one line */}
+          <div className="px-4 py-3 bg-blue-50 border-b border-blue-100 flex flex-wrap gap-x-6 gap-y-3 items-end">
+            <div>
+              <AgencyTypeFilter
+                selectedAgencyType={selectedAgencyType}
+                onAgencyTypeChange={(v) => {
+                  setSelectedAgencyType(v);
                   setPage(1);
                 }}
-              >
-                <SelectTrigger className="h-11 border-gray-200 shadow-sm">
+              />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-2">Water Supply Status</p>
+              <Tabs value={waterSupplyStatus} onValueChange={(v) => { handleWaterSupplyStatusChange(v); }}>
+                <TabsList className="h-8 p-0.5 bg-white border border-blue-200 gap-0.5">
+                  <TabsTrigger value="All" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white">All</TabsTrigger>
+                  <TabsTrigger value="Full" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Fully Operational</TabsTrigger>
+                  <TabsTrigger value="Partial" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partially Operational</TabsTrigger>
+                  <TabsTrigger value="No" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-red-500 data-[state=active]:text-white">Not Operational</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          </div>
+
+          {/* Search + IoT Status + Clear All */}
+          <div className="px-4 py-3 flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+            <div className="relative flex-1 min-w-0">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search</p>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  type="search"
+                  placeholder="Search by ESR, village or scheme..."
+                  value={searchTerm}
+                  onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                  className="border-slate-200 bg-white pl-9 w-full"
+                />
+              </div>
+            </div>
+            <div className="w-full sm:w-52">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">IoT Status</p>
+              <Select value={iotStatus} onValueChange={(val) => { setIotStatus(val); setPage(1); }}>
+                <SelectTrigger className="border-slate-200 bg-white h-9">
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1862,19 +1886,27 @@ const WaterConsumptionPage: React.FC = () => {
                 </SelectContent>
               </Select>
             </div>
-          }
-          onClearAll={() => {
-            setSelectedRegion("all");
-            setSelectedCircle("all");
-            setSelectedDivision("all");
-            setSelectedSubdivision("all");
-            setSelectedBlock("all");
-            setSearchTerm("");
-            setSelectedAgencyType("ALL");
-            setIotStatus("all");
-            handleFilterChange("all");
-          }}
-        />
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 text-xs border-slate-200 text-slate-500 hover:text-slate-700 self-end"
+              onClick={() => {
+                setSelectedRegion("all");
+                setSelectedCircle("all");
+                setSelectedDivision("all");
+                setSelectedSubdivision("all");
+                setSelectedBlock("all");
+                setSearchTerm("");
+                setSelectedAgencyType("ALL");
+                setIotStatus("all");
+                handleWaterSupplyStatusChange("All");
+                handleFilterChange("all");
+              }}
+            >
+              Clear All
+            </Button>
+          </div>
+        </div>
 
         {/* Historical Data Date Selection */}
         {showHistoricalData && (
