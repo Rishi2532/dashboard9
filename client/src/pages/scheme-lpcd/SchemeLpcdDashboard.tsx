@@ -1809,34 +1809,18 @@ const SchemeLpcdDashboard = () => {
           />
         </div>
 
-        {/* Scheme Filter Tabs */}
-        <div className="px-4 py-3 border-b border-slate-100">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Scheme Filter</p>
-          <Tabs value={uiSchemeFilter} onValueChange={(v) => { setUiSchemeFilter(v); setPage(1); }}>
-            <TabsList className="h-8 p-0.5 bg-slate-100 border border-slate-200 gap-0.5">
-              <TabsTrigger value="all" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-white data-[state=active]:text-slate-700 data-[state=active]:shadow-sm">All</TabsTrigger>
-              <TabsTrigger value="commissioned" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white">Commissioned</TabsTrigger>
-              <TabsTrigger value="fully_completed" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-green-600 data-[state=active]:text-white">Fully Instrumented</TabsTrigger>
-              <TabsTrigger value="in_progress" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-amber-500 data-[state=active]:text-white">In Progress</TabsTrigger>
-              <TabsTrigger value="common_filter" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-purple-600 data-[state=active]:text-white">Common Filter</TabsTrigger>
+        {/* Water Supply Status Tabs */}
+        <div className="px-4 py-3 bg-blue-50 border-b border-blue-100">
+          <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-2">Water Supply Status</p>
+          <Tabs value={waterSupplyStatus} onValueChange={(v) => { setWaterSupplyStatus(v); setPage(1); }}>
+            <TabsList className="h-8 p-0.5 bg-white border border-blue-200 gap-0.5">
+              <TabsTrigger value="All" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white">All</TabsTrigger>
+              <TabsTrigger value="Full" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Fully Operational</TabsTrigger>
+              <TabsTrigger value="Partial" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partially Operational</TabsTrigger>
+              <TabsTrigger value="No" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-red-500 data-[state=active]:text-white">Not Operational</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
-
-        {/* Water Supply sub-tabs when Commissioned is selected */}
-        {uiSchemeFilter === "commissioned" && (
-          <div className="px-4 py-3 bg-blue-50 border-b border-blue-100">
-            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-2">Water Supply Status</p>
-            <Tabs value={waterSupplyStatus} onValueChange={(v) => { setWaterSupplyStatus(v); setPage(1); }}>
-              <TabsList className="h-8 p-0.5 bg-white border border-blue-200 gap-0.5">
-                <TabsTrigger value="All" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white">All</TabsTrigger>
-                <TabsTrigger value="Full" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Fully Operational</TabsTrigger>
-                <TabsTrigger value="Partial" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partially Operational</TabsTrigger>
-                <TabsTrigger value="No" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-red-500 data-[state=active]:text-white">Not Operational</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-        )}
 
         {/* Geo Filters */}
         <div className="px-4 py-3 border-b border-slate-100">
