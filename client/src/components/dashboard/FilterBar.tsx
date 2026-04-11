@@ -81,10 +81,10 @@ export default function FilterBar({
     <div className={cn("bg-white border border-blue-100 rounded-xl shadow-sm mb-5 overflow-hidden", className)}>
       <div className="p-3 flex flex-col gap-3">
         {/* Row 1: Geography + Agency */}
-        <div className="bg-slate-50/70 p-2 rounded-lg border border-slate-100">
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end">
-            {/* Geographical 5-cols */}
-            <div className="col-span-2 md:col-span-5">
+        <div className="bg-slate-50/70 p-3 rounded-lg border border-slate-100 mb-3">
+          <div className="flex flex-col lg:flex-row gap-3 items-end w-full">
+            {/* Geographical */}
+            <div className="flex-1 w-full">
               <GeographicalFilters
                 filters={filterOptions}
                 selectedRegion={selectedRegion}
@@ -100,14 +100,13 @@ export default function FilterBar({
                 className="mb-0 grid-cols-2 md:grid-cols-5 gap-2"
               />
             </div>
-            {/* Agency - always 1 col */}
-            <div className="space-y-1">
-              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider ml-1">Agency</p>
+            {/* Agency */}
+            <div className="w-full lg:w-auto lg:min-w-[400px]">
               <AgencyTypeFilter
                 selectedAgencyType={selectedAgencyType}
                 onAgencyTypeChange={onAgencyTypeChange}
                 variant="select"
-                hideLabel
+                hideLabel={false}
                 className="w-full"
               />
             </div>
