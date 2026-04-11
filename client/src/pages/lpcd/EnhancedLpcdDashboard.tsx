@@ -1991,29 +1991,8 @@ const EnhancedLpcdDashboard = () => {
 
       {/* Unified Filter Panel */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
-        {/* Agency Type Row */}
-        <div className="px-4 pt-4 pb-3 border-b border-slate-100">
-          <AgencyTypeFilter
-            selectedAgencyType={selectedAgencyType}
-            onAgencyTypeChange={setSelectedAgencyType}
-          />
-        </div>
-
-        {/* Water Supply Status Tabs */}
-        <div className="px-4 py-3 bg-blue-50 border-b border-blue-100">
-          <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-2">Water Supply Status</p>
-          <Tabs value={waterSupplyStatus} onValueChange={(v) => { setWaterSupplyStatus(v); setPage(1); }}>
-            <TabsList className="h-8 p-0.5 bg-white border border-blue-200 gap-0.5">
-              <TabsTrigger value="All" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white">All</TabsTrigger>
-              <TabsTrigger value="Full" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Fully Operational</TabsTrigger>
-              <TabsTrigger value="Partial" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partially Operational</TabsTrigger>
-              <TabsTrigger value="No" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-red-500 data-[state=active]:text-white">Not Operational</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-
         {/* Geographical Filters */}
-        <div className="px-4 py-3 border-b border-slate-100">
+        <div className="px-4 pt-4 pb-3 border-b border-slate-100">
           <GeographicalFilters
             filters={filterOptions}
             selectedRegion={selectedRegion}
@@ -2027,6 +2006,27 @@ const EnhancedLpcdDashboard = () => {
             onSubdivisionChange={handleSubdivisionChange}
             onBlockChange={handleBlockChange}
           />
+        </div>
+
+        {/* Agency Type + Water Supply Status on one line */}
+        <div className="px-4 py-3 bg-blue-50 border-b border-blue-100 flex flex-wrap gap-x-6 gap-y-3 items-end">
+          <div>
+            <AgencyTypeFilter
+              selectedAgencyType={selectedAgencyType}
+              onAgencyTypeChange={setSelectedAgencyType}
+            />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-2">Water Supply Status</p>
+            <Tabs value={waterSupplyStatus} onValueChange={(v) => { setWaterSupplyStatus(v); setPage(1); }}>
+              <TabsList className="h-8 p-0.5 bg-white border border-blue-200 gap-0.5">
+                <TabsTrigger value="All" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white">All</TabsTrigger>
+                <TabsTrigger value="Full" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Fully Operational</TabsTrigger>
+                <TabsTrigger value="Partial" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partially Operational</TabsTrigger>
+                <TabsTrigger value="No" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-red-500 data-[state=active]:text-white">Not Operational</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </div>
 
         {/* Search + IoT Status + Actions Row */}
