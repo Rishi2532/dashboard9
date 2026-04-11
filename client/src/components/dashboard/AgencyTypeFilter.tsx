@@ -1,12 +1,5 @@
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 interface AgencyTypeFilterProps {
@@ -34,54 +27,27 @@ export default function AgencyTypeFilter({
         { label: "Not Assigned", value: "Agency Not Assigned" },
     ];
 
-    if (variant === "select") {
-        return (
-            <div className={cn("flex flex-col space-y-1.5", className)}>
-                {!hideLabel && (
-                    <Label className="text-[10px] font-bold text-slate-400 uppercase ml-1 tracking-wider">
-                        Agency Selection
-                    </Label>
-                )}
-                <Select value={selectedAgencyType} onValueChange={onAgencyTypeChange}>
-                    <SelectTrigger className="h-8 text-xs bg-white border-slate-200 px-2 shadow-sm focus:ring-blue-500">
-                        <SelectValue placeholder="Select Agency" />
-                    </SelectTrigger>
-                    <SelectContent className="z-[9999]">
-                        {options.map((option) => (
-                            <SelectItem key={option.value} value={option.value} className="text-xs">
-                                {option.label}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            </div>
-        );
-    }
-
     return (
-        <div className={cn("flex flex-col space-y-1.5", className)}>
+        <div className={cn("flex flex-col space-y-1.5 min-w-0 w-full overflow-hidden", className)}>
             {!hideLabel && (
-                <Label className="text-[10px] font-bold text-slate-400 uppercase ml-1 tracking-wider">
+                <Label className="text-[10px] font-bold text-slate-400 uppercase ml-1 tracking-wider whitespace-nowrap">
                     Agency Selection
                 </Label>
             )}
-            <div className="flex flex-wrap gap-1 p-1 bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-lg w-full border border-slate-200 dark:border-slate-700 shadow-sm transition-all duration-300">
-                {options.map((option) => (
-                    <Button
-                        key={option.value}
-                        variant={selectedAgencyType === option.value ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => onAgencyTypeChange(option.value)}
-                        className={cn(
-                            "h-7 px-3 text-[10px] sm:text-[11px] font-bold rounded-md transition-all duration-200",
-                            selectedAgencyType === option.value
-                                ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm ring-1 ring-slate-200 dark:ring-slate-600 hover:bg-white dark:hover:bg-slate-700"
-                                : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-700/50"
-                        )}
-                    >
-                        {option.label}
-                    </Button>
-                ))}
+            <div className="w-full overflow-x-auto pb-1 -mb-1 scrollbar-none">
+                <Tabs value={selectedAgencyType} onValueChange={onAgencyTypeChange} className="w-full">
+                    <TabsList className="h-8 p-1 inline-flex bg-slate-100/80 dark:bg-slate-800/80 w-auto min-w-max border border-slate-200 dark:border-slate-700">
+                        {options.map((option) => (
+                            <TabsTrigger
+                                key={option.value}
+                                value={option.value}
+                                className="text-[10px] sm:text-[11px] px-3 h-6 rounded-sm font-bold data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all whitespace-nowrap"
+                            >
+                                {option.label}
+                            </TabsTrigger>
+                        ))}
+                    </TabsList>
+                </Tabs>
             </div>
         </div>
     );

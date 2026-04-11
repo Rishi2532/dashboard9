@@ -3095,12 +3095,12 @@ const DetailedChlorinePage = () => {
 
   return (
     <DashboardLayout>
-      <div className="flex h-full">
+      <div className="flex h-full bg-slate-50 dark:bg-slate-900">
         <div className="hidden lg:block">
           <Sidebar />
         </div>
-        <div className="flex-1 px-4 sm:px-6 lg:px-8 py-4 overflow-auto">
-          <div className="w-full max-w-[1400px] mx-auto space-y-4">
+        <div className="flex-1 px-4 sm:px-6 lg:px-8 py-6 overflow-auto">
+          <div className="w-full max-w-[1600px] mx-auto flex flex-col gap-6">
             <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 rounded-xl p-4 shadow-lg">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                 <div className="flex items-center gap-3">
@@ -3131,19 +3131,19 @@ const DetailedChlorinePage = () => {
             </div>
 
             {/* Fully Completed Filter Button */}
-            <div className="flex flex-wrap items-center gap-3 mb-4 bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter:</span>
+            <div className="flex flex-wrap items-center gap-4 mb-6 bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Filter:</span>
 
 
               {(uiSchemeFilter === "commissioned" || uiSchemeFilter === "fully_completed") && (
                 <>
-                  <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2"></div>
+                  <div className="hidden sm:block h-6 w-px bg-gray-300 dark:bg-gray-600"></div>
                   <Tabs value={waterSupplyStatus} onValueChange={setWaterSupplyStatus} className="m-0">
                     <TabsList className="h-10 bg-gray-100 dark:bg-gray-800 p-1 border border-gray-200 dark:border-gray-700">
-                      <TabsTrigger value="All" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-blue-600 data-[state=active]:text-white">All Schemes</TabsTrigger>
-                      <TabsTrigger value="Full" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Fully Operational</TabsTrigger>
-                      <TabsTrigger value="Partial" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partially Operational</TabsTrigger>
-                      <TabsTrigger value="No" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-red-500 data-[state=active]:text-white">Not Operational</TabsTrigger>
+                      <TabsTrigger value="All" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-blue-600 data-[state=active]:text-white shadow-sm">All Schemes</TabsTrigger>
+                      <TabsTrigger value="Full" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-emerald-600 data-[state=active]:text-white shadow-sm">Fully Operational</TabsTrigger>
+                      <TabsTrigger value="Partial" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-amber-500 data-[state=active]:text-white shadow-sm">Partially Operational</TabsTrigger>
+                      <TabsTrigger value="No" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-red-500 data-[state=active]:text-white shadow-sm">Not Operational</TabsTrigger>
                     </TabsList>
                   </Tabs>
                 </>
@@ -3151,7 +3151,7 @@ const DetailedChlorinePage = () => {
 
               {uiSchemeFilter !== "all" && (
                 <>
-                  <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2"></div>
+                  <div className="hidden sm:block h-6 w-px bg-gray-300 dark:bg-gray-600"></div>
                   <AgencyTypeFilter
                     selectedAgencyType={selectedAgencyType}
                     onAgencyTypeChange={setSelectedAgencyType}
@@ -3159,14 +3159,16 @@ const DetailedChlorinePage = () => {
                 </>
               )}
 
-              <Button
-                variant={showDailyData ? "default" : "outline"}
-                onClick={() => setShowDailyData(!showDailyData)}
-                className={`transition-all ${showDailyData ? "bg-indigo-600 hover:bg-indigo-700" : ""}`}
-              >
-                <Calendar className="mr-2 h-4 w-4" />
-                Daily Data
-              </Button>
+              <div className="flex-1 min-w-[200px] flex justify-end">
+                <Button
+                  variant={showDailyData ? "default" : "outline"}
+                  onClick={() => setShowDailyData(!showDailyData)}
+                  className={`transition-all shadow-sm ${showDailyData ? "bg-indigo-600 hover:bg-indigo-700" : ""}`}
+                >
+                  <Calendar className="mr-2 h-4 w-4" />
+                  Daily Data
+                </Button>
+              </div>
             </div>
 
             {/* Main Tabs: LPCD (default) and Chlorine */}
