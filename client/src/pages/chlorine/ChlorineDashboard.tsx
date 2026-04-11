@@ -1738,45 +1738,75 @@ const ChlorineDashboard: React.FC = () => {
         </p>
       </div>
 
-      <GeographicalFilters
-        filters={filterOptions}
-        selectedRegion={selectedRegion}
-        selectedCircle={selectedCircle}
-        selectedDivision={selectedDivision}
-        selectedSubdivision={selectedSubdivision}
-        selectedBlock={selectedBlock}
-        onRegionChange={handleRegionChange}
-        onCircleChange={handleCircleChange}
-        onDivisionChange={handleDivisionChange}
-        onSubdivisionChange={handleSubdivisionChange}
-        onBlockChange={handleBlockChange}
-      />
-
-      {/* Filters Section - Grid-based layout like PressureDashboard */}
-      <div className="bg-white rounded-xl shadow-sm mb-6 p-6 border border-blue-100">
-        <div className="flex-1 min-w-[200px]">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Agency Type</label>
+      {/* Unified Filter Panel */}
+      <div className="bg-white rounded-xl shadow-sm mb-6 border border-slate-200 overflow-hidden">
+        {/* Agency Type Tabs */}
+        <div className="px-4 pt-4 pb-3 border-b border-slate-100">
           <AgencyTypeFilter
             selectedAgencyType={selectedAgencyType}
             onAgencyTypeChange={setSelectedAgencyType}
-            className="w-full h-11"
           />
         </div>
-      </div>
 
-      {/* Search and Actions Row - Now part of its own container for consistency */}
-      <div className="bg-white rounded-xl shadow-sm mb-6 p-6 border border-blue-100">
-        <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center">
+        {/* Scheme Filter Tabs */}
+        <div className="px-4 py-3 border-b border-slate-100">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Scheme Filter</p>
+          <Tabs value={uiSchemeFilter} onValueChange={(v) => { setUiSchemeFilter(v); setPage(1); }}>
+            <TabsList className="h-8 p-0.5 bg-slate-100 border border-slate-200 gap-0.5">
+              <TabsTrigger value="all" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-white data-[state=active]:text-slate-700 data-[state=active]:shadow-sm">All</TabsTrigger>
+              <TabsTrigger value="commissioned" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white">Commissioned</TabsTrigger>
+              <TabsTrigger value="fully_completed" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-green-600 data-[state=active]:text-white">Fully Instrumented</TabsTrigger>
+              <TabsTrigger value="in_progress" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-amber-500 data-[state=active]:text-white">In Progress</TabsTrigger>
+              <TabsTrigger value="common_filter" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-purple-600 data-[state=active]:text-white">Common Filter</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
+        {/* Water Supply sub-tabs when Commissioned is selected */}
+        {uiSchemeFilter === "commissioned" && (
+          <div className="px-4 py-3 bg-blue-50 border-b border-blue-100">
+            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-2">Water Supply Status</p>
+            <Tabs value={waterSupplyStatus} onValueChange={(v) => { setWaterSupplyStatus(v); setPage(1); }}>
+              <TabsList className="h-8 p-0.5 bg-white border border-blue-200 gap-0.5">
+                <TabsTrigger value="All" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white">All</TabsTrigger>
+                <TabsTrigger value="Full" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Fully Operational</TabsTrigger>
+                <TabsTrigger value="Partial" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partially Operational</TabsTrigger>
+                <TabsTrigger value="No" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-red-500 data-[state=active]:text-white">Not Operational</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+        )}
+
+        {/* Geographical Filters */}
+        <div className="px-4 py-3 border-b border-slate-100">
+          <GeographicalFilters
+            filters={filterOptions}
+            selectedRegion={selectedRegion}
+            selectedCircle={selectedCircle}
+            selectedDivision={selectedDivision}
+            selectedSubdivision={selectedSubdivision}
+            selectedBlock={selectedBlock}
+            onRegionChange={handleRegionChange}
+            onCircleChange={handleCircleChange}
+            onDivisionChange={handleDivisionChange}
+            onSubdivisionChange={handleSubdivisionChange}
+            onBlockChange={handleBlockChange}
+          />
+        </div>
+
+        {/* Search and Actions Row */}
+        <div className="px-4 py-4">
+          <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-end">
           {/* Search ESRs */}
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
               Search ESRs
             </label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 text-gray-400 -translate-y-1/2" />
               <Input
                 placeholder="Search by scheme, village or ESR name..."
-                className="pl-9 pr-10 py-2 border-blue-200 focus:ring-blue-500 focus:border-blue-500 h-11"
+                className="pl-9 pr-10 py-2 border-slate-200 h-9"
                 value={searchQuery}
                 onChange={(e) => {
                   const newValue = e.target.value;
@@ -1810,7 +1840,7 @@ const ChlorineDashboard: React.FC = () => {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-2 md:self-end">
+          <div className="flex gap-2 shrink-0">
             <Button
               onClick={() =>
                 exportToExcel(
@@ -1819,7 +1849,7 @@ const ChlorineDashboard: React.FC = () => {
                 )
               }
               variant="outline"
-              className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100 gap-2 h-11 px-4"
+              className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100 gap-2 h-9 px-3"
               data-testid="button-export-excel"
             >
               <Download className="h-4 w-4" />
@@ -1830,7 +1860,7 @@ const ChlorineDashboard: React.FC = () => {
             <Button
               onClick={() => setShowHistoricalData(!showHistoricalData)}
               variant={showHistoricalData ? "default" : "outline"}
-              className="flex items-center gap-2 h-11 px-4"
+              className="flex items-center gap-2 h-9 px-3"
               data-testid="button-historical-data"
             >
               <History className="h-4 w-4" />
@@ -1842,7 +1872,7 @@ const ChlorineDashboard: React.FC = () => {
             <Button
               onClick={() => refetch()}
               variant="outline"
-              className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 gap-2 h-11 px-4"
+              className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 gap-2 h-9 px-3"
               data-testid="button-refresh-data"
             >
               <RefreshCw className="h-4 w-4" />
@@ -1850,6 +1880,7 @@ const ChlorineDashboard: React.FC = () => {
               <span className="sm:hidden">Refresh</span>
             </Button>
           </div>
+        </div>
         </div>
 
         {/* Historical Data Date Selection */}
