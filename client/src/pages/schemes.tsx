@@ -718,32 +718,18 @@ export default function Schemes() {
         </div>
       </div>
 
-      <GeographicalFilters
-        filters={filterOptions}
-        selectedRegion={selectedRegion}
-        selectedCircle={selectedCircle}
-        selectedDivision={selectedDivision}
-        selectedSubdivision={selectedSubdivision}
-        selectedBlock={selectedBlock}
-        onRegionChange={handleRegionChange}
-        onCircleChange={handleCircleChange}
-        onDivisionChange={handleDivisionChange}
-        onSubdivisionChange={handleSubdivisionChange}
-        onBlockChange={handleBlockChange}
-      />
-
       {/* Unified Filter Panel */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm mt-4 mb-6 overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
         {/* Agency Type Row */}
-        <div className="px-4 pt-4 pb-3 border-b border-gray-100 dark:border-gray-700">
+        <div className="px-4 pt-4 pb-3 border-b border-slate-100">
           <AgencyTypeFilter
             selectedAgencyType={selectedAgencyType}
             onAgencyTypeChange={setSelectedAgencyType}
           />
         </div>
 
-        {/* Water Supply Sub-tabs */}
-        <div className="px-4 py-3 bg-blue-50 dark:bg-blue-900/20">
+        {/* Water Supply Status Tabs */}
+        <div className="px-4 py-3 bg-blue-50 border-b border-blue-100">
           <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-2">Water Supply Status</p>
           <Tabs value={waterSupplyStatus} onValueChange={setWaterSupplyStatus}>
             <TabsList className="h-8 p-0.5 bg-white border border-blue-200 gap-0.5">
@@ -753,6 +739,23 @@ export default function Schemes() {
               <TabsTrigger value="No" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-red-500 data-[state=active]:text-white">Not Operational</TabsTrigger>
             </TabsList>
           </Tabs>
+        </div>
+
+        {/* Geographical Filters */}
+        <div className="px-4 py-3">
+          <GeographicalFilters
+            filters={filterOptions}
+            selectedRegion={selectedRegion}
+            selectedCircle={selectedCircle}
+            selectedDivision={selectedDivision}
+            selectedSubdivision={selectedSubdivision}
+            selectedBlock={selectedBlock}
+            onRegionChange={handleRegionChange}
+            onCircleChange={handleCircleChange}
+            onDivisionChange={handleDivisionChange}
+            onSubdivisionChange={handleSubdivisionChange}
+            onBlockChange={handleBlockChange}
+          />
         </div>
       </div>
 
