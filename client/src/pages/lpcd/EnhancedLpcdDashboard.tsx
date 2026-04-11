@@ -79,8 +79,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
-import AgencyTypeFilter from "@/components/dashboard/AgencyTypeFilter";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import FilterBar from "@/components/dashboard/FilterBar";
 
@@ -1975,7 +1973,7 @@ const EnhancedLpcdDashboard = () => {
   };
 
   return (
-    <div className="w-full py-6 container mx-auto px-4">
+    <div className="w-full py-6 container mx-auto px-4 flex flex-col gap-6">
       <DashboardPageHeader
         title="LPCD Dashboard"
         subtitle="Monitor water supply and LPCD levels across villages"
@@ -1992,74 +1990,76 @@ const EnhancedLpcdDashboard = () => {
         showCharts={showCharts}
       />
 
-      <FilterBar
-        filterOptions={filterOptions}
-        selectedRegion={selectedRegion}
-        selectedCircle={selectedCircle}
-        selectedDivision={selectedDivision}
-        selectedSubdivision={selectedSubdivision}
-        selectedBlock={selectedBlock}
-        onRegionChange={handleRegionChange}
-        onCircleChange={handleCircleChange}
-        onDivisionChange={handleDivisionChange}
-        onSubdivisionChange={handleSubdivisionChange}
-        onBlockChange={handleBlockChange}
-        selectedAgencyType={selectedAgencyType}
-        onAgencyTypeChange={setSelectedAgencyType}
-        searchQuery={searchQuery}
-        onSearchChange={(v) => { setSearchQuery(v); setPage(1); }}
-        searchPlaceholder="Search by scheme or village..."
-        resultCount={filteredSchemes.length}
-        resultLabel="schemes"
-        extraFilters={
-          uiSchemeFilter === "commissioned" ? (
+      <div className="w-full">
+        <FilterBar
+          filterOptions={filterOptions}
+          selectedRegion={selectedRegion}
+          selectedCircle={selectedCircle}
+          selectedDivision={selectedDivision}
+          selectedSubdivision={selectedSubdivision}
+          selectedBlock={selectedBlock}
+          onRegionChange={handleRegionChange}
+          onCircleChange={handleCircleChange}
+          onDivisionChange={handleDivisionChange}
+          onSubdivisionChange={handleSubdivisionChange}
+          onBlockChange={handleBlockChange}
+          selectedAgencyType={selectedAgencyType}
+          onAgencyTypeChange={setSelectedAgencyType}
+          searchQuery={searchQuery}
+          onSearchChange={(v) => { setSearchQuery(v); setPage(1); }}
+          searchPlaceholder="Search by scheme or village..."
+          resultCount={filteredSchemes.length}
+          resultLabel="schemes"
+          extraFilters={
+            uiSchemeFilter === "commissioned" ? (
+              <div className="space-y-1 min-w-[120px]">
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider ml-1">Water Supply</p>
+                <Select value={waterSupplyStatus} onValueChange={setWaterSupplyStatus}>
+                  <SelectTrigger className="h-8 text-xs bg-white border-slate-200 px-2">
+                    <SelectValue placeholder="All Water Supply" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[9999]">
+                    <SelectItem value="All">All Water Supply</SelectItem>
+                    <SelectItem value="Full">Full</SelectItem>
+                    <SelectItem value="Partial">Partial</SelectItem>
+                    <SelectItem value="No">No</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : undefined
+          }
+          rightActions={
             <div className="space-y-1 min-w-[120px]">
-              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider ml-1">Water Supply</p>
-              <Select value={waterSupplyStatus} onValueChange={setWaterSupplyStatus}>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider ml-1">IoT Status</p>
+              <Select value={schemeStatusFilter} onValueChange={handleSchemeStatusFilterChange}>
                 <SelectTrigger className="h-8 text-xs bg-white border-slate-200 px-2">
-                  <SelectValue placeholder="All Water Supply" />
+                  <SelectValue placeholder="IoT Status" />
                 </SelectTrigger>
-                <SelectContent className="z-[9999]">
-                  <SelectItem value="All">All Water Supply</SelectItem>
-                  <SelectItem value="Full">Full</SelectItem>
-                  <SelectItem value="Partial">Partial</SelectItem>
-                  <SelectItem value="No">No</SelectItem>
+                <SelectContent>
+                  <SelectItem value="all">All IoT Status</SelectItem>
+                  <SelectItem value="Connected">Connected</SelectItem>
+                  <SelectItem value="Fully Completed">Fully Completed</SelectItem>
+                  <SelectItem value="In Progress">In Progress</SelectItem>
+                  <SelectItem value="Not-Connected">Not Connected</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-          ) : undefined
-        }
-        rightActions={
-          <div className="space-y-1 min-w-[120px]">
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider ml-1">IoT Status</p>
-            <Select value={schemeStatusFilter} onValueChange={handleSchemeStatusFilterChange}>
-              <SelectTrigger className="h-8 text-xs bg-white border-slate-200 px-2">
-                <SelectValue placeholder="IoT Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All IoT Status</SelectItem>
-                <SelectItem value="Connected">Connected</SelectItem>
-                <SelectItem value="Fully Completed">Fully Completed</SelectItem>
-                <SelectItem value="In Progress">In Progress</SelectItem>
-                <SelectItem value="Not-Connected">Not Connected</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        }
-        onClearAll={() => {
-          setSelectedRegion("all");
-          setSelectedCircle("all");
-          setSelectedDivision("all");
-          setSelectedSubdivision("all");
-          setSelectedBlock("all");
-          setCurrentFilter("all");
-          setSearchQuery("");
-          setSelectedAgencyType("ALL");
-          setUiSchemeFilter("all");
-          setWaterSupplyStatus("All");
-          setSchemeStatusFilter("all");
-        }}
-      />
+          }
+          onClearAll={() => {
+            setSelectedRegion("all");
+            setSelectedCircle("all");
+            setSelectedDivision("all");
+            setSelectedSubdivision("all");
+            setSelectedBlock("all");
+            setCurrentFilter("all");
+            setSearchQuery("");
+            setSelectedAgencyType("ALL");
+            setUiSchemeFilter("all");
+            setWaterSupplyStatus("All");
+            setSchemeStatusFilter("all");
+          }}
+        />
+      </div>
 
       {/* Historical Data Date Selection */}
       {
