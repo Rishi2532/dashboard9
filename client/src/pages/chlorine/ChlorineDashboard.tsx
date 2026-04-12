@@ -557,6 +557,48 @@ const ChlorineDashboard: React.FC = () => {
     },
   });
 
+  // Fetch chlorine sensors without water data
+  const { data: noWaterSensorsData } = useQuery<{
+    totalNoWaterSensors: number;
+    noWaterSensors: Array<{
+      region: string;
+      circle: string;
+      division: string;
+      sub_division: string;
+      block: string;
+      scheme_id: string;
+      scheme_name: string;
+      village_name: string;
+      esr_name: string;
+      water_date_day7: string | null;
+      water_value_day7: number | null;
+      chlorine_connected: string | null;
+    }>;
+  }>({
+    queryKey: ["/api/chlorine/no-water-sensors", selectedRegion, selectedAgencyType],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+
+      if (selectedRegion && selectedRegion !== "all") {
+        params.append("region", selectedRegion);
+      }
+      if (selectedAgencyType !== 'ALL') {
+        params.append("agencyType", selectedAgencyType);
+      }
+
+      const queryString = params.toString();
+      const url = `/api/chlorine/no-water-sensors${queryString ? `?${queryString}` : ""}`;
+
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error("Failed to fetch chlorine sensors without water");
+      }
+
+      const result = await response.json();
+      return result.data;
+    },
+  });
+
   // Fetch historical chlorine data when dates change
   const {
     data: historicalChlorineData = [],
@@ -849,6 +891,9 @@ const ChlorineDashboard: React.FC = () => {
     waterSupplyStatus,
     schemeStatusFilter,
     schemeStatusMap,
+    sensorStatusFilter,
+    communicationStatusData,
+    noWaterSensorsData,
     withWaterSensorsData,
   ]);
 
@@ -1397,6 +1442,7 @@ const ChlorineDashboard: React.FC = () => {
       // Apply the new filter
       // Clear range selections in both sections
       setSelectedWithWaterFilter("all");
+      setSelectedWithoutWaterFilter("all");
       setSelectedCardFilter("all");
 
       // Set sensor status filter to show only the selected water status
