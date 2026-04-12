@@ -2104,14 +2104,15 @@ const EnhancedLpcdDashboard = () => {
             <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block animate-pulse" />
             Live Data Feed
           </div>
-          <div className="flex items-center gap-2">
-            <Info className="h-3 w-3 text-blue-400 flex-shrink-0" />
-            <span className="text-[10px] text-slate-500">Data represents</span>
-            <span className="inline-flex items-center gap-1.5 bg-blue-600 text-white font-bold text-xs px-3 py-1 rounded-full shadow-md ring-2 ring-blue-300">
-              <span className="text-sm leading-none">{qualifyingSchemeCount}</span>
-              <span className="text-[10px] font-semibold tracking-wide uppercase opacity-90">Schemes</span>
+          <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 shadow-sm">
+            <Info className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
+            <span className="text-xs font-medium text-blue-800">
+              The data corresponds to{" "}
+              <span className="inline-flex items-center justify-center bg-blue-600 text-white font-bold text-xs px-2 py-0.5 rounded-full mx-0.5 shadow-sm">
+                {qualifyingSchemeCount}
+              </span>{" "}
+              schemes where civil work is 100% complete.
             </span>
-            <span className="text-[10px] text-slate-500">with water supply &amp; IoT active / in-progress</span>
           </div>
           <div className="text-[10px] font-medium text-slate-600">
             Showing <span className="text-blue-600 font-bold">{filteredSchemes.length.toLocaleString()}</span> schemes
