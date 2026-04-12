@@ -64,6 +64,7 @@ import {
   TrendingUp,
   Wifi,
   WifiOff,
+  Info,
   Zap,
   Power,
 } from "lucide-react";
@@ -689,6 +690,17 @@ const ChlorineDashboard: React.FC = () => {
       });
     }
     return map;
+  }, [schemeStatusData]);
+
+  // Count schemes where civil work is done (water_supply=Yes) AND IoT is active/in-progress
+  const qualifyingSchemeCount = useMemo(() => {
+    if (!schemeStatusData || schemeStatusData.length === 0) return 0;
+    const validStatuses = ["fully completed", "completed", "in progress"];
+    return schemeStatusData.filter(
+      (s) =>
+        s.water_supply === "Yes" &&
+        validStatuses.includes(String(s.fully_completion_scheme_status || "").toLowerCase())
+    ).length;
   }, [schemeStatusData]);
 
   // Apply global filters to data for both cards and table
@@ -1865,6 +1877,22 @@ const ChlorineDashboard: React.FC = () => {
             </Button>
           </div>
         </div>
+        </div>
+
+        {/* Qualifying Schemes Info Footer */}
+        <div className="bg-slate-50 border-t border-slate-100 px-4 py-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+          <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
+            <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block animate-pulse" />
+            Live Data Feed
+          </div>
+          <div className="flex items-center gap-1.5 flex-1">
+            <Info className="h-3 w-3 text-blue-400 flex-shrink-0" />
+            <span className="text-[10px] text-slate-500">
+              Data represents{" "}
+              <span className="font-bold text-blue-600">{qualifyingSchemeCount}</span>{" "}
+              schemes with civil work complete &amp; IoT instrumentation active or in-progress
+            </span>
+          </div>
         </div>
 
         {/* Historical Data Date Selection */}

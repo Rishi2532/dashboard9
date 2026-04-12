@@ -62,6 +62,7 @@ import {
   TrendingUp,
   AlertCircle,
   MapPin,
+  Info,
 } from "lucide-react";
 import {
   Dialog,
@@ -600,6 +601,17 @@ const EnhancedLpcdDashboard = () => {
         return data;
       },
     });
+
+  // Count schemes where civil work is done (water_supply=Yes) AND IoT is active/in-progress
+  const qualifyingSchemeCount = useMemo(() => {
+    if (!schemeStatusData || schemeStatusData.length === 0) return 0;
+    const validStatuses = ["fully completed", "completed", "in progress"];
+    return schemeStatusData.filter(
+      (s) =>
+        s.water_supply === "Yes" &&
+        validStatuses.includes(String(s.fully_completion_scheme_status || "").toLowerCase())
+    ).length;
+  }, [schemeStatusData]);
 
   // Function to count historical records without loading all data
   const countHistoricalRecords = async () => {
@@ -2087,10 +2099,18 @@ const EnhancedLpcdDashboard = () => {
         </div>
 
         {/* Footer */}
-        <div className="bg-slate-50 border-t border-slate-100 px-4 py-1.5 flex justify-between items-center">
+        <div className="bg-slate-50 border-t border-slate-100 px-4 py-2 flex flex-wrap justify-between items-center gap-2">
           <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
             <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block animate-pulse" />
             Live Data Feed
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Info className="h-3 w-3 text-blue-400 flex-shrink-0" />
+            <span className="text-[10px] text-slate-500">
+              Data represents{" "}
+              <span className="font-bold text-blue-600">{qualifyingSchemeCount}</span>{" "}
+              schemes with civil work complete &amp; IoT instrumentation active or in-progress
+            </span>
           </div>
           <div className="text-[10px] font-medium text-slate-600">
             Showing <span className="text-blue-600 font-bold">{filteredSchemes.length.toLocaleString()}</span> schemes
