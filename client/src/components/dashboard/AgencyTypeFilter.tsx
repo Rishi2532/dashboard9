@@ -34,7 +34,7 @@ export default function AgencyTypeFilter({
                     Agency Selection
                 </Label>
             )}
-            <div className="w-full overflow-x-auto pb-1 -mb-1 scrollbar-none">
+            <div className="w-full overflow-visible">
                 <Tabs value={selectedAgencyType} onValueChange={onAgencyTypeChange} className="w-full">
                     <TabsList className="h-8 p-1 inline-flex bg-slate-100/80 dark:bg-slate-800/80 w-auto min-w-max border border-slate-200 dark:border-slate-700">
                         {options.map((option) => (
