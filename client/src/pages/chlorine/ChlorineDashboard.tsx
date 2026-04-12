@@ -957,19 +957,11 @@ const ChlorineDashboard: React.FC = () => {
 
   // Calculate statistics for the "With Water" section
   const calculateWithWaterRangeStats = useMemo(() => {
-    const stats = {
-      total: 0,
-      belowRange: 0,
-      optimal: 0,
-      above: 0,
-      noData: 0,
-      consistentZero: 0,
-    };
-
-    if (!withWaterSensorsData?.withWaterSensors || !globallyFilteredData) {
-      return stats;
+    if (!allChlorineData || !withWaterSensorsData?.withWaterSensors) {
+      return { total: 0, belowRange: 0, optimal: 0, above: 0, noData: 0, consistentZero: 0 };
     }
 
+    // Build a set of location keys for sensors that have water — same as PressureDashboard
     const withWaterLocationKeys = new Set(
       withWaterSensorsData.withWaterSensors.map(
         (sensor: any) =>
@@ -977,33 +969,37 @@ const ChlorineDashboard: React.FC = () => {
       ),
     );
 
-    const filteredWithWater = globallyFilteredData.filter((item) => {
+    let total = 0, belowRange = 0, optimal = 0, above = 0, consistentZero = 0;
+
+    // Iterate over raw allChlorineData (NOT globallyFilteredData) so card numbers
+    // are independent of which card was clicked — matching PressureDashboard behaviour
+    allChlorineData.forEach((item) => {
       const locationKey = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`;
-      return withWaterLocationKeys.has(locationKey);
-    });
+      if (!withWaterLocationKeys.has(locationKey)) return;
 
-    stats.total = filteredWithWater.length;
-
-    filteredWithWater.forEach((item) => {
+      total++;
       const latestValue = getCurrentChlorineValue(item);
 
-      if (latestValue === null) {
-        stats.noData++;
-      } else if (latestValue < 0.2 && latestValue >= 0) {
-        stats.belowRange++;
-      } else if (latestValue >= 0.2 && latestValue <= 0.5) {
-        stats.optimal++;
-      } else if (latestValue > 0.5) {
-        stats.above++;
+      if (latestValue !== null && !isNaN(latestValue)) {
+        if (latestValue < 0.2 && latestValue >= 0) {
+          belowRange++;
+        } else if (latestValue >= 0.2 && latestValue <= 0.5) {
+          optimal++;
+        } else if (latestValue > 0.5) {
+          above++;
+        }
       }
 
       if ((item.number_of_consistent_zero_value_in_chlorine || 0) === 7) {
-        stats.consistentZero++;
+        consistentZero++;
       }
     });
 
-    return stats;
-  }, [withWaterSensorsData, globallyFilteredData, getCurrentChlorineValue]);
+    const sumRanges = belowRange + optimal + above;
+    const noData = Math.max(total - sumRanges, 0);
+
+    return { total, belowRange, optimal, above, noData, consistentZero };
+  }, [allChlorineData, withWaterSensorsData, getCurrentChlorineValue]);
 
 
   // Handler for commissioned status filter changes (legacy, keeping for compatibility if needed elsewhere)
