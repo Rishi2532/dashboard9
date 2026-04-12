@@ -3131,19 +3131,18 @@ const DetailedChlorinePage = () => {
             </div>
 
             {/* Fully Completed Filter Button */}
-            <div className="flex flex-wrap items-center gap-4 mb-6 bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Filter:</span>
-
+            <div className="flex flex-nowrap items-center gap-3 mb-6 bg-white dark:bg-gray-800 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-x-auto">
+              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap flex-shrink-0">Filter:</span>
 
               {(uiSchemeFilter === "commissioned" || uiSchemeFilter === "fully_completed") && (
                 <>
-                  <div className="hidden sm:block h-6 w-px bg-gray-300 dark:bg-gray-600"></div>
-                  <Tabs value={waterSupplyStatus} onValueChange={setWaterSupplyStatus} className="m-0">
-                    <TabsList className="h-10 bg-gray-100 dark:bg-gray-800 p-1 border border-gray-200 dark:border-gray-700">
-                      <TabsTrigger value="All" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-blue-600 data-[state=active]:text-white shadow-sm">All Schemes</TabsTrigger>
-                      <TabsTrigger value="Full" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-emerald-600 data-[state=active]:text-white shadow-sm">Fully Operational</TabsTrigger>
-                      <TabsTrigger value="Partial" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-amber-500 data-[state=active]:text-white shadow-sm">Partially Operational</TabsTrigger>
-                      <TabsTrigger value="No" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-red-500 data-[state=active]:text-white shadow-sm">Not Operational</TabsTrigger>
+                  <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 flex-shrink-0" />
+                  <Tabs value={waterSupplyStatus} onValueChange={setWaterSupplyStatus} className="m-0 flex-shrink-0">
+                    <TabsList className="h-8 bg-gray-100 dark:bg-gray-800 p-0.5 border border-gray-200 dark:border-gray-700">
+                      <TabsTrigger value="All" className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-blue-600 data-[state=active]:text-white whitespace-nowrap">All</TabsTrigger>
+                      <TabsTrigger value="Full" className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-emerald-600 data-[state=active]:text-white whitespace-nowrap">Full</TabsTrigger>
+                      <TabsTrigger value="Partial" className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-amber-500 data-[state=active]:text-white whitespace-nowrap">Partial</TabsTrigger>
+                      <TabsTrigger value="No" className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-red-500 data-[state=active]:text-white whitespace-nowrap">No Supply</TabsTrigger>
                     </TabsList>
                   </Tabs>
                 </>
@@ -3151,19 +3150,22 @@ const DetailedChlorinePage = () => {
 
               {uiSchemeFilter !== "all" && (
                 <>
-                  <div className="hidden sm:block h-6 w-px bg-gray-300 dark:bg-gray-600"></div>
-                  <AgencyTypeFilter
-                    selectedAgencyType={selectedAgencyType}
-                    onAgencyTypeChange={setSelectedAgencyType}
-                  />
+                  <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 flex-shrink-0" />
+                  <div className="flex-shrink-0">
+                    <AgencyTypeFilter
+                      selectedAgencyType={selectedAgencyType}
+                      onAgencyTypeChange={setSelectedAgencyType}
+                      hideLabel={true}
+                    />
+                  </div>
                 </>
               )}
 
-              <div className="flex-1 min-w-[200px] flex justify-end">
+              <div className="ml-auto flex-shrink-0">
                 <Button
                   variant={showDailyData ? "default" : "outline"}
                   onClick={() => setShowDailyData(!showDailyData)}
-                  className={`transition-all shadow-sm ${showDailyData ? "bg-indigo-600 hover:bg-indigo-700" : ""}`}
+                  className={`transition-all shadow-sm whitespace-nowrap ${showDailyData ? "bg-indigo-600 hover:bg-indigo-700" : ""}`}
                 >
                   <Calendar className="mr-2 h-4 w-4" />
                   Daily Data
