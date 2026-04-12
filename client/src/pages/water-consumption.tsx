@@ -75,7 +75,6 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/dashboard/dashboard-layout";
 import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
 import AgencyTypeFilter from "@/components/dashboard/AgencyTypeFilter";
-import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 
 // Define interface for water consumption data
 interface WaterConsumptionRecord {
@@ -137,8 +136,6 @@ type WaterConsumptionFilterType =
   | "no_water_latest"
   | "continuous_water_week"
   | "continuous_no_water_week"
-  | "zero_consumption_week"
-  | "partial_data"
   | "abrupt_consumption"
   | "percentage_0_25"
   | "percentage_25_50"
@@ -238,7 +235,6 @@ const WaterConsumptionPage: React.FC = () => {
     data: allWaterConsumptionData = [],
     isLoading: isLoadingConsumption,
     error: consumptionError,
-    refetch,
   } = useQuery<WaterConsumptionRecord[]>({
     queryKey: [
       "/api/water-consumption",
@@ -772,23 +768,6 @@ const WaterConsumptionPage: React.FC = () => {
             return hasContinuousWaterForWeek(record);
           case "continuous_no_water_week":
             return hasContinuousNoWaterForWeek(record);
-          case "zero_consumption_week":
-            return hasContinuousNoWaterForWeek(record);
-          case "partial_data": {
-            const days = [
-              record.water_value_day1,
-              record.water_value_day2,
-              record.water_value_day3,
-              record.water_value_day4,
-              record.water_value_day5,
-              record.water_value_day6,
-              record.water_value_day7,
-            ];
-            const nonNullCount = days.filter(
-              (v) => v !== null && v !== undefined,
-            ).length;
-            return nonNullCount > 0 && nonNullCount < 7;
-          }
           case "abrupt_consumption":
             return hasAbruptConsumption(record);
           // Percentage-based filters
@@ -933,43 +912,14 @@ const WaterConsumptionPage: React.FC = () => {
       hasContinuousNoWaterForWeek,
     ).length;
     const abruptConsumption = baseData.filter(hasAbruptConsumption).length;
-    const highConsumption = baseData.filter((record) => {
-      const latestValue = getLatestWaterValue(record);
-      const capacity = record.esr_capacity || null;
-      const pct = calculateConsumptionPercentage(latestValue, capacity);
-      return pct !== null && pct > 100;
-    }).length;
-    const partialData = baseData.filter((record) => {
-      const days = [
-        record.water_value_day1,
-        record.water_value_day2,
-        record.water_value_day3,
-        record.water_value_day4,
-        record.water_value_day5,
-        record.water_value_day6,
-        record.water_value_day7,
-      ];
-      const nonNullCount = days.filter(
-        (v) => v !== null && v !== undefined,
-      ).length;
-      return nonNullCount > 0 && nonNullCount < 7;
-    }).length;
-    const zeroConsumptionWeek = baseData.filter(
-      hasContinuousNoWaterForWeek,
-    ).length;
-    const hasWaterLatest = withWaterLatest;
 
     return {
       totalIntegrated,
       withWaterLatest,
-      hasWaterLatest,
       withoutWaterLatest,
       continuousWaterWeek,
       continuousNoWaterWeek,
       abruptConsumption,
-      highConsumption,
-      partialData,
-      zeroConsumptionWeek,
     };
   }, [getGloballyFilteredData]);
 
@@ -1673,1145 +1623,1365 @@ const WaterConsumptionPage: React.FC = () => {
 
   return (
     <DashboardLayout>
-      <div className="container mx-auto p-4">
-        <DashboardPageHeader
-          title="Water Consumption Dashboard"
-          subtitle="Monitor and analyze water consumption data across ESR locations with real-time IoT status tracking"
-          isLoading={isLoadingConsumption}
-          onRefresh={() => refetch()}
-          onExport={() =>
-            exportToExcel(
-              filteredData,
-              `water_consumption_${selectedRegion !== "all" ? selectedRegion : "all_regions"}_${new Date().toISOString().split("T")[0]}`,
-            )
-          }
-          exportCount={filteredData.length}
-          onToggleHistory={() => setShowHistoricalData(!showHistoricalData)}
-          showHistoricalData={showHistoricalData}
-        />
+      <div className="w-full py-6">
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>
+              <TranslatedText>Water Consumption Dashboard</TranslatedText>
+            </CardTitle>
+            <CardDescription>
+              <TranslatedText>
+                Monitor and analyze water consumption data across ESR locations
+                with real-time IoT status tracking
+              </TranslatedText>
+            </CardDescription>
+            <p className="text-sm text-blue-600 font-medium mt-2">
+              <TranslatedText>Dashboard Updated</TranslatedText>:{" "}
+              {new Date().toLocaleDateString("en-IN", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}{" "}
+              <TranslatedText>at</TranslatedText>{" "}
+              {new Date().toLocaleTimeString("en-IN", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </p>
+          </CardHeader>
+          <CardContent>
+            {/* ESR Metrics Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+              {/* Total ESR Integrated */}
+              <Card
+                className="cursor-pointer hover:shadow-lg transition-all duration-200 relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-blue-50 via-white to-blue-50"
+                onClick={() => handleFilterChange("all")}
+              >
+                <div className="absolute top-0 right-0 w-20 h-20 bg-blue-500/10 rounded-full -mr-10 -mt-10"></div>
+                <CardContent className="p-4 text-center relative">
+                  <div className="p-2 bg-blue-500/10 rounded-lg mx-auto mb-2 w-fit">
+                    <BarChart3 className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div className="text-2xl font-bold text-blue-600">
+                    {cardMetrics.totalIntegrated}
+                  </div>
+                  <div className="text-blue-900 text-sm font-medium">
+                    Total ESR
+                  </div>
+                  <div className="text-blue-700 text-xs">Integrated</div>
+                </CardContent>
+              </Card>
 
-        {/* ESR Metrics Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-          {/* Card 1 */}
-          <Card
-            className="cursor-pointer hover:shadow-lg transition-all duration-200 relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-blue-50 via-white to-blue-50"
-            onClick={() => handleFilterChange("all")}
-          >
-            <div className="absolute top-0 right-0 w-20 h-20 bg-blue-500/10 rounded-full -mr-10 -mt-10"></div>
-            <CardContent className="p-4 text-center relative">
-              <div className="p-2 bg-blue-500/10 rounded-lg mx-auto mb-2 w-fit">
-                <BarChart3 className="w-5 h-5 text-blue-600" />
-              </div>
-              <div className="text-2xl font-bold text-blue-600">
-                {cardMetrics.totalIntegrated}
-              </div>
-              <div className="text-blue-900 text-sm font-medium">Total ESR</div>
-              <div className="text-blue-700 text-xs">Integrated</div>
-            </CardContent>
-          </Card>
+              {/* ESR with Water (Latest Day) */}
+              <Card
+                className="cursor-pointer hover:shadow-lg transition-all duration-200 relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-green-50 via-white to-green-50"
+                onClick={() => handleFilterChange("has_water_latest")}
+              >
+                <div className="absolute top-0 right-0 w-20 h-20 bg-green-500/10 rounded-full -mr-10 -mt-10"></div>
+                <CardContent className="p-4 text-center relative">
+                  <div className="p-2 bg-green-500/10 rounded-lg mx-auto mb-2 w-fit">
+                    <Droplets className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div className="text-2xl font-bold text-green-600">
+                    {cardMetrics.withWaterLatest}
+                  </div>
+                  <div className="text-green-900 text-sm font-medium">
+                    ESR with Water
+                  </div>
+                  {/* <div className="text-green-700 text-xs">Latest Day</div> */}
+                </CardContent>
+              </Card>
 
-          {/* Card 2 */}
-          <Card
-            className="cursor-pointer hover:shadow-lg transition-all duration-200 relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-green-50 via-white to-green-50"
-            onClick={() => handleFilterChange("has_water_latest")}
-          >
-            <div className="absolute top-0 right-0 w-20 h-20 bg-green-500/10 rounded-full -mr-10 -mt-10"></div>
-            <CardContent className="p-4 text-center relative">
-              <div className="p-2 bg-green-500/10 rounded-lg mx-auto mb-2 w-fit">
-                <Waves className="w-5 h-5 text-green-600" />
-              </div>
-              <div className="text-2xl font-bold text-green-600">
-                {cardMetrics.hasWaterLatest}
-              </div>
-              <div className="text-green-900 text-sm font-medium">
-                With Water
-              </div>
-              <div className="text-green-700 text-xs">Latest Consumption</div>
-            </CardContent>
-          </Card>
+              {/* ESR without Water (Latest Day) */}
+              <Card
+                className="cursor-pointer hover:shadow-lg transition-all duration-200 relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-red-50 via-white to-red-50"
+                onClick={() => handleFilterChange("no_water_latest")}
+              >
+                <div className="absolute top-0 right-0 w-20 h-20 bg-red-500/10 rounded-full -mr-10 -mt-10"></div>
+                <CardContent className="p-4 text-center relative">
+                  <div className="p-2 bg-red-500/10 rounded-lg mx-auto mb-2 w-fit">
+                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                  </div>
+                  <div className="text-2xl font-bold text-red-600">
+                    {cardMetrics.withoutWaterLatest}
+                  </div>
+                  <div className="text-red-900 text-sm font-medium">
+                    ESR with no Water
+                  </div>
+                  {/* <div className="text-red-700 text-xs">Latest Day</div> */}
+                </CardContent>
+              </Card>
 
-          {/* Card 3 */}
-          <Card
-            className="cursor-pointer hover:shadow-lg transition-all duration-200 relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-red-50 via-white to-red-50"
-            onClick={() => handleFilterChange("high_consumption")}
-          >
-            <div className="absolute top-0 right-0 w-20 h-20 bg-red-500/10 rounded-full -mr-10 -mt-10"></div>
-            <CardContent className="p-4 text-center relative">
-              <div className="p-2 bg-red-500/10 rounded-lg mx-auto mb-2 w-fit">
-                <Gauge className="w-5 h-5 text-red-600" />
-              </div>
-              <div className="text-2xl font-bold text-red-600">
-                {cardMetrics.highConsumption}
-              </div>
-              <div className="text-red-900 text-sm font-medium">High</div>
-              <div className="text-red-700 text-xs">
-                Water Consumption &gt;ESR Capacity
-              </div>
-            </CardContent>
-          </Card>
+              {/* Continuous Water Supply (Week) */}
+              <Card
+                className="cursor-pointer hover:shadow-lg transition-all duration-200 relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-teal-50 via-white to-teal-50"
+                onClick={() => handleFilterChange("continuous_water_week")}
+              >
+                <div className="absolute top-0 right-0 w-20 h-20 bg-teal-500/10 rounded-full -mr-10 -mt-10"></div>
+                <CardContent className="p-4 text-center relative">
+                  <div className="p-2 bg-teal-500/10 rounded-lg mx-auto mb-2 w-fit">
+                    <Waves className="w-5 h-5 text-teal-600" />
+                  </div>
+                  <div className="text-2xl font-bold text-teal-600">
+                    {cardMetrics.continuousWaterWeek}
+                  </div>
+                  <div className="text-teal-900 text-sm font-medium">
+                    Consisten Water Supply{" "}
+                  </div>
+                  <div className="text-teal-700 text-xs">For a Week</div>
+                </CardContent>
+              </Card>
 
-          {/* Card 4 */}
-          <Card
-            className="cursor-pointer hover:shadow-lg transition-all duration-200 relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-yellow-50 via-white to-yellow-50"
-            onClick={() => handleFilterChange("partial_data")}
-          >
-            <div className="absolute top-0 right-0 w-20 h-20 bg-yellow-500/10 rounded-full -mr-10 -mt-10"></div>
-            <CardContent className="p-4 text-center relative">
-              <div className="p-2 bg-yellow-500/10 rounded-lg mx-auto mb-2 w-fit">
-                <AlertCircle className="w-5 h-5 text-yellow-600" />
-              </div>
-              <div className="text-2xl font-bold text-yellow-600">
-                {cardMetrics.partialData}
-              </div>
-              <div className="text-yellow-900 text-sm font-medium">
-                Incomplete
-              </div>
-              <div className="text-yellow-700 text-xs">
-                Data Missing &lt;7 Days
-              </div>
-            </CardContent>
-          </Card>
+              {/* Continuous No Water (Week) */}
+              <Card
+                className="cursor-pointer hover:shadow-lg transition-all duration-200 relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-orange-50 via-white to-orange-50"
+                onClick={() => handleFilterChange("continuous_no_water_week")}
+              >
+                <div className="absolute top-0 right-0 w-20 h-20 bg-orange-500/10 rounded-full -mr-10 -mt-10"></div>
+                <CardContent className="p-4 text-center relative">
+                  <div className="p-2 bg-orange-500/10 rounded-lg mx-auto mb-2 w-fit">
+                    <Ban className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <div className="text-2xl font-bold text-orange-600">
+                    {cardMetrics.continuousNoWaterWeek}
+                  </div>
+                  <div className="text-orange-900 text-sm font-medium">
+                    {" "}
+                    Consistent Zero Water Suppy
+                  </div>
+                  <div className="text-orange-700 text-xs">For a Week</div>
+                </CardContent>
+              </Card>
 
-          {/* Card 5 */}
-          <Card
-            className="cursor-pointer hover:shadow-lg transition-all duration-200 relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-orange-50 via-white to-orange-50"
-            onClick={() => handleFilterChange("zero_consumption_week")}
-          >
-            <div className="absolute top-0 right-0 w-20 h-20 bg-orange-500/10 rounded-full -mr-10 -mt-10"></div>
-            <CardContent className="p-4 text-center relative">
-              <div className="p-2 bg-orange-500/10 rounded-lg mx-auto mb-2 w-fit">
-                <Ban className="w-5 h-5 text-orange-600" />
-              </div>
-              <div className="text-2xl font-bold text-orange-600">
-                {cardMetrics.zeroConsumptionWeek}
-              </div>
-              <div className="text-orange-900 text-sm font-medium">
-                No Supply
-              </div>
-              <div className="text-orange-700 text-xs">
-                Zero Water for 7 Days
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Card 6 */}
-          <Card
-            className="cursor-pointer hover:shadow-lg transition-all duration-200 relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-purple-50 via-white to-purple-50"
-            onClick={() => handleFilterChange("abrupt_consumption")}
-          >
-            <div className="absolute top-0 right-0 w-20 h-20 bg-purple-500/10 rounded-full -mr-10 -mt-10"></div>
-            <CardContent className="p-4 text-center relative">
-              <div className="p-2 bg-purple-500/10 rounded-lg mx-auto mb-2 w-fit">
-                <Gauge className="w-5 h-5 text-purple-600" />
-              </div>
-              <div className="text-2xl font-bold text-purple-600">
-                {cardMetrics.abruptConsumption}
-              </div>
-              <div className="text-purple-900 text-sm font-medium">Abrupt</div>
-              <div className="text-purple-700 text-xs">
-                water Consumption &gt;1000% of ESR Capacity
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Unified Filter Panel */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
-          {/* Geographical Filters */}
-          <div className="px-4 pt-4 pb-3 border-b border-slate-100">
-            <GeographicalFilters
-              filters={filterOptions}
-              selectedRegion={selectedRegion}
-              selectedCircle={selectedCircle}
-              selectedDivision={selectedDivision}
-              selectedSubdivision={selectedSubdivision}
-              selectedBlock={selectedBlock}
-              onRegionChange={handleRegionChange}
-              onCircleChange={handleCircleChange}
-              onDivisionChange={handleDivisionChange}
-              onSubdivisionChange={handleSubdivisionChange}
-              onBlockChange={handleBlockChange}
-            />
-          </div>
-
-          {/* Agency Type + Water Supply Status on one line */}
-          <div className="px-4 py-3 bg-blue-50 border-b border-blue-100 flex flex-wrap gap-x-6 gap-y-3 items-end">
-            <div>
-              <AgencyTypeFilter
-                selectedAgencyType={selectedAgencyType}
-                onAgencyTypeChange={(v) => {
-                  setSelectedAgencyType(v);
-                  setPage(1);
-                }}
-              />
+              {/* Abrupt Consumption (>1000%) */}
+              <Card
+                className="cursor-pointer hover:shadow-lg transition-all duration-200 relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-purple-50 via-white to-purple-50"
+                onClick={() => handleFilterChange("abrupt_consumption")}
+              >
+                <div className="absolute top-0 right-0 w-20 h-20 bg-purple-500/10 rounded-full -mr-10 -mt-10"></div>
+                <CardContent className="p-4 text-center relative">
+                  <div className="p-2 bg-purple-500/10 rounded-lg mx-auto mb-2 w-fit">
+                    <Gauge className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div className="text-2xl font-bold text-purple-600">
+                    {cardMetrics.abruptConsumption}
+                  </div>
+                  <div className="text-purple-900 text-sm font-medium">
+                    Abrupt
+                  </div>
+                  <div className="text-purple-700 text-xs">
+                    water Consumption &gt;1000% of ESR Capacity
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-            <div>
-              <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-2">Water Supply Status</p>
-              <Tabs value={waterSupplyStatus} onValueChange={(v) => { handleWaterSupplyStatusChange(v); }}>
-                <TabsList className="h-8 p-0.5 bg-white border border-blue-200 gap-0.5">
-                  <TabsTrigger value="All" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white">All</TabsTrigger>
-                  <TabsTrigger value="Full" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Fully Operational</TabsTrigger>
-                  <TabsTrigger value="Partial" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partially Operational</TabsTrigger>
-                  <TabsTrigger value="No" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-red-500 data-[state=active]:text-white">Not Operational</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
-          </div>
 
-          {/* Search + IoT Status + Clear All */}
-          <div className="px-4 py-3 flex flex-col sm:flex-row gap-3 items-start sm:items-end">
-            <div className="relative flex-1 min-w-0">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search</p>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input
-                  type="search"
-                  placeholder="Search by ESR, village or scheme..."
-                  value={searchTerm}
-                  onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
-                  className="border-slate-200 bg-white pl-9 w-full"
+            {/* Unified Filter Panel */}
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
+              {/* Row 1: Geographical Filters */}
+              <div className="px-4 pt-4 pb-3 border-b border-slate-100">
+                <GeographicalFilters
+                  selectedRegion={selectedRegion}
+                  selectedCircle={selectedCircle}
+                  selectedDivision={selectedDivision}
+                  selectedSubdivision={selectedSubdivision}
+                  selectedBlock={selectedBlock}
+                  onRegionChange={handleRegionChange}
+                  onCircleChange={handleCircleChange}
+                  onDivisionChange={handleDivisionChange}
+                  onSubdivisionChange={handleSubdivisionChange}
+                  onBlockChange={handleBlockChange}
+                  filters={filterOptions}
                 />
               </div>
-            </div>
-            <div className="w-full sm:w-52">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">IoT Status</p>
-              <Select value={iotStatus} onValueChange={(val) => { setIotStatus(val); setPage(1); }}>
-                <SelectTrigger className="border-slate-200 bg-white h-9">
-                  <SelectValue placeholder="All Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All IoT Status</SelectItem>
-                  <SelectItem value="Connected">Connected</SelectItem>
-                  <SelectItem value="Not-Connected">Not Connected</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 text-xs border-slate-200 text-slate-500 hover:text-slate-700 self-end"
-              onClick={() => {
-                setSelectedRegion("all");
-                setSelectedCircle("all");
-                setSelectedDivision("all");
-                setSelectedSubdivision("all");
-                setSelectedBlock("all");
-                setSearchTerm("");
-                setSelectedAgencyType("ALL");
-                setIotStatus("all");
-                handleWaterSupplyStatusChange("All");
-                handleFilterChange("all");
-              }}
-            >
-              Clear All
-            </Button>
-          </div>
-        </div>
 
-        {/* Historical Data Date Selection */}
-        {showHistoricalData && (
-          <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-blue-600" />
-                <span className="text-sm font-medium text-blue-700">
-                  Select Date Range for Historical Water Consumption Data
-                </span>
-              </div>
-
-              <div className="text-sm text-blue-600 bg-blue-100 px-3 py-2 rounded border border-blue-300">
-                💡 <span className="font-medium">Quick Tip:</span> Select your
-                date range and click "Export to Excel" to download any range of
-                historical data - the system will automatically query and
-                download the data for you!
-              </div>
-            </div>
-
-            <div className="flex flex-col md:flex-row gap-4 items-center mt-3">
-              <div className="hidden md:block w-full md:w-auto"></div>
-
-              <div className="flex flex-col md:flex-row gap-4 items-center">
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs text-gray-600">Start Date</label>
-                  <Input
-                    type="date"
-                    value={historicalStartDate}
-                    onChange={(e) => setHistoricalStartDate(e.target.value)}
-                    className="w-[160px]"
-                    data-testid="input-historical-start-date"
+              {/* Row 2: Agency Selection + Water Supply Status */}
+              <div className="px-4 py-3 bg-blue-50 border-b border-blue-100 flex flex-wrap gap-x-6 gap-y-3 items-end">
+                <div>
+                  <AgencyTypeFilter
+                    selectedAgencyType={selectedAgencyType}
+                    onAgencyTypeChange={(value) => {
+                      setSelectedAgencyType(value);
+                      setPage(1);
+                    }}
                   />
                 </div>
+                {uiSchemeFilter === "commissioned" && (
+                  <div>
+                    <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-2">Water Supply Status</p>
+                    <Tabs value={waterSupplyStatus} onValueChange={(v) => { handleWaterSupplyStatusChange(v); }}>
+                      <TabsList className="h-8 p-0.5 bg-white border border-blue-200 gap-0.5">
+                        <TabsTrigger value="All" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white">All</TabsTrigger>
+                        <TabsTrigger value="Full" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Fully Operational</TabsTrigger>
+                        <TabsTrigger value="Partial" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partially Operational</TabsTrigger>
+                        <TabsTrigger value="No" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-red-500 data-[state=active]:text-white">Not Operational</TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                  </div>
+                )}
+              </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs text-gray-600">End Date</label>
-                  <Input
-                    type="date"
-                    value={historicalEndDate}
-                    onChange={(e) => setHistoricalEndDate(e.target.value)}
-                    className="w-[160px]"
-                    data-testid="input-historical-end-date"
-                  />
+              {/* Row 3: Search + IoT Status + Consumption Filter + Clear All */}
+              <div className="px-4 py-3 flex flex-col sm:flex-row flex-wrap gap-3 items-end">
+                <div className="relative flex-1 min-w-[180px]">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search</p>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      placeholder="Search schemes, villages, ESRs..."
+                      value={searchTerm}
+                      onChange={(e) => { handleSearchChange(e.target.value); }}
+                      className="border-slate-200 bg-white pl-9 w-full"
+                    />
+                  </div>
+                </div>
+
+                <div className="w-full sm:w-44">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">IoT Status</p>
+                  <Select
+                    value={iotStatus}
+                    onValueChange={(val) => {
+                      setIotStatus(val);
+                      setPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="border-slate-200 bg-white h-9">
+                      <SelectValue placeholder="IoT Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All IoT Status</SelectItem>
+                      <SelectItem value="Fully Completed">Fully Completed</SelectItem>
+                      <SelectItem value="In Progress">In Progress</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="w-full sm:w-auto">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Consumption Filter</p>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="h-9 border-slate-200 bg-white text-slate-600 text-xs gap-1.5">
+                        <Filter className="h-3.5 w-3.5" />
+                        Consumption Filter
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="max-h-[400px] overflow-y-auto">
+                      <DropdownMenuLabel>
+                        Filter by Consumption Percentage
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => handleFilterChange("all")}
+                      >
+                        All ESR Locations
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      {/* Percentage-based filters */}
+                      <DropdownMenuItem
+                        onClick={() => handleFilterChange("percentage_0_25")}
+                      >
+                        0-25% Consumption
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleFilterChange("percentage_25_50")}
+                      >
+                        25-50% Consumption
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleFilterChange("percentage_50_75")}
+                      >
+                        50-75% Consumption
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleFilterChange("percentage_75_100")}
+                      >
+                        75-100% Consumption
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleFilterChange("percentage_100_125")}
+                      >
+                        100-125% Consumption
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleFilterChange("percentage_125_150")}
+                      >
+                        125-150% Consumption
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleFilterChange("percentage_150_200")}
+                      >
+                        150-200% Consumption
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleFilterChange("percentage_200_300")}
+                      >
+                        200-300% Consumption
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleFilterChange("percentage_300_400")}
+                      >
+                        300-400% Consumption
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleFilterChange("percentage_400_500")}
+                      >
+                        400-500% Consumption
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleFilterChange("percentage_500_600")}
+                      >
+                        500-600% Consumption
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleFilterChange("percentage_600_700")}
+                      >
+                        600-700% Consumption
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleFilterChange("percentage_700_800")}
+                      >
+                        700-800% Consumption
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleFilterChange("percentage_800_900")}
+                      >
+                        800-900% Consumption
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          handleFilterChange("percentage_900_1000")
+                        }
+                      >
+                        900-1000% Consumption
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          handleFilterChange("percentage_above_1000")
+                        }
+                      >
+                        &gt;1000% Consumption
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      {/* Original filters */}
+                      <DropdownMenuItem
+                        onClick={() => handleFilterChange("zero_consumption")}
+                      >
+                        Zero Consumption
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleFilterChange("connected")}
+                      >
+                        Flow Meter Connected
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleFilterChange("not_connected")}
+                      >
+                        Flow Meter Not Connected
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
 
                 <Button
-                  onClick={exportHistoricalData}
-                  variant="default"
+                  variant="outline"
                   size="sm"
-                  className={`flex items-center gap-2 mt-4 md:mt-0 transition-all ${
-                    historicalRecordCount > 0
-                      ? "bg-green-600 hover:bg-green-700 shadow-lg scale-105"
-                      : "bg-blue-600 hover:bg-blue-700"
-                  }`}
-                  disabled={
-                    isCountingRecords ||
-                    isExportingHistorical ||
-                    !historicalStartDate ||
-                    !historicalEndDate
-                  }
-                  data-testid="button-export-historical"
+                  className="h-9 text-xs border-slate-200 text-slate-500 hover:text-slate-700 self-end"
+                  onClick={() => {
+                    setSelectedRegion("all");
+                    setSelectedCircle("all");
+                    setSelectedDivision("all");
+                    setSelectedSubdivision("all");
+                    setSelectedBlock("all");
+                    setSearchTerm("");
+                    setSelectedAgencyType("ALL");
+                    setIotStatus("all");
+                    handleWaterSupplyStatusChange("All");
+                    handleFilterChange("all");
+                    setPage(1);
+                  }}
                 >
-                  {isExportingHistorical || isCountingRecords ? (
-                    <Download className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Download className="h-4 w-4" />
-                  )}
-                  {isCountingRecords
-                    ? "Counting..."
-                    : isExportingHistorical
-                      ? "Exporting..."
-                      : "Export to Excel"}
-                  {!isCountingRecords &&
-                    !isExportingHistorical &&
-                    historicalRecordCount > 0 && (
-                      <span className="ml-1 font-bold text-white">
-                        ({historicalRecordCount.toLocaleString()})
-                      </span>
-                    )}
+                  Clear All
                 </Button>
               </div>
             </div>
 
-            {isCountingRecords && (
-              <div className="mt-3 text-sm text-blue-700 flex items-center gap-2">
-                <Download className="h-4 w-4 animate-spin" />
-                Counting historical records...
+            <div className="flex gap-2 mb-6">
+                {/* Excel Export Dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                    >
+                      <FileSpreadsheet className="mr-2 h-4 w-4" />
+                      Export Excel
+                      <ChevronDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuLabel>Export Options</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() =>
+                        exportToExcel(
+                          filteredData,
+                          `Water_Consumption_${currentFilter}_${selectedRegion}_${
+                            new Date().toISOString().split("T")[0]
+                          }`,
+                        )
+                      }
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Export Filtered Data
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() =>
+                        exportToExcel(
+                          allWaterConsumptionData,
+                          `Water_Consumption_All_ESR_${
+                            new Date().toISOString().split("T")[0]
+                          }`,
+                        )
+                      }
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Export All ESR Locations
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                {/* Historical Data Button */}
+                <Button
+                  onClick={() => setShowHistoricalData(!showHistoricalData)}
+                  variant="outline"
+                  className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                  data-testid="button-toggle-historical"
+                >
+                  <Calendar className="mr-2 h-4 w-4" />
+                  Historical Data
+                </Button>
               </div>
-            )}
 
-            {!isCountingRecords &&
-              historicalRecordCount > 0 &&
-              lastQueriedDates && (
-                <div className="mt-3 text-sm bg-green-50 p-3 rounded-lg border border-green-300">
-                  <span className="text-green-700 font-semibold">
-                    ✅ Ready to export {historicalRecordCount.toLocaleString()}{" "}
-                    historical records
-                  </span>
-                  <span className="text-green-600 ml-2">
-                    ({lastQueriedDates.start} to {lastQueriedDates.end})
-                  </span>
-                  <span className="text-green-600 ml-2 block mt-1">
-                    Click the highlighted "Export to Excel" button to download
-                  </span>
-                </div>
-              )}
-
-            {isExportingHistorical && (
-              <div className="mt-3 flex items-center gap-2 text-sm text-orange-700 bg-orange-100 p-3 rounded-lg border border-orange-300">
-                <Download className="h-4 w-4 animate-spin" />
-                <span className="font-semibold">
-                  Preparing download for{" "}
-                  {historicalRecordCount.toLocaleString()} records...
-                </span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Regional Summary Mini-Table - Always Visible */}
-        {regionalSummary.length > 0 && (
-          <div className="mb-6">
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
-              <h3 className="text-lg font-semibold text-blue-800 mb-3 flex items-center">
-                <BarChart3 className="mr-2 h-5 w-5" />
-                Regional Summary -{" "}
-                {currentFilter === "all"
-                  ? "All ESR Locations"
-                  : getFilterDisplayName(currentFilter)}
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-                {regionalSummary.map(({ region, count }) => (
-                  <div
-                    key={region}
-                    className="bg-white rounded-lg p-3 border border-blue-100 shadow-sm hover:shadow-md transition-shadow"
-                  >
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600 mb-1">
-                        {count.toLocaleString()}
-                      </div>
-                      <div className="text-xs font-medium text-gray-600 uppercase tracking-wide">
-                        {region}
-                      </div>
-                    </div>
+            {/* Historical Data Date Selection */}
+            {showHistoricalData && (
+              <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-700">
+                      Select Date Range for Historical Water Consumption Data
+                    </span>
                   </div>
+
+                  <div className="text-sm text-blue-600 bg-blue-100 px-3 py-2 rounded border border-blue-300">
+                    💡 <span className="font-medium">Quick Tip:</span> Select
+                    your date range and click "Export to Excel" to download any
+                    range of historical data - the system will automatically
+                    query and download the data for you!
+                  </div>
+                </div>
+
+                <div className="flex flex-col md:flex-row gap-4 items-center mt-3">
+                  <div className="hidden md:block w-full md:w-auto"></div>
+
+                  <div className="flex flex-col md:flex-row gap-4 items-center">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-gray-600">
+                        Start Date
+                      </label>
+                      <Input
+                        type="date"
+                        value={historicalStartDate}
+                        onChange={(e) => setHistoricalStartDate(e.target.value)}
+                        className="w-[160px]"
+                        data-testid="input-historical-start-date"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-gray-600">End Date</label>
+                      <Input
+                        type="date"
+                        value={historicalEndDate}
+                        onChange={(e) => setHistoricalEndDate(e.target.value)}
+                        className="w-[160px]"
+                        data-testid="input-historical-end-date"
+                      />
+                    </div>
+
+                    <Button
+                      onClick={exportHistoricalData}
+                      variant="default"
+                      size="sm"
+                      className={`flex items-center gap-2 mt-4 md:mt-0 transition-all ${
+                        historicalRecordCount > 0
+                          ? "bg-green-600 hover:bg-green-700 shadow-lg scale-105"
+                          : "bg-blue-600 hover:bg-blue-700"
+                      }`}
+                      disabled={
+                        isCountingRecords ||
+                        isExportingHistorical ||
+                        !historicalStartDate ||
+                        !historicalEndDate
+                      }
+                      data-testid="button-export-historical"
+                    >
+                      {isExportingHistorical || isCountingRecords ? (
+                        <Download className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4" />
+                      )}
+                      {isCountingRecords
+                        ? "Counting..."
+                        : isExportingHistorical
+                          ? "Exporting..."
+                          : "Export to Excel"}
+                      {!isCountingRecords &&
+                        !isExportingHistorical &&
+                        historicalRecordCount > 0 && (
+                          <span className="ml-1 font-bold text-white">
+                            ({historicalRecordCount.toLocaleString()})
+                          </span>
+                        )}
+                    </Button>
+                  </div>
+                </div>
+
+                {isCountingRecords && (
+                  <div className="mt-3 text-sm text-blue-700 flex items-center gap-2">
+                    <Download className="h-4 w-4 animate-spin" />
+                    Counting historical records...
+                  </div>
+                )}
+
+                {!isCountingRecords &&
+                  historicalRecordCount > 0 &&
+                  lastQueriedDates && (
+                    <div className="mt-3 text-sm bg-green-50 p-3 rounded-lg border border-green-300">
+                      <span className="text-green-700 font-semibold">
+                        ✅ Ready to export{" "}
+                        {historicalRecordCount.toLocaleString()} historical
+                        records
+                      </span>
+                      <span className="text-green-600 ml-2">
+                        ({lastQueriedDates.start} to {lastQueriedDates.end})
+                      </span>
+                      <span className="text-green-600 ml-2 block mt-1">
+                        Click the highlighted "Export to Excel" button to
+                        download
+                      </span>
+                    </div>
+                  )}
+
+                {isExportingHistorical && (
+                  <div className="mt-3 flex items-center gap-2 text-sm text-orange-700 bg-orange-100 p-3 rounded-lg border border-orange-300">
+                    <Download className="h-4 w-4 animate-spin" />
+                    <span className="font-semibold">
+                      Preparing download for{" "}
+                      {historicalRecordCount.toLocaleString()} records...
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Regional Summary Mini-Table - Always Visible */}
+            {regionalSummary.length > 0 && (
+              <div className="mb-6">
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+                  <h3 className="text-lg font-semibold text-blue-800 mb-3 flex items-center">
+                    <BarChart3 className="mr-2 h-5 w-5" />
+                    Regional Summary -{" "}
+                    {currentFilter === "all"
+                      ? "All ESR Locations"
+                      : getFilterDisplayName(currentFilter)}
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+                    {regionalSummary.map(({ region, count }) => (
+                      <div
+                        key={region}
+                        className="bg-white rounded-lg p-3 border border-blue-100 shadow-sm hover:shadow-md transition-shadow"
+                      >
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-blue-600 mb-1">
+                            {count.toLocaleString()}
+                          </div>
+                          <div className="text-xs font-medium text-gray-600 uppercase tracking-wide">
+                            {region}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 text-sm text-blue-600 font-medium">
+                    Total ESR Count:{" "}
+                    {regionalSummary
+                      .reduce((sum, item) => sum + item.count, 0)
+                      .toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Data Table Section */}
+            {isLoadingConsumption ? (
+              <div className="space-y-3">
+                {[...Array(5)].map((_, i) => (
+                  <Skeleton key={i} className="w-full h-12" />
                 ))}
               </div>
-              <div className="mt-3 text-sm text-blue-600 font-medium">
-                Total ESR Count:{" "}
-                {regionalSummary
-                  .reduce((sum, item) => sum + item.count, 0)
-                  .toLocaleString()}
-              </div>
-            </div>
-          </div>
-        )}
+            ) : (
+              <>
+                <div className="mb-4 text-sm text-gray-600">
+                  {totalItems === 0
+                    ? "No water consumption data available"
+                    : `Showing ${
+                        startIndex + 1
+                      } to ${endIndex} of ${totalItems} ESR locations`}
+                </div>
 
-        {/* Data Table Section */}
-        {isLoadingConsumption ? (
-          <div className="space-y-3">
-            {[...Array(5)].map((_, i) => (
-              <Skeleton key={i} className="w-full h-12" />
-            ))}
-          </div>
-        ) : (
-          <>
-            <div className="mb-4 text-sm text-gray-600">
-              {totalItems === 0
-                ? "No water consumption data available"
-                : `Showing ${
-                    startIndex + 1
-                  } to ${endIndex} of ${totalItems} ESR locations`}
-            </div>
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    fontFamily: "Poppins, sans-serif",
+                    fontSize: "14px",
+                  }}
+                >
+                  <thead style={{ backgroundColor: "#3b2e7d" }}>
+                    <tr>
+                      <th
+                        scope="col"
+                        style={{
+                          backgroundColor: "#3b2e7d",
+                          color: "white",
+                          textAlign: "left",
+                          padding: "8px",
+                          border: "none",
+                          fontSize: "14px",
+                          fontFamily: "Poppins, sans-serif",
+                          fontWeight: "600",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.025em",
+                          borderRadius: "0",
+                        }}
+                      >
+                        REGION
+                      </th>
+                      <th
+                        scope="col"
+                        style={{
+                          backgroundColor: "#3b2e7d",
+                          color: "white",
+                          textAlign: "left",
+                          padding: "8px",
+                          border: "none",
+                          fontSize: "14px",
+                          fontFamily: "Poppins, sans-serif",
+                          fontWeight: "600",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.025em",
+                          borderRadius: "0",
+                        }}
+                      >
+                        SCHEME
+                      </th>
+                      <th
+                        scope="col"
+                        style={{
+                          backgroundColor: "#3b2e7d",
+                          color: "white",
+                          textAlign: "left",
+                          padding: "8px",
+                          border: "none",
+                          fontSize: "14px",
+                          fontFamily: "Poppins, sans-serif",
+                          fontWeight: "600",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.025em",
+                          borderRadius: "0",
+                        }}
+                      >
+                        VILLAGE
+                      </th>
+                      <th
+                        scope="col"
+                        style={{
+                          backgroundColor: "#3b2e7d",
+                          color: "white",
+                          textAlign: "left",
+                          padding: "8px",
+                          border: "none",
+                          fontSize: "14px",
+                          fontFamily: "Poppins, sans-serif",
+                          fontWeight: "600",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.025em",
+                          borderRadius: "0",
+                        }}
+                      >
+                        ESR NAME
+                      </th>
+                      <th
+                        scope="col"
+                        style={{
+                          backgroundColor: "#3b2e7d",
+                          color: "white",
+                          textAlign: "left",
+                          padding: "8px",
+                          border: "none",
+                          fontSize: "14px",
+                          fontFamily: "Poppins, sans-serif",
+                          fontWeight: "600",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.025em",
+                          borderRadius: "0",
+                        }}
+                      >
+                        CAPACITY (LL)
+                      </th>
+                      <th
+                        scope="col"
+                        style={{
+                          backgroundColor: "#3b2e7d",
+                          color: "white",
+                          textAlign: "left",
+                          padding: "8px",
+                          border: "none",
+                          fontSize: "14px",
+                          fontFamily: "Poppins, sans-serif",
+                          fontWeight: "600",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.025em",
+                          borderRadius: "0",
+                        }}
+                      >
+                        CONSUMPTION (LL)
+                      </th>
+                      <th
+                        scope="col"
+                        style={{
+                          backgroundColor: "#3b2e7d",
+                          color: "white",
+                          textAlign: "left",
+                          padding: "8px",
+                          border: "none",
+                          fontSize: "14px",
+                          fontFamily: "Poppins, sans-serif",
+                          fontWeight: "600",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.025em",
+                          borderRadius: "0",
+                        }}
+                      >
+                        CONSUMPTION %
+                      </th>
+                      <th
+                        scope="col"
+                        style={{
+                          backgroundColor: "#3b2e7d",
+                          color: "white",
+                          textAlign: "left",
+                          padding: "8px",
+                          border: "none",
+                          fontSize: "14px",
+                          fontFamily: "Poppins, sans-serif",
+                          fontWeight: "600",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.025em",
+                          borderRadius: "0",
+                        }}
+                      >
+                        STATUS
+                      </th>
+                      <th
+                        scope="col"
+                        style={{
+                          backgroundColor: "#3b2e7d",
+                          color: "white",
+                          textAlign: "left",
+                          padding: "8px",
+                          border: "none",
+                          fontSize: "14px",
+                          fontFamily: "Poppins, sans-serif",
+                          fontWeight: "600",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.025em",
+                          borderRadius: "0",
+                        }}
+                      >
+                        REMARK
+                      </th>
+                      <th
+                        scope="col"
+                        style={{
+                          backgroundColor: "#3b2e7d",
+                          color: "white",
+                          textAlign: "left",
+                          padding: "8px",
+                          border: "none",
+                          fontSize: "14px",
+                          fontFamily: "Poppins, sans-serif",
+                          fontWeight: "600",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.025em",
+                          borderRadius: "0",
+                        }}
+                      >
+                        ACTION
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {currentPageData.map((record, index) => {
+                      const latestConsumption = getLatestWaterValue(record);
+                      const consumptionPercentage =
+                        calculateConsumptionPercentage(
+                          latestConsumption,
+                          record.esr_capacity || null,
+                        );
 
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontFamily: "Poppins, sans-serif",
-                fontSize: "14px",
-              }}
-            >
-              <thead style={{ backgroundColor: "#3b2e7d" }}>
-                <tr>
-                  <th
-                    scope="col"
-                    style={{
-                      backgroundColor: "#3b2e7d",
-                      color: "white",
-                      textAlign: "left",
-                      padding: "8px",
-                      border: "none",
-                      fontSize: "14px",
-                      fontFamily: "Poppins, sans-serif",
-                      fontWeight: "600",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.025em",
-                      borderRadius: "0",
-                    }}
-                  >
-                    REGION
-                  </th>
-                  <th
-                    scope="col"
-                    style={{
-                      backgroundColor: "#3b2e7d",
-                      color: "white",
-                      textAlign: "left",
-                      padding: "8px",
-                      border: "none",
-                      fontSize: "14px",
-                      fontFamily: "Poppins, sans-serif",
-                      fontWeight: "600",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.025em",
-                      borderRadius: "0",
-                    }}
-                  >
-                    SCHEME
-                  </th>
-                  <th
-                    scope="col"
-                    style={{
-                      backgroundColor: "#3b2e7d",
-                      color: "white",
-                      textAlign: "left",
-                      padding: "8px",
-                      border: "none",
-                      fontSize: "14px",
-                      fontFamily: "Poppins, sans-serif",
-                      fontWeight: "600",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.025em",
-                      borderRadius: "0",
-                    }}
-                  >
-                    VILLAGE
-                  </th>
-                  <th
-                    scope="col"
-                    style={{
-                      backgroundColor: "#3b2e7d",
-                      color: "white",
-                      textAlign: "left",
-                      padding: "8px",
-                      border: "none",
-                      fontSize: "14px",
-                      fontFamily: "Poppins, sans-serif",
-                      fontWeight: "600",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.025em",
-                      borderRadius: "0",
-                    }}
-                  >
-                    ESR NAME
-                  </th>
-                  <th
-                    scope="col"
-                    style={{
-                      backgroundColor: "#3b2e7d",
-                      color: "white",
-                      textAlign: "left",
-                      padding: "8px",
-                      border: "none",
-                      fontSize: "14px",
-                      fontFamily: "Poppins, sans-serif",
-                      fontWeight: "600",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.025em",
-                      borderRadius: "0",
-                    }}
-                  >
-                    CAPACITY (LL)
-                  </th>
-                  <th
-                    scope="col"
-                    style={{
-                      backgroundColor: "#3b2e7d",
-                      color: "white",
-                      textAlign: "left",
-                      padding: "8px",
-                      border: "none",
-                      fontSize: "14px",
-                      fontFamily: "Poppins, sans-serif",
-                      fontWeight: "600",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.025em",
-                      borderRadius: "0",
-                    }}
-                  >
-                    CONSUMPTION (LL)
-                  </th>
-                  <th
-                    scope="col"
-                    style={{
-                      backgroundColor: "#3b2e7d",
-                      color: "white",
-                      textAlign: "left",
-                      padding: "8px",
-                      border: "none",
-                      fontSize: "14px",
-                      fontFamily: "Poppins, sans-serif",
-                      fontWeight: "600",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.025em",
-                      borderRadius: "0",
-                    }}
-                  >
-                    CONSUMPTION %
-                  </th>
-                  <th
-                    scope="col"
-                    style={{
-                      backgroundColor: "#3b2e7d",
-                      color: "white",
-                      textAlign: "left",
-                      padding: "8px",
-                      border: "none",
-                      fontSize: "14px",
-                      fontFamily: "Poppins, sans-serif",
-                      fontWeight: "600",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.025em",
-                      borderRadius: "0",
-                    }}
-                  >
-                    STATUS
-                  </th>
-                  <th
-                    scope="col"
-                    style={{
-                      backgroundColor: "#3b2e7d",
-                      color: "white",
-                      textAlign: "left",
-                      padding: "8px",
-                      border: "none",
-                      fontSize: "14px",
-                      fontFamily: "Poppins, sans-serif",
-                      fontWeight: "600",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.025em",
-                      borderRadius: "0",
-                    }}
-                  >
-                    REMARK
-                  </th>
-                  <th
-                    scope="col"
-                    style={{
-                      backgroundColor: "#3b2e7d",
-                      color: "white",
-                      textAlign: "left",
-                      padding: "8px",
-                      border: "none",
-                      fontSize: "14px",
-                      fontFamily: "Poppins, sans-serif",
-                      fontWeight: "600",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.025em",
-                      borderRadius: "0",
-                    }}
-                  >
-                    ACTION
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentPageData.map((record, index) => {
-                  const latestConsumption = getLatestWaterValue(record);
-                  const consumptionPercentage = calculateConsumptionPercentage(
-                    latestConsumption,
-                    record.esr_capacity || null,
-                  );
+                      // Check for active issues
+                      // Check for active issues
+                      // User Request: Only show ESR level issues on Water Consumption page
+                      const allIssues =
+                        esrIssuesMap.get(
+                          `${record.scheme_id}-${record.village_name}-${record.esr_name}`,
+                        ) || [];
+                      const hasIssue = allIssues.length > 0;
 
-                  // Check for active issues
-                  // Check for active issues
-                  // User Request: Only show ESR level issues on Water Consumption page
-                  const allIssues =
-                    esrIssuesMap.get(
-                      `${record.scheme_id}-${record.village_name}-${record.esr_name}`,
-                    ) || [];
-                  const hasIssue = allIssues.length > 0;
-
-                  return (
-                    <tr
-                      key={`${record.scheme_id}-${record.esr_name}-${index}`}
-                      style={{
-                        backgroundColor: hasIssue ? "#fef2f2" : "white", // Red-50 if issue
-                        borderLeft: hasIssue ? "4px solid #ef4444" : "none", // Red border if issue
-                        transition: "all 0.2s",
-                      }}
-                      className={hasIssue ? "hover:bg-red-100/50" : ""}
-                    >
-                      <td
-                        style={{
-                          textAlign: "left",
-                          padding: "8px",
-                          borderBottom: "1px solid #e5e7eb",
-                          backgroundColor: "white",
-                          fontSize: "14px",
-                          fontFamily: "Poppins, sans-serif",
-                          borderRadius: "0",
-                        }}
-                      >
-                        {record.region || "N/A"}
-                      </td>
-                      <td
-                        style={{
-                          textAlign: "left",
-                          padding: "8px",
-                          borderBottom: "1px solid #e5e7eb",
-                          backgroundColor: "white",
-                          fontSize: "14px",
-                          fontFamily: "Poppins, sans-serif",
-                          borderRadius: "0",
-                        }}
-                      >
-                        {record.scheme_name || "N/A"}
-                      </td>
-                      <td
-                        style={{
-                          textAlign: "left",
-                          padding: "8px",
-                          borderBottom: "1px solid #e5e7eb",
-                          backgroundColor: "white",
-                          fontSize: "14px",
-                          fontFamily: "Poppins, sans-serif",
-                          borderRadius: "0",
-                        }}
-                      >
-                        {record.village_name || "N/A"}
-                      </td>
-                      <td
-                        style={{
-                          textAlign: "left",
-                          padding: "8px",
-                          borderBottom: "1px solid #e5e7eb",
-                          fontSize: "14px",
-                          fontFamily: "Poppins, sans-serif",
-                          fontWeight: "500",
-                          borderRadius: "0",
-                        }}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span>{record.esr_name || "N/A"}</span>
-                          {hasIssue && (
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6 p-0 hover:bg-red-100 rounded-full"
-                                >
-                                  <AlertCircle className="h-5 w-5 text-red-600 animate-pulse cursor-pointer" />
-                                  <span className="sr-only">View Issues</span>
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent
-                                className="w-80 p-0 border-red-200 shadow-xl"
-                                collisionPadding={16}
-                              >
-                                <div className="bg-red-50 px-4 py-3 border-b border-red-100 rounded-t-lg">
-                                  <h4 className="font-semibold text-red-900 flex items-center gap-2">
-                                    <AlertCircle className="h-4 w-4" />
-                                    Reported Issues
-                                  </h4>
-                                </div>
-                                <div className="p-4 max-h-[300px] overflow-y-auto">
-                                  <ul className="space-y-3">
-                                    {allIssues.map((issue: any) => (
-                                      <li
-                                        key={issue.id}
-                                        className="text-sm bg-white p-3 rounded-md border border-red-100 shadow-sm"
-                                      >
-                                        <div className="font-medium text-gray-900 mb-1">
-                                          {issue.esr_name ? (
-                                            <Badge
-                                              variant="outline"
-                                              className="mr-2 border-purple-200 text-purple-700 bg-purple-50"
-                                            >
-                                              ESR
-                                            </Badge>
-                                          ) : issue.village_name ? (
-                                            <Badge
-                                              variant="outline"
-                                              className="mr-2 border-red-200 text-red-700 bg-red-50"
-                                            >
-                                              Village
-                                            </Badge>
-                                          ) : (
-                                            <Badge
-                                              variant="outline"
-                                              className="mr-2 border-blue-200 text-blue-700 bg-blue-50"
-                                            >
-                                              Scheme
-                                            </Badge>
-                                          )}
-                                          <span className="text-red-800 font-semibold uppercase text-xs tracking-wider">
-                                            {issue.issue_level} ISSUE
-                                          </span>
-                                        </div>
-                                        <div className="bg-red-50 p-2.5 rounded-md border border-red-100 mb-2">
-                                          <p className="text-red-900 font-medium text-sm leading-relaxed">
-                                            {issue.reason}
-                                          </p>
-                                        </div>
-                                        <div className="text-xs text-gray-500 flex justify-between items-center border-t border-gray-100 pt-2 mt-2">
-                                          <span>
-                                            By:{" "}
-                                            <span className="font-medium">
-                                              {issue.creator_name}
-                                            </span>
-                                          </span>
-                                          <span>
-                                            {new Date(
-                                              issue.created_at,
-                                            ).toLocaleDateString()}
-                                          </span>
-                                        </div>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              </PopoverContent>
-                            </Popover>
-                          )}
-                        </div>
-                      </td>
-                      <td
-                        style={{
-                          textAlign: "left",
-                          padding: "8px",
-                          borderBottom: "1px solid #e5e7eb",
-                          backgroundColor: "white",
-                          fontSize: "14px",
-                          fontFamily: "Poppins, sans-serif",
-                          fontWeight: "500",
-                          borderRadius: "0",
-                          color: "#2563eb",
-                        }}
-                      >
-                        {record.esr_capacity
-                          ? `${formatWaterValue(record.esr_capacity)} LL`
-                          : "N/A"}
-                      </td>
-                      <td
-                        style={{
-                          textAlign: "left",
-                          padding: "8px",
-                          borderBottom: "1px solid #e5e7eb",
-                          backgroundColor: "white",
-                          fontSize: "14px",
-                          fontFamily: "Poppins, sans-serif",
-                          fontWeight: "500",
-                          borderRadius: "0",
-                          color: "#2563eb",
-                        }}
-                      >
-                        {latestConsumption !== null ? (
-                          `${formatWaterValue(latestConsumption)} LL`
-                        ) : (
-                          <span style={{ color: "#6b7280" }}>No data</span>
-                        )}
-                      </td>
-                      <td
-                        style={{
-                          textAlign: "left",
-                          padding: "8px",
-                          borderBottom: "1px solid #e5e7eb",
-                          backgroundColor: "white",
-                          fontSize: "14px",
-                          fontFamily: "Poppins, sans-serif",
-                          fontWeight: "500",
-                          borderRadius: "0",
-                          color:
-                            consumptionPercentage !== null &&
-                            consumptionPercentage > 75
-                              ? "#dc2626"
-                              : "#2563eb",
-                        }}
-                      >
-                        {consumptionPercentage !== null ? (
-                          `${consumptionPercentage.toFixed(1)}%`
-                        ) : (
-                          <span style={{ color: "#6b7280" }}>-</span>
-                        )}
-                      </td>
-                      <td
-                        style={{
-                          textAlign: "left",
-                          padding: "8px",
-                          borderBottom: "1px solid #e5e7eb",
-                          backgroundColor: "white",
-                          fontSize: "14px",
-                          fontFamily: "Poppins, sans-serif",
-                          borderRadius: "0",
-                        }}
-                      >
-                        <div style={{ display: "inline-block" }}>
-                          {getConsumptionStatusBadge(consumptionPercentage)}
-                        </div>
-                      </td>
-                      <td
-                        style={{
-                          textAlign: "left",
-                          padding: "8px",
-                          borderBottom: "1px solid #e5e7eb",
-                          backgroundColor: "white",
-                          fontSize: "14px",
-                          fontFamily: "Poppins, sans-serif",
-                          borderRadius: "0",
-                          maxWidth: "150px",
-                        }}
-                      >
-                        {allIssues.length > 0 ? (
-                          <Button
-                            variant="ghost"
-                            className="h-auto p-1 max-w-full justify-start text-red-600 font-medium text-[11px] hover:text-red-700 hover:bg-red-50"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedRemarkDetails({
-                                issues: allIssues,
-                                title: `Issues for ${record.esr_name}, ${record.village_name}`,
-                              });
+                      return (
+                        <tr
+                          key={`${record.scheme_id}-${record.esr_name}-${index}`}
+                          style={{
+                            backgroundColor: hasIssue ? "#fef2f2" : "white", // Red-50 if issue
+                            borderLeft: hasIssue ? "4px solid #ef4444" : "none", // Red border if issue
+                            transition: "all 0.2s",
+                          }}
+                          className={hasIssue ? "hover:bg-red-100/50" : ""}
+                        >
+                          <td
+                            style={{
+                              textAlign: "left",
+                              padding: "8px",
+                              borderBottom: "1px solid #e5e7eb",
+                              backgroundColor: "white",
+                              fontSize: "14px",
+                              fontFamily: "Poppins, sans-serif",
+                              borderRadius: "0",
                             }}
                           >
-                            <span className="truncate w-full text-left">
-                              {allIssues.map((i: any) => i.reason).join(", ")}
-                            </span>
-                          </Button>
-                        ) : (
-                          <span style={{ color: "#94a3b8" }}>-</span>
-                        )}
-                      </td>
-                      <td
-                        style={{
-                          textAlign: "left",
-                          padding: "8px",
-                          borderBottom: "1px solid #e5e7eb",
-                          backgroundColor: "white",
-                          fontSize: "14px",
-                          fontFamily: "Poppins, sans-serif",
-                          borderRadius: "0",
-                        }}
-                      >
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setSelectedRecord(record)}
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              Details
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-                            <DialogHeader>
-                              <DialogTitle>
-                                Water Consumption Details: {record.esr_name}
-                              </DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4">
-                              <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                  <h4 className="font-semibold mb-2">
-                                    Location Information
-                                  </h4>
-                                  <div className="space-y-1 text-sm">
-                                    <p>
-                                      <span className="font-medium">
-                                        Region:
-                                      </span>{" "}
-                                      {record.region}
-                                    </p>
-                                    <p>
-                                      <span className="font-medium">
-                                        Circle:
-                                      </span>{" "}
-                                      {record.circle}
-                                    </p>
-                                    <p>
-                                      <span className="font-medium">
-                                        Division:
-                                      </span>{" "}
-                                      {record.division}
-                                    </p>
-                                    <p>
-                                      <span className="font-medium">
-                                        Sub Division:
-                                      </span>{" "}
-                                      {record.sub_division}
-                                    </p>
-                                    <p>
-                                      <span className="font-medium">
-                                        Block:
-                                      </span>{" "}
-                                      {record.block}
-                                    </p>
-                                    <p>
-                                      <span className="font-medium">
-                                        Village:
-                                      </span>{" "}
-                                      {record.village_name}
-                                    </p>
-                                    <p>
-                                      <span className="font-medium">
-                                        Scheme:
-                                      </span>{" "}
-                                      {record.scheme_name}
-                                    </p>
-                                    <p>
-                                      <span className="font-medium">
-                                        Scheme ID:
-                                      </span>{" "}
-                                      {record.scheme_id}
-                                    </p>
-                                  </div>
-                                </div>
-                                <div>
-                                  <h4 className="font-semibold mb-2">
-                                    ESR & Flow Information
-                                  </h4>
-                                  <div className="space-y-1 text-sm">
-                                    <p>
-                                      <span className="font-medium">
-                                        ESR Name:
-                                      </span>{" "}
-                                      {record.esr_name}
-                                    </p>
-                                    <p>
-                                      <span className="font-medium">
-                                        ESR Capacity:
-                                      </span>{" "}
-                                      {record.esr_capacity
-                                        ? `${record.esr_capacity} LL`
-                                        : "N/A"}
-                                    </p>
-                                    <p>
-                                      <span className="font-medium">
-                                        Flow Rate:
-                                      </span>{" "}
-                                      {record.flow_rate_m3
-                                        ? `${record.flow_rate_m3} LL`
-                                        : "N/A"}
-                                    </p>
-                                    <p>
-                                      <span className="font-medium">
-                                        Online Status:
-                                      </span>{" "}
-                                      {record.online_status || "Offline"}
-                                    </p>
-                                    <p>
-                                      <span className="font-medium">
-                                        Time Duration:
-                                      </span>{" "}
-                                      {record.time_duration || "N/A"}
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                              <Separator />
-                              <div>
-                                <h4 className="font-semibold mb-2">
-                                  7-Day Water Consumption Data
-                                </h4>
-                                <div className="grid grid-cols-7 gap-2">
-                                  {[1, 2, 3, 4, 5, 6, 7].map((day) => (
-                                    <div
-                                      key={day}
-                                      className="text-center p-2 border rounded"
+                            {record.region || "N/A"}
+                          </td>
+                          <td
+                            style={{
+                              textAlign: "left",
+                              padding: "8px",
+                              borderBottom: "1px solid #e5e7eb",
+                              backgroundColor: "white",
+                              fontSize: "14px",
+                              fontFamily: "Poppins, sans-serif",
+                              borderRadius: "0",
+                            }}
+                          >
+                            {record.scheme_name || "N/A"}
+                          </td>
+                          <td
+                            style={{
+                              textAlign: "left",
+                              padding: "8px",
+                              borderBottom: "1px solid #e5e7eb",
+                              backgroundColor: "white",
+                              fontSize: "14px",
+                              fontFamily: "Poppins, sans-serif",
+                              borderRadius: "0",
+                            }}
+                          >
+                            {record.village_name || "N/A"}
+                          </td>
+                          <td
+                            style={{
+                              textAlign: "left",
+                              padding: "8px",
+                              borderBottom: "1px solid #e5e7eb",
+                              fontSize: "14px",
+                              fontFamily: "Poppins, sans-serif",
+                              fontWeight: "500",
+                              borderRadius: "0",
+                            }}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span>{record.esr_name || "N/A"}</span>
+                              {hasIssue && (
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 p-0 hover:bg-red-100 rounded-full"
                                     >
-                                      <div className="text-xs text-gray-500 mb-1">
-                                        Day {day}
-                                      </div>
-                                      <div className="font-medium">
-                                        {formatWaterValue(
-                                          record[
-                                            `water_value_day${day}` as keyof WaterConsumptionRecord
-                                          ] as number,
-                                        )}{" "}
-                                        LL
-                                      </div>
-                                      <div className="text-xs text-gray-400">
-                                        {(record[
-                                          `water_date_day${day}` as keyof WaterConsumptionRecord
-                                        ] as string) || "N/A"}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                              {record.dashboard_url && (
-                                <div className="text-center">
-                                  <Button
-                                    asChild
-                                    className="bg-blue-500 hover:bg-blue-600"
+                                      <AlertCircle className="h-5 w-5 text-red-600 animate-pulse cursor-pointer" />
+                                      <span className="sr-only">
+                                        View Issues
+                                      </span>
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent
+                                    className="w-80 p-0 border-red-200 shadow-xl"
+                                    collisionPadding={16}
                                   >
-                                    <a
-                                      href={record.dashboard_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                    >
-                                      View Dashboard
-                                    </a>
-                                  </Button>
-                                </div>
+                                    <div className="bg-red-50 px-4 py-3 border-b border-red-100 rounded-t-lg">
+                                      <h4 className="font-semibold text-red-900 flex items-center gap-2">
+                                        <AlertCircle className="h-4 w-4" />
+                                        Reported Issues
+                                      </h4>
+                                    </div>
+                                    <div className="p-4 max-h-[300px] overflow-y-auto">
+                                      <ul className="space-y-3">
+                                        {allIssues.map((issue: any) => (
+                                          <li
+                                            key={issue.id}
+                                            className="text-sm bg-white p-3 rounded-md border border-red-100 shadow-sm"
+                                          >
+                                            <div className="font-medium text-gray-900 mb-1">
+                                              {issue.esr_name ? (
+                                                <Badge
+                                                  variant="outline"
+                                                  className="mr-2 border-purple-200 text-purple-700 bg-purple-50"
+                                                >
+                                                  ESR
+                                                </Badge>
+                                              ) : issue.village_name ? (
+                                                <Badge
+                                                  variant="outline"
+                                                  className="mr-2 border-red-200 text-red-700 bg-red-50"
+                                                >
+                                                  Village
+                                                </Badge>
+                                              ) : (
+                                                <Badge
+                                                  variant="outline"
+                                                  className="mr-2 border-blue-200 text-blue-700 bg-blue-50"
+                                                >
+                                                  Scheme
+                                                </Badge>
+                                              )}
+                                              <span className="text-red-800 font-semibold uppercase text-xs tracking-wider">
+                                                {issue.issue_level} ISSUE
+                                              </span>
+                                            </div>
+                                            <div className="bg-red-50 p-2.5 rounded-md border border-red-100 mb-2">
+                                              <p className="text-red-900 font-medium text-sm leading-relaxed">
+                                                {issue.reason}
+                                              </p>
+                                            </div>
+                                            <div className="text-xs text-gray-500 flex justify-between items-center border-t border-gray-100 pt-2 mt-2">
+                                              <span>
+                                                By:{" "}
+                                                <span className="font-medium">
+                                                  {issue.creator_name}
+                                                </span>
+                                              </span>
+                                              <span>
+                                                {new Date(
+                                                  issue.created_at,
+                                                ).toLocaleDateString()}
+                                              </span>
+                                            </div>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
                               )}
                             </div>
-                          </DialogContent>
-                        </Dialog>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-
-            {/* Enhanced Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="flex flex-col items-center mt-6 space-y-4">
-                <div className="flex justify-center items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage(1)}
-                    disabled={page === 1}
-                  >
-                    First
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage((page) => Math.max(1, page - 1))}
-                    disabled={page === 1}
-                  >
-                    Previous
-                  </Button>
-
-                  <div className="flex items-center space-x-1">
-                    {(() => {
-                      const pageButtons = [];
-                      const maxVisiblePages = 5;
-                      let startPage = Math.max(
-                        1,
-                        page - Math.floor(maxVisiblePages / 2),
-                      );
-                      let endPage = Math.min(
-                        totalPages,
-                        startPage + maxVisiblePages - 1,
-                      );
-
-                      // Adjust start page if we're near the end
-                      if (endPage - startPage < maxVisiblePages - 1) {
-                        startPage = Math.max(1, endPage - maxVisiblePages + 1);
-                      }
-
-                      // Create number buttons
-                      for (let i = startPage; i <= endPage; i++) {
-                        pageButtons.push(
-                          <Button
-                            key={`page-${i}`}
-                            variant={page === i ? "default" : "outline"}
-                            size="sm"
-                            className="w-9 px-0"
-                            onClick={() => setPage(i)}
+                          </td>
+                          <td
+                            style={{
+                              textAlign: "left",
+                              padding: "8px",
+                              borderBottom: "1px solid #e5e7eb",
+                              backgroundColor: "white",
+                              fontSize: "14px",
+                              fontFamily: "Poppins, sans-serif",
+                              fontWeight: "500",
+                              borderRadius: "0",
+                              color: "#2563eb",
+                            }}
                           >
-                            {i}
-                          </Button>,
-                        );
-                      }
+                            {record.esr_capacity
+                              ? `${formatWaterValue(record.esr_capacity)} LL`
+                              : "N/A"}
+                          </td>
+                          <td
+                            style={{
+                              textAlign: "left",
+                              padding: "8px",
+                              borderBottom: "1px solid #e5e7eb",
+                              backgroundColor: "white",
+                              fontSize: "14px",
+                              fontFamily: "Poppins, sans-serif",
+                              fontWeight: "500",
+                              borderRadius: "0",
+                              color: "#2563eb",
+                            }}
+                          >
+                            {latestConsumption !== null ? (
+                              `${formatWaterValue(latestConsumption)} LL`
+                            ) : (
+                              <span style={{ color: "#6b7280" }}>No data</span>
+                            )}
+                          </td>
+                          <td
+                            style={{
+                              textAlign: "left",
+                              padding: "8px",
+                              borderBottom: "1px solid #e5e7eb",
+                              backgroundColor: "white",
+                              fontSize: "14px",
+                              fontFamily: "Poppins, sans-serif",
+                              fontWeight: "500",
+                              borderRadius: "0",
+                              color:
+                                consumptionPercentage !== null &&
+                                consumptionPercentage > 75
+                                  ? "#dc2626"
+                                  : "#2563eb",
+                            }}
+                          >
+                            {consumptionPercentage !== null ? (
+                              `${consumptionPercentage.toFixed(1)}%`
+                            ) : (
+                              <span style={{ color: "#6b7280" }}>-</span>
+                            )}
+                          </td>
+                          <td
+                            style={{
+                              textAlign: "left",
+                              padding: "8px",
+                              borderBottom: "1px solid #e5e7eb",
+                              backgroundColor: "white",
+                              fontSize: "14px",
+                              fontFamily: "Poppins, sans-serif",
+                              borderRadius: "0",
+                            }}
+                          >
+                            <div style={{ display: "inline-block" }}>
+                              {getConsumptionStatusBadge(consumptionPercentage)}
+                            </div>
+                          </td>
+                          <td
+                            style={{
+                              textAlign: "left",
+                              padding: "8px",
+                              borderBottom: "1px solid #e5e7eb",
+                              backgroundColor: "white",
+                              fontSize: "14px",
+                              fontFamily: "Poppins, sans-serif",
+                              borderRadius: "0",
+                              maxWidth: "150px",
+                            }}
+                          >
+                            {allIssues.length > 0 ? (
+                              <Button
+                                variant="ghost"
+                                className="h-auto p-1 max-w-full justify-start text-red-600 font-medium text-[11px] hover:text-red-700 hover:bg-red-50"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedRemarkDetails({
+                                    issues: allIssues,
+                                    title: `Issues for ${record.esr_name}, ${record.village_name}`,
+                                  });
+                                }}
+                              >
+                                <span className="truncate w-full text-left">
+                                  {allIssues
+                                    .map((i: any) => i.reason)
+                                    .join(", ")}
+                                </span>
+                              </Button>
+                            ) : (
+                              <span style={{ color: "#94a3b8" }}>-</span>
+                            )}
+                          </td>
+                          <td
+                            style={{
+                              textAlign: "left",
+                              padding: "8px",
+                              borderBottom: "1px solid #e5e7eb",
+                              backgroundColor: "white",
+                              fontSize: "14px",
+                              fontFamily: "Poppins, sans-serif",
+                              borderRadius: "0",
+                            }}
+                          >
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setSelectedRecord(record)}
+                                >
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  Details
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                                <DialogHeader>
+                                  <DialogTitle>
+                                    Water Consumption Details: {record.esr_name}
+                                  </DialogTitle>
+                                </DialogHeader>
+                                <div className="space-y-4">
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <h4 className="font-semibold mb-2">
+                                        Location Information
+                                      </h4>
+                                      <div className="space-y-1 text-sm">
+                                        <p>
+                                          <span className="font-medium">
+                                            Region:
+                                          </span>{" "}
+                                          {record.region}
+                                        </p>
+                                        <p>
+                                          <span className="font-medium">
+                                            Circle:
+                                          </span>{" "}
+                                          {record.circle}
+                                        </p>
+                                        <p>
+                                          <span className="font-medium">
+                                            Division:
+                                          </span>{" "}
+                                          {record.division}
+                                        </p>
+                                        <p>
+                                          <span className="font-medium">
+                                            Sub Division:
+                                          </span>{" "}
+                                          {record.sub_division}
+                                        </p>
+                                        <p>
+                                          <span className="font-medium">
+                                            Block:
+                                          </span>{" "}
+                                          {record.block}
+                                        </p>
+                                        <p>
+                                          <span className="font-medium">
+                                            Village:
+                                          </span>{" "}
+                                          {record.village_name}
+                                        </p>
+                                        <p>
+                                          <span className="font-medium">
+                                            Scheme:
+                                          </span>{" "}
+                                          {record.scheme_name}
+                                        </p>
+                                        <p>
+                                          <span className="font-medium">
+                                            Scheme ID:
+                                          </span>{" "}
+                                          {record.scheme_id}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <h4 className="font-semibold mb-2">
+                                        ESR & Flow Information
+                                      </h4>
+                                      <div className="space-y-1 text-sm">
+                                        <p>
+                                          <span className="font-medium">
+                                            ESR Name:
+                                          </span>{" "}
+                                          {record.esr_name}
+                                        </p>
+                                        <p>
+                                          <span className="font-medium">
+                                            ESR Capacity:
+                                          </span>{" "}
+                                          {record.esr_capacity
+                                            ? `${record.esr_capacity} LL`
+                                            : "N/A"}
+                                        </p>
+                                        <p>
+                                          <span className="font-medium">
+                                            Flow Rate:
+                                          </span>{" "}
+                                          {record.flow_rate_m3
+                                            ? `${record.flow_rate_m3} LL`
+                                            : "N/A"}
+                                        </p>
+                                        <p>
+                                          <span className="font-medium">
+                                            Online Status:
+                                          </span>{" "}
+                                          {record.online_status || "Offline"}
+                                        </p>
+                                        <p>
+                                          <span className="font-medium">
+                                            Time Duration:
+                                          </span>{" "}
+                                          {record.time_duration || "N/A"}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <Separator />
+                                  <div>
+                                    <h4 className="font-semibold mb-2">
+                                      7-Day Water Consumption Data
+                                    </h4>
+                                    <div className="grid grid-cols-7 gap-2">
+                                      {[1, 2, 3, 4, 5, 6, 7].map((day) => (
+                                        <div
+                                          key={day}
+                                          className="text-center p-2 border rounded"
+                                        >
+                                          <div className="text-xs text-gray-500 mb-1">
+                                            Day {day}
+                                          </div>
+                                          <div className="font-medium">
+                                            {formatWaterValue(
+                                              record[
+                                                `water_value_day${day}` as keyof WaterConsumptionRecord
+                                              ] as number,
+                                            )}{" "}
+                                            LL
+                                          </div>
+                                          <div className="text-xs text-gray-400">
+                                            {(record[
+                                              `water_date_day${day}` as keyof WaterConsumptionRecord
+                                            ] as string) || "N/A"}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                  {record.dashboard_url && (
+                                    <div className="text-center">
+                                      <Button
+                                        asChild
+                                        className="bg-blue-500 hover:bg-blue-600"
+                                      >
+                                        <a
+                                          href={record.dashboard_url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                        >
+                                          View Dashboard
+                                        </a>
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
 
-                      return pageButtons;
-                    })()}
+                {/* Enhanced Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex flex-col items-center mt-6 space-y-4">
+                    <div className="flex justify-center items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage(1)}
+                        disabled={page === 1}
+                      >
+                        First
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage((page) => Math.max(1, page - 1))}
+                        disabled={page === 1}
+                      >
+                        Previous
+                      </Button>
+
+                      <div className="flex items-center space-x-1">
+                        {(() => {
+                          const pageButtons = [];
+                          const maxVisiblePages = 5;
+                          let startPage = Math.max(
+                            1,
+                            page - Math.floor(maxVisiblePages / 2),
+                          );
+                          let endPage = Math.min(
+                            totalPages,
+                            startPage + maxVisiblePages - 1,
+                          );
+
+                          // Adjust start page if we're near the end
+                          if (endPage - startPage < maxVisiblePages - 1) {
+                            startPage = Math.max(
+                              1,
+                              endPage - maxVisiblePages + 1,
+                            );
+                          }
+
+                          // Create number buttons
+                          for (let i = startPage; i <= endPage; i++) {
+                            pageButtons.push(
+                              <Button
+                                key={`page-${i}`}
+                                variant={page === i ? "default" : "outline"}
+                                size="sm"
+                                className="w-9 px-0"
+                                onClick={() => setPage(i)}
+                              >
+                                {i}
+                              </Button>,
+                            );
+                          }
+
+                          return pageButtons;
+                        })()}
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setPage((page) => Math.min(totalPages, page + 1))
+                        }
+                        disabled={page === totalPages}
+                      >
+                        Next
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage(totalPages)}
+                        disabled={page === totalPages}
+                      >
+                        Last
+                      </Button>
+                    </div>
+
+                    <div className="text-sm text-gray-500">
+                      Showing {startIndex + 1} to {endIndex} of {totalItems} ESR
+                      locations
+                    </div>
                   </div>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setPage((page) => Math.min(totalPages, page + 1))
-                    }
-                    disabled={page === totalPages}
-                  >
-                    Next
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage(totalPages)}
-                    disabled={page === totalPages}
-                  >
-                    Last
-                  </Button>
-                </div>
-
-                <div className="text-sm text-gray-500">
-                  Showing {startIndex + 1} to {endIndex} of {totalItems} ESR
-                  locations
-                </div>
-              </div>
+                )}
+              </>
             )}
-          </>
-        )}
+          </CardContent>
+        </Card>
       </div>
       {/* Remark Details Dialog */}
       {selectedRemarkDetails && (
