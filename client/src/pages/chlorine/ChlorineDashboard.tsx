@@ -745,7 +745,8 @@ const ChlorineDashboard: React.FC = () => {
     ).length;
   }, [schemeStatusData]);
 
-  // Apply global filters to data for both cards and table
+  // Apply global filters to data for BOTH cards and table (excludes sensorStatusFilter
+  // so that clicking a card does not change the numbers on other cards)
   const globallyFilteredData = useMemo(() => {
     let filtered = [...allChlorineData];
 
@@ -764,72 +765,6 @@ const ChlorineDashboard: React.FC = () => {
     // Double-check region filtering to ensure only data from selected region is shown
     if (selectedRegion && selectedRegion !== "all") {
       filtered = filtered.filter((item) => item.region === selectedRegion);
-    }
-
-    // Apply sensor status filter
-    if (sensorStatusFilter !== "all") {
-      // Create a map of ESR location keys to their communication status
-      const commStatusMap = new Map<string, CommunicationStatus>();
-      communicationStatusData?.forEach((status) => {
-        const key = `${status.region}|${status.circle}|${status.division}|${status.sub_division}|${status.block}|${status.village_name}|${status.esr_name}`;
-        commStatusMap.set(key, status);
-      });
-
-      filtered = filtered.filter((item) => {
-        const key = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`;
-        const commStatus = commStatusMap.get(key);
-
-        if (!commStatus) return false;
-
-        switch (sensorStatusFilter) {
-          case "connected":
-            return commStatus.chlorine_connected === "Connected";
-          case "online":
-            return (
-              commStatus.chlorine_connected === "Connected" &&
-              commStatus.chlorine_status === "Online"
-            );
-          case "offline":
-            return (
-              commStatus.chlorine_connected === "Connected" &&
-              commStatus.chlorine_status === "Offline"
-            );
-          case "noWater":
-            // Check if this ESR is in the no-water sensors list
-            if (noWaterSensorsData?.noWaterSensors) {
-              return noWaterSensorsData.noWaterSensors.some(
-                (sensor) =>
-                  sensor.region === item.region &&
-                  sensor.circle === item.circle &&
-                  sensor.division === item.division &&
-                  sensor.sub_division === item.sub_division &&
-                  sensor.block === item.block &&
-                  sensor.scheme_id === item.scheme_id &&
-                  sensor.village_name === item.village_name &&
-                  sensor.esr_name === item.esr_name,
-              );
-            }
-            return false;
-          case "withWater":
-            // Check if this ESR is in the with-water sensors list
-            if (withWaterSensorsData?.withWaterSensors) {
-              return withWaterSensorsData.withWaterSensors.some(
-                (sensor) =>
-                  sensor.region === item.region &&
-                  sensor.circle === item.circle &&
-                  sensor.division === item.division &&
-                  sensor.sub_division === item.sub_division &&
-                  sensor.block === item.block &&
-                  sensor.scheme_id === item.scheme_id &&
-                  sensor.village_name === item.village_name &&
-                  sensor.esr_name === item.esr_name,
-              );
-            }
-            return false;
-          default:
-            return true;
-        }
-      });
     }
 
     // Apply commissioned status filter
@@ -891,10 +826,6 @@ const ChlorineDashboard: React.FC = () => {
     waterSupplyStatus,
     schemeStatusFilter,
     schemeStatusMap,
-    sensorStatusFilter,
-    communicationStatusData,
-    noWaterSensorsData,
-    withWaterSensorsData,
   ]);
 
   // Calculate sensor status counts for chlorine sensors using globally filtered data
@@ -957,11 +888,11 @@ const ChlorineDashboard: React.FC = () => {
 
   // Calculate statistics for the "With Water" section
   const calculateWithWaterRangeStats = useMemo(() => {
-    if (!allChlorineData || !withWaterSensorsData?.withWaterSensors) {
+    if (!withWaterSensorsData?.withWaterSensors || !globallyFilteredData) {
       return { total: 0, belowRange: 0, optimal: 0, above: 0, noData: 0, consistentZero: 0 };
     }
 
-    // Build a set of location keys for sensors that have water — same as PressureDashboard
+    // Build a set of location keys for sensors that have water
     const withWaterLocationKeys = new Set(
       withWaterSensorsData.withWaterSensors.map(
         (sensor: any) =>
@@ -969,15 +900,17 @@ const ChlorineDashboard: React.FC = () => {
       ),
     );
 
-    let total = 0, belowRange = 0, optimal = 0, above = 0, consistentZero = 0;
-
-    // Iterate over raw allChlorineData (NOT globallyFilteredData) so card numbers
-    // are independent of which card was clicked — matching PressureDashboard behaviour
-    allChlorineData.forEach((item) => {
+    // Filter globallyFilteredData (which respects scheme/region filters but NOT sensorStatusFilter)
+    // so card numbers stay stable when another card is clicked
+    const filteredWithWater = globallyFilteredData.filter((item) => {
       const locationKey = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`;
-      if (!withWaterLocationKeys.has(locationKey)) return;
+      return withWaterLocationKeys.has(locationKey);
+    });
 
-      total++;
+    let total = filteredWithWater.length;
+    let belowRange = 0, optimal = 0, above = 0, consistentZero = 0;
+
+    filteredWithWater.forEach((item) => {
       const latestValue = getCurrentChlorineValue(item);
 
       if (latestValue !== null && !isNaN(latestValue)) {
@@ -999,7 +932,7 @@ const ChlorineDashboard: React.FC = () => {
     const noData = Math.max(total - sumRanges, 0);
 
     return { total, belowRange, optimal, above, noData, consistentZero };
-  }, [allChlorineData, withWaterSensorsData, getCurrentChlorineValue]);
+  }, [withWaterSensorsData, globallyFilteredData, getCurrentChlorineValue]);
 
 
   // Handler for commissioned status filter changes (legacy, keeping for compatibility if needed elsewhere)
@@ -1160,10 +1093,77 @@ const ChlorineDashboard: React.FC = () => {
       });
     }
 
+    // Apply sensor status filter (only affects table, not card numbers)
+    if (sensorStatusFilter !== "all") {
+      const commStatusMap = new Map<string, CommunicationStatus>();
+      communicationStatusData?.forEach((status) => {
+        const key = `${status.region}|${status.circle}|${status.division}|${status.sub_division}|${status.block}|${status.village_name}|${status.esr_name}`;
+        commStatusMap.set(key, status);
+      });
+
+      filtered = filtered.filter((item) => {
+        const key = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`;
+        const commStatus = commStatusMap.get(key);
+
+        if (!commStatus) return false;
+
+        switch (sensorStatusFilter) {
+          case "connected":
+            return commStatus.chlorine_connected === "Connected";
+          case "online":
+            return (
+              commStatus.chlorine_connected === "Connected" &&
+              commStatus.chlorine_status === "Online"
+            );
+          case "offline":
+            return (
+              commStatus.chlorine_connected === "Connected" &&
+              commStatus.chlorine_status === "Offline"
+            );
+          case "noWater":
+            if (noWaterSensorsData?.noWaterSensors) {
+              return noWaterSensorsData.noWaterSensors.some(
+                (sensor) =>
+                  sensor.region === item.region &&
+                  sensor.circle === item.circle &&
+                  sensor.division === item.division &&
+                  sensor.sub_division === item.sub_division &&
+                  sensor.block === item.block &&
+                  sensor.scheme_id === item.scheme_id &&
+                  sensor.village_name === item.village_name &&
+                  sensor.esr_name === item.esr_name,
+              );
+            }
+            return false;
+          case "withWater":
+            if (withWaterSensorsData?.withWaterSensors) {
+              return withWaterSensorsData.withWaterSensors.some(
+                (sensor) =>
+                  sensor.region === item.region &&
+                  sensor.circle === item.circle &&
+                  sensor.division === item.division &&
+                  sensor.sub_division === item.sub_division &&
+                  sensor.block === item.block &&
+                  sensor.scheme_id === item.scheme_id &&
+                  sensor.village_name === item.village_name &&
+                  sensor.esr_name === item.esr_name,
+              );
+            }
+            return false;
+          default:
+            return true;
+        }
+      });
+    }
+
     return filtered;
   }, [
     globallyFilteredData,
     selectedCardFilter,
+    sensorStatusFilter,
+    communicationStatusData,
+    noWaterSensorsData,
+    withWaterSensorsData,
   ]);
 
   // Listen for filter changes from chatbot
