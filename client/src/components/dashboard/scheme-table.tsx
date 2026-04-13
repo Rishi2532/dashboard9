@@ -304,7 +304,7 @@ export default function SchemeTable({
                   </TableHead>
                   <TableHead className="text-xs sm:text-sm lg:text-base p-2 sm:p-3 lg:p-4 xl:p-5 text-blue-800 font-semibold border-b border-blue-200 text-center">
                     <div className="flex justify-center">
-                      IoT Work Status{" "}
+                      ESR{" "}
                       {/* <span className="px-3 py-1 bg-purple-100 rounded-full text-purple-800 text-sm font-medium ml-2">
                         {overallTotals.integratedEsr}/
                         {overallTotals.totalEsr}
@@ -312,7 +312,7 @@ export default function SchemeTable({
                     </div>
                   </TableHead>
                   <TableHead className="text-xs sm:text-sm lg:text-base p-2 sm:p-3 lg:p-4 xl:p-5 text-blue-800 font-semibold border-b border-blue-200 text-center">
-                    <div className="flex justify-center">Status</div>
+                    <div className="flex justify-center">IoT Work Status</div>
                   </TableHead>
                   <TableHead className="text-xs sm:text-sm lg:text-base p-2 sm:p-3 lg:p-4 xl:p-5 text-blue-800 font-semibold border-b border-blue-200 text-center">
                     <div className="flex justify-center">Action</div>
