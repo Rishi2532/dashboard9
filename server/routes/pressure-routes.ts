@@ -1464,11 +1464,7 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
         categoryCondition = sql`AND cs.pressure_status = 'Online' AND pd.pressure_value_7 IS NULL`;
         break;
       case 'all_sensors':
-        categoryCondition = sql`AND (
-          cs.pressure_status = 'Offline' 
-          OR (cs.pressure_status = 'Online' AND pd.pressure_value_7 IS NULL)
-          OR ((cs.pressure_status IS NULL OR cs.pressure_status <> 'Offline') AND pd.pressure_value_7 IS NOT NULL)
-        )`;
+        categoryCondition = sql`AND (cs.pressure_status IS NULL OR cs.pressure_status <> 'Offline') AND pd.pressure_value_7 IS NOT NULL`;
         break;
       case 'below_0_2':
         categoryCondition = sql`AND (cs.pressure_status IS NULL OR cs.pressure_status <> 'Offline') AND pd.pressure_value_7 IS NOT NULL AND pd.pressure_value_7 < 0.2`;
@@ -1602,11 +1598,7 @@ router.get("/overall-region-comparison/details-export/:category", async (req, re
         categoryCondition = sql`AND cs.pressure_status = 'Online' AND pd.pressure_value_7 IS NULL`;
         break;
       case 'all_sensors':
-        categoryCondition = sql`AND (
-          cs.pressure_status = 'Offline' 
-          OR (cs.pressure_status = 'Online' AND pd.pressure_value_7 IS NULL)
-          OR ((cs.pressure_status IS NULL OR cs.pressure_status <> 'Offline') AND pd.pressure_value_7 IS NOT NULL)
-        )`;
+        categoryCondition = sql`AND (cs.pressure_status IS NULL OR cs.pressure_status <> 'Offline') AND pd.pressure_value_7 IS NOT NULL`;
         break;
       case 'below_0_2':
         categoryCondition = sql`AND (cs.pressure_status IS NULL OR cs.pressure_status <> 'Offline') AND pd.pressure_value_7 IS NOT NULL AND pd.pressure_value_7 < 0.2`;

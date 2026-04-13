@@ -13982,9 +13982,6 @@ const DetailedChlorinePage = () => {
                                   {overallComparisonData.data.map(
                                     (regionData, idx) => {
                                       const currentDayTotal =
-                                        (regionData.offline_with_no_water || 0) +
-                                        (regionData.offline_with_water || 0) +
-                                        (regionData.online_no_water || 0) +
                                         (regionData.below_0_2 || 0) +
                                         (regionData.optimal_0_2_0_5 || 0) +
                                         (regionData.above_0_5 || 0);
@@ -14026,9 +14023,6 @@ const DetailedChlorinePage = () => {
                                       {overallComparisonData.data.reduce(
                                         (sum, r) =>
                                           sum +
-                                          (r.offline_with_no_water || 0) +
-                                          (r.offline_with_water || 0) +
-                                          (r.online_no_water || 0) +
                                           (r.below_0_2 || 0) +
                                           (r.optimal_0_2_0_5 || 0) +
                                           (r.above_0_5 || 0),
@@ -14553,9 +14547,6 @@ const DetailedChlorinePage = () => {
                                       {pressureOverallComparison.data.map(
                                         (regionData: any) => {
                                           const currentDayTotal =
-                                            (regionData.offline_with_no_water || 0) +
-                                            (regionData.offline_with_water || 0) +
-                                            (regionData.online_no_water || 0) +
                                             (regionData.below_0_2 || 0) +
                                             (regionData.optimal_0_2_0_7 || 0) +
                                             (regionData.above_0_7 || 0);
@@ -14596,9 +14587,6 @@ const DetailedChlorinePage = () => {
                                           {pressureOverallComparison.data.reduce(
                                             (sum: number, r: any) =>
                                               sum +
-                                              (r.offline_with_no_water || 0) +
-                                              (r.offline_with_water || 0) +
-                                              (r.online_no_water || 0) +
                                               (r.below_0_2 || 0) +
                                               (r.optimal_0_2_0_7 || 0) +
                                               (r.above_0_7 || 0),

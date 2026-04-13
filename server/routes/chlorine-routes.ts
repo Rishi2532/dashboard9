@@ -2758,8 +2758,7 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
               cd.dashboard_url
             FROM communication_status cs
             FULL OUTER JOIN chlorine_data cd ON cs.scheme_id = cd.scheme_id AND cs.scheme_name = cd.scheme_name AND cs.village_name = cd.village_name AND cs.esr_name = cd.esr_name
-            WHERE ((cs.chlorine_connected = 'Connected' AND (cs.chlorine_status = 'Offline' OR cs.chlorine_status = 'offline' OR cs.chlorine_status = 'Online' OR cs.chlorine_status = 'online'))
-               OR (cd.chlorine_value_7 IS NOT NULL))
+            WHERE cd.chlorine_value_7 IS NOT NULL
             ${region ? 'AND COALESCE(cs.region, cd.region) = $1' : ''}
             ${schemeIdFilterGeneric.replace(/scheme_id/g, 'COALESCE(cs.scheme_id, cd.scheme_id)')}
             ORDER BY COALESCE(cs.region, cd.region), COALESCE(cs.division, cd.division), COALESCE(cs.village_name, cd.village_name)
@@ -3144,8 +3143,7 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
               cd.dashboard_url
             FROM communication_status cs
             FULL OUTER JOIN chlorine_data cd ON cs.scheme_id = cd.scheme_id AND cs.scheme_name = cd.scheme_name AND cs.village_name = cd.village_name AND cs.esr_name = cd.esr_name
-            WHERE ((cs.chlorine_connected = 'Connected' AND (cs.chlorine_status = 'Offline' OR cs.chlorine_status = 'offline' OR cs.chlorine_status = 'Online' OR cs.chlorine_status = 'online'))
-               OR (cd.chlorine_value_7 IS NOT NULL))
+            WHERE cd.chlorine_value_7 IS NOT NULL
             ${region ? 'AND COALESCE(cs.region, cd.region) = $1' : ''}
             ${schemeIdFilterGeneric.replace(/scheme_id/g, 'COALESCE(cs.scheme_id, cd.scheme_id)')}
             ORDER BY COALESCE(cs.region, cd.region), COALESCE(cs.division, cd.division), COALESCE(cs.village_name, cd.village_name)
