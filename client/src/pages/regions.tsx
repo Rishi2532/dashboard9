@@ -125,9 +125,8 @@ export default function Regions() {
                           Scheme Integration
                         </span>
                         <span className="text-sm font-medium">
-                          {/* {region.fully_completed_schemes || 0} /{" "} */}
-                          {region.total_schemes_integrated || 0} /{" "}
-                          {manualTotalSchemes}
+                          {region.fully_completed_schemes || 0} /{" "}
+                          {region.total_schemes_integrated || 0}
                         </span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-3">
