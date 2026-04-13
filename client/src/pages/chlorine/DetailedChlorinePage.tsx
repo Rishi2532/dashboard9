@@ -13802,170 +13802,6 @@ const DetailedChlorinePage = () => {
 
                               {/* Current Day Metrics */}
                               <div className="bg-white dark:bg-gray-900">
-                                {/* Offline with no water Row */}
-                                <div
-                                  className="grid border-b border-cyan-100 dark:border-cyan-900 hover:bg-cyan-50/50 dark:hover:bg-cyan-950/30 transition-colors"
-                                  style={{
-                                    gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
-                                  }}
-                                >
-                                  <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-cyan-200 dark:border-cyan-800 flex items-center">
-                                    <span className="w-2 h-2 rounded-full bg-red-400 mr-2"></span>
-                                    Offline with no water
-                                  </div>
-                                  {overallComparisonData.data.map(
-                                    (regionData, idx) => (
-                                      <div
-                                        key={`offline-nowater-${regionData.region}`}
-                                        className="px-2 py-2.5 flex items-center justify-center border-r border-cyan-100 dark:border-cyan-900"
-                                      >
-                                        <button
-                                          onClick={() =>
-                                            (regionData.offline_with_no_water || 0) > 0 &&
-                                            setClickedComparisonCell({
-                                              category: "offline-with-no-water",
-                                              region: regionData.region,
-                                              label: `Offline with no water - ${regionData.region}`,
-                                              isLpcd: false,
-                                            })
-                                          }
-                                          className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${(regionData.offline_with_no_water || 0) > 0 ? "bg-red-50 dark:bg-red-900/30 text-dark-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
-                                          data-testid={`btn-offline-nowater-${regionData.region}`}
-                                        >
-                                          {regionData.offline_with_no_water || 0}
-                                        </button>
-                                      </div>
-                                    ),
-                                  )}
-                                  <div className="px-2 py-2.5 flex items-center justify-center bg-cyan-50/50 dark:bg-cyan-950/30">
-                                    <button
-                                      onClick={() =>
-                                        setClickedComparisonCell({
-                                          category: "offline-with-no-water",
-                                          region: "All Regions",
-                                          label: "Offline with no water - All Regions",
-                                          isLpcd: false,
-                                        })
-                                      }
-                                      className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-gray-200 dark:bg-gray-700 text-dark-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                                    >
-                                      {overallComparisonData.data.reduce(
-                                        (sum, r) => sum + (r.offline_with_no_water || 0),
-                                        0,
-                                      )}
-                                    </button>
-                                  </div>
-                                </div>
-
-                                {/* Offline with water (Data Loss) Row */}
-                                <div
-                                  className="grid border-b border-cyan-100 dark:border-cyan-900 hover:bg-cyan-50/50 dark:hover:bg-cyan-950/30 transition-colors"
-                                  style={{
-                                    gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
-                                  }}
-                                >
-                                  <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-cyan-200 dark:border-cyan-800 flex items-center">
-                                    <span className="w-2 h-2 rounded-full bg-red-600 mr-2"></span>
-                                    Offline with water (Data Loss)
-                                  </div>
-                                  {overallComparisonData.data.map(
-                                    (regionData, idx) => (
-                                      <div
-                                        key={`offline-water-${regionData.region}`}
-                                        className="px-2 py-2.5 flex items-center justify-center border-r border-cyan-100 dark:border-cyan-900"
-                                      >
-                                        <button
-                                          onClick={() =>
-                                            (regionData.offline_with_water || 0) > 0 &&
-                                            setClickedComparisonCell({
-                                              category: "offline-with-water",
-                                              region: regionData.region,
-                                              label: `Offline with water (Data Loss) - ${regionData.region}`,
-                                              isLpcd: false,
-                                            })
-                                          }
-                                          className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${(regionData.offline_with_water || 0) > 0 ? "bg-red-100 dark:bg-red-900/40 text-dark-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
-                                          data-testid={`btn-offline-water-${regionData.region}`}
-                                        >
-                                          {regionData.offline_with_water || 0}
-                                        </button>
-                                      </div>
-                                    ),
-                                  )}
-                                  <div className="px-2 py-2.5 flex items-center justify-center bg-cyan-50/50 dark:bg-cyan-950/30">
-                                    <button
-                                      onClick={() =>
-                                        setClickedComparisonCell({
-                                          category: "offline-with-water",
-                                          region: "All Regions",
-                                          label: "Offline with water (Data Loss) - All Regions",
-                                          isLpcd: false,
-                                        })
-                                      }
-                                      className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-gray-200 dark:bg-gray-700 text-dark-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                                    >
-                                      {overallComparisonData.data.reduce(
-                                        (sum, r) => sum + (r.offline_with_water || 0),
-                                        0,
-                                      )}
-                                    </button>
-                                  </div>
-                                </div>
-
-                                {/* Online with no water Row */}
-                                <div
-                                  className="grid border-b border-cyan-100 dark:border-cyan-900 hover:bg-cyan-50/50 dark:hover:bg-cyan-950/30 transition-colors"
-                                  style={{
-                                    gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
-                                  }}
-                                >
-                                  <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-cyan-200 dark:border-cyan-800 flex items-center">
-                                    <span className="w-2 h-2 rounded-full bg-gray-400 mr-2"></span>
-                                    Online with no water
-                                  </div>
-                                  {overallComparisonData.data.map(
-                                    (regionData, idx) => (
-                                      <div
-                                        key={`online-nowater-${regionData.region}`}
-                                        className="px-2 py-2.5 flex items-center justify-center border-r border-cyan-100 dark:border-cyan-900"
-                                      >
-                                        <button
-                                          onClick={() =>
-                                            (regionData.online_no_water || 0) > 0 &&
-                                            setClickedComparisonCell({
-                                              category: "online_no_water",
-                                              region: regionData.region,
-                                              label: `Online with no water - ${regionData.region}`,
-                                              isLpcd: false,
-                                            })
-                                          }
-                                          className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${(regionData.online_no_water || 0) > 0 ? "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
-                                          data-testid={`btn-online-nowater-${regionData.region}`}
-                                        >
-                                          {regionData.online_no_water || 0}
-                                        </button>
-                                      </div>
-                                    ),
-                                  )}
-                                  <div className="px-2 py-2.5 flex items-center justify-center bg-cyan-50/50 dark:bg-cyan-950/30">
-                                    <button
-                                      onClick={() =>
-                                        setClickedComparisonCell({
-                                          category: "online_no_water",
-                                          region: "All Regions",
-                                          label: "Online with no water - All Regions",
-                                          isLpcd: false,
-                                        })
-                                      }
-                                      className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-gray-200 dark:bg-gray-700 text-dark-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                                    >
-                                      {overallComparisonData.data.reduce(
-                                        (sum, r) => sum + (r.online_no_water || 0),
-                                        0,
-                                      )}
-                                    </button>
-                                  </div>
-                                </div>
 
                                 {/* <0.2 mg/l Row */}
                                 <div
@@ -14444,8 +14280,56 @@ const DetailedChlorinePage = () => {
                                     </button>
                                   </div>
                                 </div>
+
+                                <div className="mt-4 flex flex-wrap items-center justify-center gap-6 py-3 px-4 bg-cyan-50/30 dark:bg-cyan-950/20 rounded-xl border border-cyan-100 dark:border-cyan-900/50 shadow-sm">
+                                  <button
+                                    onClick={() => setClickedComparisonCell({
+                                      category: "offline-with-no-water",
+                                      region: "All Regions",
+                                      label: "Offline with no water - All Regions",
+                                      isLpcd: false
+                                    })}
+                                    className="flex items-center gap-2 group hover:opacity-80 transition-all font-semibold text-gray-700 dark:text-gray-300"
+                                  >
+                                    <span className="text-red-500 group-hover:scale-110 transition-transform tabular-nums">
+                                      {overallComparisonData.data.reduce((sum, r) => sum + (r.offline_with_no_water || 0), 0)}
+                                    </span>
+                                    <span className="text-sm">Offline with no water</span>
+                                  </button>
+                                  <div className="w-px h-4 bg-cyan-200 dark:bg-cyan-800 hidden sm:block"></div>
+                                  <button
+                                    onClick={() => setClickedComparisonCell({
+                                      category: "offline-with-water",
+                                      region: "All Regions",
+                                      label: "Offline with water (Data Loss) - All Regions",
+                                      isLpcd: false
+                                    })}
+                                    className="flex items-center gap-2 group hover:opacity-80 transition-all font-semibold text-gray-700 dark:text-gray-300"
+                                  >
+                                    <span className="text-red-600 group-hover:scale-110 transition-transform tabular-nums">
+                                      {overallComparisonData.data.reduce((sum, r) => sum + (r.offline_with_water || 0), 0)}
+                                    </span>
+                                    <span className="text-sm">Offline with water (Data Loss)</span>
+                                  </button>
+                                  <div className="w-px h-4 bg-cyan-200 dark:bg-cyan-800 hidden sm:block"></div>
+                                  <button
+                                    onClick={() => setClickedComparisonCell({
+                                      category: "online_no_water",
+                                      region: "All Regions",
+                                      label: "Online with no water - All Regions",
+                                      isLpcd: false
+                                    })}
+                                    className="flex items-center gap-2 group hover:opacity-80 transition-all font-semibold text-gray-700 dark:text-gray-300"
+                                  >
+                                    <span className="text-gray-500 group-hover:scale-110 transition-transform tabular-nums">
+                                      {overallComparisonData.data.reduce((sum, r) => sum + (r.online_no_water || 0), 0)}
+                                    </span>
+                                    <span className="text-sm">Online with no water</span>
+                                  </button>
+                                </div>
                               </div>
                             </div>
+
                           )}
 
                           {/* Pressure Statistics Section */}
@@ -14491,164 +14375,6 @@ const DetailedChlorinePage = () => {
                                   </div>
 
                                   <div className="bg-white dark:bg-gray-900">
-                                    {/* Offline with no water Row */}
-                                    <div
-                                      className="grid border-b border-orange-100 dark:border-orange-900 hover:bg-orange-50/50 dark:hover:bg-orange-950/30 transition-colors"
-                                      style={{
-                                        gridTemplateColumns: `180px repeat(${pressureOverallComparison.data.length + 1}, 1fr)`,
-                                      }}
-                                    >
-                                      <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-orange-200 dark:border-orange-800 flex items-center">
-                                        <span className="w-2 h-2 rounded-full bg-red-400 mr-2"></span>
-                                        Offline with no water
-                                      </div>
-                                      {pressureOverallComparison.data.map(
-                                        (regionData: any) => (
-                                          <div
-                                            key={`offline-nowater-p-${regionData.region}`}
-                                            className="px-2 py-2.5 flex items-center justify-center border-r border-orange-100 dark:border-orange-900"
-                                          >
-                                            <button
-                                              onClick={() =>
-                                                (regionData.offline_with_no_water || 0) > 0 &&
-                                                handlePressureComparisonCellClick(
-                                                  "offline-with-no-water",
-                                                  regionData.region,
-                                                  `Offline with no water - ${regionData.region}`,
-                                                )
-                                              }
-                                              className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${(regionData.offline_with_no_water || 0) > 0 ? "bg-red-50 dark:bg-red-900/30 text-gray-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
-                                            >
-                                              {regionData.offline_with_no_water || 0}
-                                            </button>
-                                          </div>
-                                        ),
-                                      )}
-                                      <div className="px-2 py-2.5 flex items-center justify-center bg-orange-50/50 dark:bg-orange-950/30">
-                                        <button
-                                          onClick={() =>
-                                            handlePressureComparisonCellClick(
-                                              "offline-with-no-water",
-                                              "All Regions",
-                                              "Offline with no water - All Regions",
-                                            )
-                                          }
-                                          className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                                        >
-                                          {pressureOverallComparison.data.reduce(
-                                            (sum: number, r: any) =>
-                                              sum + (r.offline_with_no_water || 0),
-                                            0,
-                                          )}
-                                        </button>
-                                      </div>
-                                    </div>
-
-                                    {/* Offline with water (Data Loss) Row */}
-                                    <div
-                                      className="grid border-b border-orange-100 dark:border-orange-900 hover:bg-orange-50/50 dark:hover:bg-orange-950/30 transition-colors"
-                                      style={{
-                                        gridTemplateColumns: `180px repeat(${pressureOverallComparison.data.length + 1}, 1fr)`,
-                                      }}
-                                    >
-                                      <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-orange-200 dark:border-orange-800 flex items-center">
-                                        <span className="w-2 h-2 rounded-full bg-red-600 mr-2"></span>
-                                        Offline with water (Data Loss)
-                                      </div>
-                                      {pressureOverallComparison.data.map(
-                                        (regionData: any) => (
-                                          <div
-                                            key={`offline-water-p-${regionData.region}`}
-                                            className="px-2 py-2.5 flex items-center justify-center border-r border-orange-100 dark:border-orange-900"
-                                          >
-                                            <button
-                                              onClick={() =>
-                                                (regionData.offline_with_water || 0) > 0 &&
-                                                handlePressureComparisonCellClick(
-                                                  "offline-with-water",
-                                                  regionData.region,
-                                                  `Offline with water (Data Loss) - ${regionData.region}`,
-                                                )
-                                              }
-                                              className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${(regionData.offline_with_water || 0) > 0 ? "bg-red-100 dark:bg-red-900/40 text-gray-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
-                                            >
-                                              {regionData.offline_with_water || 0}
-                                            </button>
-                                          </div>
-                                        ),
-                                      )}
-                                      <div className="px-2 py-2.5 flex items-center justify-center bg-orange-50/50 dark:bg-orange-950/30">
-                                        <button
-                                          onClick={() =>
-                                            handlePressureComparisonCellClick(
-                                              "offline-with-water",
-                                              "All Regions",
-                                              "Offline with water (Data Loss) - All Regions",
-                                            )
-                                          }
-                                          className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                                        >
-                                          {pressureOverallComparison.data.reduce(
-                                            (sum: number, r: any) =>
-                                              sum + (r.offline_with_water || 0),
-                                            0,
-                                          )}
-                                        </button>
-                                      </div>
-                                    </div>
-
-                                    {/* Online with no water Row */}
-                                    <div
-                                      className="grid border-b border-orange-100 dark:border-orange-900 hover:bg-orange-50/50 dark:hover:bg-orange-950/30 transition-colors"
-                                      style={{
-                                        gridTemplateColumns: `180px repeat(${pressureOverallComparison.data.length + 1}, 1fr)`,
-                                      }}
-                                    >
-                                      <div className="px-3 py-2.5 text-[14px] font-medium text-gray-700 dark:text-gray-300 border-r-2 border-orange-200 dark:border-orange-800 flex items-center">
-                                        <span className="w-2 h-2 rounded-full bg-gray-400 mr-2"></span>
-                                        Online with no water
-                                      </div>
-                                      {pressureOverallComparison.data.map(
-                                        (regionData: any) => (
-                                          <div
-                                            key={`online-nowater-${regionData.region}`}
-                                            className="px-2 py-2.5 flex items-center justify-center border-r border-orange-100 dark:border-orange-900"
-                                          >
-                                            <button
-                                              onClick={() =>
-                                                (regionData.online_no_water || 0) > 0 &&
-                                                handlePressureComparisonCellClick(
-                                                  "online_no_water",
-                                                  regionData.region,
-                                                  `Online with no water - ${regionData.region}`,
-                                                )
-                                              }
-                                              className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${(regionData.online_no_water || 0) > 0 ? "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
-                                            >
-                                              {regionData.online_no_water || 0}
-                                            </button>
-                                          </div>
-                                        ),
-                                      )}
-                                      <div className="px-2 py-2.5 flex items-center justify-center bg-orange-50/50 dark:bg-orange-950/30">
-                                        <button
-                                          onClick={() =>
-                                            handlePressureComparisonCellClick(
-                                              "online_no_water",
-                                              "All Regions",
-                                              "Online with no water - All Regions",
-                                            )
-                                          }
-                                          className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                                        >
-                                          {pressureOverallComparison.data.reduce(
-                                            (sum: number, r: any) =>
-                                              sum + (r.online_no_water || 0),
-                                            0,
-                                          )}
-                                        </button>
-                                      </div>
-                                    </div>
 
                                     <div
                                       className="grid border-b border-orange-100 dark:border-orange-900 hover:bg-orange-50/50 dark:hover:bg-orange-950/30 transition-colors"
@@ -15124,6 +14850,49 @@ const DetailedChlorinePage = () => {
                                         </button>
                                       </div>
                                     </div>
+                                  </div>
+                                  <div className="mt-4 flex flex-wrap items-center justify-center gap-6 py-3 px-4 bg-orange-50/30 dark:bg-orange-950/20 rounded-xl border border-orange-100 dark:border-orange-900/50 shadow-sm">
+                                    <button
+                                      onClick={() => handlePressureComparisonCellClick(
+                                        "offline-with-no-water",
+                                        "All Regions",
+                                        "Offline with no water - All Regions",
+                                      )}
+                                      className="flex items-center gap-2 group hover:opacity-80 transition-all font-semibold text-gray-700 dark:text-gray-300"
+                                    >
+                                      <span className="text-red-500 group-hover:scale-110 transition-transform tabular-nums">
+                                        {pressureOverallComparison.data.reduce((sum: number, r: any) => sum + (r.offline_with_no_water || 0), 0)}
+                                      </span>
+                                      <span className="text-sm">Offline with no water</span>
+                                    </button>
+                                    <div className="w-px h-4 bg-orange-200 dark:bg-orange-800 hidden sm:block"></div>
+                                    <button
+                                      onClick={() => handlePressureComparisonCellClick(
+                                        "offline-with-water",
+                                        "All Regions",
+                                        "Offline with water (Data Loss) - All Regions",
+                                      )}
+                                      className="flex items-center gap-2 group hover:opacity-80 transition-all font-semibold text-gray-700 dark:text-gray-300"
+                                    >
+                                      <span className="text-red-600 group-hover:scale-110 transition-transform tabular-nums">
+                                        {pressureOverallComparison.data.reduce((sum: number, r: any) => sum + (r.offline_with_water || 0), 0)}
+                                      </span>
+                                      <span className="text-sm">Offline with water (Data Loss)</span>
+                                    </button>
+                                    <div className="w-px h-4 bg-orange-200 dark:bg-orange-800 hidden sm:block"></div>
+                                    <button
+                                      onClick={() => handlePressureComparisonCellClick(
+                                        "online_no_water",
+                                        "All Regions",
+                                        "Online with no water - All Regions",
+                                      )}
+                                      className="flex items-center gap-2 group hover:opacity-80 transition-all font-semibold text-gray-700 dark:text-gray-300"
+                                    >
+                                      <span className="text-gray-500 group-hover:scale-110 transition-transform tabular-nums">
+                                        {pressureOverallComparison.data.reduce((sum: number, r: any) => sum + (r.online_no_water || 0), 0)}
+                                      </span>
+                                      <span className="text-sm">Online with no water</span>
+                                    </button>
                                   </div>
                                 </>
                               ) : (
