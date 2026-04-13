@@ -2115,7 +2115,7 @@ const EnhancedLpcdDashboard = () => {
             </span>
           </div>
           <div className="text-[10px] font-medium text-slate-600">
-            Showing <span className="text-blue-600 font-bold">{filteredSchemes.length.toLocaleString()}</span> schemes
+            Showing <span className="text-blue-600 font-bold">{filteredSchemes.length.toLocaleString()}</span> villages
           </div>
         </div>
       </div>
