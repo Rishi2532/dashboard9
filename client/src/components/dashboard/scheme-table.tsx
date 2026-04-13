@@ -199,7 +199,7 @@ export default function SchemeTable({
           <div>
             <div className="flex items-center gap-3 flex-wrap">
               <CardTitle className="text-base sm:text-lg lg:text-xl xl:text-2xl font-medium text-neutral-900">
-                Scheme Status
+                Schemes with 100% Civil Work Completion
               </CardTitle>
               <span className="px-3 py-1 bg-blue-100 rounded-full text-blue-800 text-sm font-medium">
                 {filteredSchemes.length} schemes found
@@ -312,7 +312,7 @@ export default function SchemeTable({
                     </div>
                   </TableHead>
                   <TableHead className="text-xs sm:text-sm lg:text-base p-2 sm:p-3 lg:p-4 xl:p-5 text-blue-800 font-semibold border-b border-blue-200 text-center">
-                    <div className="flex justify-center">Status</div>
+                    <div className="flex justify-center">IoT Work Status</div>
                   </TableHead>
                   <TableHead className="text-xs sm:text-sm lg:text-base p-2 sm:p-3 lg:p-4 xl:p-5 text-blue-800 font-semibold border-b border-blue-200 text-center">
                     <div className="flex justify-center">Action</div>
