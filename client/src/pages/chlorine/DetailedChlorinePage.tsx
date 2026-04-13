@@ -3140,9 +3140,9 @@ const DetailedChlorinePage = () => {
                   <Tabs value={waterSupplyStatus} onValueChange={setWaterSupplyStatus} className="m-0 flex-shrink-0">
                     <TabsList className="h-8 bg-gray-100 dark:bg-gray-800 p-0.5 border border-gray-200 dark:border-gray-700">
                       <TabsTrigger value="All" className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-blue-600 data-[state=active]:text-white whitespace-nowrap">All</TabsTrigger>
-                      <TabsTrigger value="Full" className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-emerald-600 data-[state=active]:text-white whitespace-nowrap">Full</TabsTrigger>
-                      <TabsTrigger value="Partial" className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-amber-500 data-[state=active]:text-white whitespace-nowrap">Partial</TabsTrigger>
-                      <TabsTrigger value="No" className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-red-500 data-[state=active]:text-white whitespace-nowrap">No Supply</TabsTrigger>
+                      <TabsTrigger value="Full" className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-emerald-600 data-[state=active]:text-white whitespace-nowrap">Full Operational</TabsTrigger>
+                      <TabsTrigger value="Partial" className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-amber-500 data-[state=active]:text-white whitespace-nowrap">Partially Operational</TabsTrigger>
+                      <TabsTrigger value="No" className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-red-500 data-[state=active]:text-white whitespace-nowrap">Not Operational</TabsTrigger>
                     </TabsList>
                   </Tabs>
                 </>

@@ -6,6 +6,7 @@ import { communicationStatus, schemeStatuses } from "../../shared/schema";
 import multer from "multer";
 import * as csv from "csv-parse";
 import fs from "fs";
+import { getFilteredSchemeIds } from "./filter-utils";
 
 const router = Router();
 const upload = multer({ dest: "uploads/" });
@@ -21,6 +22,8 @@ router.get("/overview", async (req, res) => {
     const block = req.query.block as string;
     const waterSupply = req.query.waterSupply as string;
     const agencyType = req.query.agencyType as string;
+    const filterType = req.query.filterType as string;
+    const fullyCompleted = req.query.fullyCompleted as string;
 
     // Build filter conditions
     const conditions = [];
@@ -34,33 +37,47 @@ router.get("/overview", async (req, res) => {
       conditions.push(eq(communicationStatus.sub_division, subdivision));
     if (block && block !== "all")
       conditions.push(eq(communicationStatus.block, block));
-    if (waterSupply && waterSupply !== "all") {
-      let subQueryCondition;
-      if (waterSupply.toLowerCase() === "no") {
-        subQueryCondition = sql`lower(${schemeStatuses.water_supply}) = 'no' OR ${schemeStatuses.water_supply} IS NULL OR trim(${schemeStatuses.water_supply}) = ''`;
-      } else {
-        subQueryCondition = sql`lower(${schemeStatuses.water_supply}) = lower(${waterSupply})`;
+
+    // Handle standard filter types (like on schemes page)
+    if (filterType || fullyCompleted) {
+      const filteredSchemeIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType);
+      if (filteredSchemeIds) {
+        if (filteredSchemeIds.includes('NO_MATCHES')) {
+          conditions.push(sql`1 = 0`); // No matches
+        } else {
+          conditions.push(inArray(communicationStatus.scheme_id, filteredSchemeIds));
+        }
+      }
+    } else {
+      // Fallback to legacy waterSupply and agencyType filters if filterType is not provided
+      if (waterSupply && waterSupply !== "all") {
+        let subQueryCondition;
+        if (waterSupply.toLowerCase() === "no") {
+          subQueryCondition = sql`lower(${schemeStatuses.water_supply}) = 'no' OR ${schemeStatuses.water_supply} IS NULL OR trim(${schemeStatuses.water_supply}) = ''`;
+        } else {
+          subQueryCondition = sql`lower(${schemeStatuses.water_supply}) = lower(${waterSupply})`;
+        }
+
+        conditions.push(
+          inArray(
+            communicationStatus.scheme_id,
+            db.select({ scheme_id: schemeStatuses.scheme_id })
+              .from(schemeStatuses)
+              .where(subQueryCondition)
+          )
+        );
       }
 
-      conditions.push(
-        inArray(
-          communicationStatus.scheme_id,
-          db.select({ scheme_id: schemeStatuses.scheme_id })
-            .from(schemeStatuses)
-            .where(subQueryCondition)
-        )
-      );
-    }
-
-    if (agencyType && agencyType !== "all" && agencyType !== "ALL") {
-      conditions.push(
-        inArray(
-          communicationStatus.scheme_id,
-          db.select({ scheme_id: schemeStatuses.scheme_id })
-            .from(schemeStatuses)
-            .where(eq(schemeStatuses.agency_type, agencyType))
-        )
-      );
+      if (agencyType && agencyType !== "all" && agencyType !== "ALL") {
+        conditions.push(
+          inArray(
+            communicationStatus.scheme_id,
+            db.select({ scheme_id: schemeStatuses.scheme_id })
+              .from(schemeStatuses)
+              .where(eq(schemeStatuses.agency_type, agencyType))
+          )
+        );
+      }
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -151,6 +168,8 @@ router.get("/schemes", async (req, res) => {
     const block = req.query.block as string;
     const waterSupply = req.query.waterSupply as string;
     const agencyType = req.query.agencyType as string;
+    const filterType = req.query.filterType as string;
+    const fullyCompleted = req.query.fullyCompleted as string;
 
     // Build filter conditions
     const conditions = [];
@@ -164,33 +183,47 @@ router.get("/schemes", async (req, res) => {
       conditions.push(eq(communicationStatus.sub_division, subdivision));
     if (block && block !== "all")
       conditions.push(eq(communicationStatus.block, block));
-    if (waterSupply && waterSupply !== "all") {
-      let subQueryCondition;
-      if (waterSupply.toLowerCase() === "no") {
-        subQueryCondition = sql`lower(${schemeStatuses.water_supply}) = 'no' OR ${schemeStatuses.water_supply} IS NULL OR trim(${schemeStatuses.water_supply}) = ''`;
-      } else {
-        subQueryCondition = sql`lower(${schemeStatuses.water_supply}) = lower(${waterSupply})`;
+
+    // Handle standard filter types (like on schemes page)
+    if (filterType || fullyCompleted) {
+      const filteredSchemeIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType);
+      if (filteredSchemeIds) {
+        if (filteredSchemeIds.includes('NO_MATCHES')) {
+          conditions.push(sql`1 = 0`); // No matches
+        } else {
+          conditions.push(inArray(communicationStatus.scheme_id, filteredSchemeIds));
+        }
+      }
+    } else {
+      // Fallback to legacy waterSupply and agencyType filters if filterType is not provided
+      if (waterSupply && waterSupply !== "all") {
+        let subQueryCondition;
+        if (waterSupply.toLowerCase() === "no") {
+          subQueryCondition = sql`lower(${schemeStatuses.water_supply}) = 'no' OR ${schemeStatuses.water_supply} IS NULL OR trim(${schemeStatuses.water_supply}) = ''`;
+        } else {
+          subQueryCondition = sql`lower(${schemeStatuses.water_supply}) = lower(${waterSupply})`;
+        }
+
+        conditions.push(
+          inArray(
+            communicationStatus.scheme_id,
+            db.select({ scheme_id: schemeStatuses.scheme_id })
+              .from(schemeStatuses)
+              .where(subQueryCondition)
+          )
+        );
       }
 
-      conditions.push(
-        inArray(
-          communicationStatus.scheme_id,
-          db.select({ scheme_id: schemeStatuses.scheme_id })
-            .from(schemeStatuses)
-            .where(subQueryCondition)
-        )
-      );
-    }
-
-    if (agencyType && agencyType !== "all" && agencyType !== "ALL") {
-      conditions.push(
-        inArray(
-          communicationStatus.scheme_id,
-          db.select({ scheme_id: schemeStatuses.scheme_id })
-            .from(schemeStatuses)
-            .where(eq(schemeStatuses.agency_type, agencyType))
-        )
-      );
+      if (agencyType && agencyType !== "all" && agencyType !== "ALL") {
+        conditions.push(
+          inArray(
+            communicationStatus.scheme_id,
+            db.select({ scheme_id: schemeStatuses.scheme_id })
+              .from(schemeStatuses)
+              .where(eq(schemeStatuses.agency_type, agencyType))
+          )
+        );
+      }
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -524,6 +557,9 @@ router.get("/download", async (req, res) => {
     const block = req.query.block as string;
     const search = req.query.search as string;
     const waterSupply = req.query.waterSupply as string;
+    const agencyType = req.query.agencyType as string;
+    const filterType = req.query.filterType as string;
+    const fullyCompleted = req.query.fullyCompleted as string;
 
     // Build filter conditions
     const conditions = [];
@@ -537,22 +573,47 @@ router.get("/download", async (req, res) => {
       conditions.push(eq(communicationStatus.sub_division, subdivision));
     if (block && block !== "all")
       conditions.push(eq(communicationStatus.block, block));
-    if (waterSupply && waterSupply !== "all") {
-      let subQueryCondition;
-      if (waterSupply.toLowerCase() === "no") {
-        subQueryCondition = sql`lower(${schemeStatuses.water_supply}) = 'no' OR ${schemeStatuses.water_supply} IS NULL OR trim(${schemeStatuses.water_supply}) = ''`;
-      } else {
-        subQueryCondition = sql`lower(${schemeStatuses.water_supply}) = lower(${waterSupply})`;
+
+    // Handle standard filter types (like on schemes page)
+    if (filterType || fullyCompleted) {
+      const filteredSchemeIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType);
+      if (filteredSchemeIds) {
+        if (filteredSchemeIds.includes('NO_MATCHES')) {
+          conditions.push(sql`1 = 0`); // No matches
+        } else {
+          conditions.push(inArray(communicationStatus.scheme_id, filteredSchemeIds));
+        }
+      }
+    } else {
+      // Fallback to legacy waterSupply and agencyType filters if filterType is not provided
+      if (waterSupply && waterSupply !== "all") {
+        let subQueryCondition;
+        if (waterSupply.toLowerCase() === "no") {
+          subQueryCondition = sql`lower(${schemeStatuses.water_supply}) = 'no' OR ${schemeStatuses.water_supply} IS NULL OR trim(${schemeStatuses.water_supply}) = ''`;
+        } else {
+          subQueryCondition = sql`lower(${schemeStatuses.water_supply}) = lower(${waterSupply})`;
+        }
+
+        conditions.push(
+          inArray(
+            communicationStatus.scheme_id,
+            db.select({ scheme_id: schemeStatuses.scheme_id })
+              .from(schemeStatuses)
+              .where(subQueryCondition)
+          )
+        );
       }
 
-      conditions.push(
-        inArray(
-          communicationStatus.scheme_id,
-          db.select({ scheme_id: schemeStatuses.scheme_id })
-            .from(schemeStatuses)
-            .where(subQueryCondition)
-        )
-      );
+      if (agencyType && agencyType !== "all" && agencyType !== "ALL") {
+        conditions.push(
+          inArray(
+            communicationStatus.scheme_id,
+            db.select({ scheme_id: schemeStatuses.scheme_id })
+              .from(schemeStatuses)
+              .where(eq(schemeStatuses.agency_type, agencyType))
+          )
+        );
+      }
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;

@@ -16,12 +16,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Pagination,
   PaginationContent,
@@ -128,10 +126,16 @@ export default function CommunicationStatusPage() {
   const [selectedSubdivision, setSelectedSubdivision] = useState<string>("all");
   const [selectedBlock, setSelectedBlock] = useState<string>("all");
   const [selectedAgencyType, setSelectedAgencyType] = useState<string>("ALL");
+  const [uiSchemeFilter, setUiSchemeFilter] = useState<string>("commissioned");
+  const [waterSupplyStatus, setWaterSupplyStatus] = useState<string>("All");
   const [selectedWaterSupply, setSelectedWaterSupply] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 10;
+
+  const schemeFilter = uiSchemeFilter !== "all" && waterSupplyStatus !== "All"
+    ? `${uiSchemeFilter}_${waterSupplyStatus.toLowerCase()}`
+    : uiSchemeFilter;
 
   const { data: overview, isLoading: overviewLoading } = useQuery({
     queryKey: [
@@ -143,6 +147,7 @@ export default function CommunicationStatusPage() {
       selectedBlock,
       selectedAgencyType,
       selectedWaterSupply,
+      schemeFilter,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -154,6 +159,13 @@ export default function CommunicationStatusPage() {
       if (selectedBlock !== "all") params.set("block", selectedBlock);
       if (selectedAgencyType !== 'ALL') params.set("agencyType", selectedAgencyType);
       if (selectedWaterSupply !== "all") params.set("waterSupply", selectedWaterSupply);
+
+      if (schemeFilter !== 'all') {
+        params.set("filterType", schemeFilter);
+      }
+      if (schemeFilter === "fully_completed") {
+        params.set("fullyCompleted", "true");
+      }
 
       const response = await fetch(
         `/api/communication-status/overview?${params.toString()}`,
@@ -180,6 +192,7 @@ export default function CommunicationStatusPage() {
       selectedBlock,
       selectedAgencyType,
       selectedWaterSupply,
+      schemeFilter,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -191,6 +204,13 @@ export default function CommunicationStatusPage() {
       if (selectedBlock !== "all") params.set("block", selectedBlock);
       if (selectedAgencyType !== 'ALL') params.set("agencyType", selectedAgencyType);
       if (selectedWaterSupply !== "all") params.set("waterSupply", selectedWaterSupply);
+
+      if (schemeFilter !== 'all') {
+        params.set("filterType", schemeFilter);
+      }
+      if (schemeFilter === "fully_completed") {
+        params.set("fullyCompleted", "true");
+      }
 
       const response = await fetch(
         `/api/communication-status/schemes?${params.toString()}`,
@@ -886,24 +906,20 @@ export default function CommunicationStatusPage() {
           resultCount={filteredSchemes.length}
           resultLabel="Connected schemes"
           extraFilters={
-            <div className="w-full sm:w-64">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">Water Supply</label>
-              <Select
-                value={selectedWaterSupply}
-                onValueChange={(value) => {
-                  setSelectedWaterSupply(value);
-                  resetPage();
-                }}
-              >
-                <SelectTrigger className="h-11 border-gray-200 shadow-sm text-sm">
-                  <SelectValue placeholder="All Supply" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Water Supply</SelectItem>
-                  <SelectItem value="Yes">Yes</SelectItem>
-                  <SelectItem value="No">No</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex flex-wrap items-center gap-4 w-full">
+              {(uiSchemeFilter === "commissioned" || uiSchemeFilter === "fully_completed") && (
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Water Supply Status</label>
+                  <Tabs value={waterSupplyStatus} onValueChange={(val) => { setWaterSupplyStatus(val); resetPage(); }} className="m-0">
+                    <TabsList className="h-11 bg-white border border-gray-200 p-1 shadow-sm">
+                      <TabsTrigger value="All" className="px-3 py-2 text-xs font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white">All</TabsTrigger>
+                      <TabsTrigger value="Full" className="px-3 py-2 text-xs font-medium data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Fully Operational</TabsTrigger>
+                      <TabsTrigger value="Partial" className="px-3 py-2 text-xs font-medium data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partially Operational</TabsTrigger>
+                      <TabsTrigger value="No" className="px-3 py-2 text-xs font-medium data-[state=active]:bg-red-500 data-[state=active]:text-white">Not Operational</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
+              )}
             </div>
           }
           onClearAll={() => {
@@ -915,6 +931,8 @@ export default function CommunicationStatusPage() {
             setSelectedAgencyType("ALL");
             setSearchTerm("");
             setSelectedWaterSupply("all");
+            setUiSchemeFilter("commissioned");
+            setWaterSupplyStatus("All");
             resetPage();
           }}
         />
@@ -1390,11 +1408,11 @@ export default function CommunicationStatusPage() {
                     </Pagination>
                   </div>
                 )}
-          </>
-        )}
-      </CardContent>
-    </Card>
-  </div>
-</DashboardLayout>
-          );
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </DashboardLayout>
+  );
 }
