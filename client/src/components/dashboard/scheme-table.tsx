@@ -379,7 +379,7 @@ export default function SchemeTable({
                       <TableCell className="p-2 sm:p-3 lg:p-4 xl:p-5 text-xs sm:text-sm lg:text-base text-center border-b border-gray-100">
                         <div className="flex items-center justify-center">
                           <span className="font-medium">
-                            {scheme.total_villages_integrated || 0}
+                            {scheme.fully_completed_villages || 0}
                           </span>
                           <span className="text-neutral-400 mx-1">/</span>
                           <span>{scheme.number_of_village || 0}</span>
@@ -389,7 +389,7 @@ export default function SchemeTable({
                             className="bg-blue-600 h-1.5 rounded-full"
                             style={{
                               width: `${calcPercentage(
-                                scheme.total_villages_integrated,
+                                scheme.fully_completed_villages,
                                 scheme.number_of_village,
                               )}%`,
                             }}
@@ -399,7 +399,7 @@ export default function SchemeTable({
                       <TableCell className="p-2 sm:p-3 lg:p-4 xl:p-5 text-xs sm:text-sm lg:text-base text-center border-b border-gray-100">
                         <div className="flex items-center justify-center">
                           <span className="font-medium">
-                            {scheme.total_esr_integrated || 0}
+                            {scheme.no_fully_completed_esr || 0}
                           </span>
                           <span className="text-neutral-400 mx-1">/</span>
                           <span className="text-purple-600 font-medium">
@@ -411,7 +411,7 @@ export default function SchemeTable({
                             className="bg-purple-500 h-1.5 rounded-full"
                             style={{
                               width: `${calcPercentage(
-                                scheme.total_esr_integrated,
+                                scheme.no_fully_completed_esr,
                                 scheme.total_number_of_esr,
                               )}%`,
                             }}

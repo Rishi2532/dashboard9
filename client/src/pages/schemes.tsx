@@ -718,45 +718,43 @@ export default function Schemes() {
         </div>
       </div>
 
-      {/* Unified Filter Panel */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
-        {/* Geographical Filters */}
-        <div className="px-4 pt-4 pb-3 border-b border-slate-100">
-          <GeographicalFilters
-            filters={filterOptions}
-            selectedRegion={selectedRegion}
-            selectedCircle={selectedCircle}
-            selectedDivision={selectedDivision}
-            selectedSubdivision={selectedSubdivision}
-            selectedBlock={selectedBlock}
-            onRegionChange={handleRegionChange}
-            onCircleChange={handleCircleChange}
-            onDivisionChange={handleDivisionChange}
-            onSubdivisionChange={handleSubdivisionChange}
-            onBlockChange={handleBlockChange}
-          />
-        </div>
+      <GeographicalFilters
+        filters={filterOptions}
+        selectedRegion={selectedRegion}
+        selectedCircle={selectedCircle}
+        selectedDivision={selectedDivision}
+        selectedSubdivision={selectedSubdivision}
+        selectedBlock={selectedBlock}
+        onRegionChange={handleRegionChange}
+        onCircleChange={handleCircleChange}
+        onDivisionChange={handleDivisionChange}
+        onSubdivisionChange={handleSubdivisionChange}
+        onBlockChange={handleBlockChange}
+      />
 
-        {/* Agency Type + Water Supply Status on one line */}
-        <div className="px-4 py-3 bg-blue-50 flex flex-wrap gap-x-6 gap-y-3 items-end">
-          <div>
-            <AgencyTypeFilter
-              selectedAgencyType={selectedAgencyType}
-              onAgencyTypeChange={setSelectedAgencyType}
-            />
-          </div>
-          <div>
-            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-2">Water Supply Status</p>
-            <Tabs value={waterSupplyStatus} onValueChange={setWaterSupplyStatus}>
-              <TabsList className="h-8 p-0.5 bg-white border border-blue-200 gap-0.5">
-                <TabsTrigger value="All" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white">All</TabsTrigger>
-                <TabsTrigger value="Full" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Fully Operational</TabsTrigger>
-                <TabsTrigger value="Partial" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partially Operational</TabsTrigger>
-                <TabsTrigger value="No" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-red-500 data-[state=active]:text-white">Not Operational</TabsTrigger>
+      <div className="flex flex-wrap items-center gap-3 mt-4 mb-6 bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+
+
+        {uiSchemeFilter === "commissioned" && (
+          <>
+            <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2"></div>
+            <Tabs value={waterSupplyStatus} onValueChange={setWaterSupplyStatus} className="m-0">
+              <TabsList className="h-10 bg-gray-100 dark:bg-gray-800 p-1 border border-gray-200 dark:border-gray-700">
+                <TabsTrigger value="All" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-blue-600 data-[state=active]:text-white">All Schemes</TabsTrigger>
+                <TabsTrigger value="Full" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Fully Operational</TabsTrigger>
+                <TabsTrigger value="Partial" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partially Operational</TabsTrigger>
+                <TabsTrigger value="No" className="px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-red-500 data-[state=active]:text-white">Not Operational</TabsTrigger>
               </TabsList>
             </Tabs>
-          </div>
-        </div>
+          </>
+        )}
+
+        <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2"></div>
+        <AgencyTypeFilter
+          selectedAgencyType={selectedAgencyType}
+          onAgencyTypeChange={setSelectedAgencyType}
+          className="w-full md:w-64"
+        />
       </div>
 
       <SchemeTable
