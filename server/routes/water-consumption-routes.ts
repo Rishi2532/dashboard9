@@ -226,12 +226,10 @@ router.get('/historical', async (req, res) => {
     const { startDate, endDate, region, countOnly, agencyType } = req.query;
 
     if (!startDate || !endDate) {
-      return res.status(400).json({
-        error: 'startDate and endDate are required parameters (format: YYYY-MM-DD)'
-      });
+      console.log('📊 Fetching ALL Historical Water Consumption records (no date limit provided)');
+    } else {
+      console.log(`📊 Historical Water Consumption query: ${startDate} to ${endDate}`);
     }
-
-    console.log(`📊 Historical Water Consumption query: ${startDate} to ${endDate}`);
 
     // Use storage's getDb() to get shared connection pool
     const db = await storage.getDb();
@@ -250,6 +248,10 @@ router.get('/historical', async (req, res) => {
             AND data_date NOT LIKE '31-Jun%'
             AND data_date NOT LIKE '31-Sep%'
             AND data_date NOT LIKE '31-Nov%'
+        `;
+
+        if (startDate && endDate) {
+          countQuery += `
             AND (
               CASE
                 WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
@@ -257,7 +259,8 @@ router.get('/historical', async (req, res) => {
               END
             ) BETWEEN TO_DATE('${startDate}', 'YYYY-MM-DD') 
                 AND TO_DATE('${endDate}', 'YYYY-MM-DD')
-        `;
+          `;
+        }
 
         if (region && region !== 'all') {
           countQuery += ` AND region = '${region}'`;
@@ -304,6 +307,10 @@ router.get('/historical', async (req, res) => {
           AND data_date NOT LIKE '31-Jun%'
           AND data_date NOT LIKE '31-Sep%'
           AND data_date NOT LIKE '31-Nov%'
+      `;
+
+      if (startDate && endDate) {
+        query += `
           AND (
             CASE 
               WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
@@ -317,7 +324,8 @@ router.get('/historical', async (req, res) => {
             END
           ) BETWEEN TO_DATE('${startDate}', 'YYYY-MM-DD') 
               AND TO_DATE('${endDate}', 'YYYY-MM-DD')
-      `;
+        `;
+      }
 
       // Add region filter if specified
       if (region && region !== 'all') {
@@ -363,12 +371,10 @@ router.get('/download/water-consumption-history', async (req, res) => {
     } = req.query;
 
     if (!startDate || !endDate) {
-      return res.status(400).json({
-        error: 'startDate and endDate are required parameters (format: YYYY-MM-DD)'
-      });
+      console.log('📥 Water Consumption historical export request: ALL DATA');
+    } else {
+      console.log(`📥 Water Consumption historical export request: startDate=${startDate}, endDate=${endDate}, region=${region}`);
     }
-
-    console.log(`📥 Water Consumption historical export request: startDate=${startDate}, endDate=${endDate}, region=${region}`);
 
     // Use storage's getDb() to get shared connection pool
     const db = await storage.getDb();
@@ -405,6 +411,10 @@ router.get('/download/water-consumption-history', async (req, res) => {
           AND data_date NOT LIKE '31-Jun%'
           AND data_date NOT LIKE '31-Sep%'
           AND data_date NOT LIKE '31-Nov%'
+      `;
+
+      if (startDate && endDate) {
+        query += `
           AND TO_DATE(data_date || '-' || 
             CASE 
               WHEN EXTRACT(MONTH FROM TO_DATE(data_date, 'DD-Mon')) > EXTRACT(MONTH FROM uploaded_at) 
@@ -414,7 +424,8 @@ router.get('/download/water-consumption-history', async (req, res) => {
             'DD-Mon-YYYY') 
               BETWEEN TO_DATE('${startDate}', 'YYYY-MM-DD') 
               AND TO_DATE('${endDate}', 'YYYY-MM-DD')
-      `;
+        `;
+      }
 
       // Add region filter
       if (region && region !== 'all') {

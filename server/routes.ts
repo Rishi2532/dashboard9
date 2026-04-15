@@ -90,6 +90,28 @@ const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
   next();
 };
 
+// Define external API key (from env or fallback)
+const EXTERNAL_API_KEY = process.env.EXTERNAL_API_KEY || "MAHAJAL_IOT_SECURE_KEY_25";
+
+// Dual-Authentication middleware - checks if user has valid API key OR is logged in
+const requireApiKeyOrAuth = (req: Request, res: Response, next: NextFunction) => {
+  // 1. Check for valid API key in headers
+  const apiKey = req.headers["x-external-proxy-key"] || req.headers["x-api-key"];
+  if (apiKey && apiKey === EXTERNAL_API_KEY) {
+    return next(); // API Key is valid, allow access
+  }
+  
+  // 2. Fallback to standard session authentication
+  if (!req.session || !req.session.userId) {
+    return res.status(401).json({ 
+      error: "Unauthorized", 
+      message: "Please provide a valid API key (X-External-Proxy-Key) or login." 
+    });
+  }
+  
+  next(); // Session is valid, allow access
+};
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Configure file upload middleware with memory storage
   const upload = multer({
@@ -103,10 +125,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/ai", aiRoutes);
 
   // Mount water scheme routes
-  app.use("/api/water-scheme-data", waterSchemeRoutes);
+  app.use("/api/water-scheme-data", requireApiKeyOrAuth, waterSchemeRoutes);
 
   // Mount scheme LPCD routes
-  app.use("/api/scheme-lpcd-data", schemeLpcdRoutes);
+  app.use("/api/scheme-lpcd-data", requireApiKeyOrAuth, schemeLpcdRoutes);
 
   // Mount reports routes for Excel file uploads/downloads
   app.use("/api/reports", reportsRoutes);
@@ -115,28 +137,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/admin", requireAdmin, lpcdImportRoutes);
 
   // Mount chlorine data routes
-  app.use("/api/chlorine", chlorineRoutes);
+  app.use("/api/chlorine", requireApiKeyOrAuth, chlorineRoutes);
 
   // Mount pressure data routes
-  app.use("/api/pressure", pressureRoutes);
+  app.use("/api/pressure", requireApiKeyOrAuth, pressureRoutes);
 
   // Mount water consumption data routes
-  app.use("/api/water-consumption", waterConsumptionRoutes);
+  app.use("/api/water-consumption", requireApiKeyOrAuth, waterConsumptionRoutes);
 
   // Mount communication status routes
-  app.use("/api/communication", communicationRoutes);
+  app.use("/api/communication", requireApiKeyOrAuth, communicationRoutes);
 
   // Mount translation routes
   app.use("/api/translation", translationRoutes);
 
   // Mount population tracking routes
-  app.use("/api/population-tracking", populationRoutes);
+  app.use("/api/population-tracking", requireApiKeyOrAuth, populationRoutes);
 
   // Mount ESR monitoring routes
-  app.use("/api/esr", esrRoutes);
+  app.use("/api/esr", requireApiKeyOrAuth, esrRoutes);
 
   // Mount communication status routes
-  app.use("/api/communication-status", communicationStatusRoutes);
+  app.use("/api/communication-status", requireApiKeyOrAuth, communicationStatusRoutes);
 
   // Mount village data routes (admin only)
   app.use("/api/villages", requireAdmin, villageRoutes);
@@ -151,13 +173,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/chatbot/helpdesk", requireAuth, chatbotHelpdeskRoutes);
 
   // Mount scheme analysis routes
-  app.use("/api/scheme-analysis", schemeAnalysisRoutes);
+  app.use("/api/scheme-analysis", requireApiKeyOrAuth, schemeAnalysisRoutes);
 
   // Mount category data routes (keyword-based queries for water scheme categories)
-  app.use("/api/category-data", categoryDataRoutes);
+  app.use("/api/category-data", requireApiKeyOrAuth, categoryDataRoutes);
 
   // Mount NLP chatbot routes
-  app.use("/api/nlp-chatbot", nlpChatbotRoutes);
+  app.use("/api/nlp-chatbot", requireApiKeyOrAuth, nlpChatbotRoutes);
 
   // Mount Smart Reports routes
   app.use("/api/smart-reports", smartReportsRoutes);

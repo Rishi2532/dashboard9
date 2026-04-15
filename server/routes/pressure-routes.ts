@@ -56,13 +56,9 @@ router.get("/historical", async (req, res) => {
   try {
     const { startDate, endDate, region, scheme_id, village_name, esr_name } = req.query;
 
-    if (!startDate || !endDate) {
-      return res.status(400).json({ error: "startDate and endDate are required" });
-    }
-
     const filter = {
-      startDate: startDate as string,
-      endDate: endDate as string,
+      startDate: (startDate as string) || "2000-01-01",
+      endDate: (endDate as string) || "2100-12-31",
       region: region as string | undefined,
       scheme_id: scheme_id as string | undefined,
       village_name: village_name as string | undefined,

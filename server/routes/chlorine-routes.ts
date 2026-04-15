@@ -165,15 +165,12 @@ router.get("/historical", async (req, res) => {
   try {
     const { startDate, endDate, region, scheme_id, village_name, esr_name } = req.query;
 
-    if (!startDate || !endDate) {
-      return res.status(400).json({
-        error: "Both startDate and endDate are required. Format: YYYY-MM-DD or DD-MM-YYYY"
-      });
-    }
+    const effectiveStartDate = (startDate as string) || "2000-01-01";
+    const effectiveEndDate = (endDate as string) || "2100-12-31";
 
     console.log("Historical Chlorine Data Request:", {
-      startDate,
-      endDate,
+      startDate: effectiveStartDate,
+      endDate: effectiveEndDate,
       region,
       scheme_id,
       village_name,
@@ -182,8 +179,8 @@ router.get("/historical", async (req, res) => {
 
     // Use the new chlorine_history table-based method
     const historicalData = await storage.getChlorineHistoricalDataByDateRange(
-      startDate as string,
-      endDate as string,
+      effectiveStartDate,
+      effectiveEndDate,
       region as string,
       scheme_id as string,
       village_name as string
