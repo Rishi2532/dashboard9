@@ -2226,11 +2226,10 @@ router.get('/historical', async (req, res) => {
             (
               CASE 
                 WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+$' THEN 
-                  CASE 
-                    WHEN EXTRACT(MONTH FROM TO_DATE(h.data_date, 'DD-Mon')) >= 11 AND EXTRACT(MONTH FROM h.uploaded_at) <= 2 THEN
-                      TO_DATE(h.data_date || '-' || (EXTRACT(YEAR FROM h.uploaded_at) - 1)::text, 'DD-Mon-YYYY')
-                    ELSE 
-                      TO_DATE(h.data_date || '-' || EXTRACT(YEAR FROM h.uploaded_at)::text, 'DD-Mon-YYYY')
+                  CASE
+                    WHEN TO_DATE(h.data_date || '-' || TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY') > (COALESCE(h.uploaded_at, CURRENT_DATE) + interval '1 month')
+                    THEN TO_DATE(h.data_date || '-' || (TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY')::int - 1), 'DD-Mon-YYYY')
+                    ELSE TO_DATE(h.data_date || '-' || TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY')
                   END
                 WHEN h.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN h.data_date::date
                 WHEN h.data_date ~ '^\\d{1,2}-\\d{1,2}-\\d{2,4}$' THEN TO_DATE(h.data_date, 'DD-MM-YYYY')
@@ -2342,11 +2341,10 @@ router.get('/download/village-lpcd-history', async (req, res) => {
             (
               CASE 
                 WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+$' THEN 
-                  CASE 
-                    WHEN EXTRACT(MONTH FROM TO_DATE(h.data_date, 'DD-Mon')) >= 11 AND EXTRACT(MONTH FROM h.uploaded_at) <= 2 THEN
-                      TO_DATE(h.data_date || '-' || (EXTRACT(YEAR FROM h.uploaded_at) - 1)::text, 'DD-Mon-YYYY')
-                    ELSE 
-                      TO_DATE(h.data_date || '-' || EXTRACT(YEAR FROM h.uploaded_at)::text, 'DD-Mon-YYYY')
+                  CASE
+                    WHEN TO_DATE(h.data_date || '-' || TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY') > (COALESCE(h.uploaded_at, CURRENT_DATE) + interval '1 month')
+                    THEN TO_DATE(h.data_date || '-' || (TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY')::int - 1), 'DD-Mon-YYYY')
+                    ELSE TO_DATE(h.data_date || '-' || TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY')
                   END
                 WHEN h.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN h.data_date::date
                 WHEN h.data_date ~ '^\\d{1,2}-\\d{1,2}-\\d{2,4}$' THEN TO_DATE(h.data_date, 'DD-MM-YYYY')
@@ -2434,7 +2432,7 @@ router.get('/download/village-lpcd-history', async (req, res) => {
 
       // Calculate data availability information
       const availableDates = Array.from(new Set(filteredRows.map(row => row.data_date)));
-      
+
       const rawAvailableDates = availableDates.sort((a: any, b: any) => {
         const dateA = new Date(a);
         const dateB = new Date(b);
@@ -2461,13 +2459,13 @@ router.get('/download/village-lpcd-history', async (req, res) => {
         // Get unique dates and sort them natively using string array mapping
         const dates = filteredRows.map(row => row.data_date);
         const uniqueDatesSet = new Set(dates);
-        
+
         const rawUniqueDates = Array.from(uniqueDatesSet).sort((a: any, b: any) => {
           const dateA = new Date(a);
           const dateB = new Date(b);
           return dateA.getTime() - dateB.getTime();
         });
-        
+
         // No need to append current year since SQL already resolved the authentic year correctly
         const formattedDates = rawUniqueDates;
         const uniqueDates = rawUniqueDates;
@@ -2640,13 +2638,13 @@ router.get('/download/village-lpcd-history', async (req, res) => {
         // Get unique dates and sort them natively using string array mapping
         const dates = filteredResult.rows.map(row => row.data_date);
         const uniqueDatesSet = new Set(dates);
-        
+
         const rawUniqueDates = Array.from(uniqueDatesSet).sort((a: any, b: any) => {
           const dateA = new Date(a);
           const dateB = new Date(b);
           return dateA.getTime() - dateB.getTime();
         });
-        
+
         // No need to append current year since SQL already resolved the authentic year correctly
         const formattedDates = rawUniqueDates;
         const uniqueDates = rawUniqueDates;

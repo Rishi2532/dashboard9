@@ -332,11 +332,10 @@ router.get('/history', async (req, res) => {
             (
               CASE 
                 WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+$' THEN 
-                  CASE 
-                    WHEN EXTRACT(MONTH FROM TO_DATE(h.data_date, 'DD-Mon')) >= 11 AND EXTRACT(MONTH FROM h.uploaded_at) <= 2 THEN
-                      TO_DATE(h.data_date || '-' || (EXTRACT(YEAR FROM h.uploaded_at) - 1)::text, 'DD-Mon-YYYY')
-                    ELSE 
-                      TO_DATE(h.data_date || '-' || EXTRACT(YEAR FROM h.uploaded_at)::text, 'DD-Mon-YYYY')
+                  CASE
+                    WHEN TO_DATE(h.data_date || '-' || TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY') > (COALESCE(h.uploaded_at, CURRENT_DATE) + interval '1 month')
+                    THEN TO_DATE(h.data_date || '-' || (TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY')::int - 1), 'DD-Mon-YYYY')
+                    ELSE TO_DATE(h.data_date || '-' || TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY')
                   END
                 WHEN h.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN h.data_date::date
                 WHEN h.data_date ~ '^\\d{1,2}-\\d{1,2}-\\d{2,4}$' THEN TO_DATE(h.data_date, 'DD-MM-YYYY')
@@ -452,11 +451,10 @@ router.get('/export/history', async (req, res) => {
             (
               CASE 
                 WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+$' THEN 
-                  CASE 
-                    WHEN EXTRACT(MONTH FROM TO_DATE(h.data_date, 'DD-Mon')) >= 11 AND EXTRACT(MONTH FROM h.uploaded_at) <= 2 THEN
-                      TO_DATE(h.data_date || '-' || (EXTRACT(YEAR FROM h.uploaded_at) - 1)::text, 'DD-Mon-YYYY')
-                    ELSE 
-                      TO_DATE(h.data_date || '-' || EXTRACT(YEAR FROM h.uploaded_at)::text, 'DD-Mon-YYYY')
+                  CASE
+                    WHEN TO_DATE(h.data_date || '-' || TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY') > (COALESCE(h.uploaded_at, CURRENT_DATE) + interval '1 month')
+                    THEN TO_DATE(h.data_date || '-' || (TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY')::int - 1), 'DD-Mon-YYYY')
+                    ELSE TO_DATE(h.data_date || '-' || TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY')
                   END
                 WHEN h.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN h.data_date::date
                 WHEN h.data_date ~ '^\\d{1,2}-\\d{1,2}-\\d{2,4}$' THEN TO_DATE(h.data_date, 'DD-MM-YYYY')
@@ -540,7 +538,7 @@ router.get('/export/history', async (req, res) => {
       // Get unique dates and sort them (they already contain the real year now directly from the SQL Engine)
       const dates = result.rows.map(r => r.formatted_date).filter(Boolean);
       const uniqueDatesSet = new Set(dates);
-      
+
       const rawUniqueDates = Array.from(uniqueDatesSet).sort((a: any, b: any) => {
         const dateA = new Date(a);
         const dateB = new Date(b);

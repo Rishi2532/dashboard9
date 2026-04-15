@@ -1309,13 +1309,25 @@ const SchemeLpcdDashboard = () => {
   // Export historical scheme LPCD data
   const exportHistoricalData = async () => {
     try {
-      // Validate date range to prevent crashes with very large datasets
+      if (!historicalStartDate || !historicalEndDate) {
+        toast({
+          title: "Invalid Date Range",
+          description: "Please select both start and end dates.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const start = new Date(historicalStartDate);
       const end = new Date(historicalEndDate);
-      const daysDifference = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-
-      /* Range limit removed to allow full-year exports */
-
+      if (end < start) {
+        toast({
+          title: "Invalid Date Range",
+          description: "End date must be after start date.",
+          variant: "destructive",
+        });
+        return;
+      }
 
       setIsExportingHistorical(true);
 
@@ -2364,7 +2376,7 @@ const SchemeLpcdDashboard = () => {
           <DialogHeader>
             <DialogTitle>Export Historical Scheme LPCD Data</DialogTitle>
             <DialogDescription>
-              Select a date range to export historical scheme LPCD data
+              Select any date range to export historical scheme LPCD data. There is no maximum date range limit.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
