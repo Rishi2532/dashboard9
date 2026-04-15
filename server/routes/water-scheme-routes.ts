@@ -2248,8 +2248,7 @@ router.get('/historical', async (req, res) => {
         let countQuery = `${baseCte}
           SELECT COUNT(*) as total
           FROM resolved_history h
-          WHERE (h.lpcd_value IS NOT NULL OR h.water_value IS NOT NULL)
-            AND h.actual_date >= $1::date
+          WHERE h.actual_date >= $1::date
             AND h.actual_date <= $2::date
         `;
 
@@ -2274,8 +2273,7 @@ router.get('/historical', async (req, res) => {
           *,
           TO_CHAR(actual_date, 'DD-Mon-YYYY') as resolved_date_str
         FROM resolved_history h
-        WHERE (h.lpcd_value IS NOT NULL OR h.water_value IS NOT NULL)
-          AND h.actual_date >= $1::date
+        WHERE h.actual_date >= $1::date
           AND h.actual_date <= $2::date
       `;
 
@@ -2373,8 +2371,7 @@ router.get('/download/village-lpcd-history', async (req, res) => {
           upload_batch_id,
           uploaded_at
         FROM resolved_history h
-        WHERE (lpcd_value IS NOT NULL OR water_value IS NOT NULL)
-          AND actual_date >= $1::date
+        WHERE actual_date >= $1::date
           AND actual_date <= $2::date
       `;
 
