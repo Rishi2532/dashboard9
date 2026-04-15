@@ -197,9 +197,16 @@ export interface IStorage {
   getAllUserActivities(limit?: number): Promise<UserActivityLog[]>;
 
   // Region operations
-  getAllRegions(): Promise<Region[]>;
+  getAllRegions(view?: "ALL" | "INSTRUMENTED"): Promise<Region[]>;
   getRegionByName(regionName: string): Promise<Region | undefined>;
-  getRegionSummary(regionName?: string): Promise<any>;
+  getRegionSummary(
+    regionName?: string,
+    circle?: string,
+    division?: string,
+    subdivision?: string,
+    block?: string,
+    view?: "ALL" | "INSTRUMENTED",
+  ): Promise<any>;
   createRegion(region: InsertRegion): Promise<Region>;
   updateRegion(region: Region): Promise<Region>;
   batchUpsertRegions(
@@ -8007,9 +8014,48 @@ export class PostgresStorage implements IStorage {
   }
 
   // Region methods
-  async getAllRegions(): Promise<Region[]> {
+  async getAllRegions(view: "ALL" | "INSTRUMENTED" = "ALL"): Promise<Region[]> {
     const db = await this.ensureInitialized();
-    return db.select().from(regions).orderBy(regions.region_name);
+    if (view === "ALL") {
+      return db.select().from(regions).orderBy(regions.region_name);
+    }
+
+    // For INSTRUMENTED view, dynamically aggregate from scheme_status table
+    const result = await db
+      .select({
+        region_name: schemeStatuses.region,
+        total_schemes_integrated: sql<number>`count(distinct ${schemeStatuses.scheme_id})`,
+        fully_completed_schemes: sql<number>`count(distinct ${schemeStatuses.scheme_id}) filter (where TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN ('fully completed', 'completed', 'in progress') AND ${schemeStatuses.water_supply_status} = 'Full')`,
+        total_villages_integrated: sql<number>`sum(${schemeStatuses.number_of_village})`,
+        fully_completed_villages: sql<number>`sum(${schemeStatuses.fully_completed_villages})`,
+        total_esr_integrated: sql<number>`sum(${schemeStatuses.total_number_of_esr})`,
+        fully_completed_esr: sql<number>`sum(${schemeStatuses.no_fully_completed_esr})`,
+        partial_esr: sql<number>`sum(${schemeStatuses.total_esr_integrated}) - sum(${schemeStatuses.no_fully_completed_esr})`,
+        flow_meter_integrated: sql<number>`sum(${schemeStatuses.flow_meters_connected})`,
+        rca_integrated: sql<number>`sum(${schemeStatuses.residual_chlorine_analyzer_connected})`,
+        pressure_transmitter_integrated: sql<number>`sum(${schemeStatuses.pressure_transmitter_connected})`,
+      })
+      .from(schemeStatuses)
+      .where(sql`LOWER(TRIM(${schemeStatuses.water_supply})) = 'yes'`)
+      .groupBy(schemeStatuses.region)
+      .orderBy(schemeStatuses.region);
+
+    return result.map((row: any) => ({
+      region_id: 0, // Not applicable for dynamic aggregation
+      region_name: row.region_name || "Unknown",
+      total_schemes_integrated: Number(row.total_schemes_integrated || 0),
+      fully_completed_schemes: Number(row.fully_completed_schemes || 0),
+      total_villages_integrated: Number(row.total_villages_integrated || 0),
+      fully_completed_villages: Number(row.fully_completed_villages || 0),
+      total_esr_integrated: Number(row.total_esr_integrated || 0),
+      fully_completed_esr: Number(row.fully_completed_esr || 0),
+      partial_esr: Math.max(0, Number(row.partial_esr || 0)),
+      flow_meter_integrated: Number(row.flow_meter_integrated || 0),
+      rca_integrated: Number(row.rca_integrated || 0),
+      pressure_transmitter_integrated: Number(
+        row.pressure_transmitter_integrated || 0,
+      ),
+    })) as Region[];
   }
 
   async getRegionByName(regionName: string): Promise<Region | undefined> {

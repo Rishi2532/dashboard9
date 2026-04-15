@@ -1183,7 +1183,9 @@ export default function Dashboard() {
     isLoading: isRegionsLoading,
     refetch: refetchRegions,
   } = useQuery<Region[]>({
-    queryKey: ["/api/regions"],
+    queryKey: ["/api/regions", schemeView],
+    queryFn: () =>
+      fetch(`/api/regions?view=${schemeView}`).then((res) => res.json()),
   });
 
   // Listen for region filter changes and export commands from chatbot

@@ -1114,7 +1114,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all regions
   app.get("/api/regions", async (req, res) => {
     try {
-      const regions = await storage.getAllRegions();
+      const view = (req.query.view as "ALL" | "INSTRUMENTED") || "ALL";
+      const regions = await storage.getAllRegions(view);
       res.json(regions);
     } catch (error) {
       console.error("Error fetching regions:", error);

@@ -36,6 +36,7 @@ import { useTranslation } from "../../contexts/TranslationContext";
 import { TranslatedText } from "../ui/translated-text";
 import { useTheme } from "../theme/theme-provider";
 import { useChatbot } from "../../contexts/ChatbotContext";
+import { cn } from "../../lib/utils";
 
 interface AuthStatusResponse {
   isLoggedIn: boolean;
@@ -51,6 +52,14 @@ export default function Header() {
     queryKey: ["/api/auth/status"],
     refetchOnWindowFocus: false,
   });
+
+  const [location] = useLocation();
+
+  const isActive = (path: string) => {
+    if (path === "/dashboard") return location === "/dashboard";
+    if (path === "/chlorine") return location === "/chlorine";
+    return location.startsWith(path);
+  };
 
   const [, setLocation] = useLocation();
   const logoutMutation = useMutation({
@@ -210,7 +219,12 @@ export default function Header() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-white hover:bg-black hover:bg-opacity-20 h-8 px-3 text-xs font-medium"
+                className={cn(
+                  "text-white h-8 px-3 text-xs font-medium transition-all duration-200",
+                  isActive("/dashboard") 
+                    ? "bg-white/30 shadow-inner font-bold" 
+                    : "hover:bg-black hover:bg-opacity-20"
+                )}
               >
                 <BarChart2 className="h-3.5 w-3.5 mr-1.5" />
                 Dashboard
@@ -220,7 +234,12 @@ export default function Header() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-white hover:bg-black hover:bg-opacity-20 h-8 px-3 text-xs font-medium"
+                className={cn(
+                  "text-white h-8 px-3 text-xs font-medium transition-all duration-200",
+                  isActive("/schemes") 
+                    ? "bg-white/30 shadow-inner font-bold" 
+                    : "hover:bg-black hover:bg-opacity-20"
+                )}
               >
                 <GitBranchPlus className="h-3.5 w-3.5 mr-1.5" />
                 Schemes
@@ -231,7 +250,12 @@ export default function Header() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-white hover:bg-black hover:bg-opacity-20 h-8 px-3 text-xs font-medium"
+                className={cn(
+                  "text-white h-8 px-3 text-xs font-medium transition-all duration-200",
+                  isActive("/chlorine/detailed") 
+                    ? "bg-white/30 shadow-inner font-bold" 
+                    : "hover:bg-black hover:bg-opacity-20"
+                )}
               >
                 <LayoutDashboard className="h-3.5 w-3.5 mr-1.5" />
                 Detailed Regional Statistics
@@ -242,7 +266,12 @@ export default function Header() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-white hover:bg-black hover:bg-opacity-20 h-8 px-3 text-xs font-medium"
+                className={cn(
+                  "text-white h-8 px-3 text-xs font-medium transition-all duration-200",
+                  isActive("/regions") 
+                    ? "bg-white/30 shadow-inner font-bold" 
+                    : "hover:bg-black hover:bg-opacity-20"
+                )}
               >
                 <MapPin className="h-3.5 w-3.5 mr-1.5" />
                 Regions
@@ -252,7 +281,12 @@ export default function Header() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-white hover:bg-black hover:bg-opacity-20 h-8 px-3 text-xs font-medium"
+                className={cn(
+                  "text-white h-8 px-3 text-xs font-medium transition-all duration-200",
+                  isActive("/reports") 
+                    ? "bg-white/30 shadow-inner font-bold" 
+                    : "hover:bg-black hover:bg-opacity-20"
+                )}
               >
                 <BarChart2 className="h-3.5 w-3.5 mr-1.5" />
                 Reports
@@ -274,7 +308,12 @@ export default function Header() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-white hover:bg-black hover:bg-opacity-20 h-8 px-3 text-xs font-medium"
+                className={cn(
+                  "text-white h-8 px-3 text-xs font-medium transition-all duration-200",
+                  (isActive("/lpcd") || isActive("/scheme-lpcd"))
+                    ? "bg-white/30 shadow-inner font-bold" 
+                    : "hover:bg-black hover:bg-opacity-20"
+                )}
               >
                 <Droplet className="h-3.5 w-3.5 mr-1.5" />
                 LPCD
@@ -308,7 +347,12 @@ export default function Header() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-white hover:bg-black hover:bg-opacity-20 h-8 px-3 text-xs font-medium"
+                className={cn(
+                  "text-white h-8 px-3 text-xs font-medium transition-all duration-200",
+                  isActive("/chlorine") 
+                    ? "bg-white/30 shadow-inner font-bold" 
+                    : "hover:bg-black hover:bg-opacity-20"
+                )}
               >
                 <Flame className="h-3.5 w-3.5 mr-1.5" />
                 Chlorine
@@ -318,7 +362,12 @@ export default function Header() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-white hover:bg-black hover:bg-opacity-20 h-8 px-3 text-xs font-medium"
+                className={cn(
+                  "text-white h-8 px-3 text-xs font-medium transition-all duration-200",
+                  isActive("/pressure") 
+                    ? "bg-white/30 shadow-inner font-bold" 
+                    : "hover:bg-black hover:bg-opacity-20"
+                )}
               >
                 <Gauge className="h-3.5 w-3.5 mr-1.5" />
                 Pressure
@@ -328,7 +377,12 @@ export default function Header() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-white hover:bg-black hover:bg-opacity-20 h-8 px-3 text-xs font-medium"
+                className={cn(
+                  "text-white h-8 px-3 text-xs font-medium transition-all duration-200",
+                  isActive("/water-consumption") 
+                    ? "bg-white/30 shadow-inner font-bold" 
+                    : "hover:bg-black hover:bg-opacity-20"
+                )}
               >
                 <Droplet className="h-3.5 w-3.5 mr-1.5" />
                 Water
@@ -338,7 +392,12 @@ export default function Header() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-white hover:bg-black hover:bg-opacity-20 h-8 px-3 text-xs font-medium"
+                className={cn(
+                  "text-white h-8 px-3 text-xs font-medium transition-all duration-200",
+                  isActive("/communication-status") 
+                    ? "bg-white/30 shadow-inner font-bold" 
+                    : "hover:bg-black hover:bg-opacity-20"
+                )}
               >
                 <Wifi className="h-3.5 w-3.5 mr-1.5" />
                 Communication
@@ -375,7 +434,12 @@ export default function Header() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full justify-start text-gray-700 hover:bg-gray-100 h-10 font-semibold"
+                className={cn(
+                  "w-full justify-start h-10 font-semibold transition-colors",
+                  isActive("/dashboard") 
+                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3" 
+                    : "text-gray-700 hover:bg-gray-100"
+                )}
               >
                 <BarChart2 className="h-4 w-4 mr-2" />
                 Dashboard
@@ -388,7 +452,12 @@ export default function Header() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full justify-start text-gray-700 hover:bg-gray-100 h-10 font-semibold"
+                className={cn(
+                  "w-full justify-start h-10 font-semibold transition-colors",
+                  isActive("/chlorine/detailed") 
+                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3" 
+                    : "text-gray-700 hover:bg-gray-100"
+                )}
               >
                 <LayoutDashboard className="h-4 w-4 mr-2" />
                 Detailed Regional Statistics
@@ -399,7 +468,12 @@ export default function Header() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full justify-start text-gray-700 hover:bg-gray-100 h-10 font-semibold"
+                className={cn(
+                  "w-full justify-start h-10 font-semibold transition-colors",
+                  isActive("/schemes") 
+                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3" 
+                    : "text-gray-700 hover:bg-gray-100"
+                )}
               >
                 <GitBranchPlus className="h-4 w-4 mr-2" />
                 Schemes
@@ -410,7 +484,12 @@ export default function Header() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full justify-start text-gray-700 hover:bg-gray-100 h-10 font-semibold"
+                className={cn(
+                  "w-full justify-start h-10 font-semibold transition-colors",
+                  isActive("/regions") 
+                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3" 
+                    : "text-gray-700 hover:bg-gray-100"
+                )}
               >
                 <MapPin className="h-4 w-4 mr-2" />
                 Regions
@@ -420,7 +499,12 @@ export default function Header() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full justify-start text-gray-700 hover:bg-gray-100 h-10 font-semibold"
+                className={cn(
+                  "w-full justify-start h-10 font-semibold transition-colors",
+                  isActive("/reports") 
+                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3" 
+                    : "text-gray-700 hover:bg-gray-100"
+                )}
               >
                 <BarChart2 className="h-4 w-4 mr-2" />
                 Reports
@@ -440,7 +524,12 @@ export default function Header() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full justify-start text-gray-700 hover:bg-gray-100 h-10 font-semibold"
+                className={cn(
+                  "w-full justify-start h-10 font-semibold transition-colors",
+                  isActive("/lpcd") 
+                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3" 
+                    : "text-gray-700 hover:bg-gray-100"
+                )}
               >
                 <Droplet className="h-4 w-4 mr-2" />
                 Village LPCD
@@ -453,7 +542,12 @@ export default function Header() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full justify-start text-gray-700 hover:bg-gray-100 h-10 font-semibold"
+                className={cn(
+                  "w-full justify-start h-10 font-semibold transition-colors",
+                  isActive("/scheme-lpcd") 
+                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3" 
+                    : "text-gray-700 hover:bg-gray-100"
+                )}
               >
                 <GitBranchPlus className="h-4 w-4 mr-2" />
                 Scheme LPCD
@@ -463,7 +557,12 @@ export default function Header() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full justify-start text-gray-700 hover:bg-gray-100 h-10 font-semibold"
+                className={cn(
+                  "w-full justify-start h-10 font-semibold transition-colors",
+                  isActive("/chlorine") 
+                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3" 
+                    : "text-gray-700 hover:bg-gray-100"
+                )}
               >
                 <Flame className="h-4 w-4 mr-2" />
                 Chlorine
@@ -473,7 +572,12 @@ export default function Header() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full justify-start text-gray-700 hover:bg-gray-100 h-10 font-semibold"
+                className={cn(
+                  "w-full justify-start h-10 font-semibold transition-colors",
+                  isActive("/pressure") 
+                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3" 
+                    : "text-gray-700 hover:bg-gray-100"
+                )}
               >
                 <Gauge className="h-4 w-4 mr-2" />
                 Pressure
@@ -486,7 +590,12 @@ export default function Header() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full justify-start text-gray-700 hover:bg-gray-100 h-10 font-semibold"
+                className={cn(
+                  "w-full justify-start h-10 font-semibold transition-colors",
+                  isActive("/water-consumption") 
+                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3" 
+                    : "text-gray-700 hover:bg-gray-100"
+                )}
               >
                 <Droplet className="h-4 w-4 mr-2" />
                 Water
@@ -499,7 +608,12 @@ export default function Header() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full justify-start text-gray-700 hover:bg-gray-100 h-10 font-semibold"
+                className={cn(
+                  "w-full justify-start h-10 font-semibold transition-colors",
+                  isActive("/communication-status") 
+                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3" 
+                    : "text-gray-700 hover:bg-gray-100"
+                )}
               >
                 <Wifi className="h-4 w-4 mr-2" />
                 Communication
