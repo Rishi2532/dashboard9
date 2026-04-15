@@ -143,6 +143,10 @@ export default function SchemeTable({
     }
   }, [filteredSchemes, onFilteredSchemesChange]);
 
+  // Reset pagination to page 1 when any filter or search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, schemeIdSearch, localStatusFilter, commissionedFilter, schemes]);
   const totalPages = Math.ceil(filteredSchemes.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
