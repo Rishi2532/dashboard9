@@ -31,12 +31,21 @@ const STANDARD_PARAMS = 'hidetoolbar=true&hidesidebar=true&mode=kiosk';
 // Server path prefix
 const SERVER_PATH = '\\\\DemoAF\\JJM\\JJM\\Maharashtra';
 
+/**
+ * Clean names for URLs - handle cases with replacement characters or special spaces
+ */
+function cleanNameForUrl(name: string | null | undefined): string {
+  if (!name) return "";
+  // Explicitly replace the Unicode replacement character (U+FFFD) with a non-breaking space (U+00A0)
+  // This handles encoding issues where NBSP was corrupted
+  return name.replace(/\uFFFD/g, String.fromCharCode(160));
+}
+
 // Special case for Bargaonpimpri scheme in Nashik region
 function generateSpecialCaseUrl(scheme: any): string | null {
-  const { scheme_id, scheme_name } = scheme;
-  
   // Bargaonpimpri scheme in Nashik region (includes non-breaking space character)
   if (scheme_id === '20019176' && scheme_name.includes('Bargaonpimpri')) {
+    const cleanSchemeName = cleanNameForUrl(scheme_name);
     const path = `${SERVER_PATH}\\Region-Nashik\\Circle-Nashik\\Division-Nashik\\Sub Division-Sinnar\\Block-Sinnar\\Scheme-20019176 - Retro. Bargaonpimpri & 6 VRWSS${String.fromCharCode(160)} Tal Sinnar`;
     const encodedPath = encodeURIComponent(path);
     
@@ -45,14 +54,15 @@ function generateSpecialCaseUrl(scheme: any): string | null {
 
   // Modgaon & Tornipada RWSS scheme (20047871) - needs NBSP before scheme name
   if (scheme_id === '20047871') {
-    const region = scheme.region || 'Konkan';
-    const circle = scheme.circle || 'Thane';
-    const division = scheme.division || 'Palghar';
-    const sub_division = scheme.sub_division || 'Dahanu';
-    const block = scheme.block || 'Dahanu';
+    const region = cleanNameForUrl(scheme.region || 'Konkan');
+    const circle = cleanNameForUrl(scheme.circle || 'Thane');
+    const division = cleanNameForUrl(scheme.division || 'Palghar');
+    const sub_division = cleanNameForUrl(scheme.sub_division || 'Dahanu');
+    const block = cleanNameForUrl(scheme.block || 'Dahanu');
+    const cleanSchemeName = cleanNameForUrl(scheme_name);
     
     // Note: The path requires a non-breaking space (char 160) after the dash-space separator
-    const path = `${SERVER_PATH}\\Region-${region}\\Circle-${circle}\\Division-${division}\\Sub Division-${sub_division}\\Block-${block}\\Scheme-${scheme_id} - ${String.fromCharCode(160)}${scheme_name}`;
+    const path = `${SERVER_PATH}\\Region-${region}\\Circle-${circle}\\Division-${division}\\Sub Division-${sub_division}\\Block-${block}\\Scheme-${scheme_id} - ${String.fromCharCode(160)}${cleanSchemeName}`;
     const encodedPath = encodeURIComponent(path);
     
     return `${SCHEME_BASE_URL}?${STANDARD_PARAMS}&rootpath=${encodedPath}`;
@@ -70,17 +80,17 @@ export function generateDashboardUrl(scheme: any): string | null {
   }
   
   // Default values for missing fields to ensure URL generation works even with partial data
-  const region = scheme.region || 'Unknown Region';
-  const circle = scheme.circle || 'Unknown Circle';
-  const division = scheme.division || 'Unknown Division';
-  const sub_division = scheme.sub_division || 'Unknown Sub Division';
-  const block = scheme.block || 'Unknown Block';
+  const region = cleanNameForUrl(scheme.region || 'Unknown Region');
+  const circle = cleanNameForUrl(scheme.circle || 'Unknown Circle');
+  const division = cleanNameForUrl(scheme.division || 'Unknown Division');
+  const sub_division = cleanNameForUrl(scheme.sub_division || 'Unknown Sub Division');
+  const block = cleanNameForUrl(scheme.block || 'Unknown Block');
   const scheme_id = scheme.scheme_id || `Unknown-${Date.now()}`;
-  const scheme_name = scheme.scheme_name || `Unknown Scheme ${scheme_id}`;
+  const cleanSchemeName = cleanNameForUrl(scheme.scheme_name);
   
   // Create the path - standard format: scheme_id - scheme_name (space-hyphen-space)
   // All regions now use the same format (including Amravati which stays as Amravati)
-  const path = `${SERVER_PATH}\\Region-${region}\\Circle-${circle}\\Division-${division}\\Sub Division-${sub_division}\\Block-${block}\\Scheme-${scheme_id} - ${scheme_name}`;
+  const path = `${SERVER_PATH}\\Region-${region}\\Circle-${circle}\\Division-${division}\\Sub Division-${sub_division}\\Block-${block}\\Scheme-${scheme_id} - ${cleanSchemeName}`;
 
   // Encode the path for the URL
   const encodedPath = encodeURIComponent(path);
@@ -103,14 +113,16 @@ function generateSpecialCaseVillageUrl(village: any): string | null {
 
   // Modgaon & Tornipada RWSS scheme (20047871) - needs NBSP before scheme name
   if (scheme_id === '20047871') {
-    const region = village.region || 'Konkan';
-    const circle = village.circle || 'Thane';
-    const division = village.division || 'Palghar';
-    const sub_division = village.sub_division || 'Dahanu';
-    const block = village.block || 'Dahanu';
+    const region = cleanNameForUrl(village.region || 'Konkan');
+    const circle = cleanNameForUrl(village.circle || 'Thane');
+    const division = cleanNameForUrl(village.division || 'Palghar');
+    const sub_division = cleanNameForUrl(village.sub_division || 'Dahanu');
+    const block = cleanNameForUrl(village.block || 'Dahanu');
+    const cleanSchemeName = cleanNameForUrl(scheme_name);
+    const cleanVillageName = cleanNameForUrl(village_name);
     
     // Note: The path requires a non-breaking space (char 160) after the dash-space separator
-    const path = `${SERVER_PATH}\\Region-${region}\\Circle-${circle}\\Division-${division}\\Sub Division-${sub_division}\\Block-${block}\\Scheme-${scheme_id} - ${String.fromCharCode(160)}${scheme_name}\\${village_name}`;
+    const path = `${SERVER_PATH}\\Region-${region}\\Circle-${circle}\\Division-${division}\\Sub Division-${sub_division}\\Block-${block}\\Scheme-${scheme_id} - ${String.fromCharCode(160)}${cleanSchemeName}\\${cleanVillageName}`;
     const encodedPath = encodeURIComponent(path);
     
     return `${VILLAGE_BASE_URL}?${STANDARD_PARAMS}&rootpath=${encodedPath}`;
@@ -137,7 +149,15 @@ export function generateVillageDashboardUrl(village: any): string | null {
   
   // Create the path - all regions use standard format (space-dash-space)
   // Amravati stays as Amravati (no conversion to Amaravati)
-  const path = `${SERVER_PATH}\\Region-${village.region}\\Circle-${village.circle}\\Division-${village.division}\\Sub Division-${village.sub_division}\\Block-${village.block}\\Scheme-${village.scheme_id} - ${village.scheme_name}\\${village.village_name}`;
+  const region = cleanNameForUrl(village.region);
+  const circle = cleanNameForUrl(village.circle);
+  const division = cleanNameForUrl(village.division);
+  const sub_division = cleanNameForUrl(village.sub_division);
+  const block = cleanNameForUrl(village.block);
+  const cleanSchemeName = cleanNameForUrl(village.scheme_name);
+  const cleanVillageName = cleanNameForUrl(village.village_name);
+
+  const path = `${SERVER_PATH}\\Region-${region}\\Circle-${circle}\\Division-${division}\\Sub Division-${sub_division}\\Block-${block}\\Scheme-${village.scheme_id} - ${cleanSchemeName}\\${cleanVillageName}`;
   
   // Encode the path for use in URL
   const encodedPath = encodeURIComponent(path);
@@ -160,14 +180,17 @@ function generateSpecialCaseEsrUrl(esr: any): string | null {
 
   // Modgaon & Tornipada RWSS scheme (20047871) - needs NBSP before scheme name
   if (scheme_id === '20047871') {
-    const region = esr.region || 'Konkan';
-    const circle = esr.circle || 'Thane';
-    const division = esr.division || 'Palghar';
-    const sub_division = esr.sub_division || 'Dahanu';
-    const block = esr.block || 'Dahanu';
+    const region = cleanNameForUrl(esr.region || 'Konkan');
+    const circle = cleanNameForUrl(esr.circle || 'Thane');
+    const division = cleanNameForUrl(esr.division || 'Palghar');
+    const sub_division = cleanNameForUrl(esr.sub_division || 'Dahanu');
+    const block = cleanNameForUrl(esr.block || 'Dahanu');
+    const cleanSchemeName = cleanNameForUrl(scheme_name);
+    const cleanVillageName = cleanNameForUrl(village_name);
+    const cleanEsrName = cleanNameForUrl(esr_name);
     
     // Note: The path requires a non-breaking space (char 160) after the dash-space separator
-    const path = `${SERVER_PATH}\\Region-${region}\\Circle-${circle}\\Division-${division}\\Sub Division-${sub_division}\\Block-${block}\\Scheme-${scheme_id} - ${String.fromCharCode(160)}${scheme_name}\\${village_name}\\${esr_name}`;
+    const path = `${SERVER_PATH}\\Region-${region}\\Circle-${circle}\\Division-${division}\\Sub Division-${sub_division}\\Block-${block}\\Scheme-${scheme_id} - ${String.fromCharCode(160)}${cleanSchemeName}\\${cleanVillageName}\\${cleanEsrName}`;
     const encodedPath = encodeURIComponent(path);
     
     return `${ESR_BASE_URL}?${STANDARD_PARAMS}&asset=${encodedPath}`;
@@ -195,7 +218,16 @@ export function generateEsrDashboardUrl(esr: any): string | null {
   // Create the path - all regions use standard format (space-dash-space)
   // Amravati stays as Amravati (no conversion to Amaravati)
   // Pune region also uses space-dash-space format for ESR URLs
-  const path = `${SERVER_PATH}\\Region-${esr.region}\\Circle-${esr.circle}\\Division-${esr.division}\\Sub Division-${esr.sub_division}\\Block-${esr.block}\\Scheme-${esr.scheme_id} - ${esr.scheme_name}\\${esr.village_name}\\${esr.esr_name}`;
+  const region = cleanNameForUrl(esr.region);
+  const circle = cleanNameForUrl(esr.circle);
+  const division = cleanNameForUrl(esr.division);
+  const sub_division = cleanNameForUrl(esr.sub_division);
+  const block = cleanNameForUrl(esr.block);
+  const cleanSchemeName = cleanNameForUrl(esr.scheme_name);
+  const cleanVillageName = cleanNameForUrl(esr.village_name);
+  const cleanEsrName = cleanNameForUrl(esr.esr_name);
+
+  const path = `${SERVER_PATH}\\Region-${region}\\Circle-${circle}\\Division-${division}\\Sub Division-${sub_division}\\Block-${block}\\Scheme-${esr.scheme_id} - ${cleanSchemeName}\\${cleanVillageName}\\${cleanEsrName}`;
   
   // Encode the path for use in URL
   const encodedPath = encodeURIComponent(path);

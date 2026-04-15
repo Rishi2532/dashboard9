@@ -5424,7 +5424,7 @@ router.get("/scheme-lpcd/details/:statisticType", async (req, res) => {
             ss.dashboard_url as status_url,
             COALESCE(NULLIF(ss.dashboard_url, ''), sldh.dashboard_url) as dashboard_url
         FROM scheme_lpcd_data_history sldh
-        LEFT JOIN scheme_status ss ON sldh.scheme_id = ss.scheme_id AND sldh.scheme_name = ss.scheme_name
+        LEFT JOIN scheme_status ss ON sldh.scheme_id = ss.scheme_id AND sldh.block = ss.block
         WHERE sldh.region IS NOT NULL
           ${regionFilter}
           ${schemeIdFilter}
@@ -6062,7 +6062,7 @@ router.get("/scheme-lpcd/division-details/:division/:metric", async (req, res) =
         )
         SELECT lsd.*, COALESCE(NULLIF(ss.dashboard_url, ''), lsd.dashboard_url) as dashboard_url
         FROM latest_scheme_data lsd
-        LEFT JOIN scheme_status ss ON lsd.scheme_id = ss.scheme_id AND lsd.scheme_name = ss.scheme_name
+        LEFT JOIN scheme_status ss ON lsd.scheme_id = ss.scheme_id AND lsd.block = ss.block
         WHERE 1=1
           ${metricFilter}
         ORDER BY lsd.region, lsd.scheme_id, lsd.block
@@ -6728,7 +6728,7 @@ router.get("/scheme-lpcd/day-wise-schemes/:metric/:days", async (req, res) => {
           COALESCE(NULLIF(ss.dashboard_url, ''), ld.dashboard_url) as dashboard_url
         FROM latest_data ld
         LEFT JOIN consecutive_counts cc ON ld.scheme_id = cc.scheme_id AND ld.block = cc.block
-        LEFT JOIN scheme_status ss ON ld.scheme_id = ss.scheme_id AND ld.scheme_name = ss.scheme_name
+        LEFT JOIN scheme_status ss ON ld.scheme_id = ss.scheme_id AND ld.block = ss.block
         WHERE COALESCE(cc.consecutive_days, 0) >= $1
         ORDER BY COALESCE(cc.consecutive_days, 0) DESC, ld.region, ld.scheme_name
       `;
@@ -7146,7 +7146,7 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
                     sldh.scheme_id, sldh.scheme_name, sldh.total_population, sldh.total_villages,
                     sldh.lpcd_value, sldh.water_value, sldh.data_date, COALESCE(NULLIF(ss.dashboard_url, ''), sldh.dashboard_url) as dashboard_url
                 FROM scheme_lpcd_data_history sldh
-                LEFT JOIN scheme_status ss ON ss.scheme_id = sldh.scheme_id AND ss.scheme_name = sldh.scheme_name
+                LEFT JOIN scheme_status ss ON ss.scheme_id = sldh.scheme_id AND ss.block = sldh.block
                 WHERE sldh.region IS NOT NULL
                 ${regionFilter}
                 ${schemeIdFilter}
@@ -7282,7 +7282,7 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
             sldh.circle, sldh.division, sldh.sub_division, sldh.data_date,
             COALESCE(NULLIF(ss.dashboard_url, ''), sldh.dashboard_url) as dashboard_url
           FROM scheme_lpcd_data_history sldh
-          LEFT JOIN scheme_status ss ON ss.scheme_id = sldh.scheme_id AND ss.scheme_name = sldh.scheme_name
+          LEFT JOIN scheme_status ss ON ss.scheme_id = sldh.scheme_id AND ss.block = sldh.block
           ORDER BY sldh.scheme_id, sldh.block, sldh.uploaded_at DESC
         )
         SELECT * FROM (
@@ -7785,7 +7785,7 @@ router.get("/scheme-lpcd/region-comparison-schemes-export/:category/:day", async
             sldh.circle, sldh.division, sldh.sub_division, sldh.data_date,
             COALESCE(NULLIF(ss.dashboard_url, ''), sldh.dashboard_url) as dashboard_url
           FROM scheme_lpcd_data_history sldh
-          LEFT JOIN scheme_status ss ON ss.scheme_id = sldh.scheme_id AND ss.scheme_name = sldh.scheme_name
+          LEFT JOIN scheme_status ss ON ss.scheme_id = sldh.scheme_id AND ss.block = sldh.block
           ORDER BY sldh.scheme_id, sldh.block, sldh.uploaded_at DESC
         )
         SELECT * FROM (

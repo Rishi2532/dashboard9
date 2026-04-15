@@ -10077,6 +10077,12 @@ export class PostgresStorage implements IStorage {
    * @param esr The ESR data to check
    * @returns A special case URL or null if not a special case
    */
+  private cleanNameForUrl(name: string): string {
+    if (!name) return "";
+    // Replace replacement character () with NBSP (char code 160)
+    return name.replace(/\uFFFD/g, String.fromCharCode(160));
+  }
+
   private generateSpecialCaseEsrUrl(
     esr: ChlorineData | PressureData,
   ): string | null {
@@ -10150,7 +10156,16 @@ export class PostgresStorage implements IStorage {
 
     // All regions now use the same format (including Amravati which stays as Amravati)
     // Create the path - standard format: scheme_id - scheme_name (space-hyphen-space)
-    const path = `${SERVER_PATH}\\Region-${esr.region}\\Circle-${esr.circle}\\Division-${esr.division}\\Sub Division-${esr.sub_division}\\Block-${esr.block}\\Scheme-${esr.scheme_id} - ${esr.scheme_name}\\${esr.village_name}\\${esr.esr_name}`;
+    const region = this.cleanNameForUrl(esr.region);
+    const circle = this.cleanNameForUrl(esr.circle);
+    const division = this.cleanNameForUrl(esr.division);
+    const sub_division = this.cleanNameForUrl(esr.sub_division);
+    const block = this.cleanNameForUrl(esr.block);
+    const cleanSchemeName = this.cleanNameForUrl(esr.scheme_name);
+    const cleanVillageName = this.cleanNameForUrl(esr.village_name);
+    const cleanEsrName = this.cleanNameForUrl(esr.esr_name);
+
+    const path = `${SERVER_PATH}\\Region-${region}\\Circle-${circle}\\Division-${division}\\Sub Division-${sub_division}\\Block-${block}\\Scheme-${esr.scheme_id} - ${cleanSchemeName}\\${cleanVillageName}\\${cleanEsrName}`;
 
     // Encode the path for use in URL
     const encodedPath = encodeURIComponent(path);
@@ -10191,7 +10206,15 @@ export class PostgresStorage implements IStorage {
 
     // All regions now use the same format (including Amravati which stays as Amravati)
     // Create the path - standard format: scheme_id - scheme_name (space-hyphen-space)
-    const path = `${SERVER_PATH}\\Region-${village.region}\\Circle-${village.circle}\\Division-${village.division}\\Sub Division-${village.sub_division}\\Block-${village.block}\\Scheme-${village.scheme_id} - ${village.scheme_name}\\${village.village_name}`;
+    const region = this.cleanNameForUrl(village.region);
+    const circle = this.cleanNameForUrl(village.circle);
+    const division = this.cleanNameForUrl(village.division);
+    const sub_division = this.cleanNameForUrl(village.sub_division);
+    const block = this.cleanNameForUrl(village.block);
+    const cleanSchemeName = this.cleanNameForUrl(village.scheme_name);
+    const cleanVillageName = this.cleanNameForUrl(village.village_name);
+
+    const path = `${SERVER_PATH}\\Region-${region}\\Circle-${circle}\\Division-${division}\\Sub Division-${sub_division}\\Block-${block}\\Scheme-${village.scheme_id} - ${cleanSchemeName}\\${cleanVillageName}`;
 
     // URL encode the path
     const encodedPath = encodeURIComponent(path);
