@@ -7,12 +7,15 @@ import ChartDataLabels from "chartjs-plugin-datalabels";
 interface RegionComparisonChartProps {
   regions: Region[];
   isLoading: boolean;
+  schemeView?: "ALL" | "INSTRUMENTED";
 }
 
 export default function RegionComparisonChart({
   regions,
   isLoading,
+  schemeView,
 }: RegionComparisonChartProps) {
+  const isInstrumented = schemeView === "INSTRUMENTED";
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstance = useRef<Chart | null>(null);
   const [selectedDatasets, setSelectedDatasets] = useState<number[]>([]);
@@ -65,7 +68,7 @@ export default function RegionComparisonChart({
       labels,
       datasets: [
         {
-          label: "Fully Completed ESR",
+          label: isInstrumented ? "Fully Operational ESR" : "Fully Completed ESR",
           data: sortedRegions.map((region) => region.fully_completed_esr || 0),
           backgroundColor: "rgba(16, 185, 129, 0.6)",
           borderColor: "rgba(16, 185, 129, 1)",
@@ -73,7 +76,7 @@ export default function RegionComparisonChart({
           hidden: selectedDatasets.length > 0 && !selectedDatasets.includes(0),
         },
         {
-          label: "Fully Completed Villages",
+          label: isInstrumented ? "Fully Operational Villages" : "Fully Completed Villages",
           data: sortedRegions.map(
             (region) => region.fully_completed_villages || 0,
           ),
@@ -83,7 +86,7 @@ export default function RegionComparisonChart({
           hidden: selectedDatasets.length > 0 && !selectedDatasets.includes(1),
         },
         {
-          label: "Fully Completed Schemes",
+          label: isInstrumented ? "Fully Operational Schemes" : "Fully Completed Schemes",
           data: sortedRegions.map(
             (region) => region.fully_completed_schemes || 0,
           ),
@@ -372,7 +375,7 @@ export default function RegionComparisonChart({
         chartInstance.current.destroy();
       }
     };
-  }, [regions, isLoading, selectedDatasets]);
+  }, [regions, isLoading, selectedDatasets, isInstrumented]);
 
   return (
     <div

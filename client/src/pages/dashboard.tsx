@@ -1883,6 +1883,7 @@ export default function Dashboard() {
               <RegionComparisonChart
                 regions={regions || []}
                 isLoading={isRegionsLoading}
+                schemeView={schemeView}
               />
             </div>
           </div>
