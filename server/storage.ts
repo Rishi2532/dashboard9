@@ -7112,13 +7112,14 @@ export class PostgresStorage implements IStorage {
     await this.initialized;
     const db = await this.ensureInitialized();
     try {
-      let query = db
-        .select()
-        .from(waterConsumption)
-        .where(eq(waterConsumption.scheme_id, schemeId));
+      // Use robust matching with TRIM and LOWER
+      let whereClause = sql`TRIM(LOWER(${waterConsumption.scheme_id})) = TRIM(LOWER(${schemeId}))`;
+      
       if (block) {
-        query = query.where(eq(waterConsumption.block, block));
+        whereClause = sql`${whereClause} AND TRIM(LOWER(${waterConsumption.block})) = TRIM(LOWER(${block}))`;
       }
+      
+      const query = db.select().from(waterConsumption).where(whereClause);
       const result = await query;
       return result;
     } catch (error) {
@@ -8705,15 +8706,27 @@ export class PostgresStorage implements IStorage {
 
   async getSchemeById(schemeId: string): Promise<SchemeStatus | undefined> {
     const db = await this.ensureInitialized();
-    const query = db
+    
+    // First try exact match
+    const result = await db
       .select()
       .from(schemeStatuses)
       .where(eq(schemeStatuses.scheme_id, schemeId));
 
-    const result = await query;
     if (result.length > 0) {
       return this.ensureSchemeAgency(result[0]);
     }
+
+    // Try case-insensitive and trimmed match as fallback
+    const trimmedResult = await db
+      .select()
+      .from(schemeStatuses)
+      .where(sql`TRIM(LOWER(${schemeStatuses.scheme_id})) = TRIM(LOWER(${schemeId}))`);
+
+    if (trimmedResult.length > 0) {
+      return this.ensureSchemeAgency(trimmedResult[0]);
+    }
+
     return undefined;
   }
 
@@ -8722,17 +8735,33 @@ export class PostgresStorage implements IStorage {
     block: string | null,
   ): Promise<SchemeStatus | undefined> {
     const db = await this.ensureInitialized();
-    const query = db
+    
+    // Try exact match first
+    const result = await db
       .select()
       .from(schemeStatuses)
       .where(
         sql`${schemeStatuses.scheme_id} = ${schemeId} AND ${schemeStatuses.block} IS NOT DISTINCT FROM ${block}`,
       );
 
-    const result = await query;
     if (result.length > 0) {
       return this.ensureSchemeAgency(result[0]);
     }
+
+    // Try case-insensitive and trimmed match as fallback for both ID and block
+    const trimmedResult = await db
+      .select()
+      .from(schemeStatuses)
+      .where(
+        sql`TRIM(LOWER(${schemeStatuses.scheme_id})) = TRIM(LOWER(${schemeId})) AND 
+            ((${schemeStatuses.block} IS NULL AND ${block} IS NULL) OR 
+             (TRIM(LOWER(${schemeStatuses.block})) = TRIM(LOWER(${block}))))`,
+      );
+
+    if (trimmedResult.length > 0) {
+      return this.ensureSchemeAgency(trimmedResult[0]);
+    }
+
     return undefined;
   }
 

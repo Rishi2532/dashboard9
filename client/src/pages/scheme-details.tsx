@@ -53,26 +53,66 @@ export default function SchemeDetailsPage() {
 
   // Fetch scheme information - use aggregate endpoint for multi-block schemes
   const { data: scheme, isLoading: isLoadingScheme } = useQuery({
-    queryKey: ["/api/schemes", schemeId],
+    queryKey: ["/api/schemes", schemeId, block],
     queryFn: async () => {
-      // First try to get individual scheme data using the correct endpoint
-      let response = await fetch(`/api/schemes/${schemeId}`);
+      // Get block from URL search params as a fallback if not in path
+      const searchParams = new URLSearchParams(window.location.search);
+      const schemeNameFromUrl = searchParams.get("name");
+      const blockFromUrl = block || searchParams.get("block");
+
+      // Build fetch URL with block if available
+      let fetchUrl = `/api/schemes/${schemeId}`;
+      if (blockFromUrl) {
+        fetchUrl += `?block=${encodeURIComponent(blockFromUrl)}`;
+      }
+
+      // First try to get individual scheme data using the ID (and block if available)
+      let response = await fetch(fetchUrl);
+
       if (response.ok) {
         const singleScheme = await response.json();
-        // If this is a multi-block scheme, get aggregated data
+        // If this is a multi-block scheme (indicated by name but we might just have one block), 
+        // try to get aggregated data to show total statistics
         if (singleScheme.scheme_name) {
+          try {
+            const aggregateResponse = await fetch(
+              `/api/schemes/aggregate/${encodeURIComponent(
+                singleScheme.scheme_name,
+              )}`,
+            );
+            if (aggregateResponse.ok) {
+              const aggregateData = await aggregateResponse.json();
+              // Merge individual data with aggregate statistics
+              // We keep the block-specific info like dashboard_url from singleScheme
+              return { ...aggregateData, ...singleScheme, isAggregated: true };
+            }
+          } catch (aggError) {
+            console.error("Aggregation fetch failed:", aggError);
+          }
+        }
+        return singleScheme;
+      } else {
+        // If fetching from scheme endpoint failed, try getting by name (the fallback search parameter we added)
+        if (schemeNameFromUrl) {
           const aggregateResponse = await fetch(
-            `/api/schemes/aggregate/${encodeURIComponent(
-              singleScheme.scheme_name,
-            )}`,
+            `/api/schemes/aggregate/${encodeURIComponent(schemeNameFromUrl)}`,
           );
           if (aggregateResponse.ok) {
             return aggregateResponse.json();
           }
         }
-        return singleScheme;
+        
+        // Final fallback: if nothing worked but we have a name, try searching for any scheme with that name
+        if (schemeNameFromUrl) {
+          const byNameResponse = await fetch(`/api/schemes/by-name/${encodeURIComponent(schemeNameFromUrl)}`);
+          if (byNameResponse.ok) {
+            const schemes = await byNameResponse.json();
+            return Array.isArray(schemes) ? schemes[0] : schemes;
+          }
+        }
+        
+        throw new Error("Scheme not found");
       }
-      throw new Error("Failed to fetch scheme data");
     },
     enabled: !!schemeId,
   });
@@ -112,7 +152,11 @@ export default function SchemeDetailsPage() {
           throw new Error("Failed to fetch water consumption data");
         const allData = await response.json();
         // Filter by scheme ID
-        return allData.filter((record: any) => record.scheme_id === schemeId);
+        return allData.filter(
+          (record: any) =>
+            record.scheme_id?.toString().trim().toLowerCase() ===
+            schemeId?.toString().trim().toLowerCase(),
+        );
       },
       enabled: !!schemeId && !!scheme?.region,
     });

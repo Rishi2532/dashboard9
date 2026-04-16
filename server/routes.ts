@@ -1528,14 +1528,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/schemes/:id", async (req, res) => {
     try {
       const schemeId = req.params.id;
+      const block = req.query.block ? String(req.query.block) : undefined;
 
       if (!schemeId || schemeId.trim() === "") {
         return res.status(400).json({ message: "Invalid scheme ID" });
       }
 
-      const scheme = await storage.getSchemeById(schemeId);
+      console.log(`Fetching scheme ${schemeId} (block: ${block || "any"})`);
+
+      const scheme = block
+        ? await storage.getSchemeByIdAndBlock(schemeId, block)
+        : await storage.getSchemeById(schemeId);
 
       if (!scheme) {
+        console.log(`Scheme ${schemeId} not found`);
         return res.status(404).json({ message: "Scheme not found" });
       }
 
