@@ -43,8 +43,10 @@ function cleanNameForUrl(name: string | null | undefined): string {
 
 // Special case for Bargaonpimpri scheme in Nashik region
 function generateSpecialCaseUrl(scheme: any): string | null {
+  const { scheme_id, scheme_name } = scheme;
+  
   // Bargaonpimpri scheme in Nashik region (includes non-breaking space character)
-  if (scheme_id === '20019176' && scheme_name.includes('Bargaonpimpri')) {
+  if (scheme_id === '20019176' && scheme_name && scheme_name.includes('Bargaonpimpri')) {
     const cleanSchemeName = cleanNameForUrl(scheme_name);
     const path = `${SERVER_PATH}\\Region-Nashik\\Circle-Nashik\\Division-Nashik\\Sub Division-Sinnar\\Block-Sinnar\\Scheme-20019176 - Retro. Bargaonpimpri & 6 VRWSS${String.fromCharCode(160)} Tal Sinnar`;
     const encodedPath = encodeURIComponent(path);
