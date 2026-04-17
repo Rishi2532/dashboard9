@@ -6242,6 +6242,61 @@ const CustomChatbot = ({
                   },
                 ]);
               },
+
+              CombinedSchemesWidget: async () => {
+                let apiUrl = "/api/category-data/combined-schemes";
+                let scopeText = filterDescription;
+                if (regionName) {
+                  apiUrl += `?region=${encodeURIComponent(regionName)}`;
+                }
+                try {
+                  const resp = await fetch(apiUrl);
+                  if (resp.ok) {
+                    const schemes = await resp.json();
+                    const normalizeStatus = (status: string) =>
+                      (status || "").toLowerCase().replace(/[-_\s]+/g, " ").trim();
+                    const fullyCompleted = schemes.filter((s: any) => {
+                      const n = normalizeStatus(s.fully_completion_scheme_status || "");
+                      return n === "fully completed" || n === "completed";
+                    }).length;
+                    const inProgress = schemes.filter((s: any) =>
+                      normalizeStatus(s.fully_completion_scheme_status || "") === "in progress"
+                    ).length;
+                    setChatMessages((prev) => [
+                      ...prev,
+                      {
+                        type: "bot",
+                        text: `I found ${schemes.length} schemes ${scopeText} (${fullyCompleted} fully completed, ${inProgress} in progress).`,
+                      },
+                    ]);
+                    if (schemes.length > 0) {
+                      setChatMessages((prev) => [
+                        ...prev,
+                        {
+                          type: "bot",
+                          text: `Here is the comprehensive schemes analysis ${scopeText}:`,
+                          widget: "combinedSchemes",
+                          schemes: schemes,
+                          selectedRegion: selectedRegion,
+                          autoSpeak: fromVoice,
+                        },
+                      ]);
+                    }
+                  } else {
+                    throw new Error("Failed to fetch schemes data");
+                  }
+                } catch (err) {
+                  console.error("Error fetching combined schemes:", err);
+                  setChatMessages((prev) => [
+                    ...prev,
+                    {
+                      type: "bot",
+                      text: "❌ Sorry, I couldn't fetch the schemes data. Please try again.",
+                      autoSpeak: fromVoice,
+                    },
+                  ]);
+                }
+              },
             };
 
             // Execute the appropriate widget handler
@@ -8584,7 +8639,14 @@ const CustomChatbot = ({
           interpretResult.keyword === "schemes details" ||
           interpretResult.keyword === "schemes information" ||
           interpretResult.keyword === "scheme analysis" ||
-          interpretResult.keyword === "schemes analysis"
+          interpretResult.keyword === "schemes analysis" ||
+          interpretResult.keyword === "schemes" ||
+          interpretResult.keyword === "schemes list" ||
+          interpretResult.keyword === "scheme status" ||
+          interpretResult.keyword === "scheme overview" ||
+          interpretResult.keyword === "schemes overview" ||
+          interpretResult.keyword === "schemes data" ||
+          interpretResult.keyword === "schemes integrated"
         ) {
           // CRITICAL CHECK: If a specific scheme name or ID is mentioned, 
           // treat it as COMPREHENSIVE_SCHEME_ANALYSIS, NOT as generic scheme details

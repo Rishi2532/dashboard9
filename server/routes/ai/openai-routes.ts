@@ -768,7 +768,7 @@ router.post("/chat-stream", async (req: Request, res: Response) => {
   try {
     // Validate request body
     const validatedData = chatCompletionStreamSchema.parse(req.body);
-    
+
     // Check if OpenAI API key is configured
     if (!hasApiKey("OPENAI_API_KEY")) {
       return res.status(500).json({
@@ -797,7 +797,7 @@ router.post("/chat-stream", async (req: Request, res: Response) => {
       // Read the stream and forward chunks to the client
       while (true) {
         const { done, value } = await reader.read();
-        
+
         if (done) {
           // Send [DONE] marker to signal completion
           res.write("data: [DONE]\n\n");
@@ -807,25 +807,25 @@ router.post("/chat-stream", async (req: Request, res: Response) => {
 
         // Decode the chunk
         const chunk = decoder.decode(value, { stream: true });
-        
+
         // OpenAI sends data in SSE format already
         // Each chunk looks like: "data: {...}\n\n"
         // We need to parse it and extract the actual content
         const lines = chunk.split("\n");
-        
+
         for (const line of lines) {
           if (line.startsWith("data: ")) {
             const dataStr = line.slice(6); // Remove "data: " prefix
-            
+
             if (dataStr === "[DONE]") {
               res.write("data: [DONE]\n\n");
               continue;
             }
-            
+
             try {
               const data = JSON.parse(dataStr);
               const content = data.choices[0]?.delta?.content;
-              
+
               if (content) {
                 // Send the content token to the client
                 res.write(`data: ${JSON.stringify({ content })}\n\n`);
@@ -852,7 +852,7 @@ router.post("/chat-stream", async (req: Request, res: Response) => {
     }
 
     console.error("Error in chat-stream endpoint:", error);
-    
+
     // If headers haven't been sent yet, send JSON error
     if (!res.headersSent) {
       return res.status(500).json({
@@ -984,11 +984,30 @@ Keywords: current water status, latest water consumption, water consumption stat
 🔟 **CombinedLpcdStatusWidget** (ONLY use for VILLAGE-level LPCD, when NO chart keywords and NO "scheme" keyword present)
 Keywords: current lpcd, latest lpcd, lpcd statistics, lpcd status report, lpcd information, village lpcd, villages lpcd
 ⚠️ **NEVER match if**: query contains weekly/7 day/chart/graph/trend/historical
-⚠️ **NEVER match if**: query contains "scheme" or "schemes" - use CombinedSchemeLpcdWidget instead
+⚠️ **NEVER match if**: query contains "scheme" or "schemes"
 
-🔟.1️⃣ **CombinedSchemeLpcdWidget** (SCHEME-level LPCD - use when "scheme" keyword is present)
+🔟.0️⃣ **CombinedSchemesWidget** (Scheme listing/overview — use when query asks about schemes WITHOUT an "lpcd" keyword)
+Keywords: schemes, schemes list, scheme details, scheme overview, schemes overview, scheme status, schemes data, schemes integrated, schemes in [region], scheme information, show me schemes, list schemes, all schemes, scheme summary
+⚠️ **MUST match if**: query contains "scheme" or "schemes" AND does NOT contain "lpcd"
+⚠️ **NEVER match if**: query contains "lpcd" → use CombinedSchemeLpcdWidget instead
+⚠️ **NEVER match if**: query contains a specific scheme name (e.g. "Bidgaon Tarodi WSS") or a numeric scheme ID
+⚠️ **NEVER match if**: query contains weekly/7 day/chart/graph/trend/historical
+⚠️ **Examples that MUST use CombinedSchemesWidget**:
+  - "schemes" → CombinedSchemesWidget
+  - "schemes list" → CombinedSchemesWidget
+  - "scheme details" → CombinedSchemesWidget
+  - "scheme information" → CombinedSchemesWidget
+  - "scheme status" → CombinedSchemesWidget
+  - "schemes overview" → CombinedSchemesWidget
+  - "schemes in nagpur" → CombinedSchemesWidget
+  - "schemes in amravati" → CombinedSchemesWidget
+  - "schemes integrated" → CombinedSchemesWidget
+  - "schemes data" → CombinedSchemesWidget
+
+🔟.1️⃣ **CombinedSchemeLpcdWidget** (SCHEME-level LPCD — use ONLY when BOTH "scheme/schemes" AND "lpcd" keywords are present)
 Keywords: scheme lpcd, schemes lpcd, scheme lpcd status, lpcd of schemes, lpcd schemes, lpcd in all regions, lpcd all regions, scheme level lpcd, scheme-level lpcd, scheme lpcd in [region], schemes lpcd in [region]
-⚠️ **MUST match if**: query contains "scheme" or "schemes" combined with "lpcd"
+⚠️ **MUST match if**: query contains BOTH "scheme"/"schemes" AND "lpcd"
+⚠️ **NEVER match if**: query does NOT contain "lpcd" — use CombinedSchemesWidget instead
 ⚠️ **Examples that MUST use CombinedSchemeLpcdWidget**:
   - "scheme lpcd in amravati" → CombinedSchemeLpcdWidget
   - "scheme lpcd in all region" → CombinedSchemeLpcdWidget
@@ -1150,6 +1169,36 @@ Output: {"widget": "CombinedWaterStatusWidget", "regionName": null, "schemeName"
 
 Input: "lpcd statistics in Pune region"
 Output: {"widget": "CombinedLpcdStatusWidget", "regionName": "Pune", "schemeName": null, "schemeId": null, "villageName": null}
+
+Input: "schemes"
+Output: {"widget": "CombinedSchemesWidget", "regionName": null, "schemeName": null, "schemeId": null, "villageName": null, "confidence": 0.95, "reasoning": "Generic scheme listing query with no lpcd keyword"}
+
+Input: "schemes list"
+Output: {"widget": "CombinedSchemesWidget", "regionName": null, "schemeName": null, "schemeId": null, "villageName": null, "confidence": 0.95, "reasoning": "Scheme listing query"}
+
+Input: "scheme details"
+Output: {"widget": "CombinedSchemesWidget", "regionName": null, "schemeName": null, "schemeId": null, "villageName": null, "confidence": 0.95, "reasoning": "Scheme details overview - no specific scheme or lpcd keyword"}
+
+Input: "scheme information"
+Output: {"widget": "CombinedSchemesWidget", "regionName": null, "schemeName": null, "schemeId": null, "villageName": null, "confidence": 0.95, "reasoning": "Scheme information overview query"}
+
+Input: "scheme status"
+Output: {"widget": "CombinedSchemesWidget", "regionName": null, "schemeName": null, "schemeId": null, "villageName": null, "confidence": 0.95, "reasoning": "Scheme status overview - no lpcd keyword"}
+
+Input: "schemes overview"
+Output: {"widget": "CombinedSchemesWidget", "regionName": null, "schemeName": null, "schemeId": null, "villageName": null, "confidence": 0.95, "reasoning": "Schemes overview query"}
+
+Input: "schemes in nagpur"
+Output: {"widget": "CombinedSchemesWidget", "regionName": "Nagpur", "schemeName": null, "schemeId": null, "villageName": null, "confidence": 0.95, "reasoning": "Scheme listing for Nagpur region - no lpcd keyword"}
+
+Input: "schemes in amravati"
+Output: {"widget": "CombinedSchemesWidget", "regionName": "Amravati", "schemeName": null, "schemeId": null, "villageName": null, "confidence": 0.95, "reasoning": "Scheme listing for Amravati region - no lpcd keyword"}
+
+Input: "schemes integrated"
+Output: {"widget": "CombinedSchemesWidget", "regionName": null, "schemeName": null, "schemeId": null, "villageName": null, "confidence": 0.95, "reasoning": "Schemes integrated overview query"}
+
+Input: "schemes data"
+Output: {"widget": "CombinedSchemesWidget", "regionName": null, "schemeName": null, "schemeId": null, "villageName": null, "confidence": 0.95, "reasoning": "Schemes data overview query"}
 
 Input: "scheme lpcd in amravati"
 Output: {"widget": "CombinedSchemeLpcdWidget", "regionName": "Amravati", "schemeName": null, "schemeId": null, "villageName": null, "confidence": 0.95, "reasoning": "Scheme-level LPCD query with Amravati region specified"}
@@ -1471,6 +1520,7 @@ Respond ONLY with valid JSON in this exact format:
       "AverageAbovePressureWidget",
       "CombinedWaterStatusWidget",
       "CombinedLpcdStatusWidget",
+      "CombinedSchemesWidget",
       "CombinedSchemeLpcdWidget",
       "CombineChlorineStatusWidget",
       "CombinePressureStatusWidget",
@@ -1943,7 +1993,7 @@ router.post("/text-to-sql", async (req: Request, res: Response) => {
       /need help/i,
       /can you help/i,
       /how to (fix|solve|handle|resolve|deal with)/i,
-      
+
       // Troubleshooting/explanation
       /why is/i,
       /what does .* mean/i,
@@ -1952,14 +2002,14 @@ router.post("/text-to-sql", async (req: Request, res: Response) => {
       /what is/i,
       /define/i,
       /difference between/i,
-      
+
       // Problem reporting
       /found (a )?problem/i,
       /issue with/i,
       /error in/i,
       /something wrong/i,
       /not working/i,
-      
+
       // General conversation
       /thank you/i,
       /thanks/i,
@@ -2012,10 +2062,10 @@ Respond ONLY with valid JSON:
     if (classificationResponse.ok) {
       const classificationData = await classificationResponse.json();
       const classificationText = classificationData.choices[0]?.message?.content?.trim() || "{}";
-      
+
       try {
         const classification = JSON.parse(classificationText);
-        
+
         if (classification.intent === "conversational" && classification.confidence >= 0.7) {
           console.log(`⚠️ Text-to-SQL: Query classified as conversational by AI (confidence: ${classification.confidence}), skipping SQL generation: "${query}"`);
           return res.json({
@@ -2055,7 +2105,7 @@ Respond ONLY with valid JSON:
     try {
       const db = await getDB();
       console.log(`📊 Executing Text-to-SQL query: ${sqlResult.sql}`);
-      
+
       // Execute query using Drizzle's execute method with timeout
       // Drizzle handles the connection pooling automatically
       const queryPromise = db.execute(sqlResult.sql);
@@ -2064,7 +2114,7 @@ Respond ONLY with valid JSON:
       );
 
       const result = await Promise.race([queryPromise, timeoutPromise]) as any;
-      
+
       // Limit results to 1000 rows (double-check server-side)
       const rows = result.rows || result || [];
       const limitedRows = rows.slice(0, 1000);
@@ -2086,18 +2136,18 @@ Respond ONLY with valid JSON:
     } catch (dbError) {
       console.error("❌ Error executing generated SQL:", dbError);
       console.error("Generated SQL was:", sqlResult.sql);
-      
+
       // Provide actionable error feedback with detailed error information
       let errorMessage = "Error executing the generated SQL query";
       let errorDetail = dbError instanceof Error ? dbError.message : String(dbError);
-      
+
       // Log full error details for debugging
       if (dbError instanceof Error && (dbError as any).code) {
         console.error(`PostgreSQL Error Code: ${(dbError as any).code}`);
         console.error(`PostgreSQL Error Detail: ${(dbError as any).detail || 'N/A'}`);
         console.error(`PostgreSQL Error Hint: ${(dbError as any).hint || 'N/A'}`);
       }
-      
+
       if (errorDetail.includes("timeout") || errorDetail.includes("canceling statement")) {
         errorMessage = "Query took too long to execute (max 10 seconds allowed)";
       } else if (errorDetail.includes("syntax error")) {
@@ -2109,7 +2159,7 @@ Respond ONLY with valid JSON:
       } else if (errorDetail.includes("invalid input syntax")) {
         errorMessage = "The query has invalid data type or format";
       }
-      
+
       return res.json({
         success: false,
         message: errorMessage,
@@ -2380,7 +2430,7 @@ Respond ONLY with valid JSON:
     if (analysis.isCorrelationQuery && analysis.metric1 && analysis.metric2) {
       try {
         const db = await getDB();
-        
+
         // Build correlation query based on metrics
         let sqlQuery = `
           SELECT 
@@ -2422,7 +2472,7 @@ Respond ONLY with valid JSON:
 
         // Calculate correlation coefficient
         const validData = rows.filter((r: any) => r.metric1_value != null && r.metric2_value != null);
-        
+
         let correlationCoefficient = 0;
         if (validData.length > 1) {
           const n = validData.length;
@@ -2434,7 +2484,7 @@ Respond ONLY with valid JSON:
 
           const num = pSum - (sum1 * sum2 / n);
           const den = Math.sqrt((sum1Sq - Math.pow(sum1, 2) / n) * (sum2Sq - Math.pow(sum2, 2) / n));
-          
+
           if (den !== 0) {
             correlationCoefficient = num / den;
           }
@@ -2446,10 +2496,10 @@ Respond ONLY with valid JSON:
           correlationData: {
             coefficient: correlationCoefficient,
             dataPoints: validData.length,
-            interpretation: 
+            interpretation:
               Math.abs(correlationCoefficient) > 0.7 ? "Strong correlation" :
-              Math.abs(correlationCoefficient) > 0.4 ? "Moderate correlation" :
-              Math.abs(correlationCoefficient) > 0.2 ? "Weak correlation" : "No significant correlation",
+                Math.abs(correlationCoefficient) > 0.4 ? "Moderate correlation" :
+                  Math.abs(correlationCoefficient) > 0.2 ? "Weak correlation" : "No significant correlation",
             direction: correlationCoefficient > 0 ? "Positive" : correlationCoefficient < 0 ? "Negative" : "None",
             samples: validData.slice(0, 10),
           },
