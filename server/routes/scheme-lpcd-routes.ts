@@ -595,7 +595,7 @@ router.get('/export/history', async (req, res) => {
 
         // Build header row with dates as columns
         const headerRow = [
-          'Scheme ID', 'Scheme Name', 'Region', 'Circle', 'Division', 'Sub Division', 'Block',
+          'Region', 'Circle', 'Division', 'Sub Division', 'Block', 'Scheme ID', 'Scheme Name', ,
           'Total Population', 'Total Villages', 'MJP Commissioned', 'Agency Type'
         ];
 
@@ -612,13 +612,13 @@ router.get('/export/history', async (req, res) => {
         // Build data rows
         schemeData.forEach((scheme) => {
           const dataRow = [
-            scheme.scheme_id,
-            scheme.scheme_name,
             scheme.region,
             scheme.circle,
             scheme.division,
             scheme.sub_division,
             scheme.block,
+            scheme.scheme_id,
+            scheme.scheme_name,
             scheme.total_population,
             scheme.total_villages,
             scheme.mjp_commissioned || '',
@@ -669,7 +669,7 @@ router.get('/export/history', async (req, res) => {
       } else {
         // CSV format with pivot structure
         const headerRow = [
-          'Scheme ID', 'Scheme Name', 'Region', 'Circle', 'Division', 'Sub Division', 'Block',
+          'Region', 'Circle', 'Division', 'Sub Division', 'Block', 'Scheme ID', 'Scheme Name',
           'Total Population', 'Total Villages', 'MJP Commissioned', 'Agency Type'
         ];
 
@@ -691,13 +691,13 @@ router.get('/export/history', async (req, res) => {
         // Write data rows
         schemeData.forEach((scheme) => {
           const dataRow = [
-            scheme.scheme_id,
-            `"${(scheme.scheme_name || '').replace(/"/g, '""')}"`,
             scheme.region,
             scheme.circle,
             scheme.division,
             scheme.sub_division,
             scheme.block,
+            scheme.scheme_id,
+            `"${(scheme.scheme_name || '').replace(/"/g, '""')}"`,
             scheme.total_population,
             scheme.total_villages,
             scheme.mjp_commissioned || '',
