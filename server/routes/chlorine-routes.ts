@@ -22,7 +22,7 @@ router.get("/weekly-lpcd/stats", async (req, res) => {
   try {
     const weekOffset = parseInt(req.query.weekOffset as string) || 0;
     const db = await getDB();
-    
+
     // Use the new rolling window helper
     const weekInfo = await getRollingWindowInfo(db, weekOffset);
     console.log(`Weekly LPCD Stats Request for weekOffset ${weekOffset}:`, weekInfo);
@@ -1514,15 +1514,16 @@ router.get("/export/historical", async (req, res) => {
     // Add data rows
     Array.from(esrMap.values()).forEach((row: { [key: string]: any }) => {
       const dataRow = [
-        row['Scheme ID'],
-        row['Scheme Name'],
-        row['Village Name'],
-        row['ESR Name'],
         row['Region'],
         row['Circle'],
         row['Division'],
         row['Sub Division'],
         row['Block'],
+        row['Scheme ID'],
+        row['Scheme Name'],
+        row['Village Name'],
+        row['ESR Name'],
+
         ...sortedDates.map(date => row[date] !== null && row[date] !== undefined ? row[date] : '')
       ];
       worksheet.addRow(dataRow);
@@ -1548,15 +1549,15 @@ router.get("/export/historical", async (req, res) => {
 
     // Set column widths
     worksheet.columns = [
-      { width: 12 },  // Scheme ID
-      { width: 25 },  // Scheme Name
-      { width: 20 },  // Village Name
-      { width: 20 },  // ESR Name
-      { width: 15 },  // Region
+      { width: 12 },  // Region
       { width: 15 },  // Circle
       { width: 15 },  // Division
       { width: 18 },  // Sub Division
       { width: 15 },  // Block
+      { width: 12 },  // Scheme ID
+      { width: 25 },  // Scheme Name
+      { width: 20 },  // Village Name
+      { width: 20 },  // ESR Name
       ...sortedDates.map(() => ({ width: 12 })) // Date columns
     ];
 
@@ -2688,10 +2689,10 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
           case 'below_0_2':
           case 'optimal_0_2_0_5':
           case 'above_0_5':
-            const subCondition = category === 'below_0_2' 
-              ? 'cd.chlorine_value_7 < 0.2' 
-              : category === 'optimal_0_2_0_5' 
-                ? 'cd.chlorine_value_7 >= 0.2 AND cd.chlorine_value_7 <= 0.5' 
+            const subCondition = category === 'below_0_2'
+              ? 'cd.chlorine_value_7 < 0.2'
+              : category === 'optimal_0_2_0_5'
+                ? 'cd.chlorine_value_7 >= 0.2 AND cd.chlorine_value_7 <= 0.5'
                 : 'cd.chlorine_value_7 > 0.5';
             query = `
               SELECT * FROM (
