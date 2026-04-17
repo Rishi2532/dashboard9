@@ -80,13 +80,13 @@ import ExcelJS from "exceljs";
 
 // Define types for Pressure Data
 interface PressureData {
-  scheme_id: string;
-  scheme_name: string;
   region: string;
   circle: string;
   division: string;
   sub_division: string;
   block: string;
+  scheme_id: string;
+  scheme_name: string;
   village_name: string;
   esr_name: string;
   sensor_id?: string;
@@ -1946,13 +1946,13 @@ const PressureDashboard: React.FC = () => {
 
       // Define headers with actual dates
       const headers = [
-        "Scheme ID",
-        "Scheme Name",
         "Region",
         "Circle",
         "Division",
         "Sub Division",
         "Block",
+        "Scheme ID",
+        "Scheme Name",
         "Agency Type",
         "Village Name",
         "ESR Name",
@@ -1988,13 +1988,13 @@ const PressureDashboard: React.FC = () => {
           }
 
           return [
-            item.scheme_id,
-            item.scheme_name || "N/A",
             item.region || "N/A",
             item.circle || "N/A",
             item.division || "N/A",
             item.sub_division || "N/A",
             item.block || "N/A",
+            item.scheme_id,
+            item.scheme_name || "N/A",
             item.agency_type || "N/A",
             item.village_name || "N/A",
             item.esr_name || "N/A",
@@ -2233,78 +2233,78 @@ const PressureDashboard: React.FC = () => {
                 </SelectContent>
               </Select>
             </div>
-          {/* Search ESRs */}
-          <div className="flex-1">
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-              Search ESRs
-            </label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 text-gray-400 -translate-y-1/2" />
-              <Input
-                placeholder="Search by scheme, village or ESR name..."
-                className="pl-9 pr-10 py-2 border-blue-200 focus:ring-blue-500 focus:border-blue-500 h-11"
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setPage(1);
-                }}
-                data-testid="input-search-esr"
-              />
-              {searchQuery && (
-                <button
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  onClick={() => setSearchQuery("")}
-                  data-testid="button-clear-search"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
+            {/* Search ESRs */}
+            <div className="flex-1">
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                Search ESRs
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 text-gray-400 -translate-y-1/2" />
+                <Input
+                  placeholder="Search by scheme, village or ESR name..."
+                  className="pl-9 pr-10 py-2 border-blue-200 focus:ring-blue-500 focus:border-blue-500 h-11"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setPage(1);
+                  }}
+                  data-testid="input-search-esr"
+                />
+                {searchQuery && (
+                  <button
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    onClick={() => setSearchQuery("")}
+                    data-testid="button-clear-search"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2 md:self-end">
+              <Button
+                onClick={() =>
+                  exportToExcel(
+                    filteredData,
+                    `Pressure_Data_${selectedRegion}_${selectedCardFilter}_${new Date().toISOString().split("T")[0]
+                    }`,
+                  )
+                }
+                variant="outline"
+                className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100 gap-2 h-11 px-4"
+                data-testid="button-export-excel"
+              >
+                <Download className="h-4 w-4" />
+                <span className="hidden sm:inline">Export to Excel</span>
+                <span className="sm:hidden">Export</span>
+                {filteredData.length > 0 ? ` (${filteredData.length})` : ""}
+              </Button>
+              <Button
+                onClick={() => setShowHistoricalData(!showHistoricalData)}
+                variant={showHistoricalData ? "default" : "outline"}
+                className="flex items-center gap-2 h-11 px-4"
+                data-testid="button-historical-data"
+              >
+                <History className="h-4 w-4" />
+                <span className="hidden sm:inline">
+                  {showHistoricalData ? "Current Data" : "Historical Data"}
+                </span>
+                <span className="sm:hidden">History</span>
+              </Button>
+              <Button
+                onClick={() => refetch()}
+                variant="outline"
+                className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 gap-2 h-11 px-4"
+                data-testid="button-refresh-data"
+              >
+                <RefreshCw className="h-4 w-4" />
+                <span className="hidden sm:inline">Refresh Data</span>
+                <span className="sm:hidden">Refresh</span>
+              </Button>
             </div>
           </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-2 md:self-end">
-            <Button
-              onClick={() =>
-                exportToExcel(
-                  filteredData,
-                  `Pressure_Data_${selectedRegion}_${selectedCardFilter}_${new Date().toISOString().split("T")[0]
-                  }`,
-                )
-              }
-              variant="outline"
-              className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100 gap-2 h-11 px-4"
-              data-testid="button-export-excel"
-            >
-              <Download className="h-4 w-4" />
-              <span className="hidden sm:inline">Export to Excel</span>
-              <span className="sm:hidden">Export</span>
-              {filteredData.length > 0 ? ` (${filteredData.length})` : ""}
-            </Button>
-            <Button
-              onClick={() => setShowHistoricalData(!showHistoricalData)}
-              variant={showHistoricalData ? "default" : "outline"}
-              className="flex items-center gap-2 h-11 px-4"
-              data-testid="button-historical-data"
-            >
-              <History className="h-4 w-4" />
-              <span className="hidden sm:inline">
-                {showHistoricalData ? "Current Data" : "Historical Data"}
-              </span>
-              <span className="sm:hidden">History</span>
-            </Button>
-            <Button
-              onClick={() => refetch()}
-              variant="outline"
-              className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 gap-2 h-11 px-4"
-              data-testid="button-refresh-data"
-            >
-              <RefreshCw className="h-4 w-4" />
-              <span className="hidden sm:inline">Refresh Data</span>
-              <span className="sm:hidden">Refresh</span>
-            </Button>
-          </div>
-        </div>
         </div>
 
         {/* Qualifying Schemes Info Footer */}
@@ -2572,11 +2572,10 @@ const PressureDashboard: React.FC = () => {
               </div>
             </div>
             <div
-              className={`cursor-pointer text-center px-5 py-2.5 bg-white rounded-xl border-2 hover:shadow-md transition-all duration-200 min-w-[88px] ${
-                sensorStatusFilter === "withWater" && selectedWithWaterFilter === "all"
-                  ? "border-blue-500 ring-2 ring-blue-400 ring-offset-2"
-                  : "border-blue-200 hover:border-blue-400"
-              }`}
+              className={`cursor-pointer text-center px-5 py-2.5 bg-white rounded-xl border-2 hover:shadow-md transition-all duration-200 min-w-[88px] ${sensorStatusFilter === "withWater" && selectedWithWaterFilter === "all"
+                ? "border-blue-500 ring-2 ring-blue-400 ring-offset-2"
+                : "border-blue-200 hover:border-blue-400"
+                }`}
               onClick={() => handleTotalCardClick("withWater")}
             >
               <p className="text-3xl font-bold text-blue-700">
@@ -2602,9 +2601,8 @@ const PressureDashboard: React.FC = () => {
           <div className="grid grid-cols-3 gap-3">
             {/* Below Range */}
             <div
-              className={`cursor-pointer bg-white rounded-xl border border-red-100 border-t-4 border-t-red-500 p-4 text-center hover:shadow-md transition-all duration-200 ${
-                selectedWithWaterFilter === "below_0.2" ? "ring-2 ring-red-400 ring-offset-2" : ""
-              }`}
+              className={`cursor-pointer bg-white rounded-xl border border-red-100 border-t-4 border-t-red-500 p-4 text-center hover:shadow-md transition-all duration-200 ${selectedWithWaterFilter === "below_0.2" ? "ring-2 ring-red-400 ring-offset-2" : ""
+                }`}
               onClick={() => handleWithWaterCardClick("below_0.2")}
             >
               <div className="flex justify-center mb-2">
@@ -2619,9 +2617,8 @@ const PressureDashboard: React.FC = () => {
 
             {/* Optimal Range */}
             <div
-              className={`cursor-pointer bg-white rounded-xl border border-green-100 border-t-4 border-t-green-500 p-4 text-center hover:shadow-md transition-all duration-200 ${
-                selectedWithWaterFilter === "between_0.2_0.7" ? "ring-2 ring-green-400 ring-offset-2" : ""
-              }`}
+              className={`cursor-pointer bg-white rounded-xl border border-green-100 border-t-4 border-t-green-500 p-4 text-center hover:shadow-md transition-all duration-200 ${selectedWithWaterFilter === "between_0.2_0.7" ? "ring-2 ring-green-400 ring-offset-2" : ""
+                }`}
               onClick={() => handleWithWaterCardClick("between_0.2_0.7")}
             >
               <div className="flex justify-center mb-2">
@@ -2636,9 +2633,8 @@ const PressureDashboard: React.FC = () => {
 
             {/* Above Range */}
             <div
-              className={`cursor-pointer bg-white rounded-xl border border-orange-100 border-t-4 border-t-orange-500 p-4 text-center hover:shadow-md transition-all duration-200 ${
-                selectedWithWaterFilter === "above_0.7" ? "ring-2 ring-orange-400 ring-offset-2" : ""
-              }`}
+              className={`cursor-pointer bg-white rounded-xl border border-orange-100 border-t-4 border-t-orange-500 p-4 text-center hover:shadow-md transition-all duration-200 ${selectedWithWaterFilter === "above_0.7" ? "ring-2 ring-orange-400 ring-offset-2" : ""
+                }`}
               onClick={() => handleWithWaterCardClick("above_0.7")}
             >
               <div className="flex justify-center mb-2">
@@ -2670,144 +2666,144 @@ const PressureDashboard: React.FC = () => {
         </div>
       </div>
 
-        {/* Consistent Pattern Cards (For All Connected Sensors) */}
-        <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-          <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-            <Activity className="h-6 w-6 text-gray-600 mr-2" />
-            Consistent Patterns (All Connected Sensors)
-          </h3>
-          <div className="grid gap-4 md:grid-cols-5">
-            {/* Consistent Zero Card */}
-            <Card
-              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "consistent_zero"
-                ? "ring-2 ring-gray-500 ring-offset-2"
-                : ""
-                } transform hover:scale-[1.01]`}
-              onClick={() => handleCardClick("consistent_zero")}
-            >
-              <CardContent className="p-4 flex items-center">
-                <div className="bg-gray-100 p-3 rounded-full mr-4">
-                  <div className="h-5 w-5 text-gray-700 flex items-center justify-center text-xs font-bold">
-                    0
-                  </div>
+      {/* Consistent Pattern Cards (For All Connected Sensors) */}
+      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
+        <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+          <Activity className="h-6 w-6 text-gray-600 mr-2" />
+          Consistent Patterns (All Connected Sensors)
+        </h3>
+        <div className="grid gap-4 md:grid-cols-5">
+          {/* Consistent Zero Card */}
+          <Card
+            className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "consistent_zero"
+              ? "ring-2 ring-gray-500 ring-offset-2"
+              : ""
+              } transform hover:scale-[1.01]`}
+            onClick={() => handleCardClick("consistent_zero")}
+          >
+            <CardContent className="p-4 flex items-center">
+              <div className="bg-gray-100 p-3 rounded-full mr-4">
+                <div className="h-5 w-5 text-gray-700 flex items-center justify-center text-xs font-bold">
+                  0
                 </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-gray-800">
-                    Consistent Zero
-                  </h4>
-                  <p className="text-2xl font-bold text-gray-700">
-                    {updatedCardStats?.consistentZeroSensors || 0}
-                  </p>
-                  <p className="text-xs text-gray-600/70">
-                    Zero pressure 7 days
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-gray-800">
+                  Consistent Zero
+                </h4>
+                <p className="text-2xl font-bold text-gray-700">
+                  {updatedCardStats?.consistentZeroSensors || 0}
+                </p>
+                <p className="text-xs text-gray-600/70">
+                  Zero pressure 7 days
+                </p>
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* Consistent Below Range Card */}
-            <Card
-              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "consistent_below"
-                ? "ring-2 ring-red-500 ring-offset-2"
-                : ""
-                } transform hover:scale-[1.01]`}
-              onClick={() => handleCardClick("consistent_below")}
-            >
-              <CardContent className="p-4 flex items-center">
-                <div className="bg-red-100 p-3 rounded-full mr-4">
-                  <AlertTriangle className="h-5 w-5 text-red-700" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-red-800">
-                    Consistent Below
-                  </h4>
-                  <p className="text-2xl font-bold text-red-600">
-                    {updatedCardStats?.consistentBelowRangeSensors || 0}
-                  </p>
-                  <p className="text-xs text-red-600/70">
-                    &lt;0.2 bar for 7 days
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+          {/* Consistent Below Range Card */}
+          <Card
+            className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "consistent_below"
+              ? "ring-2 ring-red-500 ring-offset-2"
+              : ""
+              } transform hover:scale-[1.01]`}
+            onClick={() => handleCardClick("consistent_below")}
+          >
+            <CardContent className="p-4 flex items-center">
+              <div className="bg-red-100 p-3 rounded-full mr-4">
+                <AlertTriangle className="h-5 w-5 text-red-700" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-red-800">
+                  Consistent Below
+                </h4>
+                <p className="text-2xl font-bold text-red-600">
+                  {updatedCardStats?.consistentBelowRangeSensors || 0}
+                </p>
+                <p className="text-xs text-red-600/70">
+                  &lt;0.2 bar for 7 days
+                </p>
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* Consistent Optimal Range Card */}
-            <Card
-              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "consistent_optimal"
-                ? "ring-2 ring-green-500 ring-offset-2"
-                : ""
-                } transform hover:scale-[1.01]`}
-              onClick={() => handleCardClick("consistent_optimal")}
-            >
-              <CardContent className="p-4 flex items-center">
-                <div className="bg-green-100 p-3 rounded-full mr-4">
-                  <CheckCircle className="h-5 w-5 text-green-700" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-green-800">
-                    Consistent Optimal
-                  </h4>
-                  <p className="text-2xl font-bold text-green-600">
-                    {updatedCardStats?.consistentOptimalSensors || 0}
-                  </p>
-                  <p className="text-xs text-green-600/70">
-                    0.2-0.7 bar for 7 days
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+          {/* Consistent Optimal Range Card */}
+          <Card
+            className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "consistent_optimal"
+              ? "ring-2 ring-green-500 ring-offset-2"
+              : ""
+              } transform hover:scale-[1.01]`}
+            onClick={() => handleCardClick("consistent_optimal")}
+          >
+            <CardContent className="p-4 flex items-center">
+              <div className="bg-green-100 p-3 rounded-full mr-4">
+                <CheckCircle className="h-5 w-5 text-green-700" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-green-800">
+                  Consistent Optimal
+                </h4>
+                <p className="text-2xl font-bold text-green-600">
+                  {updatedCardStats?.consistentOptimalSensors || 0}
+                </p>
+                <p className="text-xs text-green-600/70">
+                  0.2-0.7 bar for 7 days
+                </p>
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* Consistent Above Range Card */}
-            <Card
-              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "consistent_above"
-                ? "ring-2 ring-orange-500 ring-offset-2"
-                : ""
-                } transform hover:scale-[1.01]`}
-              onClick={() => handleCardClick("consistent_above")}
-            >
-              <CardContent className="p-4 flex items-center">
-                <div className="bg-orange-100 p-3 rounded-full mr-4">
-                  <AlertCircle className="h-5 w-5 text-orange-700" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-orange-800">
-                    Consistent Above
-                  </h4>
-                  <p className="text-2xl font-bold text-orange-600">
-                    {updatedCardStats?.consistentAboveRangeSensors || 0}
-                  </p>
-                  <p className="text-xs text-orange-600/70">
-                    &gt;0.7 bar for 7 days
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+          {/* Consistent Above Range Card */}
+          <Card
+            className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "consistent_above"
+              ? "ring-2 ring-orange-500 ring-offset-2"
+              : ""
+              } transform hover:scale-[1.01]`}
+            onClick={() => handleCardClick("consistent_above")}
+          >
+            <CardContent className="p-4 flex items-center">
+              <div className="bg-orange-100 p-3 rounded-full mr-4">
+                <AlertCircle className="h-5 w-5 text-orange-700" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-orange-800">
+                  Consistent Above
+                </h4>
+                <p className="text-2xl font-bold text-orange-600">
+                  {updatedCardStats?.consistentAboveRangeSensors || 0}
+                </p>
+                <p className="text-xs text-orange-600/70">
+                  &gt;0.7 bar for 7 days
+                </p>
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* Show All Sensors */}
-            <Card
-              className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "all"
-                ? "ring-2 ring-blue-500 ring-offset-2"
-                : ""
-                } transform hover:scale-[1.01]`}
-              onClick={() => handleCardClick("all")}
-            >
-              <CardContent className="p-4 flex items-center">
-                <div className="bg-blue-100 p-3 rounded-full mr-4">
-                  <Gauge className="h-5 w-5 text-blue-700" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-blue-800">All Sensors</h4>
-                  <p className="text-2xl font-bold text-blue-600">
-                    {updatedCardStats?.totalSensors || 0}
-                  </p>
-                  <p className="text-xs text-blue-600/70">
-                    Total connected sensors
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          {/* Show All Sensors */}
+          <Card
+            className={`cursor-pointer hover:shadow-lg transition-all duration-200 ${selectedCardFilter === "all"
+              ? "ring-2 ring-blue-500 ring-offset-2"
+              : ""
+              } transform hover:scale-[1.01]`}
+            onClick={() => handleCardClick("all")}
+          >
+            <CardContent className="p-4 flex items-center">
+              <div className="bg-blue-100 p-3 rounded-full mr-4">
+                <Gauge className="h-5 w-5 text-blue-700" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-blue-800">All Sensors</h4>
+                <p className="text-2xl font-bold text-blue-600">
+                  {updatedCardStats?.totalSensors || 0}
+                </p>
+                <p className="text-xs text-blue-600/70">
+                  Total connected sensors
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
+      </div>
 
       {/* Current Filter Label */}
       <div className="mb-6">

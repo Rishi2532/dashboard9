@@ -1581,9 +1581,13 @@ const ChlorineDashboard: React.FC = () => {
         const date7 = formatDateForHeader(item.chlorine_date_day_7);
 
         return {
+          Region: item.region || "N/A",
+          Circle: item.circle || "N/A",
+          Division: item.division || "N/A",
+          "Sub Division": item.sub_division || "N/A",
+          Block: item.block || "N/A",
           "Scheme ID": item.scheme_id,
           "Scheme Name": item.scheme_name || "N/A",
-          Region: item.region || "N/A",
           "Agency Type": (item as any).agency_type || "N/A",
           "Village Name": item.village_name || "N/A",
           "ESR Name": item.esr_name || "N/A",
@@ -1835,90 +1839,90 @@ const ChlorineDashboard: React.FC = () => {
         {/* Search and Actions Row */}
         <div className="px-4 py-4">
           <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-end">
-          {/* Search ESRs */}
-          <div className="flex-1">
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-              Search ESRs
-            </label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 text-gray-400 -translate-y-1/2" />
-              <Input
-                placeholder="Search by scheme, village or ESR name..."
-                className="pl-9 pr-10 py-2 border-slate-200 h-9"
-                value={searchQuery}
-                onChange={(e) => {
-                  const newValue = e.target.value;
-                  setSearchQuery(newValue);
-                  setPage(1);
-                  if (newValue.trim().length > 2) {
-                    setTimeout(() => {
-                      if (searchQuery === newValue) {
-                        trackFilterUsage(
-                          "search",
-                          newValue,
-                          filteredData.length,
-                          "chlorine_dashboard",
-                        );
-                      }
-                    }, 1000);
-                  }
-                }}
-                data-testid="input-search-esr"
-              />
-              {searchQuery && (
-                <button
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  onClick={() => setSearchQuery("")}
-                  data-testid="button-clear-search"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
+            {/* Search ESRs */}
+            <div className="flex-1">
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                Search ESRs
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 text-gray-400 -translate-y-1/2" />
+                <Input
+                  placeholder="Search by scheme, village or ESR name..."
+                  className="pl-9 pr-10 py-2 border-slate-200 h-9"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    const newValue = e.target.value;
+                    setSearchQuery(newValue);
+                    setPage(1);
+                    if (newValue.trim().length > 2) {
+                      setTimeout(() => {
+                        if (searchQuery === newValue) {
+                          trackFilterUsage(
+                            "search",
+                            newValue,
+                            filteredData.length,
+                            "chlorine_dashboard",
+                          );
+                        }
+                      }, 1000);
+                    }
+                  }}
+                  data-testid="input-search-esr"
+                />
+                {searchQuery && (
+                  <button
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    onClick={() => setSearchQuery("")}
+                    data-testid="button-clear-search"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2 shrink-0">
+              <Button
+                onClick={() =>
+                  exportToExcel(
+                    filteredData,
+                    `Chlorine_Data_${selectedRegion}_${selectedCardFilter}_${new Date().toISOString().split("T")[0]}`,
+                  )
+                }
+                variant="outline"
+                className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100 gap-2 h-9 px-3"
+                data-testid="button-export-excel"
+              >
+                <Download className="h-4 w-4" />
+                <span className="hidden sm:inline">Export to Excel</span>
+                <span className="sm:hidden">Export</span>
+                {filteredData.length > 0 ? ` (${filteredData.length})` : ""}
+              </Button>
+              <Button
+                onClick={() => setShowHistoricalData(!showHistoricalData)}
+                variant={showHistoricalData ? "default" : "outline"}
+                className="flex items-center gap-2 h-9 px-3"
+                data-testid="button-historical-data"
+              >
+                <History className="h-4 w-4" />
+                <span className="hidden sm:inline">
+                  {showHistoricalData ? "Current Data" : "Historical Data"}
+                </span>
+                <span className="sm:hidden">History</span>
+              </Button>
+              <Button
+                onClick={() => refetch()}
+                variant="outline"
+                className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 gap-2 h-9 px-3"
+                data-testid="button-refresh-data"
+              >
+                <RefreshCw className="h-4 w-4" />
+                <span className="hidden sm:inline">Refresh Data</span>
+                <span className="sm:hidden">Refresh</span>
+              </Button>
             </div>
           </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-2 shrink-0">
-            <Button
-              onClick={() =>
-                exportToExcel(
-                  filteredData,
-                  `Chlorine_Data_${selectedRegion}_${selectedCardFilter}_${new Date().toISOString().split("T")[0]}`,
-                )
-              }
-              variant="outline"
-              className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100 gap-2 h-9 px-3"
-              data-testid="button-export-excel"
-            >
-              <Download className="h-4 w-4" />
-              <span className="hidden sm:inline">Export to Excel</span>
-              <span className="sm:hidden">Export</span>
-              {filteredData.length > 0 ? ` (${filteredData.length})` : ""}
-            </Button>
-            <Button
-              onClick={() => setShowHistoricalData(!showHistoricalData)}
-              variant={showHistoricalData ? "default" : "outline"}
-              className="flex items-center gap-2 h-9 px-3"
-              data-testid="button-historical-data"
-            >
-              <History className="h-4 w-4" />
-              <span className="hidden sm:inline">
-                {showHistoricalData ? "Current Data" : "Historical Data"}
-              </span>
-              <span className="sm:hidden">History</span>
-            </Button>
-            <Button
-              onClick={() => refetch()}
-              variant="outline"
-              className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 gap-2 h-9 px-3"
-              data-testid="button-refresh-data"
-            >
-              <RefreshCw className="h-4 w-4" />
-              <span className="hidden sm:inline">Refresh Data</span>
-              <span className="sm:hidden">Refresh</span>
-            </Button>
-          </div>
-        </div>
         </div>
 
         {/* Qualifying Schemes Info Footer */}
@@ -2135,11 +2139,10 @@ const ChlorineDashboard: React.FC = () => {
               </div>
             </div>
             <div
-              className={`cursor-pointer text-center px-5 py-2.5 bg-white rounded-xl border-2 hover:shadow-md transition-all duration-200 min-w-[88px] ${
-                sensorStatusFilter === "withWater" && selectedWithWaterFilter === "all"
-                  ? "border-blue-500 ring-2 ring-blue-400 ring-offset-2"
-                  : "border-blue-200 hover:border-blue-400"
-              }`}
+              className={`cursor-pointer text-center px-5 py-2.5 bg-white rounded-xl border-2 hover:shadow-md transition-all duration-200 min-w-[88px] ${sensorStatusFilter === "withWater" && selectedWithWaterFilter === "all"
+                ? "border-blue-500 ring-2 ring-blue-400 ring-offset-2"
+                : "border-blue-200 hover:border-blue-400"
+                }`}
               onClick={() => handleTotalCardClick("withWater")}
             >
               <p className="text-3xl font-bold text-blue-700">{calculateWithWaterRangeStats.total}</p>
@@ -2151,9 +2154,8 @@ const ChlorineDashboard: React.FC = () => {
           <div className="grid grid-cols-3 gap-3">
             {/* Below Range */}
             <div
-              className={`cursor-pointer bg-white rounded-xl border border-red-100 border-t-4 border-t-red-500 p-4 text-center hover:shadow-md transition-all duration-200 ${
-                selectedWithWaterFilter === "below_0.2" ? "ring-2 ring-red-400 ring-offset-2" : ""
-              }`}
+              className={`cursor-pointer bg-white rounded-xl border border-red-100 border-t-4 border-t-red-500 p-4 text-center hover:shadow-md transition-all duration-200 ${selectedWithWaterFilter === "below_0.2" ? "ring-2 ring-red-400 ring-offset-2" : ""
+                }`}
               onClick={() => handleWithWaterCardClick("below_0.2")}
             >
               <div className="flex justify-center mb-2">
@@ -2168,9 +2170,8 @@ const ChlorineDashboard: React.FC = () => {
 
             {/* Optimal Range */}
             <div
-              className={`cursor-pointer bg-white rounded-xl border border-green-100 border-t-4 border-t-green-500 p-4 text-center hover:shadow-md transition-all duration-200 ${
-                selectedWithWaterFilter === "between_0.2_0.5" ? "ring-2 ring-green-400 ring-offset-2" : ""
-              }`}
+              className={`cursor-pointer bg-white rounded-xl border border-green-100 border-t-4 border-t-green-500 p-4 text-center hover:shadow-md transition-all duration-200 ${selectedWithWaterFilter === "between_0.2_0.5" ? "ring-2 ring-green-400 ring-offset-2" : ""
+                }`}
               onClick={() => handleWithWaterCardClick("between_0.2_0.5")}
             >
               <div className="flex justify-center mb-2">
@@ -2185,9 +2186,8 @@ const ChlorineDashboard: React.FC = () => {
 
             {/* Above Range */}
             <div
-              className={`cursor-pointer bg-white rounded-xl border border-orange-100 border-t-4 border-t-orange-500 p-4 text-center hover:shadow-md transition-all duration-200 ${
-                selectedWithWaterFilter === "above_0.5" ? "ring-2 ring-orange-400 ring-offset-2" : ""
-              }`}
+              className={`cursor-pointer bg-white rounded-xl border border-orange-100 border-t-4 border-t-orange-500 p-4 text-center hover:shadow-md transition-all duration-200 ${selectedWithWaterFilter === "above_0.5" ? "ring-2 ring-orange-400 ring-offset-2" : ""
+                }`}
               onClick={() => handleWithWaterCardClick("above_0.5")}
             >
               <div className="flex justify-center mb-2">

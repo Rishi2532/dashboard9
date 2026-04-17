@@ -1176,13 +1176,13 @@ const SchemeLpcdDashboard = () => {
 
         return {
           "No.": index + 1,
-          "Scheme ID": scheme.scheme_id,
-          "Scheme Name": scheme.scheme_name || "N/A",
           Region: scheme.region || "N/A",
           Circle: scheme.circle || "N/A",
           Division: scheme.division || "N/A",
           "Sub Division": scheme.sub_division || "N/A",
           Block: scheme.block || "N/A",
+          "Scheme ID": scheme.scheme_id,
+          "Scheme Name": scheme.scheme_name || "N/A",
           "Total Population": scheme.total_population || 0,
           "Total Villages": scheme.total_villages || 0,
           "Villages Below 55 LPCD": scheme.villages_below_55 || 0,

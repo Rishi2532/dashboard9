@@ -182,14 +182,13 @@ export default function Schemes() {
   const handleNavigateToSchemeDetails = (scheme: SchemeStatus) => {
     console.log("Navigating to scheme details page for:", scheme);
     const encodedSchemeId = encodeURIComponent(scheme.scheme_id);
-    const nameParam = `?name=${encodeURIComponent(scheme.scheme_name)}`;
-    // For multi-block schemes, don't pass block parameter in path
+    // For multi-block schemes, don't pass block parameter
     const isMultiBlock =
       scheme.block === "All Blocks" || scheme.block === "Multiple Blocks";
     const url =
       isMultiBlock || !scheme.block
-        ? `/scheme/${encodedSchemeId}${nameParam}`
-        : `/scheme/${encodedSchemeId}/${encodeURIComponent(scheme.block)}${nameParam}`;
+        ? `/scheme/${encodedSchemeId}`
+        : `/scheme/${encodedSchemeId}/${encodeURIComponent(scheme.block)}`;
     window.location.href = url;
   };
 
@@ -578,13 +577,13 @@ export default function Schemes() {
       };
       // Prepare data
       const exportData = allFilteredSchemes.map((scheme: SchemeStatus) => ({
-        "Scheme ID": scheme.scheme_id || "",
-        "Scheme Name": scheme.scheme_name || "",
         Region: scheme.region || "",
         Circle: scheme.circle || "",
         Division: scheme.division || "",
         "Sub Division": scheme.sub_division || "",
         Block: scheme.block || "",
+        "Scheme ID": scheme.scheme_id || "",
+        "Scheme Name": scheme.scheme_name || "",
         Agency:
           scheme.agency ||
           (scheme.region ? getAgencyByRegion(scheme.region) : "Not Specified"),
