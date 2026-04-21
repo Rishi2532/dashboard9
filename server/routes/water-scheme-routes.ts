@@ -1120,63 +1120,55 @@ async function importDataToDatabase(data: any[], isExcel: boolean, isLpcdTemplat
             continue;
           }
 
+          // Use a map to group values by date for this specific village/scheme
+          const datedEntries = new Map<string, {water: number | null, lpcd: number | null}>();
+
           // Process water values (days 1-7)
           for (let day = 1; day <= 7; day++) {
-            const waterDateField = `water_date_day${day}`;
-            const waterValueField = `water_value_day${day}`;
-
-            const waterDate = record[waterDateField];
-            const waterValue = record[waterValueField];
+            const waterDate = record[`water_date_day${day}`];
+            const waterValue = record[`water_value_day${day}`];
 
             if (waterDate && waterValue !== null && waterValue !== undefined && waterValue !== '') {
-              historicalRecords.push({
-                region: record.region || null,
-                circle: record.circle || null,
-                division: record.division || null,
-                sub_division: record.sub_division || null,
-                block: record.block || null,
-                scheme_id: record.scheme_id,
-                scheme_name: record.scheme_name || null,
-                village_name: record.village_name,
-                population: record.population || null,
-                number_of_esr: record.number_of_esr || null,
-                data_date: waterDate,
-                water_value: parseFloat(waterValue),
-                lpcd_value: null,
-                upload_batch_id: uploadBatchId,
-                dashboard_url: record.dashboard_url || null
-              });
+              if (!datedEntries.has(waterDate)) {
+                datedEntries.set(waterDate, { water: null, lpcd: null });
+              }
+              datedEntries.get(waterDate)!.water = parseFloat(waterValue);
             }
           }
 
           // Process LPCD values (days 1-7)
           for (let day = 1; day <= 7; day++) {
-            const lpcdDateField = `lpcd_date_day${day}`;
-            const lpcdValueField = `lpcd_value_day${day}`;
-
-            const lpcdDate = record[lpcdDateField];
-            const lpcdValue = record[lpcdValueField];
+            const lpcdDate = record[`lpcd_date_day${day}`];
+            const lpcdValue = record[`lpcd_value_day${day}`];
 
             if (lpcdDate && lpcdValue !== null && lpcdValue !== undefined && lpcdValue !== '') {
-              historicalRecords.push({
-                region: record.region || null,
-                circle: record.circle || null,
-                division: record.division || null,
-                sub_division: record.sub_division || null,
-                block: record.block || null,
-                scheme_id: record.scheme_id,
-                scheme_name: record.scheme_name || null,
-                village_name: record.village_name,
-                population: record.population || null,
-                number_of_esr: record.number_of_esr || null,
-                data_date: lpcdDate,
-                water_value: null,
-                lpcd_value: parseFloat(lpcdValue),
-                upload_batch_id: uploadBatchId,
-                dashboard_url: record.dashboard_url || null
-              });
+              if (!datedEntries.has(lpcdDate)) {
+                datedEntries.set(lpcdDate, { water: null, lpcd: null });
+              }
+              datedEntries.get(lpcdDate)!.lpcd = parseFloat(lpcdValue);
             }
           }
+
+          // Add all merged date entries to histRecords
+          datedEntries.forEach((values, date) => {
+            historicalRecords.push({
+              region: record.region || null,
+              circle: record.circle || null,
+              division: record.division || null,
+              sub_division: record.sub_division || null,
+              block: record.block || null,
+              scheme_id: record.scheme_id,
+              scheme_name: record.scheme_name || null,
+              village_name: record.village_name,
+              population: record.population || null,
+              number_of_esr: record.number_of_esr || null,
+              data_date: date,
+              water_value: values.water,
+              lpcd_value: values.lpcd,
+              upload_batch_id: uploadBatchId,
+              dashboard_url: record.dashboard_url || null
+            });
+          });
         }
 
         if (historicalRecords.length > 0) {

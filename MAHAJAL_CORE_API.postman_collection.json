@@ -1,0 +1,394 @@
+{
+	"info": {
+		"_postman_id": "a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6",
+		"name": "Mahajal IoT Core API",
+		"description": "Postman collection for Mahajal IoT Core Data Integration. ALL HEADERS INCLUDED IN EVERY REQUEST.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Regions",
+			"item": [
+				{
+					"name": "Get Master Regions (Full Table)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-External-Proxy-Key",
+								"value": "{{apiKey}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/regions",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"regions"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Live Sensor Data (7-Day)",
+			"item": [
+				{
+					"name": "Get Water Scheme Data",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-External-Proxy-Key",
+								"value": "{{apiKey}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/water-scheme-data?region=Pune",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"water-scheme-data"
+							],
+							"query": [
+								{
+									"key": "region",
+									"value": "Pune"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Water Consumption",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-External-Proxy-Key",
+								"value": "{{apiKey}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/water-consumption",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"water-consumption"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Chlorine Data",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-External-Proxy-Key",
+								"value": "{{apiKey}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/chlorine",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"chlorine"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Pressure Data",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-External-Proxy-Key",
+								"value": "{{apiKey}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/pressure",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"pressure"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "History Tables",
+			"item": [
+				{
+					"name": "Water Scheme History (Bulk)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-External-Proxy-Key",
+								"value": "{{apiKey}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/water-scheme-data/historical?startDate=2025-12-01&endDate=2025-12-07",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"water-scheme-data",
+								"historical"
+							],
+							"query": [
+								{
+									"key": "startDate",
+									"value": "2025-12-01"
+								},
+								{
+									"key": "endDate",
+									"value": "2025-12-07"
+								},
+								{
+									"key": "region",
+									"value": "all",
+									"disabled": true
+								},
+								{
+									"key": "countOnly",
+									"value": "true",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Bulk Scheme LPCD History",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-External-Proxy-Key",
+								"value": "{{apiKey}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/scheme-lpcd-data/history?limit=1000",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"scheme-lpcd-data",
+								"history"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "1000"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Chlorine History",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-External-Proxy-Key",
+								"value": "{{apiKey}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/chlorine/historical?startDate=2025-12-01&endDate=2025-12-07",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"chlorine",
+								"historical"
+							],
+							"query": [
+								{
+									"key": "startDate",
+									"value": "2025-12-01"
+								},
+								{
+									"key": "endDate",
+									"value": "2025-12-07"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Pressure History",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-External-Proxy-Key",
+								"value": "{{apiKey}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/pressure/historical?startDate=2025-12-01&endDate=2025-12-07",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"pressure",
+								"historical"
+							],
+							"query": [
+								{
+									"key": "startDate",
+									"value": "2025-12-01"
+								},
+								{
+									"key": "endDate",
+									"value": "2025-12-07"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Water Consumption History",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-External-Proxy-Key",
+								"value": "{{apiKey}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/water-consumption/historical?startDate=2025-12-01&endDate=2025-12-07",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"water-consumption",
+								"historical"
+							],
+							"query": [
+								{
+									"key": "startDate",
+									"value": "2025-12-01"
+								},
+								{
+									"key": "endDate",
+									"value": "2025-12-07"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "https://dashboard1.mahajaliot.in",
+			"type": "string"
+		},
+		{
+			"key": "apiKey",
+			"value": "MAHAJAL_IOT_SECURE_KEY_25",
+			"type": "string"
+		}
+	]
+}
