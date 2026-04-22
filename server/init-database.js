@@ -355,8 +355,56 @@ async function initializeDatabase() {
   }
 }
 
+/**
+ * Ensure the scheme_progress_summary table exists. Runs on every startup
+ * (including remixes) so a missing table is always created.
+ */
+async function ensureSchemeProgressSummaryTable() {
+  const poolConfig = { connectionString: process.env.DATABASE_URL };
+  const isLocalHost = process.env.DATABASE_URL?.includes('localhost') ||
+                      process.env.DATABASE_URL?.includes('127.0.0.1');
+  if (process.env.NODE_ENV === 'production' && !isLocalHost) {
+    poolConfig.ssl = { require: true, rejectUnauthorized: false };
+  }
+  const pool = new Pool(poolConfig);
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS "scheme_progress_summary" (
+        "scheme_id" BIGINT PRIMARY KEY,
+        "scheme_name" TEXT,
+        "number_of_villages" INT,
+        "number_of_completed_villages" INT,
+        "number_of_esr" INT,
+        "number_of_completed_esr" INT,
+        "number_of_gsr" INT,
+        "number_of_completed_gsr" INT,
+        "number_of_mbr" INT,
+        "number_of_completed_mbr" INT,
+        "total_flowmeter_scope" INT,
+        "flowmeter_integrated" INT,
+        "flowmeter_balance" INT,
+        "total_rca_scope" INT,
+        "rca_integrated" INT,
+        "rca_balance" INT,
+        "total_pt_scope" INT,
+        "pt_integrated" INT,
+        "pt_balance" INT,
+        "completion_status" TEXT
+      );
+    `);
+    console.log('✅ Verified scheme_progress_summary table exists');
+  } catch (error) {
+    console.error('❌ Error ensuring scheme_progress_summary table:', error);
+  } finally {
+    await pool.end();
+  }
+}
+
 // Import auto-generate-dashboard-urls script
 import './auto-generate-dashboard-urls.js';
+
+// Always ensure scheme_progress_summary exists, regardless of init marker.
+ensureSchemeProgressSummaryTable();
 
 // Only run initialization if it hasn't been run before
 const initMarkerPath = path.join(process.cwd(), '.db-initialized');
