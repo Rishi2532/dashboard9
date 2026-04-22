@@ -10,6 +10,7 @@ import {
   decimal,
   unique,
   primaryKey,
+  bigint,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -1218,3 +1219,31 @@ export const insertIssueReportSchema = createInsertSchema(issueReports).omit({
 
 export type InsertIssueReport = z.infer<typeof insertIssueReportSchema>;
 export type IssueReport = typeof issueReports.$inferSelect;
+
+// Scheme Progress Summary table
+export const schemeProgressSummary = pgTable("scheme_progress_summary", {
+  scheme_id: bigint("scheme_id", { mode: 'bigint' }).primaryKey(),
+  scheme_name: text("scheme_name"),
+  number_of_villages: integer("number_of_villages"),
+  number_of_completed_villages: integer("number_of_completed_villages"),
+  number_of_esr: integer("number_of_esr"),
+  number_of_completed_esr: integer("number_of_completed_esr"),
+  number_of_gsr: integer("number_of_gsr"),
+  number_of_completed_gsr: integer("number_of_completed_gsr"),
+  number_of_mbr: integer("number_of_mbr"),
+  number_of_completed_mbr: integer("number_of_completed_mbr"),
+  total_flowmeter_scope: integer("total_flowmeter_scope"),
+  flowmeter_integrated: integer("flowmeter_integrated"),
+  flowmeter_balance: integer("flowmeter_balance"),
+  total_rca_scope: integer("total_rca_scope"),
+  rca_integrated: integer("rca_integrated"),
+  rca_balance: integer("rca_balance"),
+  total_pt_scope: integer("total_pt_scope"),
+  pt_integrated: integer("pt_integrated"),
+  pt_balance: integer("pt_balance"),
+  completion_status: text("completion_status"),
+});
+
+export const insertSchemeProgressSummarySchema = createInsertSchema(schemeProgressSummary);
+export type InsertSchemeProgressSummary = z.infer<typeof insertSchemeProgressSummarySchema>;
+export type SchemeProgressSummary = typeof schemeProgressSummary.$inferSelect;

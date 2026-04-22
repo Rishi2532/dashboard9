@@ -19,6 +19,7 @@ import {
   villages,
   mqttTopicConfigurations,
   schemeLpcdDataHistory,
+  schemeProgressSummary,
   type User,
   type InsertUser,
   type Region,
@@ -60,6 +61,8 @@ import {
   type UpdateVillage,
   type MqttTopicConfiguration,
   type InsertMqttTopicConfiguration,
+  type SchemeProgressSummary,
+  type InsertSchemeProgressSummary,
 } from "@shared/schema";
 import { getDB, initializeDatabase } from "./db";
 import { eq, sql, and, ilike, inArray, isNotNull } from "drizzle-orm";
@@ -697,6 +700,11 @@ export interface IStorage {
   getMqttTopicConfigurationById(
     id: number,
   ): Promise<MqttTopicConfiguration | undefined>;
+
+  // Scheme Progress Summary operations
+  batchUpsertSchemeProgressSummary(
+    data: InsertSchemeProgressSummary[],
+  ): Promise<{ inserted: number; updated: number }>;
 }
 
 // PostgreSQL implementation
@@ -13406,6 +13414,53 @@ export class PostgresStorage implements IStorage {
       return config;
     } catch (error) {
       console.error("Error fetching MQTT topic configuration by ID:", error);
+      throw error;
+    }
+  }
+
+  async batchUpsertSchemeProgressSummary(
+    data: InsertSchemeProgressSummary[],
+  ): Promise<{ inserted: number; updated: number }> {
+    if (data.length === 0) {
+      return { inserted: 0, updated: 0 };
+    }
+
+    const db = await this.ensureInitialized();
+    let inserted = 0;
+    let updated = 0;
+
+    try {
+      const batchSize = 100;
+      for (let i = 0; i < data.length; i += batchSize) {
+        const batch = data.slice(i, i + batchSize);
+        
+        for (const item of batch) {
+          // Convert scheme_id to BigInt if it's not already
+          const schemeId = typeof item.scheme_id === 'string' ? BigInt(item.scheme_id) : BigInt(item.scheme_id!);
+          
+          // Check if record exists
+          const existing = await db
+            .select()
+            .from(schemeProgressSummary)
+            .where(eq(schemeProgressSummary.scheme_id, schemeId))
+            .limit(1);
+
+          if (existing.length > 0) {
+            await db
+              .update(schemeProgressSummary)
+              .set({ ...item, scheme_id: schemeId })
+              .where(eq(schemeProgressSummary.scheme_id, schemeId));
+            updated++;
+          } else {
+            await db.insert(schemeProgressSummary).values({ ...item, scheme_id: schemeId });
+            inserted++;
+          }
+        }
+      }
+
+      return { inserted, updated };
+    } catch (error) {
+      console.error("Error in batchUpsertSchemeProgressSummary:", error);
       throw error;
     }
   }

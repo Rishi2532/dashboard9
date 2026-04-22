@@ -17,7 +17,7 @@ export default function Regions() {
 
   // Fetch regions data
   const { data: regions, isLoading } = useQuery({
-    queryKey: ["/api/regions"],
+    queryKey: ["/api/regions?view=INSTRUMENTED"],
   });
 
   return (

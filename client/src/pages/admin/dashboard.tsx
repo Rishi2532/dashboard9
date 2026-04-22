@@ -655,6 +655,10 @@ export default function AdminDashboard() {
                 <Cog className="h-4 w-4 mr-2" />
                 Manage Schemes
               </TabsTrigger>
+              <TabsTrigger value="scheme-progress-summary" className="flex items-center">
+                <FileUp className="h-4 w-4 mr-2" />
+                Scheme Progress Summary
+              </TabsTrigger>
               <TabsTrigger value="manage-reports" className="flex items-center" onClick={() => window.location.href = '/admin/manage-reports'}>
                 <FileText className="h-4 w-4 mr-2" />
                 Manage Reports
@@ -667,6 +671,20 @@ export default function AdminDashboard() {
             
             <TabsContent value="scheme-import" className="mt-0">
               <SchemeImporter />
+            </TabsContent>
+
+            <TabsContent value="scheme-progress-summary" className="mt-0">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Import Scheme Progress Summary</CardTitle>
+                  <CardDescription>
+                    Upload CSV files to update the scheme progress summary table.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <EnhancedCsvImporter defaultTable="scheme_progress_summary" />
+                </CardContent>
+              </Card>
             </TabsContent>
             
             <TabsContent value="lpcd-import" className="mt-0">

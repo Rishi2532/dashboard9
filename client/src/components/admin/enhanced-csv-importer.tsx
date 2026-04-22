@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -108,6 +108,29 @@ const waterConsumptionFields = [
   { value: "percentage_consumption_previous_day", label: "Percentage Consumption Previous Day", required: false },
 ];
 
+const schemeProgressSummaryFields = [
+  { value: "scheme_id", label: "Scheme ID", required: true },
+  { value: "scheme_name", label: "Scheme Name", required: false },
+  { value: "number_of_villages", label: "Number of Villages", required: false },
+  { value: "number_of_completed_villages", label: "No. of Completed Villages", required: false },
+  { value: "number_of_esr", label: "Number of ESR", required: false },
+  { value: "number_of_completed_esr", label: "No. of Completed ESR", required: false },
+  { value: "number_of_gsr", label: "Number of GSR", required: false },
+  { value: "number_of_completed_gsr", label: "No. of Completed GSR", required: false },
+  { value: "number_of_mbr", label: "Number of MBR", required: false },
+  { value: "number_of_completed_mbr", label: "No. of Completed MBR", required: false },
+  { value: "total_flowmeter_scope", label: "Total Flowmeter Scope", required: false },
+  { value: "flowmeter_integrated", label: "Flowmeter Integrated", required: false },
+  { value: "flowmeter_balance", label: "Flowmeter Balance", required: false },
+  { value: "total_rca_scope", label: "Total RCA Scope", required: false },
+  { value: "rca_integrated", label: "RCA Integrated", required: false },
+  { value: "rca_balance", label: "RCA Balance", required: false },
+  { value: "total_pt_scope", label: "Total PT Scope", required: false },
+  { value: "pt_integrated", label: "PT Integrated", required: false },
+  { value: "pt_balance", label: "PT Balance", required: false },
+  { value: "completion_status", label: "Completion Status", required: false },
+];
+
 // Regions for the dropdown
 const regions = [
   { value: "Nagpur", label: "Nagpur" },
@@ -123,6 +146,7 @@ const tableOptions = [
   { value: "scheme_status", label: "Scheme Status Table" },
   { value: "region", label: "Region Table" },
   { value: "water_consumption", label: "Water Consumption Table" },
+  { value: "scheme_progress_summary", label: "Scheme Progress Summary Table" },
 ];
 
 interface EnhancedCsvImporterProps {
@@ -188,6 +212,73 @@ export default function EnhancedCsvImporter({ defaultTable = "scheme_status" }: 
     }
   };
 
+  // Automatically update mappings when tableName or previewData changes
+  useEffect(() => {
+    if (previewData.length > 0) {
+      updateInitialMappings(previewData, tableName, hasHeader);
+    }
+  }, [tableName, previewData, hasHeader]);
+
+  const updateInitialMappings = (parsedRows: string[][], table: string, skipHeader: boolean) => {
+    if (parsedRows.length === 0) return;
+
+    // Default to empty mappings
+    let newMappings: Record<string, string> = {};
+
+    // 1. Check for predefined mappings based on column count and table
+    if (table === "water_consumption" && parsedRows[0].length >= 30) {
+      newMappings = {
+        "region": "0", "circle": "1", "division": "2", "sub_division": "3", "block": "4",
+        "scheme_id": "5", "scheme_name": "6", "village_name": "7", "esr_name": "8",
+        "flow_rate_m3": "9", "flow_meter_connected": "10", "online_status": "11",
+        "time_duration": "12", "esr_capacity": "13", "water_value_day1": "14",
+        "water_value_day2": "15", "water_value_day3": "16", "water_value_day4": "17",
+        "water_value_day5": "18", "water_value_day6": "19", "water_value_day7": "20",
+        "water_date_day1": "21", "water_date_day2": "22", "water_date_day3": "23",
+        "water_date_day4": "24", "water_date_day5": "25", "water_date_day6": "26",
+        "water_date_day7": "27", "consistent_zero_consumption": "28",
+        "percentage_consumption_previous_day": "29"
+      };
+    } else if (table === "scheme_progress_summary" && parsedRows[0].length >= 20) {
+      newMappings = {
+        "scheme_id": "0", "scheme_name": "1", "number_of_villages": "2",
+        "number_of_completed_villages": "3", "number_of_esr": "4",
+        "number_of_completed_esr": "5", "number_of_gsr": "6",
+        "number_of_completed_gsr": "7", "number_of_mbr": "8",
+        "number_of_completed_mbr": "9", "total_flowmeter_scope": "10",
+        "flowmeter_integrated": "11", "flowmeter_balance": "12",
+        "total_rca_scope": "13", "rca_integrated": "14", "rca_balance": "15",
+        "total_pt_scope": "16", "pt_integrated": "17", "pt_balance": "18",
+        "completion_status": "19"
+      };
+    } else if (skipHeader && parsedRows.length > 0) {
+      // 2. Try to auto-match headers if no predefined mapping found
+      const headers = parsedRows[0];
+      let fields: any[] = [];
+      if (table === "scheme_status") fields = schemeFields;
+      else if (table === "region") fields = regionFields;
+      else if (table === "scheme_progress_summary") fields = schemeProgressSummaryFields;
+      else fields = waterConsumptionFields;
+
+      headers.forEach((header, index) => {
+        const lowerHeader = header.toLowerCase().trim().replace(/[_\s]/g, "");
+        const matchedField = fields.find(field => {
+          const val = field.value.toLowerCase().replace(/[_\s]/g, "");
+          const lbl = field.label.toLowerCase().replace(/[_\s]/g, "");
+          return val === lowerHeader || lbl === lowerHeader || 
+                 (field.value === "scheme_id" && lowerHeader === "schemeid") ||
+                 (field.value === "scheme_name" && lowerHeader === "schemename");
+        });
+
+        if (matchedField) {
+          newMappings[matchedField.value] = index.toString();
+        }
+      });
+    }
+
+    setColumnMappings(newMappings);
+  };
+
   // Parse preview data with the selected delimiter
   const parsePreviewData = (content: string, currentDelimiter: string, skipHeader: boolean) => {
     try {
@@ -224,74 +315,6 @@ export default function EnhancedCsvImporter({ defaultTable = "scheme_status" }: 
       // Automatically set the column count based on the first row
       if (parsedRows.length > 0) {
         setColumnCount(parsedRows[0].length);
-
-        // For water consumption, use predefined column mapping (30 columns)
-        if (tableName === "water_consumption" && parsedRows[0].length >= 30) {
-          const waterConsumptionMapping: Record<string, string> = {
-            "region": "0",
-            "circle": "1", 
-            "division": "2",
-            "sub_division": "3",
-            "block": "4",
-            "scheme_id": "5",
-            "scheme_name": "6",
-            "village_name": "7",
-            "esr_name": "8",
-            "flow_rate_m3": "9",
-            "flow_meter_connected": "10",
-            "online_status": "11",
-            "time_duration": "12",
-            "esr_capacity": "13",
-            "water_value_day1": "14",
-            "water_value_day2": "15",
-            "water_value_day3": "16",
-            "water_value_day4": "17",
-            "water_value_day5": "18",
-            "water_value_day6": "19",
-            "water_value_day7": "20",
-            "water_date_day1": "21",
-            "water_date_day2": "22",
-            "water_date_day3": "23",
-            "water_date_day4": "24",
-            "water_date_day5": "25",
-            "water_date_day6": "26",
-            "water_date_day7": "27",
-            "consistent_zero_consumption": "28",
-            "percentage_consumption_previous_day": "29"
-          };
-          setColumnMappings(waterConsumptionMapping);
-        }
-        // If we have headers, use them for initial mapping for other tables
-        else if (skipHeader && parsedRows.length > 1) {
-          const headers = parsedRows[0];
-          const initialMappings: Record<string, string> = {};
-
-          // Try to match headers to fields
-          headers.forEach((header, index) => {
-            const lowerHeader = header.toLowerCase().trim();
-
-            let fields;
-            if (tableName === "scheme_status") {
-              fields = schemeFields;
-            } else if (tableName === "region") {
-              fields = regionFields;
-            } else {
-              fields = waterConsumptionFields;
-            }
-            
-            const matchedField = fields.find(field => 
-              field.label.toLowerCase() === lowerHeader ||
-              field.value.toLowerCase() === lowerHeader ||
-              (field.value === "agency_type" && lowerHeader === "mjp_type")
-            );
-
-            if (matchedField) {
-              initialMappings[matchedField.value] = index.toString();
-            }
-          });
-
-          setColumnMappings(initialMappings);
-        }
       }
     } catch (error) {
       console.error("Error parsing preview data:", error);
@@ -336,6 +359,8 @@ export default function EnhancedCsvImporter({ defaultTable = "scheme_status" }: 
       fields = schemeFields;
     } else if (tableName === "region") {
       fields = regionFields;
+    } else if (tableName === "scheme_progress_summary") {
+      fields = schemeProgressSummaryFields;
     } else {
       fields = waterConsumptionFields;
     }
@@ -488,6 +513,8 @@ export default function EnhancedCsvImporter({ defaultTable = "scheme_status" }: 
     fields = schemeFields;
   } else if (tableName === "region") {
     fields = regionFields;
+  } else if (tableName === "scheme_progress_summary") {
+    fields = schemeProgressSummaryFields;
   } else {
     fields = waterConsumptionFields;
   }

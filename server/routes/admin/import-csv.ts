@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { storage } from "../../storage";
 import { parse } from "csv-parse/sync";
 import { updateRegionSummaries } from "../../db";
-import { type InsertSchemeStatus, type SchemeStatus, type InsertRegion } from "@shared/schema";
+import { type InsertSchemeStatus, type SchemeStatus, type InsertRegion, type InsertSchemeProgressSummary } from "@shared/schema";
 import { generateDashboardUrl } from "../../auto-generate-dashboard-urls";
 
 /**
@@ -141,7 +141,8 @@ function parseFieldValue(fieldName: string, value: string): any {
     fieldName === "scheme_name" ||
     fieldName === "scheme_id" ||
     fieldName === "district" ||
-    fieldName === "implementing_agency"
+    fieldName === "implementing_agency" ||
+    fieldName === "completion_status"
   ) {
     return String(value).trim();
   } else if (
@@ -275,6 +276,20 @@ function parseNumber(value: string): number | null {
   }
 
   return parsedNumber;
+}
+
+/**
+ * Robustly coerce a value to a number or null
+ */
+function coerceNumber(value: any): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "number") return value;
+  
+  const str = String(value).trim().replace(/,/g, "");
+  if (str === "") return null;
+  
+  const num = Number(str);
+  return isNaN(num) ? null : num;
 }
 
 /**
@@ -535,6 +550,79 @@ async function updateDatabaseRecords(
       return {
         updatedCount: 0,
         details: details || "No valid regions to process",
+      };
+    }
+  } else if (tableName === "scheme_progress_summary") {
+    // Process scheme progress summary updates using batch operations
+    const summaryData: InsertSchemeProgressSummary[] = [];
+    let skippedCount = 0;
+    const skippedRows: any[] = [];
+
+    for (let i = 0; i < data.length; i++) {
+      const item = data[i];
+      try {
+        if (!item.scheme_id) {
+          skippedCount++;
+          skippedRows.push({ row: i + 1, reason: "missing scheme_id", data: item });
+          continue;
+        }
+
+        const summaryRecord: InsertSchemeProgressSummary = {
+          scheme_id: item.scheme_id, // Will be converted to BigInt in storage
+          scheme_name: item.scheme_name || null,
+          number_of_villages: coerceNumber(item.number_of_villages),
+          number_of_completed_villages: coerceNumber(item.number_of_completed_villages),
+          number_of_esr: coerceNumber(item.number_of_esr),
+          number_of_completed_esr: coerceNumber(item.number_of_completed_esr),
+          number_of_gsr: coerceNumber(item.number_of_gsr),
+          number_of_completed_gsr: coerceNumber(item.number_of_completed_gsr),
+          number_of_mbr: coerceNumber(item.number_of_mbr),
+          number_of_completed_mbr: coerceNumber(item.number_of_completed_mbr),
+          total_flowmeter_scope: coerceNumber(item.total_flowmeter_scope),
+          flowmeter_integrated: coerceNumber(item.flowmeter_integrated),
+          flowmeter_balance: coerceNumber(item.flowmeter_balance),
+          total_rca_scope: coerceNumber(item.total_rca_scope),
+          rca_integrated: coerceNumber(item.rca_integrated),
+          rca_balance: coerceNumber(item.rca_balance),
+          total_pt_scope: coerceNumber(item.total_pt_scope),
+          pt_integrated: coerceNumber(item.pt_integrated),
+          pt_balance: coerceNumber(item.pt_balance),
+          completion_status: item.completion_status || null,
+        };
+
+        summaryData.push(summaryRecord);
+      } catch (itemError) {
+        console.error("Error processing summary item:", itemError);
+        details += `Error processing item: ${(itemError as Error).message}\n`;
+        skippedCount++;
+      }
+    }
+
+    if (summaryData.length > 0) {
+      try {
+        console.log(`Processing ${data.length} total rows. Valid records: ${summaryData.length}. Skipped: ${skippedCount}`);
+        if (skippedRows.length > 0) {
+          console.log("Skipped rows details:", JSON.stringify(skippedRows.slice(0, 5), null, 2));
+        }
+        
+        console.log(`Batch upserting ${summaryData.length} scheme progress summary records...`);
+        const batchResult = await storage.batchUpsertSchemeProgressSummary(summaryData);
+        details += `Batch processed ${summaryData.length} summary records (${batchResult.inserted} inserted, ${batchResult.updated} updated)\n`;
+
+        if (skippedCount > 0) {
+          details += `Skipped ${skippedCount} invalid records\n`;
+        }
+
+        return { updatedCount: summaryData.length, details };
+      } catch (batchError) {
+        console.error("Batch upsert summary failed:", batchError);
+        details += `Batch operation failed: ${(batchError as Error).message}\n`;
+        return { updatedCount: 0, details };
+      }
+    } else {
+      return {
+        updatedCount: 0,
+        details: details || "No valid summary records to process",
       };
     }
   } else {
