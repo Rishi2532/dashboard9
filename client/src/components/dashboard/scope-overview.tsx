@@ -112,9 +112,17 @@ function ComponentBar({
   );
 }
 
-export default function ScopeOverview() {
+interface ScopeOverviewProps {
+  selectedRegion?: string;
+}
+
+export default function ScopeOverview({ selectedRegion = "all" }: ScopeOverviewProps) {
+  const queryUrl =
+    selectedRegion && selectedRegion !== "all"
+      ? `/api/scheme-progress-summary/scope?region=${encodeURIComponent(selectedRegion)}`
+      : `/api/scheme-progress-summary/scope`;
   const { data, isLoading } = useQuery<ScopeData>({
-    queryKey: ["/api/scheme-progress-summary/scope"],
+    queryKey: [queryUrl],
   });
 
   const scope: ScopeData = data ?? {
@@ -135,9 +143,14 @@ export default function ScopeOverview() {
         <h2 className="flex items-center text-sm sm:text-base font-semibold text-blue-800">
           <span className="mr-2 h-6 w-1.5 rounded-sm bg-blue-500" />
           Project Scope Overview
+          {selectedRegion && selectedRegion !== "all" && (
+            <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+              {selectedRegion}
+            </span>
+          )}
         </h2>
         <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
-          From Scheme Progress
+          {selectedRegion && selectedRegion !== "all" ? "Region View" : "All Regions"}
         </span>
       </div>
 

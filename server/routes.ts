@@ -1123,19 +1123,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get scope totals from scheme_progress_summary
-  app.get("/api/scheme-progress-summary/scope", async (_req, res) => {
+  // Get scope totals from scheme_progress_summary, optionally filtered by region.
+  // Joins to scheme_status on scheme_id to resolve the region for each scheme.
+  app.get("/api/scheme-progress-summary/scope", async (req, res) => {
     try {
+      const region = (req.query.region as string) || "all";
       const db = await getDB();
+      const filterByRegion = region && region !== "all";
       const result = await db.execute(sql`
         SELECT
-          COUNT(DISTINCT scheme_id)::bigint AS total_schemes,
-          COALESCE(SUM(number_of_villages), 0)::bigint AS total_villages,
-          COALESCE(SUM(COALESCE(number_of_esr,0) + COALESCE(number_of_gsr,0) + COALESCE(number_of_mbr,0)), 0)::bigint AS total_esr,
-          COALESCE(SUM(total_flowmeter_scope), 0)::bigint AS total_flowmeter_scope,
-          COALESCE(SUM(total_rca_scope), 0)::bigint AS total_rca_scope,
-          COALESCE(SUM(total_pt_scope), 0)::bigint AS total_pt_scope
-        FROM scheme_progress_summary
+          COUNT(DISTINCT sps.scheme_id)::bigint AS total_schemes,
+          COALESCE(SUM(sps.number_of_villages), 0)::bigint AS total_villages,
+          COALESCE(SUM(COALESCE(sps.number_of_esr,0) + COALESCE(sps.number_of_gsr,0) + COALESCE(sps.number_of_mbr,0)), 0)::bigint AS total_esr,
+          COALESCE(SUM(sps.total_flowmeter_scope), 0)::bigint AS total_flowmeter_scope,
+          COALESCE(SUM(sps.total_rca_scope), 0)::bigint AS total_rca_scope,
+          COALESCE(SUM(sps.total_pt_scope), 0)::bigint AS total_pt_scope
+        FROM (
+          SELECT DISTINCT ON (scheme_id::text) scheme_id::text AS scheme_id, region
+          FROM scheme_status
+        ) ss
+        RIGHT JOIN scheme_progress_summary sps
+          ON ss.scheme_id = sps.scheme_id::text
+        ${filterByRegion ? sql`WHERE ss.region = ${region}` : sql``}
       `);
       const row = (result as any).rows ? (result as any).rows[0] : (result as any)[0];
       const toNum = (v: any) => (v === null || v === undefined ? 0 : Number(v));
