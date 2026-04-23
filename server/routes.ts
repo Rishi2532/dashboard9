@@ -1123,6 +1123,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get scope totals from scheme_progress_summary
+  app.get("/api/scheme-progress-summary/scope", async (_req, res) => {
+    try {
+      const db = await getDB();
+      const result = await db.execute(sql`
+        SELECT
+          COUNT(DISTINCT scheme_id)::bigint AS total_schemes,
+          COALESCE(SUM(number_of_villages), 0)::bigint AS total_villages,
+          COALESCE(SUM(COALESCE(number_of_esr,0) + COALESCE(number_of_gsr,0) + COALESCE(number_of_mbr,0)), 0)::bigint AS total_esr,
+          COALESCE(SUM(total_flowmeter_scope), 0)::bigint AS total_flowmeter_scope,
+          COALESCE(SUM(total_rca_scope), 0)::bigint AS total_rca_scope,
+          COALESCE(SUM(total_pt_scope), 0)::bigint AS total_pt_scope
+        FROM scheme_progress_summary
+      `);
+      const row = (result as any).rows ? (result as any).rows[0] : (result as any)[0];
+      const toNum = (v: any) => (v === null || v === undefined ? 0 : Number(v));
+      res.json({
+        totalSchemes: toNum(row?.total_schemes),
+        totalVillages: toNum(row?.total_villages),
+        totalEsr: toNum(row?.total_esr),
+        totalFlowmeterScope: toNum(row?.total_flowmeter_scope),
+        totalRcaScope: toNum(row?.total_rca_scope),
+        totalPtScope: toNum(row?.total_pt_scope),
+      });
+    } catch (error) {
+      console.error("Error fetching scheme progress scope:", error);
+      res.status(500).json({ message: "Failed to fetch scope summary" });
+    }
+  });
+
   // Get region summary (filtered by region if provided)
     app.get("/api/regions/summary", async (req, res) => {
     try {

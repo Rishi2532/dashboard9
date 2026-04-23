@@ -4,6 +4,7 @@ import { Link, useLocation } from "wouter";
 import DashboardLayout from "@/components/dashboard/dashboard-layout";
 import RegionFilter from "@/components/dashboard/region-filter";
 import StatsCards from "@/components/dashboard/stats-cards";
+import ScopeOverview from "@/components/dashboard/scope-overview";
 import RegionComparisonChart from "@/components/dashboard/region-comparison-chart";
 import SimpleMaharashtraMap from "@/components/dashboard/simple-maharashtra-map";
 import MetricSelector from "@/components/dashboard/metric-selector";
@@ -1780,46 +1781,9 @@ export default function Dashboard() {
 
       {/* Map and Stats Cards Layout (stacked on mobile, side-by-side on desktop) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
-        {/* Map Column - Full width on mobile, 5/12 on desktop */}
-        <div className="lg:col-span-5 bg-white p-3 sm:p-4 rounded-lg border-0 flex flex-col">
-          <div className="flex justify-between items-center mb-2 sm:mb-3">
-            <h2 className="text-sm sm:text-base font-medium text-blue-800">
-              Maharashtra Regional Status
-            </h2>
-          </div>
-          <div className="w-full overflow-x-auto flex-1 min-h-[580px]">
-            <div className="min-w-[280px] sm:min-w-full h-full">
-              {/* High-Quality Figma-based Maharashtra Map */}
-              <div
-                className="map-container"
-                id="maharashtra-map-preview"
-                style={{ height: "580px", overflow: "hidden" }}
-              >
-                {/* Figma-based Maharashtra Map with district boundaries */}
-                <div className="h-full w-full flex items-center justify-center overflow-hidden bg-blue-50/30 rounded-lg">
-                  <div className="transform scale-[0.22] origin-center">
-                    <Maharashtra
-                      onRegionClick={handleRegionChange}
-                      selectedRegion={selectedRegion}
-                      showLabels={false}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Remove error modal if it appears */}
-              <style
-                dangerouslySetInnerHTML={{
-                  __html: `
-                  /* Hide runtime error popup for map */
-                  #maharashtra-map-preview + div[data-plugin-id="runtime-errors"] {
-                    display: none !important;
-                  }
-                `,
-                }}
-              />
-            </div>
-          </div>
+        {/* Scope Overview - Full width on mobile, 5/12 on desktop */}
+        <div className="lg:col-span-5 flex flex-col">
+          <ScopeOverview />
         </div>
 
         {/* Stats Cards Area - Full width on mobile, 7/12 on desktop */}
