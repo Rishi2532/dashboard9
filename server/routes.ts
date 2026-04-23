@@ -1130,21 +1130,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const region = (req.query.region as string) || "all";
       const db = await getDB();
       const filterByRegion = region && region !== "all";
+      // Some rows in scheme_progress_summary use a surrogate `scheme_id` and
+      // store the real scheme identifier in `scheme_name`. We resolve the
+      // region by matching scheme_status.scheme_id against EITHER column.
       const result = await db.execute(sql`
-        SELECT
-          COUNT(DISTINCT sps.scheme_id)::bigint AS total_schemes,
-          COALESCE(SUM(sps.number_of_villages), 0)::bigint AS total_villages,
-          COALESCE(SUM(COALESCE(sps.number_of_esr,0) + COALESCE(sps.number_of_gsr,0) + COALESCE(sps.number_of_mbr,0)), 0)::bigint AS total_esr,
-          COALESCE(SUM(sps.total_flowmeter_scope), 0)::bigint AS total_flowmeter_scope,
-          COALESCE(SUM(sps.total_rca_scope), 0)::bigint AS total_rca_scope,
-          COALESCE(SUM(sps.total_pt_scope), 0)::bigint AS total_pt_scope
-        FROM (
+        WITH ss_unique AS (
           SELECT DISTINCT ON (scheme_id::text) scheme_id::text AS scheme_id, region
           FROM scheme_status
-        ) ss
-        RIGHT JOIN scheme_progress_summary sps
-          ON ss.scheme_id = sps.scheme_id::text
-        ${filterByRegion ? sql`WHERE ss.region = ${region}` : sql``}
+        ),
+        sps_with_region AS (
+          SELECT
+            sps.scheme_id,
+            sps.number_of_villages,
+            sps.number_of_esr,
+            sps.number_of_gsr,
+            sps.number_of_mbr,
+            sps.total_flowmeter_scope,
+            sps.total_rca_scope,
+            sps.total_pt_scope,
+            COALESCE(ss_id.region, ss_name.region) AS region
+          FROM scheme_progress_summary sps
+          LEFT JOIN ss_unique ss_id   ON ss_id.scheme_id   = sps.scheme_id::text
+          LEFT JOIN ss_unique ss_name ON ss_name.scheme_id = sps.scheme_name
+        )
+        SELECT
+          COUNT(DISTINCT scheme_id)::bigint AS total_schemes,
+          COALESCE(SUM(number_of_villages), 0)::bigint AS total_villages,
+          COALESCE(SUM(COALESCE(number_of_esr,0) + COALESCE(number_of_gsr,0) + COALESCE(number_of_mbr,0)), 0)::bigint AS total_esr,
+          COALESCE(SUM(total_flowmeter_scope), 0)::bigint AS total_flowmeter_scope,
+          COALESCE(SUM(total_rca_scope), 0)::bigint AS total_rca_scope,
+          COALESCE(SUM(total_pt_scope), 0)::bigint AS total_pt_scope
+        FROM sps_with_region
+        ${filterByRegion ? sql`WHERE region = ${region}` : sql``}
       `);
       const row = (result as any).rows ? (result as any).rows[0] : (result as any)[0];
       const toNum = (v: any) => (v === null || v === undefined ? 0 : Number(v));
