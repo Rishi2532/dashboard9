@@ -188,10 +188,11 @@ export default function ScopeOverview({
             {isAll ? "All Regions" : selectedRegion}
           </span>
           <span
-            className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${isInstrumented
+            className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${
+              isInstrumented
                 ? "bg-emerald-100 text-emerald-700"
                 : "bg-gray-100 text-gray-600"
-              }`}
+            }`}
           >
             {isInstrumented ? "100% Civil Completed" : "All Schemes"}
           </span>
@@ -285,3 +286,4 @@ export default function ScopeOverview({
     </div>
   );
 }
+
