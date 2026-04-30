@@ -615,7 +615,7 @@ export default function StatsCards({
                     Residual Chlorine Analyzer
                   </span>
                 </div>
-                <span className="text-xs sm:text-sm font-bold text-emerald-900 bg-emerald-50 px-2 py-1 rounded-md">
+                <span className="text-xs sm:text-sm font-bold text-emerald-900">
                   {rcaIntegrated}
                 </span>
               </div>
