@@ -1161,9 +1161,19 @@ const EnhancedLpcdDashboard = () => {
 
   // Export to Excel
   const exportToExcel = () => {
-    // Create workbook
-    import("xlsx")
-      .then((XLSX) => {
+    // Show loading toast
+    toast({
+      title: "Preparing Export",
+      description: "Generating Excel file...",
+    });
+
+    // Create workbook using exceljs
+    import("exceljs")
+      .then(async (ExcelJSModule) => {
+        const ExcelJS = (ExcelJSModule as any).default || ExcelJSModule;
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet("LPCD Data");
+
         // Helper function to format date for better readability in Excel
         const formatDateForHeader = (dateStr: string | null | undefined) => {
           if (!dateStr) return "N/A";
@@ -1196,179 +1206,129 @@ const EnhancedLpcdDashboard = () => {
           }
         };
 
-        // Filter data based on current filters
-        const dataToExport = filteredSchemes.map((scheme, index) => {
-          const lpcdValue = getLatestLpcdValue(scheme);
+        // Define base headers
+        const baseHeaders = [
+          "No.", "Region", "Circle", "Division", "Sub Division", "Block",
+          "Scheme ID", "Scheme Name", "Village Name", "Population",
+          "Current LPCD", "Status", "Days Above 55L", "Days Below 55L"
+        ];
 
-          // Format dates for headers
-          const date1 = formatDateForHeader(scheme.lpcd_date_day1);
-          const date2 = formatDateForHeader(scheme.lpcd_date_day2);
-          const date3 = formatDateForHeader(scheme.lpcd_date_day3);
-          const date4 = formatDateForHeader(scheme.lpcd_date_day4);
-          const date5 = formatDateForHeader(scheme.lpcd_date_day5);
-          const date6 = formatDateForHeader(scheme.lpcd_date_day6);
-          const date7 = formatDateForHeader(scheme.lpcd_date_day7);
+        // Determine date headers from the first scheme or use placeholders
+        const firstScheme = filteredSchemes[0];
+        const dateHeaders: string[] = [];
+        if (firstScheme) {
+          for (let i = 1; i <= 7; i++) {
+            dateHeaders.push(formatDateForHeader((firstScheme as any)[`lpcd_date_day${i}`]));
+          }
+        } else {
+          for (let i = 1; i <= 7; i++) dateHeaders.push(`Day ${i}`);
+        }
 
-          return {
-            "No.": index + 1,
-            Region: scheme.region,
-            Circle: scheme.circle,
-            Division: scheme.division,
-            "Sub Division": scheme.sub_division,
-            Block: scheme.block,
-            "Scheme ID": scheme.scheme_id,
-            "Scheme Name": scheme.scheme_name,
-            "Village Name": scheme.village_name,
-            Population: scheme.population,
-            "Current LPCD": lpcdValue !== null ? lpcdValue.toFixed(2) : "N/A",
-            Status: getLpcdStatusText(lpcdValue),
-            "Days Above 55L": scheme.above_55_lpcd_count || 0,
-            "Days Below 55L": scheme.below_55_lpcd_count || 0,
+        // Final header row
+        const finalHeaders = [...baseHeaders];
+        dateHeaders.forEach(date => finalHeaders.push(`Water (${date})`));
+        dateHeaders.forEach(date => finalHeaders.push(`LPCD (${date})`));
 
-            // Water consumption values with dates as headers (only 6 days available)
-            [`Water (${date1})`]:
-              scheme.water_value_day1 !== null &&
-                scheme.water_value_day1 !== undefined
-                ? Number(scheme.water_value_day1).toFixed(4)
-                : "N/A",
-            [`Water (${date2})`]:
-              scheme.water_value_day2 !== null &&
-                scheme.water_value_day2 !== undefined
-                ? Number(scheme.water_value_day2).toFixed(4)
-                : "N/A",
-            [`Water (${date3})`]:
-              scheme.water_value_day3 !== null &&
-                scheme.water_value_day3 !== undefined
-                ? Number(scheme.water_value_day3).toFixed(4)
-                : "N/A",
-            [`Water (${date4})`]:
-              scheme.water_value_day4 !== null &&
-                scheme.water_value_day4 !== undefined
-                ? Number(scheme.water_value_day4).toFixed(4)
-                : "N/A",
-            [`Water (${date5})`]:
-              scheme.water_value_day5 !== null &&
-                scheme.water_value_day5 !== undefined
-                ? Number(scheme.water_value_day5).toFixed(4)
-                : "N/A",
-            [`Water (${date6})`]:
-              scheme.water_value_day6 !== null &&
-                scheme.water_value_day6 !== undefined
-                ? Number(scheme.water_value_day6).toFixed(4)
-                : "N/A",
+        const headerRow = worksheet.addRow(finalHeaders);
 
-            // LPCD values with dates as headers
-            [`LPCD (${date1})`]:
-              scheme.lpcd_value_day1 !== null &&
-                scheme.lpcd_value_day1 !== undefined
-                ? Number(scheme.lpcd_value_day1).toFixed(2)
-                : "N/A",
-            [`LPCD (${date2})`]:
-              scheme.lpcd_value_day2 !== null &&
-                scheme.lpcd_value_day2 !== undefined
-                ? Number(scheme.lpcd_value_day2).toFixed(2)
-                : "N/A",
-            [`LPCD (${date3})`]:
-              scheme.lpcd_value_day3 !== null &&
-                scheme.lpcd_value_day3 !== undefined
-                ? Number(scheme.lpcd_value_day3).toFixed(2)
-                : "N/A",
-            [`LPCD (${date4})`]:
-              scheme.lpcd_value_day4 !== null &&
-                scheme.lpcd_value_day4 !== undefined
-                ? Number(scheme.lpcd_value_day4).toFixed(2)
-                : "N/A",
-            [`LPCD (${date5})`]:
-              scheme.lpcd_value_day5 !== null &&
-                scheme.lpcd_value_day5 !== undefined
-                ? Number(scheme.lpcd_value_day5).toFixed(2)
-                : "N/A",
-            [`LPCD (${date6})`]:
-              scheme.lpcd_value_day6 !== null &&
-                scheme.lpcd_value_day6 !== undefined
-                ? Number(scheme.lpcd_value_day6).toFixed(2)
-                : "N/A",
-            [`LPCD (${date7})`]:
-              scheme.lpcd_value_day7 !== null &&
-                scheme.lpcd_value_day7 !== undefined
-                ? Number(scheme.lpcd_value_day7).toFixed(2)
-                : "N/A",
+        // Style the header row
+        headerRow.eachCell((cell) => {
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FF87CEEB" }, // Sky Blue background
+          };
+          cell.font = { color: { argb: "FFFFFFFF" }, bold: true }; // White bold text
+          cell.alignment = { horizontal: "center", vertical: "middle" };
+          cell.border = {
+            top: { style: "thin" },
+            left: { style: "thin" },
+            bottom: { style: "thin" },
+            right: { style: "thin" },
           };
         });
 
-        // Create worksheet
-        const ws = XLSX.utils.json_to_sheet(dataToExport);
+        // Add data rows
+        filteredSchemes.forEach((scheme, index) => {
+          const lpcdValue = getLatestLpcdValue(scheme);
+          const rowData: any[] = [
+            index + 1,
+            scheme.region || "N/A",
+            scheme.circle || "N/A",
+            scheme.division || "N/A",
+            scheme.sub_division || "N/A",
+            scheme.block || "N/A",
+            scheme.scheme_id || "N/A",
+            scheme.scheme_name || "N/A",
+            scheme.village_name || "N/A",
+            scheme.population || 0,
+            lpcdValue !== null ? lpcdValue.toFixed(2) : "N/A",
+            getLpcdStatusText(lpcdValue),
+            scheme.above_55_lpcd_count || 0,
+            scheme.below_55_lpcd_count || 0
+          ];
+
+          // Water consumption values day 1-7
+          for (let i = 1; i <= 7; i++) {
+            const val = (scheme as any)[`water_value_day${i}`];
+            rowData.push(val !== null && val !== undefined ? Number(val).toFixed(4) : "N/A");
+          }
+          
+          // LPCD values day 1-7
+          for (let i = 1; i <= 7; i++) {
+            const val = (scheme as any)[`lpcd_value_day${i}`];
+            rowData.push(val !== null && val !== undefined ? Number(val).toFixed(2) : "N/A");
+          }
+
+          const row = worksheet.addRow(rowData);
+          
+          // Add some basic styling to cells if needed
+          row.eachCell((cell, colNumber) => {
+             cell.alignment = { horizontal: colNumber <= 9 ? 'left' : 'right' };
+             cell.border = {
+              top: { style: "thin" },
+              left: { style: "thin" },
+              bottom: { style: "thin" },
+              right: { style: "thin" },
+            };
+          });
+        });
 
         // Set column widths
-        const columns = [
-          { wch: 5 }, // No.
-          { wch: 12 }, // Region
-          { wch: 12 }, // Circle
-          { wch: 15 }, // Division
-          { wch: 15 }, // Sub Division
-          { wch: 12 }, // Block
-          { wch: 12 }, // Scheme ID
-          { wch: 25 }, // Scheme Name
-          { wch: 20 }, // Village Name
-          { wch: 12 }, // Population
-          { wch: 15 }, // Current LPCD
-          { wch: 10 }, // Status
-          { wch: 12 }, // LPCD Day 1
-          { wch: 12 }, // LPCD Day 2
-          { wch: 12 }, // LPCD Day 3
-          { wch: 12 }, // LPCD Day 4
-          { wch: 12 }, // LPCD Day 5
-          { wch: 12 }, // LPCD Day 6
-          { wch: 12 }, // LPCD Day 7
-        ];
-        ws["!cols"] = columns;
-
-        // Format the headers with sky blue background and white text
-        const headerStyle = {
-          fill: { fgColor: { rgb: "0000FF" } }, // Sky blue background
-          font: { color: { rgb: "FFFFFF" }, bold: true }, // White bold text
-          alignment: { horizontal: "center" },
-          border: {
-            top: { style: "thin" },
-            bottom: { style: "thin" },
-            left: { style: "thin" },
-            right: { style: "thin" },
-          },
-        };
-
-        // Get all header cells (first row)
-        const headerRange = XLSX.utils.decode_range(ws["!ref"] || "A1");
-        for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
-          const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
-          if (!ws[cellAddress]) continue;
-
-          // Apply header styling
-          ws[cellAddress].s = headerStyle;
-        }
-
-        // Create workbook
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "LPCD Data");
+        worksheet.columns.forEach((col, i) => {
+          if (i === 0) col.width = 5; // No.
+          else if (i === 7) col.width = 30; // Scheme Name
+          else if (i === 8) col.width = 25; // Village Name
+          else if (i === 9) col.width = 12; // Population
+          else col.width = 15;
+        });
 
         // Generate filename
-        let filename = "LPCD_Data";
+        let filename = "Village_LPCD_Data";
         if (selectedRegion !== "all") {
-          filename += `_${selectedRegion}`;
+          filename += `_${selectedRegion.replace(/\s+/g, "_")}`;
         }
         if (currentFilter !== "all") {
           filename += `_${currentFilter}`;
         }
         filename += `_${new Date().toISOString().split("T")[0]}.xlsx`;
 
-        // Save file
-        XLSX.writeFile(wb, filename, {
-          cellStyles: true,
-          sheetStubs: false,
-          bookType: "xlsx",
+        // Write to buffer and trigger download
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         });
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(downloadUrl);
 
         // Track the data export activity
-        trackDataExport("village_lpcd_data", "xlsx", dataToExport.length, {
+        trackDataExport("village_lpcd_data", "xlsx", filteredSchemes.length, {
           region_filter: selectedRegion !== "all" ? selectedRegion : null,
           lpcd_filter: currentFilter !== "all" ? currentFilter : null,
           filename: filename,
@@ -1376,15 +1336,14 @@ const EnhancedLpcdDashboard = () => {
 
         toast({
           title: "Export Successful",
-          description: `${dataToExport.length} records exported to Excel`,
+          description: `${filteredSchemes.length} records exported to Excel`,
         });
       })
       .catch((error) => {
         console.error("Error exporting to Excel:", error);
         toast({
           title: "Export Failed",
-          description:
-            "There was an error exporting to Excel. Please try again.",
+          description: "There was an error exporting to Excel. Please try again.",
           variant: "destructive",
         });
       });

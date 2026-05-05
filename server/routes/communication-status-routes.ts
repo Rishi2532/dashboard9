@@ -85,6 +85,7 @@ router.get("/overview", async (req, res) => {
     const stats = await db
       .select({
         total_esrs: sql<number>`count(*)`,
+        total_schemes: sql<number>`count(distinct ${communicationStatus.scheme_id})`,
         chlorine_online: sql<number>`sum(case when ${communicationStatus.chlorine_status} = 'Online' then 1 else 0 end)`,
         pressure_online: sql<number>`sum(case when ${communicationStatus.pressure_status} = 'Online' then 1 else 0 end)`,
         flow_meter_online: sql<number>`sum(case when ${communicationStatus.flow_meter_status} = 'Online' then 1 else 0 end)`,
@@ -107,6 +108,7 @@ router.get("/overview", async (req, res) => {
     res.json(
       stats[0] || {
         total_esrs: 0,
+        total_schemes: 0,
         chlorine_online: 0,
         pressure_online: 0,
         flow_meter_online: 0,

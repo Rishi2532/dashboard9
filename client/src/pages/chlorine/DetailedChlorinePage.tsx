@@ -12882,7 +12882,7 @@ const DetailedChlorinePage = () => {
                                     <div className="bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-2.5 flex items-center gap-2">
                                       <Home className="h-4 w-4 text-white" />
                                       <span className="text-white font-semibold text-sm tracking-wide">
-                                        LPCD DETAILED STATISTICS (Villages)
+                                        LPCD DETAILED STATISTICS (Villages) (Daily Data)
                                       </span>
                                     </div>
 
@@ -13528,7 +13528,7 @@ const DetailedChlorinePage = () => {
                                       <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2.5 flex items-center gap-2">
                                         <Building2 className="h-4 w-4 text-white" />
                                         <span className="text-white font-semibold text-sm tracking-wide">
-                                          SCHEME LPCD DETAILED STATISTICS
+                                          SCHEME LPCD DETAILED STATISTICS (Daily Data)
                                         </span>
                                       </div>
 

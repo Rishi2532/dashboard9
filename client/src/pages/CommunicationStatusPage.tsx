@@ -48,6 +48,7 @@ import {
   Search,
   Download,
   Filter,
+  Info,
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/dashboard-layout";
 import AgencyTypeFilter from "@/components/dashboard/AgencyTypeFilter";
@@ -57,6 +58,7 @@ import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import FilterBar from "@/components/dashboard/FilterBar";
 interface CommunicationOverview {
   total_esrs: number;
+  total_schemes: number;
   chlorine_online: number;
   pressure_online: number;
   flow_meter_online: number;
@@ -859,7 +861,16 @@ export default function CommunicationStatusPage() {
 
       <div className="container mx-auto p-4">
         <DashboardPageHeader
-          title="Communication Status"
+          title={
+            <div className="flex items-center gap-3">
+              <span>Communication Status</span>
+              {!overviewLoading && overview && (
+                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-semibold px-3 py-1">
+                  {overview.total_schemes} Schemes
+                </Badge>
+              )}
+            </div>
+          }
           subtitle="Real-time monitoring of IoT device connectivity and communication performance across ESR regions"
           isLoading={schemesLoading}
           onRefresh={() => refetchSchemes()}
@@ -936,6 +947,22 @@ export default function CommunicationStatusPage() {
             resetPage();
           }}
         />
+
+        {/* Data Correspondence Info Label */}
+        {uiSchemeFilter === "commissioned" && !overviewLoading && overview && (
+          <div className="mb-6 flex justify-center">
+            <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 shadow-sm">
+              <Info className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
+              <span className="text-xs font-medium text-blue-800">
+                The data corresponds to{" "}
+                <span className="inline-flex items-center justify-center bg-blue-600 text-white font-bold text-xs px-2 py-0.5 rounded-full mx-0.5 shadow-sm">
+                  {overview.total_schemes}
+                </span>{" "}
+                schemes where civil work is 100% complete.
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Enhanced Overview Cards */}
         {!overviewLoading && overview && (

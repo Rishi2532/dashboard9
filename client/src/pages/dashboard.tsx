@@ -35,7 +35,9 @@ import {
   Gauge,
   Wifi,
   Settings,
+  Info,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Region, RegionSummary, SchemeStatus } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { useComprehensiveActivityTracker } from "@/hooks/use-comprehensive-activity-tracker";
@@ -1691,8 +1693,13 @@ export default function Dashboard() {
       <div className="p-4 sm:p-6 bg-gradient-to-r from-blue-600/20 via-blue-400/15 to-blue-700/10 rounded-lg mb-4 sm:mb-6 shadow-md border border-blue-200">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-bold text-blue-800 bg-clip-text text-transparent bg-gradient-to-r from-blue-800 via-blue-600 to-blue-500">
-              SWSM IoT Project Progress Dashboard
+            <h1 className="text-2xl sm:text-3xl font-bold text-blue-800 bg-clip-text text-transparent bg-gradient-to-r from-blue-800 via-blue-600 to-blue-500 flex items-center gap-3">
+              <span>SWSM IoT Project Progress Dashboard</span>
+              {schemeView === "INSTRUMENTED" && !isSummaryLoading && regionSummary && (
+                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-semibold px-3 py-1 text-sm">
+                  {regionSummary.total_schemes} Schemes
+                </Badge>
+              )}
             </h1>
             <p className="mt-1 sm:mt-2 text-sm text-blue-700/80 font-medium flex items-center">
               <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-2"></span>
@@ -1788,6 +1795,20 @@ export default function Dashboard() {
 
         {/* Stats Cards Area - Full width on mobile, 7/12 on desktop */}
         <div className="lg:col-span-7">
+          {schemeView === "INSTRUMENTED" && !isSummaryLoading && regionSummary && (
+            <div className="mb-4 flex justify-center lg:justify-end">
+              {/* <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 shadow-sm">
+                <Info className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
+                <span className="text-xs font-medium text-blue-800">
+                  The data corresponds to{" "}
+                  <span className="inline-flex items-center justify-center bg-blue-600 text-white font-bold text-xs px-2 py-0.5 rounded-full mx-0.5 shadow-sm">
+                    {regionSummary.total_schemes}
+                  </span>{" "}
+                  schemes where civil work is 100% complete.
+                </span>
+              </div> */}
+            </div>
+          )}
           <StatsCards
             data={regionSummary}
             isLoading={isSummaryLoading}
