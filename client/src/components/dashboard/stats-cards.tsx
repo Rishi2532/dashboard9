@@ -225,13 +225,14 @@ export default function StatsCards({
 
             {/* Additional large-screen details */}
             <div className="hidden 2xl:block mt-4 pt-4 border-t border-blue-100">
-              <div className="flex justify-between text-sm text-blue-700">
-                <span>Fully + Partially Operational Schemes</span>
-                <span className="font-semibold">{bottomSchemesIntegrated}</span>
-              </div>
+
               <div className="flex justify-between text-sm text-blue-700 mt-1">
-                <span>Fully Operational Schemes:</span>
+                <span>Fully Operational Schemes(MVS):</span>
                 <span className="font-semibold">{bottomFullyCompletedSchemes}</span>
+              </div>
+              <div className="flex justify-between text-sm text-blue-700">
+                <span>Partially Operational Schemes(MVS):</span>
+                <span className="font-semibold">{bottomSchemesIntegrated - bottomFullyCompletedSchemes}</span>
               </div>
               {/* <div className="flex justify-between text-sm text-blue-700 mt-1">
                 <span>Completion Rate:</span>
@@ -322,20 +323,20 @@ export default function StatsCards({
               <div className="flex justify-between text-sm text-amber-700">
                 <span>
                   {isInstrumented
-                    ? "Villages Under (Fully + Partially) Operational Schemes"
+                    ? "Villages Under Fully Operational Schemes"
                     : "Villages Integrated"}
                   :
                 </span>
-                <span className="font-semibold">{bottomVillagesIntegrated}</span>
+                <span className="font-semibold">{bottomFullyCompletedVillages}</span>
               </div>
               <div className="flex justify-between text-sm text-amber-700 mt-1">
                 <span>
                   {isInstrumented
-                    ? "Villages Under Fully Operational Schemes"
+                    ? "Villages Under Partially Operational Schemes"
                     : "Fully Completed"}
                   :
                 </span>
-                <span className="font-semibold">{bottomFullyCompletedVillages}</span>
+                <span className="font-semibold">{bottomVillagesIntegrated - bottomFullyCompletedVillages}</span>
               </div>
               {/* <div className="flex justify-between text-sm text-amber-700 mt-1">
                 <span>Fully Completion Rate:</span>
@@ -423,20 +424,20 @@ export default function StatsCards({
               <div className="flex justify-between text-sm text-purple-700">
                 <span>
                   {isInstrumented
-                    ? "ESRs In (Fully + Partially) Operational Schemes"
+                    ? "ESRs In Fully Operational Schemes"
                     : "ESRs Integrated"}
                   :
                 </span>
-                <span className="font-semibold">{bottomEsrIntegrated}</span>
+                <span className="font-semibold">{bottomFullyCompletedEsr}</span>
               </div>
               <div className="flex justify-between text-sm text-purple-700 mt-1">
                 <span>
                   {isInstrumented
-                    ? "ESRs In Fully Operational Schemes"
+                    ? "ESRs In Partially Operational Schemes"
                     : "Fully Completed ESRs"}
                   :
                 </span>
-                <span className="font-semibold">{bottomFullyCompletedEsr}</span>
+                <span className="font-semibold">{bottomEsrIntegrated - bottomFullyCompletedEsr}</span>
               </div>
               {/* <div className="flex justify-between text-sm text-purple-700 mt-1">
                 <span>Fully Completion Rate:</span>

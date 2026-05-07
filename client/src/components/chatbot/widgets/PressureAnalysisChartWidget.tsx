@@ -206,7 +206,7 @@ const PressureAnalysisChartWidget: React.FC<PressureAnalysisChartWidgetProps> = 
                     contentStyle={{
                       backgroundColor: '#FEF2F2',
                       border: '1px solid #EF4444',
-                      borderRadius: '6px',
+                      borderRadius: '2px',
                       fontSize: '12px'
                     }}
                     formatter={(value, name) => [`${value} bar`, 'Pressure Level']}

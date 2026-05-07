@@ -206,7 +206,7 @@ const ChlorineAnalysisChartWidget: React.FC<ChlorineAnalysisChartWidgetProps> = 
                     contentStyle={{
                       backgroundColor: '#F0FDF4',
                       border: '1px solid #10B981',
-                      borderRadius: '6px',
+                      borderRadius: '2px',
                       fontSize: '12px'
                     }}
                     formatter={(value, name) => [`${value} mg/L`, 'Chlorine Level']}

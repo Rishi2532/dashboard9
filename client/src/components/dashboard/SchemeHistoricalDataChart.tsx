@@ -180,7 +180,7 @@ export function SchemeHistoricalDataChart({ schemeId, schemeName, region, block 
                     name
                   ]}
                   contentStyle={{ 
-                    borderRadius: '12px', 
+                    borderRadius: '4px', 
                     border: 'none', 
                     boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
                     padding: '12px'

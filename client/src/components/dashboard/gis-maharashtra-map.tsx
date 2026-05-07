@@ -514,7 +514,7 @@ export default function GISMaharashtraMap({
           <Skeleton className="h-full w-full rounded-md" style={{ minHeight: '450px' }} />
         </div>
       ) : (
-        <div className="relative w-full h-full flex-1" style={{ overflow: 'hidden', height: '450px', border: '1px solid rgba(0,0,0,0.1)', borderRadius: '8px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
+        <div className="relative w-full h-full flex-1" style={{ overflow: 'hidden', height: '450px', border: '1px solid rgba(0,0,0,0.1)', borderRadius: '4px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
           <div 
             ref={mapRef}
             id="maharashtra-gis-map" 

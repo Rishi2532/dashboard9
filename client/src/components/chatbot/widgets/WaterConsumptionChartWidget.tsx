@@ -198,7 +198,7 @@ const WaterConsumptionChartWidget: React.FC<WaterConsumptionChartWidgetProps> = 
                 contentStyle={{
                   backgroundColor: '#F8FAFC',
                   border: '1px solid #3B82F6',
-                  borderRadius: '6px',
+                  borderRadius: '2px',
                   fontSize: '12px'
                 }}
                 formatter={(value, name) => [`${value} LL`, 'Water Consumption']}

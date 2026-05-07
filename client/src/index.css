@@ -352,7 +352,7 @@ area {
 
 /* Enhanced styles for LPCD, Chlorine, and Pressure data displays */
 .data-display-card {
-  border-radius: 10px !important;
+  border-radius: 4px !important;
   box-shadow: 0 4px 12px var(--shadow) !important;
   transition: transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out, border-color 0.15s ease !important;
   padding: 1.25rem !important;
@@ -431,7 +431,7 @@ area {
 /* Dashboard cards with enhanced micro-interactions */
 .dashboard-card {
   background-color: var(--card-bg) !important;
-  border-radius: 12px !important;
+  border-radius: 4px !important;
   box-shadow: 0 2px 8px var(--shadow) !important;
   overflow: hidden !important;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
@@ -447,7 +447,7 @@ area {
   right: 0;
   bottom: 0;
   z-index: 0;
-  border-radius: 12px;
+  border-radius: 4px;
   transition: opacity 0.3s ease;
   opacity: 0;
   background: linear-gradient(135deg, var(--highlight) 0%, transparent 100%);
@@ -484,7 +484,7 @@ area {
 table {
   border-collapse: separate !important;
   border-spacing: 0 !important;
-  border-radius: 8px !important;
+  border-radius: 4px !important;
   overflow: hidden !important;
   box-shadow: 0 2px 6px var(--shadow) !important;
   border: 1px solid var(--border-color) !important;
@@ -606,7 +606,7 @@ textarea {
 
 /* Search and filter inputs */
 .search-input {
-  border-radius: 8px !important;
+  border-radius: 4px !important;
   border: 1px solid #e5e7eb !important;
   padding: 0.5rem 1rem !important;
   font-size: 1rem !important;
@@ -761,7 +761,7 @@ textarea {
   transition: color 0.15s ease !important;
   margin: 0 0.75rem !important;
   padding: 0.5rem 0.75rem !important;
-  border-radius: 6px !important;
+  border-radius: 2px !important;
   font-family: 'Inter', sans-serif !important;
   color: var(--text-primary) !important;
 }
@@ -845,7 +845,7 @@ textarea {
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
-    --radius: 0.75rem;
+    --radius: 0.25rem;
     --chart-1: 221.2 83.2% 53.3%;
     --chart-2: 271.2 81.3% 55.9%;
     --chart-3: 180 77.8% 47.1%;
