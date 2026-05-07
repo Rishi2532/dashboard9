@@ -24,7 +24,6 @@ export default function AgencyTypeFilter({
         { label: "GP", value: "GP" },
         { label: "ZP-Self", value: "ZP-Self" },
         { label: "ZP-Shikarsamiti", value: "ZP-Shikarsamiti" },
-        { label: "Not Assigned", value: "Agency Not Assigned" },
     ];
 
     return (

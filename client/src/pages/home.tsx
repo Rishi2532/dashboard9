@@ -492,7 +492,6 @@ export default function HomePage() {
                   {[
                     "State-wide View",
                     "Real-time Analytics",
-                    "24/7 Monitoring",
                   ].map((tag, i) => (
                     <span
                       key={i}
