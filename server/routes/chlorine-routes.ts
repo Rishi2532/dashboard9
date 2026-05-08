@@ -7186,10 +7186,14 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
             metricCondition = '';
         }
 
-        const regionFilter = region && region !== 'All Regions'
-          ? `AND ss.region = $${paramIndex++}`
+        // Use the region filter already built or build a fresh one
+        // We re-build it here to ensure the alias 'ss' matches our current query structure
+        const currentParams: any[] = [];
+        let currentIndex = 1;
+        const currentRegionFilter = region && region !== 'All Regions'
+          ? `AND ss.region = $${currentIndex++}`
           : '';
-        if (region && region !== 'All Regions') params.push(region);
+        if (region && region !== 'All Regions') currentParams.push(region);
 
         // Filter by scheme IDs if provided
         const schemeIdFilterApplied = schemeIdFilter ? schemeIdFilter.replace('sldh.scheme_id', 'h.scheme_id') : '';
@@ -7226,13 +7230,17 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
             FROM latest_ranks lr
             LEFT JOIN scheme_status ss ON lr.scheme_id = ss.scheme_id AND lr.block = ss.block
             WHERE rn = 1
-            ${regionFilter}
+            ${currentRegionFilter}
           )
           SELECT * FROM latest_scheme_data
           WHERE 1=1
           ${metricCondition}
           ORDER BY region, scheme_name, block
         `;
+        
+        // Update the params variable that will be used in client.query
+        params.length = 0; // Clear the outer params array
+        params.push(...currentParams);
       }
 
       const result = await client.query(query, params);
