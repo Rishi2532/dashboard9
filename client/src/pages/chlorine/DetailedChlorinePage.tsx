@@ -1637,10 +1637,11 @@ const DetailedChlorinePage = () => {
       data: { region: string; total_schemes: number; above_55: number; below_55: number; with_water: number; no_water: number }[];
       latestDate: string;
     }>({
-      queryKey: ["/api/chlorine/scheme-lpcd/region-comparison", schemeFilter, selectedAgencyType],
+      queryKey: ["/api/chlorine/scheme-lpcd/region-comparison", schemeFilter, selectedAgencyType, "v1"],
       enabled: mainTab === "lpcd" && lpcdSubTab === "scheme" && categoryTab === "overall-comparison",
       queryFn: async () => {
         const params = new URLSearchParams();
+        params.append("_t", Date.now().toString());
         if (schemeFilter !== 'all') {
           params.append("filterType", schemeFilter);
         }
@@ -1704,10 +1705,12 @@ const DetailedChlorinePage = () => {
         clickedSchemeComparisonCell?.region,
         schemeFilter,
         selectedAgencyType,
+        "v1",
       ],
       enabled: !!clickedSchemeComparisonCell,
       queryFn: async () => {
         const params = new URLSearchParams();
+        params.append("_t", Date.now().toString());
         if (clickedSchemeComparisonCell?.region && clickedSchemeComparisonCell.region !== "All Regions") {
           params.append("region", clickedSchemeComparisonCell.region);
         }
@@ -10581,7 +10584,7 @@ const DetailedChlorinePage = () => {
                             Numbers represent{" "}
                             <span className="font-bold">
                               {mainTab === "lpcd"
-                                ? "Villages"
+                                ? lpcdSubTab === "scheme" ? "Schemes" : "Villages"
                                 : mainTab === "pressure"
                                   ? "Pressure Sensors"
                                   : "RCAs"}
