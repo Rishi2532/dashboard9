@@ -324,7 +324,7 @@ export default function StatsCards({
                 <span>
                   {isInstrumented
                     ? "Villages Under Fully Operational Schemes"
-                    : "Villages Integrated"}
+                    : "Fully Completed"}
                   :
                 </span>
                 <span className="font-semibold">{bottomFullyCompletedVillages}</span>
@@ -333,7 +333,7 @@ export default function StatsCards({
                 <span>
                   {isInstrumented
                     ? "Villages Under Partially Operational Schemes"
-                    : "Fully Completed"}
+                    : "Partially Completed"}
                   :
                 </span>
                 <span className="font-semibold">{bottomVillagesIntegrated - bottomFullyCompletedVillages}</span>
@@ -425,7 +425,7 @@ export default function StatsCards({
                 <span>
                   {isInstrumented
                     ? "ESRs In Fully Operational Schemes"
-                    : "ESRs Integrated"}
+                    : "Fully Completed ESRs"}
                   :
                 </span>
                 <span className="font-semibold">{bottomFullyCompletedEsr}</span>
@@ -434,7 +434,7 @@ export default function StatsCards({
                 <span>
                   {isInstrumented
                     ? "ESRs In Partially Operational Schemes"
-                    : "Fully Completed ESRs"}
+                    : "Partially Completed ESR"}
                   :
                 </span>
                 <span className="font-semibold">{bottomEsrIntegrated - bottomFullyCompletedEsr}</span>
