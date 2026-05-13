@@ -424,6 +424,11 @@ export class DatabaseStorage implements IStorage {
     // Simplified implementation - would normally parse CSV file
     return { inserted: 0, updated: 0, removed: 0, errors: [] };
   }
+
+  async importSchemeLpcdFromCSV(fileBuffer: Buffer): Promise<{ inserted: number; updated: number; removed: number; errors: string[] }> {
+    // Simplified implementation
+    return { inserted: 0, updated: 0, removed: 0, errors: [] };
+  }
   
   // Chlorine Data operations
   async getAllChlorineData(filter?: ChlorineDataFilter): Promise<ChlorineData[]> {

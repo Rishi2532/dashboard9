@@ -2253,7 +2253,9 @@ const SchemeLpcdDashboard = () => {
                                               <div className="space-y-3 overflow-y-auto pr-2 max-h-[350px] custom-scrollbar">
                                                 {[1, 2, 3, 4, 5, 6, 7].map((day) => {
                                                   const value = scheme[`lpcd_value_day${day}` as keyof SchemeLpcdData] as number;
-                                                  const date = scheme[`lpcd_date_day${day}` as keyof SchemeLpcdData] as string;
+                                                  const lpcdDate = scheme[`lpcd_date_day${day}` as keyof SchemeLpcdData] as string;
+                                                  const waterDate = scheme[`water_date_day${day}` as keyof SchemeLpcdData] as string;
+                                                  const date = lpcdDate || waterDate;
                                                   if (value === undefined || value === null) return null;
 
                                                   return (
@@ -2261,7 +2263,7 @@ const SchemeLpcdDashboard = () => {
                                                       <div className="flex flex-col">
                                                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Day {day}</span>
                                                         <span className="text-sm font-semibold text-slate-700">
-                                                          {date ? formatLpcdDate(date) : `Reading ${day}`}
+                                                          {date && date !== "NULL" ? formatLpcdDate(date) : `Reading ${day}`}
                                                         </span>
                                                       </div>
                                                       <LpcdBadge value={value} />

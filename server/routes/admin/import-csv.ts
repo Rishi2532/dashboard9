@@ -570,6 +570,7 @@ async function updateDatabaseRecords(
         const summaryRecord: InsertSchemeProgressSummary = {
           scheme_id: item.scheme_id, // Will be converted to BigInt in storage
           scheme_name: item.scheme_name || null,
+          region: item.region || null,
           number_of_villages: coerceNumber(item.number_of_villages),
           number_of_completed_villages: coerceNumber(item.number_of_completed_villages),
           number_of_esr: coerceNumber(item.number_of_esr),
@@ -604,6 +605,8 @@ async function updateDatabaseRecords(
         if (skippedRows.length > 0) {
           console.log("Skipped rows details:", JSON.stringify(skippedRows.slice(0, 5), null, 2));
         }
+
+        console.log("First record preview:", JSON.stringify(summaryData[0], null, 2));
         
         console.log(`Batch upserting ${summaryData.length} scheme progress summary records...`);
         const batchResult = await storage.batchUpsertSchemeProgressSummary(summaryData);

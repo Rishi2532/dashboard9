@@ -371,6 +371,7 @@ async function ensureSchemeProgressSummaryTable() {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS "scheme_progress_summary" (
         "scheme_id" BIGINT PRIMARY KEY,
+        "region" TEXT,
         "scheme_name" TEXT,
         "number_of_villages" INT,
         "number_of_completed_villages" INT,
@@ -392,6 +393,24 @@ async function ensureSchemeProgressSummaryTable() {
         "completion_status" TEXT
       );
     `);
+    
+    // Check if region column exists (for existing tables)
+    const regionColumnCheck = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'scheme_progress_summary' 
+      AND column_name = 'region';
+    `);
+    
+    if (regionColumnCheck.rows.length === 0) {
+      console.log('🔄 Adding missing region column to scheme_progress_summary table...');
+      await pool.query(`
+        ALTER TABLE scheme_progress_summary 
+        ADD COLUMN region TEXT;
+      `);
+      console.log('✅ Successfully added region column to scheme_progress_summary table');
+    }
+    
     console.log('✅ Verified scheme_progress_summary table exists');
   } catch (error) {
     console.error('❌ Error ensuring scheme_progress_summary table:', error);

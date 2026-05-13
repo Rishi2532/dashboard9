@@ -4579,30 +4579,68 @@ router.get("/lpcd/regional-stats", async (req, res) => {
           ${schemeIdFilterWS}
           GROUP BY ws.region
         ),
-        history_stats AS (
+        history_parsed AS (
           SELECT 
-            region,
-            scheme_id,
-            village_name,
-            block,
-            COUNT(CASE WHEN lpcd_value IS NOT NULL AND lpcd_value::numeric < 55 THEN 1 END) as days_below_55
+            hp_h.region, hp_h.scheme_id, hp_h.village_name, hp_h.block,
+            CASE 
+              WHEN hp_h.data_date::text ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN hp_h.data_date::date
+              WHEN hp_h.data_date::text ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(hp_h.data_date::text, 'DD-Mon-YY')
+              WHEN hp_h.data_date::text ~ '^[0-9]+-[A-Za-z]+$' THEN 
+                CASE
+                  WHEN TO_DATE(hp_h.data_date::text || '-' || TO_CHAR(COALESCE(hp_h.uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY') > (COALESCE(hp_h.uploaded_at, CURRENT_DATE) + interval '1 month')
+                  THEN TO_DATE(hp_h.data_date::text || '-' || (TO_CHAR(COALESCE(hp_h.uploaded_at, CURRENT_DATE), 'YYYY')::int - 1), 'DD-Mon-YYYY')
+                  ELSE TO_DATE(hp_h.data_date::text || '-' || TO_CHAR(COALESCE(hp_h.uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY')
+                END
+              ELSE NULL 
+            END as parsed_date,
+            hp_h.lpcd_value as lpcd
+          FROM water_scheme_data_history hp_h
+          JOIN water_scheme_data ws ON (
+            hp_h.scheme_id = ws.scheme_id 
+            AND hp_h.village_name = ws.village_name
+            AND COALESCE(hp_h.block, '') = COALESCE(ws.block, '')
+          )
+          WHERE hp_h.region IS NOT NULL AND hp_h.data_date IS NOT NULL
+          ${schemeIdFilterWS.replace('ws.scheme_id', 'hp_h.scheme_id')}
+        ),
+        history_ranked AS (
+          SELECT 
+            hr_d.region, hr_d.scheme_id, hr_d.village_name, hr_d.block, hr_d.lpcd, hr_d.parsed_date,
+            ROW_NUMBER() OVER (PARTITION BY hr_d.scheme_id, hr_d.village_name, hr_d.block ORDER BY hr_d.parsed_date DESC) as rn
           FROM (
-            SELECT DISTINCT ON (region, scheme_id, village_name, block, data_date)
-              region, scheme_id, village_name, block, data_date, lpcd_value
-            FROM water_scheme_data_history
-            WHERE region IS NOT NULL 
-              AND data_date IS NOT NULL
-            ORDER BY region, scheme_id, village_name, block, data_date, uploaded_at DESC
-          ) deduplicated
-          GROUP BY region, scheme_id, village_name, block
+            SELECT DISTINCT ON (hr_p.scheme_id, hr_p.village_name, hr_p.block, hr_p.parsed_date)
+              hr_p.region, hr_p.scheme_id, hr_p.village_name, hr_p.block, hr_p.lpcd, hr_p.parsed_date
+            FROM history_parsed hr_p
+            WHERE hr_p.parsed_date IS NOT NULL
+            ORDER BY hr_p.scheme_id, hr_p.village_name, hr_p.block, hr_p.parsed_date DESC
+          ) hr_d
+        ),
+        streak_groups AS (
+          SELECT
+            sg_orig.region, sg_orig.scheme_id, sg_orig.village_name, sg_orig.block, sg_orig.rn, sg_orig.lpcd,
+            sg_orig.rn - ROW_NUMBER() OVER (PARTITION BY sg_orig.scheme_id, sg_orig.village_name, sg_orig.block, (CASE WHEN sg_orig.lpcd < 55 AND sg_orig.lpcd > 0 THEN 1 ELSE 0 END) ORDER BY sg_orig.rn) as grp
+          FROM history_ranked sg_orig
+          WHERE sg_orig.lpcd IS NOT NULL
+        ),
+        current_streaks AS (
+          SELECT 
+            cs_sg.region, cs_sg.scheme_id, cs_sg.village_name, cs_sg.block, 
+            COUNT(*) as streak_length
+          FROM streak_groups cs_sg
+          JOIN (
+            SELECT latest_sg.scheme_id, latest_sg.village_name, latest_sg.block, latest_sg.grp 
+            FROM streak_groups latest_sg
+            WHERE latest_sg.rn = 1 AND latest_sg.lpcd < 55 AND latest_sg.lpcd > 0
+          ) latest ON cs_sg.scheme_id = latest.scheme_id AND cs_sg.village_name = latest.village_name AND cs_sg.block = latest.block AND cs_sg.grp = latest.grp
+          GROUP BY cs_sg.region, cs_sg.scheme_id, cs_sg.village_name, cs_sg.block
         ),
         consecutive_below_55 AS (
           SELECT 
             region,
-            COUNT(CASE WHEN days_below_55 >= 3 THEN 1 END) as below_55_3days,
-            COUNT(CASE WHEN days_below_55 >= 7 THEN 1 END) as below_55_7days,
-            COUNT(CASE WHEN days_below_55 >= 30 THEN 1 END) as below_55_30days
-          FROM history_stats
+            COUNT(CASE WHEN streak_length >= 3 THEN 1 END) as below_55_3days,
+            COUNT(CASE WHEN streak_length >= 7 THEN 1 END) as below_55_7days,
+            COUNT(CASE WHEN streak_length >= 30 THEN 1 END) as below_55_30days
+          FROM current_streaks
           GROUP BY region
         )
         SELECT 
@@ -4849,28 +4887,66 @@ router.get("/lpcd/details/:statisticType", async (req, res) => {
           const daysThreshold = statisticType === 'below-55-3days' ? 3 :
             statisticType === 'below-55-7days' ? 7 : 30;
           query = `
-            WITH history_stats AS (
+            WITH history_parsed AS (
               SELECT 
-                region, circle, division, sub_division, block,
-                scheme_id, scheme_name, village_name, population,
-                COUNT(CASE WHEN lpcd_value IS NOT NULL AND lpcd_value::numeric < 55 THEN 1 END) as days_below_55
+                hp_h.region, hp_h.scheme_id, hp_h.village_name, hp_h.block,
+                CASE 
+                  WHEN hp_h.data_date::text ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN hp_h.data_date::date
+                  WHEN hp_h.data_date::text ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(hp_h.data_date::text, 'DD-Mon-YY')
+                  WHEN hp_h.data_date::text ~ '^[0-9]+-[A-Za-z]+$' THEN 
+                    CASE
+                      WHEN TO_DATE(hp_h.data_date::text || '-' || TO_CHAR(COALESCE(hp_h.uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY') > (COALESCE(hp_h.uploaded_at, CURRENT_DATE) + interval '1 month')
+                      THEN TO_DATE(hp_h.data_date::text || '-' || (TO_CHAR(COALESCE(hp_h.uploaded_at, CURRENT_DATE), 'YYYY')::int - 1), 'DD-Mon-YYYY')
+                      ELSE TO_DATE(hp_h.data_date::text || '-' || TO_CHAR(COALESCE(hp_h.uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY')
+                    END
+                  ELSE NULL 
+                END as parsed_date,
+                hp_h.lpcd_value as lpcd
+              FROM water_scheme_data_history hp_h
+              JOIN water_scheme_data ws ON (
+                hp_h.scheme_id = ws.scheme_id 
+                AND hp_h.village_name = ws.village_name
+                AND COALESCE(hp_h.block, '') = COALESCE(ws.block, '')
+              )
+              WHERE hp_h.region IS NOT NULL AND hp_h.data_date IS NOT NULL
+              ${region && region !== 'All Regions' ? `AND hp_h.region = $1` : ''}
+              ${schemeIdFilterGeneric.replace('scheme_id', 'hp_h.scheme_id')}
+            ),
+            history_ranked AS (
+              SELECT 
+                hr_d.region, hr_d.scheme_id, hr_d.village_name, hr_d.block, hr_d.lpcd, hr_d.parsed_date,
+                ROW_NUMBER() OVER (PARTITION BY hr_d.scheme_id, hr_d.village_name, hr_d.block ORDER BY hr_d.parsed_date DESC) as rn
               FROM (
-                SELECT DISTINCT ON (region, scheme_id, village_name, block, data_date)
-                  region, circle, division, sub_division, block,
-                  scheme_id, scheme_name, village_name, population, data_date, lpcd_value
-                FROM water_scheme_data_history
-                WHERE region IS NOT NULL 
-                  AND data_date IS NOT NULL
-                  ${region && region !== 'All Regions' ? `AND region = $1` : ''}
-                  ${schemeIdFilterGeneric}
-                ORDER BY region, scheme_id, village_name, block, data_date, uploaded_at DESC
-              ) deduplicated
-              GROUP BY region, circle, division, sub_division, block, scheme_id, scheme_name, village_name, population
+                SELECT DISTINCT ON (hr_p.scheme_id, hr_p.village_name, hr_p.block, hr_p.parsed_date)
+                  hr_p.region, hr_p.scheme_id, hr_p.village_name, hr_p.block, hr_p.lpcd, hr_p.parsed_date
+                FROM history_parsed hr_p
+                WHERE hr_p.parsed_date IS NOT NULL
+                ORDER BY hr_p.scheme_id, hr_p.village_name, hr_p.block, hr_p.parsed_date DESC
+              ) hr_d
+            ),
+            streak_groups AS (
+              SELECT
+                sg_orig.region, sg_orig.scheme_id, sg_orig.village_name, sg_orig.block, sg_orig.rn, sg_orig.lpcd,
+                sg_orig.rn - ROW_NUMBER() OVER (PARTITION BY sg_orig.scheme_id, sg_orig.village_name, sg_orig.block, (CASE WHEN sg_orig.lpcd < 55 AND sg_orig.lpcd > 0 THEN 1 ELSE 0 END) ORDER BY sg_orig.rn) as grp
+              FROM history_ranked sg_orig
+              WHERE sg_orig.lpcd IS NOT NULL
+            ),
+            current_streaks AS (
+              SELECT 
+                cs_sg.region, cs_sg.scheme_id, cs_sg.village_name, cs_sg.block, 
+                COUNT(*) as streak_length
+              FROM streak_groups cs_sg
+              JOIN (
+                SELECT latest_sg.scheme_id, latest_sg.village_name, latest_sg.block, latest_sg.grp 
+                FROM streak_groups latest_sg
+                WHERE latest_sg.rn = 1 AND latest_sg.lpcd < 55 AND latest_sg.lpcd > 0
+              ) latest ON cs_sg.scheme_id = latest.scheme_id AND cs_sg.village_name = latest.village_name AND cs_sg.block = latest.block AND cs_sg.grp = latest.grp
+              GROUP BY cs_sg.region, cs_sg.scheme_id, cs_sg.village_name, cs_sg.block
             )
             SELECT 
-              hs.region, hs.circle, hs.division, hs.sub_division, hs.block,
-              hs.scheme_id, hs.scheme_name, hs.village_name, hs.population,
-              hs.days_below_55 as consecutive_days,
+              hs.region, ws.circle, ws.division, ws.sub_division, hs.block,
+              hs.scheme_id, ws.scheme_name, hs.village_name, ws.population,
+              hs.streak_length as consecutive_days,
               (SELECT description FROM helpdesk_tickets ht 
                WHERE ht.scheme_id = hs.scheme_id 
                AND ht.village_name = hs.village_name 
@@ -4878,10 +4954,10 @@ router.get("/lpcd/details/:statisticType", async (req, res) => {
                AND ht.status IN ('Open', 'In-Progress') 
                ORDER BY ht.created_at DESC LIMIT 1) as remark,
               COALESCE(ws.dashboard_url, (SELECT dashboard_url FROM chlorine_history ch WHERE ch.scheme_id = hs.scheme_id AND ch.village_name = hs.village_name AND ch.dashboard_url IS NOT NULL ORDER BY ch.uploaded_at DESC LIMIT 1)) as dashboard_url
-            FROM history_stats hs
-            LEFT JOIN water_scheme_data ws ON (hs.scheme_id = ws.scheme_id AND hs.village_name = ws.village_name)
-            WHERE hs.days_below_55 >= ${daysThreshold}
-            ORDER BY hs.region, hs.division, hs.village_name
+            FROM current_streaks hs
+            JOIN water_scheme_data ws ON hs.scheme_id = ws.scheme_id AND hs.village_name = ws.village_name AND COALESCE(hs.block, '') = COALESCE(ws.block, '')
+            WHERE hs.streak_length >= ${daysThreshold}
+            ORDER BY hs.region, ws.division, hs.village_name
           `;
           break;
 
@@ -5025,31 +5101,70 @@ router.get("/lpcd/export/:statisticType", async (req, res) => {
           const daysThreshold = statisticType === 'below-55-3days' ? 3 :
             statisticType === 'below-55-7days' ? 7 : 30;
           query = `
-            WITH history_stats AS (
+            WITH history_parsed AS (
               SELECT 
-                region, circle, division, sub_division, block,
-                scheme_id, scheme_name, village_name, population,
-                COUNT(CASE WHEN lpcd_value IS NOT NULL AND lpcd_value::numeric < 55 THEN 1 END) as days_below_55
+                hp_h.region, hp_h.scheme_id, hp_h.village_name, hp_h.block,
+                CASE 
+                  WHEN hp_h.data_date::text ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN hp_h.data_date::date
+                  WHEN hp_h.data_date::text ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(hp_h.data_date::text, 'DD-Mon-YY')
+                  WHEN hp_h.data_date::text ~ '^[0-9]+-[A-Za-z]+$' THEN 
+                    CASE
+                      WHEN TO_DATE(hp_h.data_date::text || '-' || TO_CHAR(COALESCE(hp_h.uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY') > (COALESCE(hp_h.uploaded_at, CURRENT_DATE) + interval '1 month')
+                      THEN TO_DATE(hp_h.data_date::text || '-' || (TO_CHAR(COALESCE(hp_h.uploaded_at, CURRENT_DATE), 'YYYY')::int - 1), 'DD-Mon-YYYY')
+                      ELSE TO_DATE(hp_h.data_date::text || '-' || TO_CHAR(COALESCE(hp_h.uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY')
+                    END
+                  ELSE NULL 
+                END as parsed_date,
+                hp_h.lpcd_value as lpcd
+              FROM water_scheme_data_history hp_h
+              JOIN water_scheme_data ws ON (
+                hp_h.scheme_id = ws.scheme_id 
+                AND hp_h.village_name = ws.village_name
+                AND COALESCE(hp_h.block, '') = COALESCE(ws.block, '')
+              )
+              WHERE hp_h.region IS NOT NULL AND hp_h.data_date IS NOT NULL
+              ${region && region !== 'All Regions' ? `AND hp_h.region = $1` : ''}
+              ${schemeIdFilterGeneric.replace('scheme_id', 'hp_h.scheme_id')}
+            ),
+            history_ranked AS (
+              SELECT 
+                hr_d.region, hr_d.scheme_id, hr_d.village_name, hr_d.block, hr_d.lpcd, hr_d.parsed_date,
+                ROW_NUMBER() OVER (PARTITION BY hr_d.scheme_id, hr_d.village_name, hr_d.block ORDER BY hr_d.parsed_date DESC) as rn
               FROM (
-                SELECT DISTINCT ON (region, scheme_id, village_name, block, data_date)
-                  region, circle, division, sub_division, block,
-                  scheme_id, scheme_name, village_name, population, data_date, lpcd_value
-                FROM water_scheme_data_history
-                WHERE region IS NOT NULL 
-                  AND data_date IS NOT NULL
-                  ${region && region !== 'All Regions' ? `AND region = $1` : ''}
-                  ${schemeIdFilterGeneric}
-                ORDER BY region, scheme_id, village_name, block, data_date, uploaded_at DESC
-              ) deduplicated
-              GROUP BY region, circle, division, sub_division, block, scheme_id, scheme_name, village_name, population
+                SELECT DISTINCT ON (hr_p.scheme_id, hr_p.village_name, hr_p.block, hr_p.parsed_date)
+                  hr_p.region, hr_p.scheme_id, hr_p.village_name, hr_p.block, hr_p.lpcd, hr_p.parsed_date
+                FROM history_parsed hr_p
+                WHERE hr_p.parsed_date IS NOT NULL
+                ORDER BY hr_p.scheme_id, hr_p.village_name, hr_p.block, hr_p.parsed_date DESC
+              ) hr_d
+            ),
+            streak_groups AS (
+              SELECT
+                sg_orig.region, sg_orig.scheme_id, sg_orig.village_name, sg_orig.block, sg_orig.rn, sg_orig.lpcd,
+                sg_orig.rn - ROW_NUMBER() OVER (PARTITION BY sg_orig.scheme_id, sg_orig.village_name, sg_orig.block, (CASE WHEN sg_orig.lpcd < 55 AND sg_orig.lpcd > 0 THEN 1 ELSE 0 END) ORDER BY sg_orig.rn) as grp
+              FROM history_ranked sg_orig
+              WHERE sg_orig.lpcd IS NOT NULL
+            ),
+            current_streaks AS (
+              SELECT 
+                cs_sg.region, cs_sg.scheme_id, cs_sg.village_name, cs_sg.block, 
+                COUNT(*) as streak_length
+              FROM streak_groups cs_sg
+              JOIN (
+                SELECT latest_sg.scheme_id, latest_sg.village_name, latest_sg.block, latest_sg.grp 
+                FROM streak_groups latest_sg
+                WHERE latest_sg.rn = 1 AND latest_sg.lpcd < 55 AND latest_sg.lpcd > 0
+              ) latest ON cs_sg.scheme_id = latest.scheme_id AND cs_sg.village_name = latest.village_name AND cs_sg.block = latest.block AND cs_sg.grp = latest.grp
+              GROUP BY cs_sg.region, cs_sg.scheme_id, cs_sg.village_name, cs_sg.block
             )
             SELECT 
-              region, circle, division, sub_division, block,
-              scheme_id, scheme_name, village_name, population,
-              days_below_55 as consecutive_days
-            FROM history_stats
-            WHERE days_below_55 >= ${daysThreshold}
-            ORDER BY region, division, village_name
+              hs.region, ws.circle, ws.division, ws.sub_division, hs.block,
+              hs.scheme_id, ws.scheme_name, hs.village_name, ws.population,
+              hs.streak_length as consecutive_days
+            FROM current_streaks hs
+            JOIN water_scheme_data ws ON hs.scheme_id = ws.scheme_id AND hs.village_name = ws.village_name AND COALESCE(hs.block, '') = COALESCE(ws.block, '')
+            WHERE hs.streak_length >= ${daysThreshold}
+            ORDER BY hs.region, ws.division, hs.village_name
           `;
           break;
 
@@ -5252,7 +5367,7 @@ router.get("/scheme-lpcd/regional-stats", async (req, res) => {
         ),
         unique_schemes AS (
           SELECT DISTINCT ON (us.scheme_name)
-            us.region, us.total_population, us.total_villages, us.lpcd_value_day7, us.scheme_name, us.block
+            us.scheme_id, us.region, us.total_population, us.total_villages, us.lpcd_value_day7, us.scheme_name, us.block
           FROM scheme_with_lpcd us
           WHERE us.scheme_name IS NOT NULL AND BTRIM(us.scheme_name) <> ''
           ORDER BY us.scheme_name, us.block
@@ -5286,6 +5401,7 @@ router.get("/scheme-lpcd/regional-stats", async (req, res) => {
             END as parsed_date,
             hp_h.lpcd_value as lpcd
           FROM scheme_lpcd_data_history hp_h
+          JOIN unique_schemes us ON hp_h.scheme_id = us.scheme_id AND COALESCE(hp_h.block, '') = COALESCE(us.block, '')
           WHERE hp_h.region IS NOT NULL AND hp_h.data_date IS NOT NULL
         ),
         history_ranked AS (
@@ -5416,7 +5532,7 @@ router.get("/scheme-lpcd/details/:statisticType", async (req, res) => {
 
       // BaseQuery with JOIN to get fallback dashboard_url 
       const baseQuery = `
-        SELECT DISTINCT ON (sldh.region, sldh.scheme_id, sldh.block)
+        SELECT DISTINCT ON (sldh.scheme_name)
             sldh.region, sldh.circle, sldh.division, sldh.sub_division, sldh.block,
             sldh.scheme_id, sldh.scheme_name, sldh.total_population, sldh.total_villages, 
             sldh.villages_below_55, sldh.villages_above_55, sldh.villages_zero_supply,
@@ -5429,7 +5545,7 @@ router.get("/scheme-lpcd/details/:statisticType", async (req, res) => {
         WHERE sldh.region IS NOT NULL
           ${regionFilter}
           ${schemeIdFilter}
-        ORDER BY sldh.region, sldh.scheme_id, sldh.block, 
+        ORDER BY sldh.scheme_name, sldh.region, sldh.scheme_id, sldh.block, 
           CASE 
             WHEN sldh.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN sldh.data_date::date
             WHEN sldh.data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(sldh.data_date, 'DD-Mon-YY')
@@ -5485,31 +5601,79 @@ router.get("/scheme-lpcd/details/:statisticType", async (req, res) => {
         case 'below55For30Days': // Renamed from 'below-55-30days' to match existing frontend calls
           const daysThreshold = statisticType === 'below55For3Days' ? 3 :
             statisticType === 'below55For7Days' ? 7 : 30;
-
           query = `
-            WITH history_stats AS (
+            WITH unique_schemes AS (
+              SELECT DISTINCT ON (scheme_name) scheme_id, region, block
+              FROM scheme_status
+              WHERE 1=1
+              ${schemeIdFilter.replace(/sldh\./g, '')}
+              ORDER BY scheme_name, block
+            ),
+            history_parsed AS (
               SELECT 
-                region, scheme_id, scheme_name, block, total_population,
-                COUNT(CASE WHEN lpcd_value IS NOT NULL AND lpcd_value::numeric < 55 THEN 1 END) as days_below_55
+                hp_h.region, hp_h.scheme_id, hp_h.block, hp_h.scheme_name,
+                CASE 
+                  WHEN hp_h.data_date::text ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN hp_h.data_date::date
+                  WHEN hp_h.data_date::text ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(hp_h.data_date::text, 'DD-Mon-YY')
+                  WHEN hp_h.data_date::text ~ '^[0-9]+-[A-Za-z]+$' THEN 
+                    CASE
+                      WHEN TO_DATE(hp_h.data_date::text || '-' || TO_CHAR(COALESCE(hp_h.uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY') > (COALESCE(hp_h.uploaded_at, CURRENT_DATE) + interval '1 month')
+                      THEN TO_DATE(hp_h.data_date::text || '-' || (TO_CHAR(COALESCE(hp_h.uploaded_at, CURRENT_DATE), 'YYYY')::int - 1), 'DD-Mon-YYYY')
+                      ELSE TO_DATE(hp_h.data_date::text || '-' || TO_CHAR(COALESCE(hp_h.uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY')
+                    END
+                  ELSE NULL 
+                END as parsed_date,
+                hp_h.lpcd_value as lpcd
+              FROM scheme_lpcd_data_history hp_h
+              JOIN unique_schemes us ON hp_h.scheme_id = us.scheme_id AND COALESCE(hp_h.block, '') = COALESCE(us.block, '')
+              WHERE hp_h.region IS NOT NULL AND hp_h.data_date IS NOT NULL
+              ${regionFilter.replace('sldh.region', 'hp_h.region')}
+            ),
+            history_ranked AS (
+              SELECT 
+                hr_d.region, hr_d.scheme_id, hr_d.block, hr_d.scheme_name, hr_d.lpcd, hr_d.parsed_date,
+                ROW_NUMBER() OVER (PARTITION BY hr_d.scheme_name ORDER BY hr_d.parsed_date DESC) as rn
               FROM (
-                SELECT DISTINCT ON (region, scheme_id, block, data_date)
-                  region, scheme_id, scheme_name, block, total_population, data_date, lpcd_value
-                FROM scheme_lpcd_data_history sldh
-                WHERE region IS NOT NULL 
-                  AND data_date IS NOT NULL
-                  ${regionFilter}
-                  ${schemeIdFilter}
-                ORDER BY region, scheme_id, block, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC
-              ) deduplicated
-              GROUP BY region, scheme_id, scheme_name, block, total_population
+                SELECT DISTINCT ON (hr_p.scheme_name, hr_p.parsed_date)
+                  hr_p.region, hr_p.scheme_id, hr_p.block, hr_p.scheme_name, hr_p.lpcd, hr_p.parsed_date
+                FROM history_parsed hr_p
+                WHERE hr_p.parsed_date IS NOT NULL
+                ORDER BY hr_p.scheme_name, hr_p.parsed_date DESC
+              ) hr_d
+            ),
+            streak_groups AS (
+              SELECT
+                sg_orig.region, sg_orig.scheme_id, sg_orig.block, sg_orig.scheme_name, sg_orig.rn, sg_orig.lpcd,
+                sg_orig.rn - ROW_NUMBER() OVER (PARTITION BY sg_orig.scheme_name, (CASE WHEN sg_orig.lpcd < 55 AND sg_orig.lpcd > 0 THEN 1 ELSE 0 END) ORDER BY sg_orig.rn) as grp
+              FROM history_ranked sg_orig
+              WHERE sg_orig.lpcd IS NOT NULL
+            ),
+            current_streaks AS (
+              SELECT 
+                cs_sg.region, cs_sg.scheme_id, cs_sg.block, cs_sg.scheme_name, 
+                COUNT(*) as streak_length
+              FROM streak_groups cs_sg
+              JOIN (
+                SELECT latest_sg.scheme_name, latest_sg.grp 
+                FROM streak_groups latest_sg
+                WHERE latest_sg.rn = 1 AND latest_sg.lpcd < 55 AND latest_sg.lpcd > 0
+              ) latest ON cs_sg.scheme_name = latest.scheme_name AND cs_sg.grp = latest.grp
+              GROUP BY cs_sg.region, cs_sg.scheme_id, cs_sg.block, cs_sg.scheme_name
             )
-            SELECT 
-              region, scheme_id, scheme_name, block, total_population,
-              days_below_55 as consecutive_days
-            FROM history_stats
-            WHERE days_below_55 >= ${daysThreshold}
-            ORDER BY region, scheme_id
+            SELECT DISTINCT ON (hs.scheme_name)
+              hs.region, ss.circle, ss.division, ss.sub_division, hs.scheme_id, hs.scheme_name, hs.block, 
+              ss.total_number_of_esr as total_population, ss.number_of_village as total_villages,
+              hs.streak_length as consecutive_days,
+              (SELECT lpcd_value FROM scheme_lpcd_data_history s2 
+               WHERE s2.scheme_id = hs.scheme_id AND s2.block = hs.block 
+               ORDER BY s2.data_date DESC, s2.uploaded_at DESC LIMIT 1) as lpcd_value,
+              COALESCE(ss.dashboard_url, (SELECT dashboard_url FROM scheme_lpcd_data_history s3 WHERE s3.scheme_id = hs.scheme_id AND s3.block = hs.block AND s3.dashboard_url IS NOT NULL ORDER BY s3.uploaded_at DESC LIMIT 1)) as dashboard_url
+            FROM current_streaks hs
+            JOIN scheme_status ss ON hs.scheme_id = ss.scheme_id AND hs.block = ss.block
+            WHERE hs.streak_length >= ${daysThreshold}
+            ORDER BY hs.scheme_name, hs.region, hs.scheme_id
           `;
+
           break;
 
         case 'weekly_above_55':
@@ -5540,7 +5704,7 @@ router.get("/scheme-lpcd/details/:statisticType", async (req, res) => {
               FROM scheme_status
               WHERE 1=1
               ${regionFilter}
-              ${schemeIdFilter}
+              ${schemeIdFilter.replace(/sldh\./g, '')}
             ),
             deduplicated AS (
               SELECT DISTINCT ON (scheme_id, data_date)
@@ -5548,7 +5712,7 @@ router.get("/scheme-lpcd/details/:statisticType", async (req, res) => {
               FROM scheme_lpcd_data_history
               WHERE region IS NOT NULL
               ${regionFilter}
-              ${schemeIdFilter}
+              ${schemeIdFilter.replace(/sldh\./g, '')}
               AND (
                 data_date IN (${dateParams2})
                 OR
@@ -5663,7 +5827,7 @@ router.get("/scheme-lpcd/details-export/:statisticType", async (req, res) => {
 
       // Base query part for DISTINCT ON latest data
       const baseQuery = `
-        SELECT DISTINCT ON (region, scheme_id, block)
+        SELECT DISTINCT ON (scheme_name)
             region, circle, division, sub_division, block,
             scheme_id, scheme_name, total_population, total_villages,
             villages_below_55, villages_above_55, villages_zero_supply,
@@ -5672,7 +5836,7 @@ router.get("/scheme-lpcd/details-export/:statisticType", async (req, res) => {
         WHERE region IS NOT NULL
           ${regionFilter}
           ${schemeIdFilter}
-        ORDER BY region, scheme_id, block, 
+        ORDER BY scheme_name, region, scheme_id, block, 
           CASE 
             WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
             WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
@@ -5717,30 +5881,72 @@ router.get("/scheme-lpcd/details-export/:statisticType", async (req, res) => {
             statisticType === 'below55For7Days' ? 7 : 30;
 
           query = `
-            WITH history_stats AS (
+            WITH unique_schemes AS (
+              SELECT DISTINCT ON (scheme_name) scheme_id, region, block
+              FROM scheme_status
+              WHERE 1=1
+              ${schemeIdFilter.replace(/sldh\./g, '')}
+              ORDER BY scheme_name, block
+            ),
+            history_parsed AS (
               SELECT 
-                region, circle, division, sub_division, block,
-                scheme_id, scheme_name, total_population,
-                COUNT(CASE WHEN lpcd_value IS NOT NULL AND lpcd_value::numeric < 55 THEN 1 END) as days_below_55
+                hp_h.region, hp_h.scheme_id, hp_h.block, hp_h.scheme_name,
+                CASE 
+                  WHEN hp_h.data_date::text ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN hp_h.data_date::date
+                  WHEN hp_h.data_date::text ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(hp_h.data_date::text, 'DD-Mon-YY')
+                  WHEN hp_h.data_date::text ~ '^[0-9]+-[A-Za-z]+$' THEN 
+                    CASE
+                      WHEN TO_DATE(hp_h.data_date::text || '-' || TO_CHAR(COALESCE(hp_h.uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY') > (COALESCE(hp_h.uploaded_at, CURRENT_DATE) + interval '1 month')
+                      THEN TO_DATE(hp_h.data_date::text || '-' || (TO_CHAR(COALESCE(hp_h.uploaded_at, CURRENT_DATE), 'YYYY')::int - 1), 'DD-Mon-YYYY')
+                      ELSE TO_DATE(hp_h.data_date::text || '-' || TO_CHAR(COALESCE(hp_h.uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY')
+                    END
+                  ELSE NULL 
+                END as parsed_date,
+                hp_h.lpcd_value as lpcd
+              FROM scheme_lpcd_data_history hp_h
+              JOIN unique_schemes us ON hp_h.scheme_id = us.scheme_id AND COALESCE(hp_h.block, '') = COALESCE(us.block, '')
+              WHERE hp_h.region IS NOT NULL AND hp_h.data_date IS NOT NULL
+              ${regionFilter.replace('sldh.region', 'hp_h.region')}
+            ),
+            history_ranked AS (
+              SELECT 
+                hr_d.region, hr_d.scheme_id, hr_d.block, hr_d.scheme_name, hr_d.lpcd, hr_d.parsed_date,
+                ROW_NUMBER() OVER (PARTITION BY hr_d.scheme_name ORDER BY hr_d.parsed_date DESC) as rn
               FROM (
-                SELECT DISTINCT ON (region, scheme_id, block, data_date)
-                  region, circle, division, sub_division, block, scheme_id, scheme_name, total_population, data_date, lpcd_value
-                FROM scheme_lpcd_data_history
-                WHERE region IS NOT NULL 
-                  AND data_date IS NOT NULL
-                  ${regionFilter}
-                  ${schemeIdFilter}
-                ORDER BY region, scheme_id, block, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC
-              ) deduplicated
-              GROUP BY region, circle, division, sub_division, block, scheme_id, scheme_name, total_population
+                SELECT DISTINCT ON (hr_p.scheme_name, hr_p.parsed_date)
+                  hr_p.region, hr_p.scheme_id, hr_p.block, hr_p.scheme_name, hr_p.lpcd, hr_p.parsed_date
+                FROM history_parsed hr_p
+                WHERE hr_p.parsed_date IS NOT NULL
+                ORDER BY hr_p.scheme_name, hr_p.parsed_date DESC
+              ) hr_d
+            ),
+            streak_groups AS (
+              SELECT
+                sg_orig.region, sg_orig.scheme_id, sg_orig.block, sg_orig.scheme_name, sg_orig.rn, sg_orig.lpcd,
+                sg_orig.rn - ROW_NUMBER() OVER (PARTITION BY sg_orig.scheme_name, (CASE WHEN sg_orig.lpcd < 55 AND sg_orig.lpcd > 0 THEN 1 ELSE 0 END) ORDER BY sg_orig.rn) as grp
+              FROM history_ranked sg_orig
+              WHERE sg_orig.lpcd IS NOT NULL
+            ),
+            current_streaks AS (
+              SELECT 
+                cs_sg.region, cs_sg.scheme_id, cs_sg.block, cs_sg.scheme_name, 
+                COUNT(*) as streak_length
+              FROM streak_groups cs_sg
+              JOIN (
+                SELECT latest_sg.scheme_name, latest_sg.grp 
+                FROM streak_groups latest_sg
+                WHERE latest_sg.rn = 1 AND latest_sg.lpcd < 55 AND latest_sg.lpcd > 0
+              ) latest ON cs_sg.scheme_name = latest.scheme_name AND cs_sg.grp = latest.grp
+              GROUP BY cs_sg.region, cs_sg.scheme_id, cs_sg.block, cs_sg.scheme_name
             )
-            SELECT 
-              region, circle, division, sub_division, block,
-              scheme_id, scheme_name, total_population,
-              days_below_55 as consecutive_days
-            FROM history_stats
-            WHERE days_below_55 >= ${daysThreshold}
-            ORDER BY region, scheme_id
+            SELECT DISTINCT ON (hs.scheme_name)
+              hs.region, ss.circle, ss.division, ss.sub_division, hs.scheme_id, hs.scheme_name, hs.block, 
+              ss.total_number_of_esr as total_population, ss.number_of_village as total_villages,
+              hs.streak_length as consecutive_days
+            FROM current_streaks hs
+            JOIN scheme_status ss ON hs.scheme_id = ss.scheme_id AND hs.block = ss.block
+            WHERE hs.streak_length >= ${daysThreshold}
+            ORDER BY hs.scheme_name, hs.region, hs.scheme_id
           `;
           break;
 
@@ -5772,7 +5978,7 @@ router.get("/scheme-lpcd/details-export/:statisticType", async (req, res) => {
               FROM scheme_status
               WHERE 1=1
               ${regionFilter}
-              ${schemeIdFilter}
+              ${schemeIdFilter.replace(/sldh\./g, '')}
             ),
             deduplicated AS (
               SELECT DISTINCT ON (scheme_id, data_date)
@@ -5780,7 +5986,7 @@ router.get("/scheme-lpcd/details-export/:statisticType", async (req, res) => {
               FROM scheme_lpcd_data_history
               WHERE region IS NOT NULL
               ${regionFilter}
-              ${schemeIdFilter}
+              ${schemeIdFilter.replace(/sldh\./g, '')}
               AND (
                 data_date IN (${dateParams3})
                 OR

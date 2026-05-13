@@ -437,6 +437,86 @@ export type InsertSchemeLpcdDataHistory = z.infer<
 >;
 export type SchemeLpcdDataHistory = typeof schemeLpcdDataHistory.$inferSelect;
 
+// Scheme LPCD Data table for current 7-day tracking at scheme level
+export const schemeLpcd = pgTable(
+  "scheme_lpcd",
+  {
+    // Region information
+    region: text("region"),
+    circle: text("circle"),
+    division: text("division"),
+    sub_division: text("sub_division"),
+    block: text("block"),
+
+    // Scheme identification
+    scheme_id: varchar("scheme_id", { length: 100 }),
+    scheme_name: text("scheme_name"),
+
+    // Population and infrastructure
+    population: integer("population"),
+    total_villages: integer("total_villages"),
+
+    // Water values for different days
+    water_value_day1: decimal("water_value_day1"),
+    water_value_day2: decimal("water_value_day2"),
+    water_value_day3: decimal("water_value_day3"),
+    water_value_day4: decimal("water_value_day4"),
+    water_value_day5: decimal("water_value_day5"),
+    water_value_day6: decimal("water_value_day6"),
+    water_value_day7: decimal("water_value_day7"),
+
+    // LPCD values for different days
+    lpcd_value_day1: decimal("lpcd_value_day1"),
+    lpcd_value_day2: decimal("lpcd_value_day2"),
+    lpcd_value_day3: decimal("lpcd_value_day3"),
+    lpcd_value_day4: decimal("lpcd_value_day4"),
+    lpcd_value_day5: decimal("lpcd_value_day5"),
+    lpcd_value_day6: decimal("lpcd_value_day6"),
+    lpcd_value_day7: decimal("lpcd_value_day7"),
+
+    // Dates for water measurements
+    water_date_day1: varchar("water_date_day1", { length: 20 }),
+    water_date_day2: varchar("water_date_day2", { length: 20 }),
+    water_date_day3: varchar("water_date_day3", { length: 20 }),
+    water_date_day4: varchar("water_date_day4", { length: 20 }),
+    water_date_day5: varchar("water_date_day5", { length: 20 }),
+    water_date_day6: varchar("water_date_day6", { length: 20 }),
+    water_date_day7: varchar("water_date_day7", { length: 20 }),
+
+    // Dates for LPCD measurements
+    lpcd_date_day1: varchar("lpcd_date_day1", { length: 20 }),
+    lpcd_date_day2: varchar("lpcd_date_day2", { length: 20 }),
+    lpcd_date_day3: varchar("lpcd_date_day3", { length: 20 }),
+    lpcd_date_day4: varchar("lpcd_date_day4", { length: 20 }),
+    lpcd_date_day5: varchar("lpcd_date_day5", { length: 20 }),
+    lpcd_date_day6: varchar("lpcd_date_day6", { length: 20 }),
+    lpcd_date_day7: varchar("lpcd_date_day7", { length: 20 }),
+
+    // Status counters
+    consistent_zero_lpcd_for_a_week: integer("consistent_zero_lpcd_for_a_week"),
+    below_55_lpcd_count: integer("below_55_lpcd_count"),
+    above_55_lpcd_count: integer("above_55_lpcd_count"),
+
+    dashboard_url: text("dashboard_url"),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({
+        columns: [table.scheme_id, table.block],
+      }),
+    };
+  },
+);
+
+export const insertSchemeLpcdSchema = createInsertSchema(schemeLpcd);
+export const updateSchemeLpcdSchema = createInsertSchema(schemeLpcd).omit({
+  scheme_id: true,
+});
+
+export type InsertSchemeLpcd = z.infer<typeof insertSchemeLpcdSchema>;
+export type UpdateSchemeLpcd = z.infer<typeof updateSchemeLpcdSchema>;
+export type SchemeLpcd = typeof schemeLpcd.$inferSelect;
+
 // Chlorine Data table for ESR-level chlorine monitoring
 export const chlorineData = pgTable(
   "chlorine_data",
@@ -1223,6 +1303,7 @@ export type IssueReport = typeof issueReports.$inferSelect;
 // Scheme Progress Summary table
 export const schemeProgressSummary = pgTable("scheme_progress_summary", {
   scheme_id: bigint("scheme_id", { mode: 'bigint' }).primaryKey(),
+  region: text("region"),
   scheme_name: text("scheme_name"),
   number_of_villages: integer("number_of_villages"),
   number_of_completed_villages: integer("number_of_completed_villages"),

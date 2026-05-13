@@ -109,6 +109,7 @@ const waterConsumptionFields = [
 ];
 
 const schemeProgressSummaryFields = [
+  { value: "region", label: "Region", required: true },
   { value: "scheme_id", label: "Scheme ID", required: true },
   { value: "scheme_name", label: "Scheme Name", required: false },
   { value: "number_of_villages", label: "Number of Villages", required: false },
@@ -239,17 +240,17 @@ export default function EnhancedCsvImporter({ defaultTable = "scheme_status" }: 
         "water_date_day7": "27", "consistent_zero_consumption": "28",
         "percentage_consumption_previous_day": "29"
       };
-    } else if (table === "scheme_progress_summary" && parsedRows[0].length >= 20) {
+    } else if (table === "scheme_progress_summary" && parsedRows[0].length >= 21) {
       newMappings = {
-        "scheme_id": "0", "scheme_name": "1", "number_of_villages": "2",
-        "number_of_completed_villages": "3", "number_of_esr": "4",
-        "number_of_completed_esr": "5", "number_of_gsr": "6",
-        "number_of_completed_gsr": "7", "number_of_mbr": "8",
-        "number_of_completed_mbr": "9", "total_flowmeter_scope": "10",
-        "flowmeter_integrated": "11", "flowmeter_balance": "12",
-        "total_rca_scope": "13", "rca_integrated": "14", "rca_balance": "15",
-        "total_pt_scope": "16", "pt_integrated": "17", "pt_balance": "18",
-        "completion_status": "19"
+        "region": "0", "scheme_id": "1", "scheme_name": "2", "number_of_villages": "3",
+        "number_of_completed_villages": "4", "number_of_esr": "5",
+        "number_of_completed_esr": "6", "number_of_gsr": "7",
+        "number_of_completed_gsr": "8", "number_of_mbr": "9",
+        "number_of_completed_mbr": "10", "total_flowmeter_scope": "11",
+        "flowmeter_integrated": "12", "flowmeter_balance": "13",
+        "total_rca_scope": "14", "rca_integrated": "15", "rca_balance": "16",
+        "total_pt_scope": "17", "pt_integrated": "18", "pt_balance": "19",
+        "completion_status": "20"
       };
     } else if (skipHeader && parsedRows.length > 0) {
       // 2. Try to auto-match headers if no predefined mapping found

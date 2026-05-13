@@ -30,6 +30,7 @@ import ProtectedRoute from '@/components/auth/protected-route';
 import RegionImporter from '@/components/admin/region-importer';
 import SchemeImporter from '@/components/admin/scheme-importer';
 import LpcdImport from '@/pages/lpcd/LpcdImport';
+import SchemeLpcdImport from '@/pages/lpcd/SchemeLpcdImport';
 import { ChlorineImport } from '@/pages/chlorine';
 import { PressureImportContent } from '@/pages/pressure';
 import EnhancedCsvImporter from '@/components/admin/enhanced-csv-importer';
@@ -633,7 +634,11 @@ export default function AdminDashboard() {
               </TabsTrigger>
               <TabsTrigger value="lpcd-import" className="flex items-center">
                 <FileText className="h-4 w-4 mr-2" />
-                Import LPCD Data
+                Import Village LPCD Data
+              </TabsTrigger>
+              <TabsTrigger value="scheme-lpcd-import" className="flex items-center">
+                <FileText className="h-4 w-4 mr-2" />
+                Import Scheme LPCD Data
               </TabsTrigger>
               <TabsTrigger value="chlorine-import" className="flex items-center">
                 <Droplets className="h-4 w-4 mr-2" />
@@ -690,13 +695,27 @@ export default function AdminDashboard() {
             <TabsContent value="lpcd-import" className="mt-0">
               <Card>
                 <CardHeader>
-                  <CardTitle>Import LPCD Data</CardTitle>
+                  <CardTitle>Import Village LPCD Data</CardTitle>
                   <CardDescription>
-                    Upload Excel or CSV files containing LPCD (Liters Per Capita per Day) data for water schemes.
+                    Upload Excel or CSV files containing LPCD (Liters Per Capita per Day) data for villages.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <LpcdImport />
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="scheme-lpcd-import" className="mt-0">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Import Scheme LPCD Data</CardTitle>
+                  <CardDescription>
+                    Upload Excel or CSV files containing scheme-level LPCD (Liters Per Capita per Day) data.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <SchemeLpcdImport />
                 </CardContent>
               </Card>
             </TabsContent>

@@ -37,6 +37,7 @@ import lpcdImportRoutes from "./routes/admin/import-lpcd";
 import chlorineRoutes from "./routes/chlorine-routes";
 import pressureRoutes from "./routes/pressure-routes";
 import waterConsumptionRoutes from "./routes/water-consumption-routes";
+import { importSchemeLpcdFromCSV } from "./scheme-lpcd-importer";
 import communicationRoutes from "./routes/communication-routes";
 import translationRoutes from "./routes/translation";
 import schemeLpcdRoutes from "./routes/scheme-lpcd-routes";
@@ -1134,25 +1135,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // store the real scheme identifier in `scheme_name`. We resolve the
       // region by matching scheme_status.scheme_id against EITHER column.
       const result = await db.execute(sql`
-        WITH ss_unique AS (
-          SELECT DISTINCT ON (scheme_id::text) scheme_id::text AS scheme_id, region
-          FROM scheme_status
-        ),
-        sps_with_region AS (
-          SELECT
-            sps.scheme_id,
-            sps.number_of_villages,
-            sps.number_of_esr,
-            sps.number_of_gsr,
-            sps.number_of_mbr,
-            sps.total_flowmeter_scope,
-            sps.total_rca_scope,
-            sps.total_pt_scope,
-            COALESCE(ss_id.region, ss_name.region) AS region
-          FROM scheme_progress_summary sps
-          LEFT JOIN ss_unique ss_id   ON ss_id.scheme_id   = sps.scheme_id::text
-          LEFT JOIN ss_unique ss_name ON ss_name.scheme_id = sps.scheme_name
-        )
         SELECT
           COUNT(DISTINCT scheme_id)::bigint AS total_schemes,
           COALESCE(SUM(number_of_villages), 0)::bigint AS total_villages,
@@ -1160,7 +1142,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           COALESCE(SUM(total_flowmeter_scope), 0)::bigint AS total_flowmeter_scope,
           COALESCE(SUM(total_rca_scope), 0)::bigint AS total_rca_scope,
           COALESCE(SUM(total_pt_scope), 0)::bigint AS total_pt_scope
-        FROM sps_with_region
+        FROM scheme_progress_summary
         ${filterByRegion ? sql`WHERE region = ${region}` : sql``}
       `);
       const row = (result as any).rows ? (result as any).rows[0] : (result as any)[0];
@@ -2662,6 +2644,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res
           .status(500)
           .json({ message: "Failed to import CSV water scheme data" });
+      }
+    },
+  );
+
+  // Import scheme lpcd data from CSV file (admin only)
+  app.post(
+    "/api/scheme-lpcd/import/csv",
+    requireAdmin,
+    upload.single("file"),
+    async (req, res) => {
+      try {
+        if (!req.file) {
+          return res.status(400).json({ message: "No file uploaded" });
+        }
+
+        const fileBuffer = req.file.buffer;
+        const importResult =
+          await importSchemeLpcdFromCSV(fileBuffer);
+
+        // Access the 'removed' count if available
+        const removedCount = importResult.removed || 0;
+
+        res.json({
+          message: `CSV data imported successfully. ${importResult.inserted} new records created, ${importResult.updated} records updated, ${removedCount} records removed.`,
+          inserted: importResult.inserted,
+          updated: importResult.updated,
+          removed: removedCount,
+          errors: importResult.errors,
+        });
+      } catch (error) {
+        console.error("Error importing CSV scheme lpcd data:", error);
+        res
+          .status(500)
+          .json({ message: "Failed to import CSV scheme lpcd data" });
       }
     },
   );

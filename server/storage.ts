@@ -304,6 +304,12 @@ export interface IStorage {
     removed: number;
     errors: string[];
   }>;
+  importSchemeLpcdFromCSV(fileBuffer: Buffer): Promise<{
+    inserted: number;
+    updated: number;
+    removed: number;
+    errors: string[];
+  }>;
 
   // Chlorine Data operations
   getAllChlorineData(filter?: ChlorineDataFilter): Promise<ChlorineData[]>;
@@ -13435,25 +13441,47 @@ export class PostgresStorage implements IStorage {
         const batch = data.slice(i, i + batchSize);
         
         for (const item of batch) {
-          // Convert scheme_id to BigInt if it's not already
-          const schemeId = typeof item.scheme_id === 'string' ? BigInt(item.scheme_id) : BigInt(item.scheme_id!);
-          
-          // Check if record exists
-          const existing = await db
-            .select()
-            .from(schemeProgressSummary)
-            .where(eq(schemeProgressSummary.scheme_id, schemeId))
-            .limit(1);
+          try {
+            // Convert scheme_id to BigInt if it's not already
+            // Handle potential conversion errors for non-numeric strings
+            let schemeId: bigint;
+            const rawSchemeId = item.scheme_id;
+            
+            if (typeof rawSchemeId === 'bigint') {
+              schemeId = rawSchemeId;
+            } else if (typeof rawSchemeId === 'string' || typeof rawSchemeId === 'number') {
+              const strSchemeId = String(rawSchemeId).trim();
+              // Check if it's a valid numeric string before BigInt conversion
+              if (!/^\d+$/.test(strSchemeId)) {
+                console.warn(`Skipping record with invalid numeric scheme_id: "${strSchemeId}"`);
+                continue;
+              }
+              schemeId = BigInt(strSchemeId);
+            } else {
+              console.warn(`Skipping record with missing or invalid scheme_id type: ${typeof rawSchemeId}`);
+              continue;
+            }
+            
+            // Check if record exists
+            const existing = await db
+              .select()
+              .from(schemeProgressSummary)
+              .where(eq(schemeProgressSummary.scheme_id, schemeId))
+              .limit(1);
 
-          if (existing.length > 0) {
-            await db
-              .update(schemeProgressSummary)
-              .set({ ...item, scheme_id: schemeId })
-              .where(eq(schemeProgressSummary.scheme_id, schemeId));
-            updated++;
-          } else {
-            await db.insert(schemeProgressSummary).values({ ...item, scheme_id: schemeId });
-            inserted++;
+            if (existing.length > 0) {
+              await db
+                .update(schemeProgressSummary)
+                .set({ ...item, scheme_id: schemeId })
+                .where(eq(schemeProgressSummary.scheme_id, schemeId));
+              updated++;
+            } else {
+              await db.insert(schemeProgressSummary).values({ ...item, scheme_id: schemeId });
+              inserted++;
+            }
+          } catch (itemError) {
+            console.error(`Error processing individual summary record (Scheme ID: ${item.scheme_id}):`, itemError);
+            // Continue with next record in batch
           }
         }
       }
