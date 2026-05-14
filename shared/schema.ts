@@ -497,6 +497,11 @@ export const schemeLpcd = pgTable(
     below_55_lpcd_count: integer("below_55_lpcd_count"),
     above_55_lpcd_count: integer("above_55_lpcd_count"),
 
+    // Village level stats (for snapshots)
+    villages_below_55: integer("villages_below_55"),
+    villages_above_55: integer("villages_above_55"),
+    villages_zero_supply: integer("villages_zero_supply"),
+
     dashboard_url: text("dashboard_url"),
   },
   (table) => {

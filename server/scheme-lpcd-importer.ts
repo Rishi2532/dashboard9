@@ -79,12 +79,7 @@ export async function importSchemeLpcdFromCSV(fileBuffer: Buffer): Promise<{
         };
 
         const db = await getDB();
-        await db.insert(schemeLpcd).values(data).onConflictDoUpdate({
-          target: [schemeLpcd.scheme_id, schemeLpcd.block],
-          set: data
-        });
-        inserted++;
-
+        
         // Fetch village stats from water_scheme_data for the 7 days to populate history correctly
         const villageStatsResult = await db.execute(sql`
           SELECT 
@@ -113,6 +108,20 @@ export async function importSchemeLpcdFromCSV(fileBuffer: Buffer): Promise<{
           WHERE scheme_id = ${data.scheme_id} AND block = ${data.block}
         `);
         const stats = villageStatsResult.rows[0] || {};
+
+        // Update current snapshot with Day 7 stats
+        const snapshotData = {
+          ...data,
+          villages_below_55: Number(stats.below_55_day7) || 0,
+          villages_above_55: Number(stats.above_55_day7) || 0,
+          villages_zero_supply: Number(stats.zero_day7) || 0,
+        };
+
+        await db.insert(schemeLpcd).values(snapshotData).onConflictDoUpdate({
+          target: [schemeLpcd.scheme_id, schemeLpcd.block],
+          set: snapshotData
+        });
+        inserted++;
 
         // Also populate scheme_lpcd_data_history for each of the 7 days
         const uploadBatchId = `csv_upload_${Date.now()}`;
