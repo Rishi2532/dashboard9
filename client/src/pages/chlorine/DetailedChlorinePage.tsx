@@ -12531,6 +12531,9 @@ const DetailedChlorinePage = () => {
                                   <span className="text-white font-semibold text-sm tracking-wide">
                                     LPCD STATISTICS (Villages)
                                   </span>
+                                  <span className="text-white/90 text-[11px] font-bold uppercase tracking-wider bg-white/10 px-2 py-0.5 rounded border border-white/20 shadow-sm">
+                                    No.s Represent Villages
+                                  </span>
                                 </div>
 
                                 {/* Header Row */}
@@ -12886,6 +12889,9 @@ const DetailedChlorinePage = () => {
                                       <Home className="h-4 w-4 text-white" />
                                       <span className="text-white font-semibold text-sm tracking-wide">
                                         LPCD DETAILED STATISTICS (Villages) (Daily Data)
+                                      </span>
+                                      <span className="text-white/90 text-[11px] font-bold uppercase tracking-wider bg-white/10 px-2 py-0.5 rounded border border-white/20 shadow-sm">
+                                        No.s Represent Villages
                                       </span>
                                     </div>
 
@@ -13326,6 +13332,9 @@ const DetailedChlorinePage = () => {
                                     <span className="text-white font-semibold text-sm tracking-wide">
                                       SCHEME LPCD STATISTICS
                                     </span>
+                                    <span className="text-white/90 text-[11px] font-bold uppercase tracking-wider bg-white/10 px-2 py-0.5 rounded border border-white/20 shadow-sm">
+                                      No.s Represent Schemes
+                                    </span>
                                   </div>
 
                                   {/* Header Row */}
@@ -13532,6 +13541,9 @@ const DetailedChlorinePage = () => {
                                         <Building2 className="h-4 w-4 text-white" />
                                         <span className="text-white font-semibold text-sm tracking-wide">
                                           SCHEME LPCD DETAILED STATISTICS (Daily Data)
+                                        </span>
+                                        <span className="text-white/90 text-[11px] font-bold uppercase tracking-wider bg-white/10 px-2 py-0.5 rounded border border-white/20 shadow-sm">
+                                          No.s Represent Schemes
                                         </span>
                                       </div>
 
@@ -13775,6 +13787,9 @@ const DetailedChlorinePage = () => {
                                 <Droplet className="h-4 w-4 text-white" />
                                 <span className="text-white font-semibold text-sm tracking-wide">
                                   CHLORINE STATISTICS
+                                </span>
+                                <span className="text-white/90 text-[11px] font-bold uppercase tracking-wider bg-white/10 px-2 py-0.5 rounded border border-white/20 shadow-sm">
+                                  No.s Represent RCA Sensors
                                 </span>
                               </div>
 
@@ -14336,6 +14351,9 @@ const DetailedChlorinePage = () => {
                                 <Gauge className="h-4 w-4 text-white" />
                                 <span className="text-white font-semibold text-sm tracking-wide">
                                   PRESSURE STATISTICS (Sensors)
+                                </span>
+                                <span className="text-white/90 text-[11px] font-bold uppercase tracking-wider bg-white/10 px-2 py-0.5 rounded border border-white/20 shadow-sm">
+                                  No.s Represent Pressure Sensors
                                 </span>
                               </div>
 

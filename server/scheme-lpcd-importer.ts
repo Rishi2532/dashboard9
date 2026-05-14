@@ -27,13 +27,14 @@ export async function importSchemeLpcdFromCSV(fileBuffer: Buffer): Promise<{
       return { inserted: 0, updated: 0, removed: 0, errors: ["Empty CSV"] };
     }
 
-    // Skip header row if present
-    const startIndex = 1;
+    // Start from index 0 to include all rows (user confirmed no headers)
+    const startIndex = 0;
 
     for (let i = startIndex; i < records.length; i++) {
       const record = records[i];
-      if (!record[5] || !record[6]) {
-        continue; // skip if no scheme_id or scheme_name
+      // skip if no scheme_id or scheme_name, or if it's a header row
+      if (!record[5] || !record[6] || record[5] === "Scheme ID" || record[5] === "scheme_id") {
+        continue;
       }
 
       try {
@@ -45,36 +46,36 @@ export async function importSchemeLpcdFromCSV(fileBuffer: Buffer): Promise<{
           block: record[4] || null,
           scheme_id: record[5],
           scheme_name: record[6],
-          population: record[8] ? parseFloat(String(record[8]).replace(/,/g, "")) : null,
-          total_villages: record[9] ? parseInt(String(record[9]).replace(/,/g, "")) : null,
-          water_value_day1: record[10] ? parseFloat(String(record[10]).replace(/,/g, "")) : null,
-          water_value_day2: record[11] ? parseFloat(String(record[11]).replace(/,/g, "")) : null,
-          water_value_day3: record[12] ? parseFloat(String(record[12]).replace(/,/g, "")) : null,
-          water_value_day4: record[13] ? parseFloat(String(record[13]).replace(/,/g, "")) : null,
-          water_value_day5: record[14] ? parseFloat(String(record[14]).replace(/,/g, "")) : null,
-          water_value_day6: record[15] ? parseFloat(String(record[15]).replace(/,/g, "")) : null,
-          water_value_day7: record[16] ? parseFloat(String(record[16]).replace(/,/g, "")) : null,
-          lpcd_value_day1: record[17] ? parseFloat(String(record[17]).replace(/,/g, "")) : null,
-          lpcd_value_day2: record[18] ? parseFloat(String(record[18]).replace(/,/g, "")) : null,
-          lpcd_value_day3: record[19] ? parseFloat(String(record[19]).replace(/,/g, "")) : null,
-          lpcd_value_day4: record[20] ? parseFloat(String(record[20]).replace(/,/g, "")) : null,
-          lpcd_value_day5: record[21] ? parseFloat(String(record[21]).replace(/,/g, "")) : null,
-          lpcd_value_day6: record[22] ? parseFloat(String(record[22]).replace(/,/g, "")) : null,
-          lpcd_value_day7: record[23] ? parseFloat(String(record[23]).replace(/,/g, "")) : null,
-          water_date_day1: record[24] || null,
-          water_date_day2: record[25] || null,
-          water_date_day3: record[26] || null,
-          water_date_day4: record[27] || null,
-          water_date_day5: record[28] || null,
-          water_date_day6: record[29] || null,
-          water_date_day7: record[30] || null,
-          lpcd_date_day1: record[31] || null,
-          lpcd_date_day2: record[32] || null,
-          lpcd_date_day3: record[33] || null,
-          lpcd_date_day4: record[34] || null,
-          lpcd_date_day5: record[35] || null,
-          lpcd_date_day6: record[36] || null,
-          lpcd_date_day7: record[37] || null,
+          population: record[7] ? parseFloat(String(record[7]).replace(/,/g, "")) : null,
+          total_villages: record[8] ? parseInt(String(record[8]).replace(/,/g, "")) : null,
+          water_value_day1: record[9] ? parseFloat(String(record[9]).replace(/,/g, "")) : null,
+          water_value_day2: record[10] ? parseFloat(String(record[10]).replace(/,/g, "")) : null,
+          water_value_day3: record[11] ? parseFloat(String(record[11]).replace(/,/g, "")) : null,
+          water_value_day4: record[12] ? parseFloat(String(record[12]).replace(/,/g, "")) : null,
+          water_value_day5: record[13] ? parseFloat(String(record[13]).replace(/,/g, "")) : null,
+          water_value_day6: record[14] ? parseFloat(String(record[14]).replace(/,/g, "")) : null,
+          water_value_day7: record[15] ? parseFloat(String(record[15]).replace(/,/g, "")) : null,
+          lpcd_value_day1: record[16] ? parseFloat(String(record[16]).replace(/,/g, "")) : null,
+          lpcd_value_day2: record[17] ? parseFloat(String(record[17]).replace(/,/g, "")) : null,
+          lpcd_value_day3: record[18] ? parseFloat(String(record[18]).replace(/,/g, "")) : null,
+          lpcd_value_day4: record[19] ? parseFloat(String(record[19]).replace(/,/g, "")) : null,
+          lpcd_value_day5: record[20] ? parseFloat(String(record[20]).replace(/,/g, "")) : null,
+          lpcd_value_day6: record[21] ? parseFloat(String(record[21]).replace(/,/g, "")) : null,
+          lpcd_value_day7: record[22] ? parseFloat(String(record[22]).replace(/,/g, "")) : null,
+          water_date_day1: record[23] || null,
+          water_date_day2: record[24] || null,
+          water_date_day3: record[25] || null,
+          water_date_day4: record[26] || null,
+          water_date_day5: record[27] || null,
+          water_date_day6: record[28] || null,
+          water_date_day7: record[29] || null,
+          lpcd_date_day1: record[30] || null,
+          lpcd_date_day2: record[31] || null,
+          lpcd_date_day3: record[32] || null,
+          lpcd_date_day4: record[33] || null,
+          lpcd_date_day5: record[34] || null,
+          lpcd_date_day6: record[35] || null,
+          lpcd_date_day7: record[36] || null,
         };
 
         const db = await getDB();

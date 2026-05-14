@@ -527,7 +527,7 @@ const SchemeLpcdDashboard = () => {
   // Get latest water supply value
   const getLatestWaterSupplyValue = (scheme: SchemeLpcdData): number | null => {
     // Try to get the latest non-null water supply value
-    for (const day of [6, 5, 4, 3, 2, 1]) {
+    for (const day of [7, 6, 5, 4, 3, 2, 1]) {
       const value = scheme[`total_water_day${day}` as keyof SchemeLpcdData];
       if (
         value !== undefined &&
@@ -585,12 +585,24 @@ const SchemeLpcdDashboard = () => {
   };
 
   // Apply filters
-  const getFilteredSchemes = () => {
+  // Helper to get unique schemes by ID
+  const getUniqueSchemesById = (data: SchemeLpcdData[]): SchemeLpcdData[] => {
+    const uniqueMap = new Map<string, SchemeLpcdData>();
+    data.forEach((scheme) => {
+      if (!uniqueMap.has(scheme.scheme_id)) {
+        uniqueMap.set(scheme.scheme_id, scheme);
+      }
+    });
+    return Array.from(uniqueMap.values());
+  };
+
+  // Get data with global filters (Location + Search + Status) - used for cards and as base for list
+  const getGloballyFilteredSchemes = () => {
     if (!allSchemeLpcdData) return [];
 
     let filtered = [...allSchemeLpcdData];
 
-    // Apply search query filter (for scheme name)
+    // 1. Apply search query filter
     if (searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase().trim();
       filtered = filtered.filter(
@@ -600,8 +612,7 @@ const SchemeLpcdDashboard = () => {
       );
     }
 
-    // Apply scheme status filters using the scheme status data
-    // Create a map of scheme IDs to their scheme status data for filtering
+    // 2. Map scheme status data for status filtering
     const schemeStatusMap = new Map();
     if (schemeStatusData && schemeStatusData.length > 0) {
       schemeStatusData.forEach((status) => {
@@ -609,7 +620,7 @@ const SchemeLpcdDashboard = () => {
       });
     }
 
-    // Apply commissioned status filter
+    // 3. Apply commissioned/status filters
     if (schemeFilter !== "all" || uiSchemeFilter !== "all") {
       filtered = filtered.filter((scheme) => {
         const status = schemeStatusMap.get(scheme.scheme_id);
@@ -644,10 +655,9 @@ const SchemeLpcdDashboard = () => {
       });
     }
 
-    // Apply scheme status filter
+    // 4. Apply scheme status filter
     if (schemeStatusFilter !== "all") {
       filtered = filtered.filter((scheme) => {
-        // Get scheme status from the map
         const status = schemeStatusMap.get(scheme.scheme_id);
         if (!status) return false;
 
@@ -658,10 +668,26 @@ const SchemeLpcdDashboard = () => {
       });
     }
 
+    // 5. Deduplicate EARLY
+    return getUniqueSchemesById(filtered);
+  };
+
+  // Apply all filters (Global + Range) - used for the list
+  const getFilteredSchemes = () => {
+    // Start with globally filtered and deduplicated data
+    let filtered = getGloballyFilteredSchemes();
+
+    // Map scheme status data (needed for MJP/WaterSupply cases in switch)
+    const schemeStatusMap = new Map();
+    if (schemeStatusData && schemeStatusData.length > 0) {
+      schemeStatusData.forEach((status) => {
+        schemeStatusMap.set(status.scheme_id, status);
+      });
+    }
+
     // Apply LPCD range filter
     switch (currentFilter) {
       case "all":
-        // No additional filtering needed
         break;
       case "above55":
         filtered = filtered.filter((scheme) => {
@@ -702,11 +728,14 @@ const SchemeLpcdDashboard = () => {
       case "0-15":
         filtered = filtered.filter((scheme) => {
           const lpcdValue = getLatestLpcdValue(scheme);
-          return lpcdValue !== null && lpcdValue >= 0 && lpcdValue < 15;
+          return lpcdValue !== null && lpcdValue > 0 && lpcdValue < 15;
         });
         break;
       case "noSupply":
-        filtered = filtered.filter((scheme) => hasNoCurrentWaterSupply(scheme));
+        filtered = filtered.filter((scheme) => {
+          const lpcdValue = getLatestLpcdValue(scheme);
+          return lpcdValue !== null && lpcdValue === 0;
+        });
         break;
       case "55-60":
         filtered = filtered.filter((scheme) => {
@@ -764,106 +793,7 @@ const SchemeLpcdDashboard = () => {
         break;
     }
 
-    // Remove duplicate scheme names from filtered results
-    const uniqueFilteredSchemes: SchemeLpcdData[] = [];
-    const seenSchemeNames = new Set();
-
-    filtered.forEach((scheme) => {
-      if (!seenSchemeNames.has(scheme.scheme_name)) {
-        seenSchemeNames.add(scheme.scheme_name);
-        uniqueFilteredSchemes.push(scheme);
-      }
-    });
-
-    return uniqueFilteredSchemes;
-  };
-
-  // Get data with global filters applied for cards
-  const getGloballyFilteredSchemes = () => {
-    if (!allSchemeLpcdData) return [];
-
-    let filtered = [...allSchemeLpcdData];
-
-    // Apply search query filter (for scheme name)
-    if (searchQuery.trim() !== "") {
-      const query = searchQuery.toLowerCase().trim();
-      filtered = filtered.filter(
-        (scheme) =>
-          scheme.scheme_name?.toLowerCase().includes(query) ||
-          scheme.scheme_id?.toLowerCase().includes(query),
-      );
-    }
-
-    // Apply scheme status filters using the scheme status data
-    // Create a map of scheme IDs to their scheme status data for filtering
-    const schemeStatusMap = new Map();
-    if (schemeStatusData && schemeStatusData.length > 0) {
-      schemeStatusData.forEach((status) => {
-        schemeStatusMap.set(status.scheme_id, status);
-      });
-    }
-
-    // Apply commissioned status filter
-    if (schemeFilter !== "all" || uiSchemeFilter !== "all") {
-      filtered = filtered.filter((scheme) => {
-        const status = schemeStatusMap.get(scheme.scheme_id);
-        if (!status) return false;
-
-        if (uiSchemeFilter === "commissioned") {
-          if (waterSupplyStatus !== "All") {
-            return status.water_supply_status === waterSupplyStatus;
-          }
-          return status.water_supply === "Yes";
-        }
-
-        if (uiSchemeFilter === "fully_completed") {
-          const statusValue = String(status.fully_completion_scheme_status || "").toLowerCase();
-          return statusValue === "fully completed" || statusValue === "completed" || statusValue === "fully_completed";
-        }
-
-        if (uiSchemeFilter === "in_progress") {
-          return status.fully_completion_scheme_status === "In Progress";
-        }
-
-        if (uiSchemeFilter === "common_filter") {
-          const statusValue = String(status.fully_completion_scheme_status || "").toLowerCase();
-          return (statusValue === "fully completed" || statusValue === "completed" || statusValue === "fully_completed") && status.water_supply === "Yes";
-        }
-
-        if (uiSchemeFilter === "mjp_commissioned_yes") {
-          return status.mjp_commissioned === "Yes";
-        }
-
-        return true;
-      });
-    }
-
-    // Apply scheme status filter
-    if (schemeStatusFilter !== "all") {
-      filtered = filtered.filter((scheme) => {
-        // Get scheme status from the map
-        const status = schemeStatusMap.get(scheme.scheme_id);
-        if (!status) return false;
-
-        if (schemeStatusFilter === "Connected") {
-          return status.fully_completion_scheme_status !== "Not-Connected";
-        }
-        return status.fully_completion_scheme_status === schemeStatusFilter;
-      });
-    }
-
-    // Remove duplicate scheme names from globally filtered results
-    const uniqueGloballyFilteredSchemes: SchemeLpcdData[] = [];
-    const seenGlobalSchemeNames = new Set();
-
-    filtered.forEach((scheme) => {
-      if (!seenGlobalSchemeNames.has(scheme.scheme_name)) {
-        seenGlobalSchemeNames.add(scheme.scheme_name);
-        uniqueGloballyFilteredSchemes.push(scheme);
-      }
-    });
-
-    return uniqueGloballyFilteredSchemes;
+    return filtered;
   };
 
   // Calculate filter counts based on globally filtered data with unique scheme counting
@@ -1441,49 +1371,36 @@ const SchemeLpcdDashboard = () => {
     const globallyFilteredData = getGloballyFilteredSchemes();
 
     globallyFilteredData.forEach((scheme) => {
-      const uniqueKey = scheme.scheme_name;
+      const uniqueKey = scheme.scheme_id;
 
-      // Only count each unique scheme name once
+      // Only count each unique scheme once
       if (!uniqueSchemes.has(uniqueKey)) {
         uniqueSchemes.set(uniqueKey, scheme);
         stats.total++;
 
         const lpcdValue = getLatestLpcdValue(scheme);
 
-        if (lpcdValue === null || lpcdValue === 0) {
+        if (lpcdValue !== null && lpcdValue === 0) {
           stats.noSupply++;
-        } else if (lpcdValue > 55) {
+          stats.below55++;
+        } else if (lpcdValue !== null && lpcdValue > 55) {
           stats.above55++;
 
           // Categorize into detailed ranges
-          if (lpcdValue >= 80) {
-            stats.lpcdRanges.above80++;
-          } else if (lpcdValue >= 75) {
-            stats.lpcdRanges["75-80"]++;
-          } else if (lpcdValue >= 70) {
-            stats.lpcdRanges["70-75"]++;
-          } else if (lpcdValue >= 65) {
-            stats.lpcdRanges["65-70"]++;
-          } else if (lpcdValue >= 60) {
-            stats.lpcdRanges["60-65"]++;
-          } else {
-            stats.lpcdRanges["55-60"]++;
-          }
-        } else {
+          if (lpcdValue >= 80) stats.lpcdRanges.above80++;
+          else if (lpcdValue >= 75) stats.lpcdRanges["75-80"]++;
+          else if (lpcdValue >= 70) stats.lpcdRanges["70-75"]++;
+          else if (lpcdValue >= 65) stats.lpcdRanges["65-70"]++;
+          else if (lpcdValue >= 60) stats.lpcdRanges["60-65"]++;
+          else stats.lpcdRanges["55-60"]++;
+        } else if (lpcdValue !== null) {
           stats.below55++;
-
           // Categorize into detailed ranges
-          if (lpcdValue >= 45) {
-            stats.lpcdRanges["45-55"]++;
-          } else if (lpcdValue >= 35) {
-            stats.lpcdRanges["35-45"]++;
-          } else if (lpcdValue >= 25) {
-            stats.lpcdRanges["25-35"]++;
-          } else if (lpcdValue >= 15) {
-            stats.lpcdRanges["15-25"]++;
-          } else {
-            stats.lpcdRanges["0-15"]++;
-          }
+          if (lpcdValue >= 45) stats.lpcdRanges["45-55"]++;
+          else if (lpcdValue >= 35) stats.lpcdRanges["35-45"]++;
+          else if (lpcdValue >= 25) stats.lpcdRanges["25-35"]++;
+          else if (lpcdValue >= 15) stats.lpcdRanges["15-25"]++;
+          else stats.lpcdRanges["0-15"]++;
         }
       }
     });
@@ -1495,25 +1412,7 @@ const SchemeLpcdDashboard = () => {
 
   // Handle LPCD range filtering
   const handleLpcdRangeFilter = (rangeType: string) => {
-    switch (rangeType) {
-      case "55-60":
-      case "60-65":
-      case "65-70":
-      case "70-75":
-      case "75-80":
-      case "above80":
-        setCurrentFilter(rangeType as LpcdRange);
-        break;
-      case "45-55":
-      case "35-45":
-      case "25-35":
-      case "15-25":
-      case "0-15":
-        setCurrentFilter(rangeType as LpcdRange);
-        break;
-      default:
-        setCurrentFilter("all");
-    }
+    setCurrentFilter(rangeType as LpcdRange);
     setPage(1);
     trackFilterUsage("scheme_lpcd_range", rangeType);
   };

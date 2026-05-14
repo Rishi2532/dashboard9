@@ -15,94 +15,29 @@ router.get('/', async (req, res) => {
     const client = await pool.connect();
 
     try {
-      // Build the SQL query to join water_scheme_data with scheme_status
-      // and aggregate the data by scheme
-
       let baseQuery = `
-        WITH ranked_history AS (
-          SELECT 
-            h.*,
-            CASE 
-              WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
-              WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
-              WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
-                CASE
-                  WHEN TO_DATE(data_date || '-' || TO_CHAR(COALESCE(uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY') > (COALESCE(uploaded_at, CURRENT_DATE) + interval '1 month')
-                  THEN TO_DATE(data_date || '-' || (TO_CHAR(COALESCE(uploaded_at, CURRENT_DATE), 'YYYY')::int - 1), 'DD-Mon-YYYY')
-                  ELSE TO_DATE(data_date || '-' || TO_CHAR(COALESCE(uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY')
-                END
-              ELSE NULL 
-            END as parsed_date,
-            ROW_NUMBER() OVER (PARTITION BY scheme_id, block ORDER BY 
-              CASE 
-                WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
-                WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
-                WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
-                  CASE
-                    WHEN TO_DATE(data_date || '-' || TO_CHAR(COALESCE(uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY') > (COALESCE(uploaded_at, CURRENT_DATE) + interval '1 month')
-                    THEN TO_DATE(data_date || '-' || (TO_CHAR(COALESCE(uploaded_at, CURRENT_DATE), 'YYYY')::int - 1), 'DD-Mon-YYYY')
-                    ELSE TO_DATE(data_date || '-' || TO_CHAR(COALESCE(uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY')
-                  END
-                ELSE NULL 
-              END DESC NULLS LAST, uploaded_at DESC) as rn
-          FROM scheme_lpcd_data_history h
-        ),
-        latest_periods AS (
-          SELECT * FROM ranked_history WHERE rn <= 7
-        ),
-        scheme_pivot AS (
-          SELECT 
-            scheme_id, 
-            block,
-            MAX(CASE WHEN rn = 7 THEN lpcd_value END) as lpcd_value_day1,
-            MAX(CASE WHEN rn = 6 THEN lpcd_value END) as lpcd_value_day2,
-            MAX(CASE WHEN rn = 5 THEN lpcd_value END) as lpcd_value_day3,
-            MAX(CASE WHEN rn = 4 THEN lpcd_value END) as lpcd_value_day4,
-            MAX(CASE WHEN rn = 3 THEN lpcd_value END) as lpcd_value_day5,
-            MAX(CASE WHEN rn = 2 THEN lpcd_value END) as lpcd_value_day6,
-            MAX(CASE WHEN rn = 1 THEN lpcd_value END) as lpcd_value_day7,
-            
-            MAX(CASE WHEN rn = 7 THEN water_value END) as total_water_day1,
-            MAX(CASE WHEN rn = 6 THEN water_value END) as total_water_day2,
-            MAX(CASE WHEN rn = 5 THEN water_value END) as total_water_day3,
-            MAX(CASE WHEN rn = 4 THEN water_value END) as total_water_day4,
-            MAX(CASE WHEN rn = 3 THEN water_value END) as total_water_day5,
-            MAX(CASE WHEN rn = 2 THEN water_value END) as total_water_day6,
-            MAX(CASE WHEN rn = 1 THEN water_value END) as total_water_day7,
-            
-            MAX(CASE WHEN rn = 7 THEN data_date END) as water_date_day1,
-            MAX(CASE WHEN rn = 6 THEN data_date END) as water_date_day2,
-            MAX(CASE WHEN rn = 5 THEN data_date END) as water_date_day3,
-            MAX(CASE WHEN rn = 4 THEN data_date END) as water_date_day4,
-            MAX(CASE WHEN rn = 3 THEN data_date END) as water_date_day5,
-            MAX(CASE WHEN rn = 2 THEN data_date END) as water_date_day6,
-            MAX(CASE WHEN rn = 1 THEN data_date END) as water_date_day7,
-            
-            MAX(CASE WHEN rn = 1 THEN total_population END) as total_population,
-            MAX(CASE WHEN rn = 1 THEN total_villages END) as total_villages,
-            MAX(CASE WHEN rn = 1 THEN villages_below_55 END) as villages_below_55,
-            MAX(CASE WHEN rn = 1 THEN villages_above_55 END) as villages_above_55,
-            MAX(CASE WHEN rn = 1 THEN villages_zero_supply END) as villages_zero_supply
-          FROM latest_periods
-          GROUP BY scheme_id, block
-        )
         SELECT 
-          sp.*,
-          ss.scheme_name, ss.region, ss.circle, ss.division, ss.sub_division, 
-          ss.dashboard_url, ss.mjp_commissioned, ss.fully_completed_villages, 
+          sl.scheme_id, sl.block, sl.region, sl.circle, sl.division, sl.sub_division,
+          sl.population as total_population, sl.total_villages,
+          sl.villages_below_55, sl.villages_above_55, sl.villages_zero_supply,
+          sl.lpcd_value_day1, sl.lpcd_value_day2, sl.lpcd_value_day3, sl.lpcd_value_day4, sl.lpcd_value_day5, sl.lpcd_value_day6, sl.lpcd_value_day7,
+          sl.water_value_day1 as total_water_day1, sl.water_value_day2 as total_water_day2, sl.water_value_day3 as total_water_day3, sl.water_value_day4 as total_water_day4, sl.water_value_day5 as total_water_day5, sl.water_value_day6 as total_water_day6, sl.water_value_day7 as total_water_day7,
+          sl.water_date_day1, sl.water_date_day2, sl.water_date_day3, sl.water_date_day4, sl.water_date_day5, sl.water_date_day6, sl.water_date_day7,
+          sl.lpcd_date_day1, sl.lpcd_date_day2, sl.lpcd_date_day3, sl.lpcd_date_day4, sl.lpcd_date_day5, sl.lpcd_date_day6, sl.lpcd_date_day7,
+          ss.scheme_name, ss.dashboard_url, ss.mjp_commissioned, ss.fully_completed_villages, 
           ss.total_villages_integrated, ss.total_number_of_esr, ss.total_esr_integrated, 
           ss.no_fully_completed_esr, ss.fully_completion_scheme_status, ss.scheme_functional_status, 
           ss.flow_meters_connected, ss.pressure_transmitter_connected, 
           ss.residual_chlorine_analyzer_connected, ss.agency, ss.agency_type,
           (SELECT description FROM helpdesk_tickets ht 
-           WHERE ht.scheme_id = sp.scheme_id 
+           WHERE ht.scheme_id = sl.scheme_id 
            AND ht.level = 'Scheme' 
            AND ht.status IN ('Open', 'In-Progress') 
            ORDER BY ht.created_at DESC LIMIT 1) as remark
         FROM 
-          scheme_pivot sp
+          scheme_lpcd sl
         LEFT JOIN
-          scheme_status ss ON sp.scheme_id = ss.scheme_id AND sp.block = ss.block
+          scheme_status ss ON sl.scheme_id = ss.scheme_id AND sl.block = ss.block
       `;
 
       // Add WHERE clause for filtering
@@ -111,47 +46,47 @@ router.get('/', async (req, res) => {
 
       // Region filter
       if (region && region !== 'all') {
-        conditions.push('region = $' + (queryParams.length + 1));
+        conditions.push('sl.region = $' + (queryParams.length + 1));
         queryParams.push(region);
       }
 
       // Circle filter
       if (circle && circle !== 'all') {
-        conditions.push('circle = $' + (queryParams.length + 1));
+        conditions.push('sl.circle = $' + (queryParams.length + 1));
         queryParams.push(circle);
       }
 
       // Division filter
       if (division && division !== 'all') {
-        conditions.push('division = $' + (queryParams.length + 1));
+        conditions.push('sl.division = $' + (queryParams.length + 1));
         queryParams.push(division);
       }
 
       // Subdivision filter
       if (subdivision && subdivision !== 'all') {
-        conditions.push('sub_division = $' + (queryParams.length + 1));
+        conditions.push('sl.sub_division = $' + (queryParams.length + 1));
         queryParams.push(subdivision);
       }
 
       // Block filter
       if (block && block !== 'all') {
-        conditions.push('block = $' + (queryParams.length + 1));
+        conditions.push('sl.block = $' + (queryParams.length + 1));
         queryParams.push(block);
       }
 
       if (minLpcd) {
-        conditions.push(`lpcd_value_day7 >= $${queryParams.length + 1}`);
+        conditions.push(`sl.lpcd_value_day7 >= $${queryParams.length + 1}`);
         queryParams.push(Number(minLpcd));
       }
 
       if (maxLpcd) {
-        conditions.push(`lpcd_value_day7 < $${queryParams.length + 1}`);
+        conditions.push(`sl.lpcd_value_day7 < $${queryParams.length + 1}`);
         queryParams.push(Number(maxLpcd));
       }
 
       // MJP Commissioned filter
       if (mjpCommissioned === 'Yes' || mjpCommissioned === 'No') {
-        conditions.push('mjp_commissioned = $' + (queryParams.length + 1));
+        conditions.push('ss.mjp_commissioned = $' + (queryParams.length + 1));
         queryParams.push(mjpCommissioned);
       }
 
@@ -201,46 +136,15 @@ router.get('/lpcd-stats', async (req, res) => {
     try {
       // First, get aggregated scheme data
       let aggregatedDataQuery = `
-        WITH ranked_history AS (
-          SELECT 
-            scheme_id, block, lpcd_value, total_population,
-            CASE 
-              WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
-              WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
-              WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
-                CASE
-                  WHEN TO_DATE(data_date || '-' || TO_CHAR(COALESCE(uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY') > (COALESCE(uploaded_at, CURRENT_DATE) + interval '1 month')
-                  THEN TO_DATE(data_date || '-' || (TO_CHAR(COALESCE(uploaded_at, CURRENT_DATE), 'YYYY')::int - 1), 'DD-Mon-YYYY')
-                  ELSE TO_DATE(data_date || '-' || TO_CHAR(COALESCE(uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY')
-                END
-              ELSE NULL 
-            END as parsed_date,
-            ROW_NUMBER() OVER (PARTITION BY scheme_id, block ORDER BY 
-              CASE 
-                WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
-                WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
-                WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
-                  CASE
-                    WHEN TO_DATE(data_date || '-' || TO_CHAR(COALESCE(uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY') > (COALESCE(uploaded_at, CURRENT_DATE) + interval '1 month')
-                    THEN TO_DATE(data_date || '-' || (TO_CHAR(COALESCE(uploaded_at, CURRENT_DATE), 'YYYY')::int - 1), 'DD-Mon-YYYY')
-                    ELSE TO_DATE(data_date || '-' || TO_CHAR(COALESCE(uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY')
-                  END
-                ELSE NULL 
-              END DESC NULLS LAST, uploaded_at DESC) as rn
-          FROM scheme_lpcd_data_history
-        ),
-        latest_scheme_data AS (
-          SELECT rh.*, ss.region, ss.circle, ss.division, ss.sub_division, ss.agency_type
-          FROM ranked_history rh
-          LEFT JOIN scheme_status ss ON rh.scheme_id = ss.scheme_id AND rh.block = ss.block
-          WHERE rn = 1
-        )
         SELECT 
-          scheme_id,
-          lpcd_value as lpcd_value_day7,
-          region, circle, division, sub_division, block, agency_type
+          sl.scheme_id,
+          sl.lpcd_value_day7,
+          sl.region, sl.circle, sl.division, sl.sub_division, sl.block,
+          ss.agency_type
         FROM 
-          latest_scheme_data
+          scheme_lpcd sl
+        LEFT JOIN
+          scheme_status ss ON sl.scheme_id = ss.scheme_id AND sl.block = ss.block
       `;
 
       // Add WHERE clauses for geographic filtering
@@ -248,29 +152,29 @@ router.get('/lpcd-stats', async (req, res) => {
       const conditions: string[] = [];
 
       if (region && region !== 'all') {
-        conditions.push('region = $' + (queryParams.length + 1));
+        conditions.push('sl.region = $' + (queryParams.length + 1));
         queryParams.push(region);
       }
       if (circle && circle !== 'all') {
-        conditions.push('circle = $' + (queryParams.length + 1));
+        conditions.push('sl.circle = $' + (queryParams.length + 1));
         queryParams.push(circle);
       }
       if (division && division !== 'all') {
-        conditions.push('division = $' + (queryParams.length + 1));
+        conditions.push('sl.division = $' + (queryParams.length + 1));
         queryParams.push(division);
       }
       if (subdivision && subdivision !== 'all') {
-        conditions.push('sub_division = $' + (queryParams.length + 1));
+        conditions.push('sl.sub_division = $' + (queryParams.length + 1));
         queryParams.push(subdivision);
       }
       if (block && block !== 'all') {
-        conditions.push('block = $' + (queryParams.length + 1));
+        conditions.push('sl.block = $' + (queryParams.length + 1));
         queryParams.push(block);
       }
       const rawAgencyType = Array.isArray(agencyType) ? agencyType[0] : agencyType;
       const targetAgencyType = typeof rawAgencyType === 'string' ? rawAgencyType : undefined;
       if (targetAgencyType && targetAgencyType.toUpperCase() !== 'ALL') {
-        conditions.push('UPPER(agency_type) = $' + (queryParams.length + 1));
+        conditions.push('UPPER(ss.agency_type) = $' + (queryParams.length + 1));
         queryParams.push(targetAgencyType.toUpperCase());
       }
 
@@ -595,7 +499,7 @@ router.get('/export/history', async (req, res) => {
 
         // Build header row with dates as columns
         const headerRow = [
-          'Region', 'Circle', 'Division', 'Sub Division', 'Block', 'Scheme ID', 'Scheme Name', ,
+          'Region', 'Circle', 'Division', 'Sub Division', 'Block', 'Scheme ID', 'Scheme Name',
           'Total Population', 'Total Villages', 'MJP Commissioned', 'Agency Type'
         ];
 
