@@ -7328,9 +7328,8 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
         }
 
         const dateList = (dates as string).split(',');
-        // normalize query dates logic if needed, but assuming direct string match or simple normalization
-        // Using a simpler approach: Filter where data_date matches ANY of the provided dates
-
+        const metric = category.replace('weekly_', '');
+        let havingCondition = '1=1';
         const avgCalc = 'SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0';
         
         if (metric === 'above_55') {
