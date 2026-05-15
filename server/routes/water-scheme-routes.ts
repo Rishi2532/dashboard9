@@ -1287,7 +1287,7 @@ async function importDataToDatabase(data: any[], isExcel: boolean, isLpcdTemplat
             villages_above_55,
             villages_zero_supply,
             data_date,
-            total_water as water_value,
+            COALESCE(total_water, 0) as water_value,
             CASE 
               WHEN total_population > 0 
               THEN ROUND((COALESCE(total_water, 0) * 100000) / total_population, 2) 

@@ -3688,7 +3688,7 @@ router.get("/lpcd/day-wise-breakdown/all-regions", async (req, res) => {
             region,
             scheme_id,
             village_name,
-            lpcd_value::numeric as lpcd_value,
+            COALESCE(lpcd_value::numeric, 0) as lpcd_value,
             data_date,
             CASE 
               WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
@@ -6678,7 +6678,7 @@ router.get("/scheme-lpcd/day-wise-breakdown/all-regions", async (req, res) => {
             region,
             scheme_id,
             COALESCE(block, '') as block,
-            lpcd_value::numeric as lpcd_value,
+            COALESCE(lpcd_value::numeric, 0) as lpcd_value,
             data_date,
             CASE 
               WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
