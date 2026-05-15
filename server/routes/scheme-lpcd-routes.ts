@@ -713,7 +713,7 @@ router.post('/populate-history', async (req, res) => {
             total_water as water_value,
             CASE 
               WHEN total_population > 0 
-              THEN ROUND((total_water * 100000) / total_population, 2) 
+              THEN ROUND((COALESCE(total_water, 0) * 100000) / total_population, 2) 
               ELSE 0 
             END as lpcd_value,
             dashboard_url,

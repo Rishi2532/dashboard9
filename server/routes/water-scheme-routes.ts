@@ -1128,11 +1128,11 @@ async function importDataToDatabase(data: any[], isExcel: boolean, isLpcdTemplat
             const waterDate = record[`water_date_day${day}`];
             const waterValue = record[`water_value_day${day}`];
 
-            if (waterDate && waterValue !== null && waterValue !== undefined && waterValue !== '') {
+            if (waterDate && waterValue !== null && waterValue !== undefined) {
               if (!datedEntries.has(waterDate)) {
-                datedEntries.set(waterDate, { water: null, lpcd: null });
+                datedEntries.set(waterDate, { water: 0, lpcd: 0 });
               }
-              datedEntries.get(waterDate)!.water = parseFloat(waterValue);
+              datedEntries.get(waterDate)!.water = typeof waterValue === 'number' ? waterValue : parseFloat(String(waterValue || 0));
             }
           }
 
@@ -1141,11 +1141,11 @@ async function importDataToDatabase(data: any[], isExcel: boolean, isLpcdTemplat
             const lpcdDate = record[`lpcd_date_day${day}`];
             const lpcdValue = record[`lpcd_value_day${day}`];
 
-            if (lpcdDate && lpcdValue !== null && lpcdValue !== undefined && lpcdValue !== '') {
+            if (lpcdDate && lpcdValue !== null && lpcdValue !== undefined) {
               if (!datedEntries.has(lpcdDate)) {
-                datedEntries.set(lpcdDate, { water: null, lpcd: null });
+                datedEntries.set(lpcdDate, { water: 0, lpcd: 0 });
               }
-              datedEntries.get(lpcdDate)!.lpcd = parseFloat(lpcdValue);
+              datedEntries.get(lpcdDate)!.lpcd = typeof lpcdValue === 'number' ? lpcdValue : parseFloat(String(lpcdValue || 0));
             }
           }
 
@@ -1290,7 +1290,7 @@ async function importDataToDatabase(data: any[], isExcel: boolean, isLpcdTemplat
             total_water as water_value,
             CASE 
               WHEN total_population > 0 
-              THEN ROUND((total_water * 100000) / total_population, 2) 
+              THEN ROUND((COALESCE(total_water, 0) * 100000) / total_population, 2) 
               ELSE 0 
             END as lpcd_value,
             dashboard_url,
@@ -1451,11 +1451,16 @@ function mapExcelFields(row: any) {
         'below_55_lpcd_count', 'above_55_lpcd_count'].includes(dbField)) {
         // Handle different Excel value types
         if (value === '' || value === null || value === undefined) {
-          record[dbField] = null;
+          if (['water_value_day1', 'water_value_day2', 'water_value_day3', 'water_value_day4', 'water_value_day5', 'water_value_day6', 'water_value_day7',
+               'lpcd_value_day1', 'lpcd_value_day2', 'lpcd_value_day3', 'lpcd_value_day4', 'lpcd_value_day5', 'lpcd_value_day6', 'lpcd_value_day7'].includes(dbField)) {
+            record[dbField] = 0;
+          } else {
+            record[dbField] = null;
+          }
         } else {
           // Parse numeric value - handle both string and number inputs
           const numValue = typeof value === 'number' ? value : parseFloat(String(value).replace(/,/g, ''));
-          record[dbField] = isNaN(numValue) ? null : numValue;
+          record[dbField] = isNaN(numValue) ? 0 : numValue;
         }
       } else if (dbField === 'consistent_zero_lpcd_for_a_week') {
         // Convert to boolean/integer
@@ -1547,11 +1552,16 @@ function mapCsvFields(row: string[]) {
         'below_55_lpcd_count', 'above_55_lpcd_count'].includes(field)) {
         // Handle empty values
         if (value === '' || value === null || value === undefined) {
-          record[field] = null;
+          if (['water_value_day1', 'water_value_day2', 'water_value_day3', 'water_value_day4', 'water_value_day5', 'water_value_day6', 'water_value_day7',
+               'lpcd_value_day1', 'lpcd_value_day2', 'lpcd_value_day3', 'lpcd_value_day4', 'lpcd_value_day5', 'lpcd_value_day6', 'lpcd_value_day7'].includes(field)) {
+            record[field] = 0;
+          } else {
+            record[field] = null;
+          }
         } else {
           // Parse numeric value - handle commas in numbers (e.g., "1,234.56")
           const numValue = parseFloat(String(value).replace(/,/g, ''));
-          record[field] = isNaN(numValue) ? null : numValue;
+          record[field] = isNaN(numValue) ? 0 : numValue;
         }
       } else if (field === 'consistent_zero_lpcd_for_a_week') {
         // Convert to boolean/integer for database
