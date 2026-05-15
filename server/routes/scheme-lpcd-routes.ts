@@ -749,8 +749,8 @@ router.post('/populate-history', async (req, res) => {
                     villages_below_55 = EXCLUDED.villages_below_55,
                     villages_above_55 = EXCLUDED.villages_above_55,
                     villages_zero_supply = EXCLUDED.villages_zero_supply,
-                    water_value = EXCLUDED.water_value,
-                    lpcd_value = EXCLUDED.lpcd_value,
+                    water_value = COALESCE(EXCLUDED.water_value, 0),
+                    lpcd_value = COALESCE(EXCLUDED.lpcd_value, 0),
                     upload_batch_id = EXCLUDED.upload_batch_id,
                     mjp_commissioned = EXCLUDED.mjp_commissioned,
                     uploaded_at = CURRENT_TIMESTAMP
@@ -770,8 +770,8 @@ router.post('/populate-history', async (req, res) => {
                   record.villages_above_55,
                   record.villages_zero_supply,
                   record.data_date,
-                  record.water_value,
-                  record.lpcd_value,
+                  (record.water_value ?? 0),
+                  (record.lpcd_value ?? 0),
                   uploadBatchId,
                   record.dashboard_url,
                   record.mjp_commissioned

@@ -987,7 +987,16 @@ async function importDataToDatabase(data: any[], isExcel: boolean, isLpcdTemplat
     const validRecords: any[] = [];
     const seenRecords = new Set<string>();
 
+    let rowIndex = 0;
     for (const row of data) {
+      // Skip header row if this is a CSV with headers
+      if (!isExcel && isLpcdTemplate && rowIndex === 0) {
+        console.log("⏭️ Skipping CSV header row...");
+        rowIndex++;
+        continue;
+      }
+      rowIndex++;
+      
       let record: any;
 
       if (isExcel) {
@@ -1042,7 +1051,19 @@ async function importDataToDatabase(data: any[], isExcel: boolean, isLpcdTemplat
 
             // Use UPSERT to handle duplicates gracefully
             const fields = Object.keys(batchRecord);
-            const nonPkFields = fields.filter(key => key !== 'scheme_id' && key !== 'village_name' && key !== 'block');
+            const nonPkFields = fields.filter(key => 
+              key !== 'scheme_id' && 
+              key !== 'village_name' && 
+              key !== 'block' &&
+              key !== 'scheme_functional_status' &&
+              key !== 'fully_completion_scheme_status'
+            );
+            
+            // Also filter the fields list for the INSERT part
+            const tableFields = fields.filter(key => 
+              key !== 'scheme_functional_status' && 
+              key !== 'fully_completion_scheme_status'
+            );
 
             if (nonPkFields.length === 0) {
               // Only primary key fields present, skip this record
@@ -1050,15 +1071,15 @@ async function importDataToDatabase(data: any[], isExcel: boolean, isLpcdTemplat
             }
 
             const upsertQuery = `
-              INSERT INTO water_scheme_data (${fields.join(', ')}) 
-              VALUES (${fields.map((_, idx) => `$${idx + 1}`).join(', ')})
+              INSERT INTO water_scheme_data (${tableFields.join(', ')}) 
+              VALUES (${tableFields.map((_, idx) => `$${idx + 1}`).join(', ')})
               ON CONFLICT (scheme_id, village_name, block) 
               DO UPDATE SET 
                 ${nonPkFields.map(key => `${key} = EXCLUDED.${key}`).join(', ')}
               RETURNING (xmax = 0) AS inserted
             `;
-
-            const upsertValues = fields.map(field => batchRecord[field]);
+            
+            const upsertValues = tableFields.map(field => batchRecord[field]);
             const result = await client.query(upsertQuery, upsertValues);
 
             if (result.rows[0].inserted) {
@@ -1121,7 +1142,7 @@ async function importDataToDatabase(data: any[], isExcel: boolean, isLpcdTemplat
           }
 
           // Use a map to group values by date for this specific village/scheme
-          const datedEntries = new Map<string, {water: number | null, lpcd: number | null}>();
+          const datedEntries = new Map<string, { water: number | null, lpcd: number | null }>();
 
           // Process water values (days 1-7)
           for (let day = 1; day <= 7; day++) {
@@ -1132,7 +1153,8 @@ async function importDataToDatabase(data: any[], isExcel: boolean, isLpcdTemplat
               if (!datedEntries.has(waterDate)) {
                 datedEntries.set(waterDate, { water: 0, lpcd: 0 });
               }
-              datedEntries.get(waterDate)!.water = typeof waterValue === 'number' ? waterValue : parseFloat(String(waterValue || 0));
+              const parsedWater = typeof waterValue === 'number' ? waterValue : parseFloat(String(waterValue || 0));
+              datedEntries.get(waterDate)!.water = isNaN(parsedWater) ? 0 : parsedWater;
             }
           }
 
@@ -1145,7 +1167,8 @@ async function importDataToDatabase(data: any[], isExcel: boolean, isLpcdTemplat
               if (!datedEntries.has(lpcdDate)) {
                 datedEntries.set(lpcdDate, { water: 0, lpcd: 0 });
               }
-              datedEntries.get(lpcdDate)!.lpcd = typeof lpcdValue === 'number' ? lpcdValue : parseFloat(String(lpcdValue || 0));
+              const parsedLpcd = typeof lpcdValue === 'number' ? lpcdValue : parseFloat(String(lpcdValue || 0));
+              datedEntries.get(lpcdDate)!.lpcd = isNaN(parsedLpcd) ? 0 : parsedLpcd;
             }
           }
 
@@ -1193,7 +1216,7 @@ async function importDataToDatabase(data: any[], isExcel: boolean, isLpcdTemplat
                   histRecord.region, histRecord.circle, histRecord.division, histRecord.sub_division,
                   histRecord.block, histRecord.scheme_id, histRecord.scheme_name, histRecord.village_name,
                   histRecord.population, histRecord.number_of_esr, histRecord.data_date,
-                  histRecord.water_value, histRecord.lpcd_value, histRecord.upload_batch_id, histRecord.dashboard_url
+                  histRecord.water_value || 0, histRecord.lpcd_value || 0, histRecord.upload_batch_id, histRecord.dashboard_url
                 ];
 
                 await client.query(insertQuery, values);
@@ -1326,8 +1349,8 @@ async function importDataToDatabase(data: any[], isExcel: boolean, isLpcdTemplat
                     villages_below_55 = EXCLUDED.villages_below_55,
                     villages_above_55 = EXCLUDED.villages_above_55,
                     villages_zero_supply = EXCLUDED.villages_zero_supply,
-                    water_value = EXCLUDED.water_value,
-                    lpcd_value = EXCLUDED.lpcd_value,
+                    water_value = COALESCE(EXCLUDED.water_value, 0),
+                    lpcd_value = COALESCE(EXCLUDED.lpcd_value, 0),
                     upload_batch_id = EXCLUDED.upload_batch_id,
                     mjp_commissioned = EXCLUDED.mjp_commissioned,
                     uploaded_at = CURRENT_TIMESTAMP
@@ -1347,8 +1370,8 @@ async function importDataToDatabase(data: any[], isExcel: boolean, isLpcdTemplat
                   record.villages_above_55,
                   record.villages_zero_supply,
                   record.data_date,
-                  record.water_value,
-                  record.lpcd_value,
+                  (record.water_value ?? 0),
+                  (record.lpcd_value ?? 0),
                   uploadBatchId,
                   record.dashboard_url,
                   record.mjp_commissioned
@@ -1452,7 +1475,7 @@ function mapExcelFields(row: any) {
         // Handle different Excel value types
         if (value === '' || value === null || value === undefined) {
           if (['water_value_day1', 'water_value_day2', 'water_value_day3', 'water_value_day4', 'water_value_day5', 'water_value_day6', 'water_value_day7',
-               'lpcd_value_day1', 'lpcd_value_day2', 'lpcd_value_day3', 'lpcd_value_day4', 'lpcd_value_day5', 'lpcd_value_day6', 'lpcd_value_day7'].includes(dbField)) {
+            'lpcd_value_day1', 'lpcd_value_day2', 'lpcd_value_day3', 'lpcd_value_day4', 'lpcd_value_day5', 'lpcd_value_day6', 'lpcd_value_day7'].includes(dbField)) {
             record[dbField] = 0;
           } else {
             record[dbField] = null;
@@ -1540,52 +1563,49 @@ function mapCsvFields(row: string[]) {
     'fully_completion_scheme_status'
   ];
 
-  // Map fields based on column position
   columnMapping.forEach((field, index) => {
-    if (index < row.length) {
-      const value = row[index];
+    const value = row[index];
 
-      // Convert value to appropriate type
-      if (['population', 'number_of_esr', 'water_value_day1', 'water_value_day2', 'water_value_day3',
-        'water_value_day4', 'water_value_day5', 'water_value_day6', 'water_value_day7', 'lpcd_value_day1', 'lpcd_value_day2',
-        'lpcd_value_day3', 'lpcd_value_day4', 'lpcd_value_day5', 'lpcd_value_day6', 'lpcd_value_day7',
-        'below_55_lpcd_count', 'above_55_lpcd_count'].includes(field)) {
-        // Handle empty values
-        if (value === '' || value === null || value === undefined) {
-          if (['water_value_day1', 'water_value_day2', 'water_value_day3', 'water_value_day4', 'water_value_day5', 'water_value_day6', 'water_value_day7',
-               'lpcd_value_day1', 'lpcd_value_day2', 'lpcd_value_day3', 'lpcd_value_day4', 'lpcd_value_day5', 'lpcd_value_day6', 'lpcd_value_day7'].includes(field)) {
-            record[field] = 0;
-          } else {
-            record[field] = null;
-          }
-        } else {
-          // Parse numeric value - handle commas in numbers (e.g., "1,234.56")
-          const numValue = parseFloat(String(value).replace(/,/g, ''));
-          record[field] = isNaN(numValue) ? 0 : numValue;
-        }
-      } else if (field === 'consistent_zero_lpcd_for_a_week') {
-        // Convert to boolean/integer for database
-        if (typeof value === 'string') {
-          record[field] = ['true', 'yes', '1', 'y'].includes(value.toLowerCase()) ? 1 : 0;
-        } else if (typeof value === 'boolean') {
-          record[field] = value ? 1 : 0;
-        } else if (typeof value === 'number') {
-          record[field] = value > 0 ? 1 : 0;
-        } else {
-          record[field] = 0; // Default to 0 for null or undefined
-        }
-      } else if (field === 'scheme_functional_status' || field === 'fully_completion_scheme_status') {
-        // Normalize status values
-        if (value !== null && value !== undefined) {
-          const status = String(value).trim();
-          record[field] = normalizeStatusValue(status);
+    // Convert value to appropriate type
+    if (['population', 'number_of_esr', 'water_value_day1', 'water_value_day2', 'water_value_day3',
+      'water_value_day4', 'water_value_day5', 'water_value_day6', 'water_value_day7', 'lpcd_value_day1', 'lpcd_value_day2',
+      'lpcd_value_day3', 'lpcd_value_day4', 'lpcd_value_day5', 'lpcd_value_day6', 'lpcd_value_day7',
+      'below_55_lpcd_count', 'above_55_lpcd_count'].includes(field)) {
+      // Handle empty values
+      if (value === '' || value === null || value === undefined) {
+        if (['water_value_day1', 'water_value_day2', 'water_value_day3', 'water_value_day4', 'water_value_day5', 'water_value_day6', 'water_value_day7',
+          'lpcd_value_day1', 'lpcd_value_day2', 'lpcd_value_day3', 'lpcd_value_day4', 'lpcd_value_day5', 'lpcd_value_day6', 'lpcd_value_day7'].includes(field)) {
+          record[field] = 0;
         } else {
           record[field] = null;
         }
       } else {
-        // Keep as string but handle null/undefined
-        record[field] = value !== null && value !== undefined ? String(value) : null;
+        // Parse numeric value - handle commas in numbers (e.g., "1,234.56")
+        const numValue = parseFloat(String(value).replace(/,/g, ''));
+        record[field] = isNaN(numValue) ? 0 : numValue;
       }
+    } else if (field === 'consistent_zero_lpcd_for_a_week') {
+      // Convert to boolean/integer for database
+      if (typeof value === 'string') {
+        record[field] = ['true', 'yes', '1', 'y'].includes(value.toLowerCase()) ? 1 : 0;
+      } else if (typeof value === 'boolean') {
+        record[field] = value ? 1 : 0;
+      } else if (typeof value === 'number') {
+        record[field] = value > 0 ? 1 : 0;
+      } else {
+        record[field] = 0; // Default to 0 for null or undefined
+      }
+    } else if (field === 'scheme_functional_status' || field === 'fully_completion_scheme_status') {
+      // Normalize status values
+      if (value !== null && value !== undefined) {
+        const status = String(value).trim();
+        record[field] = normalizeStatusValue(status);
+      } else {
+        record[field] = null;
+      }
+    } else {
+      // Keep as string but handle null/undefined
+      record[field] = value !== null && value !== undefined ? String(value) : null;
     }
   });
 

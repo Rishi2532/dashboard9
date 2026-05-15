@@ -3064,14 +3064,14 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
         const dateParams = dateList.map((_, i) => `$${paramIndex++}`).join(',');
         params.push(...dateList);
 
-        const avgCalc = 'SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / NULLIF(COUNT(DISTINCT CASE WHEN NULLIF(TRIM(lpcd_value::text), \'\') IS NOT NULL THEN data_date END), 0)';
+        const avgCalc = 'SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0';
         let havingCondition = '1=1';
         if (metric === 'above_55') {
           havingCondition = `(${avgCalc}) >= 55`;
         } else if (metric === 'below_55') {
           havingCondition = `(${avgCalc}) > 0 AND (${avgCalc}) < 55`;
         } else if (metric === 'no_water') {
-          havingCondition = `(COUNT(DISTINCT CASE WHEN NULLIF(TRIM(lpcd_value::text), \'\') IS NOT NULL THEN data_date END) = 0 OR (${avgCalc}) = 0)`;
+          havingCondition = `(SUM(CASE WHEN NULLIF(TRIM(lpcd_value::text), \'\') IS NOT NULL THEN 1 ELSE 0 END) = 0 OR (${avgCalc}) = 0)`;
         } else {
           havingCondition = '1=1'; // Default for weekly_all_villages
         }
@@ -3097,10 +3097,14 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
                 AND (
                     data_date IN (${dateParams})
                     OR
-                    TO_CHAR(TO_DATE(CASE 
-                       WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN data_date
-                       ELSE '01-Jan-2000'
-                    END, 'DD-Mon-YY'), 'DD-Mon') IN (${dateParams})
+                    CASE 
+                       WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN TO_CHAR(data_date::date, 'DD-Mon')
+                       WHEN data_date ~ '^\\d{1,2}/\\d{1,2}/\\d{4}$' THEN TO_CHAR(TO_DATE(data_date, 'DD/MM/YYYY'), 'DD-Mon')
+                       WHEN data_date ~ '^\\d{1,2}-\\d{1,2}-\\d{4}$' THEN TO_CHAR(TO_DATE(data_date, 'DD-MM-YYYY'), 'DD-Mon')
+                       WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_CHAR(TO_DATE(data_date, 'DD-Mon-YY'), 'DD-Mon')
+                       WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN data_date
+                       ELSE NULL
+                    END IN (${dateParams})
                 )
                 ORDER BY scheme_id, village_name, block, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC
             ),
@@ -3692,6 +3696,7 @@ router.get("/lpcd/day-wise-breakdown/all-regions", async (req, res) => {
             data_date,
             CASE 
               WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
+              WHEN data_date ~ '^\\d{1,2}/\\d{1,2}/\\d{4}$' THEN TO_DATE(data_date, 'DD/MM/YYYY')
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
                 CASE
@@ -3856,10 +3861,9 @@ router.get("/lpcd/day-wise-breakdown", async (req, res) => {
             END as parsed_date
           FROM water_scheme_data_history wh
           WHERE data_date IS NOT NULL
-            AND lpcd_value IS NOT NULL
             ${regionFilter}
             ${schemeIdFilter}
-          ORDER BY scheme_id, village_name, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC NULLS LAST
+          ORDER BY scheme_id, village_name, data_date, uploaded_at DESC NULLS LAST
         ),
         ranked AS (
           SELECT 
@@ -6234,7 +6238,7 @@ router.get("/scheme-lpcd/division-details/:division/:metric", async (req, res) =
           metricFilter = 'AND (water_value IS NULL OR water_value::numeric = 0) AND (lpcd_value IS NULL OR lpcd_value::numeric = 0)';
           break;
         case 'above55':
-          metricFilter = 'AND lpcd_value IS NOT NULL AND lpcd_value::numeric >= 55';
+          metricFilter = 'AND lpcd_value::numeric >= 55';
           break;
         case 'below55':
           metricFilter = 'AND ((water_value IS NOT NULL AND water_value::numeric > 0) OR (lpcd_value IS NOT NULL AND lpcd_value::numeric > 0)) AND (lpcd_value IS NULL OR lpcd_value::numeric < 55)';
@@ -6367,7 +6371,7 @@ router.get("/scheme-lpcd/division-details-export/:division/:metric", async (req,
           metricFilter = 'AND (water_value IS NULL OR water_value::numeric = 0) AND (lpcd_value IS NULL OR lpcd_value::numeric = 0)';
           break;
         case 'above55':
-          metricFilter = 'AND lpcd_value IS NOT NULL AND lpcd_value::numeric >= 55';
+          metricFilter = 'AND lpcd_value::numeric >= 55';
           break;
         case 'below55':
           metricFilter = 'AND ((water_value IS NOT NULL AND water_value::numeric > 0) OR (lpcd_value IS NOT NULL AND lpcd_value::numeric > 0)) AND (lpcd_value IS NULL OR lpcd_value::numeric < 55)';
@@ -6512,7 +6516,7 @@ router.get("/scheme-lpcd/day-wise-breakdown", async (req, res) => {
           SELECT DISTINCT ON (scheme_id, COALESCE(block, ''), data_date)
             scheme_id,
             COALESCE(block, '') as block,
-            lpcd_value::numeric as lpcd_value,
+            COALESCE(lpcd_value::numeric, 0) as lpcd_value,
             data_date,
             CASE 
               WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
@@ -6527,7 +6531,6 @@ router.get("/scheme-lpcd/day-wise-breakdown", async (req, res) => {
             END as parsed_date
           FROM scheme_lpcd_data_history h
           WHERE data_date IS NOT NULL
-            AND lpcd_value IS NOT NULL
             ${regionFilter}
             ${schemeIdFilter}
           ORDER BY scheme_id, COALESCE(block, ''), data_date, uploaded_at DESC NULLS LAST
@@ -6682,6 +6685,7 @@ router.get("/scheme-lpcd/day-wise-breakdown/all-regions", async (req, res) => {
             data_date,
             CASE 
               WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
+              WHEN data_date ~ '^\\d{1,2}/\\d{1,2}/\\d{4}$' THEN TO_DATE(data_date, 'DD/MM/YYYY')
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
                 CASE
@@ -6880,7 +6884,6 @@ router.get("/scheme-lpcd/day-wise-schemes/:metric/:days", async (req, res) => {
             END as parsed_date
           FROM scheme_lpcd_data_history h
           WHERE data_date IS NOT NULL
-            AND lpcd_value IS NOT NULL
             ${regionFilter}
             ${schemeIdFilter}
           ORDER BY scheme_id, COALESCE(block, ''), data_date, uploaded_at DESC NULLS LAST
@@ -7043,11 +7046,12 @@ router.get("/scheme-lpcd/day-wise-schemes-export/:metric/:days", async (req, res
             COALESCE(block, '') as block,
             region, circle, division, sub_division, scheme_name,
             total_population, total_villages,
-            lpcd_value::numeric as lpcd_value,
+            COALESCE(lpcd_value::numeric, 0) as lpcd_value,
             water_value,
             data_date,
             CASE 
               WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN data_date::date
+              WHEN data_date ~ '^\\d{1,2}/\\d{1,2}/\\d{4}$' THEN TO_DATE(data_date, 'DD/MM/YYYY')
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(data_date, 'DD-Mon-YY')
               WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
                 CASE
@@ -7059,7 +7063,6 @@ router.get("/scheme-lpcd/day-wise-schemes-export/:metric/:days", async (req, res
             END as parsed_date
           FROM scheme_lpcd_data_history h
           WHERE data_date IS NOT NULL
-            AND lpcd_value IS NOT NULL
             ${regionFilter}
             ${schemeIdFilter}
           ORDER BY scheme_id, COALESCE(block, ''), data_date, uploaded_at DESC NULLS LAST
@@ -7219,6 +7222,7 @@ router.get("/scheme-lpcd/region-comparison", async (req, res) => {
             h.scheme_id, h.block, h.lpcd_value, h.total_population, h.data_date, h.uploaded_at,
             CASE 
               WHEN h.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN h.data_date::date
+              WHEN h.data_date ~ '^\\d{1,2}/\\d{1,2}/\\d{4}$' THEN TO_DATE(h.data_date, 'DD/MM/YYYY')
               WHEN h.data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(h.data_date, 'DD-Mon-YY')
               WHEN h.data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
                 CASE
@@ -7231,7 +7235,7 @@ router.get("/scheme-lpcd/region-comparison", async (req, res) => {
           FROM scheme_lpcd_data_history h
         ),
         latest_ranks AS (
-          SELECT rh.*,
+          SELECT rh.scheme_id, rh.block, COALESCE(rh.lpcd_value::numeric, 0) as lpcd_value, rh.total_population, rh.data_date, rh.uploaded_at, rh.parsed_date,
             ROW_NUMBER() OVER (PARTITION BY scheme_id, block ORDER BY parsed_date DESC NULLS LAST, uploaded_at DESC) as rn
           FROM ranked_history rh
           WHERE parsed_date IS NOT NULL
@@ -7327,14 +7331,14 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
         // normalize query dates logic if needed, but assuming direct string match or simple normalization
         // Using a simpler approach: Filter where data_date matches ANY of the provided dates
 
-        const metric = category.replace('weekly_', '');
-        let havingCondition = '1=1';
+        const avgCalc = 'SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0';
+        
         if (metric === 'above_55') {
-          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) >= 55';
+          havingCondition = `(${avgCalc}) >= 55`;
         } else if (metric === 'below_55') {
-          havingCondition = '(SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) > 0 AND (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) < 55';
+          havingCondition = `(${avgCalc}) > 0 AND (${avgCalc}) < 55`;
         } else if (metric === 'no_water') {
-          havingCondition = '((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) IS NULL OR (SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0) = 0)';
+          havingCondition = `(${avgCalc}) IS NULL OR (${avgCalc}) = 0`;
         } else {
           havingCondition = '1=1';
         }
@@ -7355,8 +7359,19 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
                 WHERE sldh.region IS NOT NULL
                 ${regionFilter}
                 ${schemeIdFilter}
-                AND sldh.data_date IN (${dateParams})
-                ORDER BY sldh.region, sldh.scheme_id, sldh.block, sldh.data_date, (sldh.lpcd_value IS NOT NULL AND TRIM(sldh.lpcd_value::text) != '') DESC, sldh.uploaded_at DESC
+                AND (
+                    sldh.data_date IN (${dateParams})
+                    OR
+                    CASE 
+                       WHEN sldh.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN TO_CHAR(sldh.data_date::date, 'DD-Mon')
+                       WHEN sldh.data_date ~ '^\\d{1,2}/\\d{1,2}/\\d{4}$' THEN TO_CHAR(TO_DATE(sldh.data_date, 'DD/MM/YYYY'), 'DD-Mon')
+                       WHEN sldh.data_date ~ '^\\d{1,2}-\\d{1,2}-\\d{4}$' THEN TO_CHAR(TO_DATE(sldh.data_date, 'DD-MM-YYYY'), 'DD-Mon')
+                       WHEN sldh.data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_CHAR(TO_DATE(sldh.data_date, 'DD-Mon-YY'), 'DD-Mon')
+                       WHEN sldh.data_date ~ '^[0-9]+-[A-Za-z]+$' THEN sldh.data_date
+                       ELSE NULL
+                    END IN (${dateParams})
+                )
+                ORDER BY sldh.region, sldh.scheme_id, sldh.block, sldh.data_date, sldh.uploaded_at DESC
             )
             SELECT
                 region, MAX(circle) as circle, MAX(division) as division, MAX(sub_division) as sub_division, block,
@@ -7410,6 +7425,7 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
               h.data_date, h.uploaded_at,
               CASE 
                 WHEN h.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN h.data_date::date
+                WHEN h.data_date ~ '^\\d{1,2}/\\d{1,2}/\\d{4}$' THEN TO_DATE(h.data_date, 'DD/MM/YYYY')
                 WHEN h.data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_DATE(h.data_date, 'DD-Mon-YY')
                 WHEN h.data_date ~ '^[0-9]+-[A-Za-z]+$' THEN 
                   CASE
@@ -7424,7 +7440,9 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
             ${schemeIdFilterApplied}
           ),
           latest_ranks AS (
-            SELECT rh.*,
+            SELECT rh.scheme_id, rh.block, rh.scheme_name, COALESCE(rh.lpcd_value::numeric, 0) as lpcd_value, rh.water_value,
+              rh.total_population, rh.total_villages, rh.villages_above_55, rh.villages_below_55, rh.villages_zero_supply,
+              rh.data_date, rh.uploaded_at, rh.parsed_date,
               ROW_NUMBER() OVER (PARTITION BY scheme_id, block ORDER BY parsed_date DESC NULLS LAST, uploaded_at DESC) as rn
             FROM ranked_history rh
             WHERE parsed_date IS NOT NULL
@@ -7571,7 +7589,7 @@ router.get("/scheme-lpcd/region-comparison-schemes-export-current/:category", as
                ELSE '01-Jan-2000'
             END, 'DD-Mon-YY'), 'DD-Mon') IN (${dateParams})
           )
-          ORDER BY region, scheme_id, block, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC
+          ORDER BY region, scheme_id, block, data_date, uploaded_at DESC
         ),
         scheme_stats AS (
           SELECT
@@ -7595,10 +7613,10 @@ router.get("/scheme-lpcd/region-comparison-schemes-export-current/:category", as
 
         switch (category) {
           case 'above_55':
-            metricCondition = 'AND lpcd_value IS NOT NULL AND lpcd_value::numeric >= 55';
+            metricCondition = 'AND lpcd_value::numeric >= 55';
             break;
           case 'below_55':
-            metricCondition = 'AND lpcd_value IS NOT NULL AND lpcd_value::numeric > 0 AND lpcd_value::numeric < 55';
+            metricCondition = 'AND lpcd_value::numeric > 0 AND lpcd_value::numeric < 55';
             break;
           case 'with_water':
             metricCondition = 'AND water_value IS NOT NULL AND water_value::numeric > 0';
@@ -7791,7 +7809,7 @@ router.get("/scheme-lpcd/region-comparison-schemes-export/:category/:day", async
                ELSE '01-Jan-2000'
             END, 'DD-Mon-YY'), 'DD-Mon') IN (${dateParams})
           )
-          ORDER BY region, scheme_id, block, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC
+          ORDER BY region, scheme_id, block, data_date, uploaded_at DESC
         )
         SELECT
             region, MAX(circle) as circle, MAX(division) as division, MAX(sub_division) as sub_division, block, MAX(completion_status) as completion_status,
