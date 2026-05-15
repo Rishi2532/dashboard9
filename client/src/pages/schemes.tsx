@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useAuth } from "@/hooks/use-auth";
 import ExcelJS from "exceljs";
 import { useQuery } from "@tanstack/react-query";
 import DashboardLayout from "@/components/dashboard/dashboard-layout";
@@ -20,6 +21,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Schemes() {
+  const { isAdmin } = useAuth();
   const [selectedRegion, setSelectedRegion] = useState("all");
   const [selectedCircle, setSelectedCircle] = useState("all");
   const [selectedDivision, setSelectedDivision] = useState("all");
@@ -201,19 +203,14 @@ export default function Schemes() {
     if (!schemes) return [];
     let filtered = [...schemes];
 
+    // 1. Apply Scheme Category Filter (Admin)
     if (uiSchemeFilter !== "all") {
-      filtered = filtered.filter((record) => {
-        const status = record; // Assuming record is the scheme status object
+      filtered = filtered.filter((status) => {
         if (!status) return true;
 
         if (uiSchemeFilter === "commissioned") {
           // 100% Civil work Completed: water_supply = Yes
-          const isCivilCompleted = status.water_supply === "Yes";
-          if (!isCivilCompleted) return false;
-
-          // Water supply status tabs: Full, Partial, No
-          if (waterSupplyStatus === "All") return true;
-          return status.water_supply_status === waterSupplyStatus;
+          return status.water_supply === "Yes";
         }
 
         if (uiSchemeFilter === "fully_completed") {
@@ -241,6 +238,13 @@ export default function Schemes() {
         }
 
         return true;
+      });
+    }
+
+    // 2. Apply Water Supply Status Filter (Tabs)
+    if (waterSupplyStatus !== "All") {
+      filtered = filtered.filter((status) => {
+        return status.water_supply_status === waterSupplyStatus;
       });
     }
 
@@ -739,6 +743,29 @@ export default function Schemes() {
 
         {/* Agency Type + Water Supply Status on one line */}
         <div className="px-4 py-3 bg-blue-50 flex flex-wrap gap-x-6 gap-y-3 items-end">
+          {isAdmin && (
+            <div className="flex flex-col gap-2">
+              <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Scheme Category (Admin)</p>
+              <Select
+                value={uiSchemeFilter}
+                onValueChange={(val) => {
+                  setUiSchemeFilter(val);
+                }}
+              >
+                <SelectTrigger className="h-8 w-[180px] text-xs bg-white border-blue-200">
+                  <SelectValue placeholder="Select Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="commissioned">Commissioned</SelectItem>
+                  <SelectItem value="all">All Schemes</SelectItem>
+                  <SelectItem value="fully_completed">Fully Completed</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="common_filter">Common Filter</SelectItem>
+                  <SelectItem value="mjp_commissioned_yes">MJP Commissioned</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div>
             <AgencyTypeFilter
               selectedAgencyType={selectedAgencyType}

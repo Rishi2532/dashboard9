@@ -1935,6 +1935,7 @@ export default function Dashboard() {
               onStatusFilterChange={handleStatusFilterChange}
               onFilteredSchemesChange={handleFilteredSchemesChange}
               selectedRegion={selectedRegion}
+              defaultCommissionedFilter="Water Supply"
             />
           </div>
         </div>

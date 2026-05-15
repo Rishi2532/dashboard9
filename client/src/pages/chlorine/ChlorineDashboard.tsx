@@ -44,6 +44,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { TranslatedText } from "@/components/ui/translated-text";
+import { useAuth } from "@/hooks/use-auth";
 import { useComprehensiveActivityTracker } from "@/hooks/use-comprehensive-activity-tracker";
 import {
   Search,
@@ -193,6 +194,7 @@ type SensorStatusFilter =
 
 const ChlorineDashboard: React.FC = () => {
   const { toast } = useToast();
+  const { isAdmin } = useAuth();
   const {
     trackPageVisit,
     trackDataExport,
@@ -1880,6 +1882,25 @@ const ChlorineDashboard: React.FC = () => {
                 )}
               </div>
             </div>
+
+            {isAdmin && (
+              <div className="min-w-[200px]">
+                <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1.5">Scheme Category (Admin)</p>
+                <Select value={uiSchemeFilter} onValueChange={(value) => { setUiSchemeFilter(value); setPage(1); }}>
+                  <SelectTrigger className="w-full bg-white border-blue-200 h-9">
+                    <SelectValue placeholder="Scheme Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Schemes</SelectItem>
+                    <SelectItem value="commissioned">Commissioned (100% Civil)</SelectItem>
+                    <SelectItem value="fully_completed">Fully Instrumented (100% IoT)</SelectItem>
+                    <SelectItem value="in_progress">Partially Instrumented (In Progress)</SelectItem>
+                    <SelectItem value="common_filter">Common (Civil + IoT Done)</SelectItem>
+                    <SelectItem value="mjp_commissioned_yes">MJP Commissioned</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Action Buttons */}
             <div className="flex gap-2 shrink-0">

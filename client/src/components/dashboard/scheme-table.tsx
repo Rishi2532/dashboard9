@@ -51,6 +51,7 @@ interface SchemeTableProps {
   onStatusFilterChange?: (status: string) => void;
   onFilteredSchemesChange?: (filteredSchemes: SchemeStatus[]) => void;
   selectedRegion?: string;
+  defaultCommissionedFilter?: string;
 }
 
 export default function SchemeTable({
@@ -62,13 +63,14 @@ export default function SchemeTable({
   onStatusFilterChange,
   onFilteredSchemesChange,
   selectedRegion = "all",
+  defaultCommissionedFilter = "all",
 }: SchemeTableProps) {
   const { trackSchemeDataLinkClick } = useDashboardTracking();
   const [searchTerm, setSearchTerm] = useState("");
   const [schemeIdSearch, setSchemeIdSearch] = useState("");
   const [localStatusFilter, setLocalStatusFilter] =
     useState<string>(statusFilter);
-  const [commissionedFilter, setCommissionedFilter] = useState<string>("Water Supply");
+  const [commissionedFilter, setCommissionedFilter] = useState<string>(defaultCommissionedFilter);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
@@ -203,7 +205,11 @@ export default function SchemeTable({
           <div>
             <div className="flex items-center gap-3 flex-wrap">
               <CardTitle className="text-base sm:text-lg lg:text-xl xl:text-2xl font-medium text-neutral-900">
-                Schemes with 100% Civil Work Completion
+                {commissionedFilter === "all" 
+                  ? "All Water Schemes" 
+                  : commissionedFilter === "Water Supply" 
+                    ? "Schemes with 100% Civil Work Completion" 
+                    : `${commissionedFilter} Schemes`}
               </CardTitle>
               <span className="px-3 py-1 bg-blue-100 rounded-full text-blue-800 text-sm font-medium">
                 {filteredSchemes.length} schemes found

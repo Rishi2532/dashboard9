@@ -42,6 +42,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { TranslatedText } from "@/components/ui/translated-text";
+import { useAuth } from "@/hooks/use-auth";
 import {
   Filter,
   Download,
@@ -157,6 +158,7 @@ type WaterConsumptionFilterType =
 
 const WaterConsumptionPage: React.FC = () => {
   const { toast } = useToast();
+  const { isAdmin } = useAuth();
 
   // Filter state
   const [selectedRegion, setSelectedRegion] = useState<string>("all");
@@ -1868,6 +1870,44 @@ const WaterConsumptionPage: React.FC = () => {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {isAdmin && (
+                  <div className="min-w-[200px]">
+                    <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1.5">Scheme Category (Admin)</p>
+                    <Select value={uiSchemeFilter} onValueChange={(value) => { setUiSchemeFilter(value); setPage(1); }}>
+                      <SelectTrigger className="w-full bg-white border-blue-200 h-9">
+                        <SelectValue placeholder="Scheme Category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Schemes</SelectItem>
+                        <SelectItem value="commissioned">Commissioned (100% Civil)</SelectItem>
+                        <SelectItem value="fully_completed">Fully Instrumented (100% IoT)</SelectItem>
+                        <SelectItem value="in_progress">Partially Instrumented (In Progress)</SelectItem>
+                        <SelectItem value="common_filter">Common (Civil + IoT Done)</SelectItem>
+                        <SelectItem value="mjp_commissioned_yes">MJP Commissioned</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {isAdmin && (
+                  <div className="min-w-[200px]">
+                    <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1.5">Scheme Category (Admin)</p>
+                    <Select value={uiSchemeFilter} onValueChange={(value) => { setUiSchemeFilter(value); setPage(1); }}>
+                      <SelectTrigger className="w-full bg-white border-blue-200 h-9">
+                        <SelectValue placeholder="Scheme Category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Schemes</SelectItem>
+                        <SelectItem value="commissioned">Commissioned (100% Civil)</SelectItem>
+                        <SelectItem value="fully_completed">Fully Instrumented (100% IoT)</SelectItem>
+                        <SelectItem value="in_progress">Partially Instrumented (In Progress)</SelectItem>
+                        <SelectItem value="common_filter">Common (Civil + IoT Done)</SelectItem>
+                        <SelectItem value="mjp_commissioned_yes">MJP Commissioned</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 <div className="w-full sm:w-auto">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Consumption Filter</p>

@@ -98,7 +98,7 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
         COALESCE(cd.dashboard_url, pd.dashboard_url, sd.dashboard_url) as dashboard_url,
         ss.agency_type
       FROM communication_status cs
-      LEFT JOIN scheme_status ss ON cs.scheme_id = ss.scheme_id AND cs.block = ss.block
+      LEFT JOIN scheme_status ss ON cs.scheme_id = ss.scheme_id
       LEFT JOIN LATERAL (
         SELECT population, dashboard_url
         FROM water_scheme_data
@@ -181,7 +181,7 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
         sd.population,
         ss.agency_type || '' as agency_type
       FROM communication_status cs
-      LEFT JOIN scheme_status ss ON cs.scheme_id = ss.scheme_id AND cs.block = ss.block
+      LEFT JOIN scheme_status ss ON cs.scheme_id = ss.scheme_id
       LEFT JOIN LATERAL (
         SELECT population
         FROM water_scheme_data

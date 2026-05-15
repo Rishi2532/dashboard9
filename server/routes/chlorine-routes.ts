@@ -3704,7 +3704,6 @@ router.get("/lpcd/day-wise-breakdown/all-regions", async (req, res) => {
           FROM water_scheme_data_history wh
           WHERE data_date IS NOT NULL
           ${schemeIdFilter}
-            AND lpcd_value IS NOT NULL
             AND region IS NOT NULL
           ORDER BY scheme_id, village_name, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC NULLS LAST
         ),
@@ -6695,7 +6694,6 @@ router.get("/scheme-lpcd/day-wise-breakdown/all-regions", async (req, res) => {
           FROM scheme_lpcd_data_history h
           WHERE data_date IS NOT NULL
           ${schemeIdFilter}
-            AND lpcd_value IS NOT NULL
             AND region IS NOT NULL
           ORDER BY scheme_id, COALESCE(block, ''), data_date, uploaded_at DESC NULLS LAST
         ),
@@ -7241,7 +7239,7 @@ router.get("/scheme-lpcd/region-comparison", async (req, res) => {
         latest_scheme_data AS (
           SELECT lr.*, ss.region, ss.circle, ss.division, ss.sub_division, ss.agency_type, ss.fully_completion_scheme_status, ss.water_supply
           FROM latest_ranks lr
-          LEFT JOIN scheme_status ss ON lr.scheme_id = ss.scheme_id AND lr.block = ss.block
+          LEFT JOIN scheme_status ss ON lr.scheme_id = ss.scheme_id
           WHERE rn = 1
         )
         SELECT 
@@ -7353,7 +7351,7 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
                     sldh.scheme_id, sldh.scheme_name, sldh.total_population, sldh.total_villages,
                     sldh.lpcd_value, sldh.water_value, sldh.data_date, COALESCE(NULLIF(ss.dashboard_url, ''), sldh.dashboard_url) as dashboard_url
                 FROM scheme_lpcd_data_history sldh
-                LEFT JOIN scheme_status ss ON ss.scheme_id = sldh.scheme_id AND ss.block = sldh.block
+                LEFT JOIN scheme_status ss ON ss.scheme_id = sldh.scheme_id
                 WHERE sldh.region IS NOT NULL
                 ${regionFilter}
                 ${schemeIdFilter}
@@ -7434,7 +7432,7 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
           latest_scheme_data AS (
             SELECT lr.*, ss.region, ss.circle, ss.division, ss.sub_division, ss.dashboard_url
             FROM latest_ranks lr
-            LEFT JOIN scheme_status ss ON lr.scheme_id = ss.scheme_id AND lr.block = ss.block
+            LEFT JOIN scheme_status ss ON lr.scheme_id = ss.scheme_id
             WHERE rn = 1
             ${currentRegionFilter}
           )

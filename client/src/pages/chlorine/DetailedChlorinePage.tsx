@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import DashboardLayout from "@/components/dashboard/dashboard-layout";
 import Sidebar from "@/components/dashboard/sidebar";
+import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -402,6 +403,7 @@ interface ComparisonDetailItem {
 }
 
 const DetailedChlorinePage = () => {
+  const { isAdmin } = useAuth();
   const { toast } = useToast();
   // Main tab: LPCD, Chlorine, or Pressure (LPCD is default)
   const [mainTab, setMainTab] = useState<"lpcd" | "chlorine" | "pressure">(
@@ -3136,6 +3138,30 @@ const DetailedChlorinePage = () => {
             {/* Fully Completed Filter Button */}
             <div className="flex flex-nowrap items-center gap-3 mb-6 bg-white dark:bg-gray-800 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-x-auto">
               <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap flex-shrink-0">Filter:</span>
+
+              {isAdmin && (
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Scheme Category (Admin):</span>
+                  <Select
+                    value={uiSchemeFilter}
+                    onValueChange={(val) => {
+                      setUiSchemeFilter(val);
+                    }}
+                  >
+                    <SelectTrigger className="h-8 w-[180px] text-xs bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700">
+                      <SelectValue placeholder="Select Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="commissioned">Commissioned</SelectItem>
+                      <SelectItem value="all">All Schemes</SelectItem>
+                      <SelectItem value="fully_completed">Fully Completed</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="common_filter">Common Filter</SelectItem>
+                      <SelectItem value="mjp_commissioned_yes">MJP Commissioned</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {(uiSchemeFilter === "commissioned" || uiSchemeFilter === "fully_completed") && (
                 <>

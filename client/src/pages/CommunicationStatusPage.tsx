@@ -16,6 +16,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -54,6 +57,7 @@ import DashboardLayout from "@/components/dashboard/dashboard-layout";
 import AgencyTypeFilter from "@/components/dashboard/AgencyTypeFilter";
 import ExcelJS from "exceljs";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import FilterBar from "@/components/dashboard/FilterBar";
 interface CommunicationOverview {
@@ -122,6 +126,7 @@ interface FilterOptions {
 
 export default function CommunicationStatusPage() {
   const { toast } = useToast();
+  const { isAdmin } = useAuth();
   const [selectedRegion, setSelectedRegion] = useState<string>("all");
   const [selectedCircle, setSelectedCircle] = useState<string>("all");
   const [selectedDivision, setSelectedDivision] = useState<string>("all");
@@ -1283,6 +1288,24 @@ export default function CommunicationStatusPage() {
                   />
                 </div>
               </div>
+
+              {isAdmin && (
+                <div className="min-w-[200px]">
+                  <Select value={uiSchemeFilter} onValueChange={(value) => { setUiSchemeFilter(value); setCurrentPage(1); }}>
+                    <SelectTrigger className="w-full bg-white border-blue-200">
+                      <SelectValue placeholder="Scheme Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Schemes</SelectItem>
+                      <SelectItem value="commissioned">Commissioned (100% Civil)</SelectItem>
+                      <SelectItem value="fully_completed">Fully Instrumented (100% IoT)</SelectItem>
+                      <SelectItem value="in_progress">Partially Instrumented (In Progress)</SelectItem>
+                      <SelectItem value="common_filter">Common (Civil + IoT Done)</SelectItem>
+                      <SelectItem value="mjp_commissioned_yes">MJP Commissioned</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <Button
                 onClick={handleExcelDownload}

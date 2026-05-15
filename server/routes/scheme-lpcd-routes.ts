@@ -37,7 +37,7 @@ router.get('/', async (req, res) => {
         FROM 
           scheme_lpcd sl
         LEFT JOIN
-          scheme_status ss ON sl.scheme_id = ss.scheme_id AND sl.block = ss.block
+          scheme_status ss ON sl.scheme_id = ss.scheme_id
       `;
 
       // Add WHERE clause for filtering
@@ -144,7 +144,7 @@ router.get('/lpcd-stats', async (req, res) => {
         FROM 
           scheme_lpcd sl
         LEFT JOIN
-          scheme_status ss ON sl.scheme_id = ss.scheme_id AND sl.block = ss.block
+          scheme_status ss ON sl.scheme_id = ss.scheme_id
       `;
 
       // Add WHERE clauses for geographic filtering
@@ -250,7 +250,7 @@ router.get('/history', async (req, res) => {
             ) as actual_date,
             ss.agency_type
           FROM scheme_lpcd_data_history h
-          LEFT JOIN scheme_status ss ON h.scheme_id = ss.scheme_id AND h.block = ss.block
+          LEFT JOIN scheme_status ss ON h.scheme_id = ss.scheme_id
         )
         SELECT 
           *
@@ -373,7 +373,7 @@ router.get('/export/history', async (req, res) => {
             h.mjp_commissioned,
             ss.agency_type
           FROM scheme_lpcd_data_history h
-          LEFT JOIN scheme_status ss ON h.scheme_id = ss.scheme_id AND h.block = ss.block
+          LEFT JOIN scheme_status ss ON h.scheme_id = ss.scheme_id
         )
         SELECT 
           *,

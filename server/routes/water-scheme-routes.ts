@@ -119,7 +119,7 @@ router.get('/', async (req, res) => {
       }
 
       if (agencyType && agencyType !== 'ALL') {
-        conditions.push(`EXISTS (SELECT 1 FROM scheme_status ss WHERE ss.scheme_id = water_scheme_data.scheme_id AND ss.block = water_scheme_data.block AND ss.agency_type = $${queryParams.length + 1})`);
+        conditions.push(`EXISTS (SELECT 1 FROM scheme_status ss WHERE ss.scheme_id = water_scheme_data.scheme_id AND ss.agency_type = $${queryParams.length + 1})`);
         queryParams.push(agencyType);
       }
 
@@ -169,7 +169,7 @@ router.get('/village-counts', async (req, res) => {
           FROM water_scheme_data wsd
           LEFT JOIN scheme_status ss ON wsd.scheme_id = ss.scheme_id
           WHERE wsd.village_name IS NOT NULL AND wsd.village_name != ''
-          ${agencyType && agencyType !== 'ALL' ? `AND EXISTS (SELECT 1 FROM scheme_status filter_ss WHERE filter_ss.scheme_id = wsd.scheme_id AND filter_ss.block = wsd.block AND filter_ss.agency_type = '${agencyType}')` : ''}
+          ${agencyType && agencyType !== 'ALL' ? `AND EXISTS (SELECT 1 FROM scheme_status filter_ss WHERE filter_ss.scheme_id = wsd.scheme_id AND filter_ss.agency_type = '${agencyType}')` : ''}
           ORDER BY wsd.village_name, wsd.region, wsd.scheme_id
         )
         SELECT 
@@ -237,7 +237,7 @@ router.get('/village-stats', async (req, res) => {
             lpcd_value_day6
           FROM water_scheme_data 
           WHERE village_name IS NOT NULL AND village_name != ''
-          ${agencyType && agencyType !== 'ALL' ? `AND EXISTS (SELECT 1 FROM scheme_status ss WHERE ss.scheme_id = water_scheme_data.scheme_id AND ss.block = water_scheme_data.block AND ss.agency_type = '${agencyType}')` : ''}
+          ${agencyType && agencyType !== 'ALL' ? `AND EXISTS (SELECT 1 FROM scheme_status ss WHERE ss.scheme_id = water_scheme_data.scheme_id AND ss.agency_type = '${agencyType}')` : ''}
         )
         SELECT 
           COUNT(DISTINCT CONCAT(village_name, '|', scheme_id)) as total_villages,
@@ -318,7 +318,7 @@ router.get('/population-stats', async (req, res) => {
             lpcd_value_day6
           FROM water_scheme_data 
           WHERE population IS NOT NULL AND population > 0
-          ${agencyType && agencyType !== 'ALL' ? `AND EXISTS (SELECT 1 FROM scheme_status ss WHERE ss.scheme_id = water_scheme_data.scheme_id AND ss.block = water_scheme_data.block AND ss.agency_type = '${agencyType}')` : ''}
+          ${agencyType && agencyType !== 'ALL' ? `AND EXISTS (SELECT 1 FROM scheme_status ss WHERE ss.scheme_id = water_scheme_data.scheme_id AND ss.agency_type = '${agencyType}')` : ''}
         )
         SELECT 
           COUNT(DISTINCT CONCAT(village_name, '|', scheme_id)) as total_villages,
@@ -486,7 +486,7 @@ router.get('/lpcd-stats', async (req, res) => {
             consistent_zero_lpcd_for_a_week
           FROM water_scheme_data 
           WHERE population IS NOT NULL AND population > 0
-          ${agencyType && agencyType !== 'ALL' ? `AND EXISTS (SELECT 1 FROM scheme_status ss WHERE ss.scheme_id = water_scheme_data.scheme_id AND ss.block = water_scheme_data.block AND ss.agency_type = '${agencyType}')` : ''}
+          ${agencyType && agencyType !== 'ALL' ? `AND EXISTS (SELECT 1 FROM scheme_status ss WHERE ss.scheme_id = water_scheme_data.scheme_id AND ss.agency_type = '${agencyType}')` : ''}
         )
         SELECT 
           COUNT(*) FILTER (WHERE lpcd_value_day7 > 55) AS above_55_count,
@@ -1661,7 +1661,7 @@ router.get("/water-trends", async (req, res) => {
         FROM water_scheme_data 
         WHERE population IS NOT NULL AND population > 0
         ${region && region !== 'all' ? 'AND region = \'' + region + '\'' : ''}
-        ${agencyType && agencyType !== 'ALL' ? `AND EXISTS (SELECT 1 FROM scheme_status ss WHERE ss.scheme_id = water_scheme_data.scheme_id AND ss.block = water_scheme_data.block AND ss.agency_type = '${agencyType}')` : ''}
+        ${agencyType && agencyType !== 'ALL' ? `AND EXISTS (SELECT 1 FROM scheme_status ss WHERE ss.scheme_id = water_scheme_data.scheme_id AND ss.agency_type = '${agencyType}')` : ''}
       `);
 
       const row = result.rows[0];
@@ -1713,7 +1713,7 @@ router.get("/no-water-trends", async (req, res) => {
         FROM water_scheme_data 
         WHERE population IS NOT NULL AND population > 0
         ${region && region !== 'all' ? 'AND region = \'' + region + '\'' : ''}
-        ${agencyType && agencyType !== 'ALL' ? `AND EXISTS (SELECT 1 FROM scheme_status ss WHERE ss.scheme_id = water_scheme_data.scheme_id AND ss.block = water_scheme_data.block AND ss.agency_type = '${agencyType}')` : ''}
+        ${agencyType && agencyType !== 'ALL' ? `AND EXISTS (SELECT 1 FROM scheme_status ss WHERE ss.scheme_id = water_scheme_data.scheme_id AND ss.agency_type = '${agencyType}')` : ''}
       `);
 
       const row = result.rows[0];
@@ -1945,7 +1945,7 @@ router.get('/history', async (req, res) => {
       }
 
       if (agencyType && agencyType !== 'ALL') {
-        query += ` AND EXISTS (SELECT 1 FROM scheme_status ss WHERE ss.scheme_id = water_scheme_data_history.scheme_id AND ss.block = water_scheme_data_history.block AND ss.agency_type = $${paramIndex++})`;
+        query += ` AND EXISTS (SELECT 1 FROM scheme_status ss WHERE ss.scheme_id = water_scheme_data_history.scheme_id AND ss.agency_type = $${paramIndex++})`;
         queryParams.push(agencyType);
       }
 
@@ -2231,7 +2231,7 @@ router.get('/historical', async (req, res) => {
               END
             ) as actual_date
           FROM water_scheme_data_history h
-          ${agencyType && agencyType !== 'ALL' ? `WHERE EXISTS (SELECT 1 FROM scheme_status ss WHERE ss.scheme_id = h.scheme_id AND ss.block = h.block AND ss.agency_type = '${agencyType}')` : ''}
+          ${agencyType && agencyType !== 'ALL' ? `WHERE EXISTS (SELECT 1 FROM scheme_status ss WHERE ss.scheme_id = h.scheme_id AND ss.agency_type = '${agencyType}')` : ''}
         )
       `;
 
@@ -2344,7 +2344,7 @@ router.get('/download/village-lpcd-history', async (req, res) => {
               END
             ) as actual_date
           FROM water_scheme_data_history h
-          ${agencyType && agencyType !== 'ALL' ? `WHERE EXISTS (SELECT 1 FROM scheme_status ss WHERE ss.scheme_id = h.scheme_id AND ss.block = h.block AND ss.agency_type = '${agencyType}')` : ''}
+          ${agencyType && agencyType !== 'ALL' ? `WHERE EXISTS (SELECT 1 FROM scheme_status ss WHERE ss.scheme_id = h.scheme_id AND ss.agency_type = '${agencyType}')` : ''}
         )
         SELECT 
           region,
@@ -2847,7 +2847,7 @@ router.get('/villages/filtered', async (req, res) => {
       }
 
       if (agencyType && agencyType !== 'ALL') {
-        conditions.push(`EXISTS (SELECT 1 FROM scheme_status ss WHERE ss.scheme_id = water_scheme_data.scheme_id AND ss.block = water_scheme_data.block AND ss.agency_type = $${queryParams.length + 1})`);
+        conditions.push(`EXISTS (SELECT 1 FROM scheme_status ss WHERE ss.scheme_id = water_scheme_data.scheme_id AND ss.agency_type = $${queryParams.length + 1})`);
         queryParams.push(agencyType);
       }
 
