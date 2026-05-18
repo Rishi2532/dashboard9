@@ -7358,7 +7358,7 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
             WITH all_schemes AS (
               SELECT DISTINCT ss.region, ss.circle, ss.division, ss.sub_division, 
                               COALESCE(NULLIF(TRIM(ss.block), ''), '') as block, 
-                              (ss.scheme_id::text) as scheme_id, ss.scheme_name, ss.total_population, ss.total_villages,
+                              (ss.scheme_id::text) as scheme_id, ss.scheme_name,
                               ss.dashboard_url
               FROM scheme_status ss
               WHERE ss.region IS NOT NULL
@@ -7367,7 +7367,8 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
             ),
             weekly_data AS (
                 SELECT DISTINCT ON (sldh.scheme_id, sldh.block, sldh.data_date)
-                    sldh.scheme_id, sldh.block, sldh.lpcd_value, sldh.water_value, sldh.data_date
+                    sldh.scheme_id, sldh.block, sldh.lpcd_value, sldh.water_value, sldh.data_date,
+                    sldh.total_population, sldh.total_villages
                 FROM scheme_lpcd_data_history sldh
                 WHERE sldh.region IS NOT NULL
                 ${regionFilter}
@@ -7390,7 +7391,7 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
             )
             SELECT
                 s.region, MAX(s.circle) as circle, MAX(s.division) as division, MAX(s.sub_division) as sub_division, s.block,
-                s.scheme_id, MAX(s.scheme_name) as scheme_name, MAX(s.total_population) as total_population, MAX(s.total_villages) as total_villages,
+                s.scheme_id, MAX(s.scheme_name) as scheme_name, MAX(w.total_population) as total_population, MAX(w.total_villages) as total_villages,
                 ROUND((${avgCalc}), 2) as lpcd_value,
                 ROUND((SUM(COALESCE(NULLIF(TRIM(water_value::text), '')::numeric, 0)) / NULLIF(COUNT(DISTINCT CASE WHEN NULLIF(TRIM(lpcd_value::text), '') IS NOT NULL THEN data_date END), 0)), 2) as water_value,
                 MAX(data_date) as data_date,

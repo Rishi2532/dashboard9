@@ -138,6 +138,7 @@ export default function CommunicationStatusPage() {
   const [selectedWaterSupply, setSelectedWaterSupply] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [activeListTab, setActiveListTab] = useState<"esr" | "scheme">("esr");
   const itemsPerPage = 10;
 
   const schemeFilter = uiSchemeFilter !== "all" && waterSupplyStatus !== "All"
@@ -851,12 +852,179 @@ export default function CommunicationStatusPage() {
     );
   }, [uniqueSchemes, searchTerm]);
 
+  // Aggregated scheme communication data
+  const aggregatedSchemes = useMemo(() => {
+    const map = new Map<string, {
+      scheme_id: string;
+      scheme_name: string;
+      flow_meter_online: number;
+      chlorine_online: number;
+      pressure_online: number;
+      flow_meter_offline: number;
+      chlorine_offline: number;
+      pressure_offline: number;
+      flow_meter_offline_72h: number;
+      chlorine_offline_72h: number;
+      pressure_offline_72h: number;
+      total_esrs: number;
+    }>();
+
+    searchFilteredSchemes.forEach((item) => {
+      const key = item.scheme_id || 'unknown';
+      let agg = map.get(key);
+      if (!agg) {
+        agg = {
+          scheme_id: item.scheme_id,
+          scheme_name: item.scheme_name || 'N/A',
+          flow_meter_online: 0,
+          chlorine_online: 0,
+          pressure_online: 0,
+          flow_meter_offline: 0,
+          chlorine_offline: 0,
+          pressure_offline: 0,
+          flow_meter_offline_72h: 0,
+          chlorine_offline_72h: 0,
+          pressure_offline_72h: 0,
+          total_esrs: 0,
+        };
+        map.set(key, agg);
+      }
+
+      agg.total_esrs += 1;
+
+      // Online status checks
+      if (item.flow_meter_status === 'Online') agg.flow_meter_online += 1;
+      if (item.chlorine_status === 'Online') agg.chlorine_online += 1;
+      if (item.pressure_status === 'Online') agg.pressure_online += 1;
+
+      // Offline status checks
+      if (item.flow_meter_status === 'Offline') agg.flow_meter_offline += 1;
+      if (item.chlorine_status === 'Offline') agg.chlorine_offline += 1;
+      if (item.pressure_status === 'Offline') agg.pressure_offline += 1;
+
+      // Offline > 72h status checks
+      if (item.flow_meter_72h === '1') agg.flow_meter_offline_72h += 1;
+      if (item.chlorine_72h === '1') agg.chlorine_offline_72h += 1;
+      if (item.pressure_72h === '1') agg.pressure_offline_72h += 1;
+    });
+
+    return Array.from(map.values()).sort((a, b) => a.scheme_name.localeCompare(b.scheme_name));
+  }, [searchFilteredSchemes]);
+
+  // Excel download for scheme-wise aggregated summary
+  const handleSchemeExcelDownload = async () => {
+    try {
+      const dataToExport = aggregatedSchemes;
+
+      if (dataToExport.length === 0) {
+        toast({
+          title: "No Data To Export",
+          description: "There are no aggregated scheme records matching your current filter criteria.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Preparing Export",
+        description: `Processing ${dataToExport.length} scheme summaries...`,
+      });
+
+      const region = selectedRegion === "all" ? "All_Regions" : selectedRegion.replace(/\s+/g, "_");
+      const today = new Date().toISOString().split("T")[0];
+      const filename = `Scheme_Communication_Summary_${region}_${today}.xlsx`;
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet("Scheme Communication Summary");
+
+      const headers = [
+        "Scheme ID",
+        "Scheme Name",
+        "Total ESRs",
+        "Flow Meter Online",
+        "Chlorine Online",
+        "Pressure Online",
+        "Flow Meter Offline",
+        "Chlorine Offline",
+        "Pressure Offline",
+        "Flow Meter Offline >72h",
+        "Chlorine Offline >72h",
+        "Pressure Offline >72h",
+        "Export Date"
+      ];
+
+      worksheet.addRow(headers);
+
+      const exportDate = new Date().toLocaleDateString("en-IN");
+      const rows = dataToExport.map((item) => [
+        item.scheme_id || "",
+        item.scheme_name || "",
+        item.total_esrs,
+        item.flow_meter_online,
+        item.chlorine_online,
+        item.pressure_online,
+        item.flow_meter_offline,
+        item.chlorine_offline,
+        item.pressure_offline,
+        item.flow_meter_offline_72h,
+        item.chlorine_offline_72h,
+        item.pressure_offline_72h,
+        exportDate
+      ]);
+
+      worksheet.addRows(rows);
+
+      const headerRow = worksheet.getRow(1);
+      headerRow.eachCell((cell: any) => {
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "6200EE" },
+        };
+        cell.font = { color: { argb: "FFFFFFFF" }, bold: true };
+        cell.alignment = { horizontal: "center" };
+      });
+
+      const colWidths = [15, 35, 12, 18, 18, 18, 18, 18, 18, 22, 22, 22, 15];
+      colWidths.forEach((width, idx) => {
+        worksheet.getColumn(idx + 1).width = width;
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: "Export Successful",
+        description: `${dataToExport.length} scheme summaries exported to ${filename}`,
+        variant: "default",
+      });
+    } catch (error) {
+      console.error("Export error:", error);
+      toast({
+        title: "Export Failed",
+        description: "There was an error exporting the scheme summary. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Pagination calculations
-  const totalItems = searchFilteredSchemes.length;
+  const totalItems = activeListTab === "esr" ? searchFilteredSchemes.length : aggregatedSchemes.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentSchemes = searchFilteredSchemes.slice(startIndex, endIndex);
+  const currentSchemes = activeListTab === "esr" ? searchFilteredSchemes.slice(startIndex, endIndex) : [];
+  const currentAggregated = activeListTab === "scheme" ? aggregatedSchemes.slice(startIndex, endIndex) : [];
 
   // Reset page when filters change
   const resetPage = () => setCurrentPage(1);
@@ -1272,6 +1440,16 @@ export default function CommunicationStatusPage() {
               Detailed view of communication status for each scheme and ESR
             </CardDescription>
 
+            {/* Tab Switcher for ESR vs Scheme View */}
+            <div className="mt-4">
+              <Tabs value={activeListTab} onValueChange={(val) => { setActiveListTab(val as "esr" | "scheme"); setCurrentPage(1); }} className="m-0">
+                <TabsList className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                  <TabsTrigger value="esr" className="px-4 py-1.5 text-xs font-semibold data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 rounded-lg shadow-sm" data-testid="tab-esr-view">ESR View</TabsTrigger>
+                  <TabsTrigger value="scheme" className="px-4 py-1.5 text-xs font-semibold data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 rounded-lg shadow-sm" data-testid="tab-scheme-view">Scheme View</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+
             {/* Search and Download Controls */}
             <div className="flex gap-4 items-center mt-4">
               <div className="flex-1 max-w-sm">
@@ -1307,15 +1485,27 @@ export default function CommunicationStatusPage() {
                 </div>
               )}
 
-              <Button
-                onClick={handleExcelDownload}
-                variant="outline"
-                className="flex items-center gap-2"
-                data-testid="button-export-all"
-              >
-                <Download className="h-4 w-4" />
-                Export All Data
-              </Button>
+              {activeListTab === "scheme" ? (
+                <Button
+                  onClick={handleSchemeExcelDownload}
+                  variant="outline"
+                  className="flex items-center gap-2 border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700 font-semibold"
+                  data-testid="button-export-scheme-summary"
+                >
+                  <Download className="h-4 w-4" />
+                  Export Scheme Summary
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleExcelDownload}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  data-testid="button-export-all"
+                >
+                  <Download className="h-4 w-4" />
+                  Export All Data
+                </Button>
+              )}
 
               <Button
                 onClick={handle72HoursOfflineExport}
@@ -1333,64 +1523,163 @@ export default function CommunicationStatusPage() {
               <div className="text-center py-8">Loading scheme data...</div>
             ) : (
               <>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Scheme Name</TableHead>
-                      <TableHead>Village</TableHead>
-                      <TableHead>ESR Name</TableHead>
-                      <TableHead>Chlorine</TableHead>
-                      <TableHead>Pressure</TableHead>
-                      <TableHead>Flow Meter</TableHead>
-                      {/* <TableHead>Time Status</TableHead>
-                      <TableHead>Overall</TableHead> */}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {currentSchemes.length > 0 ? (
-                      currentSchemes.map(
-                        (scheme: CommunicationScheme, index: number) => (
-                          <TableRow
-                            key={`${scheme.scheme_id}-${scheme.village_name}-${scheme.esr_name}-${index}`}
-                          >
-                            <TableCell className="font-medium">
-                              {scheme.scheme_name}
-                            </TableCell>
-                            <TableCell>{scheme.village_name}</TableCell>
-                            <TableCell>{scheme.esr_name}</TableCell>
-                            <TableCell>
-                              {getStatusBadge(scheme.chlorine_status)}
-                            </TableCell>
-                            <TableCell>
-                              {getStatusBadge(scheme.pressure_status)}
-                            </TableCell>
-                            <TableCell>
-                              {getStatusBadge(scheme.flow_meter_status)}
-                            </TableCell>
-                            {/* <TableCell>
-                              {getTimeBadge(
-                                scheme.chlorine_0h_72h,
-                                scheme.chlorine_72h,
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {getStatusBadge(scheme.overall_status)}
-                            </TableCell> */}
-                          </TableRow>
-                        ),
-                      )
-                    ) : (
+                {activeListTab === "esr" ? (
+                  <Table>
+                    <TableHeader>
                       <TableRow>
-                        <TableCell
-                          colSpan={8}
-                          className="text-center py-8 text-muted-foreground"
-                        >
-                          No communication data found for the selected filters
-                        </TableCell>
+                        <TableHead>Scheme Name</TableHead>
+                        <TableHead>Village</TableHead>
+                        <TableHead>ESR Name</TableHead>
+                        <TableHead>Chlorine</TableHead>
+                        <TableHead>Pressure</TableHead>
+                        <TableHead>Flow Meter</TableHead>
                       </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {currentSchemes.length > 0 ? (
+                        currentSchemes.map(
+                          (scheme: CommunicationScheme, index: number) => (
+                            <TableRow
+                              key={`${scheme.scheme_id}-${scheme.village_name}-${scheme.esr_name}-${index}`}
+                            >
+                              <TableCell className="font-medium">
+                                {scheme.scheme_name}
+                              </TableCell>
+                              <TableCell>{scheme.village_name}</TableCell>
+                              <TableCell>{scheme.esr_name}</TableCell>
+                              <TableCell>
+                                {getStatusBadge(scheme.chlorine_status)}
+                              </TableCell>
+                              <TableCell>
+                                {getStatusBadge(scheme.pressure_status)}
+                              </TableCell>
+                              <TableCell>
+                                {getStatusBadge(scheme.flow_meter_status)}
+                              </TableCell>
+                            </TableRow>
+                          ),
+                        )
+                      ) : (
+                        <TableRow>
+                          <TableCell
+                            colSpan={6}
+                            className="text-center py-8 text-muted-foreground"
+                          >
+                            No communication data found for the selected filters
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-50 dark:bg-slate-900/50">
+                        <TableHead className="font-bold">Scheme Name</TableHead>
+                        <TableHead className="text-center font-bold">Total ESRs</TableHead>
+                        <TableHead className="text-center font-bold text-green-700 dark:text-green-400">Flow Meter Online</TableHead>
+                        <TableHead className="text-center font-bold text-green-700 dark:text-green-400">Chlorine Online</TableHead>
+                        <TableHead className="text-center font-bold text-green-700 dark:text-green-400">Pressure Online</TableHead>
+                        <TableHead className="text-center font-bold text-slate-600 dark:text-slate-400">Flow Meter Offline</TableHead>
+                        <TableHead className="text-center font-bold text-slate-600 dark:text-slate-400">Chlorine Offline</TableHead>
+                        <TableHead className="text-center font-bold text-slate-600 dark:text-slate-400">Pressure Offline</TableHead>
+                        <TableHead className="text-center font-bold text-red-600 dark:text-red-400">Flow Meter Offline &gt;72h</TableHead>
+                        <TableHead className="text-center font-bold text-red-600 dark:text-red-400">Chlorine Offline &gt;72h</TableHead>
+                        <TableHead className="text-center font-bold text-red-600 dark:text-red-400">Pressure Offline &gt;72h</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {currentAggregated.length > 0 ? (
+                        currentAggregated.map(
+                          (scheme, index: number) => (
+                            <TableRow
+                              key={`${scheme.scheme_id}-${index}`}
+                              className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors"
+                            >
+                              <TableCell className="font-semibold text-slate-900 dark:text-white max-w-[200px] truncate">
+                                {scheme.scheme_name}
+                                <div className="text-[10px] font-mono text-slate-400 mt-0.5">{scheme.scheme_id}</div>
+                              </TableCell>
+                              <TableCell className="text-center font-medium">{scheme.total_esrs}</TableCell>
+                              <TableCell className="text-center font-bold text-green-600 dark:text-green-400">
+                                {scheme.flow_meter_online > 0 ? (
+                                  <Badge className="bg-green-100 hover:bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300 font-bold border-green-200">
+                                    {scheme.flow_meter_online}
+                                  </Badge>
+                                ) : "0"}
+                              </TableCell>
+                              <TableCell className="text-center font-bold text-green-600 dark:text-green-400">
+                                {scheme.chlorine_online > 0 ? (
+                                  <Badge className="bg-green-100 hover:bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300 font-bold border-green-200">
+                                    {scheme.chlorine_online}
+                                  </Badge>
+                                ) : "0"}
+                              </TableCell>
+                              <TableCell className="text-center font-bold text-green-600 dark:text-green-400">
+                                {scheme.pressure_online > 0 ? (
+                                  <Badge className="bg-green-100 hover:bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300 font-bold border-green-200">
+                                    {scheme.pressure_online}
+                                  </Badge>
+                                ) : "0"}
+                              </TableCell>
+                              <TableCell className="text-center text-slate-600 dark:text-slate-400 font-medium">
+                                {scheme.flow_meter_offline > 0 ? (
+                                  <Badge variant="secondary" className="font-semibold">
+                                    {scheme.flow_meter_offline}
+                                  </Badge>
+                                ) : "0"}
+                              </TableCell>
+                              <TableCell className="text-center text-slate-600 dark:text-slate-400 font-medium">
+                                {scheme.chlorine_offline > 0 ? (
+                                  <Badge variant="secondary" className="font-semibold">
+                                    {scheme.chlorine_offline}
+                                  </Badge>
+                                ) : "0"}
+                              </TableCell>
+                              <TableCell className="text-center text-slate-600 dark:text-slate-400 font-medium">
+                                {scheme.pressure_offline > 0 ? (
+                                  <Badge variant="secondary" className="font-semibold">
+                                    {scheme.pressure_offline}
+                                  </Badge>
+                                ) : "0"}
+                              </TableCell>
+                              <TableCell className="text-center text-red-600 dark:text-red-400 font-bold">
+                                {scheme.flow_meter_offline_72h > 0 ? (
+                                  <Badge variant="destructive" className="font-bold">
+                                    {scheme.flow_meter_offline_72h}
+                                  </Badge>
+                                ) : "0"}
+                              </TableCell>
+                              <TableCell className="text-center text-red-600 dark:text-red-400 font-bold">
+                                {scheme.chlorine_offline_72h > 0 ? (
+                                  <Badge variant="destructive" className="font-bold">
+                                    {scheme.chlorine_offline_72h}
+                                  </Badge>
+                                ) : "0"}
+                              </TableCell>
+                              <TableCell className="text-center text-red-600 dark:text-red-400 font-bold">
+                                {scheme.pressure_offline_72h > 0 ? (
+                                  <Badge variant="destructive" className="font-bold">
+                                    {scheme.pressure_offline_72h}
+                                  </Badge>
+                                ) : "0"}
+                              </TableCell>
+                            </TableRow>
+                          ),
+                        )
+                      ) : (
+                        <TableRow>
+                          <TableCell
+                            colSpan={11}
+                            className="text-center py-8 text-muted-foreground"
+                          >
+                            No aggregated scheme data found for the selected filters
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                )}
 
                 {/* Pagination */}
                 {totalPages > 1 && (
