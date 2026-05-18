@@ -4926,8 +4926,8 @@ export class PostgresStorage implements IStorage {
 
       const query = sql`
         WITH all_villages AS (
-          SELECT DISTINCT region, scheme_id, village_name, block
-          FROM communication_status
+          SELECT DISTINCT region, (scheme_id::text) as scheme_id, village_name, block
+          FROM water_scheme_data
           WHERE 1=1 ${schemeFilter}
         ),
         deduplicated_history AS (
@@ -4937,10 +4937,16 @@ export class PostgresStorage implements IStorage {
           WHERE (
             data_date IN (${sql.join(dateStrings.map(d => sql`${d}`), sql`, `)})
             OR
-            TO_CHAR(TO_DATE(CASE 
-               WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN data_date
-               ELSE '01-Jan-2000'
-            END, 'DD-Mon-YY'), 'DD-Mon') IN (${sql.join(dateStrings.map(d => sql`${d}`), sql`, `)})
+            CASE 
+               WHEN data_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_CHAR(data_date::date, 'DD-Mon')
+               WHEN data_date ~ '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$' THEN TO_CHAR(TO_DATE(data_date, 'DD/MM/YYYY'), 'DD-Mon')
+               WHEN data_date ~ '^[0-9]{1,2}-[0-9]{1,2}-[0-9]{4}$' THEN TO_CHAR(TO_DATE(data_date, 'DD-MM-YYYY'), 'DD-Mon')
+               WHEN data_date ~ '^[0-9]{1,2}-[0-9]{1,2}-[0-9]{2}$' THEN TO_CHAR(TO_DATE(data_date, 'DD-MM-YY'), 'DD-Mon')
+               WHEN data_date ~ '^[0-9]{1,2}-[A-Za-z]+-[0-9]{4}$' THEN TO_CHAR(TO_DATE(data_date, 'DD-Mon-YYYY'), 'DD-Mon')
+               WHEN data_date ~ '^[0-9]{1,2}-[A-Za-z]+-[0-9]{2}$' THEN TO_CHAR(TO_DATE(data_date, 'DD-Mon-YY'), 'DD-Mon')
+               WHEN data_date ~ '^[0-9]{1,2}-[A-Za-z]+$' THEN data_date
+               ELSE NULL
+            END IN (${sql.join(dateStrings.map(d => sql`${d}`), sql`, `)})
           )
           ${schemeFilter}
           ORDER BY scheme_id, village_name, block, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC
@@ -4996,10 +5002,16 @@ export class PostgresStorage implements IStorage {
           WHERE (
             data_date IN (${sql.join(dateStrings.map(d => sql`${d}`), sql`, `)})
             OR
-            TO_CHAR(TO_DATE(CASE 
-               WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN data_date
-               ELSE '01-Jan-2000'
-            END, 'DD-Mon-YY'), 'DD-Mon') IN (${sql.join(dateStrings.map(d => sql`${d}`), sql`, `)})
+            CASE 
+               WHEN data_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_CHAR(data_date::date, 'DD-Mon')
+               WHEN data_date ~ '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$' THEN TO_CHAR(TO_DATE(data_date, 'DD/MM/YYYY'), 'DD-Mon')
+               WHEN data_date ~ '^[0-9]{1,2}-[0-9]{1,2}-[0-9]{4}$' THEN TO_CHAR(TO_DATE(data_date, 'DD-MM-YYYY'), 'DD-Mon')
+               WHEN data_date ~ '^[0-9]{1,2}-[0-9]{1,2}-[0-9]{2}$' THEN TO_CHAR(TO_DATE(data_date, 'DD-MM-YY'), 'DD-Mon')
+               WHEN data_date ~ '^[0-9]{1,2}-[A-Za-z]+-[0-9]{4}$' THEN TO_CHAR(TO_DATE(data_date, 'DD-Mon-YYYY'), 'DD-Mon')
+               WHEN data_date ~ '^[0-9]{1,2}-[A-Za-z]+-[0-9]{2}$' THEN TO_CHAR(TO_DATE(data_date, 'DD-Mon-YY'), 'DD-Mon')
+               WHEN data_date ~ '^[0-9]{1,2}-[A-Za-z]+$' THEN data_date
+               ELSE NULL
+            END IN (${sql.join(dateStrings.map(d => sql`${d}`), sql`, `)})
           )
           ${schemeFilter}
           ORDER BY scheme_id, data_date, (lpcd_value IS NOT NULL AND TRIM(lpcd_value::text) != '') DESC, uploaded_at DESC

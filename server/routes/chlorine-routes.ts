@@ -2554,10 +2554,16 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
                 AND (
                     wh.data_date IN (${dateParams})
                     OR
-                    TO_CHAR(TO_DATE(CASE 
-                       WHEN wh.data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN wh.data_date
-                       ELSE '01-Jan-2000'
-                    END, 'DD-Mon-YY'), 'DD-Mon') IN (${dateParams})
+                    CASE 
+                       WHEN wh.data_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_CHAR(wh.data_date::date, 'DD-Mon')
+                       WHEN wh.data_date ~ '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$' THEN TO_CHAR(TO_DATE(wh.data_date, 'DD/MM/YYYY'), 'DD-Mon')
+                       WHEN wh.data_date ~ '^[0-9]{1,2}-[0-9]{1,2}-[0-9]{4}$' THEN TO_CHAR(TO_DATE(wh.data_date, 'DD-MM-YYYY'), 'DD-Mon')
+                       WHEN wh.data_date ~ '^[0-9]{1,2}-[0-9]{1,2}-[0-9]{2}$' THEN TO_CHAR(TO_DATE(wh.data_date, 'DD-MM-YY'), 'DD-Mon')
+                       WHEN wh.data_date ~ '^[0-9]{1,2}-[A-Za-z]+-[0-9]{4}$' THEN TO_CHAR(TO_DATE(wh.data_date, 'DD-Mon-YYYY'), 'DD-Mon')
+                       WHEN wh.data_date ~ '^[0-9]{1,2}-[A-Za-z]+-[0-9]{2}$' THEN TO_CHAR(TO_DATE(wh.data_date, 'DD-Mon-YY'), 'DD-Mon')
+                       WHEN wh.data_date ~ '^[0-9]{1,2}-[A-Za-z]+$' THEN wh.data_date
+                       ELSE NULL
+                    END IN (${dateParams})
                 )
                 ORDER BY wh.scheme_id, wh.village_name, wh.block, wh.data_date, (wh.lpcd_value IS NOT NULL AND TRIM(wh.lpcd_value::text) != '') DESC, wh.uploaded_at DESC
             ),
@@ -3064,14 +3070,14 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
         const dateParams = dateList.map((_, i) => `$${paramIndex++}`).join(',');
         params.push(...dateList);
 
-        const avgCalc = 'SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0';
+        const avgCalc = 'SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / NULLIF(COUNT(DISTINCT CASE WHEN NULLIF(TRIM(lpcd_value::text), \'\') IS NOT NULL THEN data_date END), 0)';
         let havingCondition = '1=1';
         if (metric === 'above_55') {
           havingCondition = `(${avgCalc}) >= 55`;
         } else if (metric === 'below_55') {
           havingCondition = `(${avgCalc}) > 0 AND (${avgCalc}) < 55`;
         } else if (metric === 'no_water') {
-          havingCondition = `(SUM(CASE WHEN NULLIF(TRIM(lpcd_value::text), \'\') IS NOT NULL THEN 1 ELSE 0 END) = 0 OR (${avgCalc}) = 0)`;
+          havingCondition = `(COUNT(DISTINCT CASE WHEN NULLIF(TRIM(lpcd_value::text), \'\') IS NOT NULL THEN data_date END) = 0 OR (${avgCalc}) = 0)`;
         } else {
           havingCondition = '1=1'; // Default for weekly_all_villages
         }
@@ -3098,11 +3104,13 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
                     data_date IN (${dateParams})
                     OR
                     CASE 
-                       WHEN data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN TO_CHAR(data_date::date, 'DD-Mon')
-                       WHEN data_date ~ '^\\d{1,2}/\\d{1,2}/\\d{4}$' THEN TO_CHAR(TO_DATE(data_date, 'DD/MM/YYYY'), 'DD-Mon')
-                       WHEN data_date ~ '^\\d{1,2}-\\d{1,2}-\\d{4}$' THEN TO_CHAR(TO_DATE(data_date, 'DD-MM-YYYY'), 'DD-Mon')
-                       WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_CHAR(TO_DATE(data_date, 'DD-Mon-YY'), 'DD-Mon')
-                       WHEN data_date ~ '^[0-9]+-[A-Za-z]+$' THEN data_date
+                       WHEN data_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_CHAR(data_date::date, 'DD-Mon')
+                       WHEN data_date ~ '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$' THEN TO_CHAR(TO_DATE(data_date, 'DD/MM/YYYY'), 'DD-Mon')
+                       WHEN data_date ~ '^[0-9]{1,2}-[0-9]{1,2}-[0-9]{4}$' THEN TO_CHAR(TO_DATE(data_date, 'DD-MM-YYYY'), 'DD-Mon')
+                       WHEN data_date ~ '^[0-9]{1,2}-[0-9]{1,2}-[0-9]{2}$' THEN TO_CHAR(TO_DATE(data_date, 'DD-MM-YY'), 'DD-Mon')
+                       WHEN data_date ~ '^[0-9]{1,2}-[A-Za-z]+-[0-9]{4}$' THEN TO_CHAR(TO_DATE(data_date, 'DD-Mon-YYYY'), 'DD-Mon')
+                       WHEN data_date ~ '^[0-9]{1,2}-[A-Za-z]+-[0-9]{2}$' THEN TO_CHAR(TO_DATE(data_date, 'DD-Mon-YY'), 'DD-Mon')
+                       WHEN data_date ~ '^[0-9]{1,2}-[A-Za-z]+$' THEN data_date
                        ELSE NULL
                     END IN (${dateParams})
                 )
@@ -7330,14 +7338,14 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
         const dateList = (dates as string).split(',');
         const metric = category.replace('weekly_', '');
         let havingCondition = '1=1';
-        const avgCalc = 'SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / 7.0';
+        const avgCalc = 'SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), \'\')::numeric, 0)) / NULLIF(COUNT(DISTINCT CASE WHEN NULLIF(TRIM(lpcd_value::text), \'\') IS NOT NULL THEN data_date END), 0)';
         
         if (metric === 'above_55') {
           havingCondition = `(${avgCalc}) >= 55`;
         } else if (metric === 'below_55') {
           havingCondition = `(${avgCalc}) > 0 AND (${avgCalc}) < 55`;
         } else if (metric === 'no_water') {
-          havingCondition = `(${avgCalc}) IS NULL OR (${avgCalc}) = 0`;
+          havingCondition = `(COUNT(DISTINCT CASE WHEN NULLIF(TRIM(lpcd_value::text), \'\') IS NOT NULL THEN data_date END) = 0 OR (${avgCalc}) = 0)`;
         } else {
           havingCondition = '1=1';
         }
@@ -7347,14 +7355,20 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
         params.push(...dateList);
 
         query = `
-            WITH weekly_data AS (
-                SELECT DISTINCT ON (sldh.region, sldh.scheme_id, sldh.block, sldh.data_date)
-                    sldh.region, sldh.circle, sldh.division, sldh.sub_division, 
-                    COALESCE(NULLIF(TRIM(sldh.block), ''), ss.block) as block,
-                    sldh.scheme_id, sldh.scheme_name, sldh.total_population, sldh.total_villages,
-                    sldh.lpcd_value, sldh.water_value, sldh.data_date, COALESCE(NULLIF(ss.dashboard_url, ''), sldh.dashboard_url) as dashboard_url
+            WITH all_schemes AS (
+              SELECT DISTINCT ss.region, ss.circle, ss.division, ss.sub_division, 
+                              COALESCE(NULLIF(TRIM(ss.block), ''), '') as block, 
+                              (ss.scheme_id::text) as scheme_id, ss.scheme_name, ss.total_population, ss.total_villages,
+                              ss.dashboard_url
+              FROM scheme_status ss
+              WHERE ss.region IS NOT NULL
+              ${regionFilter.replace(/sldh\.region/g, 'ss.region')}
+              ${schemeIdFilter.replace(/sldh\.scheme_id/g, 'ss.scheme_id')}
+            ),
+            weekly_data AS (
+                SELECT DISTINCT ON (sldh.scheme_id, sldh.block, sldh.data_date)
+                    sldh.scheme_id, sldh.block, sldh.lpcd_value, sldh.water_value, sldh.data_date
                 FROM scheme_lpcd_data_history sldh
-                LEFT JOIN scheme_status ss ON ss.scheme_id = sldh.scheme_id
                 WHERE sldh.region IS NOT NULL
                 ${regionFilter}
                 ${schemeIdFilter}
@@ -7362,27 +7376,30 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
                     sldh.data_date IN (${dateParams})
                     OR
                     CASE 
-                       WHEN sldh.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN TO_CHAR(sldh.data_date::date, 'DD-Mon')
-                       WHEN sldh.data_date ~ '^\\d{1,2}/\\d{1,2}/\\d{4}$' THEN TO_CHAR(TO_DATE(sldh.data_date, 'DD/MM/YYYY'), 'DD-Mon')
-                       WHEN sldh.data_date ~ '^\\d{1,2}-\\d{1,2}-\\d{4}$' THEN TO_CHAR(TO_DATE(sldh.data_date, 'DD-MM-YYYY'), 'DD-Mon')
-                       WHEN sldh.data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN TO_CHAR(TO_DATE(sldh.data_date, 'DD-Mon-YY'), 'DD-Mon')
-                       WHEN sldh.data_date ~ '^[0-9]+-[A-Za-z]+$' THEN sldh.data_date
+                       WHEN sldh.data_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_CHAR(sldh.data_date::date, 'DD-Mon')
+                       WHEN sldh.data_date ~ '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$' THEN TO_CHAR(TO_DATE(sldh.data_date, 'DD/MM/YYYY'), 'DD-Mon')
+                       WHEN sldh.data_date ~ '^[0-9]{1,2}-[0-9]{1,2}-[0-9]{4}$' THEN TO_CHAR(TO_DATE(sldh.data_date, 'DD-MM-YYYY'), 'DD-Mon')
+                       WHEN sldh.data_date ~ '^[0-9]{1,2}-[0-9]{1,2}-[0-9]{2}$' THEN TO_CHAR(TO_DATE(sldh.data_date, 'DD-MM-YY'), 'DD-Mon')
+                       WHEN sldh.data_date ~ '^[0-9]{1,2}-[A-Za-z]+-[0-9]{4}$' THEN TO_CHAR(TO_DATE(sldh.data_date, 'DD-Mon-YYYY'), 'DD-Mon')
+                       WHEN sldh.data_date ~ '^[0-9]{1,2}-[A-Za-z]+-[0-9]{2}$' THEN TO_CHAR(TO_DATE(sldh.data_date, 'DD-Mon-YY'), 'DD-Mon')
+                       WHEN sldh.data_date ~ '^[0-9]{1,2}-[A-Za-z]+$' THEN sldh.data_date
                        ELSE NULL
                     END IN (${dateParams})
                 )
-                ORDER BY sldh.region, sldh.scheme_id, sldh.block, sldh.data_date, sldh.uploaded_at DESC
+                ORDER BY sldh.scheme_id, sldh.block, sldh.data_date, sldh.uploaded_at DESC
             )
             SELECT
-                region, MAX(circle) as circle, MAX(division) as division, MAX(sub_division) as sub_division, block,
-                scheme_id, MAX(scheme_name) as scheme_name, MAX(total_population) as total_population, MAX(total_villages) as total_villages,
-                ROUND((SUM(COALESCE(NULLIF(TRIM(lpcd_value::text), '')::numeric, 0)) / 7.0), 2) as lpcd_value,
-                ROUND((SUM(COALESCE(NULLIF(TRIM(water_value::text), '')::numeric, 0)) / 7.0), 2) as water_value,
+                s.region, MAX(s.circle) as circle, MAX(s.division) as division, MAX(s.sub_division) as sub_division, s.block,
+                s.scheme_id, MAX(s.scheme_name) as scheme_name, MAX(s.total_population) as total_population, MAX(s.total_villages) as total_villages,
+                ROUND((${avgCalc}), 2) as lpcd_value,
+                ROUND((SUM(COALESCE(NULLIF(TRIM(water_value::text), '')::numeric, 0)) / NULLIF(COUNT(DISTINCT CASE WHEN NULLIF(TRIM(lpcd_value::text), '') IS NOT NULL THEN data_date END), 0)), 2) as water_value,
                 MAX(data_date) as data_date,
-                (ARRAY_AGG(dashboard_url ORDER BY TO_DATE(data_date, 'DD-Mon-YY') DESC))[1] as dashboard_url
-            FROM weekly_data
-            GROUP BY region, scheme_id, block
+                MAX(s.dashboard_url) as dashboard_url
+            FROM all_schemes s
+            LEFT JOIN weekly_data w ON s.scheme_id = w.scheme_id AND s.block = w.block
+            GROUP BY s.region, s.scheme_id, s.block
             HAVING ${havingCondition}
-            ORDER BY region, scheme_id 
+            ORDER BY s.region, s.scheme_id
          `;
       } else {
 
@@ -7800,13 +7817,19 @@ router.get("/scheme-lpcd/region-comparison-schemes-export/:category/:day", async
           ${regionFilter}
           ${schemeIdFilter}
           AND $1:: int IS NOT NULL-- Fix: usage of dayNum param to avoid postgres binding error
-          AND(
-            data_date IN(${dateParams})
+          AND (
+            data_date IN (${dateParams})
             OR
-            TO_CHAR(TO_DATE(CASE 
-               WHEN data_date ~ '^[0-9]+-[A-Za-z]+-[0-9]+$' THEN data_date
-               ELSE '01-Jan-2000'
-            END, 'DD-Mon-YY'), 'DD-Mon') IN (${dateParams})
+            CASE 
+               WHEN data_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_CHAR(data_date::date, 'DD-Mon')
+               WHEN data_date ~ '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$' THEN TO_CHAR(TO_DATE(data_date, 'DD/MM/YYYY'), 'DD-Mon')
+               WHEN data_date ~ '^[0-9]{1,2}-[0-9]{1,2}-[0-9]{4}$' THEN TO_CHAR(TO_DATE(data_date, 'DD-MM-YYYY'), 'DD-Mon')
+               WHEN data_date ~ '^[0-9]{1,2}-[0-9]{1,2}-[0-9]{2}$' THEN TO_CHAR(TO_DATE(data_date, 'DD-MM-YY'), 'DD-Mon')
+               WHEN data_date ~ '^[0-9]{1,2}-[A-Za-z]+-[0-9]{4}$' THEN TO_CHAR(TO_DATE(data_date, 'DD-Mon-YYYY'), 'DD-Mon')
+               WHEN data_date ~ '^[0-9]{1,2}-[A-Za-z]+-[0-9]{2}$' THEN TO_CHAR(TO_DATE(data_date, 'DD-Mon-YY'), 'DD-Mon')
+               WHEN data_date ~ '^[0-9]{1,2}-[A-Za-z]+$' THEN data_date
+               ELSE NULL
+            END IN (${dateParams})
           )
           ORDER BY region, scheme_id, block, data_date, uploaded_at DESC
         )
