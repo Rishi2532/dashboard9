@@ -398,7 +398,6 @@ export default function CommunicationStatusPage() {
         "Division",
         "Sub Division",
         "Block",
-        "Agency Type",
         "Scheme ID",
         "Scheme Name",
         "Village Name",
@@ -435,7 +434,6 @@ export default function CommunicationStatusPage() {
           scheme.division || "",
           scheme.sub_division || "",
           scheme.block || "",
-          scheme.agencyType || "NA",
           scheme.scheme_id || "",
           scheme.scheme_name || "",
           scheme.village_name || "",
@@ -479,7 +477,7 @@ export default function CommunicationStatusPage() {
 
       // Set column widths efficiently (added 3 new columns for connection status)
       const colWidths = [
-        15, 35, 25, 25, 12, 12, 12, 12, 12, 12, 18, 18, 18, 15, 15, 15, 15, 12, 12,
+        15, 35, 25, 25, 12, 12, 12, 12, 12, 18, 18, 18, 15, 15, 15, 15, 12, 12,
         12, 12, 12, 12, 15,
       ];
       colWidths.forEach((width, idx) => {
@@ -581,7 +579,6 @@ export default function CommunicationStatusPage() {
         "Division",
         "Sub Division",
         "Block",
-        "Agency Type",
         "Scheme ID",
         "Scheme Name",
         "Village Name",
@@ -604,7 +601,6 @@ export default function CommunicationStatusPage() {
             scheme.division || "",
             scheme.sub_division || "",
             scheme.block || "",
-            scheme.agencyType || "NA",
             scheme.scheme_id || "",
             scheme.scheme_name || "",
             scheme.village_name || "",
@@ -631,7 +627,7 @@ export default function CommunicationStatusPage() {
         });
 
         // Set column widths
-        [15, 35, 25, 25, 12, 12, 12, 12, 12, 12, 15, 15, 15].forEach(
+        [15, 35, 25, 25, 12, 12, 12, 12, 12, 15, 15, 15].forEach(
           (width, idx) => {
             chlorineSheet.getColumn(idx + 1).width = width;
           },
@@ -650,7 +646,6 @@ export default function CommunicationStatusPage() {
             scheme.division || "",
             scheme.sub_division || "",
             scheme.block || "",
-            scheme.agencyType || "NA",
             scheme.scheme_id || "",
             scheme.scheme_name || "",
             scheme.village_name || "",
@@ -677,7 +672,7 @@ export default function CommunicationStatusPage() {
         });
 
         // Set column widths
-        [15, 35, 25, 25, 12, 12, 12, 12, 12, 12, 15, 15, 15].forEach(
+        [15, 35, 25, 25, 12, 12, 12, 12, 12, 15, 15, 15].forEach(
           (width, idx) => {
             pressureSheet.getColumn(idx + 1).width = width;
           },
@@ -695,7 +690,6 @@ export default function CommunicationStatusPage() {
           scheme.division || "",
           scheme.sub_division || "",
           scheme.block || "",
-          scheme.agencyType || "NA",
           scheme.scheme_id || "",
           scheme.scheme_name || "",
           scheme.village_name || "",
@@ -721,7 +715,7 @@ export default function CommunicationStatusPage() {
         });
 
         // Set column widths
-        [15, 35, 25, 25, 12, 12, 12, 12, 12, 12, 15, 15, 15].forEach(
+        [15, 35, 25, 25, 12, 12, 12, 12, 12, 15, 15, 15].forEach(
           (width, idx) => {
             flowSheet.getColumn(idx + 1).width = width;
           },
@@ -952,6 +946,7 @@ export default function CommunicationStatusPage() {
         "Flow Meter Offline >72h",
         "Chlorine Offline >72h",
         "Pressure Offline >72h",
+        "Total Offline >72h",
         "Export Date"
       ];
 
@@ -971,6 +966,7 @@ export default function CommunicationStatusPage() {
         item.flow_meter_offline_72h,
         item.chlorine_offline_72h,
         item.pressure_offline_72h,
+        item.flow_meter_offline_72h + item.chlorine_offline_72h + item.pressure_offline_72h,
         exportDate
       ]);
 
@@ -987,7 +983,7 @@ export default function CommunicationStatusPage() {
         cell.alignment = { horizontal: "center" };
       });
 
-      const colWidths = [15, 35, 12, 18, 18, 18, 18, 18, 18, 22, 22, 22, 15];
+      const colWidths = [15, 35, 12, 18, 18, 18, 18, 18, 18, 22, 22, 22, 22, 15];
       colWidths.forEach((width, idx) => {
         worksheet.getColumn(idx + 1).width = width;
       });
@@ -1586,91 +1582,102 @@ export default function CommunicationStatusPage() {
                         <TableHead className="text-center font-bold text-red-600 dark:text-red-400">Flow Meter Offline &gt;72h</TableHead>
                         <TableHead className="text-center font-bold text-red-600 dark:text-red-400">Chlorine Offline &gt;72h</TableHead>
                         <TableHead className="text-center font-bold text-red-600 dark:text-red-400">Pressure Offline &gt;72h</TableHead>
+                        <TableHead className="text-center font-bold text-red-700 dark:text-red-500 bg-red-50/10 dark:bg-red-950/5">Total Offline &gt;72h</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {currentAggregated.length > 0 ? (
                         currentAggregated.map(
-                          (scheme, index: number) => (
-                            <TableRow
-                              key={`${scheme.scheme_id}-${index}`}
-                              className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors"
-                            >
-                              <TableCell className="font-semibold text-slate-900 dark:text-white max-w-[200px] truncate">
-                                {scheme.scheme_name}
-                                <div className="text-[10px] font-mono text-slate-400 mt-0.5">{scheme.scheme_id}</div>
-                              </TableCell>
-                              <TableCell className="text-center font-medium">{scheme.total_esrs}</TableCell>
-                              <TableCell className="text-center font-bold text-green-600 dark:text-green-400">
-                                {scheme.flow_meter_online > 0 ? (
-                                  <Badge className="bg-green-100 hover:bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300 font-bold border-green-200">
-                                    {scheme.flow_meter_online}
-                                  </Badge>
-                                ) : "0"}
-                              </TableCell>
-                              <TableCell className="text-center font-bold text-green-600 dark:text-green-400">
-                                {scheme.chlorine_online > 0 ? (
-                                  <Badge className="bg-green-100 hover:bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300 font-bold border-green-200">
-                                    {scheme.chlorine_online}
-                                  </Badge>
-                                ) : "0"}
-                              </TableCell>
-                              <TableCell className="text-center font-bold text-green-600 dark:text-green-400">
-                                {scheme.pressure_online > 0 ? (
-                                  <Badge className="bg-green-100 hover:bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300 font-bold border-green-200">
-                                    {scheme.pressure_online}
-                                  </Badge>
-                                ) : "0"}
-                              </TableCell>
-                              <TableCell className="text-center text-slate-600 dark:text-slate-400 font-medium">
-                                {scheme.flow_meter_offline > 0 ? (
-                                  <Badge variant="secondary" className="font-semibold">
-                                    {scheme.flow_meter_offline}
-                                  </Badge>
-                                ) : "0"}
-                              </TableCell>
-                              <TableCell className="text-center text-slate-600 dark:text-slate-400 font-medium">
-                                {scheme.chlorine_offline > 0 ? (
-                                  <Badge variant="secondary" className="font-semibold">
-                                    {scheme.chlorine_offline}
-                                  </Badge>
-                                ) : "0"}
-                              </TableCell>
-                              <TableCell className="text-center text-slate-600 dark:text-slate-400 font-medium">
-                                {scheme.pressure_offline > 0 ? (
-                                  <Badge variant="secondary" className="font-semibold">
-                                    {scheme.pressure_offline}
-                                  </Badge>
-                                ) : "0"}
-                              </TableCell>
-                              <TableCell className="text-center text-red-600 dark:text-red-400 font-bold">
-                                {scheme.flow_meter_offline_72h > 0 ? (
-                                  <Badge variant="destructive" className="font-bold">
-                                    {scheme.flow_meter_offline_72h}
-                                  </Badge>
-                                ) : "0"}
-                              </TableCell>
-                              <TableCell className="text-center text-red-600 dark:text-red-400 font-bold">
-                                {scheme.chlorine_offline_72h > 0 ? (
-                                  <Badge variant="destructive" className="font-bold">
-                                    {scheme.chlorine_offline_72h}
-                                  </Badge>
-                                ) : "0"}
-                              </TableCell>
-                              <TableCell className="text-center text-red-600 dark:text-red-400 font-bold">
-                                {scheme.pressure_offline_72h > 0 ? (
-                                  <Badge variant="destructive" className="font-bold">
-                                    {scheme.pressure_offline_72h}
-                                  </Badge>
-                                ) : "0"}
-                              </TableCell>
-                            </TableRow>
-                          ),
+                          (scheme, index: number) => {
+                            const totalOffline72h = scheme.flow_meter_offline_72h + scheme.chlorine_offline_72h + scheme.pressure_offline_72h;
+                            return (
+                              <TableRow
+                                key={`${scheme.scheme_id}-${index}`}
+                                className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors"
+                              >
+                                <TableCell className="font-semibold text-slate-900 dark:text-white max-w-[200px] truncate">
+                                  {scheme.scheme_name}
+                                  <div className="text-[10px] font-mono text-slate-400 mt-0.5">{scheme.scheme_id}</div>
+                                </TableCell>
+                                <TableCell className="text-center font-medium">{scheme.total_esrs}</TableCell>
+                                <TableCell className="text-center font-bold text-green-600 dark:text-green-400">
+                                  {scheme.flow_meter_online > 0 ? (
+                                    <Badge className="bg-green-100 hover:bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300 font-bold border-green-200">
+                                      {scheme.flow_meter_online}
+                                    </Badge>
+                                  ) : "0"}
+                                </TableCell>
+                                <TableCell className="text-center font-bold text-green-600 dark:text-green-400">
+                                  {scheme.chlorine_online > 0 ? (
+                                    <Badge className="bg-green-100 hover:bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300 font-bold border-green-200">
+                                      {scheme.chlorine_online}
+                                    </Badge>
+                                  ) : "0"}
+                                </TableCell>
+                                <TableCell className="text-center font-bold text-green-600 dark:text-green-400">
+                                  {scheme.pressure_online > 0 ? (
+                                    <Badge className="bg-green-100 hover:bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300 font-bold border-green-200">
+                                      {scheme.pressure_online}
+                                    </Badge>
+                                  ) : "0"}
+                                </TableCell>
+                                <TableCell className="text-center text-slate-600 dark:text-slate-400 font-medium">
+                                  {scheme.flow_meter_offline > 0 ? (
+                                    <Badge variant="secondary" className="font-semibold">
+                                      {scheme.flow_meter_offline}
+                                    </Badge>
+                                  ) : "0"}
+                                </TableCell>
+                                <TableCell className="text-center text-slate-600 dark:text-slate-400 font-medium">
+                                  {scheme.chlorine_offline > 0 ? (
+                                    <Badge variant="secondary" className="font-semibold">
+                                      {scheme.chlorine_offline}
+                                    </Badge>
+                                  ) : "0"}
+                                </TableCell>
+                                <TableCell className="text-center text-slate-600 dark:text-slate-400 font-medium">
+                                  {scheme.pressure_offline > 0 ? (
+                                    <Badge variant="secondary" className="font-semibold">
+                                      {scheme.pressure_offline}
+                                    </Badge>
+                                  ) : "0"}
+                                </TableCell>
+                                <TableCell className="text-center text-red-600 dark:text-red-400 font-bold">
+                                  {scheme.flow_meter_offline_72h > 0 ? (
+                                    <Badge variant="destructive" className="font-bold">
+                                      {scheme.flow_meter_offline_72h}
+                                    </Badge>
+                                  ) : "0"}
+                                </TableCell>
+                                <TableCell className="text-center text-red-600 dark:text-red-400 font-bold">
+                                  {scheme.chlorine_offline_72h > 0 ? (
+                                    <Badge variant="destructive" className="font-bold">
+                                      {scheme.chlorine_offline_72h}
+                                    </Badge>
+                                  ) : "0"}
+                                </TableCell>
+                                <TableCell className="text-center text-red-600 dark:text-red-400 font-bold">
+                                  {scheme.pressure_offline_72h > 0 ? (
+                                    <Badge variant="destructive" className="font-bold">
+                                      {scheme.pressure_offline_72h}
+                                    </Badge>
+                                  ) : "0"}
+                                </TableCell>
+                                <TableCell className="text-center text-red-700 dark:text-red-400 font-bold bg-red-50/20 dark:bg-red-950/10">
+                                  {totalOffline72h > 0 ? (
+                                    <Badge variant="destructive" className="font-bold bg-red-600 dark:bg-red-700">
+                                      {totalOffline72h}
+                                    </Badge>
+                                  ) : "0"}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          }
                         )
                       ) : (
                         <TableRow>
                           <TableCell
-                            colSpan={11}
+                            colSpan={12}
                             className="text-center py-8 text-muted-foreground"
                           >
                             No aggregated scheme data found for the selected filters

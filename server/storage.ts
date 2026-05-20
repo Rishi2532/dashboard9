@@ -4965,9 +4965,9 @@ export class PostgresStorage implements IStorage {
         )
         SELECT 
           region,
-          COUNT(CASE WHEN days_with_data > 0 AND (total_lpcd / days_with_data) >= 55 THEN 1 END)::integer as above_55,
-          COUNT(CASE WHEN days_with_data > 0 AND (total_lpcd / days_with_data) < 55 AND (total_lpcd / days_with_data) > 0 THEN 1 END)::integer as below_55,
-          COUNT(CASE WHEN days_with_data = 0 OR (total_lpcd / days_with_data) = 0 THEN 1 END)::integer as no_water
+          COUNT(CASE WHEN (total_lpcd / COALESCE(NULLIF(${dateStrings.length}, 0), 7)) >= 55 THEN 1 END)::integer as above_55,
+          COUNT(CASE WHEN (total_lpcd / COALESCE(NULLIF(${dateStrings.length}, 0), 7)) < 55 AND (total_lpcd / COALESCE(NULLIF(${dateStrings.length}, 0), 7)) > 0 THEN 1 END)::integer as below_55,
+          COUNT(CASE WHEN (total_lpcd / COALESCE(NULLIF(${dateStrings.length}, 0), 7)) = 0 THEN 1 END)::integer as no_water
         FROM village_averages
         GROUP BY region;
       `;
@@ -5028,9 +5028,9 @@ export class PostgresStorage implements IStorage {
         )
         SELECT 
           region,
-          COUNT(CASE WHEN days_with_data > 0 AND (total_lpcd / days_with_data) >= 55 THEN 1 END)::integer as above_55,
-          COUNT(CASE WHEN days_with_data > 0 AND (total_lpcd / days_with_data) < 55 AND (total_lpcd / days_with_data) > 0 THEN 1 END)::integer as below_55,
-          COUNT(CASE WHEN days_with_data = 0 OR (total_lpcd / days_with_data) = 0 THEN 1 END)::integer as no_water
+          COUNT(CASE WHEN (total_lpcd / COALESCE(NULLIF(${dateStrings.length}, 0), 7)) >= 55 THEN 1 END)::integer as above_55,
+          COUNT(CASE WHEN (total_lpcd / COALESCE(NULLIF(${dateStrings.length}, 0), 7)) < 55 AND (total_lpcd / COALESCE(NULLIF(${dateStrings.length}, 0), 7)) > 0 THEN 1 END)::integer as below_55,
+          COUNT(CASE WHEN (total_lpcd / COALESCE(NULLIF(${dateStrings.length}, 0), 7)) = 0 THEN 1 END)::integer as no_water
         FROM scheme_averages
         GROUP BY region;
       `;

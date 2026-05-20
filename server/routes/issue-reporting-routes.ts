@@ -267,7 +267,7 @@ router.post("/submit", async (req: any, res) => {
     }
 });
 
-// 6. Get ALL active issues for dashboard visualization
+// 6. Get ALL active and resolved issues for dashboard visualization
 router.get("/active", async (req, res) => {
     try {
         const db = await getDB();
@@ -283,6 +283,9 @@ router.get("/active", async (req, res) => {
                 esr_name: issueReports.esr_name,
                 reason: issueReports.reason,
                 status_value: issueReports.status_value,
+                status: issueReports.status,
+                resolution_remark: issueReports.resolution_remark,
+                resolved_at: issueReports.resolved_at,
                 created_at: issueReports.created_at,
                 // Prefer stored name, fallback to join if null
                 creator_name: sql`COALESCE(${issueReports.creator_name}, ${users.name}, ${users.username})`,
@@ -290,7 +293,7 @@ router.get("/active", async (req, res) => {
             })
             .from(issueReports)
             .leftJoin(users, eq(issueReports.created_by, users.id))
-            .where(sql`LOWER(${issueReports.status}) = 'active'`)
+            .where(sql`LOWER(${issueReports.status}) IN ('active', 'resolved')`)
             .orderBy(desc(issueReports.created_at));
 
         res.json(activeIssues);

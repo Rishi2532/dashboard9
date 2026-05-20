@@ -60,6 +60,7 @@ import {
   BarChart3,
   Waves,
   AlertCircle,
+  CheckCircle2,
   MapPin,
   Info,
 } from "lucide-react";
@@ -2514,23 +2515,24 @@ const WaterConsumptionPage: React.FC = () => {
                         );
 
                       // Check for active issues
-                      // Check for active issues
                       // User Request: Only show ESR level issues on Water Consumption page
                       const allIssues =
                         esrIssuesMap.get(
                           `${record.scheme_id}-${record.village_name}-${record.esr_name}`,
                         ) || [];
+                      const hasActiveIssue = allIssues.some((i: any) => i.status !== "Resolved");
+                      const hasResolvedIssue = allIssues.some((i: any) => i.status === "Resolved");
                       const hasIssue = allIssues.length > 0;
 
                       return (
                         <tr
                           key={`${record.scheme_id}-${record.esr_name}-${index}`}
                           style={{
-                            backgroundColor: hasIssue ? "#fef2f2" : "white", // Red-50 if issue
-                            borderLeft: hasIssue ? "4px solid #ef4444" : "none", // Red border if issue
+                            backgroundColor: hasActiveIssue ? "#fef2f2" : "white", // Red-50 if active issue
+                            borderLeft: hasActiveIssue ? "4px solid #ef4444" : "none", // Red border if active issue
                             transition: "all 0.2s",
                           }}
-                          className={hasIssue ? "hover:bg-red-100/50" : ""}
+                          className={hasActiveIssue ? "hover:bg-red-100/50" : ""}
                         >
                           <td
                             style={{
@@ -2584,7 +2586,7 @@ const WaterConsumptionPage: React.FC = () => {
                           >
                             <div className="flex items-center gap-2">
                               <span>{record.esr_name || "N/A"}</span>
-                              {hasIssue && (
+                              {hasActiveIssue ? (
                                 <Popover>
                                   <PopoverTrigger asChild>
                                     <Button
@@ -2639,7 +2641,7 @@ const WaterConsumptionPage: React.FC = () => {
                                                 </Badge>
                                               )}
                                               <span className="text-red-800 font-semibold uppercase text-xs tracking-wider">
-                                                {issue.issue_level} ISSUE
+                                                {issue.status === "Resolved" ? "RESOLVED" : "ACTIVE"} ISSUE
                                               </span>
                                             </div>
                                             <div className="bg-red-50 p-2.5 rounded-md border border-red-100 mb-2">
@@ -2666,7 +2668,79 @@ const WaterConsumptionPage: React.FC = () => {
                                     </div>
                                   </PopoverContent>
                                 </Popover>
-                              )}
+                              ) : hasResolvedIssue ? (
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 p-0 hover:bg-green-100 rounded-full"
+                                    >
+                                      <CheckCircle2 className="h-5 w-5 text-green-600 cursor-pointer" />
+                                      <span className="sr-only">
+                                        View Resolved Issues
+                                      </span>
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent
+                                    className="w-80 p-0 border-green-200 shadow-xl"
+                                    collisionPadding={16}
+                                  >
+                                    <div className="bg-green-50 px-4 py-3 border-b border-green-100 rounded-t-lg">
+                                      <h4 className="font-semibold text-green-900 flex items-center gap-2">
+                                        <CheckCircle2 className="h-4 w-4" />
+                                        Resolved Issues
+                                      </h4>
+                                    </div>
+                                    <div className="p-4 max-h-[300px] overflow-y-auto">
+                                      <ul className="space-y-3">
+                                        {allIssues.map((issue: any) => (
+                                          <li
+                                            key={issue.id}
+                                            className="text-sm bg-white p-3 rounded-md border border-green-100 shadow-sm"
+                                          >
+                                            <div className="font-medium text-gray-900 mb-1">
+                                              <Badge
+                                                variant="outline"
+                                                className="mr-2 border-green-200 text-green-700 bg-green-50"
+                                              >
+                                                Resolved
+                                              </Badge>
+                                              <span className="text-green-800 font-semibold uppercase text-xs tracking-wider">
+                                                RESOLVED ISSUE
+                                              </span>
+                                            </div>
+                                            <div className="bg-green-50 p-2.5 rounded-md border border-green-100 mb-2">
+                                              <p className="text-green-900 font-medium text-sm leading-relaxed">
+                                                {issue.reason}
+                                              </p>
+                                            </div>
+                                            {issue.resolution_remark && (
+                                              <div className="bg-slate-50 p-2 rounded border border-slate-200 mb-2">
+                                                <p className="text-xs text-slate-500 font-semibold">Resolution Comments:</p>
+                                                <p className="text-xs text-slate-700 italic">"{issue.resolution_remark}"</p>
+                                              </div>
+                                            )}
+                                            <div className="text-xs text-gray-500 flex justify-between items-center border-t border-gray-100 pt-2 mt-2">
+                                              <span>
+                                                By:{" "}
+                                                <span className="font-medium">
+                                                  {issue.creator_name}
+                                                </span>
+                                              </span>
+                                              <span>
+                                                {new Date(
+                                                  issue.created_at,
+                                                ).toLocaleDateString()}
+                                              </span>
+                                            </div>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
+                              ) : null}
                             </div>
                           </td>
                           <td
@@ -2758,7 +2832,11 @@ const WaterConsumptionPage: React.FC = () => {
                             {allIssues.length > 0 ? (
                               <Button
                                 variant="ghost"
-                                className="h-auto p-1 max-w-full justify-start text-red-600 font-medium text-[11px] hover:text-red-700 hover:bg-red-50"
+                                className={`h-auto p-1 max-w-full justify-start font-medium text-[11px] hover:bg-slate-50 ${
+                                  hasActiveIssue
+                                    ? "text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    : "text-green-600 hover:text-green-700 hover:bg-green-50"
+                                }`}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setSelectedRemarkDetails({
@@ -2769,7 +2847,7 @@ const WaterConsumptionPage: React.FC = () => {
                               >
                                 <span className="truncate w-full text-left">
                                   {allIssues
-                                    .map((i: any) => i.reason)
+                                    .map((i: any) => i.status === "Resolved" ? `[Resolved] ${i.reason}` : i.reason)
                                     .join(", ")}
                                 </span>
                               </Button>
@@ -3060,67 +3138,104 @@ const WaterConsumptionPage: React.FC = () => {
           onOpenChange={(open) => !open && setSelectedRemarkDetails(null)}
         >
           <DialogContent className="max-w-2xl bg-white border-none shadow-2xl p-0 overflow-hidden">
-            <div className="bg-gradient-to-r from-red-600 via-rose-600 to-red-700 p-6 flex justify-between items-center text-white relative">
-              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-              <div className="relative z-10 flex-1 pr-6">
-                <DialogTitle className="text-xl md:text-2xl font-bold flex items-center gap-3">
-                  <AlertCircle className="h-6 w-6 md:h-8 md:w-8 text-red-200" />
-                  <span className="tracking-tight">Issue Details</span>
-                </DialogTitle>
-                <DialogDescription className="text-red-100 mt-2 font-medium flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  <span>{selectedRemarkDetails.title}</span>
-                </DialogDescription>
-              </div>
-            </div>
-            <div className="p-6 overflow-y-auto max-h-[70vh] bg-slate-50">
-              <div className="space-y-4">
-                {selectedRemarkDetails.issues.map(
-                  (issue: any, index: number) => (
-                    <div
-                      key={index}
-                      className="bg-white p-5 rounded-xl shadow-sm border border-slate-200"
-                    >
-                      <div className="flex justify-between items-start mb-3 gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider">
-                              {issue.problem_level
-                                ? `${issue.problem_level} Level`.toUpperCase()
-                                : issue.category || "General"}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="text-right flex flex-col items-end">
-                          <div className="text-sm font-medium text-slate-900">
-                            {issue.creator_name ||
-                              issue.reported_by ||
-                              "Field Engineer"}
-                          </div>
-                          <div className="text-xs text-slate-500 mt-0.5 whitespace-nowrap">
-                            {new Date(
-                              issue.created_at || new Date(),
-                            ).toLocaleString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric",
-                              hour: "numeric",
-                              minute: "2-digit",
-                              hour12: true,
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-100">
-                        <p className="text-sm text-slate-700 font-medium">
-                          {issue.reason || issue.issue_description}
-                        </p>
-                      </div>
+            {(() => {
+              const hasAnyActive = selectedRemarkDetails.issues.some((i: any) => i.status !== "Resolved");
+              return (
+                <>
+                  <div className={`bg-gradient-to-r ${hasAnyActive ? "from-red-600 via-rose-600 to-red-700" : "from-green-600 via-emerald-600 to-green-700"} p-6 flex justify-between items-center text-white relative`}>
+                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+                    <div className="relative z-10 flex-1 pr-6">
+                      <DialogTitle className="text-xl md:text-2xl font-bold flex items-center gap-3">
+                        {hasAnyActive ? (
+                          <AlertCircle className="h-6 w-6 md:h-8 md:w-8 text-red-200" />
+                        ) : (
+                          <CheckCircle2 className="h-6 w-6 md:h-8 md:w-8 text-green-200" />
+                        )}
+                        <span className="tracking-tight">{hasAnyActive ? "Issue Details" : "Resolved Issue Details"}</span>
+                      </DialogTitle>
+                      <DialogDescription className={`${hasAnyActive ? "text-red-100" : "text-green-100"} mt-2 font-medium flex items-center gap-2`}>
+                        <MapPin className="h-4 w-4" />
+                        <span>{selectedRemarkDetails.title}</span>
+                      </DialogDescription>
                     </div>
-                  ),
-                )}
-              </div>
-            </div>
+                  </div>
+
+                  <div className="p-6 overflow-y-auto max-h-[70vh] bg-slate-50">
+                    <div className="space-y-4">
+                      {selectedRemarkDetails.issues.map(
+                        (issue: any, index: number) => (
+                          <div
+                            key={index}
+                            className="bg-white p-5 rounded-xl shadow-sm border border-slate-200"
+                          >
+                            <div className="flex justify-between items-start mb-3 gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider">
+                                    {issue.problem_level
+                                      ? `${issue.problem_level} Level`.toUpperCase()
+                                      : issue.category || "General"}
+                                  </span>
+                                  {issue.status === "Resolved" ? (
+                                    <span className="bg-green-100 text-green-800 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider flex items-center gap-1">
+                                      <CheckCircle2 className="h-3 w-3 text-green-600" /> Resolved
+                                    </span>
+                                  ) : (
+                                    <span className="bg-red-100 text-red-800 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider flex items-center gap-1">
+                                      <AlertCircle className="h-3 w-3 text-red-600" /> Active
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right flex flex-col items-end">
+                                <div className="text-sm font-medium text-slate-900">
+                                  {issue.creator_name ||
+                                    issue.reported_by ||
+                                    "Field Engineer"}
+                                </div>
+                                <div className="text-xs text-slate-500 mt-0.5 whitespace-nowrap">
+                                  {new Date(
+                                    issue.created_at || new Date(),
+                                  ).toLocaleString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                    hour12: true,
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-100">
+                              <p className="text-sm text-slate-700 font-medium">
+                                {issue.reason || issue.issue_description}
+                              </p>
+                              {issue.remarks && (
+                                <p className="text-sm text-slate-600 mt-2 pt-2 border-t border-slate-200">
+                                  <span className="font-semibold text-slate-800">Additional Remarks:</span> {issue.remarks}
+                                </p>
+                              )}
+                              {issue.status === "Resolved" && (
+                                <div className="mt-2 pt-2 border-t border-green-200 text-xs text-green-800">
+                                  <p className="font-semibold">Resolution Comments:</p>
+                                  <p className="italic">"{issue.resolution_remark || "No resolution remark provided."}"</p>
+                                  {issue.resolved_at && (
+                                    <p className="text-[10px] text-green-600 mt-1">
+                                      Resolved on: {new Date(issue.resolved_at).toLocaleString()}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ),
+                      )}
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
           </DialogContent>
         </Dialog>
       )}
