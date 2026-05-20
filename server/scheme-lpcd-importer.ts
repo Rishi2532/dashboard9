@@ -149,8 +149,8 @@ export async function importSchemeLpcdFromCSV(fileBuffer: Buffer): Promise<{
               villages_above_55: Number(stats[`above_55_day${day}`]) || 0,
               villages_zero_supply: Number(stats[`zero_day${day}`]) || 0,
               data_date: targetDate,
-              water_value: wValue ? String(wValue) : null,
-              lpcd_value: lValue ? String(lValue) : null,
+              water_value: wValue !== null && wValue !== undefined ? String(wValue) : null,
+              lpcd_value: lValue !== null && lValue !== undefined ? String(lValue) : null,
               upload_batch_id: uploadBatchId,
             };
 

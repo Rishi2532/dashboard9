@@ -267,7 +267,7 @@ router.post("/submit", async (req: any, res) => {
     }
 });
 
-// 6. Get ALL active and resolved issues for dashboard visualization
+// 6. Get ONLY active (non-resolved) issues for dashboard remark columns
 router.get("/active", async (req, res) => {
     try {
         const db = await getDB();
@@ -293,7 +293,7 @@ router.get("/active", async (req, res) => {
             })
             .from(issueReports)
             .leftJoin(users, eq(issueReports.created_by, users.id))
-            .where(sql`LOWER(${issueReports.status}) IN ('active', 'resolved')`)
+            .where(sql`LOWER(${issueReports.status}) = 'active'`)
             .orderBy(desc(issueReports.created_at));
 
         res.json(activeIssues);

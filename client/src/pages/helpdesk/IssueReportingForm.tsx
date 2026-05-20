@@ -334,6 +334,8 @@ export default function IssueReportingForm() {
             await queryClient.resetQueries({ queryKey: ["issue-reporting", "list"] });
             await queryClient.resetQueries({ queryKey: ["issue-reporting", "regions"] }); // Refresh regions list too
             await queryClient.refetchQueries({ queryKey: ["issue-reporting", "list"] });
+            // Immediately update all dashboard pages (LPCD, Water, Pressure, Chlorine)
+            await queryClient.invalidateQueries({ queryKey: ["/api/issue-reporting/active"] });
             setActiveTab("list");
         },
         onError: (error: any) => {
@@ -361,6 +363,8 @@ export default function IssueReportingForm() {
             // Force refetch list
             await queryClient.resetQueries({ queryKey: ["issue-reporting", "list"] });
             await queryClient.refetchQueries({ queryKey: ["issue-reporting", "list"] });
+            // Immediately update all dashboard pages (LPCD, Water, Pressure, Chlorine)
+            await queryClient.invalidateQueries({ queryKey: ["/api/issue-reporting/active"] });
         },
     });
 

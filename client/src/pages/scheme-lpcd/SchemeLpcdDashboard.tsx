@@ -1985,21 +1985,17 @@ const SchemeLpcdDashboard = () => {
                               </Badge>
                             </TableCell>
                             <TableCell className="max-w-[150px]">
-                              {schemeIssues.length > 0 ? (
+                              {hasActiveIssue ? (
                                 <Button
                                   variant="ghost"
-                                  className={`h-auto p-1 max-w-full justify-start font-medium text-[11px] hover:bg-slate-50 ${
-                                    hasActiveIssue
-                                      ? "text-red-600 hover:text-red-700 hover:bg-red-50"
-                                      : "text-green-600 hover:text-green-700 hover:bg-green-50"
-                                  }`}
+                                  className="h-auto p-1 max-w-full justify-start font-medium text-[11px] hover:bg-slate-50 text-red-600 hover:text-red-700 hover:bg-red-50"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setSelectedRemarkDetails({ issues: schemeIssues, title: `Issues for ${scheme.scheme_name}` });
                                   }}
                                 >
                                   <span className="truncate w-full text-left">
-                                    {schemeIssues.map((i: any) => i.status === "Resolved" ? `[Resolved] ${i.reason}` : i.reason).join(", ")}
+                                    {schemeIssues.filter((i: any) => i.status !== "Resolved").map((i: any) => i.reason).join(", ")}
                                   </span>
                                 </Button>
                               ) : (

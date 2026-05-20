@@ -2829,14 +2829,10 @@ const WaterConsumptionPage: React.FC = () => {
                               maxWidth: "150px",
                             }}
                           >
-                            {allIssues.length > 0 ? (
+                            {hasActiveIssue ? (
                               <Button
                                 variant="ghost"
-                                className={`h-auto p-1 max-w-full justify-start font-medium text-[11px] hover:bg-slate-50 ${
-                                  hasActiveIssue
-                                    ? "text-red-600 hover:text-red-700 hover:bg-red-50"
-                                    : "text-green-600 hover:text-green-700 hover:bg-green-50"
-                                }`}
+                                className="h-auto p-1 max-w-full justify-start font-medium text-[11px] hover:bg-slate-50 text-red-600 hover:text-red-700 hover:bg-red-50"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setSelectedRemarkDetails({
@@ -2847,7 +2843,8 @@ const WaterConsumptionPage: React.FC = () => {
                               >
                                 <span className="truncate w-full text-left">
                                   {allIssues
-                                    .map((i: any) => i.status === "Resolved" ? `[Resolved] ${i.reason}` : i.reason)
+                                    .filter((i: any) => i.status !== "Resolved")
+                                    .map((i: any) => i.reason)
                                     .join(", ")}
                                 </span>
                               </Button>

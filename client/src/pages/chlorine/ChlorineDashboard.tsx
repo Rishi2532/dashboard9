@@ -2680,22 +2680,25 @@ const ChlorineDashboard: React.FC = () => {
                             )}
                           </TableCell>
                           <TableCell className="text-center font-medium border-b border-blue-200 max-w-[150px]">
-                            {esrIssues.length > 0 ? (
-                              <Button
-                                variant="ghost"
-                                className="h-auto p-1 max-w-full justify-start text-red-600 font-medium text-[11px] hover:text-red-700 hover:bg-red-50"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedRemarkDetails({ issues: esrIssues, title: `Issues for ${item.esr_name}, ${item.village_name}` });
-                                }}
-                              >
-                                <span className="truncate w-full text-left">
-                                  {esrIssues.map((i: any) => i.reason).join(", ")}
-                                </span>
-                              </Button>
-                            ) : (
-                              <span className="text-slate-400">-</span>
-                            )}
+                            {(() => {
+                              const hasActiveIssue = esrIssues.some((i: any) => i.status !== "Resolved");
+                              return hasActiveIssue ? (
+                                <Button
+                                  variant="ghost"
+                                  className="h-auto p-1 max-w-full justify-start text-red-600 font-medium text-[11px] hover:text-red-700 hover:bg-red-50"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedRemarkDetails({ issues: esrIssues, title: `Issues for ${item.esr_name}, ${item.village_name}` });
+                                  }}
+                                >
+                                  <span className="truncate w-full text-left">
+                                    {esrIssues.filter((i: any) => i.status !== "Resolved").map((i: any) => i.reason).join(", ")}
+                                  </span>
+                                </Button>
+                              ) : (
+                                <span className="text-slate-400">-</span>
+                              );
+                            })()}
                           </TableCell>
                           <TableCell className="border-b border-blue-200">
                             <Dialog>

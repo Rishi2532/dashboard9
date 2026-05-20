@@ -16056,12 +16056,14 @@ const DetailedChlorinePage = () => {
                           <TableCell className="text-center !px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px] truncate" title={(() => {
                             const esrKey = `${selectedSensor.scheme_id}-${selectedSensor.village_name}-${selectedSensor.esr_name}`;
                             const issues = esrIssuesMap?.get(esrKey) || [];
-                            return issues.length > 0 ? issues.map((i: any) => i.reason).join(", ") : "-";
+                            const activeIssues = issues.filter((i: any) => i.status !== "Resolved");
+                            return activeIssues.length > 0 ? activeIssues.map((i: any) => i.reason).join(", ") : "-";
                           })()}>
                             {(() => {
                               const esrKey = `${selectedSensor.scheme_id}-${selectedSensor.village_name}-${selectedSensor.esr_name}`;
                               const issues = esrIssuesMap?.get(esrKey) || [];
-                              return issues.length > 0 ? (
+                              const activeIssues = issues.filter((i: any) => i.status !== "Resolved");
+                              return activeIssues.length > 0 ? (
                                 <Button
                                   variant="ghost"
                                   className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
@@ -16071,7 +16073,7 @@ const DetailedChlorinePage = () => {
                                   }}
                                 >
                                   <span className="truncate w-full text-left">
-                                    {issues.map((i: any) => i.reason).join(", ")}
+                                    {activeIssues.map((i: any) => i.reason).join(", ")}
                                   </span>
                                 </Button>
                               ) : (
