@@ -20,6 +20,8 @@ import {
   mqttTopicConfigurations,
   schemeLpcdDataHistory,
   schemeProgressSummary,
+  regionHistory,
+  schemeStatusHistory,
   type User,
   type InsertUser,
   type Region,
@@ -8233,6 +8235,13 @@ export class PostgresStorage implements IStorage {
   async createRegion(region: InsertRegion): Promise<Region> {
     const db = await this.ensureInitialized();
     const result = await db.insert(regions).values(region).returning();
+    
+    // Record in history
+    if (result[0]) {
+      const { region_id, ...historyFields } = result[0];
+      await db.insert(regionHistory).values(historyFields);
+    }
+    
     return result[0];
   }
 
@@ -8254,6 +8263,10 @@ export class PostgresStorage implements IStorage {
         pressure_transmitter_integrated: region.pressure_transmitter_integrated,
       })
       .where(eq(regions.region_id, region.region_id));
+
+    // Record in history
+    const { region_id, ...historyFields } = region;
+    await db.insert(regionHistory).values(historyFields);
 
     return region;
   }
@@ -8300,6 +8313,9 @@ export class PostgresStorage implements IStorage {
           inserted++;
         }
       }
+
+      // Record snapshots in region_history in batch
+      await db.insert(regionHistory).values(regionsToUpsert);
     } catch (error) {
       console.error("Error in batch upsert regions:", error);
       throw error;
@@ -9373,7 +9389,14 @@ export class PostgresStorage implements IStorage {
       RETURNING *
     `);
 
-    return result[0] as unknown as SchemeStatus;
+    const createdScheme = result.rows[0] as unknown as SchemeStatus;
+    if (createdScheme) {
+      // Record in history, omitting fields not present in history table schema
+      const { active, ...historyFields } = createdScheme as any;
+      await db.insert(schemeStatusHistory).values(historyFields);
+    }
+
+    return createdScheme;
   }
 
   async updateScheme(scheme: SchemeStatus): Promise<SchemeStatus> {
@@ -9438,6 +9461,10 @@ export class PostgresStorage implements IStorage {
         scheme_id = ${scheme.scheme_id} 
         AND block IS NOT DISTINCT FROM ${scheme.block}
     `);
+
+    // Record in history
+    const { active, ...historyFields } = scheme as any;
+    await db.insert(schemeStatusHistory).values(historyFields);
 
     return scheme;
   }
@@ -9639,12 +9666,14 @@ export class PostgresStorage implements IStorage {
             `);
 
 
-            if (result.length > 0) {
+            if (result.rows && result.rows.length > 0) {
               if (isUpdate) {
                 updated++;
               } else {
                 inserted++;
               }
+              // Record in history
+              await db.insert(schemeStatusHistory).values(mergedScheme);
             }
           } catch (error) {
             console.error(`Error upserting scheme ${scheme.scheme_id}:`, error);

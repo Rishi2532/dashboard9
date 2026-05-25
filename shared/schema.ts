@@ -84,6 +84,31 @@ export const insertRegionSchema = createInsertSchema(regions).omit({
 export type InsertRegion = z.infer<typeof insertRegionSchema>;
 export type Region = typeof regions.$inferSelect;
 
+// Region history table to track daily updates
+export const regionHistory = pgTable("region_history", {
+  id: serial("id").primaryKey(),
+  region_name: text("region_name").notNull(),
+  total_esr_integrated: integer("total_esr_integrated"),
+  fully_completed_esr: integer("fully_completed_esr"),
+  partial_esr: integer("partial_esr"),
+  total_villages_integrated: integer("total_villages_integrated"),
+  fully_completed_villages: integer("fully_completed_villages"),
+  total_schemes_integrated: integer("total_schemes_integrated"),
+  fully_completed_schemes: integer("fully_completed_schemes"),
+  flow_meter_integrated: integer("flow_meter_integrated"),
+  rca_integrated: integer("rca_integrated"),
+  pressure_transmitter_integrated: integer("pressure_transmitter_integrated"),
+  uploaded_at: timestamp("uploaded_at").defaultNow().notNull(),
+});
+
+export const insertRegionHistorySchema = createInsertSchema(regionHistory).omit({
+  id: true,
+  uploaded_at: true,
+});
+
+export type InsertRegionHistory = z.infer<typeof insertRegionHistorySchema>;
+export type RegionHistory = typeof regionHistory.$inferSelect;
+
 // SchemeStatus table - with updated structure as per requirements
 export const schemeStatuses = pgTable("scheme_status", {
   sr_no: integer("sr_no"), // Serial number - can be used as a unique identifier
@@ -134,6 +159,50 @@ export const updateSchemeStatusSchema = createInsertSchema(schemeStatuses);
 export type InsertSchemeStatus = z.infer<typeof insertSchemeStatusSchema>;
 export type UpdateSchemeStatus = z.infer<typeof updateSchemeStatusSchema>;
 export type SchemeStatus = typeof schemeStatuses.$inferSelect;
+
+// SchemeStatus history table to track daily updates
+export const schemeStatusHistory = pgTable("scheme_status_history", {
+  id: serial("id").primaryKey(),
+  sr_no: integer("sr_no"),
+  scheme_id: text("scheme_id").notNull(),
+  region: text("region"),
+  circle: text("circle"),
+  division: text("division"),
+  sub_division: text("sub_division"),
+  block: text("block"),
+  scheme_name: text("scheme_name").notNull(),
+  agency: text("agency"),
+  number_of_village: integer("number_of_village"),
+  total_villages_integrated: integer("total_villages_integrated"),
+  no_of_functional_village: integer("no_of_functional_village"),
+  no_of_partial_village: integer("no_of_partial_village"),
+  no_of_non_functional_village: integer("no_of_non_functional_village"),
+  fully_completed_villages: integer("fully_completed_villages"),
+  total_number_of_esr: integer("total_number_of_esr"),
+  scheme_functional_status: text("scheme_functional_status"),
+  total_esr_integrated: integer("total_esr_integrated"),
+  no_fully_completed_esr: integer("no_fully_completed_esr"),
+  balance_to_complete_esr: integer("balance_to_complete_esr"),
+  flow_meters_connected: integer("flow_meters_connected"),
+  pressure_transmitter_connected: integer("pressure_transmitter_connected"),
+  residual_chlorine_analyzer_connected: integer("residual_chlorine_analyzer_connected"),
+  fully_completion_scheme_status: text("fully_completion_scheme_status"),
+  mjp_commissioned: text("mjp_commissioned"),
+  mjp_fully_completed: text("mjp_fully_completed"),
+  water_supply: text("water_supply"),
+  agency_type: text("agency_type"),
+  water_supply_status: text("water_supply_status"),
+  dashboard_url: text("dashboard_url"),
+  uploaded_at: timestamp("uploaded_at").defaultNow().notNull(),
+});
+
+export const insertSchemeStatusHistorySchema = createInsertSchema(schemeStatusHistory).omit({
+  id: true,
+  uploaded_at: true,
+});
+
+export type InsertSchemeStatusHistory = z.infer<typeof insertSchemeStatusHistorySchema>;
+export type SchemeStatusHistory = typeof schemeStatusHistory.$inferSelect;
 
 // App state table for storing persistent application state
 export const appState = pgTable("app_state", {

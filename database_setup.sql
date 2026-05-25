@@ -200,6 +200,71 @@ CREATE TABLE IF NOT EXISTS "global_summary" (
   "rca_integrated" INTEGER,
   "pressure_transmitter_integrated" INTEGER
 );
+
+-- Create region_history table for storing historical snapshots of region data
+CREATE TABLE IF NOT EXISTS "region_history" (
+  "id" SERIAL PRIMARY KEY,
+  "region_name" TEXT NOT NULL,
+  "total_esr_integrated" INTEGER,
+  "fully_completed_esr" INTEGER,
+  "partial_esr" INTEGER,
+  "total_villages_integrated" INTEGER,
+  "fully_completed_villages" INTEGER,
+  "total_schemes_integrated" INTEGER,
+  "fully_completed_schemes" INTEGER,
+  "flow_meter_integrated" INTEGER,
+  "rca_integrated" INTEGER,
+  "pressure_transmitter_integrated" INTEGER,
+  "uploaded_at" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+-- Create index on region_history for date-based queries
+CREATE INDEX IF NOT EXISTS "idx_region_history_uploaded_at" 
+ON "region_history" ("uploaded_at");
+
+-- Create scheme_status_history table for storing historical snapshots of scheme status data
+CREATE TABLE IF NOT EXISTS "scheme_status_history" (
+  "id" SERIAL PRIMARY KEY,
+  "sr_no" INTEGER,
+  "scheme_id" TEXT NOT NULL,
+  "region" TEXT,
+  "circle" TEXT,
+  "division" TEXT,
+  "sub_division" TEXT,
+  "block" TEXT,
+  "scheme_name" TEXT NOT NULL,
+  "agency" TEXT,
+  "number_of_village" INTEGER,
+  "total_villages_integrated" INTEGER,
+  "no_of_functional_village" INTEGER,
+  "no_of_partial_village" INTEGER,
+  "no_of_non_functional_village" INTEGER,
+  "fully_completed_villages" INTEGER,
+  "total_number_of_esr" INTEGER,
+  "scheme_functional_status" TEXT,
+  "total_esr_integrated" INTEGER,
+  "no_fully_completed_esr" INTEGER,
+  "balance_to_complete_esr" INTEGER,
+  "flow_meters_connected" INTEGER,
+  "pressure_transmitter_connected" INTEGER,
+  "residual_chlorine_analyzer_connected" INTEGER,
+  "fully_completion_scheme_status" TEXT,
+  "mjp_commissioned" TEXT,
+  "mjp_fully_completed" TEXT,
+  "water_supply" TEXT,
+  "agency_type" TEXT,
+  "water_supply_status" TEXT,
+  "dashboard_url" TEXT,
+  "uploaded_at" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+-- Create indexes on scheme_status_history
+CREATE INDEX IF NOT EXISTS "idx_scheme_status_history_uploaded_at" 
+ON "scheme_status_history" ("uploaded_at");
+
+CREATE INDEX IF NOT EXISTS "idx_scheme_status_history_lookup" 
+ON "scheme_status_history" ("scheme_id", "block", "uploaded_at");
+
 CREATE TABLE IF NOT EXISTS scheme_lpcd_data_history (
   -- Primary key
   id SERIAL PRIMARY KEY,
