@@ -47,6 +47,7 @@ const navigationItems: NavigationItem[] = [
   // { name: "Maharashtra Map", href: "/maharashtra-map", icon: Map },
   { name: "Reports", href: "/reports", icon: BarChart2 },
   { name: "Smart Reports", href: "/smart-reports", icon: FileText },
+  { name: "Monthly Reports", href: "/monthly-reports", icon: FileText },
 
   { name: "Village LPCD", href: "/lpcd", icon: Droplet },
   { name: "Scheme LPCD", href: "/scheme-lpcd", icon: Droplet },

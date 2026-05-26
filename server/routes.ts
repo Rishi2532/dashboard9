@@ -51,6 +51,7 @@ import schemeAnalysisRoutes from "./routes/scheme-analysis-routes";
 import categoryDataRoutes from "./routes/category-data-routes";
 import nlpChatbotRoutes from "./routes/nlp-chatbot-routes";
 import smartReportsRoutes from "./routes/smart-reports-routes";
+import monthlyReportsRoutes from "./routes/monthly-reports-routes";
 import chatbotHelpdeskRoutes from "./routes/chatbot/helpdesk-routes";
 import combinedEsrDownloadRoutes from "./routes/combined-esr-download-routes";
 import issueReportingRoutes from "./routes/issue-reporting-routes";
@@ -184,6 +185,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Mount Smart Reports routes
   app.use("/api/smart-reports", smartReportsRoutes);
+
+  // Mount Monthly Progress Reports routes
+  app.use("/api/monthly-reports", monthlyReportsRoutes);
 
   // Mount Combined ESR Download routes
   app.use("/api/combined-esr-download", combinedEsrDownloadRoutes);

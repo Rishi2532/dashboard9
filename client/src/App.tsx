@@ -43,6 +43,7 @@ import ESRListPage from "./pages/details/esr-list";
 import MqttMonitor from "./pages/MqttMonitor";
 import MqttTopicConfiguration from "./pages/MqttTopicConfiguration";
 import SmartReportsPage from "./pages/smart-reports";
+import MonthlyReportsPage from "./pages/monthly-reports";
 import IssueReportingForm from "./pages/helpdesk/IssueReportingForm";
 
 import ProtectedRoute from "./components/auth/protected-route";
@@ -165,6 +166,11 @@ function App() {
                     <Route path="/smart-reports">
                       <ProtectedRoute>
                         <SmartReportsPage />
+                      </ProtectedRoute>
+                    </Route>
+                    <Route path="/monthly-reports">
+                      <ProtectedRoute>
+                        <MonthlyReportsPage />
                       </ProtectedRoute>
                     </Route>
                     <Route path="/settings">
