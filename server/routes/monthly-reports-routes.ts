@@ -698,11 +698,11 @@ router.get("/data", async (req, res) => {
 
       const lpcdQuery = `
         SELECT 
-          s.region, s.circle, s.division, s.sub_division, s.block, s.scheme_id, s.scheme_name,
+          s.region, s.circle, s.division, s.sub_division, s.block, s.scheme_id, s.scheme_name, s.water_supply,
           h.data_date,
           AVG(h.lpcd_value) as lpcd_avg
         FROM (
-          SELECT DISTINCT ON (scheme_id) scheme_id, region, circle, division, sub_division, block, scheme_name 
+          SELECT DISTINCT ON (scheme_id) scheme_id, region, circle, division, sub_division, block, scheme_name, water_supply 
           FROM scheme_status
         ) s
         INNER JOIN (
@@ -710,7 +710,7 @@ router.get("/data", async (req, res) => {
         ) integrated ON s.scheme_id = integrated.scheme_id
         LEFT JOIN water_scheme_data_history h ON s.scheme_id = h.scheme_id AND ${joinConditions.join(" AND ")}
         ${filterConditions.length > 0 ? "WHERE " + filterConditions.join(" AND ") : ""}
-        GROUP BY s.region, s.circle, s.division, s.sub_division, s.block, s.scheme_id, s.scheme_name, h.data_date
+        GROUP BY s.region, s.circle, s.division, s.sub_division, s.block, s.scheme_id, s.scheme_name, s.water_supply, h.data_date
         ORDER BY s.region, s.circle, s.division, s.sub_division, s.block, s.scheme_name, s.scheme_id
       `;
 
@@ -724,6 +724,7 @@ router.get("/data", async (req, res) => {
         block: string;
         scheme_id: string;
         scheme_name: string;
+        water_supply: string;
         days: Record<number, number | null>;
       }>();
 
@@ -738,6 +739,7 @@ router.get("/data", async (req, res) => {
             block: r.block || "-",
             scheme_id: r.scheme_id,
             scheme_name: r.scheme_name,
+            water_supply: r.water_supply || "",
             days: {}
           });
         }
@@ -779,7 +781,8 @@ router.get("/data", async (req, res) => {
           s.sub_division,
           s.block,
           s.scheme_id,
-          s.scheme_name
+          s.scheme_name,
+          s.water_supply
         ];
 
         const row1 = [...metadata];
@@ -814,7 +817,8 @@ router.get("/data", async (req, res) => {
             s.sub_division,
             s.block,
             s.scheme_id,
-            s.scheme_name
+            s.scheme_name,
+            s.water_supply
           ];
 
           const hRow1 = [...hMetadata];
@@ -841,13 +845,13 @@ router.get("/data", async (req, res) => {
         srNo++;
       }
 
-      const table1Headers = ["Sr No", "Region", "Circle", "Division", "Sub Division", "Block", "Scheme ID", "Scheme Name"];
+      const table1Headers = ["Sr No", "Region", "Circle", "Division", "Sub Division", "Block", "Scheme ID", "Scheme Name", "Water Supply"];
       for (let d = 1; d <= 14; d++) table1Headers.push(String(d));
 
-      const table2Headers = ["Sr No", "Region", "Circle", "Division", "Sub Division", "Block", "Scheme ID", "Scheme Name"];
+      const table2Headers = ["Sr No", "Region", "Circle", "Division", "Sub Division", "Block", "Scheme ID", "Scheme Name", "Water Supply"];
       for (let d = 15; d <= 28; d++) table2Headers.push(String(d));
 
-      const table3Headers = ["Sr No", "Region", "Circle", "Division", "Sub Division", "Block", "Scheme ID", "Scheme Name"];
+      const table3Headers = ["Sr No", "Region", "Circle", "Division", "Sub Division", "Block", "Scheme ID", "Scheme Name", "Water Supply"];
       for (let d = 29; d <= daysInMonth; d++) table3Headers.push(String(d));
 
       responseData.lpcdCommissionedSchemes = [
@@ -867,6 +871,142 @@ router.get("/data", async (req, res) => {
       }
     } catch (e) {
       console.warn("Could not load LPCD snapshots:", e);
+    }
+
+    // Fetch chlorine comparison statistics for the end of the month from chlorine_history
+    try {
+      const chlorineQuery = `
+        WITH parsed_dates AS (
+          SELECT 
+            *,
+            (
+              CASE 
+                WHEN chlorine_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
+                  CASE 
+                    WHEN EXTRACT(MONTH FROM TO_DATE(chlorine_date, 'DD-Mon')) >= 11 AND EXTRACT(MONTH FROM uploaded_at) <= 2 THEN
+                      TO_DATE(chlorine_date || '-' || (EXTRACT(YEAR FROM uploaded_at) - 1)::text, 'DD-Mon-YYYY')
+                    ELSE 
+                      TO_DATE(chlorine_date || '-' || EXTRACT(YEAR FROM uploaded_at)::text, 'DD-Mon-YYYY')
+                  END
+                WHEN chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(chlorine_date, 'DD-Mon-YYYY')
+                WHEN chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN TO_DATE(chlorine_date, 'DD-Mon-YY')
+                WHEN chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(chlorine_date, 'YYYY-MM-DD')
+                WHEN chlorine_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN TO_DATE(chlorine_date, 'DD/MM/YYYY')
+                WHEN chlorine_date ~ '^[0-9]+\\.?[0-9]*$' AND CAST(chlorine_date AS NUMERIC) < 1000000 THEN (TO_DATE('1899-12-30', 'YYYY-MM-DD') + (INTERVAL '1 day' * CAST(chlorine_date AS NUMERIC)))::date 
+                ELSE NULL
+              END
+            ) as actual_date
+          FROM chlorine_history
+          WHERE uploaded_at >= $1 AND uploaded_at < $2
+        ),
+        last_7_dates AS (
+          SELECT DISTINCT actual_date
+          FROM parsed_dates
+          WHERE actual_date IS NOT NULL
+          ORDER BY actual_date DESC
+          LIMIT 7
+        ),
+        esr_daily_values AS (
+          SELECT 
+            scheme_id, village_name, esr_name, region,
+            actual_date,
+            chlorine_value,
+            ROW_NUMBER() OVER (PARTITION BY scheme_id, village_name, esr_name ORDER BY actual_date DESC) as date_rank
+          FROM parsed_dates
+          WHERE actual_date IN (SELECT actual_date FROM last_7_dates)
+        ),
+        esr_aggregates AS (
+          SELECT 
+            scheme_id, village_name, esr_name, region,
+            MAX(CASE WHEN date_rank = 1 THEN chlorine_value END) as latest_value,
+            COUNT(chlorine_value) as days_with_data,
+            SUM(CASE WHEN chlorine_value < 0.2 THEN 1 ELSE 0 END) as below_count,
+            SUM(CASE WHEN chlorine_value >= 0.2 AND chlorine_value <= 0.5 THEN 1 ELSE 0 END) as optimal_count,
+            SUM(CASE WHEN chlorine_value > 0.5 THEN 1 ELSE 0 END) as above_count
+          FROM esr_daily_values
+          GROUP BY scheme_id, village_name, esr_name, region
+        )
+        SELECT 
+          region,
+          COUNT(*) as total_connected,
+          SUM(CASE WHEN latest_value IS NOT NULL AND latest_value < 0.2 THEN 1 ELSE 0 END) as below_0_2,
+          SUM(CASE WHEN latest_value IS NOT NULL AND latest_value >= 0.2 AND latest_value <= 0.5 THEN 1 ELSE 0 END) as optimal_0_2_0_5,
+          SUM(CASE WHEN latest_value IS NOT NULL AND latest_value > 0.5 THEN 1 ELSE 0 END) as above_0_5,
+          SUM(CASE WHEN days_with_data = 7 AND below_count = 7 THEN 1 ELSE 0 END) as consistent_below_0_2,
+          SUM(CASE WHEN days_with_data = 7 AND optimal_count = 7 THEN 1 ELSE 0 END) as consistent_optimal,
+          SUM(CASE WHEN days_with_data = 7 AND above_count = 7 THEN 1 ELSE 0 END) as consistent_above_0_5
+        FROM esr_aggregates
+        GROUP BY region
+        ORDER BY region
+      `;
+      const chlorineRes = await pool.query(chlorineQuery, [startIso, nextIso]);
+      responseData.chlorineComparison = chlorineRes.rows;
+      console.log(`Fetched chlorine comparison for month ${report_month}:`, responseData.chlorineComparison ? responseData.chlorineComparison.length : 0, "regions");
+    } catch (e) {
+      console.warn("Could not load chlorine history comparison counts:", e);
+    }
+
+    if (!responseData.chlorineComparison || responseData.chlorineComparison.length === 0) {
+      // Fallback to active chlorine_data table
+      try {
+        const activeRegionsRes = await pool.query(`SELECT DISTINCT region FROM chlorine_data WHERE region IS NOT NULL ORDER BY region`);
+        const regions = activeRegionsRes.rows.map(r => r.region);
+        const activeComparison = [];
+        for (const r of regions) {
+          const statsRes = await pool.query(`
+            SELECT 
+              COUNT(*) as total_connected,
+              SUM(CASE WHEN chlorine_value_7 IS NOT NULL AND chlorine_value_7 < 0.2 THEN 1 ELSE 0 END) as below_0_2,
+              SUM(CASE WHEN chlorine_value_7 IS NOT NULL AND chlorine_value_7 >= 0.2 AND chlorine_value_7 <= 0.5 THEN 1 ELSE 0 END) as optimal_0_2_0_5,
+              SUM(CASE WHEN chlorine_value_7 IS NOT NULL AND chlorine_value_7 > 0.5 THEN 1 ELSE 0 END) as above_0_5,
+              SUM(CASE WHEN 
+                chlorine_value_1 IS NOT NULL AND chlorine_value_1 < 0.2 AND
+                chlorine_value_2 IS NOT NULL AND chlorine_value_2 < 0.2 AND
+                chlorine_value_3 IS NOT NULL AND chlorine_value_3 < 0.2 AND
+                chlorine_value_4 IS NOT NULL AND chlorine_value_4 < 0.2 AND
+                chlorine_value_5 IS NOT NULL AND chlorine_value_5 < 0.2 AND
+                chlorine_value_6 IS NOT NULL AND chlorine_value_6 < 0.2 AND
+                chlorine_value_7 IS NOT NULL AND chlorine_value_7 < 0.2
+              THEN 1 ELSE 0 END) as consistent_below_0_2,
+              SUM(CASE WHEN 
+                chlorine_value_1 IS NOT NULL AND chlorine_value_1 >= 0.2 AND chlorine_value_1 <= 0.5 AND
+                chlorine_value_2 IS NOT NULL AND chlorine_value_2 >= 0.2 AND chlorine_value_2 <= 0.5 AND
+                chlorine_value_3 IS NOT NULL AND chlorine_value_3 >= 0.2 AND chlorine_value_3 <= 0.5 AND
+                chlorine_value_4 IS NOT NULL AND chlorine_value_4 >= 0.2 AND chlorine_value_4 <= 0.5 AND
+                chlorine_value_5 IS NOT NULL AND chlorine_value_5 >= 0.2 AND chlorine_value_5 <= 0.5 AND
+                chlorine_value_6 IS NOT NULL AND chlorine_value_6 >= 0.2 AND chlorine_value_6 <= 0.5 AND
+                chlorine_value_7 IS NOT NULL AND chlorine_value_7 >= 0.2 AND chlorine_value_7 <= 0.5
+              THEN 1 ELSE 0 END) as consistent_optimal,
+              SUM(CASE WHEN 
+                chlorine_value_1 IS NOT NULL AND chlorine_value_1 > 0.5 AND
+                chlorine_value_2 IS NOT NULL AND chlorine_value_2 > 0.5 AND
+                chlorine_value_3 IS NOT NULL AND chlorine_value_3 > 0.5 AND
+                chlorine_value_4 IS NOT NULL AND chlorine_value_4 > 0.5 AND
+                chlorine_value_5 IS NOT NULL AND chlorine_value_5 > 0.5 AND
+                chlorine_value_6 IS NOT NULL AND chlorine_value_6 > 0.5 AND
+                chlorine_value_7 IS NOT NULL AND chlorine_value_7 > 0.5
+              THEN 1 ELSE 0 END) as consistent_above_0_5
+            FROM chlorine_data
+            WHERE region = $1
+          `, [r]);
+          if (statsRes.rows.length > 0) {
+            activeComparison.push({
+              region: r,
+              total_connected: Number(statsRes.rows[0].total_connected) || 0,
+              below_0_2: Number(statsRes.rows[0].below_0_2) || 0,
+              optimal_0_2_0_5: Number(statsRes.rows[0].optimal_0_2_0_5) || 0,
+              above_0_5: Number(statsRes.rows[0].above_0_5) || 0,
+              consistent_below_0_2: Number(statsRes.rows[0].consistent_below_0_2) || 0,
+              consistent_optimal: Number(statsRes.rows[0].consistent_optimal) || 0,
+              consistent_above_0_5: Number(statsRes.rows[0].consistent_above_0_5) || 0
+            });
+          }
+        }
+        responseData.chlorineComparison = activeComparison;
+        console.log(`Fetched fallback chlorine comparison:`, responseData.chlorineComparison.length, "regions");
+      } catch (err) {
+        console.warn("Could not load fallback chlorine active comparison counts:", err);
+      }
     }
 
     res.json(responseData);

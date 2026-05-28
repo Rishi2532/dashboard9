@@ -222,6 +222,7 @@ export interface MonthlyIntegrationData {
   lpcdHighlights?: any[];
   newlyAddedSchemes?: string[];
   newlyAddedVillages?: string[];
+  chlorineComparison?: any[];
 }
 
 function cellCenter(text: string | number, fillColor?: string, color?: string): any {
@@ -349,12 +350,12 @@ export async function generateMonthlyReportPDF(data: MonthlyIntegrationData) {
   };
   const content = documentDefinition.content;
   content.push({
-    text: `Operation and Maintenance Monthly Report ICCC - ${monthDisplay}`,
-    absolutePosition: { x: 30, y: 25 },
-    fontSize: 14,
+    text: `System-Generated Monthly Operations & Maintenance Report – ICCC`,
+    fontSize: 20,
     bold: true,
     color: themeColors.orange,
-    font: "PTSerif"
+    font: "PTSerif",
+    margin: [30, 25, 150, 15]
   });
   content.push({
     image: csTechLogoBase64,
@@ -362,91 +363,36 @@ export async function generateMonthlyReportPDF(data: MonthlyIntegrationData) {
     absolutePosition: { x: 700, y: 25 }
   });
   content.push({
-    text: "Appointment of System Integrators (SI’s) for IoT Deployment including Design, Implementation & Maintenance with Centralized IoT Platform for Jal Jeevan Mission Projects in State of Maharashtra",
-    style: "coverTitle"
+    text: "Project Name - Appointment of System Integrators (SI’s) for IoT Deployment including Design, Implementation & Maintenance with Centralized IoT Platform for Jal Jeevan Mission Projects in State of Maharashtra",
+    fontSize: 14,
+    bold: true,
+    color: themeColors.darkBlue,
+    alignment: "left",
+    margin: [30, 0, 150, 10],
+    font: "PTSerif"
+  });
+  content.push({
+    text: monthDisplay,
+    fontSize: 11,
+    bold: true,
+    color: themeColors.darkBlue,
+    alignment: "left",
+    margin: [30, 0, 150, 20],
+    font: "PTSerif"
   });
   content.push({
     image: submittedToLogoBase64,
-    width: 210,
+    width: 140,
     alignment: "center",
-    margin: [0, 0, 0, 20],
+    margin: [0, 20, 0, 10],
     pageBreak: "after"
   });
 
-  // Metadata table now on the second page
-  content.push({
-    table: {
-      widths: [150, 300],
-      body: [
-        [
-          { text: "Document Name", style: "coverTableLabel", fillColor: themeColors.lightBlue },
-          { text: "Operation and Maintenance Monthly Report for IOT", style: "coverTableCell" }
-        ],
-        [
-          { text: "Client Name", style: "coverTableLabel", fillColor: themeColors.lightBlue },
-          { text: "Maharashtra Jeevan Pradhikaran", style: "coverTableCell" }
-        ],
-        [
-          { text: "Project Name", style: "coverTableLabel", fillColor: themeColors.lightBlue },
-          { text: "IOT", style: "coverTableCell" }
-        ],
-        [
-          { text: "Prepared By", style: "coverTableLabel", fillColor: themeColors.lightBlue },
-          { text: "CS Tech Limited", style: "coverTableCell" }
-        ],
-        [
-          { text: "Prepared Date", style: "coverTableLabel", fillColor: themeColors.lightBlue },
-          { text: "27/12/2024", style: "coverTableCell" }
-        ]
-      ]
-    },
-    layout: {
-      hLineWidth: () => 0.5,
-      vLineWidth: () => 0.5,
-      hLineColor: () => themeColors.grey,
-      vLineColor: () => themeColors.grey
-    },
-    margin: [160, 40, 0, 20]
-  });
-
-  // Add the submittedTo logo on the second page below the metadata table
-  content.push({
-    image: submittedToLogoBase64,
-    width: 150,
-    alignment: "center",
-    margin: [0, 20, 0, 20]
-  });
-
-  // Render active filters on Page 2 below the metadata table
-  const filterElements: any[] = [];
-  const f = (data as any).filters;
-  if (f) {
-    if (f.circle && f.circle !== "all") filterElements.push({ text: `Circle: ${f.circle}`, bold: true });
-    if (f.division && f.division !== "all") filterElements.push({ text: `Division: ${f.division}`, bold: true });
-    if (f.subdivision && f.subdivision !== "all") filterElements.push({ text: `Sub Division: ${f.subdivision}`, bold: true });
-    if (f.block && f.block !== "all") filterElements.push({ text: `Block: ${f.block}`, bold: true });
-    if (f.scheme_id && f.scheme_id !== "all") filterElements.push({ text: `Scheme ID: ${f.scheme_id}`, bold: true });
-  }
-
-  if (filterElements.length > 0) {
-    content.push({
-      text: [
-        "Active Filters: ",
-        ...filterElements.reduce((acc, curr, i) => i === 0 ? [curr] : [...acc, ", ", curr], [])
-      ],
-      alignment: "center",
-      margin: [0, 0, 0, 15],
-      color: themeColors.orange,
-      fontSize: 10
-    });
-  }
-
-  // End Page 2 with a page break
-  content.push({ text: " ", margin: [0, 0, 0, 1], pageBreak: "after" });
+  // Table of Contents on the second page
   content.push({ text: "Table of Contents", style: "pageTitle", fontSize: 30, margin: [0, 80, 0, 40] });
 
   const tocItems = [
-    { text: data.caseType === "A" ? "1. Monthly Progress — Newly Added This Month" : "1. Progress Summary — Start vs End of Month", margin: [0, 20, 0, 20], fontSize: 18 },
+    { text: data.caseType === "A" ? "1. Monthly Progress — Newly Added Assets This Month" : "1. Progress Summary — Start vs End of Month", margin: [0, 20, 0, 20], fontSize: 18 },
     { text: "2. Monthly LPCD Integrated Schemes Data", margin: [0, 20, 0, 20], fontSize: 18 },
     { text: "3. Highlights - Consistent Water Supply", margin: [0, 20, 0, 20], fontSize: 18 },
   ];
@@ -482,19 +428,25 @@ export async function generateMonthlyReportPDF(data: MonthlyIntegrationData) {
       const lpcdBody: any[] = [];
       let actualHeaders: string[] = [];
       let rowsToRender: any[][] = [];
+      let waterSupplyFlags: boolean[] = [];
 
       if (isMultiTableFormat) {
+        const wsColIdx = tableObj.headers.findIndex((h: string) => String(h || "").toLowerCase().trim() === 'water supply');
         const metadataFilter = (h: string) => {
           const lower = String(h || "").toLowerCase().trim();
-          return !lower.match(/population/) && lower !== 'pop';
+          return !lower.match(/population/) && lower !== 'pop' && lower !== 'water supply';
         };
 
         actualHeaders = tableObj.headers.filter(metadataFilter);
         const originalHeaders = tableObj.headers;
-        rowsToRender = tableObj.rows
-          .filter((r: any) => r && r.length > 0)
-          .map((row: any[]) => {
-            return row.filter((_, i) => metadataFilter(originalHeaders[i]));
+        const filteredRows = tableObj.rows.filter((r: any) => r && r.length > 0);
+        if (wsColIdx >= 0) {
+          filteredRows.forEach((row: any[]) => {
+            waterSupplyFlags.push(String(row[wsColIdx] || "").toLowerCase().trim() === 'yes');
+          });
+        }
+        rowsToRender = filteredRows.map((row: any[]) => {
+            return row.filter((_: any, i: number) => metadataFilter(originalHeaders[i]));
           });
       } else {
         const metadataFilter = (h: string) => {
@@ -519,7 +471,8 @@ export async function generateMonthlyReportPDF(data: MonthlyIntegrationData) {
           cell.margin = isDense ? [1, 2, 1, 2] : [2, 4, 2, 4];
           return cell;
         }));
-        rowsToRender.forEach(row => {
+        rowsToRender.forEach((row, rowIndex) => {
+          const isWsHighlighted = waterSupplyFlags.length > 0 && waterSupplyFlags[rowIndex] === true;
           const rowData: any[] = [];
           for (let i = 0; i < actualHeaders.length; i++) {
             const val = row[i];
@@ -534,6 +487,9 @@ export async function generateMonthlyReportPDF(data: MonthlyIntegrationData) {
             } else {
               const align = key.toLowerCase().includes('scheme') || key.toLowerCase().includes('village') ? 'left' : 'center';
               cell = { text: valStr, style: "tableCell", alignment: align };
+              if (isWsHighlighted) {
+                cell.fillColor = "#E8F5E9";
+              }
             }
             cell.fontSize = activeFontSize;
             cell.margin = isDense ? [1, 2, 1, 2] : [2, 3, 2, 3];
@@ -692,7 +648,7 @@ export async function generateMonthlyReportPDF(data: MonthlyIntegrationData) {
     if (data.monthlySummaryByRegion.length === 0) {
       monthlyBody.push([{ text: "No region history data available for this month. Upload Region CSV to enable monthly tracking.", colSpan: 7, style: "tableCell", color: themeColors.grey, alignment: "center" }, ...Array(6).fill({})]);
     }
-    content.push({ text: "1. Monthly Progress — Newly Added This Month", style: "pageTitle" });
+    content.push({ text: "1. Monthly Progress — Newly Added Assets This Month", style: "pageTitle" });
     content.push({
       table: { headerRows: 1, widths: ["*", "auto", "auto", "auto", "auto", "auto", "auto"], body: monthlyBody },
       layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => themeColors.lightGrey, vLineColor: () => themeColors.lightGrey },
