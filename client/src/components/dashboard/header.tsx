@@ -292,6 +292,23 @@ export default function Header() {
                 Reports
               </Button>
             </Link>
+            {authData?.isAdmin && (
+              <Link href="/monthly-reports">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "text-white h-8 px-3 text-xs font-medium transition-all duration-200",
+                    isActive("/monthly-reports")
+                      ? "bg-white/30 shadow-inner font-bold"
+                      : "hover:bg-black hover:bg-opacity-20"
+                  )}
+                >
+                  <FileText className="h-3.5 w-3.5 mr-1.5" />
+                  Monthly Reports
+                </Button>
+              </Link>
+            )}
             {/* <Link href="/hierarchy">
               <Button
                 variant="ghost"
@@ -510,6 +527,23 @@ export default function Header() {
                 Reports
               </Button>
             </Link>
+            {authData?.isAdmin && (
+              <Link href="/monthly-reports" onClick={() => setIsMobileMenuOpen(false)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "w-full justify-start h-10 font-semibold transition-colors",
+                    isActive("/monthly-reports")
+                      ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3"
+                      : "text-gray-700 hover:bg-gray-100"
+                  )}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Monthly Reports
+                </Button>
+              </Link>
+            )}
             {/* <Link href="/hierarchy" onClick={() => setIsMobileMenuOpen(false)}>
               <Button
                 variant="ghost"

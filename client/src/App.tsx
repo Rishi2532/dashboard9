@@ -45,6 +45,7 @@ import MqttTopicConfiguration from "./pages/MqttTopicConfiguration";
 import SmartReportsPage from "./pages/smart-reports";
 import MonthlyReportsPage from "./pages/monthly-reports";
 import IssueReportingForm from "./pages/helpdesk/IssueReportingForm";
+import MonthlyReportsPage from "./pages/monthly-reports";
 
 import ProtectedRoute from "./components/auth/protected-route";
 import { AuthProvider } from "./hooks/use-auth";
@@ -161,6 +162,11 @@ function App() {
                     <Route path="/reports">
                       <ProtectedRoute>
                         <Reports />
+                      </ProtectedRoute>
+                    </Route>
+                    <Route path="/monthly-reports">
+                      <ProtectedRoute requireAdmin={true}>
+                        <MonthlyReportsPage />
                       </ProtectedRoute>
                     </Route>
                     <Route path="/smart-reports">

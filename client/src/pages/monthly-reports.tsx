@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { FileText, Download, Loader2, Calendar } from "lucide-react";
+import {
+  FileText,
+  Download,
+  Loader2,
+  Calendar,
+  Settings,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -10,209 +16,261 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import DashboardLayout from "@/components/dashboard/dashboard-layout";
 import { useToast } from "@/hooks/use-toast";
-import { generateMonthlyProgressPDF } from "@/lib/pdf-generator-monthly";
+import { generateMonthlyReportPDF } from "@/lib/pdf-generator-monthly";
+import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
 
 export default function MonthlyReportsPage() {
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [selectedRegion, setSelectedRegion] = useState<string>("all");
+  const [selectedCircle, setSelectedCircle] = useState<string>("all");
+  const [selectedDivision, setSelectedDivision] = useState<string>("all");
+  const [selectedSubdivision, setSelectedSubdivision] = useState<string>("all");
+  const [selectedBlock, setSelectedBlock] = useState<string>("all");
+  const [selectedSchemeId, setSelectedSchemeId] = useState<string>("all");
 
-  const [region, setRegion] = useState("All Regions");
-  const [circle, setCircle] = useState("");
-  const [division, setDivision] = useState("");
-  const [subDivision, setSubDivision] = useState("");
-  const [block, setBlock] = useState("");
-  const [schemeId, setSchemeId] = useState("");
-
+  // Default to current month YYYY-MM
+  const [reportMonth, setReportMonth] = useState<string>(
+    new Date().toISOString().substring(0, 7)
+  );
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
 
-  const handleGeneratePDF = async () => {
-    if (!startDate || !endDate) {
-      toast({
-        title: "Error",
-        description: "Please select both Start Date and End Date.",
-        variant: "destructive",
-      });
-      return;
-    }
+  // Fetch cascading filter options
+  const { data: filterOptions } = useQuery({
+    queryKey: [
+      "/api/schemes/filters",
+      selectedRegion,
+      selectedCircle,
+      selectedDivision,
+      selectedSubdivision,
+    ],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedRegion !== "all") params.set("region", selectedRegion);
+      if (selectedCircle !== "all") params.set("circle", selectedCircle);
+      if (selectedDivision !== "all") params.set("division", selectedDivision);
+      if (selectedSubdivision !== "all")
+        params.set("subdivision", selectedSubdivision);
 
+      const response = await fetch(`/api/schemes/filters?${params.toString()}`);
+      return response.json();
+    },
+  });
+
+  // Fetch schemes based on active filters
+  const { data: schemes } = useQuery<any[]>({
+    queryKey: [
+      "/api/schemes",
+      selectedRegion,
+      selectedCircle,
+      selectedDivision,
+      selectedSubdivision,
+      selectedBlock,
+    ],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedRegion !== "all") params.set("region", selectedRegion);
+      if (selectedCircle !== "all") params.set("circle", selectedCircle);
+      if (selectedDivision !== "all") params.set("division", selectedDivision);
+      if (selectedSubdivision !== "all") params.set("subdivision", selectedSubdivision);
+      if (selectedBlock !== "all") params.set("block", selectedBlock);
+      params.set("consolidated", "true");
+      const res = await fetch(`/api/schemes?${params.toString()}`);
+      return res.json();
+    },
+    enabled: selectedRegion !== "all",
+  });
+
+  const handleRegionChange = (val: string) => {
+    setSelectedRegion(val);
+    setSelectedCircle("all");
+    setSelectedDivision("all");
+    setSelectedSubdivision("all");
+    setSelectedBlock("all");
+    setSelectedSchemeId("all");
+  };
+
+  const handleCircleChange = (val: string) => {
+    setSelectedCircle(val);
+    setSelectedDivision("all");
+    setSelectedSubdivision("all");
+    setSelectedBlock("all");
+    setSelectedSchemeId("all");
+  };
+
+  const handleDivisionChange = (val: string) => {
+    setSelectedDivision(val);
+    setSelectedSubdivision("all");
+    setSelectedBlock("all");
+    setSelectedSchemeId("all");
+  };
+
+  const handleSubdivisionChange = (val: string) => {
+    setSelectedSubdivision(val);
+    setSelectedBlock("all");
+    setSelectedSchemeId("all");
+  };
+
+  const handleBlockChange = (val: string) => {
+    setSelectedBlock(val);
+    setSelectedSchemeId("all");
+  };
+
+  const handleGeneratePDF = async () => {
     setIsGenerating(true);
     try {
-      const params = new URLSearchParams({
-        startDate,
-        endDate,
-      });
-      if (region && region !== "All Regions") params.append("region", region);
-      if (circle) params.append("circle", circle);
-      if (division) params.append("division", division);
-      if (subDivision) params.append("sub_division", subDivision);
-      if (block) params.append("block", block);
-      if (schemeId) params.append("scheme_id", schemeId);
+      const params = new URLSearchParams();
+      params.append("region", selectedRegion);
+      params.append("circle", selectedCircle);
+      params.append("division", selectedDivision);
+      params.append("subdivision", selectedSubdivision);
+      params.append("block", selectedBlock);
+      params.append("scheme_id", selectedSchemeId);
+      params.append("report_month", reportMonth);
 
-      const response = await fetch(`/api/monthly-reports/progress?${params.toString()}`);
-      
+      const response = await fetch(`/api/monthly-reports/data?${params.toString()}`);
+
       if (!response.ok) {
-        throw new Error("Failed to fetch progress data");
+        throw new Error("Failed to fetch monthly integration data");
       }
 
-      const result = await response.json();
-      
-      if (!result.data || result.data.length === 0) {
-        toast({
-          title: "No Data",
-          description: "No historical data found for the selected dates and filters.",
-          variant: "destructive",
-        });
-        return;
-      }
+      const data = await response.json();
+      console.log("[MonthlyReport] API data received:", data);
 
-      await generateMonthlyProgressPDF(result.data, {
-        region, circle, division, sub_division: subDivision, block, scheme_id: schemeId
-      }, startDate, endDate);
+      await generateMonthlyReportPDF(data);
 
       toast({
         title: "Success",
-        description: "Monthly Progress PDF report generated successfully",
+        description: "Monthly PDF report generated successfully.",
       });
     } catch (error) {
-      console.error("Error generating PDF:", error);
+      const errMsg = error instanceof Error ? error.message : String(error);
+      console.error("Error generating PDF:", errMsg, error);
       toast({
         title: "Error",
-        description: "Failed to generate PDF report",
+        description: `Failed to generate PDF: ${errMsg}`,
         variant: "destructive",
       });
     } finally {
       setIsGenerating(false);
     }
   };
-
   return (
     <DashboardLayout>
       <div className="container mx-auto p-6 space-y-6">
+        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
               <FileText className="h-8 w-8 text-blue-600" />
-              Monthly Progress Reports
+              Monthly Integration Reports
             </h1>
             <p className="text-gray-600 dark:text-gray-400 mt-2">
-              Generate custom date range progress reports based on historical data snapshots.
+              Generate comprehensive monthly PDF reports with integration status
+              for ESRs, RCAs, PTs, and FMs.
             </p>
           </div>
         </div>
 
+        {/* Filters Section */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Date Range & Filters
+              <Settings className="h-5 w-5" />
+              Report Configuration
             </CardTitle>
             <CardDescription>
-              Select the start and end dates to calculate the progress, and apply any location filters.
+              Select the region and month to generate the integration report.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Start Date</label>
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">End Date</label>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                />
-              </div>
+          <CardContent className="space-y-6">
+            {/* Cascading Geo Filters */}
+            <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border">
+              <GeographicalFilters
+                filters={filterOptions}
+                selectedRegion={selectedRegion}
+                selectedCircle={selectedCircle}
+                selectedDivision={selectedDivision}
+                selectedSubdivision={selectedSubdivision}
+                selectedBlock={selectedBlock}
+                onRegionChange={handleRegionChange}
+                onCircleChange={handleCircleChange}
+                onDivisionChange={handleDivisionChange}
+                onSubdivisionChange={handleSubdivisionChange}
+                onBlockChange={handleBlockChange}
+              />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Scheme Filter */}
               <div className="space-y-2">
-                <label className="text-sm font-medium">Region</label>
-                <select
-                  className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  value={region}
-                  onChange={(e) => setRegion(e.target.value)}
+                <Label htmlFor="scheme" className="text-sm font-medium">
+                  Scheme
+                </Label>
+                <Select
+                  value={selectedSchemeId}
+                  onValueChange={setSelectedSchemeId}
+                  disabled={selectedRegion === "all"}
                 >
-                  <option value="All Regions">All Regions</option>
-                  <option value="Amravati">Amravati</option>
-                  <option value="Chhatrapati Sambhajinagar">Chhatrapati Sambhajinagar</option>
-                  <option value="Konkan">Konkan</option>
-                  <option value="Nagpur">Nagpur</option>
-                  <option value="Nashik">Nashik</option>
-                  <option value="Pune">Pune</option>
-                </select>
+                  <SelectTrigger id="scheme" className="w-full h-10">
+                    <SelectValue placeholder={selectedRegion === "all" ? "Select a Region first" : "All Schemes"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Schemes</SelectItem>
+                    {schemes?.map((scheme) => (
+                      <SelectItem key={scheme.scheme_id} value={scheme.scheme_id}>
+                        {scheme.scheme_name} ({scheme.scheme_id})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
+              {/* Month Filter */}
               <div className="space-y-2">
-                <label className="text-sm font-medium">Circle</label>
-                <Input
-                  placeholder="Enter Circle..."
-                  value={circle}
-                  onChange={(e) => setCircle(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Division</label>
-                <Input
-                  placeholder="Enter Division..."
-                  value={division}
-                  onChange={(e) => setDivision(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Sub Division</label>
-                <Input
-                  placeholder="Enter Sub Division..."
-                  value={subDivision}
-                  onChange={(e) => setSubDivision(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Block</label>
-                <Input
-                  placeholder="Enter Block..."
-                  value={block}
-                  onChange={(e) => setBlock(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Scheme ID</label>
-                <Input
-                  placeholder="Enter Scheme ID..."
-                  value={schemeId}
-                  onChange={(e) => setSchemeId(e.target.value)}
-                />
+                <Label htmlFor="month" className="text-sm font-medium">
+                  Report Month
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="month"
+                    type="month"
+                    value={reportMonth}
+                    onChange={(e) => setReportMonth(e.target.value)}
+                    className="w-full h-10 pl-10"
+                  />
+                  <Calendar className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
+                </div>
               </div>
             </div>
 
-            <div className="pt-6">
+            {/* Generate PDF Button */}
+            <div className="pt-4 border-t dark:border-gray-800">
               <Button
+                data-testid="button-generate-pdf"
                 onClick={handleGeneratePDF}
-                disabled={isGenerating || !startDate || !endDate}
+                disabled={isGenerating || !reportMonth}
                 className="w-full md:w-auto"
                 size="lg"
               >
                 {isGenerating ? (
                   <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Generating PDF...
+                    Generating Monthly PDF...
                   </>
                 ) : (
                   <>
                     <Download className="mr-2 h-5 w-5" />
-                    Generate & Download Progress Report
+                    Generate & Download Monthly Report
                   </>
                 )}
               </Button>

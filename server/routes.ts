@@ -186,8 +186,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Mount Smart Reports routes
   app.use("/api/smart-reports", smartReportsRoutes);
 
-  // Mount Monthly Progress Reports routes
-  app.use("/api/monthly-reports", monthlyReportsRoutes);
+  // Mount Monthly Reports
+  app.use("/api/monthly-reports", requireAdmin, monthlyReportsRoutes);
 
   // Mount Combined ESR Download routes
   app.use("/api/combined-esr-download", combinedEsrDownloadRoutes);
@@ -2958,6 +2958,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "No file uploaded" });
         }
 
+        console.log("[Excel Region Import] req.body:", req.body);
+        const dataMonth = req.body.dataMonth || req.body.data_month || null;
+        console.log("[Excel Region Import] Resolved dataMonth:", dataMonth);
+
         const fileBuffer = req.file.buffer;
         const workbook = XLSX.read(fileBuffer, { type: "buffer" });
 
@@ -3229,7 +3233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   regionData.pressure_transmitter_integrated,
               };
 
-              await storage.updateRegion(updatedRegion);
+              await storage.updateRegion(updatedRegion, dataMonth);
               updatedCount++;
               log(`Updated region: ${regionData.region_name}`, "import");
             } else {
@@ -3249,7 +3253,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   regionData.pressure_transmitter_integrated,
               };
 
-              await storage.createRegion(newRegion);
+              await storage.createRegion(newRegion, dataMonth);
               updatedCount++;
               log(`Created new region: ${regionData.region_name}`, "import");
             }

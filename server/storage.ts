@@ -212,10 +212,11 @@ export interface IStorage {
     block?: string,
     view?: "ALL" | "INSTRUMENTED",
   ): Promise<any>;
-  createRegion(region: InsertRegion): Promise<Region>;
-  updateRegion(region: Region): Promise<Region>;
+  createRegion(region: InsertRegion, dataMonth?: string): Promise<Region>;
+  updateRegion(region: Region, dataMonth?: string): Promise<Region>;
   batchUpsertRegions(
     regions: InsertRegion[],
+    dataMonth?: string,
   ): Promise<{ inserted: number; updated: number }>;
 
   // Scheme operations
@@ -1243,6 +1244,111 @@ export class PostgresStorage implements IStorage {
     } catch (error) {
       console.error("Error parsing date value:", value, error);
       return null;
+    }
+  }
+
+  // Compute monthly deltas for regions using region_history snapshots
+  async getMonthlyRegionDeltas(reportMonth: string, regionName?: string): Promise<any[]> {
+    const start = new Date(`${reportMonth}-01T00:00:00Z`);
+    const next = new Date(start);
+    next.setMonth(start.getMonth() + 1);
+
+    const startStr = start.toISOString().substring(0, 10);
+    const nextStr = next.toISOString().substring(0, 10);
+
+    const regionsToCheck = regionName && regionName !== 'all' ? [regionName] : (await this.getAllRegions()).map(r => r.region_name);
+    const results: any[] = [];
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+
+    for (const rn of regionsToCheck) {
+      try {
+        const endRowRes = await pool.query(
+          `SELECT * FROM region_history WHERE region_name = $1 AND COALESCE(data_month, uploaded_at::date) <= $2 ORDER BY COALESCE(data_month, uploaded_at::date) DESC, uploaded_at DESC LIMIT 1`,
+          [rn, nextStr],
+        );
+        const startRowRes = await pool.query(
+          `SELECT * FROM region_history WHERE region_name = $1 AND COALESCE(data_month, uploaded_at::date) < $2 ORDER BY COALESCE(data_month, uploaded_at::date) DESC, uploaded_at DESC LIMIT 1`,
+          [rn, startStr],
+        );
+
+        const endRow = endRowRes.rows[0] || null;
+        const startRow = (startRowRes.rows && startRowRes.rows[0]) || null;
+
+        const delta = (field: string) => {
+          const endVal = endRow && endRow[field] != null ? Number(endRow[field]) : 0;
+          const startVal = startRow && startRow[field] != null ? Number(startRow[field]) : 0;
+          return endVal - startVal;
+        };
+
+        results.push({
+          region_name: rn,
+          newly_added_esr: delta('total_esr_integrated'),
+          newly_added_fully_completed_esr: delta('fully_completed_esr'),
+          newly_added_villages: delta('total_villages_integrated'),
+          newly_added_fully_completed_villages: delta('fully_completed_villages'),
+          newly_added_schemes: delta('total_schemes_integrated'),
+          newly_added_flow_meters: delta('flow_meter_integrated'),
+          newly_added_rca: delta('rca_integrated'),
+          newly_added_pt: delta('pressure_transmitter_integrated'),
+          total_esr_integrated: endRow ? Number(endRow.total_esr_integrated || 0) : 0,
+          fully_completed_esr: endRow ? Number(endRow.fully_completed_esr || 0) : 0,
+          partial_esr: endRow ? Number(endRow.partial_esr || 0) : 0,
+          total_villages_integrated: endRow ? Number(endRow.total_villages_integrated || 0) : 0,
+          fully_completed_villages: endRow ? Number(endRow.fully_completed_villages || 0) : 0,
+          total_schemes_integrated: endRow ? Number(endRow.total_schemes_integrated || 0) : 0,
+          fully_completed_schemes: endRow ? Number(endRow.fully_completed_schemes || 0) : 0,
+          flow_meter_integrated: endRow ? Number(endRow.flow_meter_integrated || 0) : 0,
+          rca_integrated: endRow ? Number(endRow.rca_integrated || 0) : 0,
+          pressure_transmitter_integrated: endRow ? Number(endRow.pressure_transmitter_integrated || 0) : 0,
+        });
+      } catch (err) {
+        console.error('Error computing monthly delta for region', rn, err);
+      }
+    }
+
+    await pool.end();
+    return results;
+  }
+
+  // Fetch LPCD snapshots for the requested month from water_scheme_data_history
+  async getLpcdForMonth(reportMonth: string, regionName?: string): Promise<any[]> {
+    // reportMonth: 'YYYY-MM' — support formats like '01-May' and '2026-05-01'
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const parts = reportMonth.split("-");
+    const monthNum = parts[1];
+    const monthIdx = parseInt(monthNum || "1", 10) - 1;
+    const monthName = months[monthIdx] || "";
+
+    const params: any[] = [`%-${monthName}%`, `${reportMonth}-%`];
+    let regionFilter = '';
+    if (regionName && regionName !== 'all') {
+      regionFilter = 'AND region = $3';
+      params.push(regionName);
+    }
+
+    const sql = `
+      SELECT DISTINCT ON (scheme_id) scheme_id, scheme_name, village_name, lpcd_value, data_date, region, uploaded_at
+      FROM water_scheme_data_history
+      WHERE (data_date LIKE $1 OR data_date LIKE $2) ${regionFilter}
+      ORDER BY scheme_id, uploaded_at DESC
+    `;
+
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const res = await pool.query(sql, params);
+      await pool.end();
+      return res.rows.map((r: any) => ({
+        scheme_id: r.scheme_id,
+        scheme_name: r.scheme_name,
+        village_name: r.village_name,
+        lpcd_value: r.lpcd_value != null ? Number(r.lpcd_value) : null,
+        data_date: r.data_date,
+        region: r.region,
+      }));
+    } catch (err) {
+      console.error('Error fetching LPCD data for month', reportMonth, err);
+      try { await pool.end(); } catch {};
+      return [];
     }
   }
 
@@ -8232,20 +8338,23 @@ export class PostgresStorage implements IStorage {
     }
   }
 
-  async createRegion(region: InsertRegion): Promise<Region> {
+  async createRegion(region: InsertRegion, dataMonth?: string): Promise<Region> {
     const db = await this.ensureInitialized();
     const result = await db.insert(regions).values(region).returning();
     
     // Record in history
     if (result[0]) {
       const { region_id, ...historyFields } = result[0];
-      await db.insert(regionHistory).values(historyFields);
+      await db.insert(regionHistory).values({
+        ...historyFields,
+        data_month: dataMonth || null,
+      });
     }
     
     return result[0];
   }
 
-  async updateRegion(region: Region): Promise<Region> {
+  async updateRegion(region: Region, dataMonth?: string): Promise<Region> {
     const db = await this.ensureInitialized();
     await db
       .update(regions)
@@ -8266,13 +8375,17 @@ export class PostgresStorage implements IStorage {
 
     // Record in history
     const { region_id, ...historyFields } = region;
-    await db.insert(regionHistory).values(historyFields);
+    await db.insert(regionHistory).values({
+      ...historyFields,
+      data_month: dataMonth || null,
+    });
 
     return region;
   }
 
   async batchUpsertRegions(
     regionsToUpsert: InsertRegion[],
+    dataMonth?: string,
   ): Promise<{ inserted: number; updated: number }> {
     if (regionsToUpsert.length === 0) {
       return { inserted: 0, updated: 0 };
@@ -8315,7 +8428,11 @@ export class PostgresStorage implements IStorage {
       }
 
       // Record snapshots in region_history in batch
-      await db.insert(regionHistory).values(regionsToUpsert);
+      const historyEntries = regionsToUpsert.map((r) => ({
+        ...r,
+        data_month: dataMonth || null,
+      }));
+      await db.insert(regionHistory).values(historyEntries);
     } catch (error) {
       console.error("Error in batch upsert regions:", error);
       throw error;

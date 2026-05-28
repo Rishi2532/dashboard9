@@ -267,17 +267,13 @@ async function importAmravatiData(filePath) {
             continue; // Skip if no data to insert
           }
           
-          const placeholders = columns.map((_, index) => `$${index + 1}`).join(', ');
-          
-          const insertQuery = {
-            text: `INSERT INTO water_scheme_data (${columns.join(', ')}) VALUES (${placeholders})`,
-            values: columns.map(col => row[col])
-          };
-          
           await client.query(insertQuery);
           insertedCount++;
         }
       }
+      
+      // Store in history
+      await storeWaterSchemeHistoricalData(client, processedData);
       
       await client.query('COMMIT');
       console.log(`Successfully imported Amravati data: ${insertedCount} inserted, ${updatedCount} updated`);
@@ -298,6 +294,95 @@ async function importAmravatiData(filePath) {
   } catch (error) {
     console.error('Error processing Excel file:', error);
     return { success: false, message: `Error processing Excel file: ${error.message}` };
+  }
+}
+
+// Function to store historical water scheme data
+async function storeWaterSchemeHistoricalData(client, importedData) {
+  console.log("Processing water scheme data for historical storage...");
+  const uploadBatchId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
+  for (const record of importedData) {
+    if (!record.scheme_id || !record.village_name) {
+      continue;
+    }
+
+    // Process water values (days 1-6)
+    for (let day = 1; day <= 6; day++) {
+      const waterDateField = `water_date_day${day}`;
+      const waterValueField = `water_value_day${day}`;
+      const waterDate = record[waterDateField];
+      const waterValue = record[waterValueField];
+
+      if (waterDate && waterValue !== null && waterValue !== undefined) {
+        let lpcdValue = null;
+        if (record.population && record.population > 0 && Number(waterValue) > 0) {
+          lpcdValue = (Number(waterValue) * 1000) / record.population;
+        }
+
+        await client.query(
+          `INSERT INTO water_scheme_data_history (
+            region, circle, division, sub_division, block, scheme_id, scheme_name,
+            village_name, population, number_of_esr, data_date, water_value, lpcd_value,
+            upload_batch_id, dashboard_url
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+          ON CONFLICT (scheme_id, village_name, block, data_date, uploaded_at) DO NOTHING`,
+          [
+            record.region || null,
+            record.circle || null,
+            record.division || null,
+            record.sub_division || null,
+            record.block || null,
+            record.scheme_id,
+            record.scheme_name || null,
+            record.village_name,
+            record.population || null,
+            record.number_of_esr || null,
+            waterDate,
+            waterValue.toString(),
+            lpcdValue ? lpcdValue.toString() : null,
+            uploadBatchId,
+            record.dashboard_url || null
+          ]
+        ).catch(err => console.error("Error inserting historical water value:", err));
+      }
+    }
+
+    // Process LPCD values (days 1-7)
+    for (let day = 1; day <= 7; day++) {
+      const lpcdDateField = `lpcd_date_day${day}`;
+      const lpcdValueField = `lpcd_value_day${day}`;
+      const lpcdDate = record[lpcdDateField];
+      const lpcdValue = record[lpcdValueField];
+
+      if (lpcdDate && lpcdValue !== null && lpcdValue !== undefined) {
+        await client.query(
+          `INSERT INTO water_scheme_data_history (
+            region, circle, division, sub_division, block, scheme_id, scheme_name,
+            village_name, population, number_of_esr, data_date, water_value, lpcd_value,
+            upload_batch_id, dashboard_url
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+          ON CONFLICT (scheme_id, village_name, block, data_date, uploaded_at) DO NOTHING`,
+          [
+            record.region || null,
+            record.circle || null,
+            record.division || null,
+            record.sub_division || null,
+            record.block || null,
+            record.scheme_id,
+            record.scheme_name || null,
+            record.village_name,
+            record.population || null,
+            record.number_of_esr || null,
+            lpcdDate,
+            null,
+            lpcdValue.toString(),
+            uploadBatchId,
+            record.dashboard_url || null
+          ]
+        ).catch(err => console.error("Error inserting historical LPCD value:", err));
+      }
+    }
   }
 }
 

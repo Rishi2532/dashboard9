@@ -14,9 +14,11 @@ export async function importCsvHandler(req: Request, res: Response) {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
+    console.log("[CSV Import] req.body:", req.body);
     // Extract parameters from request body
-    let { columnMappings, regionName, tableName, delimiter, hasHeader } =
+    let { columnMappings, regionName, tableName, delimiter, hasHeader, dataMonth } =
       req.body;
+    console.log("[CSV Import] Resolved dataMonth:", dataMonth);
 
     if (!columnMappings || !tableName) {
       return res.status(400).json({
@@ -55,6 +57,7 @@ export async function importCsvHandler(req: Request, res: Response) {
       parsedData,
       tableName,
       regionName,
+      dataMonth,
     );
 
     // Update region summaries after import to reflect changes
@@ -299,6 +302,7 @@ async function updateDatabaseRecords(
   data: Record<string, any>[],
   tableName: string,
   regionName?: string,
+  dataMonth?: string,
 ): Promise<{ updatedCount: number; details: string }> {
   let details = "";
 
@@ -533,7 +537,7 @@ async function updateDatabaseRecords(
     if (regionsToUpsert.length > 0) {
       try {
         console.log(`Batch upserting ${regionsToUpsert.length} regions...`);
-        const batchResult = await storage.batchUpsertRegions(regionsToUpsert);
+        const batchResult = await storage.batchUpsertRegions(regionsToUpsert, dataMonth);
         details += `Batch processed ${regionsToUpsert.length} regions (${batchResult.inserted} inserted, ${batchResult.updated} updated)\n`;
 
         if (skippedCount > 0) {

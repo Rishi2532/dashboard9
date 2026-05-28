@@ -11,6 +11,7 @@ import {
   unique,
   primaryKey,
   bigint,
+  date,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -99,6 +100,7 @@ export const regionHistory = pgTable("region_history", {
   rca_integrated: integer("rca_integrated"),
   pressure_transmitter_integrated: integer("pressure_transmitter_integrated"),
   uploaded_at: timestamp("uploaded_at").defaultNow().notNull(),
+  data_month: date("data_month"),
 });
 
 export const insertRegionHistorySchema = createInsertSchema(regionHistory).omit({

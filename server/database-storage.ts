@@ -31,7 +31,7 @@ import {
   type UserActivityLog,
   type InsertUserActivityLog,
 } from "@shared/schema";
-import { db } from "./db-storage";
+import { db, pool } from "./db-storage";
 import { eq, and, like, desc } from "drizzle-orm";
 import { IStorage, WaterSchemeDataFilter, ChlorineDataFilter, PressureDataFilter } from "./storage";
 
@@ -261,17 +261,178 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async createRegion(region: InsertRegion): Promise<Region> {
+  // Compute monthly deltas for regions using region_history snapshots
+  async getMonthlyRegionDeltas(reportMonth: string, regionName?: string): Promise<any[]> {
+    // reportMonth expected format 'YYYY-MM'
+    const start = new Date(`${reportMonth}-01T00:00:00Z`);
+    const next = new Date(start);
+    next.setMonth(start.getMonth() + 1);
+
+    const startStr = start.toISOString().substring(0, 10);
+    const nextStr = next.toISOString().substring(0, 10);
+
+    const regionsToCheck = regionName ? [regionName] : (await this.getAllRegions()).map(r => r.region_name);
+
+    const results: any[] = [];
+
+    for (const rn of regionsToCheck) {
+      try {
+        const endRowRes = await pool.query(
+          `SELECT * FROM region_history WHERE region_name = $1 AND COALESCE(data_month, uploaded_at::date) <= $2 ORDER BY COALESCE(data_month, uploaded_at::date) DESC, uploaded_at DESC LIMIT 1`,
+          [rn, nextStr],
+        );
+        const startRowRes = await pool.query(
+          `SELECT * FROM region_history WHERE region_name = $1 AND COALESCE(data_month, uploaded_at::date) < $2 ORDER BY COALESCE(data_month, uploaded_at::date) DESC, uploaded_at DESC LIMIT 1`,
+          [rn, startStr],
+        );
+
+        const endRow = endRowRes.rows[0] || null;
+        const startRow = (startRowRes.rows && startRowRes.rows[0]) || null;
+
+        const delta = (field: string) => {
+          const endVal = endRow && endRow[field] != null ? Number(endRow[field]) : 0;
+          const startVal = startRow && startRow[field] != null ? Number(startRow[field]) : 0;
+          return endVal - startVal;
+        };
+
+        results.push({
+          region_name: rn,
+          newly_added_esr: delta('total_esr_integrated'),
+          newly_added_fully_completed_esr: delta('fully_completed_esr'),
+          newly_added_villages: delta('total_villages_integrated'),
+          newly_added_fully_completed_villages: delta('fully_completed_villages'),
+          newly_added_schemes: delta('total_schemes_integrated'),
+          newly_added_flow_meters: delta('flow_meter_integrated'),
+          newly_added_rca: delta('rca_integrated'),
+          newly_added_pt: delta('pressure_transmitter_integrated'),
+          // include cumulative totals from endRow as context
+          total_esr_integrated: endRow ? Number(endRow.total_esr_integrated || 0) : 0,
+          fully_completed_esr: endRow ? Number(endRow.fully_completed_esr || 0) : 0,
+          partial_esr: endRow ? Number(endRow.partial_esr || 0) : 0,
+          total_villages_integrated: endRow ? Number(endRow.total_villages_integrated || 0) : 0,
+          fully_completed_villages: endRow ? Number(endRow.fully_completed_villages || 0) : 0,
+          total_schemes_integrated: endRow ? Number(endRow.total_schemes_integrated || 0) : 0,
+          fully_completed_schemes: endRow ? Number(endRow.fully_completed_schemes || 0) : 0,
+          flow_meter_integrated: endRow ? Number(endRow.flow_meter_integrated || 0) : 0,
+          rca_integrated: endRow ? Number(endRow.rca_integrated || 0) : 0,
+          pressure_transmitter_integrated: endRow ? Number(endRow.pressure_transmitter_integrated || 0) : 0,
+        });
+      } catch (err) {
+        console.error('Error computing monthly delta for region', rn, err);
+      }
+    }
+
+    return results;
+  }
+
+  // Fetch LPCD snapshots for the requested month from water_scheme_data_history
+  async getLpcdForMonth(reportMonth: string, regionName?: string): Promise<any[]> {
+    // reportMonth: 'YYYY-MM' — support formats like '01-May' and '2026-05-01'
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const parts = reportMonth.split("-");
+    const monthNum = parts[1];
+    const monthIdx = parseInt(monthNum || "1", 10) - 1;
+    const monthName = months[monthIdx] || "";
+
+    const params: any[] = [`%-${monthName}%`, `${reportMonth}-%`];
+    let regionFilter = '';
+    if (regionName && regionName !== 'all') {
+      regionFilter = 'AND region = $3';
+      params.push(regionName);
+    }
+
+    // For each scheme, pick the latest uploaded_at within the month
+    const sql = `
+      SELECT DISTINCT ON (scheme_id) scheme_id, scheme_name, village_name, lpcd_value, data_date, region, uploaded_at
+      FROM water_scheme_data_history
+      WHERE (data_date LIKE $1 OR data_date LIKE $2) ${regionFilter}
+      ORDER BY scheme_id, uploaded_at DESC
+    `;
+
+    try {
+      const res = await pool.query(sql, params);
+      // Map rows to a compact structure
+      return res.rows.map((r: any) => ({
+        scheme_id: r.scheme_id,
+        scheme_name: r.scheme_name,
+        village_name: r.village_name,
+        lpcd_value: r.lpcd_value != null ? Number(r.lpcd_value) : null,
+        data_date: r.data_date,
+        region: r.region,
+      }));
+    } catch (err) {
+      console.error('Error fetching LPCD data for month', reportMonth, err);
+      return [];
+    }
+  }
+
+  async createRegion(region: InsertRegion, dataMonth?: string): Promise<Region> {
     const [createdRegion] = await db.insert(regions).values(region).returning();
+    // Also insert a snapshot into region_reference (best-effort)
+    try {
+      const params = [
+        createdRegion.region_name,
+        createdRegion.total_esr_integrated,
+        createdRegion.fully_completed_esr,
+        createdRegion.partial_esr,
+        createdRegion.total_villages_integrated,
+        createdRegion.fully_completed_villages,
+        createdRegion.total_schemes_integrated,
+        createdRegion.fully_completed_schemes,
+        createdRegion.flow_meter_integrated,
+        createdRegion.rca_integrated,
+        createdRegion.pressure_transmitter_integrated,
+      ];
+      console.debug("Inserting region_reference (create):", { region: createdRegion.region_name, params });
+      await pool.query(
+        `INSERT INTO region_reference (
+          region_name, total_esr_integrated, fully_completed_esr, partial_esr,
+          total_villages_integrated, fully_completed_villages, total_schemes_integrated,
+          fully_completed_schemes, flow_meter_integrated, rca_integrated, pressure_transmitter_integrated, created_at
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW())`,
+        params,
+      );
+      console.debug("Inserted region_reference (create) for", createdRegion.region_name);
+    } catch (err) {
+      console.error("Failed to insert region_reference (create):", err);
+    }
     return createdRegion;
   }
 
-  async updateRegion(region: Region): Promise<Region> {
+  async updateRegion(region: Region, dataMonth?: string): Promise<Region> {
     const [updatedRegion] = await db
       .update(regions)
       .set(region)
       .where(eq(regions.region_id, region.region_id))
       .returning();
+    // Best-effort insert into region_reference
+    try {
+      const params = [
+        updatedRegion.region_name,
+        updatedRegion.total_esr_integrated,
+        updatedRegion.fully_completed_esr,
+        updatedRegion.partial_esr,
+        updatedRegion.total_villages_integrated,
+        updatedRegion.fully_completed_villages,
+        updatedRegion.total_schemes_integrated,
+        updatedRegion.fully_completed_schemes,
+        updatedRegion.flow_meter_integrated,
+        updatedRegion.rca_integrated,
+        updatedRegion.pressure_transmitter_integrated,
+      ];
+      console.debug("Inserting region_reference (update):", { region: updatedRegion.region_name, params });
+      await pool.query(
+        `INSERT INTO region_reference (
+          region_name, total_esr_integrated, fully_completed_esr, partial_esr,
+          total_villages_integrated, fully_completed_villages, total_schemes_integrated,
+          fully_completed_schemes, flow_meter_integrated, rca_integrated, pressure_transmitter_integrated, created_at
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW())`,
+        params,
+      );
+      console.debug("Inserted region_reference (update) for", updatedRegion.region_name);
+    } catch (err) {
+      console.error("Failed to insert region_reference (update):", err);
+    }
     return updatedRegion;
   }
 
@@ -424,11 +585,6 @@ export class DatabaseStorage implements IStorage {
     // Simplified implementation - would normally parse CSV file
     return { inserted: 0, updated: 0, removed: 0, errors: [] };
   }
-
-  async importSchemeLpcdFromCSV(fileBuffer: Buffer): Promise<{ inserted: number; updated: number; removed: number; errors: string[] }> {
-    // Simplified implementation
-    return { inserted: 0, updated: 0, removed: 0, errors: [] };
-  }
   
   // Chlorine Data operations
   async getAllChlorineData(filter?: ChlorineDataFilter): Promise<ChlorineData[]> {
@@ -497,7 +653,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Chlorine Dashboard operations
-  async getChlorineDashboardStats(filter?: ChlorineDataFilter): Promise<{
+  async getChlorineDashboardStats(regionName?: string): Promise<{
     totalSensors: number;
     belowRangeSensors: number;
     optimalRangeSensors: number;
@@ -522,7 +678,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getChlorineSensorsWithNoWater(filter?: ChlorineDataFilter): Promise<{
+  async getChlorineSensorsWithNoWater(regionName?: string): Promise<{
     totalNoWaterSensors: number;
     noWaterSensors: Array<{
       region: string;
@@ -545,7 +701,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getChlorineSensorsWithWater(filter?: ChlorineDataFilter): Promise<{
+  async getChlorineSensorsWithWater(regionName?: string): Promise<{
     totalWithWaterSensors: number;
     withWaterSensors: Array<{
       region: string;

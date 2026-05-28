@@ -62,10 +62,14 @@ export default function RegionImporter() {
   const [isUploading, setIsUploading] = useState(false);
   const [previewData, setPreviewData] = useState<string[][]>([]);
   const [uploadResult, setUploadResult] = useState<{ message: string; details?: string } | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<string>(
+    new Date().toISOString().substring(0, 7) // Default to current month YYYY-MM
+  );
 
   const excelImportMutation = useMutation({
     mutationFn: async (file: File) => {
       const formData = new FormData();
+      formData.append('dataMonth', selectedMonth + '-01'); // Pass it as YYYY-MM-01 format
       formData.append('file', file);
 
       const response = await fetch('/api/admin/import/regions', {
@@ -168,9 +172,10 @@ export default function RegionImporter() {
       setUploadResult(null);
 
       const formData = new FormData();
-      formData.append('file', csvFile);
       formData.append('columnMappings', JSON.stringify(columnMappings));
       formData.append('tableName', 'region');
+      formData.append('dataMonth', selectedMonth + '-01'); // Pass it as YYYY-MM-01 format
+      formData.append('file', csvFile);
 
       const response = await fetch('/api/admin/import-csv', {
         method: 'POST',
@@ -221,6 +226,22 @@ export default function RegionImporter() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        <div className="space-y-2 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border">
+          <Label htmlFor="data-month" className="text-sm font-medium">Data Month (Sheet Date)</Label>
+          <div className="relative max-w-xs">
+            <Input
+              id="data-month"
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="w-full h-10 bg-white dark:bg-black"
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Select the month this data represents. This will be stored in the region history instead of the upload timestamp, ensuring accurate monthly progress calculations.
+          </p>
+        </div>
+
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="excel" className="flex items-center">
