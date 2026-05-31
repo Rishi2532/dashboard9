@@ -192,8 +192,7 @@ export default function ScopeOverview({
               isInstrumented
                 ? "bg-emerald-100 text-emerald-700"
                 : "bg-gray-100 text-gray-600"
-            }`}
-          >
+            }`}          >
             {isInstrumented ? "100% Civil Completed" : "All Schemes"}
           </span>
         </div>

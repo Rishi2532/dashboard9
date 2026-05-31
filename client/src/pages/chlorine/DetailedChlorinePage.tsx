@@ -421,6 +421,30 @@ const DetailedChlorinePage = () => {
     title: string;
     issues: any[];
   } | null>(null);
+  const renderRemarkCell = (issues: any[], title: string) => {
+    if (!issues || issues.length === 0) {
+      return <span className="text-slate-400 dark:text-slate-500">-</span>;
+    }
+    const activeIssue = issues.find((i: any) => i.status === 'Active');
+    const textColor = activeIssue 
+      ? 'text-red-600 dark:text-red-400 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50' 
+      : 'text-green-600 dark:text-green-400 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950/50';
+    const displayText = activeIssue ? activeIssue.reason : 'Resolved';
+    return (
+      <Button
+        variant="ghost"
+        className={`h-auto p-1 max-w-full justify-start font-semibold text-[11px] ${textColor}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          setSelectedRemarkDetails({ issues, title });
+        }}
+      >
+        <span className="truncate w-full text-left">
+          {displayText}
+        </span>
+      </Button>
+    );
+  };
   const [selectedRegion, setSelectedRegion] = useState<string>("");
   const [dayWiseRegion, setDayWiseRegion] = useState<string>("");
   const [clickedDayWiseCell, setClickedDayWiseCell] =
@@ -497,12 +521,12 @@ const DetailedChlorinePage = () => {
     console.log('🔍 [FILTER CHANGED]', { schemeFilter, mainTab });
   }, [schemeFilter, mainTab]);
 
-  // Fetch active issues for dashboard visualization
-  const { data: activeIssues = [] } = useQuery({
-    queryKey: ["/api/issue-reporting/active"],
+  // Fetch active and resolved issues for dashboard visualization
+  const { data: allIssues = [] } = useQuery({
+    queryKey: ["/api/issue-reporting/all"],
     queryFn: async () => {
-      const response = await fetch("/api/issue-reporting/active");
-      if (!response.ok) throw new Error("Failed to fetch active issues");
+      const response = await fetch("/api/issue-reporting/all");
+      if (!response.ok) throw new Error("Failed to fetch all issues");
       return response.json();
     },
     // Refresh every minute to keep statuses up to date
@@ -516,8 +540,8 @@ const DetailedChlorinePage = () => {
     const eMap = new Map<string, any[]>();
 
     console.log('🔍 DetailedChlorinePage - Creating Issue Maps:', {
-      totalActiveIssues: activeIssues.length,
-      firstFewIssues: activeIssues.slice(0, 3).map((i: any) => ({
+      totalIssues: allIssues.length,
+      firstFewIssues: allIssues.slice(0, 3).map((i: any) => ({
         scheme_id: i.scheme_id,
         scheme_name: i.scheme_name,
         village_name: i.village_name,
@@ -525,7 +549,7 @@ const DetailedChlorinePage = () => {
       }))
     });
 
-    activeIssues.forEach((issue: any) => {
+    allIssues.forEach((issue: any) => {
       const schemeId = issue.scheme_id?.toString().trim();
       const villageName = issue.village_name?.toString().trim();
       const esrName = issue.esr_name?.toString().trim();
@@ -558,7 +582,7 @@ const DetailedChlorinePage = () => {
     });
 
     return { schemeIssuesMap: sMap, villageIssuesMap: vMap, esrIssuesMap: eMap };
-  }, [activeIssues]);
+  }, [allIssues]);
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return "N/A";
@@ -3578,27 +3602,8 @@ const DetailedChlorinePage = () => {
                                           {sensor.esr_name}
                                         </TableCell>
                                         <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60 max-w-[150px]">
-                                          {(() => {
-                                            const esrKey = `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`;
-                                            const issues = esrIssuesMap?.get(esrKey) || [];
-                                            return issues.length > 0 ? (
-                                              <Button
-                                                variant="ghost"
-                                                className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  setSelectedRemarkDetails({ issues, title: `Remarks for ${sensor.esr_name}, ${sensor.village_name}` });
-                                                }}
-                                              >
-                                                <span className="truncate w-full text-left">
-                                                  {issues.map((i: any) => i.reason).join(", ")}
-                                                </span>
-                                              </Button>
-                                            ) : (
-                                              <span className="text-slate-400">-</span>
-                                            );
-                                          })()}
-                                        </TableCell>
+                                            {renderRemarkCell(issues, `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
+                                          </TableCell>
                                         <TableCell className="!px-4 !py-3 text-center border-r border-slate-100/80 dark:border-slate-800/60">
                                           <span
                                             className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${sensor.chlorine_status === "Online" ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60 dark:text-emerald-300 ring-1 ring-emerald-200/80 dark:ring-emerald-700/60" : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"}`}
@@ -3649,23 +3654,8 @@ const DetailedChlorinePage = () => {
                                           )}
                                         </TableCell>
                                         <TableCell className="!px-4 !py-3 text-center border-r border-slate-100/80 dark:border-slate-800/60 max-w-[150px] truncate" title={hasIssue ? esrIssues.map((i: any) => i.reason).join(", ") : "-"}>
-                                          {hasIssue ? (
-                                            <Button
-                                              variant="ghost"
-                                              className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedRemarkDetails({ issues: esrIssues, title: `Remarks for ${sensor.esr_name || "ESR"}, ${sensor.village_name || "Village"}` });
-                                              }}
-                                            >
-                                              <span className="truncate w-full text-left">
-                                                {esrIssues.map((i: any) => i.reason).join(", ")}
-                                              </span>
-                                            </Button>
-                                          ) : (
-                                            <span className="text-slate-400">-</span>
-                                          )}
-                                        </TableCell>
+                                            {renderRemarkCell(esrIssues, `Remarks for ${sensor.esr_name || "ESR"}, ${sensor.village_name || "Village"}`)}
+                                          </TableCell>
                                         <TableCell
                                           className={`!px-4 !py-3 text-center sticky right-0 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-slate-50/60 dark:bg-slate-800/40"} border-l border-slate-200/80 dark:border-slate-700/60`}
                                         >
@@ -4714,27 +4704,8 @@ const DetailedChlorinePage = () => {
                                         {item.village_name}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60 max-w-[150px]">
-                                        {(() => {
-                                          const villageKey = `${item.scheme_id}-${item.village_name}`;
-                                          const issues = villageIssuesMap?.get(villageKey) || [];
-                                          return issues.length > 0 ? (
-                                            <Button
-                                              variant="ghost"
-                                              className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedRemarkDetails({ issues, title: `Remarks for ${item.village_name}` });
-                                              }}
-                                            >
-                                              <span className="truncate w-full text-left">
-                                                {issues.map((i: any) => i.reason).join(", ")}
-                                              </span>
-                                            </Button>
-                                          ) : (
-                                            <span className="text-slate-400">-</span>
-                                          );
-                                        })()}
-                                      </TableCell>
+                                            {renderRemarkCell(issues, `Remarks for ${item.village_name}`)}
+                                          </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
                                         {item.population !== null &&
                                           item.population !== undefined ? (
@@ -5589,27 +5560,8 @@ const DetailedChlorinePage = () => {
                                         )}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60 max-w-[150px]">
-                                        {(() => {
-                                          const schemeId = item.scheme_id?.toString().trim();
-                                          const issues = schemeIssuesMap?.get(schemeId) || [];
-                                          return issues.length > 0 ? (
-                                            <Button
-                                              variant="ghost"
-                                              className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedRemarkDetails({ issues, title: `Remarks for ${item.scheme_name}` });
-                                              }}
-                                            >
-                                              <span className="truncate w-full text-left">
-                                                {issues.map((i: any) => i.reason).join(", ")}
-                                              </span>
-                                            </Button>
-                                          ) : (
-                                            <span className="text-slate-400">-</span>
-                                          );
-                                        })()}
-                                      </TableCell>
+                                            {renderRemarkCell(issues, `Remarks for ${item.scheme_name}`)}
+                                          </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
                                         {item.total_population?.toLocaleString() || "N/A"}
                                       </TableCell>
@@ -5935,27 +5887,8 @@ const DetailedChlorinePage = () => {
                                           </Badge>
                                         </TableCell>
                                         <TableCell className="!px-4 !py-2 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-                                          {(() => {
-                                            const esrKey = `${item.scheme_id}-${item.esr_name}`;
-                                            const issues = esrIssuesMap?.get(esrKey) || [];
-                                            return issues.length > 0 ? (
-                                              <Button
-                                                variant="ghost"
-                                                className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  setSelectedRemarkDetails({ issues, title: `Remarks for ${item.esr_name}` });
-                                                }}
-                                              >
-                                                <span className="truncate w-full text-left">
-                                                  {issues.map((i: any) => i.reason).join(", ")}
-                                                </span>
-                                              </Button>
-                                            ) : (
-                                              <span className="text-slate-400">-</span>
-                                            );
-                                          })()}
-                                        </TableCell>
+                                            {renderRemarkCell(issues, `Remarks for ${item.esr_name}`)}
+                                          </TableCell>
                                         <TableCell className="!px-4 !py-2 text-center">
                                           {item.dashboard_url ? (
                                             <a
@@ -6604,27 +6537,8 @@ const DetailedChlorinePage = () => {
                                                   {sensor.esr_name}
                                                 </TableCell>
                                                 <TableCell className="!px-3 !py-2 text-[12px] max-w-[150px]">
-                                                  {(() => {
-                                                    const esrKey = `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`;
-                                                    const issues = esrIssuesMap?.get(esrKey) || [];
-                                                    return issues.length > 0 ? (
-                                                      <Button
-                                                        variant="ghost"
-                                                        className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
-                                                        onClick={(e) => {
-                                                          e.stopPropagation();
-                                                          setSelectedRemarkDetails({ issues, title: `Remarks for ${sensor.esr_name}, ${sensor.village_name}` });
-                                                        }}
-                                                      >
-                                                        <span className="truncate w-full text-left">
-                                                          {issues.map((i: any) => i.reason).join(", ")}
-                                                        </span>
-                                                      </Button>
-                                                    ) : (
-                                                      <span className="text-slate-400">-</span>
-                                                    );
-                                                  })()}
-                                                </TableCell>
+                                            {renderRemarkCell(issues, `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
+                                          </TableCell>
                                                 {clickedDayWiseCell.metric !==
                                                   "offline" && (
                                                     <>
@@ -7645,27 +7559,8 @@ const DetailedChlorinePage = () => {
                                                   {sensor.esr_name}
                                                 </TableCell>
                                                 <TableCell className="!px-3 !py-2 text-[12px] max-w-[150px]">
-                                                  {(() => {
-                                                    const esrKey = `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`;
-                                                    const issues = esrIssuesMap?.get(esrKey) || [];
-                                                    return issues.length > 0 ? (
-                                                      <Button
-                                                        variant="ghost"
-                                                        className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
-                                                        onClick={(e) => {
-                                                          e.stopPropagation();
-                                                          setSelectedRemarkDetails({ issues, title: `Remarks for ${sensor.esr_name}, ${sensor.village_name}` });
-                                                        }}
-                                                      >
-                                                        <span className="truncate w-full text-left">
-                                                          {issues.map((i: any) => i.reason).join(", ")}
-                                                        </span>
-                                                      </Button>
-                                                    ) : (
-                                                      <span className="text-slate-400">-</span>
-                                                    );
-                                                  })()}
-                                                </TableCell>
+                                            {renderRemarkCell(issues, `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
+                                          </TableCell>
                                                 {clickedPressureDayWiseCell.metric !==
                                                   "offline" && (
                                                     <>
@@ -9188,27 +9083,8 @@ const DetailedChlorinePage = () => {
                                         {sensor.esr_name}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60 max-w-[150px]">
-                                        {(() => {
-                                          const esrKey = `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`;
-                                          const issues = esrIssuesMap?.get(esrKey) || [];
-                                          return issues.length > 0 ? (
-                                            <Button
-                                              variant="ghost"
-                                              className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedRemarkDetails({ issues, title: `Remarks for ${sensor.esr_name}, ${sensor.village_name}` });
-                                              }}
-                                            >
-                                              <span className="truncate w-full text-left">
-                                                {issues.map((i: any) => i.reason).join(", ")}
-                                              </span>
-                                            </Button>
-                                          ) : (
-                                            <span className="text-slate-400">-</span>
-                                          );
-                                        })()}
-                                      </TableCell>
+                                            {renderRemarkCell(issues, `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
+                                          </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center border-r border-orange-100/80 dark:border-orange-900/60">
                                         <span
                                           className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${sensor.pressure_status === "Online" ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60 dark:text-emerald-300 ring-1 ring-emerald-200/80 dark:ring-emerald-700/60" : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"}`}
@@ -9420,27 +9296,8 @@ const DetailedChlorinePage = () => {
                                       {sensor.esr_name}
                                     </TableCell>
                                     <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-amber-100/80 dark:border-amber-900/60 max-w-[150px]">
-                                      {(() => {
-                                        const esrKey = `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`;
-                                        const issues = esrIssuesMap?.get(esrKey) || [];
-                                        return issues.length > 0 ? (
-                                          <Button
-                                            variant="ghost"
-                                            className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setSelectedRemarkDetails({ issues, title: `Remarks for ${sensor.esr_name}, ${sensor.village_name}` });
-                                            }}
-                                          >
-                                            <span className="truncate w-full text-left">
-                                              {issues.map((i: any) => i.reason).join(", ")}
-                                            </span>
-                                          </Button>
-                                        ) : (
-                                          <span className="text-slate-400">-</span>
-                                        );
-                                      })()}
-                                    </TableCell>
+                                            {renderRemarkCell(issues, `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
+                                          </TableCell>
                                     <TableCell className="!px-4 !py-3 text-center border-r border-amber-100/80 dark:border-amber-900/60">
                                       <span
                                         className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${sensor.chlorine_status === "Online" ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60 dark:text-emerald-300 ring-1 ring-emerald-200/80 dark:ring-emerald-700/60" : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"}`}
@@ -9639,27 +9496,8 @@ const DetailedChlorinePage = () => {
                                         {sensor.esr_name}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60 max-w-[150px]">
-                                        {(() => {
-                                          const esrKey = `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`;
-                                          const issues = esrIssuesMap?.get(esrKey) || [];
-                                          return issues.length > 0 ? (
-                                            <Button
-                                              variant="ghost"
-                                              className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedRemarkDetails({ issues, title: `Remarks for ${sensor.esr_name}, ${sensor.village_name}` });
-                                              }}
-                                            >
-                                              <span className="truncate w-full text-left">
-                                                {issues.map((i: any) => i.reason).join(", ")}
-                                              </span>
-                                            </Button>
-                                          ) : (
-                                            <span className="text-slate-400">-</span>
-                                          );
-                                        })()}
-                                      </TableCell>
+                                            {renderRemarkCell(issues, `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
+                                          </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center border-r border-orange-100/80 dark:border-orange-900/60">
                                         <span
                                           className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${sensor.pressure_status === "Online" ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60 dark:text-emerald-300 ring-1 ring-emerald-200/80 dark:ring-emerald-700/60" : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"}`}
@@ -9899,27 +9737,8 @@ const DetailedChlorinePage = () => {
                                         )}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-violet-100/80 dark:border-violet-900/60 max-w-[150px]">
-                                        {(() => {
-                                          const esrKey = `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`;
-                                          const issues = esrIssuesMap?.get(esrKey) || [];
-                                          return issues.length > 0 ? (
-                                            <Button
-                                              variant="ghost"
-                                              className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedRemarkDetails({ issues, title: `Remarks for ${sensor.esr_name}, ${sensor.village_name}` });
-                                              }}
-                                            >
-                                              <span className="truncate w-full text-left">
-                                                {issues.map((i: any) => i.reason).join(", ")}
-                                              </span>
-                                            </Button>
-                                          ) : (
-                                            <span className="text-slate-400">-</span>
-                                          );
-                                        })()}
-                                      </TableCell>
+                                            {renderRemarkCell(issues, `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
+                                          </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] text-slate-600 dark:text-slate-400 border-r border-violet-100/80 dark:border-violet-900/60">
                                         {formatDate(
                                           sensor.latest_chlorine_date,
@@ -10093,27 +9912,8 @@ const DetailedChlorinePage = () => {
                                         {sensor.village_name}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-cyan-100/80 dark:border-cyan-900/60 max-w-[150px]">
-                                        {(() => {
-                                          const villageKey = `${sensor.scheme_id}-${sensor.village_name}`;
-                                          const issues = villageIssuesMap?.get(villageKey) || [];
-                                          return issues.length > 0 ? (
-                                            <Button
-                                              variant="ghost"
-                                              className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedRemarkDetails({ issues, title: `Remarks for ${sensor.village_name}` });
-                                              }}
-                                            >
-                                              <span className="truncate w-full text-left">
-                                                {issues.map((i: any) => i.reason).join(", ")}
-                                              </span>
-                                            </Button>
-                                          ) : (
-                                            <span className="text-slate-400">-</span>
-                                          );
-                                        })()}
-                                      </TableCell>
+                                            {renderRemarkCell(issues, `Remarks for ${sensor.village_name}`)}
+                                          </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-cyan-100/80 dark:border-cyan-900/60">
                                         {sensor.latest_lpcd_value !== null ? (
                                           Number(
@@ -10311,23 +10111,8 @@ const DetailedChlorinePage = () => {
                                           )}
                                         </TableCell>
                                         <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 max-w-[150px]">
-                                          {hasIssue ? (
-                                            <Button
-                                              variant="ghost"
-                                              className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedRemarkDetails({ issues, title: `Remarks for ${scheme.scheme_name}` });
-                                              }}
-                                            >
-                                              <span className="truncate w-full text-left">
-                                                {issues.map((i: any) => i.reason).join(", ")}
-                                              </span>
-                                            </Button>
-                                          ) : (
-                                            <span className="text-slate-400">-</span>
-                                          )}
-                                        </TableCell>
+                                            {renderRemarkCell(issues, `Remarks for ${scheme.scheme_name}`)}
+                                          </TableCell>
                                         <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60">
                                           {scheme.block}
                                         </TableCell>
@@ -11087,26 +10872,7 @@ const DetailedChlorinePage = () => {
                                             </span>
                                           </TableCell>
                                           <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-emerald-100 dark:border-emerald-900 max-w-[150px]">
-                                            {(() => {
-                                              const villageKey = `${village.scheme_id}-${village.village_name}`;
-                                              const issues = villageIssuesMap?.get(villageKey) || [];
-                                              return issues.length > 0 ? (
-                                                <Button
-                                                  variant="ghost"
-                                                  className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setSelectedRemarkDetails({ issues, title: `Remarks for ${village.village_name}` });
-                                                  }}
-                                                >
-                                                  <span className="truncate w-full text-left">
-                                                    {issues.map((i: any) => i.reason).join(", ")}
-                                                  </span>
-                                                </Button>
-                                              ) : (
-                                                <span className="text-slate-400">-</span>
-                                              );
-                                            })()}
+                                            {renderRemarkCell(issues, `Remarks for ${village.village_name}`)}
                                           </TableCell>
                                         </TableRow>
                                       ),
@@ -11529,27 +11295,8 @@ const DetailedChlorinePage = () => {
                                           )}
                                         </TableCell>
                                         <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-                                          {(() => {
-                                            const schemeId = item.scheme_id?.toString().trim();
-                                            const issues = schemeIssuesMap?.get(schemeId) || [];
-                                            return issues.length > 0 ? (
-                                              <Button
-                                                variant="ghost"
-                                                className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  setSelectedRemarkDetails({ issues, title: `Remarks for ${item.scheme_name}` });
-                                                }}
-                                              >
-                                                <span className="truncate w-full text-left">
-                                                  {issues.map((i: any) => i.reason).join(", ")}
-                                                </span>
-                                              </Button>
-                                            ) : (
-                                              <span className="text-slate-400">-</span>
-                                            );
-                                          })()}
-                                        </TableCell>
+                                            {renderRemarkCell(issues, `Remarks for ${item.scheme_name}`)}
+                                          </TableCell>
                                       </TableRow>
                                     ))}
                                   </TableBody>
@@ -11960,27 +11707,8 @@ const DetailedChlorinePage = () => {
                                         {sensor.esr_name}
                                       </TableCell>
                                       <TableCell className="!px-3 !py-2.5 !text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-teal-100/80 dark:border-teal-900/60 max-w-[150px]">
-                                        {(() => {
-                                          const esrKey = `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`;
-                                          const issues = esrIssuesMap?.get(esrKey) || [];
-                                          return issues.length > 0 ? (
-                                            <Button
-                                              variant="ghost"
-                                              className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedRemarkDetails({ issues, title: `Remarks for ${sensor.esr_name}, ${sensor.village_name}` });
-                                              }}
-                                            >
-                                              <span className="truncate w-full text-left">
-                                                {issues.map((i: any) => i.reason).join(", ")}
-                                              </span>
-                                            </Button>
-                                          ) : (
-                                            <span className="text-slate-400">-</span>
-                                          );
-                                        })()}
-                                      </TableCell>
+                                            {renderRemarkCell(issues, `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
+                                          </TableCell>
                                       <TableCell className="!px-3 !py-2.5 text-center text-sm">
                                         <Badge
                                           className={`text-[10px] ${sensor.latest_chlorine_value !==
@@ -12473,27 +12201,8 @@ const DetailedChlorinePage = () => {
                                         </Badge>
                                       </TableCell>
                                       <TableCell className="!px-3 !py-2.5 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-                                        {(() => {
-                                          const esrKey = `${sensor.scheme_id}-${sensor.esr_name}`;
-                                          const issues = esrIssuesMap?.get(esrKey) || [];
-                                          return issues.length > 0 ? (
-                                            <Button
-                                              variant="ghost"
-                                              className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedRemarkDetails({ issues, title: `Remarks for ${sensor.esr_name}` });
-                                              }}
-                                            >
-                                              <span className="truncate w-full text-left">
-                                                {issues.map((i: any) => i.reason).join(", ")}
-                                              </span>
-                                            </Button>
-                                          ) : (
-                                            <span className="text-slate-400">-</span>
-                                          );
-                                        })()}
-                                      </TableCell>
+                                            {renderRemarkCell(issues, `Remarks for ${sensor.esr_name}`)}
+                                          </TableCell>
                                     </TableRow>
                                   ),
                                 )}
@@ -15111,52 +14820,14 @@ const DetailedChlorinePage = () => {
                                           )}
                                         </TableCell>
                                         <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 max-w-[150px]">
-                                          {(() => {
-                                            const esrKey = `${item.scheme_id}-${item.village_name}-${item.esr_name}`;
-                                            const issues = esrIssuesMap?.get(esrKey) || [];
-                                            return issues.length > 0 ? (
-                                              <Button
-                                                variant="ghost"
-                                                className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  setSelectedRemarkDetails({ issues, title: `Remarks for ${item.esr_name}, ${item.village_name}` });
-                                                }}
-                                              >
-                                                <span className="truncate w-full text-left">
-                                                  {issues.map((i: any) => i.reason).join(", ")}
-                                                </span>
-                                              </Button>
-                                            ) : (
-                                              <span className="text-slate-400">-</span>
-                                            );
-                                          })()}
-                                        </TableCell>
+                                            {renderRemarkCell(issues, `Remarks for ${item.esr_name}, ${item.village_name}`)}
+                                          </TableCell>
                                       </>
                                     )}
                                     {clickedComparisonCell.isLpcd && (
                                       <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 max-w-[150px]">
-                                        {(() => {
-                                          const villageKey = `${item.scheme_id}-${item.village_name}`;
-                                          const issues = villageIssuesMap?.get(villageKey) || [];
-                                          return issues.length > 0 ? (
-                                            <Button
-                                              variant="ghost"
-                                              className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedRemarkDetails({ issues, title: `Remarks for ${item.village_name}` });
-                                              }}
-                                            >
-                                              <span className="truncate w-full text-left">
-                                                {issues.map((i: any) => i.reason).join(", ")}
-                                              </span>
-                                            </Button>
-                                          ) : (
-                                            <span className="text-slate-400">-</span>
-                                          );
-                                        })()}
-                                      </TableCell>
+                                            {renderRemarkCell(issues, `Remarks for ${item.village_name}`)}
+                                          </TableCell>
                                     )}
                                     <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
                                       {item.dashboard_url ? (
@@ -15443,23 +15114,8 @@ const DetailedChlorinePage = () => {
                                         </span>
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center border-l border-purple-100/80 dark:border-purple-900/60 max-w-[150px] truncate" title={hasIssue ? issues.map((i: any) => i.reason).join(", ") : "-"}>
-                                        {hasIssue ? (
-                                          <Button
-                                            variant="ghost"
-                                            className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setSelectedRemarkDetails({ issues, title: `Remarks for ${item.village_name || "Village"}` });
-                                            }}
-                                          >
-                                            <span className="truncate w-full text-left">
-                                              {issues.map((i: any) => i.reason).join(", ")}
-                                            </span>
-                                          </Button>
-                                        ) : (
-                                          <span className="text-slate-400">-</span>
-                                        )}
-                                      </TableCell>
+                                            {renderRemarkCell(issues, `Remarks for ${item.village_name || "Village"}`)}
+                                          </TableCell>
                                     </TableRow>
                                   );
                                 })}
@@ -15636,27 +15292,8 @@ const DetailedChlorinePage = () => {
                                       </span>
                                     </TableCell>
                                     <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-                                      {(() => {
-                                        const villageKey = `${item.scheme_id}-${item.village_name}`;
-                                        const issues = villageIssuesMap?.get(villageKey) || [];
-                                        return issues.length > 0 ? (
-                                          <Button
-                                            variant="ghost"
-                                            className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setSelectedRemarkDetails({ issues, title: `Remarks for ${item.village_name}` });
-                                            }}
-                                          >
-                                            <span className="truncate w-full text-left">
-                                              {issues.map((i: any) => i.reason).join(", ")}
-                                            </span>
-                                          </Button>
-                                        ) : (
-                                          <span className="text-slate-400">-</span>
-                                        );
-                                      })()}
-                                    </TableCell>
+                                            {renderRemarkCell(issues, `Remarks for ${item.village_name}`)}
+                                          </TableCell>
                                   </TableRow>
                                 ))}
                               </TableBody>
@@ -15879,27 +15516,8 @@ const DetailedChlorinePage = () => {
                                         )}
                                       </TableCell>
                                       <TableCell className="!px-3 !py-2.5 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-                                        {(() => {
-                                          const esrKey = `${item.scheme_id}-${item.esr_name}`;
-                                          const issues = esrIssuesMap?.get(esrKey) || [];
-                                          return issues.length > 0 ? (
-                                            <Button
-                                              variant="ghost"
-                                              className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedRemarkDetails({ issues, title: `Remarks for ${item.esr_name}` });
-                                              }}
-                                            >
-                                              <span className="truncate w-full text-left">
-                                                {issues.map((i: any) => i.reason).join(", ")}
-                                              </span>
-                                            </Button>
-                                          ) : (
-                                            <span className="text-slate-400">-</span>
-                                          );
-                                        })()}
-                                      </TableCell>
+                                            {renderRemarkCell(issues, `Remarks for ${item.esr_name}`)}
+                                          </TableCell>
                                     </TableRow>
                                   ),
                                 )}
@@ -16062,26 +15680,9 @@ const DetailedChlorinePage = () => {
                             {(() => {
                               const esrKey = `${selectedSensor.scheme_id}-${selectedSensor.village_name}-${selectedSensor.esr_name}`;
                               const issues = esrIssuesMap?.get(esrKey) || [];
-                              const activeIssues = issues.filter((i: any) => i.status !== "Resolved");
-                              return activeIssues.length > 0 ? (
-                                <Button
-                                  variant="ghost"
-                                  className="h-auto p-1 max-w-full justify-start text-red-600 dark:text-red-400 font-medium text-[11px] hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedRemarkDetails({ issues, title: `Remarks for ${selectedSensor.esr_name}, ${selectedSensor.village_name}` });
-                                  }}
-                                >
-                                  <span className="truncate w-full text-left">
-                                    {activeIssues.map((i: any) => i.reason).join(", ")}
-                                  </span>
-                                </Button>
-                              ) : (
-                                <span className="text-gray-400">-</span>
-                              );
+                              return renderRemarkCell(issues, `Remarks for ${selectedSensor.esr_name}, ${selectedSensor.village_name}`);
                             })()}
-                          </TableCell>
-                        </TableRow>
+                          </TableCell>                        </TableRow>
                       );
                     })}
                   </TableBody>
@@ -16099,58 +15700,95 @@ const DetailedChlorinePage = () => {
           onOpenChange={(open) => !open && setSelectedRemarkDetails(null)}
         >
           <DialogContent className="max-w-2xl bg-white dark:bg-gray-900 border-none shadow-2xl p-0 overflow-hidden">
-            <div className="bg-gradient-to-r from-red-600 via-rose-600 to-red-700 p-6 flex justify-between items-center text-white relative">
-              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-              <div className="relative z-10 flex-1 pr-6">
-                <DialogTitle className="text-xl md:text-2xl font-bold flex items-center gap-3">
-                  <AlertCircle className="h-6 w-6 md:h-8 md:w-8 text-red-200" />
-                  <span className="tracking-tight">Issue Details</span>
-                </DialogTitle>
-                <DialogDescription className="text-red-100 mt-2 font-medium flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  <span>{selectedRemarkDetails.title}</span>
-                </DialogDescription>
-              </div>
-            </div>
-
-            <div className="p-6 overflow-y-auto max-h-[70vh] bg-slate-50 dark:bg-gray-900/50">
-              <div className="space-y-4">
-                {selectedRemarkDetails.issues.map((issue: any, index: number) => (
-                  <div key={index} className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
-                    <div className="flex justify-between items-start mb-3 gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider">
-                            {issue.problem_level ? `${issue.problem_level} Level`.toUpperCase() : (issue.category || "General")}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="text-right flex flex-col items-end">
-                        <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                          {issue.creator_name || issue.reported_by || "Field Engineer"}
-                        </div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 whitespace-nowrap">
-                          {new Date(issue.created_at || new Date()).toLocaleString('en-US', {
-                            month: 'short', day: 'numeric', year: 'numeric',
-                            hour: 'numeric', minute: '2-digit', hour12: true
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-lg border border-slate-100 dark:border-slate-800">
-                      <p className="text-sm text-slate-700 dark:text-slate-300 font-medium">
-                        {issue.reason || issue.issue_description}
-                      </p>
-                      {issue.remarks && (
-                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
-                          <span className="font-semibold text-slate-800 dark:text-slate-200">Additional Remarks:</span> {issue.remarks}
-                        </p>
-                      )}
+            {(() => {
+              const hasActive = selectedRemarkDetails.issues.some((i: any) => i.status === 'Active');
+              const headerGradient = hasActive
+                ? "from-red-600 via-rose-600 to-red-700"
+                : "from-emerald-600 via-teal-600 to-emerald-700";
+              return (
+                <>
+                  <div className={`bg-gradient-to-r ${headerGradient} p-6 flex justify-between items-center text-white relative`}>
+                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+                    <div className="relative z-10 flex-1 pr-6">
+                      <DialogTitle className="text-xl md:text-2xl font-bold flex items-center gap-3">
+                        <AlertCircle className="h-6 w-6 md:h-8 md:w-8 text-white/80" />
+                        <span className="tracking-tight">Issue Details & Remarks History</span>
+                      </DialogTitle>
+                      <DialogDescription className="text-white/90 mt-2 font-medium flex items-center gap-2">
+                        <MapPin className="h-4 w-4" />
+                        <span>{selectedRemarkDetails.title}</span>
+                      </DialogDescription>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
+
+                  <div className="p-6 overflow-y-auto max-h-[70vh] bg-slate-50 dark:bg-gray-900/50">
+                    <div className="space-y-4">
+                      {selectedRemarkDetails.issues.map((issue: any, index: number) => (
+                        <div
+                          key={index}
+                          className={`bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 ${
+                            issue.status === 'Resolved'
+                              ? 'border-l-4 border-l-emerald-500'
+                              : 'border-l-4 border-l-red-500'
+                          }`}
+                        >
+                          <div className="flex justify-between items-start mb-3 gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider">
+                                  {issue.problem_level ? `${issue.problem_level} Level`.toUpperCase() : (issue.category || "General")}
+                                </span>
+                                <span className={`px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider ${
+                                  issue.status === 'Resolved'
+                                    ? 'bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-400'
+                                    : 'bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-400'
+                                }`}>
+                                  {issue.status || 'Active'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="text-right flex flex-col items-end">
+                              <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                {issue.creator_name || issue.reported_by || "Field Engineer"}
+                              </div>
+                              <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 whitespace-nowrap">
+                                {new Date(issue.created_at || new Date()).toLocaleString('en-US', {
+                                  month: 'short', day: 'numeric', year: 'numeric',
+                                  hour: 'numeric', minute: '2-digit', hour12: true
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-lg border border-slate-100 dark:border-slate-800">
+                            <p className="text-sm text-slate-700 dark:text-slate-300 font-medium">
+                              {issue.reason || issue.issue_description}
+                            </p>
+                            {issue.remarks && (
+                              <p className="text-sm text-slate-600 dark:text-slate-400 mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                                <span className="font-semibold text-slate-800 dark:text-slate-200">Additional Remarks:</span> {issue.remarks}
+                              </p>
+                            )}
+                            {issue.status === 'Resolved' && (
+                              <div className="text-sm text-emerald-700 dark:text-emerald-400 mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                                <span className="font-semibold text-emerald-900 dark:text-emerald-300">Resolution Remark:</span> {issue.resolution_remark || 'Resolved'}
+                                {issue.resolved_at && (
+                                  <span className="block text-[10px] text-emerald-600 dark:text-emerald-500 mt-1">
+                                    Resolved on: {new Date(issue.resolved_at).toLocaleString('en-US', {
+                                      month: 'short', day: 'numeric', year: 'numeric',
+                                      hour: 'numeric', minute: '2-digit', hour12: true
+                                    })}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
           </DialogContent>
         </Dialog>
       )}

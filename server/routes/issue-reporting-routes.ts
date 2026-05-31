@@ -303,6 +303,41 @@ router.get("/active", async (req, res) => {
     }
 });
 
+// 6.5 Get ALL issues (Active and Resolved) for dashboard visualization and history
+router.get("/all", async (req, res) => {
+    try {
+        const db = await getDB();
+
+        const allIssues = await db
+            .select({
+                id: issueReports.id,
+                problem_level: issueReports.problem_level,
+                region: issueReports.region,
+                scheme_id: issueReports.scheme_id,
+                scheme_name: issueReports.scheme_name,
+                village_name: issueReports.village_name,
+                esr_name: issueReports.esr_name,
+                reason: issueReports.reason,
+                status_value: issueReports.status_value,
+                status: issueReports.status,
+                resolution_remark: issueReports.resolution_remark,
+                created_at: issueReports.created_at,
+                resolved_at: issueReports.resolved_at,
+                // Prefer stored name, fallback to join if null
+                creator_name: sql`COALESCE(${issueReports.creator_name}, ${users.name}, ${users.username})`,
+                sensor_type: issueReports.sensor_type
+            })
+            .from(issueReports)
+            .leftJoin(users, eq(issueReports.created_by, users.id))
+            .orderBy(desc(issueReports.created_at));
+
+        res.json(allIssues);
+    } catch (error) {
+        console.error("Error fetching all issues:", error);
+        res.status(500).json({ message: "Failed to fetch all issues" });
+    }
+});
+
 // 7. Get list of issues (Filtered by current user and optional region)
 router.get("/list", async (req: any, res) => {
     try {

@@ -482,22 +482,22 @@ const SchemeLpcdDashboard = () => {
     },
   });
 
-  // Fetch active issues for dashboard visualization
-  const { data: activeIssues = [] } = useQuery({
-    queryKey: ["/api/issue-reporting/active"],
+  // Fetch active and resolved issues for dashboard visualization
+  const { data: allIssues = [] } = useQuery({
+    queryKey: ["/api/issue-reporting/all"],
     queryFn: async () => {
-      const response = await fetch("/api/issue-reporting/active");
-      if (!response.ok) throw new Error("Failed to fetch active issues");
+      const response = await fetch("/api/issue-reporting/all");
+      if (!response.ok) throw new Error("Failed to fetch all issues");
       return response.json();
     },
     // Refresh every minute to keep statuses up to date
     refetchInterval: 60000,
   });
 
-  // Create a map for quick lookup of active issues by scheme_id
+  // Create a map for quick lookup of issues by scheme_id
   const activeIssuesMap = React.useMemo(() => {
     const map = new Map<string, any[]>();
-    activeIssues.forEach((issue: any) => {
+    allIssues.forEach((issue: any) => {
       // Filter for Scheme-level issues only
       if (issue.scheme_id && issue.problem_level === "Scheme") {
         if (!map.has(issue.scheme_id)) {
@@ -507,7 +507,7 @@ const SchemeLpcdDashboard = () => {
       }
     });
     return map;
-  }, [activeIssues]);
+  }, [allIssues]);
 
   // Get latest LPCD value
   const getLatestLpcdValue = (scheme: SchemeLpcdData): number | null => {
@@ -1912,10 +1912,8 @@ const SchemeLpcdDashboard = () => {
                           (page - 1) * itemsPerPage + index + 1;
 
                         // Check for active issues
-                        const schemeIssues = activeIssuesMap.get(scheme.scheme_id) || [];
-                        const hasActiveIssue = schemeIssues.some((i: any) => i.status !== "Resolved");
-                        const hasResolvedIssue = schemeIssues.some((i: any) => i.status === "Resolved");
-
+                        const schemeIssues = activeIssuesMap.get(scheme.scheme_id);
+                        const hasActiveIssue = schemeIssues && schemeIssues.some((i: any) => i.status === 'Active');
                         return (
                           <TableRow
                             key={`${scheme.scheme_id}-${index}`}
@@ -1985,20 +1983,26 @@ const SchemeLpcdDashboard = () => {
                               </Badge>
                             </TableCell>
                             <TableCell className="max-w-[150px]">
-                              {hasActiveIssue ? (
-                                <Button
-                                  variant="ghost"
-                                  className="h-auto p-1 max-w-full justify-start font-medium text-[11px] hover:bg-slate-50 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedRemarkDetails({ issues: schemeIssues, title: `Issues for ${scheme.scheme_name}` });
-                                  }}
-                                >
-                                  <span className="truncate w-full text-left">
-                                    {schemeIssues.filter((i: any) => i.status !== "Resolved").map((i: any) => i.reason).join(", ")}
-                                  </span>
-                                </Button>
-                              ) : (
+                              {schemeIssues && schemeIssues.length > 0 ? (
+                                (() => {
+                                  const activeIssue = schemeIssues.find((i: any) => i.status === 'Active');
+                                  const textColor = activeIssue ? 'text-red-600 hover:text-red-700 hover:bg-red-50' : 'text-green-600 hover:text-green-700 hover:bg-green-50';
+                                  const displayText = activeIssue ? activeIssue.reason : 'Resolved';
+                                  return (
+                                    <Button
+                                      variant="ghost"
+                                      className={`h-auto p-1 max-w-full justify-start font-semibold text-[11px] ${textColor}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedRemarkDetails({ issues: schemeIssues, title: `Remarks/Issues for ${scheme.scheme_name}` });
+                                      }}
+                                    >
+                                      <span className="truncate w-full text-left">
+                                        {displayText}
+                                      </span>
+                                    </Button>
+                                  );
+                                })()                              ) : (
                                 <span className="text-gray-400">-</span>
                               )}
                             </TableCell>
@@ -2364,7 +2368,6 @@ const SchemeLpcdDashboard = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Remark Details Dialog */}
       {selectedRemarkDetails && (
         <Dialog
           open={!!selectedRemarkDetails}
@@ -2372,22 +2375,20 @@ const SchemeLpcdDashboard = () => {
         >
           <DialogContent className="max-w-2xl bg-white border-none shadow-2xl p-0 overflow-hidden">
             {(() => {
-              const hasAnyActive = selectedRemarkDetails.issues.some((i: any) => i.status !== "Resolved");
+              const hasActive = selectedRemarkDetails.issues.some((i: any) => i.status === 'Active');
+              const headerGradient = hasActive
+                ? "from-red-600 via-rose-600 to-red-700"
+                : "from-emerald-600 via-teal-600 to-emerald-700";
               return (
                 <>
-                  <div className={`bg-gradient-to-r ${hasAnyActive ? "from-red-600 via-rose-600 to-red-700" : "from-green-600 via-emerald-600 to-green-700"} p-6 flex justify-between items-center text-white relative`}>
+                  <div className={`bg-gradient-to-r ${headerGradient} p-6 flex justify-between items-center text-white relative`}>
                     <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
                     <div className="relative z-10 flex-1 pr-6">
                       <DialogTitle className="text-xl md:text-2xl font-bold flex items-center gap-3">
-                        {hasAnyActive ? (
-                          <AlertCircle className="h-6 w-6 md:h-8 md:w-8 text-red-200" />
-                        ) : (
-                          <CheckCircle2 className="h-6 w-6 md:h-8 md:w-8 text-green-200" />
-                        )}
-                        <span className="tracking-tight">{hasAnyActive ? "Issue Details" : "Resolved Issue Details"}</span>
+                        <AlertCircle className="h-6 w-6 md:h-8 md:w-8 text-white/80" />
+                        <span className="tracking-tight">Issue Details & Remarks History</span>
                       </DialogTitle>
-                      <DialogDescription className={`${hasAnyActive ? "text-red-100" : "text-green-100"} mt-2 font-medium flex items-center gap-2`}>
-                        <MapPin className="h-4 w-4" />
+                      <DialogDescription className="text-white/90 mt-2 font-medium flex items-center gap-2">                        <MapPin className="h-4 w-4" />
                         <span>{selectedRemarkDetails.title}</span>
                       </DialogDescription>
                     </div>
@@ -2396,23 +2397,24 @@ const SchemeLpcdDashboard = () => {
                   <div className="p-6 overflow-y-auto max-h-[70vh] bg-slate-50">
                     <div className="space-y-4">
                       {selectedRemarkDetails.issues.map((issue: any, index: number) => (
-                        <div key={index} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-                          <div className="flex justify-between items-start mb-3 gap-4">
+                        <div
+                          key={index}
+                          className={`bg-white p-5 rounded-xl shadow-sm border border-slate-200 ${
+                            issue.status === 'Resolved'
+                              ? 'border-l-4 border-l-emerald-500'
+                              : 'border-l-4 border-l-red-500'
+                          }`}
+                        >                          <div className="flex justify-between items-start mb-3 gap-4">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
                                 <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider">
                                   {issue.problem_level ? `${issue.problem_level} Level`.toUpperCase() : (issue.category || "General")}
                                 </span>
-                                {issue.status === "Resolved" ? (
-                                  <span className="bg-green-100 text-green-800 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider flex items-center gap-1">
-                                    <CheckCircle2 className="h-3 w-3 text-green-600" /> Resolved
-                                  </span>
-                                ) : (
-                                  <span className="bg-red-100 text-red-800 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider flex items-center gap-1">
-                                    <AlertCircle className="h-3 w-3 text-red-600" /> Active
-                                  </span>
-                                )}
-                              </div>
+                                <span className={`px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider ${
+                                  issue.status === 'Resolved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                }`}>
+                                  {issue.status || 'Active'}
+                                </span>                              </div>
                             </div>
                             <div className="text-right flex flex-col items-end">
                               <div className="text-sm font-medium text-slate-900">
@@ -2435,15 +2437,16 @@ const SchemeLpcdDashboard = () => {
                                 <span className="font-semibold text-slate-800">Additional Remarks:</span> {issue.remarks}
                               </p>
                             )}
-                            {issue.status === "Resolved" && (
-                              <div className="mt-2 pt-2 border-t border-green-200 text-xs text-green-800">
-                                <p className="font-semibold">Resolution Comments:</p>
-                                <p className="italic">"{issue.resolution_remark || "No resolution remark provided."}"</p>
+                            {issue.status === 'Resolved' && (
+                              <div className="text-sm text-emerald-700 mt-2 pt-2 border-t border-slate-200">
+                                <span className="font-semibold text-emerald-900">Resolution Remark:</span> {issue.resolution_remark || 'Resolved'}
                                 {issue.resolved_at && (
-                                  <p className="text-[10px] text-green-600 mt-1">
-                                    Resolved on: {new Date(issue.resolved_at).toLocaleString()}
-                                  </p>
-                                )}
+                                  <span className="block text-[10px] text-emerald-600 mt-1">
+                                    Resolved on: {new Date(issue.resolved_at).toLocaleString('en-US', {
+                                      month: 'short', day: 'numeric', year: 'numeric',
+                                      hour: 'numeric', minute: '2-digit', hour12: true
+                                    })}
+                                  </span>                                )}
                               </div>
                             )}
                           </div>

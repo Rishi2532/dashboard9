@@ -198,12 +198,12 @@ const WaterConsumptionPage: React.FC = () => {
     issues: any[];
   } | null>(null);
 
-  // Fetch active issues
-  const { data: activeIssues = [] } = useQuery({
-    queryKey: ["/api/issue-reporting/active"],
+  // Fetch active and resolved issues
+  const { data: allIssues = [] } = useQuery({
+    queryKey: ["/api/issue-reporting/all"],
     queryFn: async () => {
-      const response = await fetch("/api/issue-reporting/active");
-      if (!response.ok) throw new Error("Failed to fetch active issues");
+      const response = await fetch("/api/issue-reporting/all");
+      if (!response.ok) throw new Error("Failed to fetch all issues");
       const data = await response.json();
       return data;
     },
@@ -215,7 +215,7 @@ const WaterConsumptionPage: React.FC = () => {
   const { esrIssuesMap } = useMemo(() => {
     const eMap = new Map<string, any[]>();
 
-    activeIssues.forEach((issue: any) => {
+    allIssues.forEach((issue: any) => {
       // ESR level issues only
       if (
         issue.scheme_id &&
@@ -232,7 +232,7 @@ const WaterConsumptionPage: React.FC = () => {
     });
 
     return { esrIssuesMap: eMap };
-  }, [activeIssues]);
+  }, [allIssues]);
 
   // Fetch all water consumption data
   const {
@@ -2516,14 +2516,11 @@ const WaterConsumptionPage: React.FC = () => {
 
                       // Check for active issues
                       // User Request: Only show ESR level issues on Water Consumption page
-                      const allIssues =
+                      const rowIssues =
                         esrIssuesMap.get(
                           `${record.scheme_id}-${record.village_name}-${record.esr_name}`,
                         ) || [];
-                      const hasActiveIssue = allIssues.some((i: any) => i.status !== "Resolved");
-                      const hasResolvedIssue = allIssues.some((i: any) => i.status === "Resolved");
-                      const hasIssue = allIssues.length > 0;
-
+                      const hasActiveIssue = rowIssues.some((i: any) => i.status === 'Active');
                       return (
                         <tr
                           key={`${record.scheme_id}-${record.esr_name}-${index}`}
@@ -2586,8 +2583,7 @@ const WaterConsumptionPage: React.FC = () => {
                           >
                             <div className="flex items-center gap-2">
                               <span>{record.esr_name || "N/A"}</span>
-                              {hasActiveIssue ? (
-                                <Popover>
+                              {hasActiveIssue && (                                <Popover>
                                   <PopoverTrigger asChild>
                                     <Button
                                       variant="ghost"
@@ -2612,54 +2608,44 @@ const WaterConsumptionPage: React.FC = () => {
                                     </div>
                                     <div className="p-4 max-h-[300px] overflow-y-auto">
                                       <ul className="space-y-3">
-                                        {allIssues.map((issue: any) => (
+                                        {rowIssues.map((issue: any) => (
                                           <li
                                             key={issue.id}
                                             className="text-sm bg-white p-3 rounded-md border border-red-100 shadow-sm"
                                           >
                                             <div className="font-medium text-gray-900 mb-1">
-                                              {issue.esr_name ? (
+                                              {issue.problem_level ? (
                                                 <Badge
                                                   variant="outline"
                                                   className="mr-2 border-purple-200 text-purple-700 bg-purple-50"
                                                 >
-                                                  ESR
-                                                </Badge>
-                                              ) : issue.village_name ? (
-                                                <Badge
-                                                  variant="outline"
-                                                  className="mr-2 border-red-200 text-red-700 bg-red-50"
-                                                >
-                                                  Village
+                                                  {issue.problem_level}
                                                 </Badge>
                                               ) : (
                                                 <Badge
                                                   variant="outline"
                                                   className="mr-2 border-blue-200 text-blue-700 bg-blue-50"
                                                 >
-                                                  Scheme
+                                                  General
                                                 </Badge>
                                               )}
                                               <span className="text-red-800 font-semibold uppercase text-xs tracking-wider">
-                                                {issue.status === "Resolved" ? "RESOLVED" : "ACTIVE"} ISSUE
-                                              </span>
+                                                {issue.status || "Active"}                                              </span>
                                             </div>
                                             <div className="bg-red-50 p-2.5 rounded-md border border-red-100 mb-2">
                                               <p className="text-red-900 font-medium text-sm leading-relaxed">
-                                                {issue.reason}
+                                                {issue.reason || issue.issue_description}
                                               </p>
                                             </div>
                                             <div className="text-xs text-gray-500 flex justify-between items-center border-t border-gray-100 pt-2 mt-2">
                                               <span>
                                                 By:{" "}
                                                 <span className="font-medium">
-                                                  {issue.creator_name}
+                                                  {issue.creator_name || issue.reported_by || "Field Engineer"}
                                                 </span>
                                               </span>
                                               <span>
-                                                {new Date(
-                                                  issue.created_at,
-                                                ).toLocaleDateString()}
+                                                {issue.created_at ? new Date(issue.created_at).toLocaleDateString() : "N/A"}
                                               </span>
                                             </div>
                                           </li>
@@ -2829,26 +2815,29 @@ const WaterConsumptionPage: React.FC = () => {
                               maxWidth: "150px",
                             }}
                           >
-                            {hasActiveIssue ? (
-                              <Button
-                                variant="ghost"
-                                className="h-auto p-1 max-w-full justify-start font-medium text-[11px] hover:bg-slate-50 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedRemarkDetails({
-                                    issues: allIssues,
-                                    title: `Issues for ${record.esr_name}, ${record.village_name}`,
-                                  });
-                                }}
-                              >
-                                <span className="truncate w-full text-left">
-                                  {allIssues
-                                    .filter((i: any) => i.status !== "Resolved")
-                                    .map((i: any) => i.reason)
-                                    .join(", ")}
-                                </span>
-                              </Button>
-                            ) : (
+                            {rowIssues.length > 0 ? (
+                              (() => {
+                                const activeIssue = rowIssues.find((i: any) => i.status === 'Active');
+                                const textColor = activeIssue ? 'text-red-600 hover:text-red-700 hover:bg-red-50' : 'text-green-600 hover:text-green-700 hover:bg-green-50';
+                                const displayText = activeIssue ? activeIssue.reason : 'Resolved';
+                                return (
+                                  <Button
+                                    variant="ghost"
+                                    className={`h-auto p-1 max-w-full justify-start font-semibold text-[11px] ${textColor}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedRemarkDetails({
+                                        issues: rowIssues,
+                                        title: `Remarks/Issues for ${record.esr_name}, ${record.village_name}`,
+                                      });
+                                    }}
+                                  >
+                                    <span className="truncate w-full text-left">
+                                      {displayText}
+                                    </span>
+                                  </Button>
+                                );
+                              })()                            ) : (
                               <span style={{ color: "#94a3b8" }}>-</span>
                             )}
                           </td>
@@ -3136,35 +3125,39 @@ const WaterConsumptionPage: React.FC = () => {
         >
           <DialogContent className="max-w-2xl bg-white border-none shadow-2xl p-0 overflow-hidden">
             {(() => {
-              const hasAnyActive = selectedRemarkDetails.issues.some((i: any) => i.status !== "Resolved");
+              const hasActive = selectedRemarkDetails.issues.some((i: any) => i.status === 'Active');
+              const headerGradient = hasActive
+                ? "from-red-600 via-rose-600 to-red-700"
+                : "from-emerald-600 via-teal-600 to-emerald-700";
               return (
                 <>
-                  <div className={`bg-gradient-to-r ${hasAnyActive ? "from-red-600 via-rose-600 to-red-700" : "from-green-600 via-emerald-600 to-green-700"} p-6 flex justify-between items-center text-white relative`}>
+                  <div className={`bg-gradient-to-r ${headerGradient} p-6 flex justify-between items-center text-white relative`}>
                     <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
                     <div className="relative z-10 flex-1 pr-6">
                       <DialogTitle className="text-xl md:text-2xl font-bold flex items-center gap-3">
-                        {hasAnyActive ? (
-                          <AlertCircle className="h-6 w-6 md:h-8 md:w-8 text-red-200" />
-                        ) : (
-                          <CheckCircle2 className="h-6 w-6 md:h-8 md:w-8 text-green-200" />
-                        )}
-                        <span className="tracking-tight">{hasAnyActive ? "Issue Details" : "Resolved Issue Details"}</span>
+                        <AlertCircle className="h-6 w-6 md:h-8 md:w-8 text-white/80" />
+                        <span className="tracking-tight">Issue Details & Remarks History</span>
                       </DialogTitle>
-                      <DialogDescription className={`${hasAnyActive ? "text-red-100" : "text-green-100"} mt-2 font-medium flex items-center gap-2`}>
-                        <MapPin className="h-4 w-4" />
+                      <DialogDescription className="text-white/90 mt-2 font-medium flex items-center gap-2">                        <MapPin className="h-4 w-4" />
                         <span>{selectedRemarkDetails.title}</span>
                       </DialogDescription>
                     </div>
                   </div>
-
+>>>>>>> 09653c1 (Update dashboard and routes)
                   <div className="p-6 overflow-y-auto max-h-[70vh] bg-slate-50">
                     <div className="space-y-4">
                       {selectedRemarkDetails.issues.map(
                         (issue: any, index: number) => (
                           <div
                             key={index}
+<<<<<<< HEAD
                             className="bg-white p-5 rounded-xl shadow-sm border border-slate-200"
-                          >
+=======
+                            className={`bg-white p-5 rounded-xl shadow-sm border border-slate-200 ${
+                              issue.status === 'Resolved'
+                                ? 'border-l-4 border-l-emerald-500'
+                                : 'border-l-4 border-l-red-500'
+                            }`}                          >
                             <div className="flex justify-between items-start mb-3 gap-4">
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
@@ -3173,16 +3166,11 @@ const WaterConsumptionPage: React.FC = () => {
                                       ? `${issue.problem_level} Level`.toUpperCase()
                                       : issue.category || "General"}
                                   </span>
-                                  {issue.status === "Resolved" ? (
-                                    <span className="bg-green-100 text-green-800 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider flex items-center gap-1">
-                                      <CheckCircle2 className="h-3 w-3 text-green-600" /> Resolved
-                                    </span>
-                                  ) : (
-                                    <span className="bg-red-100 text-red-800 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider flex items-center gap-1">
-                                      <AlertCircle className="h-3 w-3 text-red-600" /> Active
-                                    </span>
-                                  )}
-                                </div>
+                                  <span className={`px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider ${
+                                    issue.status === 'Resolved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                  }`}>
+                                    {issue.status || 'Active'}
+                                  </span>                                </div>
                               </div>
                               <div className="text-right flex flex-col items-end">
                                 <div className="text-sm font-medium text-slate-900">
@@ -3213,15 +3201,16 @@ const WaterConsumptionPage: React.FC = () => {
                                   <span className="font-semibold text-slate-800">Additional Remarks:</span> {issue.remarks}
                                 </p>
                               )}
-                              {issue.status === "Resolved" && (
-                                <div className="mt-2 pt-2 border-t border-green-200 text-xs text-green-800">
-                                  <p className="font-semibold">Resolution Comments:</p>
-                                  <p className="italic">"{issue.resolution_remark || "No resolution remark provided."}"</p>
+                              {issue.status === 'Resolved' && (
+                                <div className="text-sm text-emerald-700 mt-2 pt-2 border-t border-slate-200">
+                                  <span className="font-semibold text-emerald-900">Resolution Remark:</span> {issue.resolution_remark || 'Resolved'}
                                   {issue.resolved_at && (
-                                    <p className="text-[10px] text-green-600 mt-1">
-                                      Resolved on: {new Date(issue.resolved_at).toLocaleString()}
-                                    </p>
-                                  )}
+                                    <span className="block text-[10px] text-emerald-600 mt-1">
+                                      Resolved on: {new Date(issue.resolved_at).toLocaleString('en-US', {
+                                        month: 'short', day: 'numeric', year: 'numeric',
+                                        hour: 'numeric', minute: '2-digit', hour12: true
+                                      })}
+                                    </span>                                  )}
                                 </div>
                               )}
                             </div>

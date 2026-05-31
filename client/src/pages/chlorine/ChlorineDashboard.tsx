@@ -253,12 +253,12 @@ const ChlorineDashboard: React.FC = () => {
     title: string;
     issues: any[];
   } | null>(null);
-  // Fetch active issues
-  const { data: activeIssues = [] } = useQuery({
-    queryKey: ["/api/issue-reporting/active"],
+  // Fetch active and resolved issues
+  const { data: allIssues = [] } = useQuery({
+    queryKey: ["/api/issue-reporting/all"],
     queryFn: async () => {
-      const response = await fetch("/api/issue-reporting/active");
-      if (!response.ok) throw new Error("Failed to fetch active issues");
+      const response = await fetch("/api/issue-reporting/all");
+      if (!response.ok) throw new Error("Failed to fetch all issues");
       const data = await response.json();
       return data;
     },
@@ -270,7 +270,7 @@ const ChlorineDashboard: React.FC = () => {
   const { esrIssuesMap } = useMemo(() => {
     const eMap = new Map<string, any[]>();
 
-    activeIssues.forEach((issue: any) => {
+    allIssues.forEach((issue: any) => {
       // ESR level issues only
       if (issue.scheme_id && issue.village_name && issue.esr_name && issue.problem_level === "ESR") {
         const key = `${issue.scheme_id}-${issue.village_name}-${issue.esr_name}`;
@@ -282,7 +282,7 @@ const ChlorineDashboard: React.FC = () => {
     });
 
     return { esrIssuesMap: eMap };
-  }, [activeIssues]);
+  }, [allIssues]);
 
   // Track page visit on component mount
   useEffect(() => {
@@ -2680,26 +2680,29 @@ const ChlorineDashboard: React.FC = () => {
                             )}
                           </TableCell>
                           <TableCell className="text-center font-medium border-b border-blue-200 max-w-[150px]">
-                            {(() => {
-                              const hasActiveIssue = esrIssues.some((i: any) => i.status !== "Resolved");
-                              return hasActiveIssue ? (
-                                <Button
-                                  variant="ghost"
-                                  className="h-auto p-1 max-w-full justify-start text-red-600 font-medium text-[11px] hover:text-red-700 hover:bg-red-50"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedRemarkDetails({ issues: esrIssues, title: `Issues for ${item.esr_name}, ${item.village_name}` });
-                                  }}
-                                >
-                                  <span className="truncate w-full text-left">
-                                    {esrIssues.filter((i: any) => i.status !== "Resolved").map((i: any) => i.reason).join(", ")}
-                                  </span>
-                                </Button>
-                              ) : (
-                                <span className="text-slate-400">-</span>
-                              );
-                            })()}
-                          </TableCell>
+                            {esrIssues.length > 0 ? (
+                              (() => {
+                                const activeIssue = esrIssues.find((i: any) => i.status === 'Active');
+                                const textColor = activeIssue ? 'text-red-600 hover:text-red-700 hover:bg-red-50' : 'text-green-600 hover:text-green-700 hover:bg-green-50';
+                                const displayText = activeIssue ? activeIssue.reason : 'Resolved';
+                                return (
+                                  <Button
+                                    variant="ghost"
+                                    className={`h-auto p-1 max-w-full justify-start font-semibold text-[11px] ${textColor}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedRemarkDetails({ issues: esrIssues, title: `Remarks/Issues for ${item.esr_name}, ${item.village_name}` });
+                                    }}
+                                  >
+                                    <span className="truncate w-full text-left">
+                                      {displayText}
+                                    </span>
+                                  </Button>
+                                );
+                              })()
+                            ) : (
+                              <span className="text-slate-400">-</span>
+                            )}                          </TableCell>
                           <TableCell className="border-b border-blue-200">
                             <Dialog>
                               <DialogTrigger asChild>
@@ -3236,58 +3239,93 @@ const ChlorineDashboard: React.FC = () => {
             onOpenChange={(open) => !open && setSelectedRemarkDetails(null)}
           >
             <DialogContent className="max-w-2xl bg-white border-none shadow-2xl p-0 overflow-hidden">
-              <div className="bg-gradient-to-r from-red-600 via-rose-600 to-red-700 p-6 flex justify-between items-center text-white relative">
-                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-                <div className="relative z-10 flex-1 pr-6">
-                  <DialogTitle className="text-xl md:text-2xl font-bold flex items-center gap-3">
-                    <AlertCircle className="h-6 w-6 md:h-8 md:w-8 text-red-200" />
-                    <span className="tracking-tight">Issue Details</span>
-                  </DialogTitle>
-                  <DialogDescription className="text-red-100 mt-2 font-medium flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    <span>{selectedRemarkDetails?.title}</span>
-                  </DialogDescription>
-                </div>
-              </div>
-
-              <div className="p-6 overflow-y-auto max-h-[70vh] bg-slate-50">
-                <div className="space-y-4">
-                  {selectedRemarkDetails?.issues.map((issue: any, index: number) => (
-                    <div key={index} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-                      <div className="flex justify-between items-start mb-3 gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider">
-                              {issue.problem_level ? `${issue.problem_level} Level`.toUpperCase() : (issue.category || "General")}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="text-right flex flex-col items-end">
-                          <div className="text-sm font-medium text-slate-900">
-                            {issue.creator_name || issue.reported_by || "Field Engineer"}
-                          </div>
-                          <div className="text-xs text-slate-500 mt-0.5 whitespace-nowrap">
-                            {new Date(issue.created_at || new Date()).toLocaleString('en-US', {
-                              month: 'short', day: 'numeric', year: 'numeric',
-                              hour: 'numeric', minute: '2-digit', hour12: true
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-100">
-                        <p className="text-sm text-slate-700 font-medium">
-                          {issue.reason || issue.issue_description}
-                        </p>
-                        {issue.remarks && (
-                          <p className="text-sm text-slate-600 mt-2 pt-2 border-t border-slate-200">
-                            <span className="font-semibold text-slate-800">Additional Remarks:</span> {issue.remarks}
-                          </p>
-                        )}
+              {(() => {
+                const hasActive = selectedRemarkDetails.issues.some((i: any) => i.status === 'Active');
+                const headerGradient = hasActive
+                  ? "from-red-600 via-rose-600 to-red-700"
+                  : "from-emerald-600 via-teal-600 to-emerald-700";
+                return (
+                  <>
+                    <div className={`bg-gradient-to-r ${headerGradient} p-6 flex justify-between items-center text-white relative`}>
+                      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+                      <div className="relative z-10 flex-1 pr-6">
+                        <DialogTitle className="text-xl md:text-2xl font-bold flex items-center gap-3">
+                          <AlertCircle className="h-6 w-6 md:h-8 md:w-8 text-white/80" />
+                          <span className="tracking-tight">Issue Details & Remarks History</span>
+                        </DialogTitle>
+                        <DialogDescription className="text-white/90 mt-2 font-medium flex items-center gap-2">
+                          <MapPin className="h-4 w-4" />
+                          <span>{selectedRemarkDetails?.title}</span>
+                        </DialogDescription>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
+
+                    <div className="p-6 overflow-y-auto max-h-[70vh] bg-slate-50">
+                      <div className="space-y-4">
+                        {selectedRemarkDetails?.issues.map((issue: any, index: number) => (
+                          <div
+                            key={index}
+                            className={`bg-white p-5 rounded-xl shadow-sm border border-slate-200 ${
+                              issue.status === 'Resolved'
+                                ? 'border-l-4 border-l-emerald-500'
+                                : 'border-l-4 border-l-red-500'
+                            }`}
+                          >
+                            <div className="flex justify-between items-start mb-3 gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider">
+                                    {issue.problem_level ? `${issue.problem_level} Level`.toUpperCase() : (issue.category || "General")}
+                                  </span>
+                                  <span className={`px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider ${
+                                    issue.status === 'Resolved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                  }`}>
+                                    {issue.status || 'Active'}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="text-right flex flex-col items-end">
+                                <div className="text-sm font-medium text-slate-900">
+                                  {issue.creator_name || issue.reported_by || "Field Engineer"}
+                                </div>
+                                <div className="text-xs text-slate-500 mt-0.5 whitespace-nowrap">
+                                  {new Date(issue.created_at || new Date()).toLocaleString('en-US', {
+                                    month: 'short', day: 'numeric', year: 'numeric',
+                                    hour: 'numeric', minute: '2-digit', hour12: true
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-100">
+                              <p className="text-sm text-slate-700 font-medium">
+                                {issue.reason || issue.issue_description}
+                              </p>
+                              {issue.remarks && (
+                                <p className="text-sm text-slate-600 mt-2 pt-2 border-t border-slate-200">
+                                  <span className="font-semibold text-slate-800">Additional Remarks:</span> {issue.remarks}
+                                </p>
+                              )}
+                              {issue.status === 'Resolved' && (
+                                <div className="text-sm text-emerald-700 mt-2 pt-2 border-t border-slate-200">
+                                  <span className="font-semibold text-emerald-900">Resolution Remark:</span> {issue.resolution_remark || 'Resolved'}
+                                  {issue.resolved_at && (
+                                    <span className="block text-[10px] text-emerald-600 mt-1">
+                                      Resolved on: {new Date(issue.resolved_at).toLocaleString('en-US', {
+                                        month: 'short', day: 'numeric', year: 'numeric',
+                                        hour: 'numeric', minute: '2-digit', hour12: true
+                                      })}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </DialogContent>
           </Dialog>
         )
