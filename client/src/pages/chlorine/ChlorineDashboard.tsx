@@ -945,7 +945,7 @@ const ChlorineDashboard: React.FC = () => {
     else if (value === "Yes") setUiSchemeFilter("mjp_commissioned_yes");
     else if (value === "No") setUiSchemeFilter("all");
     else if (value === "Water Supply") setUiSchemeFilter("commissioned");
-    set.Page(1);
+    setPage(1);
   };
 
   const [fullyCompletedFilter, setFullyCompletedFilter] = useState<string>("all");

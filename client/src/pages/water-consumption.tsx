@@ -2583,7 +2583,8 @@ const WaterConsumptionPage: React.FC = () => {
                           >
                             <div className="flex items-center gap-2">
                               <span>{record.esr_name || "N/A"}</span>
-                              {hasActiveIssue && (                                <Popover>
+                              {hasActiveIssue ? (
+                                <Popover>
                                   <PopoverTrigger asChild>
                                     <Button
                                       variant="ghost"
@@ -2608,7 +2609,7 @@ const WaterConsumptionPage: React.FC = () => {
                                     </div>
                                     <div className="p-4 max-h-[300px] overflow-y-auto">
                                       <ul className="space-y-3">
-                                        {rowIssues.map((issue: any) => (
+                                        {rowIssues.filter((i: any) => i.status !== "Resolved").map((issue: any) => (
                                           <li
                                             key={issue.id}
                                             className="text-sm bg-white p-3 rounded-md border border-red-100 shadow-sm"
@@ -2630,7 +2631,8 @@ const WaterConsumptionPage: React.FC = () => {
                                                 </Badge>
                                               )}
                                               <span className="text-red-800 font-semibold uppercase text-xs tracking-wider">
-                                                {issue.status || "Active"}                                              </span>
+                                                ACTIVE ISSUE
+                                              </span>
                                             </div>
                                             <div className="bg-red-50 p-2.5 rounded-md border border-red-100 mb-2">
                                               <p className="text-red-900 font-medium text-sm leading-relaxed">
@@ -2680,7 +2682,7 @@ const WaterConsumptionPage: React.FC = () => {
                                     </div>
                                     <div className="p-4 max-h-[300px] overflow-y-auto">
                                       <ul className="space-y-3">
-                                        {allIssues.map((issue: any) => (
+                                        {rowIssues.filter((i: any) => i.status === "Resolved").map((issue: any) => (
                                           <li
                                             key={issue.id}
                                             className="text-sm bg-white p-3 rounded-md border border-green-100 shadow-sm"
@@ -2698,7 +2700,7 @@ const WaterConsumptionPage: React.FC = () => {
                                             </div>
                                             <div className="bg-green-50 p-2.5 rounded-md border border-green-100 mb-2">
                                               <p className="text-green-900 font-medium text-sm leading-relaxed">
-                                                {issue.reason}
+                                                {issue.reason || issue.issue_description}
                                               </p>
                                             </div>
                                             {issue.resolution_remark && (
@@ -2711,13 +2713,11 @@ const WaterConsumptionPage: React.FC = () => {
                                               <span>
                                                 By:{" "}
                                                 <span className="font-medium">
-                                                  {issue.creator_name}
+                                                  {issue.creator_name || issue.reported_by || "Field Engineer"}
                                                 </span>
                                               </span>
                                               <span>
-                                                {new Date(
-                                                  issue.created_at,
-                                                ).toLocaleDateString()}
+                                                {issue.created_at ? new Date(issue.created_at).toLocaleDateString() : "N/A"}
                                               </span>
                                             </div>
                                           </li>
@@ -3143,16 +3143,12 @@ const WaterConsumptionPage: React.FC = () => {
                       </DialogDescription>
                     </div>
                   </div>
->>>>>>> 09653c1 (Update dashboard and routes)
                   <div className="p-6 overflow-y-auto max-h-[70vh] bg-slate-50">
                     <div className="space-y-4">
                       {selectedRemarkDetails.issues.map(
                         (issue: any, index: number) => (
                           <div
                             key={index}
-<<<<<<< HEAD
-                            className="bg-white p-5 rounded-xl shadow-sm border border-slate-200"
-=======
                             className={`bg-white p-5 rounded-xl shadow-sm border border-slate-200 ${
                               issue.status === 'Resolved'
                                 ? 'border-l-4 border-l-emerald-500'
