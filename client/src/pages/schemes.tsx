@@ -588,9 +588,12 @@ export default function Schemes() {
         Block: scheme.block || "",
         "Scheme ID": scheme.scheme_id || "",
         "Scheme Name": scheme.scheme_name || "",
+        "Agency Type": scheme.agency_type || "N/A",
         Agency:
-          scheme.agency ||
-          (scheme.region ? getAgencyByRegion(scheme.region) : "Not Specified"),
+          scheme.agency_type === "ZP"
+            ? "ZP"
+            : (scheme.agency ||
+               (scheme.region ? getAgencyByRegion(scheme.region) : "Not Specified")),
         "Total Villages": scheme.number_of_village || 0,
         "Villages Integrated": scheme.total_villages_integrated || 0,
         "Villages Completed": scheme.fully_completed_villages || 0,
@@ -643,8 +646,8 @@ export default function Schemes() {
       });
       // Set column widths
       const colWidths = [
-        15, 30, 12, 12, 12, 12, 12, 18, 12, 12, 12, 12, 12, 12, 12, 12, 12, 15,
-        15, 18, 15, 15,
+        15, 30, 12, 12, 12, 12, 12, 12, 18, 12, 12, 12, 12, 12, 12, 12, 12, 12,
+        15, 15, 18, 15, 15, 15,
       ];
       colWidths.forEach((width, idx) => {
         if (worksheet.getColumn(idx + 1))
