@@ -2521,6 +2521,7 @@ const WaterConsumptionPage: React.FC = () => {
                           `${record.scheme_id}-${record.village_name}-${record.esr_name}`,
                         ) || [];
                       const hasActiveIssue = rowIssues.some((i: any) => i.status === 'Active');
+                      const hasResolvedIssue = rowIssues.some((i: any) => i.status === 'Resolved');
                       return (
                         <tr
                           key={`${record.scheme_id}-${record.esr_name}-${index}`}
