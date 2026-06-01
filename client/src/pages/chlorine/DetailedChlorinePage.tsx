@@ -3602,7 +3602,7 @@ const DetailedChlorinePage = () => {
                                           {sensor.esr_name}
                                         </TableCell>
                                         <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60 max-w-[150px]">
-                                            {renderRemarkCell(issues, `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
+                                            {renderRemarkCell((esrIssuesMap?.get(`${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`) || []), `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
                                           </TableCell>
                                         <TableCell className="!px-4 !py-3 text-center border-r border-slate-100/80 dark:border-slate-800/60">
                                           <span
@@ -3654,7 +3654,7 @@ const DetailedChlorinePage = () => {
                                           )}
                                         </TableCell>
                                         <TableCell className="!px-4 !py-3 text-center border-r border-slate-100/80 dark:border-slate-800/60 max-w-[150px] truncate" title={hasIssue ? esrIssues.map((i: any) => i.reason).join(", ") : "-"}>
-                                            {renderRemarkCell(esrIssues, `Remarks for ${sensor.esr_name || "ESR"}, ${sensor.village_name || "Village"}`)}
+                                            {renderRemarkCell((esrIssuesMap?.get(`${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`) || []), `Remarks for ${sensor.esr_name || "ESR"}, ${sensor.village_name || "Village"}`)}
                                           </TableCell>
                                         <TableCell
                                           className={`!px-4 !py-3 text-center sticky right-0 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-slate-50/60 dark:bg-slate-800/40"} border-l border-slate-200/80 dark:border-slate-700/60`}
@@ -4704,7 +4704,7 @@ const DetailedChlorinePage = () => {
                                         {item.village_name}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60 max-w-[150px]">
-                                            {renderRemarkCell(issues, `Remarks for ${item.village_name}`)}
+                                            {renderRemarkCell((villageIssuesMap?.get(`${item.scheme_id}-${item.village_name}`) || []), `Remarks for ${item.village_name}`)}
                                           </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
                                         {item.population !== null &&
@@ -5560,7 +5560,7 @@ const DetailedChlorinePage = () => {
                                         )}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60 max-w-[150px]">
-                                            {renderRemarkCell(issues, `Remarks for ${item.scheme_name}`)}
+                                            {renderRemarkCell((schemeIssuesMap?.get(String(item.scheme_id)) || []), `Remarks for ${item.scheme_name}`)}
                                           </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
                                         {item.total_population?.toLocaleString() || "N/A"}
@@ -5887,7 +5887,7 @@ const DetailedChlorinePage = () => {
                                           </Badge>
                                         </TableCell>
                                         <TableCell className="!px-4 !py-2 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-                                            {renderRemarkCell(issues, `Remarks for ${item.esr_name}`)}
+                                            {renderRemarkCell((esrIssuesMap?.get(`${item.scheme_id}-${item.village_name}-${item.esr_name}`) || []), `Remarks for ${item.esr_name}`)}
                                           </TableCell>
                                         <TableCell className="!px-4 !py-2 text-center">
                                           {item.dashboard_url ? (
@@ -6537,7 +6537,7 @@ const DetailedChlorinePage = () => {
                                                   {sensor.esr_name}
                                                 </TableCell>
                                                 <TableCell className="!px-3 !py-2 text-[12px] max-w-[150px]">
-                                            {renderRemarkCell(issues, `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
+                                            {renderRemarkCell((esrIssuesMap?.get(`${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`) || []), `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
                                           </TableCell>
                                                 {clickedDayWiseCell.metric !==
                                                   "offline" && (
@@ -7559,7 +7559,7 @@ const DetailedChlorinePage = () => {
                                                   {sensor.esr_name}
                                                 </TableCell>
                                                 <TableCell className="!px-3 !py-2 text-[12px] max-w-[150px]">
-                                            {renderRemarkCell(issues, `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
+                                            {renderRemarkCell((esrIssuesMap?.get(`${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`) || []), `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
                                           </TableCell>
                                                 {clickedPressureDayWiseCell.metric !==
                                                   "offline" && (
@@ -9083,7 +9083,7 @@ const DetailedChlorinePage = () => {
                                         {sensor.esr_name}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60 max-w-[150px]">
-                                            {renderRemarkCell(issues, `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
+                                            {renderRemarkCell((esrIssuesMap?.get(`${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`) || []), `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
                                           </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center border-r border-orange-100/80 dark:border-orange-900/60">
                                         <span
@@ -9296,7 +9296,7 @@ const DetailedChlorinePage = () => {
                                       {sensor.esr_name}
                                     </TableCell>
                                     <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-amber-100/80 dark:border-amber-900/60 max-w-[150px]">
-                                            {renderRemarkCell(issues, `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
+                                            {renderRemarkCell((esrIssuesMap?.get(`${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`) || []), `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
                                           </TableCell>
                                     <TableCell className="!px-4 !py-3 text-center border-r border-amber-100/80 dark:border-amber-900/60">
                                       <span
@@ -9496,7 +9496,7 @@ const DetailedChlorinePage = () => {
                                         {sensor.esr_name}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60 max-w-[150px]">
-                                            {renderRemarkCell(issues, `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
+                                            {renderRemarkCell((esrIssuesMap?.get(`${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`) || []), `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
                                           </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center border-r border-orange-100/80 dark:border-orange-900/60">
                                         <span
@@ -9737,7 +9737,7 @@ const DetailedChlorinePage = () => {
                                         )}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-violet-100/80 dark:border-violet-900/60 max-w-[150px]">
-                                            {renderRemarkCell(issues, `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
+                                            {renderRemarkCell((esrIssuesMap?.get(`${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`) || []), `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
                                           </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] text-slate-600 dark:text-slate-400 border-r border-violet-100/80 dark:border-violet-900/60">
                                         {formatDate(
@@ -9912,7 +9912,7 @@ const DetailedChlorinePage = () => {
                                         {sensor.village_name}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-cyan-100/80 dark:border-cyan-900/60 max-w-[150px]">
-                                            {renderRemarkCell(issues, `Remarks for ${sensor.village_name}`)}
+                                            {renderRemarkCell((villageIssuesMap?.get(`${sensor.scheme_id}-${sensor.village_name}`) || []), `Remarks for ${sensor.village_name}`)}
                                           </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-cyan-100/80 dark:border-cyan-900/60">
                                         {sensor.latest_lpcd_value !== null ? (
@@ -10111,7 +10111,7 @@ const DetailedChlorinePage = () => {
                                           )}
                                         </TableCell>
                                         <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 max-w-[150px]">
-                                            {renderRemarkCell(issues, `Remarks for ${scheme.scheme_name}`)}
+                                            {renderRemarkCell((schemeIssuesMap?.get(String(scheme.scheme_id)) || []), `Remarks for ${scheme.scheme_name}`)}
                                           </TableCell>
                                         <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60">
                                           {scheme.block}
@@ -10872,7 +10872,7 @@ const DetailedChlorinePage = () => {
                                             </span>
                                           </TableCell>
                                           <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-emerald-100 dark:border-emerald-900 max-w-[150px]">
-                                            {renderRemarkCell(issues, `Remarks for ${village.village_name}`)}
+                                            {renderRemarkCell((villageIssuesMap?.get(`${village.scheme_id}-${village.village_name}`) || []), `Remarks for ${village.village_name}`)}
                                           </TableCell>
                                         </TableRow>
                                       ),
@@ -11295,7 +11295,7 @@ const DetailedChlorinePage = () => {
                                           )}
                                         </TableCell>
                                         <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-                                            {renderRemarkCell(issues, `Remarks for ${item.scheme_name}`)}
+                                            {renderRemarkCell((schemeIssuesMap?.get(String(item.scheme_id)) || []), `Remarks for ${item.scheme_name}`)}
                                           </TableCell>
                                       </TableRow>
                                     ))}
@@ -11707,7 +11707,7 @@ const DetailedChlorinePage = () => {
                                         {sensor.esr_name}
                                       </TableCell>
                                       <TableCell className="!px-3 !py-2.5 !text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-teal-100/80 dark:border-teal-900/60 max-w-[150px]">
-                                            {renderRemarkCell(issues, `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
+                                            {renderRemarkCell((esrIssuesMap?.get(`${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`) || []), `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
                                           </TableCell>
                                       <TableCell className="!px-3 !py-2.5 text-center text-sm">
                                         <Badge
@@ -12201,7 +12201,7 @@ const DetailedChlorinePage = () => {
                                         </Badge>
                                       </TableCell>
                                       <TableCell className="!px-3 !py-2.5 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-                                            {renderRemarkCell(issues, `Remarks for ${sensor.esr_name}`)}
+                                            {renderRemarkCell((esrIssuesMap?.get(`${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`) || []), `Remarks for ${sensor.esr_name}`)}
                                           </TableCell>
                                     </TableRow>
                                   ),
@@ -14820,13 +14820,13 @@ const DetailedChlorinePage = () => {
                                           )}
                                         </TableCell>
                                         <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 max-w-[150px]">
-                                            {renderRemarkCell(issues, `Remarks for ${item.esr_name}, ${item.village_name}`)}
+                                            {renderRemarkCell((esrIssuesMap?.get(`${item.scheme_id}-${item.village_name}-${item.esr_name}`) || []), `Remarks for ${item.esr_name}, ${item.village_name}`)}
                                           </TableCell>
                                       </>
                                     )}
                                     {clickedComparisonCell.isLpcd && (
                                       <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 max-w-[150px]">
-                                            {renderRemarkCell(issues, `Remarks for ${item.village_name}`)}
+                                            {renderRemarkCell((villageIssuesMap?.get(`${item.scheme_id}-${item.village_name}`) || []), `Remarks for ${item.village_name}`)}
                                           </TableCell>
                                     )}
                                     <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
@@ -15114,7 +15114,7 @@ const DetailedChlorinePage = () => {
                                         </span>
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center border-l border-purple-100/80 dark:border-purple-900/60 max-w-[150px] truncate" title={hasIssue ? issues.map((i: any) => i.reason).join(", ") : "-"}>
-                                            {renderRemarkCell(issues, `Remarks for ${item.village_name || "Village"}`)}
+                                            {renderRemarkCell((villageIssuesMap?.get(`${item.scheme_id}-${item.village_name}`) || []), `Remarks for ${item.village_name || "Village"}`)}
                                           </TableCell>
                                     </TableRow>
                                   );
@@ -15292,7 +15292,7 @@ const DetailedChlorinePage = () => {
                                       </span>
                                     </TableCell>
                                     <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-                                            {renderRemarkCell(issues, `Remarks for ${item.village_name}`)}
+                                            {renderRemarkCell((villageIssuesMap?.get(`${item.scheme_id}-${item.village_name}`) || []), `Remarks for ${item.village_name}`)}
                                           </TableCell>
                                   </TableRow>
                                 ))}
@@ -15516,7 +15516,7 @@ const DetailedChlorinePage = () => {
                                         )}
                                       </TableCell>
                                       <TableCell className="!px-3 !py-2.5 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-                                            {renderRemarkCell(issues, `Remarks for ${item.esr_name}`)}
+                                            {renderRemarkCell((esrIssuesMap?.get(`${item.scheme_id}-${item.village_name}-${item.esr_name}`) || []), `Remarks for ${item.esr_name}`)}
                                           </TableCell>
                                     </TableRow>
                                   ),
