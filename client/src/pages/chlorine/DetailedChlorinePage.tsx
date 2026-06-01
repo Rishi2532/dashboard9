@@ -15114,7 +15114,7 @@ const DetailedChlorinePage = () => {
                                         </span>
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center border-l border-purple-100/80 dark:border-purple-900/60 max-w-[150px] truncate" title={hasIssue ? issues.map((i: any) => i.reason).join(", ") : "-"}>
-                                            {renderRemarkCell((villageIssuesMap?.get(`${item.scheme_id}-${item.village_name}`) || []), `Remarks for ${item.village_name || "Village"}`)}
+                                            {renderRemarkCell((schemeIssuesMap?.get(String(item.scheme_id)) || []), `Remarks for ${item.scheme_name || "Scheme"}`)}
                                           </TableCell>
                                     </TableRow>
                                   );
