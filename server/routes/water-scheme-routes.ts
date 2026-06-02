@@ -1003,7 +1003,7 @@ async function importDataToDatabase(data: any[], isExcel: boolean, isLpcdTemplat
         continue;
       }
       rowIndex++;
-      
+
       let record: any;
 
       if (isExcel) {
@@ -1058,17 +1058,17 @@ async function importDataToDatabase(data: any[], isExcel: boolean, isLpcdTemplat
 
             // Use UPSERT to handle duplicates gracefully
             const fields = Object.keys(batchRecord);
-            const nonPkFields = fields.filter(key => 
-              key !== 'scheme_id' && 
-              key !== 'village_name' && 
+            const nonPkFields = fields.filter(key =>
+              key !== 'scheme_id' &&
+              key !== 'village_name' &&
               key !== 'block' &&
               key !== 'scheme_functional_status' &&
               key !== 'fully_completion_scheme_status'
             );
-            
+
             // Also filter the fields list for the INSERT part
-            const tableFields = fields.filter(key => 
-              key !== 'scheme_functional_status' && 
+            const tableFields = fields.filter(key =>
+              key !== 'scheme_functional_status' &&
               key !== 'fully_completion_scheme_status'
             );
 
@@ -1085,7 +1085,7 @@ async function importDataToDatabase(data: any[], isExcel: boolean, isLpcdTemplat
                 ${nonPkFields.map(key => `${key} = EXCLUDED.${key}`).join(', ')}
               RETURNING (xmax = 0) AS inserted
             `;
-            
+
             const upsertValues = tableFields.map(field => batchRecord[field]);
             const result = await client.query(upsertQuery, upsertValues);
 
@@ -1222,7 +1222,9 @@ async function importDataToDatabase(data: any[], isExcel: boolean, isLpcdTemplat
                 const values = [
                   histRecord.region, histRecord.circle, histRecord.division, histRecord.sub_division,
                   histRecord.block, histRecord.scheme_id, histRecord.scheme_name, histRecord.village_name,
-                  histRecord.population, histRecord.number_of_esr, histRecord.data_date,
+                  histRecord.population ? Math.round(Number(histRecord.population)) : null,
+                  histRecord.number_of_esr ? Math.round(Number(histRecord.number_of_esr)) : null,
+                  histRecord.data_date,
                   histRecord.water_value || 0, histRecord.lpcd_value || 0, histRecord.upload_batch_id, histRecord.dashboard_url
                 ];
 

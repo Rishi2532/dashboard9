@@ -133,20 +133,9 @@ export default function AlertsProgressPage() {
   });
 
   // Helper to filter data based on Current vs Previous day
+  // (Removed value-based filtering so all sent emails show up regardless of current healthy status)
   const getFilteredData = (data: AlertData[], type: "lpcd" | "chlorine" | "pressure") => {
-    if (activeSubTab === "current") {
-      return data.filter((row) => {
-        const val = Number(row.current_value);
-        if (type === "lpcd") return val < 55 || val === 0;
-        return val < 0.2;
-      });
-    } else {
-      return data.filter((row) => {
-        const prevVal = Number(row.previous_value);
-        if (type === "lpcd") return prevVal < 55 || prevVal === 0;
-        return prevVal < 0.2;
-      });
-    }
+    return data;
   };
 
   const isStillFailing = (row: AlertData, type: "lpcd" | "chlorine" | "pressure") => {
