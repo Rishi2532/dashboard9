@@ -32,12 +32,13 @@ router.get('/lpcd', async (req, res) => {
           GROUP BY scheme_id
         ),
         recent_logs AS (
-          SELECT DISTINCT scheme_id, civil_engineer_name, civil_engineer_email,
+          SELECT DISTINCT ON (scheme_id) scheme_id, civil_engineer_name, civil_engineer_email,
                  mechanical_engineer_name, mechanical_engineer_email,
                  site_supervisor_name, site_supervisor_email
           FROM email_alert_logs
           WHERE alert_type IN ('LPCD', 'Water')
             AND sent_date >= CURRENT_DATE - INTERVAL '1 day'
+          ORDER BY scheme_id, created_at DESC
         ),
         ack_status AS (
           SELECT scheme_id,
@@ -103,12 +104,13 @@ router.get('/chlorine', async (req, res) => {
           GROUP BY scheme_id
         ),
         recent_logs AS (
-          SELECT DISTINCT scheme_id, civil_engineer_name, civil_engineer_email,
+          SELECT DISTINCT ON (scheme_id) scheme_id, civil_engineer_name, civil_engineer_email,
                  mechanical_engineer_name, mechanical_engineer_email,
                  site_supervisor_name, site_supervisor_email
           FROM email_alert_logs
           WHERE alert_type = 'Chlorine'
             AND sent_date >= CURRENT_DATE - INTERVAL '1 day'
+          ORDER BY scheme_id, created_at DESC
         ),
         ack_status AS (
           SELECT scheme_id,
@@ -175,12 +177,13 @@ router.get('/pressure', async (req, res) => {
           GROUP BY scheme_id
         ),
         recent_logs AS (
-          SELECT DISTINCT scheme_id, civil_engineer_name, civil_engineer_email,
+          SELECT DISTINCT ON (scheme_id) scheme_id, civil_engineer_name, civil_engineer_email,
                  mechanical_engineer_name, mechanical_engineer_email,
                  site_supervisor_name, site_supervisor_email
           FROM email_alert_logs
           WHERE alert_type = 'Pressure'
             AND sent_date >= CURRENT_DATE - INTERVAL '1 day'
+          ORDER BY scheme_id, created_at DESC
         ),
         ack_status AS (
           SELECT scheme_id,

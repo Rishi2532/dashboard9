@@ -133,9 +133,19 @@ export default function AlertsProgressPage() {
   });
 
   // Helper to filter data based on Current vs Previous day
-  // (Removed value-based filtering so all sent emails show up regardless of current healthy status)
+  // (Removed value-based filtering for 'current' so all today's emails show up, 
+  // but kept original logic for 'previous' day)
   const getFilteredData = (data: AlertData[], type: "lpcd" | "chlorine" | "pressure") => {
-    return data;
+    if (activeSubTab === "current") {
+      return data; // Show all sent emails for current day regardless of healthy status
+    } else {
+      // Previous day logic exactly as it was originally
+      return data.filter((row) => {
+        const prevVal = Number(row.previous_value);
+        if (type === "lpcd") return prevVal < 55 || prevVal === 0;
+        return prevVal < 0.2;
+      });
+    }
   };
 
   const isStillFailing = (row: AlertData, type: "lpcd" | "chlorine" | "pressure") => {
@@ -256,7 +266,10 @@ export default function AlertsProgressPage() {
     }
 
     // Calculations for KPIs
-    const totalSchemes = data.length;
+    const firstKpiLabel = type === "lpcd" ? "Total Villages" : "Total Sensors";
+    const firstKpiValue = type === "lpcd" 
+      ? data.reduce((acc, row) => acc + (row.village_name ? row.village_name.split(',').length : 1), 0)
+      : data.length;
     const alertValueLabel = type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : "Pressure";
     
     // Count unique engineers
@@ -287,8 +300,8 @@ export default function AlertsProgressPage() {
               <AlertTriangle className="h-5 w-5" />
             </div>
             <div>
-              <div className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-0.5">Total Schemes</div>
-              <div className="text-2xl font-bold text-slate-900 leading-none">{totalSchemes}</div>
+              <div className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-0.5">{firstKpiLabel}</div>
+              <div className="text-xl font-bold text-slate-900">{firstKpiValue}</div>
             </div>
           </div>
           
