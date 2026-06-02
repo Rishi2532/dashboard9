@@ -34,7 +34,8 @@ router.get('/lpcd', async (req, res) => {
         recent_logs AS (
           SELECT DISTINCT ON (scheme_id) scheme_id, civil_engineer_name, civil_engineer_email,
                  mechanical_engineer_name, mechanical_engineer_email,
-                 site_supervisor_name, site_supervisor_email
+                 site_supervisor_name, site_supervisor_email,
+                 created_at, sent_date
           FROM email_alert_logs
           WHERE alert_type IN ('LPCD', 'Water')
             AND sent_date >= CURRENT_DATE - INTERVAL '1 day'
@@ -47,9 +48,14 @@ router.get('/lpcd', async (req, res) => {
                    'engineer_name', engineer_name,
                    'acknowledged_at', acknowledged_at
                  )) as acknowledgements
-          FROM email_acknowledgements
-          WHERE alert_type IN ('LPCD', 'Water')
-            AND sent_date = CURRENT_DATE
+          FROM (
+            SELECT scheme_id, engineer_email, engineer_name, acknowledged_at,
+                   ROW_NUMBER() OVER (PARTITION BY scheme_id, engineer_email ORDER BY created_at DESC) as rn
+            FROM email_acknowledgements
+            WHERE alert_type IN ('LPCD', 'Water')
+              AND sent_date >= CURRENT_DATE - INTERVAL '1 day'
+          ) sub
+          WHERE rn = 1
           GROUP BY scheme_id
         )
         SELECT 
@@ -62,6 +68,7 @@ router.get('/lpcd', async (req, res) => {
           e.civil_engineer_name, e.civil_engineer_email,
           e.mechanical_engineer_name, e.mechanical_engineer_email,
           e.site_supervisor_name, e.site_supervisor_email,
+          e.created_at, e.sent_date,
           COALESCE(i.remarks, '[]'::json) as remarks,
           COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
         FROM water_scheme_data w
@@ -106,7 +113,8 @@ router.get('/chlorine', async (req, res) => {
         recent_logs AS (
           SELECT DISTINCT ON (scheme_id) scheme_id, civil_engineer_name, civil_engineer_email,
                  mechanical_engineer_name, mechanical_engineer_email,
-                 site_supervisor_name, site_supervisor_email
+                 site_supervisor_name, site_supervisor_email,
+                 created_at, sent_date
           FROM email_alert_logs
           WHERE alert_type = 'Chlorine'
             AND sent_date >= CURRENT_DATE - INTERVAL '1 day'
@@ -119,9 +127,14 @@ router.get('/chlorine', async (req, res) => {
                    'engineer_name', engineer_name,
                    'acknowledged_at', acknowledged_at
                  )) as acknowledgements
-          FROM email_acknowledgements
-          WHERE alert_type = 'Chlorine'
-            AND sent_date = CURRENT_DATE
+          FROM (
+            SELECT scheme_id, engineer_email, engineer_name, acknowledged_at,
+                   ROW_NUMBER() OVER (PARTITION BY scheme_id, engineer_email ORDER BY created_at DESC) as rn
+            FROM email_acknowledgements
+            WHERE alert_type = 'Chlorine'
+              AND sent_date >= CURRENT_DATE - INTERVAL '1 day'
+          ) sub
+          WHERE rn = 1
           GROUP BY scheme_id
         )
         SELECT 
@@ -135,6 +148,7 @@ router.get('/chlorine', async (req, res) => {
           e.civil_engineer_name, e.civil_engineer_email,
           e.mechanical_engineer_name, e.mechanical_engineer_email,
           e.site_supervisor_name, e.site_supervisor_email,
+          e.created_at, e.sent_date,
           COALESCE(i.remarks, '[]'::json) as remarks,
           COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
         FROM chlorine_data c
@@ -179,7 +193,8 @@ router.get('/pressure', async (req, res) => {
         recent_logs AS (
           SELECT DISTINCT ON (scheme_id) scheme_id, civil_engineer_name, civil_engineer_email,
                  mechanical_engineer_name, mechanical_engineer_email,
-                 site_supervisor_name, site_supervisor_email
+                 site_supervisor_name, site_supervisor_email,
+                 created_at, sent_date
           FROM email_alert_logs
           WHERE alert_type = 'Pressure'
             AND sent_date >= CURRENT_DATE - INTERVAL '1 day'
@@ -192,9 +207,14 @@ router.get('/pressure', async (req, res) => {
                    'engineer_name', engineer_name,
                    'acknowledged_at', acknowledged_at
                  )) as acknowledgements
-          FROM email_acknowledgements
-          WHERE alert_type = 'Pressure'
-            AND sent_date = CURRENT_DATE
+          FROM (
+            SELECT scheme_id, engineer_email, engineer_name, acknowledged_at,
+                   ROW_NUMBER() OVER (PARTITION BY scheme_id, engineer_email ORDER BY created_at DESC) as rn
+            FROM email_acknowledgements
+            WHERE alert_type = 'Pressure'
+              AND sent_date >= CURRENT_DATE - INTERVAL '1 day'
+          ) sub
+          WHERE rn = 1
           GROUP BY scheme_id
         )
         SELECT 
@@ -208,6 +228,7 @@ router.get('/pressure', async (req, res) => {
           e.civil_engineer_name, e.civil_engineer_email,
           e.mechanical_engineer_name, e.mechanical_engineer_email,
           e.site_supervisor_name, e.site_supervisor_email,
+          e.created_at, e.sent_date,
           COALESCE(i.remarks, '[]'::json) as remarks,
           COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
         FROM pressure_data p

@@ -61,6 +61,8 @@ interface AlertData {
   mechanical_engineer_email: string | null;
   site_supervisor_name: string | null;
   site_supervisor_email: string | null;
+  created_at?: string;
+  sent_date?: string;
   remarks: IssueRemark[];
   acknowledgements?: { engineer_email: string; engineer_name: string; acknowledged_at: string | null }[];
 }
@@ -132,15 +134,35 @@ export default function AlertsProgressPage() {
     },
   });
 
-  // Helper to filter data based on Current vs Previous day
-  // (Removed value-based filtering for 'current' so all today's emails show up, 
-  // but kept original logic for 'previous' day)
+  // Helper to filter data based on strict batch times (latest sent_time in latest sent_date)
   const getFilteredData = (data: AlertData[], type: "lpcd" | "chlorine" | "pressure") => {
+    if (!data || data.length === 0) return [];
+
+    // Find the absolute latest created_at in the entire dataset
+    const latestTime = data.reduce((max, row) => {
+      if (!row.created_at) return max;
+      const t = new Date(row.created_at).getTime();
+      return t > max ? t : max;
+    }, 0);
+
     if (activeSubTab === "current") {
-      return data; // Show all sent emails for current day regardless of healthy status
-    } else {
-      // Previous day logic exactly as it was originally
+      // Current day = Emails that belong to the absolute latest batch 
+      // (We define a batch as emails sent within 2 hours of the very latest email)
       return data.filter((row) => {
+        if (!row.created_at) return false;
+        const t = new Date(row.created_at).getTime();
+        return (latestTime - t) < (2 * 60 * 60 * 1000);
+      });
+    } else {
+      // Previous day = Emails older than the latest batch
+      const previousData = data.filter((row) => {
+        if (!row.created_at) return false;
+        const t = new Date(row.created_at).getTime();
+        return (latestTime - t) >= (2 * 60 * 60 * 1000);
+      });
+
+      // Apply the original health filter to previous day data
+      return previousData.filter((row) => {
         const prevVal = Number(row.previous_value);
         if (type === "lpcd") return prevVal < 55 || prevVal === 0;
         return prevVal < 0.2;
@@ -266,9 +288,15 @@ export default function AlertsProgressPage() {
     }
 
     // Calculations for KPIs
+    const totalSchemes = data.length;
     const firstKpiLabel = type === "lpcd" ? "Total Villages" : "Total Sensors";
     const firstKpiValue = type === "lpcd" 
-      ? data.reduce((acc, row) => acc + (row.village_name ? row.village_name.split(',').length : 1), 0)
+      ? data.reduce((acc, row) => {
+          if (typeof row.village_name === 'string') {
+            return acc + row.village_name.split(',').length;
+          }
+          return acc + 1;
+        }, 0)
       : data.length;
     const alertValueLabel = type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : "Pressure";
     
