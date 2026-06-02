@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { eq, sql, and, desc, asc, like, inArray } from "drizzle-orm";
 import { getDB } from "../db";
-import { communicationStatus, schemeStatuses } from "../../shared/schema";
+import { communicationStatus, schemeStatuses, waterSchemeData, chlorineData, pressureData } from "../../shared/schema";
 import multer from "multer";
 import * as csv from "csv-parse";
 import fs from "fs";
@@ -254,8 +254,34 @@ router.get("/schemes", async (req, res) => {
         pressure_72h: communicationStatus.pressure_72h,
         flow_meter_0h_72h: communicationStatus.flow_meter_0h_72h,
         flow_meter_72h: communicationStatus.flow_meter_72h,
+        lpcd_value_day7: waterSchemeData.lpcd_value_day7,
+        chlorine_value_7: chlorineData.chlorine_value_7,
+        pressure_value_7: pressureData.pressure_value_7,
       })
       .from(communicationStatus)
+      .leftJoin(
+        waterSchemeData,
+        and(
+          eq(communicationStatus.scheme_id, waterSchemeData.scheme_id),
+          eq(communicationStatus.village_name, waterSchemeData.village_name)
+        )
+      )
+      .leftJoin(
+        chlorineData,
+        and(
+          eq(communicationStatus.scheme_id, chlorineData.scheme_id),
+          eq(communicationStatus.village_name, chlorineData.village_name),
+          eq(communicationStatus.esr_name, chlorineData.esr_name)
+        )
+      )
+      .leftJoin(
+        pressureData,
+        and(
+          eq(communicationStatus.scheme_id, pressureData.scheme_id),
+          eq(communicationStatus.village_name, pressureData.village_name),
+          eq(communicationStatus.esr_name, pressureData.esr_name)
+        )
+      )
       .where(whereClause)
       .orderBy(
         asc(communicationStatus.scheme_name),

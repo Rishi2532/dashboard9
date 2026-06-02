@@ -4,6 +4,7 @@ import { parse } from "csv-parse/sync";
 import { updateRegionSummaries } from "../../db";
 import { type InsertSchemeStatus, type SchemeStatus, type InsertRegion, type InsertSchemeProgressSummary } from "@shared/schema";
 import { generateDashboardUrl } from "../../auto-generate-dashboard-urls";
+import { runDailyAlertsJob } from "../../cron/daily-alerts";
 
 /**
  * Handle CSV import with column mapping and advanced configuration options
@@ -62,6 +63,9 @@ export async function importCsvHandler(req: Request, res: Response) {
 
     // Update region summaries after import to reflect changes
     await updateRegionSummaries();
+
+    // Trigger alert emails asynchronously
+    runDailyAlertsJob().catch(console.error);
 
     // Return success response with details
     return res.status(200).json({

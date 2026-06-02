@@ -54,6 +54,7 @@ import "./init-database.js"; // Initial data cleanup (optional, based on require
 // Server restart trigger: Row reorder complete 14:15
 import { initializeDataCleanup } from "./data-cleanup.js"; // Run data cleanup on startup
 import { mqttService } from "./mqtt-service"; // Initialize MQTT service
+import { startDailyAlertsCron } from "./cron/daily-alerts.js"; // Start daily alerts cron
 
 const app = express();
 app.disable('x-powered-by');
@@ -185,6 +186,7 @@ app.use((req, res, next) => {
       // Initialize data cleanup after server starts
       setTimeout(() => {
         initializeDataCleanup().catch(console.error);
+        startDailyAlertsCron(); // Start the daily alerts cron job
       }, 5000); // Wait 5 seconds after server start
     },
   );

@@ -53,31 +53,31 @@ async function getUncachableResendClient() {
   };
 }
 
-function getGmailTransporter() {
-  const gmailUser = process.env.GMAIL_USER;
-  const gmailAppPassword =
-    process.env.GMAIL_PASSWORD || process.env.GMAIL_APP_PASSWORD;
+function getSmtpTransporter() {
+  const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER;
+  const smtpPassword = process.env.SMTP_PASSWORD || process.env.GMAIL_PASSWORD || process.env.GMAIL_APP_PASSWORD;
+  const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
+  const smtpPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 465;
 
-  if (!gmailUser || !gmailAppPassword) {
-    console.error("❌ Gmail credentials missing!");
-    console.error(`GMAIL_USER: ${gmailUser ? "SET" : "NOT SET"}`);
-    console.error(`GMAIL_PASSWORD: ${gmailAppPassword ? "SET (length: " + gmailAppPassword.length + ")" : "NOT SET"}`);
-    throw new Error("Gmail credentials not configured");
+  if (!smtpUser || !smtpPassword) {
+    console.error("❌ SMTP credentials missing!");
+    console.error(`SMTP_USER / GMAIL_USER: ${smtpUser ? "SET" : "NOT SET"}`);
+    console.error(`SMTP_PASSWORD / GMAIL_PASSWORD: ${smtpPassword ? "SET (length: " + smtpPassword.length + ")" : "NOT SET"}`);
+    throw new Error("SMTP credentials not configured");
   }
 
-  console.log(`📧 Attempting Gmail SMTP connection...`);
-  console.log(`   User: ${gmailUser}`);
-  console.log(`   Password length: ${gmailAppPassword.length} characters`);
-  console.log(`   Expected App Password format: 16 lowercase letters`);
+  console.log(`📧 Attempting SMTP connection to ${smtpHost}:${smtpPort}...`);
+  console.log(`   User: ${smtpUser}`);
+  console.log(`   Password length: ${smtpPassword.length} characters`);
 
   return nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    name: "gmail.com", // Add the domain name explicitly
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpPort === 465,
+    name: smtpHost === "smtp.gmail.com" ? "gmail.com" : smtpHost,
     auth: {
-      user: gmailUser,
-      pass: gmailAppPassword,
+      user: smtpUser,
+      pass: smtpPassword,
     },
     tls: {
       rejectUnauthorized: false,
@@ -98,17 +98,17 @@ interface EmailParams {
 
 export async function sendEmail(params: EmailParams): Promise<boolean> {
   try {
-    if (
-      process.env.GMAIL_USER &&
-      (process.env.GMAIL_PASSWORD || process.env.GMAIL_APP_PASSWORD)
-    ) {
-      const transporter = getGmailTransporter();
+    const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER;
+    const smtpPassword = process.env.SMTP_PASSWORD || process.env.GMAIL_PASSWORD || process.env.GMAIL_APP_PASSWORD;
+
+    if (smtpUser && smtpPassword) {
+      const transporter = getSmtpTransporter();
 
       // **CRITICAL FIX for OUTLOOK:** 
       // Do NOT use a custom display name like "Maharashtra Water <email@gmail.com>"
       // Just use the bare email address. Outlook flags free @gmail.com accounts 
       // that try to spoof names from scripts.
-      const fromAddress = process.env.GMAIL_USER;
+      const fromAddress = smtpUser;
 
       const mailOptions: any = {
         from: fromAddress,
@@ -127,7 +127,7 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
       if (params.replyTo) mailOptions.replyTo = params.replyTo;
 
       await transporter.sendMail(mailOptions);
-      console.log(`Email sent successfully to ${params.to} via Gmail SMTP`);
+      console.log(`Email sent successfully to ${params.to} via SMTP`);
       return true;
     } else {
       const { client, fromEmail } = await getUncachableResendClient();
@@ -445,6 +445,66 @@ export async function sendTicketResolvedEmail(
       "X-Priority": "3",
       "X-MSMail-Priority": "Normal",
       Importance: "Normal",
+    },
+  });
+}
+
+export async function sendDailyAlertEmail(
+  engineerEmail: string,
+  engineerName: string,
+  alertsData: any[],
+): Promise<boolean> {
+  const subject = `🚨 Critical Water Scheme Alerts - Action Required`;
+
+  let alertsHtml = '';
+  alertsData.forEach(alert => {
+    alertsHtml += `
+      <div style="background-color: #fee2e2; border-left: 4px solid #dc2626; padding: 20px; margin: 15px 0;">
+        <h3 style="margin-top: 0; color: #991b1b;">Scheme: ${alert.scheme_name} (ID: ${alert.scheme_id})</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          ${alert.chlorine_issue ? `<tr><td style="padding: 4px 0; color: #dc2626; font-weight: bold; width: 120px;">Chlorine:</td><td style="padding: 4px 0; color: #1f2937;">${alert.chlorine_value} mg/L (Below 0.2)</td></tr>` : ''}
+          ${alert.pressure_issue ? `<tr><td style="padding: 4px 0; color: #dc2626; font-weight: bold; width: 120px;">Pressure:</td><td style="padding: 4px 0; color: #1f2937;">${alert.pressure_value} Bar (Below 0.2)</td></tr>` : ''}
+          ${alert.lpcd_issue ? `<tr><td style="padding: 4px 0; color: #dc2626; font-weight: bold; width: 120px;">LPCD:</td><td style="padding: 4px 0; color: #1f2937;">${alert.lpcd_value} (Below 55)</td></tr>` : ''}
+          ${alert.water_issue ? `<tr><td style="padding: 4px 0; color: #dc2626; font-weight: bold; width: 120px;">Water Supply:</td><td style="padding: 4px 0; color: #1f2937;">${alert.water_value} (Zero Supply)</td></tr>` : ''}
+          ${alert.village_name ? `<tr><td style="padding: 4px 0; color: #6b7280; width: 120px;">Village:</td><td style="padding: 4px 0; color: #1f2937;">${alert.village_name}</td></tr>` : ''}
+          ${alert.esr_name ? `<tr><td style="padding: 4px 0; color: #6b7280; width: 120px;">ESR:</td><td style="padding: 4px 0; color: #1f2937;">${alert.esr_name}</td></tr>` : ''}
+        </table>
+      </div>
+    `;
+  });
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+      <div style="background-color: #dc2626; color: white; padding: 20px; text-align: center;">
+        <h1 style="margin: 0; font-size: 24px;">⚠️ JJM SWSM IoT Maharashtra</h1>
+        <p style="margin: 5px 0 0 0; opacity: 0.9; font-size: 16px;">DAILY CRITICAL ALERTS REPORT</p>
+      </div>
+
+      <div style="padding: 30px; background-color: #ffffff;">
+        <h2 style="color: #1f2937; margin-top: 0;">Hello ${engineerName},</h2>
+        <p style="color: #374151; font-size: 16px;">The following schemes assigned to you have critical parameters falling below acceptable thresholds as of today.</p>
+
+        ${alertsHtml}
+
+        <div style="background-color: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 20px 0;">
+          <p style="margin: 0; color: #92400e;"><strong>⏰ Action Required:</strong></p>
+          <p style="margin: 5px 0 0 0; color: #92400e;">Please review these schemes immediately to resolve the underlying issues. If the issue persists after 48 hours please visit <a href="https://dashboard1.mahajaliot.in/helpdesk/issue-reporting" style="color: #2563eb; text-decoration: underline;">dashboard1.mahajaliot.in</a> and write the remark on issue reports page.</p>
+        </div>
+
+        <p style="color: #374151;">This is an automated notification from Maharashtra Water Infrastructure Management Platform.</p>
+      </div>
+    </div>
+  `;
+
+  return sendEmail({
+    to: engineerEmail,
+    from: "Maharashtra Water Alert",
+    subject,
+    html,
+    headers: {
+      "X-Priority": "1",
+      "X-MSMail-Priority": "High",
+      Importance: "High",
     },
   });
 }

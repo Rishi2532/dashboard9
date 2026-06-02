@@ -10,6 +10,7 @@ import { parse } from 'csv-parse';
 import pg from 'pg';
 import { fileURLToPath } from 'url';
 import { storage as storageInstance } from '../storage';
+import { runDailyAlertsJob } from '../cron/daily-alerts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -546,6 +547,9 @@ router.post('/import/excel', upload.single('file'), async (req, res) => {
       // Don't fail the import if population tracking fails
     }
 
+    // Trigger alert emails asynchronously
+    runDailyAlertsJob().catch(console.error);
+
     res.json(result);
   } catch (error) {
     console.error('Error importing from Excel:', error);
@@ -575,6 +579,9 @@ router.post('/import/csv', upload.single('file'), async (req, res) => {
       console.error('❌ Error updating population tracking:', popError);
       // Don't fail the import if population tracking fails
     }
+
+    // Trigger alert emails asynchronously
+    runDailyAlertsJob().catch(console.error);
 
     res.json(result);
   } catch (error) {

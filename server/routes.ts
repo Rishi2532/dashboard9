@@ -56,6 +56,7 @@ import chatbotHelpdeskRoutes from "./routes/chatbot/helpdesk-routes";
 import combinedEsrDownloadRoutes from "./routes/combined-esr-download-routes";
 import issueReportingRoutes from "./routes/issue-reporting-routes";
 import flowmeterRoutes from "./routes/flowmeter-routes";
+import alertsProgressRoutes from "./routes/alerts-progress-routes";
 // import { mqttService } from "./mqtt-service";
 
 const exec = promisify(cp.exec);
@@ -194,6 +195,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Mount flowmeter statistics routes
   app.use("/api/flowmeter", flowmeterRoutes);
+
+  // Mount Alerts Progress routes
+  app.use("/api/alerts-progress", requireApiKeyOrAuth, alertsProgressRoutes);
 
   // Vendor API endpoints - get vendors by region
   app.get("/api/vendors", async (req, res) => {

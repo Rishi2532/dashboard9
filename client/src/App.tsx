@@ -45,7 +45,7 @@ import MqttTopicConfiguration from "./pages/MqttTopicConfiguration";
 import SmartReportsPage from "./pages/smart-reports";
 import MonthlyReportsPage from "./pages/monthly-reports";
 import IssueReportingForm from "./pages/helpdesk/IssueReportingForm";
-import MonthlyReportsPage from "./pages/monthly-reports";
+import AlertsProgressPage from "./pages/alerts-progress";
 
 import ProtectedRoute from "./components/auth/protected-route";
 import { AuthProvider } from "./hooks/use-auth";
@@ -277,6 +277,12 @@ function App() {
                     <Route path="/interactive-map">
                       <ProtectedRoute>
                         <InteractiveMapDemo />
+                      </ProtectedRoute>
+                    </Route>
+
+                    <Route path="/alerts-progress">
+                      <ProtectedRoute>
+                        <AlertsProgressPage />
                       </ProtectedRoute>
                     </Route>
 

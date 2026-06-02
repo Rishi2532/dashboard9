@@ -12,6 +12,7 @@ import {
   primaryKey,
   bigint,
   date,
+  time,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -1404,3 +1405,58 @@ export const schemeProgressSummary = pgTable("scheme_progress_summary", {
 export const insertSchemeProgressSummarySchema = createInsertSchema(schemeProgressSummary);
 export type InsertSchemeProgressSummary = z.infer<typeof insertSchemeProgressSummarySchema>;
 export type SchemeProgressSummary = typeof schemeProgressSummary.$inferSelect;
+
+// Scheme Engineer Details table
+export const schemeEngineerDetails = pgTable("scheme_engineer_details", {
+  id: serial("id").primaryKey(),
+  region: varchar("region", { length: 100 }),
+  district: varchar("district", { length: 100 }),
+  division: varchar("division", { length: 100 }),
+  scheme_id: varchar("scheme_id", { length: 100 }),
+  scheme: varchar("scheme", { length: 255 }),
+  civil_engineer_name: varchar("civil_engineer_name", { length: 255 }),
+  civil_engineer_mobile: varchar("civil_engineer_mobile", { length: 20 }),
+  civil_engineer_email: varchar("civil_engineer_email", { length: 255 }),
+  mechanical_engineer_name: varchar("mechanical_engineer_name", { length: 255 }),
+  mechanical_engineer_mobile: varchar("mechanical_engineer_mobile", { length: 20 }),
+  mechanical_engineer_email: varchar("mechanical_engineer_email", { length: 255 }),
+  site_supervisor_name: varchar("site_supervisor_name", { length: 255 }),
+  site_supervisor_mobile: varchar("site_supervisor_mobile", { length: 20 }),
+  site_supervisor_email: varchar("site_supervisor_email", { length: 255 }),
+});
+
+export const insertSchemeEngineerDetailsSchema = createInsertSchema(schemeEngineerDetails).omit({
+  id: true,
+});
+
+export type InsertSchemeEngineerDetails = z.infer<typeof insertSchemeEngineerDetailsSchema>;
+export type SchemeEngineerDetails = typeof schemeEngineerDetails.$inferSelect;
+
+// Email Alert Logs table
+export const emailAlertLogs = pgTable("email_alert_logs", {
+  id: serial("id").primaryKey(),
+  scheme_id: varchar("scheme_id", { length: 100 }).notNull(),
+  scheme_name: varchar("scheme_name", { length: 255 }).notNull(),
+  region: varchar("region", { length: 100 }),
+  village_name: varchar("village_name", { length: 255 }),
+  esr_name: varchar("esr_name", { length: 255 }),
+  alert_type: varchar("alert_type", { length: 50 }).notNull(), // 'LPCD', 'Chlorine', 'Pressure', 'Water'
+  alert_value: varchar("alert_value", { length: 100 }).notNull(), // The failing value
+  civil_engineer_name: varchar("civil_engineer_name", { length: 255 }),
+  civil_engineer_email: varchar("civil_engineer_email", { length: 255 }),
+  mechanical_engineer_name: varchar("mechanical_engineer_name", { length: 255 }),
+  mechanical_engineer_email: varchar("mechanical_engineer_email", { length: 255 }),
+  site_supervisor_name: varchar("site_supervisor_name", { length: 255 }),
+  site_supervisor_email: varchar("site_supervisor_email", { length: 255 }),
+  sent_date: date("sent_date").defaultNow().notNull(), // e.g. '2026-06-02'
+  sent_time: time("sent_time").defaultNow().notNull(), // e.g. '14:55:00'
+  created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const insertEmailAlertLogSchema = createInsertSchema(emailAlertLogs).omit({
+  id: true,
+  created_at: true,
+});
+
+export type InsertEmailAlertLog = z.infer<typeof insertEmailAlertLogSchema>;
+export type EmailAlertLog = typeof emailAlertLogs.$inferSelect;

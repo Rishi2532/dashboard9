@@ -113,6 +113,9 @@ interface CommunicationScheme {
   pressure_72h: string;
   flow_meter_0h_72h: string;
   flow_meter_72h: string;
+  lpcd_value_day7?: number;
+  chlorine_value_7?: number;
+  pressure_value_7?: number;
   agencyType?: string;
 }
 
@@ -1525,9 +1528,12 @@ export default function CommunicationStatusPage() {
                       <TableRow>
                         <TableHead>Scheme Name</TableHead>
                         <TableHead>Village</TableHead>
+                        <TableHead>LPCD Value</TableHead>
                         <TableHead>ESR Name</TableHead>
                         <TableHead>Chlorine</TableHead>
+                        <TableHead>Chlorine Value</TableHead>
                         <TableHead>Pressure</TableHead>
+                        <TableHead>Pressure Value</TableHead>
                         <TableHead>Flow Meter</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1542,13 +1548,16 @@ export default function CommunicationStatusPage() {
                                 {scheme.scheme_name}
                               </TableCell>
                               <TableCell>{scheme.village_name}</TableCell>
+                              <TableCell>{scheme.lpcd_value_day7 !== undefined && scheme.lpcd_value_day7 !== null ? Number(scheme.lpcd_value_day7).toFixed(1) : "N/A"}</TableCell>
                               <TableCell>{scheme.esr_name}</TableCell>
                               <TableCell>
                                 {getStatusBadge(scheme.chlorine_status)}
                               </TableCell>
+                              <TableCell>{scheme.chlorine_value_7 !== undefined && scheme.chlorine_value_7 !== null ? Number(scheme.chlorine_value_7).toFixed(2) : "N/A"}</TableCell>
                               <TableCell>
                                 {getStatusBadge(scheme.pressure_status)}
                               </TableCell>
+                              <TableCell>{scheme.pressure_value_7 !== undefined && scheme.pressure_value_7 !== null ? Number(scheme.pressure_value_7).toFixed(2) : "N/A"}</TableCell>
                               <TableCell>
                                 {getStatusBadge(scheme.flow_meter_status)}
                               </TableCell>
@@ -1558,7 +1567,7 @@ export default function CommunicationStatusPage() {
                       ) : (
                         <TableRow>
                           <TableCell
-                            colSpan={6}
+                            colSpan={9}
                             className="text-center py-8 text-muted-foreground"
                           >
                             No communication data found for the selected filters

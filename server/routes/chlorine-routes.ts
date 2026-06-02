@@ -11,6 +11,7 @@ import pg from 'pg';
 import { sql, and, eq } from "drizzle-orm";
 import { schemeStatuses } from "@shared/schema";
 import { getFilteredSchemeIds, getRollingWindowInfo } from "./filter-utils";
+import { runDailyAlertsJob } from '../cron/daily-alerts';
 
 
 const router = express.Router();
@@ -2032,6 +2033,10 @@ router.post("/import/csv", requireAdmin, upload.single("file"), async (req, res)
       }, 5, 2000); // 5 retries with 2 second initial delay (with exponential backoff)
 
       console.log("CSV import completed successfully with retry support:", result);
+
+      // Trigger alert emails asynchronously
+      runDailyAlertsJob().catch(console.error);
+
       res.json(result);
     } catch (importError: any) {
       console.error("Detailed CSV import error (after retries):", importError);

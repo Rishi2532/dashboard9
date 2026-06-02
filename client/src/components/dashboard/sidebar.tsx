@@ -17,6 +17,7 @@ import {
   Map,
   FileText,
   HelpCircle,
+  BellRing,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,7 @@ const navigationItems: NavigationItem[] = [
   { name: "Reports", href: "/reports", icon: BarChart2 },
   { name: "Smart Reports", href: "/smart-reports", icon: FileText },
   { name: "Monthly Reports", href: "/monthly-reports", icon: FileText },
+  { name: "Alerts Progress", href: "/alerts-progress", icon: BellRing },
 
   { name: "Village LPCD", href: "/lpcd", icon: Droplet },
   { name: "Scheme LPCD", href: "/scheme-lpcd", icon: Droplet },

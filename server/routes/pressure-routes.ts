@@ -9,6 +9,7 @@ import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
 import pg from 'pg';
 import { getFilteredSchemeIds } from "./filter-utils";
+import { runDailyAlertsJob } from '../cron/daily-alerts';
 
 const router = express.Router();
 
@@ -1868,6 +1869,10 @@ router.post("/import/csv", requireAdmin, upload.single("file"), async (req, res)
       // Pass the clearExisting option to the import function
       const result = await storage.importPressureDataFromCSV(req.file.buffer, { clearExisting });
       console.log(`CSV import completed successfully (clearExisting=${clearExisting}):`, result);
+
+      // Trigger alert emails asynchronously
+      runDailyAlertsJob().catch(console.error);
+
       res.json(result);
     } catch (importError: any) {
       console.error("Detailed CSV import error:", importError);
