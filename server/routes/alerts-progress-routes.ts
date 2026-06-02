@@ -38,6 +38,18 @@ router.get('/lpcd', async (req, res) => {
           FROM email_alert_logs
           WHERE alert_type IN ('LPCD', 'Water')
             AND sent_date >= CURRENT_DATE - INTERVAL '1 day'
+        ),
+        ack_status AS (
+          SELECT scheme_id,
+                 json_agg(json_build_object(
+                   'engineer_email', engineer_email,
+                   'engineer_name', engineer_name,
+                   'acknowledged_at', acknowledged_at
+                 )) as acknowledgements
+          FROM email_acknowledgements
+          WHERE alert_type IN ('LPCD', 'Water')
+            AND sent_date = CURRENT_DATE
+          GROUP BY scheme_id
         )
         SELECT 
           w.scheme_id, 
@@ -49,10 +61,12 @@ router.get('/lpcd', async (req, res) => {
           e.civil_engineer_name, e.civil_engineer_email,
           e.mechanical_engineer_name, e.mechanical_engineer_email,
           e.site_supervisor_name, e.site_supervisor_email,
-          COALESCE(i.remarks, '[]'::json) as remarks
+          COALESCE(i.remarks, '[]'::json) as remarks,
+          COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
         FROM water_scheme_data w
         JOIN recent_logs e ON w.scheme_id = e.scheme_id
         LEFT JOIN issues i ON w.scheme_id = i.scheme_id
+        LEFT JOIN ack_status a ON w.scheme_id = a.scheme_id
       `;
       const result = await client.query(query);
       res.json(result.rows);
@@ -95,6 +109,18 @@ router.get('/chlorine', async (req, res) => {
           FROM email_alert_logs
           WHERE alert_type = 'Chlorine'
             AND sent_date >= CURRENT_DATE - INTERVAL '1 day'
+        ),
+        ack_status AS (
+          SELECT scheme_id,
+                 json_agg(json_build_object(
+                   'engineer_email', engineer_email,
+                   'engineer_name', engineer_name,
+                   'acknowledged_at', acknowledged_at
+                 )) as acknowledgements
+          FROM email_acknowledgements
+          WHERE alert_type = 'Chlorine'
+            AND sent_date = CURRENT_DATE
+          GROUP BY scheme_id
         )
         SELECT 
           c.scheme_id, 
@@ -107,10 +133,12 @@ router.get('/chlorine', async (req, res) => {
           e.civil_engineer_name, e.civil_engineer_email,
           e.mechanical_engineer_name, e.mechanical_engineer_email,
           e.site_supervisor_name, e.site_supervisor_email,
-          COALESCE(i.remarks, '[]'::json) as remarks
+          COALESCE(i.remarks, '[]'::json) as remarks,
+          COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
         FROM chlorine_data c
         JOIN recent_logs e ON c.scheme_id = e.scheme_id
         LEFT JOIN issues i ON c.scheme_id = i.scheme_id
+        LEFT JOIN ack_status a ON c.scheme_id = a.scheme_id
       `;
       const result = await client.query(query);
       res.json(result.rows);
@@ -153,6 +181,18 @@ router.get('/pressure', async (req, res) => {
           FROM email_alert_logs
           WHERE alert_type = 'Pressure'
             AND sent_date >= CURRENT_DATE - INTERVAL '1 day'
+        ),
+        ack_status AS (
+          SELECT scheme_id,
+                 json_agg(json_build_object(
+                   'engineer_email', engineer_email,
+                   'engineer_name', engineer_name,
+                   'acknowledged_at', acknowledged_at
+                 )) as acknowledgements
+          FROM email_acknowledgements
+          WHERE alert_type = 'Pressure'
+            AND sent_date = CURRENT_DATE
+          GROUP BY scheme_id
         )
         SELECT 
           p.scheme_id, 
@@ -165,10 +205,12 @@ router.get('/pressure', async (req, res) => {
           e.civil_engineer_name, e.civil_engineer_email,
           e.mechanical_engineer_name, e.mechanical_engineer_email,
           e.site_supervisor_name, e.site_supervisor_email,
-          COALESCE(i.remarks, '[]'::json) as remarks
+          COALESCE(i.remarks, '[]'::json) as remarks,
+          COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
         FROM pressure_data p
         JOIN recent_logs e ON p.scheme_id = e.scheme_id
         LEFT JOIN issues i ON p.scheme_id = i.scheme_id
+        LEFT JOIN ack_status a ON p.scheme_id = a.scheme_id
       `;
       const result = await client.query(query);
       res.json(result.rows);

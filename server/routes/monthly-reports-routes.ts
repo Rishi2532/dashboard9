@@ -279,7 +279,7 @@ router.get("/data", async (req, res) => {
         start_time = fallbackRes.rows[fallbackRes.rows.length - 1]?.uploaded_at || end_time;
       }
     }
-    
+
     if (!start_time || !end_time) {
       const overallTimes = await pool.query(
         `SELECT DISTINCT uploaded_at FROM scheme_status_history ORDER BY uploaded_at DESC LIMIT 2`
@@ -700,22 +700,21 @@ router.get("/data", async (req, res) => {
         SELECT 
           s.region, s.circle, s.division, s.sub_division, s.block, s.scheme_id, s.scheme_name, s.water_supply,
           h.data_date,
-          AVG(h.lpcd_value) as lpcd_avg
+          h.lpcd_value as lpcd_avg
         FROM (
           SELECT DISTINCT ON (scheme_id) scheme_id, region, circle, division, sub_division, block, scheme_name, water_supply 
           FROM scheme_status
         ) s
         INNER JOIN (
-          SELECT DISTINCT scheme_id FROM water_scheme_data_history
+          SELECT DISTINCT scheme_id FROM scheme_lpcd_data_history
         ) integrated ON s.scheme_id = integrated.scheme_id
-        LEFT JOIN water_scheme_data_history h ON s.scheme_id = h.scheme_id AND ${joinConditions.join(" AND ")}
+        LEFT JOIN scheme_lpcd_data_history h ON s.scheme_id = h.scheme_id AND ${joinConditions.join(" AND ")}
         ${filterConditions.length > 0 ? "WHERE " + filterConditions.join(" AND ") : ""}
-        GROUP BY s.region, s.circle, s.division, s.sub_division, s.block, s.scheme_id, s.scheme_name, s.water_supply, h.data_date
         ORDER BY s.region, s.circle, s.division, s.sub_division, s.block, s.scheme_name, s.scheme_id
       `;
 
       const lpcdRes = await pool.query(lpcdQuery, lpcdParams);
-      
+
       const schemeMap = new Map<string, {
         region: string;
         circle: string;

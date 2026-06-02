@@ -27,7 +27,7 @@ export async function generateMonthlyProgressPDF(
   endDate: string
 ) {
   const isRegionMode = !filters.scheme_id && !filters.block && !filters.division && !filters.circle;
-  
+
   const docDefinition: any = {
     pageSize: "A4",
     pageOrientation: "landscape",
@@ -89,7 +89,7 @@ export async function generateMonthlyProgressPDF(
 
   // Build the table body
   const tableBody = [];
-  
+
   // Header Row
   const headerRow = [];
   if (isRegionMode) {
@@ -113,12 +113,12 @@ export async function generateMonthlyProgressPDF(
   // Data Rows
   reportData.forEach((row) => {
     const dataRow = [];
-    
+
     if (isRegionMode) {
       dataRow.push({ text: row.region_name || "Unknown", style: "tableCell" });
-      dataRow.push({ 
-        text: `${row.end_schemes || 0} (+${(row.end_schemes || 0) - (row.start_schemes || 0)})`, 
-        style: "tableCell" 
+      dataRow.push({
+        text: `${row.end_schemes || 0} (+${(row.end_schemes || 0) - (row.start_schemes || 0)})`,
+        style: "tableCell"
       });
     } else {
       dataRow.push({ text: row.scheme_name || row.scheme_id, style: "tableCell" });
@@ -136,7 +136,7 @@ export async function generateMonthlyProgressPDF(
     tableBody.push(dataRow);
   });
 
-  const columnWidths = isRegionMode 
+  const columnWidths = isRegionMode
     ? ["*", "auto", "auto", "auto", "auto", "auto", "auto"]
     : ["*", "*", "auto", "auto", "auto", "auto", "auto"];
 
@@ -161,7 +161,7 @@ export async function generateMonthlyProgressPDF(
 
   // Generate PDF
   const pdfDocGenerator = pdfMake.createPdf(docDefinition);
-  
+
   return new Promise((resolve, reject) => {
     try {
       pdfDocGenerator.download(
@@ -446,8 +446,8 @@ export async function generateMonthlyReportPDF(data: MonthlyIntegrationData) {
           });
         }
         rowsToRender = filteredRows.map((row: any[]) => {
-            return row.filter((_: any, i: number) => metadataFilter(originalHeaders[i]));
-          });
+          return row.filter((_: any, i: number) => metadataFilter(originalHeaders[i]));
+        });
       } else {
         const metadataFilter = (h: string) => {
           const lower = String(h || "").toLowerCase().trim();
@@ -578,49 +578,7 @@ export async function generateMonthlyReportPDF(data: MonthlyIntegrationData) {
         body: progressBody
       },
       layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => themeColors.lightGrey, vLineColor: () => themeColors.lightGrey },
-      margin: [0, 0, 0, 20]
-    });
-
-    const newlyAddedColumns: any[] = [];
-    if (data.newlyAddedSchemes && data.newlyAddedSchemes.length > 0) {
-      newlyAddedColumns.push({
-        width: "*",
-        stack: [
-          { text: "Newly Added Scheme Names", bold: true, color: themeColors.darkBlue, margin: [0, 0, 0, 5], fontSize: 10 },
-          { ul: data.newlyAddedSchemes.map((s: string) => ({ text: s, fontSize: 8 })) }
-        ]
-      });
-    } else {
-      newlyAddedColumns.push({
-        width: "*",
-        stack: [
-          { text: "Newly Added Scheme Names", bold: true, color: themeColors.darkBlue, margin: [0, 0, 0, 5], fontSize: 10 },
-          { text: "None", italics: true, fontSize: 8 }
-        ]
-      });
-    }
-
-    if (data.newlyAddedVillages && data.newlyAddedVillages.length > 0) {
-      newlyAddedColumns.push({
-        width: "*",
-        stack: [
-          { text: "Newly Added Village Names", bold: true, color: themeColors.darkBlue, margin: [0, 0, 0, 5], fontSize: 10 },
-          { ul: data.newlyAddedVillages.map((v: string) => ({ text: v, fontSize: 8 })) }
-        ]
-      });
-    } else {
-      newlyAddedColumns.push({
-        width: "*",
-        stack: [
-          { text: "Newly Added Village Names", bold: true, color: themeColors.darkBlue, margin: [0, 0, 0, 5], fontSize: 10 },
-          { text: "None", italics: true, fontSize: 8 }
-        ]
-      });
-    }
-
-    content.push({
-      columns: newlyAddedColumns,
-      margin: [0, 10, 0, 20],
+      margin: [0, 0, 0, 20],
       pageBreak: "after"
     });
 
@@ -652,49 +610,7 @@ export async function generateMonthlyReportPDF(data: MonthlyIntegrationData) {
     content.push({
       table: { headerRows: 1, widths: ["*", "auto", "auto", "auto", "auto", "auto", "auto"], body: monthlyBody },
       layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => themeColors.lightGrey, vLineColor: () => themeColors.lightGrey },
-      margin: [0, 0, 0, 20]
-    });
-
-    const newlyAddedColumns: any[] = [];
-    if (data.newlyAddedSchemes && data.newlyAddedSchemes.length > 0) {
-      newlyAddedColumns.push({
-        width: "*",
-        stack: [
-          { text: "Newly Added Scheme Names", bold: true, color: themeColors.darkBlue, margin: [0, 0, 0, 5], fontSize: 10 },
-          { ul: data.newlyAddedSchemes.map((s: string) => ({ text: s, fontSize: 8 })) }
-        ]
-      });
-    } else {
-      newlyAddedColumns.push({
-        width: "*",
-        stack: [
-          { text: "Newly Added Scheme Names", bold: true, color: themeColors.darkBlue, margin: [0, 0, 0, 5], fontSize: 10 },
-          { text: "None", italics: true, fontSize: 8 }
-        ]
-      });
-    }
-
-    if (data.newlyAddedVillages && data.newlyAddedVillages.length > 0) {
-      newlyAddedColumns.push({
-        width: "*",
-        stack: [
-          { text: "Newly Added Village Names", bold: true, color: themeColors.darkBlue, margin: [0, 0, 0, 5], fontSize: 10 },
-          { ul: data.newlyAddedVillages.map((v: string) => ({ text: v, fontSize: 8 })) }
-        ]
-      });
-    } else {
-      newlyAddedColumns.push({
-        width: "*",
-        stack: [
-          { text: "Newly Added Village Names", bold: true, color: themeColors.darkBlue, margin: [0, 0, 0, 5], fontSize: 10 },
-          { text: "None", italics: true, fontSize: 8 }
-        ]
-      });
-    }
-
-    content.push({
-      columns: newlyAddedColumns,
-      margin: [0, 10, 0, 20],
+      margin: [0, 0, 0, 20],
       pageBreak: "after"
     });
   }

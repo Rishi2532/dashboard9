@@ -1,5 +1,11 @@
 import { Resend } from "resend";
 import nodemailer from "nodemailer";
+import { randomBytes } from "crypto";
+
+/** Generate a cryptographically secure unique token for one-click acknowledgement links */
+export function generateAcknowledgeToken(): string {
+  return randomBytes(32).toString('hex');
+}
 
 let connectionSettings: any;
 
@@ -453,13 +459,15 @@ export async function sendDailyAlertEmail(
   engineerEmail: string,
   engineerName: string,
   alertsData: any[],
+  acknowledgeToken?: string, // ONE token for the entire email (covers all schemes)
 ): Promise<boolean> {
   const subject = `🚨 Critical Water Scheme Alerts - Action Required`;
+  const baseUrl = process.env.APP_BASE_URL || 'https://dashboard1.mahajaliot.in';
 
   let alertsHtml = '';
   alertsData.forEach(alert => {
     alertsHtml += `
-      <div style="background-color: #fee2e2; border-left: 4px solid #dc2626; padding: 20px; margin: 15px 0;">
+      <div style="background-color: #fee2e2; border-left: 4px solid #dc2626; padding: 20px; margin: 15px 0; border-radius: 0 8px 8px 0;">
         <h3 style="margin-top: 0; color: #991b1b;">Scheme: ${alert.scheme_name} (ID: ${alert.scheme_id})</h3>
         <table style="width: 100%; border-collapse: collapse;">
           ${alert.chlorine_issue ? `<tr><td style="padding: 4px 0; color: #dc2626; font-weight: bold; width: 120px;">Chlorine:</td><td style="padding: 4px 0; color: #1f2937;">${alert.chlorine_value} mg/L (Below 0.2)</td></tr>` : ''}
@@ -473,6 +481,19 @@ export async function sendDailyAlertEmail(
     `;
   });
 
+  // Single Acknowledge All button at the bottom of the email
+  const ackButtonHtml = acknowledgeToken ? `
+    <div style="background-color: #f0fdf4; border: 2px solid #16a34a; border-radius: 10px; padding: 20px; margin: 24px 0; text-align: center;">
+      <p style="margin: 0 0 6px 0; color: #15803d; font-weight: 700; font-size: 15px;">✅ Confirm Receipt of This Alert</p>
+      <p style="margin: 0 0 16px 0; color: #166534; font-size: 13px;">Click the button below to confirm you have received and acknowledged all the alerts listed above.</p>
+      <a href="${baseUrl}/api/acknowledge?token=${acknowledgeToken}"
+         style="display: inline-block; background: #16a34a; color: white; text-decoration: none; padding: 13px 36px; border-radius: 8px; font-size: 15px; font-weight: 700; letter-spacing: 0.3px;">
+        ✅ Acknowledge All Alerts (${alertsData.length} Scheme${alertsData.length > 1 ? 's' : ''})
+      </a>
+      <p style="margin: 10px 0 0 0; font-size: 11px; color: #6b7280;">This will mark all the above schemes as acknowledged on the dashboard.</p>
+    </div>
+  ` : '';
+
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
       <div style="background-color: #dc2626; color: white; padding: 20px; text-align: center;">
@@ -485,6 +506,8 @@ export async function sendDailyAlertEmail(
         <p style="color: #374151; font-size: 16px;">The following schemes assigned to you have critical parameters falling below acceptable thresholds as of today.</p>
 
         ${alertsHtml}
+
+        ${ackButtonHtml}
 
         <div style="background-color: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 20px 0;">
           <p style="margin: 0; color: #92400e;"><strong>⏰ Action Required:</strong></p>

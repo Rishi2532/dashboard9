@@ -1,5 +1,6 @@
 import cron from "node-cron";
 import { getDB } from "../db";
+import pg from 'pg';
 import {
   chlorineData,
   pressureData,
@@ -7,8 +8,11 @@ import {
   schemeEngineerDetails,
   emailAlertLogs,
 } from "../../shared/schema";
-import { sendDailyAlertEmail } from "../services/email-service";
+import { sendDailyAlertEmail, generateAcknowledgeToken } from "../services/email-service";
 import { eq, or, lt, and, isNotNull } from "drizzle-orm";
+
+const { Pool } = pg;
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 interface Alert {
   scheme_id: string;
@@ -221,6 +225,31 @@ export async function runDailyAlertsJob() {
         }
       });
 
+      // First: ensure email_acknowledgements table exists (with correct schema)
+      const dbClient = await pool.connect();
+      try {
+        await dbClient.query(`
+          CREATE TABLE IF NOT EXISTS email_acknowledgements (
+            id SERIAL PRIMARY KEY,
+            token VARCHAR(128) NOT NULL,
+            scheme_id VARCHAR(50) NOT NULL,
+            alert_type VARCHAR(20) NOT NULL,
+            engineer_email VARCHAR(255) NOT NULL,
+            engineer_name VARCHAR(255),
+            sent_date DATE NOT NULL DEFAULT CURRENT_DATE,
+            acknowledged_at TIMESTAMP WITH TIME ZONE,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            UNIQUE(scheme_id, engineer_email, sent_date)
+          );
+          CREATE INDEX IF NOT EXISTS idx_email_acknowledgements_token ON email_acknowledgements(token);
+          CREATE INDEX IF NOT EXISTS idx_email_acknowledgements_scheme ON email_acknowledgements(scheme_id, alert_type, sent_date);
+        `);
+      } catch (e) {
+        // Table may already exist with old schema — that's OK, we'll work with what we have
+      } finally {
+        dbClient.release();
+      }
+
       // Send the consolidated emails
       const emails = Object.keys(emailsToSend);
       console.log(`📧 Preparing to send ${emails.length} alert emails...`);
@@ -235,8 +264,26 @@ export async function runDailyAlertsJob() {
         });
         const uniqueAlerts = Array.from(uniqueAlertsMap.values());
 
+        // Generate ONE token for this engineer that covers all their schemes in this email.
+        const engineerToken = generateAcknowledgeToken();
+        const tokenClient = await pool.connect();
         try {
-          await sendDailyAlertEmail(email, name, uniqueAlerts);
+          for (const alert of uniqueAlerts) {
+            const alertType = alert.chlorine_issue ? 'Chlorine' : alert.pressure_issue ? 'Pressure' : 'LPCD';
+            // Insert one row per scheme — all sharing the same engineer token.
+            await tokenClient.query(
+              `INSERT INTO email_acknowledgements (token, scheme_id, alert_type, engineer_email, engineer_name, sent_date)
+               VALUES ($1, $2, $3, $4, $5, CURRENT_DATE)`,
+              [engineerToken, alert.scheme_id, alertType, email, name]
+            );
+          }
+        } finally {
+          tokenClient.release();
+        }
+
+        try {
+          // Pass the single engineer token — email shows ONE acknowledge button for the whole email.
+          await sendDailyAlertEmail(email, name, uniqueAlerts, engineerToken);
           console.log(`✅ Sent alert email to ${email} for ${uniqueAlerts.length} issues.`);
         } catch (err) {
           console.error(`❌ Failed to send alert email to ${email}:`, err);

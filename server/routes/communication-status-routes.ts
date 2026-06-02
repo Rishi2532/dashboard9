@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { eq, sql, and, desc, asc, like, inArray } from "drizzle-orm";
 import { getDB } from "../db";
-import { communicationStatus, schemeStatuses, waterSchemeData, chlorineData, pressureData } from "../../shared/schema";
+import { communicationStatus, schemeStatuses, waterSchemeData, chlorineData, pressureData, waterConsumption } from "../../shared/schema";
 import multer from "multer";
 import * as csv from "csv-parse";
 import fs from "fs";
@@ -257,6 +257,7 @@ router.get("/schemes", async (req, res) => {
         lpcd_value_day7: waterSchemeData.lpcd_value_day7,
         chlorine_value_7: chlorineData.chlorine_value_7,
         pressure_value_7: pressureData.pressure_value_7,
+        water_value_day7: waterConsumption.water_value_day7,
       })
       .from(communicationStatus)
       .leftJoin(
@@ -280,6 +281,14 @@ router.get("/schemes", async (req, res) => {
           eq(communicationStatus.scheme_id, pressureData.scheme_id),
           eq(communicationStatus.village_name, pressureData.village_name),
           eq(communicationStatus.esr_name, pressureData.esr_name)
+        )
+      )
+      .leftJoin(
+        waterConsumption,
+        and(
+          eq(communicationStatus.scheme_id, waterConsumption.scheme_id),
+          eq(communicationStatus.village_name, waterConsumption.village_name),
+          eq(communicationStatus.esr_name, waterConsumption.esr_name)
         )
       )
       .where(whereClause)

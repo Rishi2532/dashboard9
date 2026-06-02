@@ -57,6 +57,7 @@ import combinedEsrDownloadRoutes from "./routes/combined-esr-download-routes";
 import issueReportingRoutes from "./routes/issue-reporting-routes";
 import flowmeterRoutes from "./routes/flowmeter-routes";
 import alertsProgressRoutes from "./routes/alerts-progress-routes";
+import acknowledgeRoutes from "./routes/acknowledge-routes";
 // import { mqttService } from "./mqtt-service";
 
 const exec = promisify(cp.exec);
@@ -198,6 +199,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Mount Alerts Progress routes
   app.use("/api/alerts-progress", requireApiKeyOrAuth, alertsProgressRoutes);
+
+  // Mount Acknowledge routes (public — no auth needed so engineer can click from email)
+  app.use("/api/acknowledge", acknowledgeRoutes);
 
   // Vendor API endpoints - get vendors by region
   app.get("/api/vendors", async (req, res) => {

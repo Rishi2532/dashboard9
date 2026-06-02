@@ -26,6 +26,7 @@ import {
   DialogContent,
   DialogTitle,
   DialogDescription,
+  DialogHeader
 } from "@/components/ui/dialog";
 
 // Define TypeScript interfaces for our data
@@ -61,6 +62,7 @@ interface AlertData {
   site_supervisor_name: string | null;
   site_supervisor_email: string | null;
   remarks: IssueRemark[];
+  acknowledgements?: { engineer_email: string; engineer_name: string; acknowledged_at: string | null }[];
 }
 
 // Helpers
@@ -93,6 +95,17 @@ export default function AlertsProgressPage() {
     title: string;
     issues: any[];
   } | null>(null);
+
+  const [selectedEngineers, setSelectedEngineers] = useState<{
+    title: string;
+    row: AlertData;
+  } | null>(null);
+
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const todayStr = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const yesterdayStr = yesterday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
   // Queries for each metric
   const { data: lpcdData = [], isLoading: isLoadingLpcd } = useQuery<AlertData[]>({
@@ -142,22 +155,43 @@ export default function AlertsProgressPage() {
     return val < 0.2;
   };
 
-  const renderEngineerContact = (name: string | null, email: string | null, role: string) => {
+  const renderEngineerContact = (name: string | null, email: string | null, role: string, ackStatus?: any) => {
     if (!name || !email) return null;
     return (
-      <div className="flex items-start gap-2 py-1.5">
-        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-600 text-[10px] font-bold">
-          {getInitials(name)}
+      <div className="flex items-start justify-between gap-4 py-2 border-b border-slate-50 last:border-0">
+        <div className="flex gap-2">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-600 text-xs font-bold mt-0.5">
+            {getInitials(name)}
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold text-slate-800">
+              {name}
+            </span>
+            <span className="text-[11px] text-slate-500 font-medium">{role}</span>
+            <a href={`mailto:${email}`} className="text-xs text-indigo-500 hover:text-indigo-700 hover:underline flex items-center gap-1 mt-1">
+              <Mail className="h-3 w-3" />
+              <span className="truncate max-w-[180px]">{email}</span>
+            </a>
+          </div>
         </div>
-        <div className="flex flex-col">
-          <span className="text-[11px] font-semibold text-slate-700">
-            {name} <span className="text-[10px] text-slate-400 font-normal ml-0.5">{role}</span>
-          </span>
-          <a href={`mailto:${email}`} className="text-[10px] text-indigo-500 hover:text-indigo-700 hover:underline flex items-center gap-1 mt-0.5">
-            <Mail className="h-2.5 w-2.5" />
-            <span className="truncate max-w-[140px]">{email}</span>
-          </a>
-        </div>
+        {ackStatus !== undefined && (
+          <div className="flex flex-col items-end shrink-0 mt-1">
+            {ackStatus?.acknowledged_at ? (
+              <>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-700">
+                  <CheckCircle2 className="h-3 w-3" /> Acknowledged
+                </span>
+                <span className="text-[10px] text-slate-500 font-medium mt-1">
+                  {new Date(ackStatus.acknowledged_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-700">
+                <BellRing className="h-3 w-3" /> Pending
+              </span>
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -305,13 +339,11 @@ export default function AlertsProgressPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-100/50 border-b border-slate-200">
-                <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider w-12">#</th>
-                <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider">Scheme Details</th>
-                <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center">Alert Value ({alertValueLabel})</th>
-                <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider">Alert Status</th>
-                <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider">Notified Engineers</th>
-                <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center">Remarks</th>
-                <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center">Actions</th>
+                <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200 w-12">#</th>
+                <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200">Scheme Details</th>
+                <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200">Alert Value ({alertValueLabel})</th>
+                <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200">Notified Engineers</th>
+                <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200">Remarks</th>
               </tr>
             </thead>
             <tbody>
@@ -321,19 +353,19 @@ export default function AlertsProgressPage() {
 
                 return (
                   <tr key={`${row.scheme_id}-${idx}`} className="border-b border-slate-100 hover:bg-slate-50/80 transition-colors">
-                    <td className="py-4 px-6 align-top">
+                    <td className="py-4 px-6 align-top text-center border-x border-slate-200">
                       <span className="text-sm font-medium text-slate-500">{actualIndex}</span>
                     </td>
                     
-                    <td className="py-4 px-6 align-top">
+                    <td className="py-4 px-6 align-top text-center border-x border-slate-200">
                       <div className="font-bold text-slate-900 text-sm">{row.scheme_name}</div>
-                      <div className="flex items-center gap-2 mt-1.5 text-xs text-slate-500">
+                      <div className="flex items-center justify-center gap-2 mt-1.5 text-xs text-slate-500">
                         <span>ID: {row.scheme_id}</span>
                         <MapPin className="h-3 w-3 text-slate-400 ml-1" />
                         <span>{row.region}</span>
                       </div>
                       {(row.village_name || row.esr_name) && (
-                        <div className="mt-2.5 flex flex-wrap gap-1.5">
+                        <div className="mt-2.5 flex flex-wrap justify-center gap-1.5">
                           {row.village_name && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-600">
                               {row.village_name}
@@ -348,60 +380,102 @@ export default function AlertsProgressPage() {
                       )}
                     </td>
 
-                    <td className="py-4 px-6 align-top text-center">
-                      <div className="text-base font-bold text-slate-900 mb-1">{row.current_value ?? "0"}</div>
-                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100">
-                        <AlertCircle className="w-3 h-3" />
-                        Low {alertValueLabel}
-                      </span>
-                    </td>
-
-                    <td className="py-4 px-6 align-top">
-                      {failing ? (
-                        <div>
-                          <div className="flex items-center gap-1.5 text-sm font-bold text-slate-900">
-                            <div className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
-                            Threshold Violated
+                    <td className="py-4 px-6 align-top text-center border-x border-slate-200">
+                      {activeSubTab === "previous" ? (
+                        <div className="flex flex-col gap-1.5 w-full max-w-[120px] mx-auto">
+                          <div className="flex items-center justify-between text-xs bg-slate-50 px-2 py-1.5 rounded border border-slate-100">
+                            <span className="text-slate-500 font-medium">{yesterdayStr}</span>
+                            <span className="font-semibold text-slate-700">{row.previous_value ?? "N/A"}</span>
                           </div>
-                          <div className="text-xs text-slate-500 mt-1 ml-3.5">Action Required</div>
+                          <div className="flex items-center justify-between text-xs bg-slate-50 px-2 py-1.5 rounded border border-slate-100">
+                            <span className="text-slate-500 font-medium">{todayStr}</span>
+                            <span className={`font-bold ${failing ? 'text-rose-600' : 'text-emerald-600'}`}>{row.current_value ?? "N/A"}</span>
+                          </div>
                         </div>
                       ) : (
                         <div>
-                          <div className="flex items-center gap-1.5 text-sm font-bold text-slate-900">
+                          <div className="text-base font-bold text-slate-900 mb-1">{row.current_value ?? "0"}</div>
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100">
+                            <AlertCircle className="w-3 h-3" />
+                            Low {alertValueLabel}
+                          </span>
+                        </div>
+                      )}
+                    </td>
+
+                    <td className="py-4 px-6 align-top text-center border-x border-slate-200">
+                      {failing ? (
+                        <div className="flex flex-col items-center">
+                          <div className="flex items-center justify-center gap-1.5 text-sm font-bold text-slate-900">
+                            <div className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                            Threshold Violated
+                          </div>
+                          <div className="text-xs text-slate-500 mt-1">Action Required</div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center">
+                          <div className="flex items-center justify-center gap-1.5 text-sm font-bold text-slate-900">
                             <div className="h-2 w-2 rounded-full bg-emerald-500" />
                             Resolved
                           </div>
                         </div>
                       )}
+                      {(() => {
+                        const hasEngineers = !!(row.civil_engineer_name || row.mechanical_engineer_name || row.site_supervisor_name);
+                        
+                        // Calculate real total based on available emails
+                        const trueTotal = [row.civil_engineer_email, row.mechanical_engineer_email, row.site_supervisor_email].filter(Boolean).length;
+                        
+                        // Calculate unique acknowledgements
+                        const uniqueAcks = new Set();
+                        if (row.acknowledgements) {
+                          row.acknowledgements.forEach((a: any) => {
+                            if (a.acknowledged_at && a.engineer_email) {
+                              uniqueAcks.add(a.engineer_email);
+                            }
+                          });
+                        }
+                        const ackd = uniqueAcks.size;
+                        const isAllAckd = trueTotal > 0 && ackd === trueTotal;
+
+                        return (
+                          <div className="flex items-center justify-center gap-2 mt-1">
+                            {hasEngineers ? (
+                              <>
+                                {activeSubTab === 'current' && trueTotal > 0 ? (
+                                  <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-md text-xs font-bold border ${isAllAckd ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
+                                    {ackd}/{trueTotal} Acknowledged
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-50 text-emerald-600 border border-emerald-100">
+                                    Yes
+                                  </span>
+                                )}
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-7 w-7 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 shrink-0 border border-indigo-100"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedEngineers({ title: row.scheme_name, row });
+                                  }}
+                                >
+                                  <Eye className="h-3.5 w-3.5" />
+                                </Button>
+                              </>
+                            ) : (
+                              <span className="text-xs font-medium text-slate-400 border border-slate-100 px-2.5 py-1 rounded-md bg-slate-50">
+                                None
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
 
-                    <td className="py-4 px-6 align-top">
-                      <div className="flex flex-col gap-1">
-                        {renderEngineerContact(row.civil_engineer_name, row.civil_engineer_email, "Civil")}
-                        {renderEngineerContact(row.mechanical_engineer_name, row.mechanical_engineer_email, "Mech")}
-                        {renderEngineerContact(row.site_supervisor_name, row.site_supervisor_email, "Site Sup")}
-                      </div>
-                    </td>
-
-                    <td className="py-4 px-6 align-top text-center">
+                    <td className="py-4 px-6 align-top text-center border-x border-slate-200">
                       <div className="flex justify-center">
                         {renderRemarkCell(row.remarks, `Remarks for ${row.esr_name || row.village_name || row.scheme_name}`)}
-                      </div>
-                    </td>
-
-                    <td className="py-4 px-6 align-top text-center">
-                      <div className="flex justify-center">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8 text-indigo-600 border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
-                          onClick={() => setSelectedRemarkDetails({ 
-                            issues: parseIssues(row.remarks), 
-                            title: `Remarks for ${row.esr_name || row.village_name || row.scheme_name}` 
-                          })}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -663,6 +737,41 @@ export default function AlertsProgressPage() {
                     </>
                   );
                 })()}
+              </DialogContent>
+            </Dialog>
+          )}
+
+          {/* Engineers Details Dialog */}
+          {selectedEngineers && (
+            <Dialog open={!!selectedEngineers} onOpenChange={(open) => !open && setSelectedEngineers(null)}>
+              <DialogContent className="max-w-md bg-white border border-slate-200 shadow-xl rounded-xl">
+                <DialogHeader className="border-b border-slate-100 pb-4">
+                  <DialogTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                    <Users className="h-5 w-5 text-indigo-500" />
+                    Notified Engineers
+                  </DialogTitle>
+                  <DialogDescription className="text-slate-500 font-medium">
+                    {selectedEngineers.title}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex flex-col py-2">
+                  {(() => {
+                    const getAckStatus = (email: string | null) => {
+                      if (!selectedEngineers.row.acknowledgements || !email) return undefined;
+                      const matches = selectedEngineers.row.acknowledgements.filter((a: any) => a.engineer_email === email);
+                      if (matches.length === 0) return undefined;
+                      return matches.find((a: any) => a.acknowledged_at) || matches[0];
+                    };
+                    
+                    return (
+                      <>
+                        {selectedEngineers.row.civil_engineer_name ? renderEngineerContact(selectedEngineers.row.civil_engineer_name, selectedEngineers.row.civil_engineer_email, "Civil Engineer", getAckStatus(selectedEngineers.row.civil_engineer_email)) : <div className="text-sm text-slate-500 py-2 border-b border-slate-50">No Civil Engineer assigned</div>}
+                        {selectedEngineers.row.mechanical_engineer_name ? renderEngineerContact(selectedEngineers.row.mechanical_engineer_name, selectedEngineers.row.mechanical_engineer_email, "Mechanical Engineer", getAckStatus(selectedEngineers.row.mechanical_engineer_email)) : <div className="text-sm text-slate-500 py-2 border-b border-slate-50">No Mechanical Engineer assigned</div>}
+                        {selectedEngineers.row.site_supervisor_name ? renderEngineerContact(selectedEngineers.row.site_supervisor_name, selectedEngineers.row.site_supervisor_email, "Site Supervisor", getAckStatus(selectedEngineers.row.site_supervisor_email)) : <div className="text-sm text-slate-500 py-2">No Site Supervisor assigned</div>}
+                      </>
+                    );
+                  })()}
+                </div>
               </DialogContent>
             </Dialog>
           )}
