@@ -221,8 +221,8 @@ export default function Header() {
                 size="sm"
                 className={cn(
                   "text-white h-8 px-3 text-xs font-medium transition-all duration-200",
-                  isActive("/dashboard") 
-                    ? "bg-white/30 shadow-inner font-bold" 
+                  isActive("/dashboard")
+                    ? "bg-white/30 shadow-inner font-bold"
                     : "hover:bg-black hover:bg-opacity-20"
                 )}
               >
@@ -236,8 +236,8 @@ export default function Header() {
                 size="sm"
                 className={cn(
                   "text-white h-8 px-3 text-xs font-medium transition-all duration-200",
-                  isActive("/schemes") 
-                    ? "bg-white/30 shadow-inner font-bold" 
+                  isActive("/schemes")
+                    ? "bg-white/30 shadow-inner font-bold"
                     : "hover:bg-black hover:bg-opacity-20"
                 )}
               >
@@ -252,8 +252,8 @@ export default function Header() {
                 size="sm"
                 className={cn(
                   "text-white h-8 px-3 text-xs font-medium transition-all duration-200",
-                  isActive("/chlorine/detailed") 
-                    ? "bg-white/30 shadow-inner font-bold" 
+                  isActive("/chlorine/detailed")
+                    ? "bg-white/30 shadow-inner font-bold"
                     : "hover:bg-black hover:bg-opacity-20"
                 )}
               >
@@ -268,8 +268,8 @@ export default function Header() {
                 size="sm"
                 className={cn(
                   "text-white h-8 px-3 text-xs font-medium transition-all duration-200",
-                  isActive("/regions") 
-                    ? "bg-white/30 shadow-inner font-bold" 
+                  isActive("/regions")
+                    ? "bg-white/30 shadow-inner font-bold"
                     : "hover:bg-black hover:bg-opacity-20"
                 )}
               >
@@ -283,8 +283,8 @@ export default function Header() {
                 size="sm"
                 className={cn(
                   "text-white h-8 px-3 text-xs font-medium transition-all duration-200",
-                  isActive("/reports") 
-                    ? "bg-white/30 shadow-inner font-bold" 
+                  isActive("/reports")
+                    ? "bg-white/30 shadow-inner font-bold"
                     : "hover:bg-black hover:bg-opacity-20"
                 )}
               >
@@ -328,7 +328,7 @@ export default function Header() {
                 className={cn(
                   "text-white h-8 px-3 text-xs font-medium transition-all duration-200",
                   (isActive("/lpcd") || isActive("/scheme-lpcd"))
-                    ? "bg-white/30 shadow-inner font-bold" 
+                    ? "bg-white/30 shadow-inner font-bold"
                     : "hover:bg-black hover:bg-opacity-20"
                 )}
               >
@@ -366,8 +366,8 @@ export default function Header() {
                 size="sm"
                 className={cn(
                   "text-white h-8 px-3 text-xs font-medium transition-all duration-200",
-                  isActive("/chlorine") 
-                    ? "bg-white/30 shadow-inner font-bold" 
+                  isActive("/chlorine")
+                    ? "bg-white/30 shadow-inner font-bold"
                     : "hover:bg-black hover:bg-opacity-20"
                 )}
               >
@@ -381,8 +381,8 @@ export default function Header() {
                 size="sm"
                 className={cn(
                   "text-white h-8 px-3 text-xs font-medium transition-all duration-200",
-                  isActive("/pressure") 
-                    ? "bg-white/30 shadow-inner font-bold" 
+                  isActive("/pressure")
+                    ? "bg-white/30 shadow-inner font-bold"
                     : "hover:bg-black hover:bg-opacity-20"
                 )}
               >
@@ -396,8 +396,8 @@ export default function Header() {
                 size="sm"
                 className={cn(
                   "text-white h-8 px-3 text-xs font-medium transition-all duration-200",
-                  isActive("/water-consumption") 
-                    ? "bg-white/30 shadow-inner font-bold" 
+                  isActive("/water-consumption")
+                    ? "bg-white/30 shadow-inner font-bold"
                     : "hover:bg-black hover:bg-opacity-20"
                 )}
               >
@@ -411,13 +411,13 @@ export default function Header() {
                 size="sm"
                 className={cn(
                   "text-white h-8 px-3 text-xs font-medium transition-all duration-200",
-                  isActive("/communication-status") 
-                    ? "bg-white/30 shadow-inner font-bold" 
+                  isActive("/communication-status")
+                    ? "bg-white/30 shadow-inner font-bold"
                     : "hover:bg-black hover:bg-opacity-20"
                 )}
               >
                 <Wifi className="h-3.5 w-3.5 mr-1.5" />
-                Communication
+                ESR-Wise Data
               </Button>
             </Link>
             <Button
@@ -453,8 +453,8 @@ export default function Header() {
                 size="sm"
                 className={cn(
                   "w-full justify-start h-10 font-semibold transition-colors",
-                  isActive("/dashboard") 
-                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3" 
+                  isActive("/dashboard")
+                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3"
                     : "text-gray-700 hover:bg-gray-100"
                 )}
               >
@@ -471,8 +471,8 @@ export default function Header() {
                 size="sm"
                 className={cn(
                   "w-full justify-start h-10 font-semibold transition-colors",
-                  isActive("/chlorine/detailed") 
-                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3" 
+                  isActive("/chlorine/detailed")
+                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3"
                     : "text-gray-700 hover:bg-gray-100"
                 )}
               >
@@ -487,8 +487,8 @@ export default function Header() {
                 size="sm"
                 className={cn(
                   "w-full justify-start h-10 font-semibold transition-colors",
-                  isActive("/schemes") 
-                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3" 
+                  isActive("/schemes")
+                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3"
                     : "text-gray-700 hover:bg-gray-100"
                 )}
               >
@@ -503,8 +503,8 @@ export default function Header() {
                 size="sm"
                 className={cn(
                   "w-full justify-start h-10 font-semibold transition-colors",
-                  isActive("/regions") 
-                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3" 
+                  isActive("/regions")
+                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3"
                     : "text-gray-700 hover:bg-gray-100"
                 )}
               >
@@ -518,8 +518,8 @@ export default function Header() {
                 size="sm"
                 className={cn(
                   "w-full justify-start h-10 font-semibold transition-colors",
-                  isActive("/reports") 
-                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3" 
+                  isActive("/reports")
+                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3"
                     : "text-gray-700 hover:bg-gray-100"
                 )}
               >
@@ -560,8 +560,8 @@ export default function Header() {
                 size="sm"
                 className={cn(
                   "w-full justify-start h-10 font-semibold transition-colors",
-                  isActive("/lpcd") 
-                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3" 
+                  isActive("/lpcd")
+                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3"
                     : "text-gray-700 hover:bg-gray-100"
                 )}
               >
@@ -578,8 +578,8 @@ export default function Header() {
                 size="sm"
                 className={cn(
                   "w-full justify-start h-10 font-semibold transition-colors",
-                  isActive("/scheme-lpcd") 
-                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3" 
+                  isActive("/scheme-lpcd")
+                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3"
                     : "text-gray-700 hover:bg-gray-100"
                 )}
               >
@@ -593,8 +593,8 @@ export default function Header() {
                 size="sm"
                 className={cn(
                   "w-full justify-start h-10 font-semibold transition-colors",
-                  isActive("/chlorine") 
-                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3" 
+                  isActive("/chlorine")
+                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3"
                     : "text-gray-700 hover:bg-gray-100"
                 )}
               >
@@ -608,8 +608,8 @@ export default function Header() {
                 size="sm"
                 className={cn(
                   "w-full justify-start h-10 font-semibold transition-colors",
-                  isActive("/pressure") 
-                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3" 
+                  isActive("/pressure")
+                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3"
                     : "text-gray-700 hover:bg-gray-100"
                 )}
               >
@@ -626,8 +626,8 @@ export default function Header() {
                 size="sm"
                 className={cn(
                   "w-full justify-start h-10 font-semibold transition-colors",
-                  isActive("/water-consumption") 
-                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3" 
+                  isActive("/water-consumption")
+                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3"
                     : "text-gray-700 hover:bg-gray-100"
                 )}
               >
@@ -644,13 +644,13 @@ export default function Header() {
                 size="sm"
                 className={cn(
                   "w-full justify-start h-10 font-semibold transition-colors",
-                  isActive("/communication-status") 
-                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3" 
+                  isActive("/communication-status")
+                    ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3"
                     : "text-gray-700 hover:bg-gray-100"
                 )}
               >
                 <Wifi className="h-4 w-4 mr-2" />
-                Communication
+                ESR- Wise Data
               </Button>
             </Link>
             <Button
