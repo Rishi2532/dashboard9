@@ -116,6 +116,7 @@ interface CommunicationScheme {
   lpcd_value_day7?: number;
   chlorine_value_7?: number;
   pressure_value_7?: number;
+  water_value_day7?: number | string;
   agencyType?: string;
 }
 
@@ -1535,6 +1536,7 @@ export default function CommunicationStatusPage() {
                         <TableHead>Pressure</TableHead>
                         <TableHead>Pressure Value</TableHead>
                         <TableHead>Flow Meter</TableHead>
+                        <TableHead>Water Consumption</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1561,13 +1563,14 @@ export default function CommunicationStatusPage() {
                               <TableCell>
                                 {getStatusBadge(scheme.flow_meter_status)}
                               </TableCell>
+                              <TableCell>{scheme.water_value_day7 !== undefined && scheme.water_value_day7 !== null ? Number(scheme.water_value_day7).toFixed(2) : "N/A"}</TableCell>
                             </TableRow>
                           ),
                         )
                       ) : (
                         <TableRow>
                           <TableCell
-                            colSpan={9}
+                            colSpan={10}
                             className="text-center py-8 text-muted-foreground"
                           >
                             No communication data found for the selected filters

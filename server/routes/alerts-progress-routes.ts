@@ -32,14 +32,14 @@ router.get('/lpcd', async (req, res) => {
           GROUP BY scheme_id
         ),
         recent_logs AS (
-          SELECT DISTINCT ON (scheme_id) scheme_id, civil_engineer_name, civil_engineer_email,
+          SELECT DISTINCT ON (scheme_id, village_name, sent_date) scheme_id, village_name, civil_engineer_name, civil_engineer_email,
                  mechanical_engineer_name, mechanical_engineer_email,
                  site_supervisor_name, site_supervisor_email,
                  created_at, sent_date
           FROM email_alert_logs
           WHERE alert_type IN ('LPCD', 'Water')
             AND sent_date >= CURRENT_DATE - INTERVAL '1 day'
-          ORDER BY scheme_id, created_at DESC
+          ORDER BY scheme_id, village_name, sent_date, created_at DESC
         ),
         ack_status AS (
           SELECT scheme_id,
@@ -72,7 +72,7 @@ router.get('/lpcd', async (req, res) => {
           COALESCE(i.remarks, '[]'::json) as remarks,
           COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
         FROM water_scheme_data w
-        JOIN recent_logs e ON w.scheme_id = e.scheme_id
+        JOIN recent_logs e ON w.scheme_id = e.scheme_id AND w.village_name IS NOT DISTINCT FROM e.village_name
         LEFT JOIN issues i ON w.scheme_id = i.scheme_id
         LEFT JOIN ack_status a ON w.scheme_id = a.scheme_id
       `;
@@ -111,14 +111,14 @@ router.get('/chlorine', async (req, res) => {
           GROUP BY scheme_id
         ),
         recent_logs AS (
-          SELECT DISTINCT ON (scheme_id) scheme_id, civil_engineer_name, civil_engineer_email,
+          SELECT DISTINCT ON (scheme_id, esr_name, sent_date) scheme_id, esr_name, civil_engineer_name, civil_engineer_email,
                  mechanical_engineer_name, mechanical_engineer_email,
                  site_supervisor_name, site_supervisor_email,
                  created_at, sent_date
           FROM email_alert_logs
           WHERE alert_type = 'Chlorine'
             AND sent_date >= CURRENT_DATE - INTERVAL '1 day'
-          ORDER BY scheme_id, created_at DESC
+          ORDER BY scheme_id, esr_name, sent_date, created_at DESC
         ),
         ack_status AS (
           SELECT scheme_id,
@@ -152,7 +152,7 @@ router.get('/chlorine', async (req, res) => {
           COALESCE(i.remarks, '[]'::json) as remarks,
           COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
         FROM chlorine_data c
-        JOIN recent_logs e ON c.scheme_id = e.scheme_id
+        JOIN recent_logs e ON c.scheme_id = e.scheme_id AND c.esr_name IS NOT DISTINCT FROM e.esr_name
         LEFT JOIN issues i ON c.scheme_id = i.scheme_id
         LEFT JOIN ack_status a ON c.scheme_id = a.scheme_id
       `;
@@ -191,14 +191,14 @@ router.get('/pressure', async (req, res) => {
           GROUP BY scheme_id
         ),
         recent_logs AS (
-          SELECT DISTINCT ON (scheme_id) scheme_id, civil_engineer_name, civil_engineer_email,
+          SELECT DISTINCT ON (scheme_id, esr_name, sent_date) scheme_id, esr_name, civil_engineer_name, civil_engineer_email,
                  mechanical_engineer_name, mechanical_engineer_email,
                  site_supervisor_name, site_supervisor_email,
                  created_at, sent_date
           FROM email_alert_logs
           WHERE alert_type = 'Pressure'
             AND sent_date >= CURRENT_DATE - INTERVAL '1 day'
-          ORDER BY scheme_id, created_at DESC
+          ORDER BY scheme_id, esr_name, sent_date, created_at DESC
         ),
         ack_status AS (
           SELECT scheme_id,
@@ -232,7 +232,7 @@ router.get('/pressure', async (req, res) => {
           COALESCE(i.remarks, '[]'::json) as remarks,
           COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
         FROM pressure_data p
-        JOIN recent_logs e ON p.scheme_id = e.scheme_id
+        JOIN recent_logs e ON p.scheme_id = e.scheme_id AND p.esr_name IS NOT DISTINCT FROM e.esr_name
         LEFT JOIN issues i ON p.scheme_id = i.scheme_id
         LEFT JOIN ack_status a ON p.scheme_id = a.scheme_id
       `;

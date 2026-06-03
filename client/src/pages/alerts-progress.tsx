@@ -134,31 +134,28 @@ export default function AlertsProgressPage() {
     },
   });
 
-  // Helper to filter data based on strict batch times (latest sent_time in latest sent_date)
+  // Helper to filter data based on strict literal calendar dates
   const getFilteredData = (data: AlertData[], type: "lpcd" | "chlorine" | "pressure") => {
     if (!data || data.length === 0) return [];
 
-    // Find the absolute latest created_at in the entire dataset
-    const latestTime = data.reduce((max, row) => {
-      if (!row.created_at) return max;
-      const t = new Date(row.created_at).getTime();
-      return t > max ? t : max;
-    }, 0);
+    const todayStr = new Date().toDateString();
+    
+    // Yesterday
+    const yesterdayDate = new Date();
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterdayStr = yesterdayDate.toDateString();
 
     if (activeSubTab === "current") {
-      // Current day = Emails that belong to the absolute latest batch 
-      // (We define a batch as emails sent within 2 hours of the very latest email)
+      // Current day = Emails sent exactly TODAY (calendar date matches)
       return data.filter((row) => {
         if (!row.created_at) return false;
-        const t = new Date(row.created_at).getTime();
-        return (latestTime - t) < (2 * 60 * 60 * 1000);
+        return new Date(row.created_at).toDateString() === todayStr;
       });
     } else {
-      // Previous day = Emails older than the latest batch
+      // Previous day = Emails sent exactly YESTERDAY
       const previousData = data.filter((row) => {
         if (!row.created_at) return false;
-        const t = new Date(row.created_at).getTime();
-        return (latestTime - t) >= (2 * 60 * 60 * 1000);
+        return new Date(row.created_at).toDateString() === yesterdayStr;
       });
 
       // Apply the original health filter to previous day data
