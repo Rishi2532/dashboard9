@@ -89,7 +89,7 @@ const parseIssues = (rawIssues: any) => {
 
 export default function AlertsProgressPage() {
   const [activeTab, setActiveTab] = useState("lpcd");
-  const [activeSubTab, setActiveSubTab] = useState("current");
+  const [activeSubTab, setActiveSubTab] = useState<"current" | "previous">("current");
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   
@@ -102,12 +102,6 @@ export default function AlertsProgressPage() {
     title: string;
     row: AlertData;
   } | null>(null);
-
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const todayStr = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const yesterdayStr = yesterday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
   // Queries for each metric
   const { data: lpcdData = [], isLoading: isLoadingLpcd } = useQuery<AlertData[]>({
@@ -310,10 +304,12 @@ export default function AlertsProgressPage() {
     const totalRemarks = data.filter(r => parseIssues(r.remarks).length > 0).length;
 
     // Pagination Logic
+    const startIdx = (page - 1) * rowsPerPage;
+    const endIdx = page * rowsPerPage;
     const totalPages = Math.ceil(data.length / rowsPerPage);
-    const paginatedData = data.slice((page - 1) * rowsPerPage, page * rowsPerPage);
-    const startItem = (page - 1) * rowsPerPage + 1;
-    const endItem = Math.min(page * rowsPerPage, data.length);
+    const paginatedData = data.slice(startIdx, endIdx);
+    const startItem = startIdx + 1;
+    const endItem = Math.min(endIdx, data.length);
 
     return (
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-8">
@@ -375,8 +371,14 @@ export default function AlertsProgressPage() {
             </thead>
             <tbody>
               {paginatedData.map((row, idx) => {
+                const actualIndex = startIdx + idx + 1;
                 const failing = isStillFailing(row, type);
-                const actualIndex = (page - 1) * rowsPerPage + idx + 1;
+                
+                const rowDate = row.created_at ? new Date(row.created_at) : new Date();
+                const rowTodayStr = rowDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+                const rowYesterdayDate = new Date(rowDate);
+                rowYesterdayDate.setDate(rowYesterdayDate.getDate() - 1);
+                const rowYesterdayStr = rowYesterdayDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 
                 return (
                   <tr key={`${row.scheme_id}-${idx}`} className="border-b border-slate-100 hover:bg-slate-50/80 transition-colors">
@@ -411,11 +413,11 @@ export default function AlertsProgressPage() {
                       {activeSubTab === "previous" ? (
                         <div className="flex flex-col gap-1.5 w-full max-w-[120px] mx-auto">
                           <div className="flex items-center justify-between text-xs bg-slate-50 px-2 py-1.5 rounded border border-slate-100">
-                            <span className="text-slate-500 font-medium">{yesterdayStr}</span>
+                            <span className="text-slate-500 font-medium">{rowYesterdayStr}</span>
                             <span className="font-semibold text-slate-700">{row.previous_value ?? "N/A"}</span>
                           </div>
                           <div className="flex items-center justify-between text-xs bg-slate-50 px-2 py-1.5 rounded border border-slate-100">
-                            <span className="text-slate-500 font-medium">{todayStr}</span>
+                            <span className="text-slate-500 font-medium">{rowTodayStr}</span>
                             <span className={`font-bold ${failing ? 'text-rose-600' : 'text-emerald-600'}`}>{row.current_value ?? "N/A"}</span>
                           </div>
                         </div>
