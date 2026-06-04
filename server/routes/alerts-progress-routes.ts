@@ -247,4 +247,317 @@ router.get('/pressure', async (req, res) => {
   }
 });
 
+router.get('/download-14-day-report', async (req, res) => {
+  try {
+    // Determine the last 14 dates from today
+    const dbDates: string[] = []; // Used for querying database (e.g., '04-Jun')
+    const displayDates: string[] = []; // Used for Excel headers (e.g., '04-06-2026')
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    
+    const today = new Date();
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const day = String(d.getDate()).padStart(2, '0');
+      
+      // DB format
+      const dbMonth = monthNames[d.getMonth()];
+      dbDates.push(`${day}-${dbMonth}`);
+      
+      // Display format
+      const numMonth = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      displayDates.push(`${day}-${numMonth}-${year}`);
+    }
+
+    const client = await pool.connect();
+    try {
+      // 1. Fetch base ESRs & hierarchy from the active data tables
+      const esrQuery = `
+        WITH all_esrs AS (
+          SELECT region, circle, division, sub_division, block, scheme_id, scheme_name, village_name, esr_name
+          FROM chlorine_data
+          WHERE esr_name IS NOT NULL
+          UNION
+          SELECT region, circle, division, sub_division, block, scheme_id, scheme_name, village_name, esr_name
+          FROM pressure_data
+          WHERE esr_name IS NOT NULL
+        )
+        SELECT e.region, e.circle, e.division, e.sub_division, e.block, e.scheme_id, e.scheme_name, e.village_name, e.esr_name,
+               sed.civil_engineer_name, sed.mechanical_engineer_name
+        FROM all_esrs e
+        LEFT JOIN scheme_engineer_details sed ON e.scheme_id = sed.scheme_id
+        ORDER BY e.circle, e.division, e.sub_division, e.block, e.scheme_id, e.village_name, e.esr_name
+      `;
+      const { rows: esrs } = await client.query(esrQuery);
+
+      if (esrs.length === 0) {
+        return res.status(404).json({ error: 'No ESR data found' });
+      }
+
+      // 2. Fetch history data for the 14 dates
+      const dateInClause = dbDates.map(d => `'${d}'`).join(',');
+      
+      const { rows: lpcdData } = await client.query(`
+        SELECT scheme_id, village_name, data_date, lpcd_value
+        FROM water_scheme_data_history
+        WHERE data_date IN (${dateInClause})
+      `);
+
+      const { rows: chlorineData } = await client.query(`
+        SELECT scheme_id, esr_name, chlorine_date, chlorine_value
+        FROM chlorine_history
+        WHERE chlorine_date IN (${dateInClause})
+      `);
+
+      const { rows: pressureData } = await client.query(`
+        SELECT scheme_id, esr_name, pressure_date, pressure_value
+        FROM pressure_history
+        WHERE pressure_date IN (${dateInClause})
+      `);
+
+      // 3. Group data for quick lookup
+      const lpcdMap = new Map();
+      lpcdData.forEach(r => {
+        const key = `${r.scheme_id}_${r.village_name?.trim()}_${r.data_date}`;
+        lpcdMap.set(key, Number(r.lpcd_value));
+      });
+
+      const clMap = new Map();
+      chlorineData.forEach(r => {
+        const key = `${r.scheme_id}_${r.esr_name?.trim()}_${r.chlorine_date}`;
+        clMap.set(key, Number(r.chlorine_value));
+      });
+
+      const ptMap = new Map();
+      pressureData.forEach(r => {
+        const key = `${r.scheme_id}_${r.esr_name?.trim()}_${r.pressure_date}`;
+        ptMap.set(key, Number(r.pressure_value));
+      });
+
+      // Group ESRs by village
+      const villageGroups = new Map();
+      esrs.forEach(esr => {
+        const vKey = `${esr.scheme_id}_${esr.village_name}`;
+        if (!villageGroups.has(vKey)) {
+          villageGroups.set(vKey, []);
+        }
+        villageGroups.get(vKey).push(esr);
+      });
+
+      // 4. Build Excel
+      const ExcelJS = await import('exceljs');
+      const workbook = new ExcelJS.default.Workbook();
+      const sheet = workbook.addWorksheet('14-Day History');
+
+      // Top Header Row
+      const week1Title = `${displayDates[0]} to ${displayDates[6]}`;
+      const week2Title = `${displayDates[7]} to ${displayDates[13]}`;
+
+      const headerRow1 = [
+        'Sr No.', 'Circle', 'Division', 'Sub Division', 'Block', 'Scheme ID', 'Scheme Name', 'Village Name', 'ESR Name',
+        week1Title, '', '', '',
+        week2Title, '', '', '',
+        'Reporting to MJP'
+      ];
+      
+      const headerRow2 = [
+        '', '', '', '', '', '', '', '', '',
+        'Date', '< 55 LPCD', '< 0.2 mg/l', '< 0.2 bar',
+        'Date', '< 55 LPCD', '< 0.2 mg/l', '< 0.2 bar',
+        ''
+      ];
+
+      const weekDatesDB = [...dbDates.slice(0, 7), ...dbDates.slice(7, 14)];
+      const weekDatesDisplay = [...displayDates.slice(0, 7), ...displayDates.slice(7, 14)];
+      
+      sheet.addRow(headerRow1);
+      sheet.addRow(headerRow2);
+
+      // Merge header rows
+      for (let col = 1; col <= 9; col++) {
+        sheet.mergeCells(1, col, 2, col);
+      }
+      sheet.mergeCells(1, 10, 1, 13); // Week 1 title
+      sheet.mergeCells(1, 14, 1, 17); // Week 2 title
+      sheet.mergeCells(1, 18, 2, 18); // Reporting to MJP
+      
+      // Style headers
+      const alignCenter = { vertical: 'middle', horizontal: 'center' };
+      sheet.getRow(1).font = { bold: true };
+      sheet.getRow(1).alignment = alignCenter as any;
+      sheet.getRow(2).font = { bold: true };
+      sheet.getRow(2).alignment = alignCenter as any;
+
+      // Add Data Rows
+      let srNo = 1;
+      let currentRowIdx = 3;
+
+      for (const [vKey, vEsrs] of villageGroups.entries()) {
+        const esrArray = Array.isArray(vEsrs) ? vEsrs : [vEsrs]; // ensure it's an array
+        const villageStartRow = currentRowIdx;
+
+        const w1DatesStr = weekDatesDisplay.slice(0, 7).join('\n');
+        const w2DatesStr = weekDatesDisplay.slice(7, 14).join('\n');
+        
+        const firstEsr = esrArray[0];
+        const w1LpcdArr = weekDatesDB.slice(0, 7).map(dbDate => {
+           const lpcdKey = `${firstEsr.scheme_id}_${firstEsr.village_name?.trim()}_${dbDate}`;
+           const val = lpcdMap.has(lpcdKey) ? lpcdMap.get(lpcdKey) : null;
+           return val !== null ? (val < 55 ? 'YES' : 'NO') : 'No Value';
+        });
+        const w2LpcdArr = weekDatesDB.slice(7, 14).map(dbDate => {
+           const lpcdKey = `${firstEsr.scheme_id}_${firstEsr.village_name?.trim()}_${dbDate}`;
+           const val = lpcdMap.has(lpcdKey) ? lpcdMap.get(lpcdKey) : null;
+           return val !== null ? (val < 55 ? 'YES' : 'NO') : 'No Value';
+        });
+
+        const buildLpcdRichText = (arr: string[]) => ({
+            richText: arr.map((val, idx) => {
+                const text = val + (idx < arr.length - 1 ? '\n' : '');
+                if (val === 'YES') {
+                    return { text, font: { color: { argb: 'FFFF0000' } } };
+                }
+                return { text };
+            })
+        });
+
+        for (let i = 0; i < esrArray.length; i++) {
+          const esr = esrArray[i];
+          const esrStartRow = currentRowIdx;
+          
+          const mjpStaff = [];
+          if (esr.civil_engineer_name) mjpStaff.push(esr.civil_engineer_name + ' ( Civil )');
+          if (esr.mechanical_engineer_name) mjpStaff.push(esr.mechanical_engineer_name + ' ( Mech )');
+          const mjpStaffText = mjpStaff.length > 0 ? mjpStaff.join('\\n') : 'No Value';
+
+          for (let r = 0; r < 7; r++) {
+            const rowData = [
+               (i === 0 && r === 0) ? srNo : '',
+               (i === 0 && r === 0) ? (esr.circle || '') : '',
+               (i === 0 && r === 0) ? (esr.division || '') : '',
+               (i === 0 && r === 0) ? (esr.sub_division || '') : '',
+               (i === 0 && r === 0) ? (esr.block || '') : '',
+               (i === 0 && r === 0) ? (esr.scheme_id || '') : '',
+               (i === 0 && r === 0) ? (esr.scheme_name || '') : '',
+               (i === 0 && r === 0) ? (esr.village_name || '') : '',
+               r === 0 ? (esr.esr_name || '') : ''
+            ];
+
+             const w1Idx = r;
+             const w1DbDate = weekDatesDB[w1Idx];
+             const clKey1 = `${esr.scheme_id}_${esr.esr_name?.trim()}_${w1DbDate}`;
+             const ptKey1 = `${esr.scheme_id}_${esr.esr_name?.trim()}_${w1DbDate}`;
+             const clVal1 = clMap.has(clKey1) ? clMap.get(clKey1) : null;
+             const ptVal1 = ptMap.has(ptKey1) ? ptMap.get(ptKey1) : null;
+
+             if (i === 0 && r === 0) {
+                 rowData.push(w1DatesStr);
+                 rowData.push(''); // Placeholder for LPCD rich text
+             } else {
+                 rowData.push('');
+                 rowData.push('');
+             }
+             rowData.push(clVal1 !== null ? (clVal1 < 0.2 ? 'YES' : 'NO') : 'No Value');
+             rowData.push(ptVal1 !== null ? (ptVal1 < 0.2 ? 'YES' : 'NO') : 'No Value');
+
+             const w2Idx = r + 7;
+             const w2DbDate = weekDatesDB[w2Idx];
+             const clKey2 = `${esr.scheme_id}_${esr.esr_name?.trim()}_${w2DbDate}`;
+             const ptKey2 = `${esr.scheme_id}_${esr.esr_name?.trim()}_${w2DbDate}`;
+             const clVal2 = clMap.has(clKey2) ? clMap.get(clKey2) : null;
+             const ptVal2 = ptMap.has(ptKey2) ? ptMap.get(ptKey2) : null;
+
+             if (i === 0 && r === 0) {
+                 rowData.push(w2DatesStr);
+                 rowData.push(''); // Placeholder for LPCD rich text
+             } else {
+                 rowData.push('');
+                 rowData.push('');
+             }
+             rowData.push(clVal2 !== null ? (clVal2 < 0.2 ? 'YES' : 'NO') : 'No Value');
+             rowData.push(ptVal2 !== null ? (ptVal2 < 0.2 ? 'YES' : 'NO') : 'No Value');
+
+             rowData.push(r === 0 ? mjpStaffText : '');
+
+             const addedRow = sheet.addRow(rowData);
+             addedRow.alignment = alignCenter as any;
+
+             if (i === 0 && r === 0) {
+                 const dateCell1 = addedRow.getCell(10);
+                 dateCell1.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                 const lpcdCell1 = addedRow.getCell(11);
+                 lpcdCell1.value = buildLpcdRichText(w1LpcdArr) as any;
+                 lpcdCell1.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                 
+                 const dateCell2 = addedRow.getCell(14);
+                 dateCell2.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                 const lpcdCell2 = addedRow.getCell(15);
+                 lpcdCell2.value = buildLpcdRichText(w2LpcdArr) as any;
+                 lpcdCell2.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+             }
+
+             const clCell1 = addedRow.getCell(12);
+             if (clCell1.value === 'YES') clCell1.font = { color: { argb: 'FFFF0000' } };
+             const ptCell1 = addedRow.getCell(13);
+             if (ptCell1.value === 'YES') ptCell1.font = { color: { argb: 'FFFF0000' } };
+
+             const clCell2 = addedRow.getCell(16);
+             if (clCell2.value === 'YES') clCell2.font = { color: { argb: 'FFFF0000' } };
+             const ptCell2 = addedRow.getCell(17);
+             if (ptCell2.value === 'YES') ptCell2.font = { color: { argb: 'FFFF0000' } };
+
+             currentRowIdx++;
+          }
+          
+          const esrEndRow = currentRowIdx - 1;
+          if (esrEndRow > esrStartRow) {
+             sheet.mergeCells(esrStartRow, 9, esrEndRow, 9); // Merge ESR Name
+             sheet.mergeCells(esrStartRow, 18, esrEndRow, 18); // Merge Reporting to MJP
+          }
+        }
+        
+        const villageEndRow = currentRowIdx - 1;
+        if (villageEndRow > villageStartRow) {
+            // Merge Village info columns (Sr No to Village Name) across the entire village
+            for (let col = 1; col <= 8; col++) {
+                sheet.mergeCells(villageStartRow, col, villageEndRow, col);
+            }
+            
+            // Merge Date and LPCD across the entire village
+            sheet.mergeCells(villageStartRow, 10, villageEndRow, 10);
+            sheet.mergeCells(villageStartRow, 11, villageEndRow, 11);
+            sheet.mergeCells(villageStartRow, 14, villageEndRow, 14);
+            sheet.mergeCells(villageStartRow, 15, villageEndRow, 15);
+        }
+
+        srNo++;
+      }
+
+      // Add borders
+      sheet.eachRow((row, rowNumber) => {
+        row.eachCell((cell, colNumber) => {
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+        });
+      });
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename="14_Day_History_Report.xlsx"');
+      
+      await workbook.xlsx.write(res);
+      res.end();
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error generating Excel report:', error);
+    res.status(500).json({ error: 'Failed to generate report' });
+  }
+});
+
 export default router;

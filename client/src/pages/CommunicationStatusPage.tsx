@@ -1542,30 +1542,45 @@ export default function CommunicationStatusPage() {
                     <TableBody>
                       {currentSchemes.length > 0 ? (
                         currentSchemes.map(
-                          (scheme: CommunicationScheme, index: number) => (
-                            <TableRow
-                              key={`${scheme.scheme_id}-${scheme.village_name}-${scheme.esr_name}-${index}`}
-                            >
-                              <TableCell className="font-medium">
-                                {scheme.scheme_name}
-                              </TableCell>
-                              <TableCell>{scheme.village_name}</TableCell>
-                              <TableCell>{scheme.lpcd_value_day7 !== undefined && scheme.lpcd_value_day7 !== null ? Number(scheme.lpcd_value_day7).toFixed(1) : "N/A"}</TableCell>
-                              <TableCell>{scheme.esr_name}</TableCell>
-                              <TableCell>
-                                {getStatusBadge(scheme.chlorine_status)}
-                              </TableCell>
-                              <TableCell>{scheme.chlorine_value_7 !== undefined && scheme.chlorine_value_7 !== null ? Number(scheme.chlorine_value_7).toFixed(2) : "N/A"}</TableCell>
-                              <TableCell>
-                                {getStatusBadge(scheme.pressure_status)}
-                              </TableCell>
-                              <TableCell>{scheme.pressure_value_7 !== undefined && scheme.pressure_value_7 !== null ? Number(scheme.pressure_value_7).toFixed(2) : "N/A"}</TableCell>
-                              <TableCell>
-                                {getStatusBadge(scheme.flow_meter_status)}
-                              </TableCell>
-                              <TableCell>{scheme.water_value_day7 !== undefined && scheme.water_value_day7 !== null ? Number(scheme.water_value_day7).toFixed(2) : "N/A"}</TableCell>
-                            </TableRow>
-                          ),
+                          (scheme: CommunicationScheme, index: number) => {
+                            const isWaterZero = scheme.water_value_day7 !== undefined && scheme.water_value_day7 !== null && scheme.water_value_day7 !== "" && Number(scheme.water_value_day7) === 0;
+                            return (
+                              <TableRow
+                                key={`${scheme.scheme_id}-${scheme.village_name}-${scheme.esr_name}-${index}`}
+                              >
+                                <TableCell className="font-medium">
+                                  {scheme.scheme_name}
+                                </TableCell>
+                                <TableCell>{scheme.village_name}</TableCell>
+                                <TableCell>{scheme.lpcd_value_day7 !== undefined && scheme.lpcd_value_day7 !== null ? Number(scheme.lpcd_value_day7).toFixed(1) : "N/A"}</TableCell>
+                                <TableCell>{scheme.esr_name}</TableCell>
+                                <TableCell>
+                                  {getStatusBadge(scheme.chlorine_status)}
+                                </TableCell>
+                                <TableCell>
+                                  {isWaterZero
+                                    ? "N/A"
+                                    : (scheme.chlorine_value_7 !== undefined && scheme.chlorine_value_7 !== null
+                                      ? Number(scheme.chlorine_value_7).toFixed(2)
+                                      : "N/A")}
+                                </TableCell>
+                                <TableCell>
+                                  {getStatusBadge(scheme.pressure_status)}
+                                </TableCell>
+                                <TableCell>
+                                  {isWaterZero
+                                    ? "N/A"
+                                    : (scheme.pressure_value_7 !== undefined && scheme.pressure_value_7 !== null
+                                      ? Number(scheme.pressure_value_7).toFixed(2)
+                                      : "N/A")}
+                                </TableCell>
+                                <TableCell>
+                                  {getStatusBadge(scheme.flow_meter_status)}
+                                </TableCell>
+                                <TableCell>{scheme.water_value_day7 !== undefined && scheme.water_value_day7 !== null ? Number(scheme.water_value_day7).toFixed(2) : "N/A"}</TableCell>
+                              </TableRow>
+                            );
+                          }
                         )
                       ) : (
                         <TableRow>

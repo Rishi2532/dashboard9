@@ -16,7 +16,8 @@ import {
   Waves,
   Droplets,
   GaugeCircle,
-  History
+  History,
+  Download
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -92,6 +93,7 @@ export default function AlertsProgressPage() {
   const [activeSubTab, setActiveSubTab] = useState<"current" | "previous">("current");
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [isDownloading, setIsDownloading] = useState(false);
   
   const [selectedRemarkDetails, setSelectedRemarkDetails] = useState<{
     title: string;
@@ -102,6 +104,20 @@ export default function AlertsProgressPage() {
     title: string;
     row: AlertData;
   } | null>(null);
+
+  const handleDownloadReport = async () => {
+    setIsDownloading(true);
+    try {
+      window.location.href = "/api/alerts-progress/download-14-day-report";
+      // Adding a small delay to simulate loading for the user since window.location.href doesn't give a callback
+      setTimeout(() => {
+        setIsDownloading(false);
+      }, 2000);
+    } catch (error) {
+      console.error("Failed to download report", error);
+      setIsDownloading(false);
+    }
+  };
 
   // Queries for each metric
   const { data: lpcdData = [], isLoading: isLoadingLpcd } = useQuery<AlertData[]>({
@@ -631,28 +647,48 @@ export default function AlertsProgressPage() {
               </p>
             </div>
             
-            <div className="flex items-center gap-2 p-1 bg-white border border-slate-200 rounded-lg shadow-sm">
-              <Button 
-                variant={activeSubTab === "current" ? "default" : "ghost"} 
-                className={`h-9 px-4 text-sm font-semibold rounded-md ${activeSubTab === "current" ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
-                onClick={() => {
-                  setActiveSubTab("current");
-                  setPage(1);
-                }}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 p-1 bg-white border border-slate-200 rounded-lg shadow-sm">
+                <Button 
+                  variant={activeSubTab === "current" ? "default" : "ghost"} 
+                  className={`h-9 px-4 text-sm font-semibold rounded-md ${activeSubTab === "current" ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+                  onClick={() => {
+                    setActiveSubTab("current");
+                    setPage(1);
+                  }}
+                >
+                  <Calendar className="mr-2 h-4 w-4" />
+                  Current Day
+                </Button>
+                <Button 
+                  variant={activeSubTab === "previous" ? "default" : "ghost"} 
+                  className={`h-9 px-4 text-sm font-semibold rounded-md ${activeSubTab === "previous" ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+                  onClick={() => {
+                    setActiveSubTab("previous");
+                    setPage(1);
+                  }}
+                >
+                  <History className="mr-2 h-4 w-4" />
+                  Previous Day
+                </Button>
+              </div>
+
+              <Button
+                onClick={handleDownloadReport}
+                disabled={isDownloading}
+                className="h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm border border-emerald-700/50"
               >
-                <Calendar className="mr-2 h-4 w-4" />
-                Current Day
-              </Button>
-              <Button 
-                variant={activeSubTab === "previous" ? "default" : "ghost"} 
-                className={`h-9 px-4 text-sm font-semibold rounded-md ${activeSubTab === "previous" ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
-                onClick={() => {
-                  setActiveSubTab("previous");
-                  setPage(1);
-                }}
-              >
-                <History className="mr-2 h-4 w-4" />
-                Previous Day
+                {isDownloading ? (
+                  <span className="flex items-center gap-2">
+                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Generating...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <Download className="h-4 w-4" />
+                    Download 14-Day Report
+                  </span>
+                )}
               </Button>
             </div>
           </div>

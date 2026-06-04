@@ -2127,6 +2127,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         total_esr: scheme.total_esr_integrated || 0,
         completed_esr: scheme.no_fully_completed_esr || 0,
         number_of_village: scheme.number_of_village || 0, // Add the number_of_village field
+        water_supply: scheme.water_supply,
+        agency_type: scheme.agency_type,
+        water_supply_status: scheme.water_supply_status,
       }));
 
       console.log(`Returning ${schemeStatusData.length} scheme status records`);
