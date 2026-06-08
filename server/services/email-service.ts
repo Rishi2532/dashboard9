@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import nodemailer from "nodemailer";
 import { randomBytes } from "crypto";
+import pg from "pg";
 
 /** Generate a cryptographically secure unique token for one-click acknowledgement links */
 export function generateAcknowledgeToken(): string {
@@ -530,4 +531,161 @@ export async function sendDailyAlertEmail(
       Importance: "High",
     },
   });
+}
+
+export async function sendOfflineSensorsEmail(
+  vendorEmail: string,
+  vendorName: string,
+  region: string,
+  sensors: any[]
+): Promise<boolean> {
+  const subject = `🚨 Offline Sensors Alert - ${region} Region - JJM SWSM Maharashtra`;
+  
+  let sensorsHtml = '';
+  sensors.forEach((sensor, index) => {
+    sensorsHtml += `
+      <tr style="border-bottom: 1px solid #e2e8f0;">
+        <td style="padding: 10px; font-size: 14px; color: #1e293b; text-align: center;">${index + 1}</td>
+        <td style="padding: 10px; font-size: 14px; color: #1e293b;">
+          <strong>${sensor.scheme_name}</strong><br>
+          <span style="font-size: 12px; color: #64748b;">ID: ${sensor.scheme_id}</span>
+        </td>
+        <td style="padding: 10px; font-size: 14px; color: #1e293b;">
+          ${sensor.village_name || 'N/A'}${sensor.esr_name ? ` (${sensor.esr_name})` : ''}
+        </td>
+        <td style="padding: 10px; font-size: 14px; color: #dc2626; font-weight: bold; text-align: center;">
+          ${sensor.offline_sensors}
+        </td>
+      </tr>
+    `;
+  });
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+      <div style="background-color: #dc2626; color: white; padding: 20px; text-align: center;">
+        <h1 style="margin: 0; font-size: 24px;">⚠️ JJM SWSM IoT Maharashtra</h1>
+        <p style="margin: 5px 0 0 0; opacity: 0.9; font-size: 16px;">OFFLINE SENSORS REPORT - REGION: ${region.toUpperCase()}</p>
+      </div>
+
+      <div style="padding: 30px; background-color: #ffffff;">
+        <h2 style="color: #1f2937; margin-top: 0;">Hello ${vendorName},</h2>
+        <p style="color: #374151; font-size: 16px;">The following IoT sensors in the <strong>${region}</strong> region are currently offline. Please investigate and restore connectivity as soon as possible.</p>
+
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0; border: 1px solid #cbd5e1;">
+          <thead>
+            <tr style="background-color: #f1f5f9; border-bottom: 2px solid #cbd5e1;">
+              <th style="padding: 10px; text-align: center; font-size: 12px; font-weight: bold; color: #475569; width: 40px; border: 1px solid #cbd5e1;">#</th>
+              <th style="padding: 10px; text-align: left; font-size: 12px; font-weight: bold; color: #475569; border: 1px solid #cbd5e1;">Scheme Name</th>
+              <th style="padding: 10px; text-align: left; font-size: 12px; font-weight: bold; color: #475569; border: 1px solid #cbd5e1;">Location (ESR)</th>
+              <th style="padding: 10px; text-align: center; font-size: 12px; font-weight: bold; color: #475569; border: 1px solid #cbd5e1;">Offline Sensors</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sensorsHtml}
+          </tbody>
+        </table>
+
+        <div style="background-color: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 20px 0;">
+          <p style="margin: 0; color: #92400e;"><strong>⏰ Action Required:</strong></p>
+          <p style="margin: 5px 0 0 0; color: #92400e;">Please verify the physical and network status of the offline devices listed above. Once connectivity is restored, verify that the telemetry data appears online on the central dashboard.</p>
+        </div>
+
+        <p style="color: #374151;">This is an automated notification from Maharashtra Water Infrastructure Management Platform.</p>
+      </div>
+    </div>
+  `;
+
+  return sendEmail({
+    to: vendorEmail,
+    from: "Maharashtra Water Alert",
+    subject,
+    html,
+    headers: {
+      "X-Priority": "1",
+      "X-MSMail-Priority": "High",
+      Importance: "High",
+    },
+  });
+}
+
+export async function sendAutomaticOfflineEmails(): Promise<void> {
+  const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+  const client = await pool.connect();
+  
+  try {
+    // Fetch all offline sensors and their single assigned vendor per region
+    const query = `
+      SELECT 
+        c.scheme_id,
+        c.scheme_name,
+        c.region,
+        c.village_name,
+        c.esr_name,
+        c.chlorine_status,
+        c.pressure_status,
+        c.flow_meter_status,
+        v.employee_name as vendor_name,
+        v.email as vendor_email
+      FROM communication_status c
+      INNER JOIN (
+        SELECT DISTINCT ON (region) region, employee_name, email
+        FROM vendor
+        ORDER BY region, id
+      ) v ON c.region = v.region
+      WHERE c.chlorine_status = 'Offline' 
+         OR c.pressure_status = 'Offline' 
+         OR c.flow_meter_status = 'Offline'
+      ORDER BY c.region, c.scheme_name;
+    `;
+    const res = await client.query(query);
+    const rows = res.rows;
+    
+    if (rows.length === 0) {
+      console.log("No offline sensors found to notify vendors.");
+      return;
+    }
+    
+    // Group the offline sensors by vendor email
+    const vendorGroups: Record<string, { vendorName: string; region: string; sensors: any[] }> = {};
+    
+    rows.forEach((row: any) => {
+      const email = row.vendor_email;
+      if (!email || !email.includes('@')) return;
+      
+      if (!vendorGroups[email]) {
+        vendorGroups[email] = {
+          vendorName: row.vendor_name,
+          region: row.region,
+          sensors: []
+        };
+      }
+      
+      const offlineSensorsList: string[] = [];
+      if (row.chlorine_status === 'Offline') offlineSensorsList.push('Chlorine');
+      if (row.pressure_status === 'Offline') offlineSensorsList.push('Pressure');
+      if (row.flow_meter_status === 'Offline') offlineSensorsList.push('Flow Meter');
+      
+      vendorGroups[email].sensors.push({
+        scheme_id: row.scheme_id,
+        scheme_name: row.scheme_name,
+        village_name: row.village_name,
+        esr_name: row.esr_name,
+        offline_sensors: offlineSensorsList.join(', ')
+      });
+    });
+    
+    // Send email to each vendor with their consolidated list
+    for (const email of Object.keys(vendorGroups)) {
+      const { vendorName, region, sensors } = vendorGroups[email];
+      
+      console.log(`Sending offline sensors report to vendor ${vendorName} (${email}) for region ${region}...`);
+      await sendOfflineSensorsEmail(email, vendorName, region, sensors);
+    }
+    
+  } catch (error) {
+    console.error("Error in sendAutomaticOfflineEmails:", error);
+  } finally {
+    client.release();
+    await pool.end();
+  }
 }

@@ -1,7 +1,7 @@
 -- Create email_acknowledgements table for tracking engineer acknowledgements
 CREATE TABLE IF NOT EXISTS email_acknowledgements (
   id SERIAL PRIMARY KEY,
-  token VARCHAR(128) NOT NULL UNIQUE,
+  token VARCHAR(128) NOT NULL,
   scheme_id VARCHAR(50) NOT NULL,
   alert_type VARCHAR(20) NOT NULL, -- 'LPCD', 'Chlorine', 'Pressure'
   engineer_email VARCHAR(255) NOT NULL,

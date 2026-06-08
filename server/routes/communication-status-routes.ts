@@ -7,6 +7,7 @@ import multer from "multer";
 import * as csv from "csv-parse";
 import fs from "fs";
 import { getFilteredSchemeIds } from "./filter-utils";
+import { sendAutomaticOfflineEmails } from "../services/email-service";
 
 const router = Router();
 const upload = multer({ dest: "uploads/" });
@@ -563,6 +564,15 @@ router.post("/import", upload.single("file"), async (req, res) => {
     console.log(
       `Successfully imported communication status records: ${inserted} inserted, ${updated} updated`,
     );
+
+    // Automatically send offline sensor emails to vendors
+    try {
+      console.log("Starting automatic email notifications for offline sensors...");
+      await sendAutomaticOfflineEmails();
+    } catch (emailErr) {
+      console.error("Failed to send automatic offline sensor emails:", emailErr);
+    }
+
     res.json({
       message: "Communication status data imported successfully",
       inserted,

@@ -150,9 +150,18 @@ export default function AlertsProgressPage() {
     },
   });
 
+  const { data: offlineData = [], isLoading: isLoadingOffline } = useQuery<AlertData[]>({
+    queryKey: ["/api/alerts-progress/offline"],
+    queryFn: async () => {
+      const res = await fetch("/api/alerts-progress/offline");
+      return res.json();
+    },
+  });
+
   // Helper to filter data based on strict literal calendar dates
-  const getFilteredData = (data: AlertData[], type: "lpcd" | "chlorine" | "pressure") => {
+  const getFilteredData = (data: AlertData[], type: "lpcd" | "chlorine" | "pressure" | "offline") => {
     if (!data || data.length === 0) return [];
+    if (type === "offline") return data;
 
     const todayStr = new Date().toDateString();
     
@@ -187,7 +196,8 @@ export default function AlertsProgressPage() {
     }
   };
 
-  const isStillFailing = (row: AlertData, type: "lpcd" | "chlorine" | "pressure") => {
+  const isStillFailing = (row: AlertData, type: "lpcd" | "chlorine" | "pressure" | "offline") => {
+    if (type === "offline") return true;
     const val = Number(row.current_value);
     if (type === "lpcd") return val < 55 || val === 0;
     return val < 0.2;
@@ -277,7 +287,7 @@ export default function AlertsProgressPage() {
 
   const renderDataTable = (
     rawData: AlertData[],
-    type: "lpcd" | "chlorine" | "pressure",
+    type: "lpcd" | "chlorine" | "pressure" | "offline",
     isLoading: boolean
   ) => {
     if (isLoading) {
@@ -296,7 +306,9 @@ export default function AlertsProgressPage() {
             Everything is looking great!
           </h3>
           <p className="text-slate-500 max-w-sm">
-            {activeSubTab === "current"
+            {type === "offline"
+              ? "All IoT sensors are currently online. No communication dropouts reported."
+              : activeSubTab === "current"
               ? "All parameters are perfectly within normal ranges today. No alerts were triggered."
               : activeSubTab === "previous"
               ? "No emails were sent out yesterday. All systems were stable."
@@ -308,7 +320,7 @@ export default function AlertsProgressPage() {
 
     // Calculations for KPIs
     const totalSchemes = data.length;
-    const firstKpiLabel = type === "lpcd" ? "Total Villages" : "Total Sensors";
+    const firstKpiLabel = type === "lpcd" ? "Total Villages" : type === "offline" ? "Offline Records" : "Total Sensors";
     const firstKpiValue = type === "lpcd" 
       ? data.reduce((acc, row) => {
           if (typeof row.village_name === 'string') {
@@ -317,7 +329,7 @@ export default function AlertsProgressPage() {
           return acc + 1;
         }, 0)
       : data.length;
-    const alertValueLabel = type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : "Pressure";
+    const alertValueLabel = type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : type === "pressure" ? "Pressure" : "Offline Sensors";
     
     // Count unique engineers
     const engineersSet = new Set<string>();
@@ -392,8 +404,12 @@ export default function AlertsProgressPage() {
               <tr className="bg-slate-100/50 border-b border-slate-200">
                 <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200 w-12">#</th>
                 <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200">Scheme Details</th>
-                <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200">Alert Value ({alertValueLabel})</th>
-                <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200">Notified Engineers</th>
+                <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200">
+                  {type === "offline" ? "Offline Sensors" : `Alert Value (${alertValueLabel})`}
+                </th>
+                <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200">
+                  {type === "offline" ? "Assigned Vendor" : "Notified Engineers"}
+                </th>
                 <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200">Remarks</th>
               </tr>
             </thead>
@@ -445,24 +461,42 @@ export default function AlertsProgressPage() {
                     </td>
 
                     <td className="py-4 px-6 align-middle text-center border-x border-slate-200">
-                      <div className="flex flex-col gap-1.5 w-full max-w-[140px] mx-auto">
-                        <div className="flex items-center justify-between text-xs bg-slate-50 px-2 py-1.5 rounded border border-slate-100">
-                          <span className="text-slate-500 font-medium">
-                            {activeSubTab === "current" ? "Alert Value" : rowTodayStr}
-                          </span>
-                          <span className="font-semibold text-slate-700">{row.historical_value ?? row.previous_value ?? "N/A"}</span>
+                      {type === "offline" ? (
+                        <div className="flex flex-wrap justify-center gap-1.5">
+                          {String(row.current_value).split(', ').map((sensor) => (
+                            <span key={sensor} className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-rose-50 text-rose-600 border border-rose-100 shadow-sm">
+                              {sensor}
+                            </span>
+                          ))}
                         </div>
-                        <div className="flex items-center justify-between text-xs bg-indigo-50/50 px-2 py-1.5 rounded border border-indigo-100">
-                          <span className="text-slate-500 font-medium">
-                            {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                          </span>
-                          <span className={`font-bold ${failing ? 'text-rose-600' : 'text-emerald-600'}`}>{row.current_value ?? "N/A"}</span>
+                      ) : (
+                        <div className="flex flex-col gap-1.5 w-full max-w-[140px] mx-auto">
+                          <div className="flex items-center justify-between text-xs bg-slate-50 px-2 py-1.5 rounded border border-slate-100">
+                            <span className="text-slate-500 font-medium">
+                              {activeSubTab === "current" ? "Alert Value" : rowTodayStr}
+                            </span>
+                            <span className="font-semibold text-slate-700">{row.historical_value ?? row.previous_value ?? "N/A"}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs bg-indigo-50/50 px-2 py-1.5 rounded border border-indigo-100">
+                            <span className="text-slate-500 font-medium">
+                              {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                            </span>
+                            <span className={`font-bold ${failing ? 'text-rose-600' : 'text-emerald-600'}`}>{row.current_value ?? "N/A"}</span>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </td>
 
                     <td className="py-4 px-6 align-top text-center border-x border-slate-200">
-                      {failing ? (
+                      {type === "offline" ? (
+                        <div className="flex flex-col items-center">
+                          <div className="flex items-center justify-center gap-1.5 text-sm font-bold text-slate-900">
+                            <div className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                            Offline
+                          </div>
+                          <div className="text-xs text-slate-500 mt-1 font-semibold">Vendor Attention</div>
+                        </div>
+                      ) : failing ? (
                         <div className="flex flex-col items-center">
                           <div className="flex items-center justify-center gap-1.5 text-sm font-bold text-slate-900">
                             <div className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
@@ -498,7 +532,24 @@ export default function AlertsProgressPage() {
 
                         return (
                           <div className="flex items-center justify-center gap-2 mt-1">
-                            {hasEngineers ? (
+                            {type === "offline" ? (
+                              <>
+                                <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-md text-xs font-bold bg-blue-50 text-blue-600 border border-blue-100">
+                                  Vendor Notified
+                                </span>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-7 w-7 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 shrink-0 border border-indigo-100"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedEngineers({ title: row.scheme_name, row });
+                                  }}
+                                >
+                                  <Eye className="h-3.5 w-3.5" />
+                                </Button>
+                              </>
+                            ) : hasEngineers ? (
                               <>
                                 {activeSubTab === 'current' && trueTotal > 0 ? (
                                   <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-md text-xs font-bold border ${isAllAckd ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
@@ -638,10 +689,11 @@ export default function AlertsProgressPage() {
             setActiveTab(val);
             setPage(1);
           }} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 max-w-xl mb-8 border border-slate-200 shadow-sm bg-white p-1 rounded-lg">
+            <TabsList className="grid w-full grid-cols-4 max-w-2xl mb-8 border border-slate-200 shadow-sm bg-white p-1 rounded-lg">
               <TabsTrigger value="lpcd" className="rounded-md data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700">Water & LPCD</TabsTrigger>
               <TabsTrigger value="chlorine" className="rounded-md data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700">Chlorine</TabsTrigger>
               <TabsTrigger value="pressure" className="rounded-md data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700">Pressure</TabsTrigger>
+              <TabsTrigger value="offline" className="rounded-md data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700">Offline</TabsTrigger>
             </TabsList>
           </Tabs>
 
@@ -653,74 +705,82 @@ export default function AlertsProgressPage() {
                   ? "Water & LPCD Alerts"
                   : activeTab === "chlorine"
                   ? "Chlorine Alerts"
-                  : "Pressure Alerts"}
+                  : activeTab === "pressure"
+                  ? "Pressure Alerts"
+                  : "Offline Sensor Alerts"}
               </h1>
               <p className="text-slate-500 text-sm mt-1 font-medium">
-                Schemes currently violating thresholds.
+                {activeTab === "offline"
+                  ? "Sensors currently offline and requiring vendor attention."
+                  : "Schemes currently violating thresholds."}
               </p>
             </div>
             
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 p-1 bg-white border border-slate-200 rounded-lg shadow-sm">
-                <Button 
-                  variant={activeSubTab === "current" ? "default" : "ghost"} 
-                  className={`h-9 px-4 text-sm font-semibold rounded-md ${activeSubTab === "current" ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
-                  onClick={() => {
-                    setActiveSubTab("current");
-                    setPage(1);
-                  }}
-                >
-                  <Calendar className="mr-2 h-4 w-4" />
-                  Current Day
-                </Button>
-                <Button 
-                  variant={activeSubTab === "previous" ? "default" : "ghost"} 
-                  className={`h-9 px-4 text-sm font-semibold rounded-md ${activeSubTab === "previous" ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
-                  onClick={() => {
-                    setActiveSubTab("previous");
-                    setPage(1);
-                  }}
-                >
-                  <History className="mr-2 h-4 w-4" />
-                  Previous Day
-                </Button>
-                
-                <div className="h-6 w-px bg-slate-200 mx-1"></div>
-                
-                <input 
-                  type="date"
-                  value={customDate}
-                  onChange={(e) => {
-                    setCustomDate(e.target.value);
-                    if (e.target.value) {
-                      setActiveSubTab("custom");
-                      setPage(1);
-                    } else {
-                      setActiveSubTab("current");
-                      setPage(1);
-                    }
-                  }}
-                  className={`h-9 px-3 text-sm font-medium rounded-md border-0 outline-none cursor-pointer transition-colors ${activeSubTab === "custom" ? 'bg-blue-600 text-white shadow-sm' : 'bg-transparent text-slate-600 hover:bg-slate-50'}`}
-                />
-              </div>
+              {activeTab !== "offline" && (
+                <>
+                  <div className="flex items-center gap-2 p-1 bg-white border border-slate-200 rounded-lg shadow-sm">
+                    <Button 
+                      variant={activeSubTab === "current" ? "default" : "ghost"} 
+                      className={`h-9 px-4 text-sm font-semibold rounded-md ${activeSubTab === "current" ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+                      onClick={() => {
+                        setActiveSubTab("current");
+                        setPage(1);
+                      }}
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      Current Day
+                    </Button>
+                    <Button 
+                      variant={activeSubTab === "previous" ? "default" : "ghost"} 
+                      className={`h-9 px-4 text-sm font-semibold rounded-md ${activeSubTab === "previous" ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+                      onClick={() => {
+                        setActiveSubTab("previous");
+                        setPage(1);
+                      }}
+                    >
+                      <History className="mr-2 h-4 w-4" />
+                      Previous Day
+                    </Button>
+                    
+                    <div className="h-6 w-px bg-slate-200 mx-1"></div>
+                    
+                    <input 
+                      type="date"
+                      value={customDate}
+                      onChange={(e) => {
+                        setCustomDate(e.target.value);
+                        if (e.target.value) {
+                          setActiveSubTab("custom");
+                          setPage(1);
+                        } else {
+                          setActiveSubTab("current");
+                          setPage(1);
+                        }
+                      }}
+                      className={`h-9 px-3 text-sm font-medium rounded-md border-0 outline-none cursor-pointer transition-colors ${activeSubTab === "custom" ? 'bg-blue-600 text-white shadow-sm' : 'bg-transparent text-slate-600 hover:bg-slate-50'}`}
+                    />
+                  </div>
 
-              <Button
-                onClick={handleDownloadReport}
-                disabled={isDownloading}
-                className="h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm border border-emerald-700/50"
-              >
-                {isDownloading ? (
-                  <span className="flex items-center gap-2">
-                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Generating...
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-2">
-                    <Download className="h-4 w-4" />
-                    Download 14-Day Report
-                  </span>
-                )}
-              </Button>
+                  <Button
+                    onClick={handleDownloadReport}
+                    disabled={isDownloading}
+                    className="h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm border border-emerald-700/50"
+                  >
+                    {isDownloading ? (
+                      <span className="flex items-center gap-2">
+                        <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Generating...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <Download className="h-4 w-4" />
+                        Download 14-Day Report
+                      </span>
+                    )}
+                  </Button>
+                </>
+              )}
             </div>
           </div>
 
@@ -729,6 +789,7 @@ export default function AlertsProgressPage() {
             {activeTab === "lpcd" && renderDataTable(lpcdData, "lpcd", isLoadingLpcd)}
             {activeTab === "chlorine" && renderDataTable(chlorineData, "chlorine", isLoadingChlorine)}
             {activeTab === "pressure" && renderDataTable(pressureData, "pressure", isLoadingPressure)}
+            {activeTab === "offline" && renderDataTable(offlineData, "offline", isLoadingOffline)}
           </div>
 
           {/* Remark Details Dialog */}
@@ -844,7 +905,7 @@ export default function AlertsProgressPage() {
                 <DialogHeader className="border-b border-slate-100 pb-4">
                   <DialogTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
                     <Users className="h-5 w-5 text-indigo-500" />
-                    Notified Engineers
+                    {activeTab === "offline" ? "Assigned Vendor Details" : "Notified Engineers"}
                   </DialogTitle>
                   <DialogDescription className="text-slate-500 font-medium">
                     {selectedEngineers.title}
@@ -861,9 +922,19 @@ export default function AlertsProgressPage() {
                     
                     return (
                       <>
-                        {selectedEngineers.row.civil_engineer_name ? renderEngineerContact(selectedEngineers.row.civil_engineer_name, selectedEngineers.row.civil_engineer_email, "Civil Engineer", getAckStatus(selectedEngineers.row.civil_engineer_email)) : <div className="text-sm text-slate-500 py-2 border-b border-slate-50">No Civil Engineer assigned</div>}
-                        {selectedEngineers.row.mechanical_engineer_name ? renderEngineerContact(selectedEngineers.row.mechanical_engineer_name, selectedEngineers.row.mechanical_engineer_email, "Mechanical Engineer", getAckStatus(selectedEngineers.row.mechanical_engineer_email)) : <div className="text-sm text-slate-500 py-2 border-b border-slate-50">No Mechanical Engineer assigned</div>}
-                        {selectedEngineers.row.site_supervisor_name ? renderEngineerContact(selectedEngineers.row.site_supervisor_name, selectedEngineers.row.site_supervisor_email, "Site Supervisor", getAckStatus(selectedEngineers.row.site_supervisor_email)) : <div className="text-sm text-slate-500 py-2">No Site Supervisor assigned</div>}
+                        {activeTab === "offline" ? (
+                          selectedEngineers.row.civil_engineer_name ? (
+                            renderEngineerContact(selectedEngineers.row.civil_engineer_name, selectedEngineers.row.civil_engineer_email, "Assigned Vendor")
+                          ) : (
+                            <div className="text-sm text-slate-500 py-2">No Vendor assigned</div>
+                          )
+                        ) : (
+                          <>
+                            {selectedEngineers.row.civil_engineer_name ? renderEngineerContact(selectedEngineers.row.civil_engineer_name, selectedEngineers.row.civil_engineer_email, "Civil Engineer", getAckStatus(selectedEngineers.row.civil_engineer_email)) : <div className="text-sm text-slate-500 py-2 border-b border-slate-50">No Civil Engineer assigned</div>}
+                            {selectedEngineers.row.mechanical_engineer_name ? renderEngineerContact(selectedEngineers.row.mechanical_engineer_name, selectedEngineers.row.mechanical_engineer_email, "Mechanical Engineer", getAckStatus(selectedEngineers.row.mechanical_engineer_email)) : <div className="text-sm text-slate-500 py-2 border-b border-slate-50">No Mechanical Engineer assigned</div>}
+                            {selectedEngineers.row.site_supervisor_name ? renderEngineerContact(selectedEngineers.row.site_supervisor_name, selectedEngineers.row.site_supervisor_email, "Site Supervisor", getAckStatus(selectedEngineers.row.site_supervisor_email)) : <div className="text-sm text-slate-500 py-2">No Site Supervisor assigned</div>}
+                          </>
+                        )}
                       </>
                     );
                   })()}

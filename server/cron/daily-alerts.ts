@@ -240,8 +240,7 @@ export async function runDailyAlertsJob() {
             engineer_name VARCHAR(255),
             sent_date DATE NOT NULL DEFAULT CURRENT_DATE,
             acknowledged_at TIMESTAMP WITH TIME ZONE,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            UNIQUE(scheme_id, engineer_email, sent_date)
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
           );
           CREATE INDEX IF NOT EXISTS idx_email_acknowledgements_token ON email_acknowledgements(token);
           CREATE INDEX IF NOT EXISTS idx_email_acknowledgements_scheme ON email_acknowledgements(scheme_id, alert_type, sent_date);

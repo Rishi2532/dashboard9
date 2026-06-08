@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS public.email_alert_logs (
     site_supervisor_email VARCHAR(255),
     sent_date DATE NOT NULL DEFAULT CURRENT_DATE,
     sent_time TIME NOT NULL DEFAULT CURRENT_TIME,
+    ticket_id VARCHAR(100) UNIQUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

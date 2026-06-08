@@ -268,6 +268,79 @@ router.get('/pressure', async (req, res) => {
   }
 });
 
+router.get('/offline', async (req, res) => {
+  try {
+    const client = await pool.connect();
+    try {
+      const query = `
+        SELECT 
+          c.id,
+          c.scheme_id,
+          c.scheme_name,
+          c.region,
+          c.village_name,
+          c.esr_name,
+          c.chlorine_status,
+          c.pressure_status,
+          c.flow_meter_status,
+          c.chlorine_connected,
+          c.pressure_connected,
+          c.flow_meter_connected,
+          c.last_seen,
+          c.pressure_last_seen,
+          v.employee_name as civil_engineer_name,
+          v.email as civil_engineer_email,
+          v.phone as civil_engineer_mobile
+        FROM communication_status c
+        LEFT JOIN (
+          SELECT DISTINCT ON (region) region, employee_name, email, phone
+          FROM vendor
+          ORDER BY region, id
+        ) v ON c.region = v.region
+        WHERE c.chlorine_status = 'Offline' 
+           OR c.pressure_status = 'Offline' 
+           OR c.flow_meter_status = 'Offline'
+        ORDER BY c.region, c.scheme_name, c.village_name;
+      `;
+      const result = await client.query(query);
+      
+      const mappedRows = result.rows.map((row: any) => {
+        const offlineList: string[] = [];
+        if (row.chlorine_status === 'Offline') offlineList.push('Chlorine');
+        if (row.pressure_status === 'Offline') offlineList.push('Pressure');
+        if (row.flow_meter_status === 'Offline') offlineList.push('Flow Meter');
+        
+        return {
+          scheme_id: row.scheme_id,
+          scheme_name: row.scheme_name,
+          region: row.region,
+          village_name: row.village_name,
+          esr_name: row.esr_name,
+          current_value: offlineList.join(', '),
+          previous_value: null,
+          historical_value: null,
+          civil_engineer_name: row.civil_engineer_name || 'No Vendor Assigned',
+          civil_engineer_email: row.civil_engineer_email || null,
+          civil_engineer_mobile: row.civil_engineer_mobile || null,
+          mechanical_engineer_name: null,
+          mechanical_engineer_email: null,
+          site_supervisor_name: null,
+          site_supervisor_email: null,
+          created_at: new Date().toISOString(),
+          remarks: []
+        };
+      });
+      
+      res.json(mappedRows);
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error fetching Offline alerts progress:', error);
+    res.status(500).json({ error: 'Failed to fetch Offline alerts progress' });
+  }
+});
+
 router.get('/download-14-day-report', async (req, res) => {
   try {
     // Determine the last 14 dates from today
