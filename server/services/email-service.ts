@@ -488,7 +488,7 @@ export async function sendDailyAlertEmail(
       <p style="margin: 0 0 16px 0; color: #166534; font-size: 13px;">Click the button below to confirm you have received and acknowledged all the alerts listed above.</p>
       <a href="${baseUrl}/api/acknowledge?token=${acknowledgeToken}"
          style="display: inline-block; background: #16a34a; color: white; text-decoration: none; padding: 13px 36px; border-radius: 8px; font-size: 15px; font-weight: 700; letter-spacing: 0.3px;">
-        ✅ Acknowledge All Alerts (${alertsData.length} Scheme${alertsData.length > 1 ? 's' : ''})
+        ✅ Acknowledge All Alerts 
       </a>
       <p style="margin: 10px 0 0 0; font-size: 11px; color: #6b7280;">This will mark all the above schemes as acknowledged on the dashboard.</p>
     </div>

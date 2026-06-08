@@ -1450,6 +1450,7 @@ export const emailAlertLogs = pgTable("email_alert_logs", {
   site_supervisor_email: varchar("site_supervisor_email", { length: 255 }),
   sent_date: date("sent_date").defaultNow().notNull(), // e.g. '2026-06-02'
   sent_time: time("sent_time").defaultNow().notNull(), // e.g. '14:55:00'
+  ticket_id: varchar("ticket_id", { length: 100 }).unique(),
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 

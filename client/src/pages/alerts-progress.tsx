@@ -56,6 +56,8 @@ interface AlertData {
   esr_name?: string | null;
   current_value: number | string | null;
   previous_value: number | string | null;
+  historical_value?: number | string | null;
+  ticket_id?: string;
   civil_engineer_name: string | null;
   civil_engineer_email: string | null;
   mechanical_engineer_name: string | null;
@@ -90,7 +92,8 @@ const parseIssues = (rawIssues: any) => {
 
 export default function AlertsProgressPage() {
   const [activeTab, setActiveTab] = useState("lpcd");
-  const [activeSubTab, setActiveSubTab] = useState<"current" | "previous">("current");
+  const [activeSubTab, setActiveSubTab] = useState<"current" | "previous" | "custom">("current");
+  const [customDate, setCustomDate] = useState<string>("");
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -121,25 +124,28 @@ export default function AlertsProgressPage() {
 
   // Queries for each metric
   const { data: lpcdData = [], isLoading: isLoadingLpcd } = useQuery<AlertData[]>({
-    queryKey: ["/api/alerts-progress/lpcd"],
+    queryKey: ["/api/alerts-progress/lpcd", customDate],
     queryFn: async () => {
-      const res = await fetch("/api/alerts-progress/lpcd");
+      const url = customDate ? `/api/alerts-progress/lpcd?date=${customDate}` : "/api/alerts-progress/lpcd";
+      const res = await fetch(url);
       return res.json();
     },
   });
 
   const { data: chlorineData = [], isLoading: isLoadingChlorine } = useQuery<AlertData[]>({
-    queryKey: ["/api/alerts-progress/chlorine"],
+    queryKey: ["/api/alerts-progress/chlorine", customDate],
     queryFn: async () => {
-      const res = await fetch("/api/alerts-progress/chlorine");
+      const url = customDate ? `/api/alerts-progress/chlorine?date=${customDate}` : "/api/alerts-progress/chlorine";
+      const res = await fetch(url);
       return res.json();
     },
   });
 
   const { data: pressureData = [], isLoading: isLoadingPressure } = useQuery<AlertData[]>({
-    queryKey: ["/api/alerts-progress/pressure"],
+    queryKey: ["/api/alerts-progress/pressure", customDate],
     queryFn: async () => {
-      const res = await fetch("/api/alerts-progress/pressure");
+      const url = customDate ? `/api/alerts-progress/pressure?date=${customDate}` : "/api/alerts-progress/pressure";
+      const res = await fetch(url);
       return res.json();
     },
   });
@@ -154,6 +160,10 @@ export default function AlertsProgressPage() {
     const yesterdayDate = new Date();
     yesterdayDate.setDate(yesterdayDate.getDate() - 1);
     const yesterdayStr = yesterdayDate.toDateString();
+
+    if (activeSubTab === "custom") {
+      return data; // Backend already filters by the exact date
+    }
 
     if (activeSubTab === "current") {
       // Current day = Emails sent exactly TODAY (calendar date matches)
@@ -288,7 +298,9 @@ export default function AlertsProgressPage() {
           <p className="text-slate-500 max-w-sm">
             {activeSubTab === "current"
               ? "All parameters are perfectly within normal ranges today. No alerts were triggered."
-              : "No emails were sent out yesterday. All systems were stable."}
+              : activeSubTab === "previous"
+              ? "No emails were sent out yesterday. All systems were stable."
+              : "No emails were sent on this date. All systems were stable."}
           </p>
         </div>
       );
@@ -409,6 +421,13 @@ export default function AlertsProgressPage() {
                         <MapPin className="h-3 w-3 text-slate-400 ml-1" />
                         <span>{row.region}</span>
                       </div>
+                      {row.ticket_id && (
+                        <div className="mt-2">
+                          <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
+                            Ticket: {row.ticket_id}
+                          </span>
+                        </div>
+                      )}
                       {(row.village_name || row.esr_name) && (
                         <div className="mt-2.5 flex flex-wrap justify-center gap-1.5">
                           {row.village_name && (
@@ -425,27 +444,21 @@ export default function AlertsProgressPage() {
                       )}
                     </td>
 
-                    <td className="py-4 px-6 align-top text-center border-x border-slate-200">
-                      {activeSubTab === "previous" ? (
-                        <div className="flex flex-col gap-1.5 w-full max-w-[120px] mx-auto">
-                          <div className="flex items-center justify-between text-xs bg-slate-50 px-2 py-1.5 rounded border border-slate-100">
-                            <span className="text-slate-500 font-medium">{rowYesterdayStr}</span>
-                            <span className="font-semibold text-slate-700">{row.previous_value ?? "N/A"}</span>
-                          </div>
-                          <div className="flex items-center justify-between text-xs bg-slate-50 px-2 py-1.5 rounded border border-slate-100">
-                            <span className="text-slate-500 font-medium">{rowTodayStr}</span>
-                            <span className={`font-bold ${failing ? 'text-rose-600' : 'text-emerald-600'}`}>{row.current_value ?? "N/A"}</span>
-                          </div>
-                        </div>
-                      ) : (
-                        <div>
-                          <div className="text-base font-bold text-slate-900 mb-1">{row.current_value ?? "0"}</div>
-                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100">
-                            <AlertCircle className="w-3 h-3" />
-                            Low {alertValueLabel}
+                    <td className="py-4 px-6 align-middle text-center border-x border-slate-200">
+                      <div className="flex flex-col gap-1.5 w-full max-w-[140px] mx-auto">
+                        <div className="flex items-center justify-between text-xs bg-slate-50 px-2 py-1.5 rounded border border-slate-100">
+                          <span className="text-slate-500 font-medium">
+                            {activeSubTab === "current" ? "Alert Value" : rowTodayStr}
                           </span>
+                          <span className="font-semibold text-slate-700">{row.historical_value ?? row.previous_value ?? "N/A"}</span>
                         </div>
-                      )}
+                        <div className="flex items-center justify-between text-xs bg-indigo-50/50 px-2 py-1.5 rounded border border-indigo-100">
+                          <span className="text-slate-500 font-medium">
+                            {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                          </span>
+                          <span className={`font-bold ${failing ? 'text-rose-600' : 'text-emerald-600'}`}>{row.current_value ?? "N/A"}</span>
+                        </div>
+                      </div>
                     </td>
 
                     <td className="py-4 px-6 align-top text-center border-x border-slate-200">
@@ -671,6 +684,24 @@ export default function AlertsProgressPage() {
                   <History className="mr-2 h-4 w-4" />
                   Previous Day
                 </Button>
+                
+                <div className="h-6 w-px bg-slate-200 mx-1"></div>
+                
+                <input 
+                  type="date"
+                  value={customDate}
+                  onChange={(e) => {
+                    setCustomDate(e.target.value);
+                    if (e.target.value) {
+                      setActiveSubTab("custom");
+                      setPage(1);
+                    } else {
+                      setActiveSubTab("current");
+                      setPage(1);
+                    }
+                  }}
+                  className={`h-9 px-3 text-sm font-medium rounded-md border-0 outline-none cursor-pointer transition-colors ${activeSubTab === "custom" ? 'bg-blue-600 text-white shadow-sm' : 'bg-transparent text-slate-600 hover:bg-slate-50'}`}
+                />
               </div>
 
               <Button

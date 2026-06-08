@@ -10,6 +10,12 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 router.get('/lpcd', async (req, res) => {
   try {
+    const requestedDate = req.query.date as string;
+    const dateFilter = requestedDate 
+      ? `sent_date = $1::date` 
+      : `sent_date >= CURRENT_DATE - INTERVAL '1 day'`;
+    const queryParams = requestedDate ? [requestedDate] : [];
+
     const client = await pool.connect();
     try {
       const query = `
@@ -32,13 +38,13 @@ router.get('/lpcd', async (req, res) => {
           GROUP BY scheme_id
         ),
         recent_logs AS (
-          SELECT DISTINCT ON (scheme_id, village_name, sent_date) scheme_id, village_name, civil_engineer_name, civil_engineer_email,
+          SELECT DISTINCT ON (scheme_id, village_name, sent_date) scheme_id, village_name, ticket_id, alert_value, civil_engineer_name, civil_engineer_email,
                  mechanical_engineer_name, mechanical_engineer_email,
                  site_supervisor_name, site_supervisor_email,
                  created_at, sent_date
           FROM email_alert_logs
           WHERE alert_type IN ('LPCD', 'Water')
-            AND sent_date >= CURRENT_DATE - INTERVAL '1 day'
+            AND ${dateFilter}
           ORDER BY scheme_id, village_name, sent_date, created_at DESC
         ),
         ack_status AS (
@@ -53,7 +59,7 @@ router.get('/lpcd', async (req, res) => {
                    ROW_NUMBER() OVER (PARTITION BY scheme_id, engineer_email ORDER BY created_at DESC) as rn
             FROM email_acknowledgements
             WHERE alert_type IN ('LPCD', 'Water')
-              AND sent_date >= CURRENT_DATE - INTERVAL '1 day'
+              AND ${dateFilter}
           ) sub
           WHERE rn = 1
           GROUP BY scheme_id
@@ -65,10 +71,11 @@ router.get('/lpcd', async (req, res) => {
           w.village_name,
           w.lpcd_value_day7 as current_value,
           w.lpcd_value_day6 as previous_value,
+          e.alert_value as historical_value,
           e.civil_engineer_name, e.civil_engineer_email,
           e.mechanical_engineer_name, e.mechanical_engineer_email,
           e.site_supervisor_name, e.site_supervisor_email,
-          e.created_at, e.sent_date,
+          e.created_at, e.sent_date, e.ticket_id,
           COALESCE(i.remarks, '[]'::json) as remarks,
           COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
         FROM water_scheme_data w
@@ -76,7 +83,7 @@ router.get('/lpcd', async (req, res) => {
         LEFT JOIN issues i ON w.scheme_id = i.scheme_id
         LEFT JOIN ack_status a ON w.scheme_id = a.scheme_id
       `;
-      const result = await client.query(query);
+      const result = await client.query(query, queryParams);
       res.json(result.rows);
     } finally {
       client.release();
@@ -89,6 +96,12 @@ router.get('/lpcd', async (req, res) => {
 
 router.get('/chlorine', async (req, res) => {
   try {
+    const requestedDate = req.query.date as string;
+    const dateFilter = requestedDate 
+      ? `sent_date = $1::date` 
+      : `sent_date >= CURRENT_DATE - INTERVAL '1 day'`;
+    const queryParams = requestedDate ? [requestedDate] : [];
+
     const client = await pool.connect();
     try {
       const query = `
@@ -111,13 +124,13 @@ router.get('/chlorine', async (req, res) => {
           GROUP BY scheme_id
         ),
         recent_logs AS (
-          SELECT DISTINCT ON (scheme_id, esr_name, sent_date) scheme_id, esr_name, civil_engineer_name, civil_engineer_email,
+          SELECT DISTINCT ON (scheme_id, esr_name, sent_date) scheme_id, esr_name, ticket_id, alert_value, civil_engineer_name, civil_engineer_email,
                  mechanical_engineer_name, mechanical_engineer_email,
                  site_supervisor_name, site_supervisor_email,
                  created_at, sent_date
           FROM email_alert_logs
           WHERE alert_type = 'Chlorine'
-            AND sent_date >= CURRENT_DATE - INTERVAL '1 day'
+            AND ${dateFilter}
           ORDER BY scheme_id, esr_name, sent_date, created_at DESC
         ),
         ack_status AS (
@@ -132,7 +145,7 @@ router.get('/chlorine', async (req, res) => {
                    ROW_NUMBER() OVER (PARTITION BY scheme_id, engineer_email ORDER BY created_at DESC) as rn
             FROM email_acknowledgements
             WHERE alert_type = 'Chlorine'
-              AND sent_date >= CURRENT_DATE - INTERVAL '1 day'
+              AND ${dateFilter}
           ) sub
           WHERE rn = 1
           GROUP BY scheme_id
@@ -145,10 +158,11 @@ router.get('/chlorine', async (req, res) => {
           c.esr_name,
           c.chlorine_value_7 as current_value,
           c.chlorine_value_6 as previous_value,
+          e.alert_value as historical_value,
           e.civil_engineer_name, e.civil_engineer_email,
           e.mechanical_engineer_name, e.mechanical_engineer_email,
           e.site_supervisor_name, e.site_supervisor_email,
-          e.created_at, e.sent_date,
+          e.created_at, e.sent_date, e.ticket_id,
           COALESCE(i.remarks, '[]'::json) as remarks,
           COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
         FROM chlorine_data c
@@ -156,7 +170,7 @@ router.get('/chlorine', async (req, res) => {
         LEFT JOIN issues i ON c.scheme_id = i.scheme_id
         LEFT JOIN ack_status a ON c.scheme_id = a.scheme_id
       `;
-      const result = await client.query(query);
+      const result = await client.query(query, queryParams);
       res.json(result.rows);
     } finally {
       client.release();
@@ -169,6 +183,12 @@ router.get('/chlorine', async (req, res) => {
 
 router.get('/pressure', async (req, res) => {
   try {
+    const requestedDate = req.query.date as string;
+    const dateFilter = requestedDate 
+      ? `sent_date = $1::date` 
+      : `sent_date >= CURRENT_DATE - INTERVAL '1 day'`;
+    const queryParams = requestedDate ? [requestedDate] : [];
+
     const client = await pool.connect();
     try {
       const query = `
@@ -191,13 +211,13 @@ router.get('/pressure', async (req, res) => {
           GROUP BY scheme_id
         ),
         recent_logs AS (
-          SELECT DISTINCT ON (scheme_id, esr_name, sent_date) scheme_id, esr_name, civil_engineer_name, civil_engineer_email,
+          SELECT DISTINCT ON (scheme_id, esr_name, sent_date) scheme_id, esr_name, ticket_id, alert_value, civil_engineer_name, civil_engineer_email,
                  mechanical_engineer_name, mechanical_engineer_email,
                  site_supervisor_name, site_supervisor_email,
                  created_at, sent_date
           FROM email_alert_logs
           WHERE alert_type = 'Pressure'
-            AND sent_date >= CURRENT_DATE - INTERVAL '1 day'
+            AND ${dateFilter}
           ORDER BY scheme_id, esr_name, sent_date, created_at DESC
         ),
         ack_status AS (
@@ -212,7 +232,7 @@ router.get('/pressure', async (req, res) => {
                    ROW_NUMBER() OVER (PARTITION BY scheme_id, engineer_email ORDER BY created_at DESC) as rn
             FROM email_acknowledgements
             WHERE alert_type = 'Pressure'
-              AND sent_date >= CURRENT_DATE - INTERVAL '1 day'
+              AND ${dateFilter}
           ) sub
           WHERE rn = 1
           GROUP BY scheme_id
@@ -225,10 +245,11 @@ router.get('/pressure', async (req, res) => {
           p.esr_name,
           p.pressure_value_7 as current_value,
           p.pressure_value_6 as previous_value,
+          e.alert_value as historical_value,
           e.civil_engineer_name, e.civil_engineer_email,
           e.mechanical_engineer_name, e.mechanical_engineer_email,
           e.site_supervisor_name, e.site_supervisor_email,
-          e.created_at, e.sent_date,
+          e.created_at, e.sent_date, e.ticket_id,
           COALESCE(i.remarks, '[]'::json) as remarks,
           COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
         FROM pressure_data p
@@ -236,7 +257,7 @@ router.get('/pressure', async (req, res) => {
         LEFT JOIN issues i ON p.scheme_id = i.scheme_id
         LEFT JOIN ack_status a ON p.scheme_id = a.scheme_id
       `;
-      const result = await client.query(query);
+      const result = await client.query(query, queryParams);
       res.json(result.rows);
     } finally {
       client.release();

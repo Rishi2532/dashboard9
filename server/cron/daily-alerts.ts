@@ -209,17 +209,19 @@ export async function runDailyAlertsJob() {
               site_supervisor_email: engineer.site_supervisor_email || null,
             };
 
+            const generateTicketId = () => `TKT-${Date.now().toString().slice(-4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
             if (alert.chlorine_issue) {
-              emailLogsToInsert.push({ ...baseLog, alert_type: "Chlorine", alert_value: String(alert.chlorine_value) });
+              emailLogsToInsert.push({ ...baseLog, alert_type: "Chlorine", alert_value: String(alert.chlorine_value), ticket_id: generateTicketId() });
             }
             if (alert.pressure_issue) {
-              emailLogsToInsert.push({ ...baseLog, alert_type: "Pressure", alert_value: String(alert.pressure_value) });
+              emailLogsToInsert.push({ ...baseLog, alert_type: "Pressure", alert_value: String(alert.pressure_value), ticket_id: generateTicketId() });
             }
             if (alert.lpcd_issue) {
-              emailLogsToInsert.push({ ...baseLog, alert_type: "LPCD", alert_value: String(alert.lpcd_value) });
+              emailLogsToInsert.push({ ...baseLog, alert_type: "LPCD", alert_value: String(alert.lpcd_value), ticket_id: generateTicketId() });
             }
             if (alert.water_issue) {
-              emailLogsToInsert.push({ ...baseLog, alert_type: "Water", alert_value: String(alert.water_value) });
+              emailLogsToInsert.push({ ...baseLog, alert_type: "Water", alert_value: String(alert.water_value), ticket_id: generateTicketId() });
             }
           });
         }
