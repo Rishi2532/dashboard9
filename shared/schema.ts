@@ -737,9 +737,9 @@ export const communicationStatus = pgTable(
     esr_name: varchar("esr_name", { length: 255 }),
 
     // Connectivity status
-    chlorine_connected: varchar("chlorine_connected", { length: 10 }),
-    pressure_connected: varchar("pressure_connected", { length: 10 }),
-    flow_meter_connected: varchar("flow_meter_connected", { length: 10 }),
+    chlorine_connected: varchar("chlorine_connected", { length: 20 }),
+    pressure_connected: varchar("pressure_connected", { length: 20 }),
+    flow_meter_connected: varchar("flow_meter_connected", { length: 20 }),
 
     // Online/Offline status
     chlorine_status: varchar("chlorine_status", { length: 20 }),

@@ -7,9 +7,10 @@ import {
   waterSchemeData,
   schemeEngineerDetails,
   emailAlertLogs,
+  schemeStatuses,
 } from "../../shared/schema";
 import { sendDailyAlertEmail, generateAcknowledgeToken } from "../services/email-service";
-import { eq, or, lt, and, isNotNull } from "drizzle-orm";
+import { eq, or, lt, and, isNotNull, sql } from "drizzle-orm";
 
 const { Pool } = pg;
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -44,7 +45,22 @@ export async function runDailyAlertsJob() {
       const allAlertsBySchemeId: Record<string, Alert[]> = {};
       const allAlertsBySchemeName: Record<string, Alert[]> = {};
 
+      const validSchemesRes = await db
+        .select({ scheme_id: schemeStatuses.scheme_id, scheme_name: schemeStatuses.scheme_name })
+        .from(schemeStatuses)
+        .where(eq(schemeStatuses.water_supply, 'Yes'));
+
+      const validSchemeIds = new Set(validSchemesRes.map(r => r.scheme_id).filter(Boolean));
+      const validSchemeNames = new Set(validSchemesRes.map(r => r.scheme_name).filter(Boolean));
+
       const addAlert = (schemeId: string | null, schemeName: string | null, alert: Alert) => {
+        const isValidId = schemeId && validSchemeIds.has(schemeId);
+        const isValidName = schemeName && validSchemeNames.has(schemeName);
+        
+        if (!isValidId && !isValidName) {
+          return; // Skip schemes that do not have water_supply = 'Yes'
+        }
+
         if (schemeId) {
           if (!allAlertsBySchemeId[schemeId]) allAlertsBySchemeId[schemeId] = [];
           allAlertsBySchemeId[schemeId].push(alert);

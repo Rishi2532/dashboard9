@@ -675,50 +675,49 @@ const EnhancedLpcdDashboard = () => {
     }
   };
 
-  // Get latest LPCD value
-  const getLatestLpcdValue = (scheme: WaterSchemeData): number | null => {
-    // Try to get the latest non-null value
-    for (const day of [7, 6, 5, 4, 3, 2, 1]) {
-      const value = scheme[`lpcd_value_day${day}` as keyof WaterSchemeData];
-      if (
-        value !== undefined &&
-        value !== null &&
-        value !== "" &&
-        !isNaN(Number(value))
-      ) {
-        return Number(value);
+    const getLatestLpcdValue = (scheme: WaterSchemeData): number | null => {
+      // Try to get the latest non-null value
+      for (const day of [7, 6, 5, 4, 3, 2, 1]) {
+        const value = scheme[`lpcd_value_day${day}` as keyof WaterSchemeData];
+        if (
+          value !== undefined &&
+          value !== null &&
+          value !== "" &&
+          !isNaN(Number(value))
+        ) {
+          return Number(value);
+        }
       }
-    }
-    return null;
-  };
+      return null;
+    };
 
-  // Get latest water supply value
-  const getLatestWaterSupplyValue = (
-    scheme: WaterSchemeData,
-  ): number | null => {
-    // Try to get the latest non-null water supply value, starting with day 7
-    for (const day of [7, 6, 5, 4, 3, 2, 1]) {
-      const value = scheme[`water_value_day${day}` as keyof WaterSchemeData];
-      if (
-        value !== undefined &&
-        value !== null &&
-        value !== "" &&
-        !isNaN(Number(value))
-      ) {
-        return Number(value);
+    // Get latest water supply value
+    const getLatestWaterSupplyValue = (
+      scheme: WaterSchemeData,
+    ): number | null => {
+      // Try to get the latest non-null water supply value, starting with day 7
+      for (const day of [7, 6, 5, 4, 3, 2, 1]) {
+        const value = scheme[`water_value_day${day}` as keyof WaterSchemeData];
+        if (
+          value !== undefined &&
+          value !== null &&
+          value !== "" &&
+          !isNaN(Number(value))
+        ) {
+          return Number(value);
+        }
       }
-    }
-    return null;
-  };
+      return null;
+    };
 
-  // Check if a scheme has zero water supply for the current day
-  const hasNoCurrentWaterSupply = (scheme: WaterSchemeData): boolean => {
-    // Get the most recent water supply value
-    const currentWaterSupply = getLatestLpcdValue(scheme);
-
-    // Return true if it's explicitly 0
-    return currentWaterSupply !== null && currentWaterSupply === 0;
-  };
+    // Check if a scheme has zero water supply for the current day
+    const hasNoCurrentWaterSupply = (scheme: WaterSchemeData): boolean => {
+      // Get the most recent water supply value
+      const currentWaterSupply = getLatestLpcdValue(scheme);
+  
+      // Return true if it's explicitly 0
+      return currentWaterSupply !== null && currentWaterSupply === 0;
+    };
 
   // Check if a scheme has consistent zero water supply for all 7 days
   const hasConsistentZeroWaterSupply = (scheme: WaterSchemeData): boolean => {

@@ -237,9 +237,21 @@ router.get('/history', async (req, res) => {
               CASE 
                 WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+$' THEN 
                   CASE
-                    WHEN TO_DATE(h.data_date || '-' || TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY') > (COALESCE(h.uploaded_at, CURRENT_DATE) + interval '1 month')
-                    THEN TO_DATE(h.data_date || '-' || (TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY')::int - 1), 'DD-Mon-YYYY')
-                    ELSE TO_DATE(h.data_date || '-' || TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY')
+                    WHEN TO_DATE(
+                      (CASE WHEN h.data_date ILIKE '29-Feb%' AND TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY')::int % 4 != 0 THEN '28-Feb' ELSE h.data_date END) 
+                      || '-' || TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY'), 
+                      'DD-Mon-YYYY'
+                    ) > (COALESCE(h.uploaded_at, CURRENT_DATE) + interval '1 month')
+                    THEN TO_DATE(
+                      (CASE WHEN h.data_date ILIKE '29-Feb%' AND (TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY')::int - 1) % 4 != 0 THEN '28-Feb' ELSE h.data_date END) 
+                      || '-' || (TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY')::int - 1), 
+                      'DD-Mon-YYYY'
+                    )
+                    ELSE TO_DATE(
+                      (CASE WHEN h.data_date ILIKE '29-Feb%' AND TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY')::int % 4 != 0 THEN '28-Feb' ELSE h.data_date END) 
+                      || '-' || TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY'), 
+                      'DD-Mon-YYYY'
+                    )
                   END
                 WHEN h.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN h.data_date::date
                 WHEN h.data_date ~ '^\\d{1,2}-\\d{1,2}-\\d{2,4}$' THEN TO_DATE(h.data_date, 'DD-MM-YYYY')
@@ -356,9 +368,21 @@ router.get('/export/history', async (req, res) => {
               CASE 
                 WHEN h.data_date ~ '^\\d{1,2}-[A-Za-z]+$' THEN 
                   CASE
-                    WHEN TO_DATE(h.data_date || '-' || TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY') > (COALESCE(h.uploaded_at, CURRENT_DATE) + interval '1 month')
-                    THEN TO_DATE(h.data_date || '-' || (TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY')::int - 1), 'DD-Mon-YYYY')
-                    ELSE TO_DATE(h.data_date || '-' || TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY'), 'DD-Mon-YYYY')
+                    WHEN TO_DATE(
+                      (CASE WHEN h.data_date ILIKE '29-Feb%' AND TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY')::int % 4 != 0 THEN '28-Feb' ELSE h.data_date END) 
+                      || '-' || TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY'), 
+                      'DD-Mon-YYYY'
+                    ) > (COALESCE(h.uploaded_at, CURRENT_DATE) + interval '1 month')
+                    THEN TO_DATE(
+                      (CASE WHEN h.data_date ILIKE '29-Feb%' AND (TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY')::int - 1) % 4 != 0 THEN '28-Feb' ELSE h.data_date END) 
+                      || '-' || (TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY')::int - 1), 
+                      'DD-Mon-YYYY'
+                    )
+                    ELSE TO_DATE(
+                      (CASE WHEN h.data_date ILIKE '29-Feb%' AND TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY')::int % 4 != 0 THEN '28-Feb' ELSE h.data_date END) 
+                      || '-' || TO_CHAR(COALESCE(h.uploaded_at, CURRENT_DATE), 'YYYY'), 
+                      'DD-Mon-YYYY'
+                    )
                   END
                 WHEN h.data_date ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN h.data_date::date
                 WHEN h.data_date ~ '^\\d{1,2}-\\d{1,2}-\\d{2,4}$' THEN TO_DATE(h.data_date, 'DD-MM-YYYY')

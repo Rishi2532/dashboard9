@@ -55,6 +55,12 @@ import "./init-database.js"; // Initial data cleanup (optional, based on require
 import { initializeDataCleanup } from "./data-cleanup.js"; // Run data cleanup on startup
 import { mqttService } from "./mqtt-service"; // Initialize MQTT service
 import { startDailyAlertsCron } from "./cron/daily-alerts.js"; // Start daily alerts cron
+import { initPiChlorineIngestionCron } from "./cron/pi-chlorine-ingestion.js"; // Start PI Ingestion cron
+import { initPiPressureIngestionCron } from "./cron/pi-pressure-ingestion.js"; // Start PI Pressure Ingestion cron
+import { initPiWaterSchemeIngestionCron } from "./cron/pi-water-scheme-ingestion.js"; 
+import { initPiSchemeLpcdIngestionCron } from "./cron/pi-scheme-lpcd-ingestion.js";
+import { initPiWaterConsumptionIngestionCron } from "./cron/pi-water-consumption-ingestion.js";
+import { initPiCommunicationStatusIngestionCron } from "./cron/pi-communication-status-ingestion.js";
 
 const app = express();
 app.disable('x-powered-by');
@@ -187,6 +193,12 @@ app.use((req, res, next) => {
       setTimeout(() => {
         initializeDataCleanup().catch(console.error);
         startDailyAlertsCron(); // Start the daily alerts cron job
+        initPiChlorineIngestionCron(); // Start PI Web API Sync
+        initPiPressureIngestionCron(); // Start PI Web API Pressure Sync
+        initPiWaterSchemeIngestionCron();
+        initPiSchemeLpcdIngestionCron();
+        initPiWaterConsumptionIngestionCron();
+        initPiCommunicationStatusIngestionCron();
       }, 5000); // Wait 5 seconds after server start
     },
   );

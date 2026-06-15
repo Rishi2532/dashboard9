@@ -140,6 +140,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Mount LPCD import routes (admin-only)
   app.use("/api/admin", requireAdmin, lpcdImportRoutes);
 
+  // Manual trigger for PI Chlorine Sync
+  app.post("/api/admin/sync-pi-chlorine", requireAdmin, async (req, res) => {
+    try {
+      // Intentionally not awaiting so it runs in background (it takes a long time)
+      import("./cron/pi-chlorine-ingestion.js").then(({ runPiChlorineIngestion }) => {
+        runPiChlorineIngestion(req.body.rootPath);
+      });
+      res.json({ message: "PI Chlorine Ingestion started in the background." });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Mount chlorine data routes
   app.use("/api/chlorine", requireApiKeyOrAuth, chlorineRoutes);
 

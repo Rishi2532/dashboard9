@@ -80,8 +80,10 @@ router.get('/lpcd', async (req, res) => {
           COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
         FROM water_scheme_data w
         JOIN recent_logs e ON w.scheme_id = e.scheme_id AND w.village_name IS NOT DISTINCT FROM e.village_name
+        JOIN scheme_status s ON w.scheme_id = s.scheme_id
         LEFT JOIN issues i ON w.scheme_id = i.scheme_id
         LEFT JOIN ack_status a ON w.scheme_id = a.scheme_id
+        WHERE s.water_supply = 'Yes'
       `;
       const result = await client.query(query, queryParams);
       res.json(result.rows);
@@ -167,8 +169,10 @@ router.get('/chlorine', async (req, res) => {
           COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
         FROM chlorine_data c
         JOIN recent_logs e ON c.scheme_id = e.scheme_id AND c.esr_name IS NOT DISTINCT FROM e.esr_name
+        JOIN scheme_status s ON c.scheme_id = s.scheme_id
         LEFT JOIN issues i ON c.scheme_id = i.scheme_id
         LEFT JOIN ack_status a ON c.scheme_id = a.scheme_id
+        WHERE s.water_supply = 'Yes'
       `;
       const result = await client.query(query, queryParams);
       res.json(result.rows);
@@ -254,8 +258,10 @@ router.get('/pressure', async (req, res) => {
           COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
         FROM pressure_data p
         JOIN recent_logs e ON p.scheme_id = e.scheme_id AND p.esr_name IS NOT DISTINCT FROM e.esr_name
+        JOIN scheme_status s ON p.scheme_id = s.scheme_id
         LEFT JOIN issues i ON p.scheme_id = i.scheme_id
         LEFT JOIN ack_status a ON p.scheme_id = a.scheme_id
+        WHERE s.water_supply = 'Yes'
       `;
       const result = await client.query(query, queryParams);
       res.json(result.rows);
@@ -292,14 +298,16 @@ router.get('/offline', async (req, res) => {
           v.email as civil_engineer_email,
           v.phone as civil_engineer_mobile
         FROM communication_status c
+        INNER JOIN scheme_status s ON c.scheme_id = s.scheme_id
         LEFT JOIN (
           SELECT DISTINCT ON (region) region, employee_name, email, phone
           FROM vendor
           ORDER BY region, id
         ) v ON c.region = v.region
-        WHERE c.chlorine_status = 'Offline' 
+        WHERE (c.chlorine_status = 'Offline' 
            OR c.pressure_status = 'Offline' 
-           OR c.flow_meter_status = 'Offline'
+           OR c.flow_meter_status = 'Offline')
+          AND s.water_supply = 'Yes'
         ORDER BY c.region, c.scheme_name, c.village_name;
       `;
       const result = await client.query(query);

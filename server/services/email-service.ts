@@ -627,14 +627,16 @@ export async function sendAutomaticOfflineEmails(): Promise<void> {
         v.employee_name as vendor_name,
         v.email as vendor_email
       FROM communication_status c
+      INNER JOIN scheme_status s ON c.scheme_id = s.scheme_id
       INNER JOIN (
         SELECT DISTINCT ON (region) region, employee_name, email
         FROM vendor
         ORDER BY region, id
       ) v ON c.region = v.region
-      WHERE c.chlorine_status = 'Offline' 
+      WHERE (c.chlorine_status = 'Offline' 
          OR c.pressure_status = 'Offline' 
-         OR c.flow_meter_status = 'Offline'
+         OR c.flow_meter_status = 'Offline')
+        AND s.water_supply = 'Yes'
       ORDER BY c.region, c.scheme_name;
     `;
     const res = await client.query(query);
