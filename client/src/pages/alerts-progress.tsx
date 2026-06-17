@@ -160,7 +160,7 @@ export default function AlertsProgressPage() {
 
   // Helper to filter data based on strict literal calendar dates
   const getFilteredData = (data: AlertData[], type: "lpcd" | "chlorine" | "pressure" | "offline") => {
-    if (!data || data.length === 0) return [];
+    if (!Array.isArray(data) || data.length === 0) return [];
     if (type === "offline") return data;
 
     const todayStr = new Date().toDateString();

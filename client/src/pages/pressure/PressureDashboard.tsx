@@ -865,7 +865,7 @@ const PressureDashboard: React.FC = () => {
     const withWaterSensorIds = new Set(
       withWaterSensorsData.withWaterSensors.map(
         (sensor: any) =>
-          `${sensor.region}|${sensor.circle}|${sensor.division}|${sensor.sub_division}|${sensor.block}|${sensor.village_name}|${sensor.esr_name}`,
+          `${sensor.region}|${sensor.circle}|${sensor.division}|${sensor.sub_division}|${sensor.block}|${sensor.village_name}|${sensor.esr_name}`.toLowerCase(),
       ),
     );
 
@@ -875,7 +875,7 @@ const PressureDashboard: React.FC = () => {
       filteredWithWaterCount = 0;
 
     allPressureData.forEach((data) => {
-      const sensorKey = `${data.region}|${data.circle}|${data.division}|${data.sub_division}|${data.block}|${data.village_name}|${data.esr_name}`;
+      const sensorKey = `${data.region}|${data.circle}|${data.division}|${data.sub_division}|${data.block}|${data.village_name}|${data.esr_name}`.toLowerCase();
 
       // Only count sensors that have water
       if (withWaterSensorIds.has(sensorKey)) {
@@ -919,7 +919,7 @@ const PressureDashboard: React.FC = () => {
     const noWaterSensorIds = new Set(
       noWaterSensorsData.noWaterSensors.map(
         (sensor: any) =>
-          `${sensor.region}|${sensor.circle}|${sensor.division}|${sensor.sub_division}|${sensor.block}|${sensor.village_name}|${sensor.esr_name}`,
+          `${sensor.region}|${sensor.circle}|${sensor.division}|${sensor.sub_division}|${sensor.block}|${sensor.village_name}|${sensor.esr_name}`.toLowerCase(),
       ),
     );
 
@@ -928,7 +928,7 @@ const PressureDashboard: React.FC = () => {
       above = 0;
 
     allPressureData.forEach((data) => {
-      const sensorKey = `${data.region}|${data.circle}|${data.division}|${data.sub_division}|${data.block}|${data.village_name}|${data.esr_name}`;
+      const sensorKey = `${data.region}|${data.circle}|${data.division}|${data.sub_division}|${data.block}|${data.village_name}|${data.esr_name}`.toLowerCase();
 
       // Only count sensors that have no water
       if (noWaterSensorIds.has(sensorKey)) {
@@ -1151,12 +1151,12 @@ const PressureDashboard: React.FC = () => {
       // Create a map of ESR location keys to their communication status
       const commStatusMap = new Map<string, CommunicationStatus>();
       communicationStatusData?.forEach((status) => {
-        const key = `${status.region}|${status.circle}|${status.division}|${status.sub_division}|${status.block}|${status.village_name}|${status.esr_name}`;
+        const key = `${status.region}|${status.circle}|${status.division}|${status.sub_division}|${status.block}|${status.village_name}|${status.esr_name}`.toLowerCase();
         commStatusMap.set(key, status);
       });
 
       filtered = filtered.filter((item) => {
-        const key = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`;
+        const key = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`.toLowerCase();
         const commStatus = commStatusMap.get(key);
 
         if (!commStatus) return false;
@@ -1179,14 +1179,14 @@ const PressureDashboard: React.FC = () => {
             if (noWaterSensorsData?.noWaterSensors) {
               return noWaterSensorsData.noWaterSensors.some(
                 (sensor) =>
-                  sensor.region === item.region &&
-                  sensor.circle === item.circle &&
-                  sensor.division === item.division &&
-                  sensor.sub_division === item.sub_division &&
-                  sensor.block === item.block &&
-                  sensor.scheme_id === item.scheme_id &&
-                  sensor.village_name === item.village_name &&
-                  sensor.esr_name === item.esr_name,
+                  String(sensor.region).toLowerCase() === String(item.region).toLowerCase() &&
+                  String(sensor.circle).toLowerCase() === String(item.circle).toLowerCase() &&
+                  String(sensor.division).toLowerCase() === String(item.division).toLowerCase() &&
+                  String(sensor.sub_division).toLowerCase() === String(item.sub_division).toLowerCase() &&
+                  String(sensor.block).toLowerCase() === String(item.block).toLowerCase() &&
+                  String(sensor.scheme_id).toLowerCase() === String(item.scheme_id).toLowerCase() &&
+                  String(sensor.village_name).toLowerCase() === String(item.village_name).toLowerCase() &&
+                  String(sensor.esr_name).toLowerCase() === String(item.esr_name).toLowerCase(),
               );
             }
             return false;
@@ -1195,14 +1195,14 @@ const PressureDashboard: React.FC = () => {
             if (withWaterSensorsData?.withWaterSensors) {
               return withWaterSensorsData.withWaterSensors.some(
                 (sensor) =>
-                  sensor.region === item.region &&
-                  sensor.circle === item.circle &&
-                  sensor.division === item.division &&
-                  sensor.sub_division === item.sub_division &&
-                  sensor.block === item.block &&
-                  sensor.scheme_id === item.scheme_id &&
-                  sensor.village_name === item.village_name &&
-                  sensor.esr_name === item.esr_name,
+                  String(sensor.region).toLowerCase() === String(item.region).toLowerCase() &&
+                  String(sensor.circle).toLowerCase() === String(item.circle).toLowerCase() &&
+                  String(sensor.division).toLowerCase() === String(item.division).toLowerCase() &&
+                  String(sensor.sub_division).toLowerCase() === String(item.sub_division).toLowerCase() &&
+                  String(sensor.block).toLowerCase() === String(item.block).toLowerCase() &&
+                  String(sensor.scheme_id).toLowerCase() === String(item.scheme_id).toLowerCase() &&
+                  String(sensor.village_name).toLowerCase() === String(item.village_name).toLowerCase() &&
+                  String(sensor.esr_name).toLowerCase() === String(item.esr_name).toLowerCase(),
               );
             }
             return false;
@@ -1380,7 +1380,7 @@ const PressureDashboard: React.FC = () => {
     const pressureLocationKeys = new Set(
       summaryStatsData.map(
         (item) =>
-          `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`,
+          `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`.toLowerCase(),
       ),
     );
 
@@ -1399,7 +1399,7 @@ const PressureDashboard: React.FC = () => {
 
     filteredCommStatus.forEach((commStatus) => {
       // Create the location key for this communication status record
-      const commLocationKey = `${commStatus.region}|${commStatus.circle}|${commStatus.division}|${commStatus.sub_division}|${commStatus.block}|${commStatus.village_name}|${commStatus.esr_name}`;
+      const commLocationKey = `${commStatus.region}|${commStatus.circle}|${commStatus.division}|${commStatus.sub_division}|${commStatus.block}|${commStatus.village_name}|${commStatus.esr_name}`.toLowerCase();
 
       // Only count if this exact location hierarchy has pressure data
       if (pressureLocationKeys.has(commLocationKey)) {

@@ -23,10 +23,10 @@ export async function runPiWaterConsumptionIngestion(rootPath?: string) {
     let errorCount = 0;
 
     const BATCH_SIZE = 4;
-    
+
     for (let i = 0; i < esrs.length; i += BATCH_SIZE) {
       const batch = esrs.slice(i, i + BATCH_SIZE);
-      
+
       await Promise.all(batch.map(async (esr) => {
         try {
           const hierarchy = extractHierarchyFromPath(esr.Path);
@@ -36,41 +36,41 @@ export async function runPiWaterConsumptionIngestion(rootPath?: string) {
           const waterPoints = await getAttributeSummaryData(esr.WebId, 'CALC - WATER CONSUMPTION PER DAY', 7, 'Maximum');
           const commStatusPoints = await getAttributeSummaryData(esr.WebId, 'Communication Status - Flow Rate', 1, 'Maximum');
           const capacityData = await getAttributeValue(esr.WebId, 'Reservoir Capacity');
-          
+
           let flowRate = 0;
           if (flowRatePoints && flowRatePoints.length > 0 && flowRatePoints[0].Value) {
-             flowRate = typeof flowRatePoints[0].Value.Value === 'number' ? flowRatePoints[0].Value.Value : 0;
+            flowRate = typeof flowRatePoints[0].Value.Value === 'number' ? flowRatePoints[0].Value.Value : 0;
           }
 
           let commStatusVal = -1;
           if (commStatusPoints && commStatusPoints.length > 0 && commStatusPoints[0].Value) {
-             commStatusVal = typeof commStatusPoints[0].Value.Value === 'number' ? commStatusPoints[0].Value.Value : -1;
+            commStatusVal = typeof commStatusPoints[0].Value.Value === 'number' ? commStatusPoints[0].Value.Value : -1;
           }
 
           let onlineStatus = "Offline";
           let flowMeterConnected = "Not connected";
           if (commStatusVal === 2) {
-             onlineStatus = "Online";
-             flowMeterConnected = "connected";
+            onlineStatus = "Online";
+            flowMeterConnected = "connected";
           } else if (commStatusVal === 0) {
-             onlineStatus = "Offline";
-             flowMeterConnected = "connected";
+            onlineStatus = "Offline";
+            flowMeterConnected = "connected";
           }
 
           let esrCapacity = 0;
           if (capacityData !== null && capacityData !== undefined) {
-             if (typeof capacityData === 'number') {
-               esrCapacity = capacityData;
-             } else if (typeof capacityData === 'string') {
-               esrCapacity = parseFloat(capacityData.replace(/[a-zA-Z]+/g, '')) || 0;
-             }
+            if (typeof capacityData === 'number') {
+              esrCapacity = capacityData;
+            } else if (typeof capacityData === 'string') {
+              esrCapacity = parseFloat(capacityData.replace(/[a-zA-Z]+/g, '')) || 0;
+            }
           }
 
           const processPoints = (points: any[]) => {
             const vals: number[] = [];
             const dts: string[] = [];
             const dateMap = new Map<string, number>();
-            
+
             if (points && points.length > 0) {
               for (const summaryItem of points) {
                 const pt = summaryItem.Value;
@@ -83,7 +83,7 @@ export async function runPiWaterConsumptionIngestion(rootPath?: string) {
                 }
               }
             }
-            
+
             for (let j = 0; j < 7; j++) {
               const expectedDate = format(subDays(today, 7 - j), "dd-MMM");
               dts.push(expectedDate);
@@ -109,13 +109,13 @@ export async function runPiWaterConsumptionIngestion(rootPath?: string) {
             scheme_name: hierarchy.scheme_name,
             village_name: hierarchy.village_name,
             esr_name: hierarchy.esr_name,
-            
+
             flow_rate_m3: flowRate.toString(),
-            time_duration: "0", 
+            time_duration: "0",
             online_status: onlineStatus,
             flow_meter_connected: flowMeterConnected,
             esr_capacity: esrCapacity.toString(),
-            
+
             water_value_day1: water.vals[0].toString(),
             water_value_day2: water.vals[1].toString(),
             water_value_day3: water.vals[2].toString(),
@@ -123,7 +123,7 @@ export async function runPiWaterConsumptionIngestion(rootPath?: string) {
             water_value_day5: water.vals[4].toString(),
             water_value_day6: water.vals[5].toString(),
             water_value_day7: water.vals[6].toString(),
-            
+
             water_date_day1: water.dts[0],
             water_date_day2: water.dts[1],
             water_date_day3: water.dts[2],
@@ -133,9 +133,9 @@ export async function runPiWaterConsumptionIngestion(rootPath?: string) {
             water_date_day7: water.dts[6],
 
             flow_rate_m3: flowRatePoints?.[0]?.Value?.Value?.toString() || "0",
-            
+
             consistent_zero_consumption: zeroCount === 7 ? 1 : 0,
-            
+
             dashboard_url: `https://mahajaliot.in/PIVision/#/Displays/10086/CEREBULB_JJM_MAHARASHTRA_ESR_LEVEL_DASHBOARD?hidetoolbar=true&hidesidebar=true&mode=kiosk&asset=${encodeURIComponent(esr.Path)}`
           };
 
@@ -181,7 +181,7 @@ export async function runPiWaterConsumptionIngestion(rootPath?: string) {
 
 export function initPiWaterConsumptionIngestionCron() {
   // Run daily at 09:51 AM
-  cron.schedule("03 10 * * *", async () => {
+  cron.schedule("30 15 * * *", async () => {
     console.log("Running scheduled PI Web API Water Consumption Ingestion...");
     await runPiWaterConsumptionIngestion();
   });

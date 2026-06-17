@@ -9,8 +9,9 @@ import {
   emailAlertLogs,
   schemeStatuses,
 } from "../../shared/schema";
-import { sendDailyAlertEmail, generateAcknowledgeToken } from "../services/email-service";
+import { sendDailyAlertEmail, generateAcknowledgeToken, sendAutomaticOfflineEmails } from "../services/email-service";
 import { eq, or, lt, and, isNotNull, sql } from "drizzle-orm";
+import { sendDailyAlertSMS } from "../services/sms-service";
 
 const { Pool } = pg;
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -31,10 +32,12 @@ interface Alert {
 }
 
 export function startDailyAlertsCron() {
-  // Run every day at 8:00 AM
-  // You can adjust the cron expression as needed: '0 8 * * *'
-  cron.schedule("0 8 * * *", async () => {
+  // Run every day at 11:13 AM
+  // You can adjust the cron expression as needed: '13 11 * * *'
+  cron.schedule("13 11 * * *", async () => {
     await runDailyAlertsJob();
+    console.log("? Running automatic offline emails to vendors...");
+    await sendAutomaticOfflineEmails();
   });
 }
 
@@ -164,6 +167,9 @@ export async function runDailyAlertsJob() {
 
       // Group alerts by Engineer Email
       const emailsToSend: Record<string, { name: string; alerts: Alert[] }> = {};
+      
+      // Group alerts by Engineer Mobile
+      const smsToSend: Record<string, { name: string; alerts: Alert[] }> = {};
 
       allEngineerDetails.forEach((engineer) => {
         let schemeAlerts: Alert[] = [];
@@ -207,6 +213,40 @@ export async function runDailyAlertsJob() {
               };
             }
             emailsToSend[engineer.site_supervisor_email].alerts.push(...schemeAlerts);
+          }
+
+          // --- SMS Grouping ---
+          // Civil Engineer Mobile
+          if (engineer.civil_engineer_mobile && engineer.civil_engineer_mobile.length >= 10) {
+            if (!smsToSend[engineer.civil_engineer_mobile]) {
+              smsToSend[engineer.civil_engineer_mobile] = {
+                name: engineer.civil_engineer_name || "Civil Engineer",
+                alerts: [],
+              };
+            }
+            smsToSend[engineer.civil_engineer_mobile].alerts.push(...schemeAlerts);
+          }
+
+          // Mechanical Engineer Mobile
+          if (engineer.mechanical_engineer_mobile && engineer.mechanical_engineer_mobile.length >= 10) {
+            if (!smsToSend[engineer.mechanical_engineer_mobile]) {
+              smsToSend[engineer.mechanical_engineer_mobile] = {
+                name: engineer.mechanical_engineer_name || "Mechanical Engineer",
+                alerts: [],
+              };
+            }
+            smsToSend[engineer.mechanical_engineer_mobile].alerts.push(...schemeAlerts);
+          }
+
+          // Site Supervisor Mobile
+          if (engineer.site_supervisor_mobile && engineer.site_supervisor_mobile.length >= 10) {
+            if (!smsToSend[engineer.site_supervisor_mobile]) {
+              smsToSend[engineer.site_supervisor_mobile] = {
+                name: engineer.site_supervisor_name || "Site Supervisor",
+                alerts: [],
+              };
+            }
+            smsToSend[engineer.site_supervisor_mobile].alerts.push(...schemeAlerts);
           }
 
           // Build emailAlertLogs entries for each issue in this scheme
@@ -304,6 +344,29 @@ export async function runDailyAlertsJob() {
           console.log(`✅ Sent alert email to ${email} for ${uniqueAlerts.length} issues.`);
         } catch (err) {
           console.error(`❌ Failed to send alert email to ${email}:`, err);
+        }
+      }
+
+      // Send the consolidated SMS alerts
+      const mobiles = Object.keys(smsToSend);
+      if (mobiles.length > 0) {
+        console.log(`📱 Preparing to send ${mobiles.length} alert SMS messages...`);
+        for (const mobile of mobiles) {
+          const { name, alerts } = smsToSend[mobile];
+          
+          // Deduplicate alerts
+          const uniqueAlertsMap = new Map();
+          alerts.forEach(a => {
+            const key = `${a.scheme_id}-${a.village_name}-${a.esr_name}-${a.chlorine_issue}-${a.pressure_issue}-${a.lpcd_issue}-${a.water_issue}`;
+            uniqueAlertsMap.set(key, a);
+          });
+          const uniqueAlerts = Array.from(uniqueAlertsMap.values());
+
+          try {
+            await sendDailyAlertSMS(mobile, name, uniqueAlerts);
+          } catch (err) {
+            console.error(`❌ Failed to send alert SMS to ${mobile}:`, err);
+          }
         }
       }
 

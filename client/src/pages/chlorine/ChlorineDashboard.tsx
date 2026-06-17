@@ -842,7 +842,7 @@ const ChlorineDashboard: React.FC = () => {
     const chlorineLocationKeys = new Set(
       globallyFilteredData.map(
         (item) =>
-          `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`,
+          `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`.toLowerCase(),
       ),
     );
 
@@ -860,7 +860,7 @@ const ChlorineDashboard: React.FC = () => {
     const uniqueOfflineESRs = new Set<string>();
 
     filteredCommStatus.forEach((commStatus) => {
-      const commLocationKey = `${commStatus.region}|${commStatus.circle}|${commStatus.division}|${commStatus.sub_division}|${commStatus.block}|${commStatus.village_name}|${commStatus.esr_name}`;
+      const commLocationKey = `${commStatus.region}|${commStatus.circle}|${commStatus.division}|${commStatus.sub_division}|${commStatus.block}|${commStatus.village_name}|${commStatus.esr_name}`.toLowerCase();
 
       if (chlorineLocationKeys.has(commLocationKey)) {
         if (commStatus.chlorine_connected === "Connected") {
@@ -898,14 +898,14 @@ const ChlorineDashboard: React.FC = () => {
     const withWaterLocationKeys = new Set(
       withWaterSensorsData.withWaterSensors.map(
         (sensor: any) =>
-          `${sensor.region}|${sensor.circle}|${sensor.division}|${sensor.sub_division}|${sensor.block}|${sensor.village_name}|${sensor.esr_name}`,
+          `${sensor.region}|${sensor.circle}|${sensor.division}|${sensor.sub_division}|${sensor.block}|${sensor.village_name}|${sensor.esr_name}`.toLowerCase(),
       ),
     );
 
     // Filter globallyFilteredData (which respects scheme/region filters but NOT sensorStatusFilter)
     // so card numbers stay stable when another card is clicked
     const filteredWithWater = globallyFilteredData.filter((item) => {
-      const locationKey = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`;
+      const locationKey = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`.toLowerCase();
       return withWaterLocationKeys.has(locationKey);
     });
 
@@ -1099,12 +1099,12 @@ const ChlorineDashboard: React.FC = () => {
     if (sensorStatusFilter !== "all") {
       const commStatusMap = new Map<string, CommunicationStatus>();
       communicationStatusData?.forEach((status) => {
-        const key = `${status.region}|${status.circle}|${status.division}|${status.sub_division}|${status.block}|${status.village_name}|${status.esr_name}`;
+        const key = `${status.region}|${status.circle}|${status.division}|${status.sub_division}|${status.block}|${status.village_name}|${status.esr_name}`.toLowerCase();
         commStatusMap.set(key, status);
       });
 
       filtered = filtered.filter((item) => {
-        const key = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`;
+        const key = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`.toLowerCase();
         const commStatus = commStatusMap.get(key);
 
         if (!commStatus) return false;
@@ -1126,14 +1126,14 @@ const ChlorineDashboard: React.FC = () => {
             if (noWaterSensorsData?.noWaterSensors) {
               return noWaterSensorsData.noWaterSensors.some(
                 (sensor) =>
-                  sensor.region === item.region &&
-                  sensor.circle === item.circle &&
-                  sensor.division === item.division &&
-                  sensor.sub_division === item.sub_division &&
-                  sensor.block === item.block &&
-                  sensor.scheme_id === item.scheme_id &&
-                  sensor.village_name === item.village_name &&
-                  sensor.esr_name === item.esr_name,
+                  String(sensor.region).toLowerCase() === String(item.region).toLowerCase() &&
+                  String(sensor.circle).toLowerCase() === String(item.circle).toLowerCase() &&
+                  String(sensor.division).toLowerCase() === String(item.division).toLowerCase() &&
+                  String(sensor.sub_division).toLowerCase() === String(item.sub_division).toLowerCase() &&
+                  String(sensor.block).toLowerCase() === String(item.block).toLowerCase() &&
+                  String(sensor.scheme_id).toLowerCase() === String(item.scheme_id).toLowerCase() &&
+                  String(sensor.village_name).toLowerCase() === String(item.village_name).toLowerCase() &&
+                  String(sensor.esr_name).toLowerCase() === String(item.esr_name).toLowerCase(),
               );
             }
             return false;
@@ -1141,14 +1141,14 @@ const ChlorineDashboard: React.FC = () => {
             if (withWaterSensorsData?.withWaterSensors) {
               return withWaterSensorsData.withWaterSensors.some(
                 (sensor) =>
-                  sensor.region === item.region &&
-                  sensor.circle === item.circle &&
-                  sensor.division === item.division &&
-                  sensor.sub_division === item.sub_division &&
-                  sensor.block === item.block &&
-                  sensor.scheme_id === item.scheme_id &&
-                  sensor.village_name === item.village_name &&
-                  sensor.esr_name === item.esr_name,
+                  String(sensor.region).toLowerCase() === String(item.region).toLowerCase() &&
+                  String(sensor.circle).toLowerCase() === String(item.circle).toLowerCase() &&
+                  String(sensor.division).toLowerCase() === String(item.division).toLowerCase() &&
+                  String(sensor.sub_division).toLowerCase() === String(item.sub_division).toLowerCase() &&
+                  String(sensor.block).toLowerCase() === String(item.block).toLowerCase() &&
+                  String(sensor.scheme_id).toLowerCase() === String(item.scheme_id).toLowerCase() &&
+                  String(sensor.village_name).toLowerCase() === String(item.village_name).toLowerCase() &&
+                  String(sensor.esr_name).toLowerCase() === String(item.esr_name).toLowerCase(),
               );
             }
             return false;

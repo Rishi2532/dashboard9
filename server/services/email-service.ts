@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import nodemailer from "nodemailer";
 import { randomBytes } from "crypto";
 import pg from "pg";
+import { sendOfflineSensorsSMS } from "./sms-service";
 
 /** Generate a cryptographically secure unique token for one-click acknowledgement links */
 export function generateAcknowledgeToken(): string {
@@ -465,22 +466,49 @@ export async function sendDailyAlertEmail(
   const subject = `🚨 Critical Water Scheme Alerts - Action Required`;
   const baseUrl = process.env.APP_BASE_URL || 'https://dashboard1.mahajaliot.in';
 
-  let alertsHtml = '';
-  alertsData.forEach(alert => {
+  let alertsHtml = `
+    <table style="width: 100%; border-collapse: collapse; margin: 15px 0; border: 1px solid #cbd5e1; font-size: 13px;">
+      <thead>
+        <tr style="background-color: #f1f5f9; border-bottom: 2px solid #cbd5e1;">
+          <th style="padding: 10px; text-align: center; font-weight: bold; color: #475569; width: 40px; border: 1px solid #cbd5e1;">#</th>
+          <th style="padding: 10px; text-align: left; font-weight: bold; color: #475569; border: 1px solid #cbd5e1;">Scheme / Village</th>
+          <th style="padding: 10px; text-align: left; font-weight: bold; color: #475569; border: 1px solid #cbd5e1;">ESR</th>
+          <th style="padding: 10px; text-align: left; font-weight: bold; color: #475569; border: 1px solid #cbd5e1;">Issues</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  alertsData.forEach((alert, index) => {
+    const issues = [];
+    if (alert.chlorine_issue) issues.push(`<span style="color: #dc2626; font-weight: bold;">Chlorine:</span> ${alert.chlorine_value} mg/L`);
+    if (alert.pressure_issue) issues.push(`<span style="color: #dc2626; font-weight: bold;">Pressure:</span> ${alert.pressure_value} Bar`);
+    if (alert.lpcd_issue) issues.push(`<span style="color: #dc2626; font-weight: bold;">LPCD:</span> ${alert.lpcd_value}`);
+    if (alert.water_issue) issues.push(`<span style="color: #dc2626; font-weight: bold;">Water:</span> 0 (Zero Supply)`);
+
     alertsHtml += `
-      <div style="background-color: #fee2e2; border-left: 4px solid #dc2626; padding: 20px; margin: 15px 0; border-radius: 0 8px 8px 0;">
-        <h3 style="margin-top: 0; color: #991b1b;">Scheme: ${alert.scheme_name} (ID: ${alert.scheme_id})</h3>
-        <table style="width: 100%; border-collapse: collapse;">
-          ${alert.chlorine_issue ? `<tr><td style="padding: 4px 0; color: #dc2626; font-weight: bold; width: 120px;">Chlorine:</td><td style="padding: 4px 0; color: #1f2937;">${alert.chlorine_value} mg/L (Below 0.2)</td></tr>` : ''}
-          ${alert.pressure_issue ? `<tr><td style="padding: 4px 0; color: #dc2626; font-weight: bold; width: 120px;">Pressure:</td><td style="padding: 4px 0; color: #1f2937;">${alert.pressure_value} Bar (Below 0.2)</td></tr>` : ''}
-          ${alert.lpcd_issue ? `<tr><td style="padding: 4px 0; color: #dc2626; font-weight: bold; width: 120px;">LPCD:</td><td style="padding: 4px 0; color: #1f2937;">${alert.lpcd_value} (Below 55)</td></tr>` : ''}
-          ${alert.water_issue ? `<tr><td style="padding: 4px 0; color: #dc2626; font-weight: bold; width: 120px;">Water Supply:</td><td style="padding: 4px 0; color: #1f2937;">${alert.water_value} (Zero Supply)</td></tr>` : ''}
-          ${alert.village_name ? `<tr><td style="padding: 4px 0; color: #6b7280; width: 120px;">Village:</td><td style="padding: 4px 0; color: #1f2937;">${alert.village_name}</td></tr>` : ''}
-          ${alert.esr_name ? `<tr><td style="padding: 4px 0; color: #6b7280; width: 120px;">ESR:</td><td style="padding: 4px 0; color: #1f2937;">${alert.esr_name}</td></tr>` : ''}
-        </table>
-      </div>
+        <tr style="border-bottom: 1px solid #e2e8f0; background-color: #fffafb;">
+          <td style="padding: 10px; color: #1e293b; border: 1px solid #cbd5e1; vertical-align: top; text-align: center;">
+            ${index + 1}
+          </td>
+          <td style="padding: 10px; color: #1e293b; border: 1px solid #cbd5e1; vertical-align: top;">
+            <strong>${alert.scheme_name}</strong><br>
+            <span style="font-size: 11px; color: #64748b;">${alert.village_name || 'N/A'} (ID: ${alert.scheme_id})</span>
+          </td>
+          <td style="padding: 10px; color: #1e293b; border: 1px solid #cbd5e1; vertical-align: top;">
+            ${alert.esr_name || '-'}
+          </td>
+          <td style="padding: 10px; color: #1e293b; border: 1px solid #cbd5e1; vertical-align: top;">
+            ${issues.join('<br>')}
+          </td>
+        </tr>
     `;
   });
+
+  alertsHtml += `
+      </tbody>
+    </table>
+  `;
 
   // Single Acknowledge All button at the bottom of the email
   const ackButtonHtml = acknowledgeToken ? `
@@ -625,11 +653,12 @@ export async function sendAutomaticOfflineEmails(): Promise<void> {
         c.pressure_status,
         c.flow_meter_status,
         v.employee_name as vendor_name,
-        v.email as vendor_email
+        v.email as vendor_email,
+        v.phone as vendor_phone
       FROM communication_status c
       INNER JOIN scheme_status s ON c.scheme_id = s.scheme_id
       INNER JOIN (
-        SELECT DISTINCT ON (region) region, employee_name, email
+        SELECT DISTINCT ON (region) region, employee_name, email, phone
         FROM vendor
         ORDER BY region, id
       ) v ON c.region = v.region
@@ -648,7 +677,7 @@ export async function sendAutomaticOfflineEmails(): Promise<void> {
     }
     
     // Group the offline sensors by vendor email
-    const vendorGroups: Record<string, { vendorName: string; region: string; sensors: any[] }> = {};
+    const vendorGroups: Record<string, { vendorName: string; region: string; phone: string; sensors: any[] }> = {};
     
     rows.forEach((row: any) => {
       const email = row.vendor_email;
@@ -658,6 +687,7 @@ export async function sendAutomaticOfflineEmails(): Promise<void> {
         vendorGroups[email] = {
           vendorName: row.vendor_name,
           region: row.region,
+          phone: row.vendor_phone,
           sensors: []
         };
       }
@@ -678,10 +708,14 @@ export async function sendAutomaticOfflineEmails(): Promise<void> {
     
     // Send email to each vendor with their consolidated list
     for (const email of Object.keys(vendorGroups)) {
-      const { vendorName, region, sensors } = vendorGroups[email];
+      const { vendorName, region, phone, sensors } = vendorGroups[email];
       
       console.log(`Sending offline sensors report to vendor ${vendorName} (${email}) for region ${region}...`);
       await sendOfflineSensorsEmail(email, vendorName, region, sensors);
+      
+      if (phone && phone.length >= 10) {
+        await sendOfflineSensorsSMS(phone, vendorName, region, sensors.length);
+      }
     }
     
   } catch (error) {
