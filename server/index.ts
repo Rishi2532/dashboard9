@@ -61,6 +61,8 @@ import { initPiWaterSchemeIngestionCron } from "./cron/pi-water-scheme-ingestion
 import { initPiSchemeLpcdIngestionCron } from "./cron/pi-scheme-lpcd-ingestion.js";
 import { initPiWaterConsumptionIngestionCron } from "./cron/pi-water-consumption-ingestion.js";
 import { initPiCommunicationStatusIngestionCron } from "./cron/pi-communication-status-ingestion.js";
+import { initPiRealtimeValuesCron } from "./cron/pi-realtime-values.js";
+import { initPiRealtimeCommCron } from "./cron/pi-realtime-comm.js";
 
 const app = express();
 app.disable('x-powered-by');
@@ -199,6 +201,8 @@ app.use((req, res, next) => {
         initPiSchemeLpcdIngestionCron();
         initPiWaterConsumptionIngestionCron();
         initPiCommunicationStatusIngestionCron();
+        initPiRealtimeValuesCron();
+        initPiRealtimeCommCron();
       }, 5000); // Wait 5 seconds after server start
     },
   );

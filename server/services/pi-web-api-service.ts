@@ -22,7 +22,7 @@ const piClient = axios.create({
   }),
 });
 
-async function fetchWithRetry(url: string, retries = 3): Promise<any> {
+export async function fetchWithRetry(url: string, retries = 3): Promise<any> {
   for (let i = 0; i < retries; i++) {
     try {
       return await piClient.get(url, { timeout: 30000 });
@@ -87,6 +87,30 @@ export function extractHierarchyFromPath(path: string) {
  * Crawls the PI AF Hierarchy starting from a given path (e.g., \\DemoAF\JJM\JJM\Maharashtra)
  * Finds all elements matching the given template name.
  */
+let cachedESRs: PIElement[] | null = null;
+let lastESRCacheTime = 0;
+const ESR_CACHE_TTL = 1000 * 60 * 60 * 12; // 12 hours
+
+export async function getAllESRs(rootPath: string = '\\\\DemoAF\\JJM\\JJM\\Maharashtra'): Promise<PIElement[]> {
+  const now = Date.now();
+  if (cachedESRs && (now - lastESRCacheTime < ESR_CACHE_TTL)) {
+    console.log("Using cached ESR list...");
+    return cachedESRs;
+  }
+
+  console.log(`Starting crawl for ESRs at path: ${rootPath}...`);
+  try {
+    const esrs = await findElementsByTemplate(rootPath, 'MJP Reservoir Level - Active');
+    cachedESRs = esrs;
+    lastESRCacheTime = now;
+    return esrs;
+  } catch (error) {
+    console.error("Error fetching all ESRs:", error);
+    if (cachedESRs) return cachedESRs;
+    return [];
+  }
+}
+
 export async function findElementsByTemplate(startPath: string, targetTemplate: string): Promise<PIElement[]> {
   const results: PIElement[] = [];
   
@@ -123,14 +147,7 @@ async function traverseElement(element: PIElement, targetTemplate: string, resul
   }
 }
 
-/**
- * Finds all active ESRs in the system.
- * We can optionally restrict to a specific Region path to limit the crawl scope.
- */
-export async function getAllESRs(rootPath: string = '\\\\DemoAF\\JJM\\JJM\\Maharashtra'): Promise<PIElement[]> {
-  console.log(`Starting crawl for ESRs at path: ${rootPath}...`);
-  return findElementsByTemplate(rootPath, 'MJP Reservoir Level - Active');
-}
+
 
 /**
  * Gets historical interpolated data for an attribute over the last N days.
@@ -234,6 +251,26 @@ export async function getAttributeValue(elementWebId: string, attributeName: str
     return dataRes.data.Value;
   } catch (error) {
     console.error(`Error fetching value for ${attributeName}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Gets a specific attribute's current full data (including Timestamp) by Element WebId
+ */
+export async function getAttributeData(elementWebId: string, attributeName: string) {
+  try {
+    const attrsRes = await fetchWithRetry(`/elements/${elementWebId}/attributes?nameFilter=${encodeURIComponent(attributeName)}`);
+    const items = attrsRes.data.Items;
+    if (!items || items.length === 0) {
+      return null;
+    }
+    
+    const valueLink = items[0].Links.Value;
+    const dataRes = await fetchWithRetry(valueLink);
+    return dataRes.data;
+  } catch (error) {
+    console.error(`Error fetching data for ${attributeName}:`, error);
     return null;
   }
 }

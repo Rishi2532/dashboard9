@@ -1461,3 +1461,49 @@ export const insertEmailAlertLogSchema = createInsertSchema(emailAlertLogs).omit
 
 export type InsertEmailAlertLog = z.infer<typeof insertEmailAlertLogSchema>;
 export type EmailAlertLog = typeof emailAlertLogs.$inferSelect;
+
+// Real-time Sensor Data table for instant tracking
+export const realtimeSensorData = pgTable(
+  "realtime_sensor_data",
+  {
+    id: serial("id").primaryKey(),
+    scheme_id: varchar("scheme_id", { length: 100 }),
+    village_name: varchar("village_name", { length: 255 }),
+    esr_name: varchar("esr_name", { length: 255 }),
+    
+    // Chlorine
+    chlorine_value: decimal("chlorine_value"),
+    chlorine_timestamp: timestamp("chlorine_timestamp", { withTimezone: true }),
+    chlorine_comm_status: varchar("chlorine_comm_status", { length: 20 }),
+    
+    // Pressure
+    pressure_value: decimal("pressure_value", { precision: 12, scale: 2 }),
+    pressure_timestamp: timestamp("pressure_timestamp", { withTimezone: true }),
+    pressure_comm_status: varchar("pressure_comm_status", { length: 20 }),
+    
+    // Flow Rate
+    flow_rate_comm_status: varchar("flow_rate_comm_status", { length: 20 }),
+    
+    // Track update times
+    last_updated_values: timestamp("last_updated_values", { withTimezone: true }).defaultNow(),
+    last_updated_comm: timestamp("last_updated_comm", { withTimezone: true }).defaultNow(),
+  },
+  (table) => {
+    return {
+      unique_esr: unique().on(
+        table.scheme_id,
+        table.village_name,
+        table.esr_name
+      ),
+    };
+  }
+);
+
+export const insertRealtimeSensorDataSchema = createInsertSchema(realtimeSensorData).omit({
+  id: true,
+  last_updated_values: true,
+  last_updated_comm: true,
+});
+
+export type InsertRealtimeSensorData = z.infer<typeof insertRealtimeSensorDataSchema>;
+export type RealtimeSensorData = typeof realtimeSensorData.$inferSelect;
