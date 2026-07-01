@@ -1,6 +1,10 @@
 import { Router } from "express";
 import { pool } from "../db-local";
 import { storage } from "../storage";
+import { 
+  getMonthlyChlorineData, 
+  getMonthlyPressureData 
+} from "./monthly-reports-helpers";
 
 const router = Router();
 
@@ -200,6 +204,7 @@ router.get("/data", async (req, res) => {
     const block = (req.query.block as string) || "all";
     const scheme_id = (req.query.scheme_id as string) || "all";
     const report_month = (req.query.report_month as string) || null;
+    const report_type = (req.query.report_type as string) || "lpcd";
 
     if (!report_month) {
       return res.status(400).json({ error: "report_month query parameter required (YYYY-MM)" });
@@ -1006,6 +1011,16 @@ router.get("/data", async (req, res) => {
       } catch (err) {
         console.warn("Could not load fallback chlorine active comparison counts:", err);
       }
+    }
+
+    if (report_type === "chlorine") {
+      const data = await getMonthlyChlorineData(req.query);
+      responseData.chlorineCommissionedSchemes = data.chlorineCommissionedSchemes;
+      responseData.chlorineHighlights = data.chlorineHighlights || [];
+    } else if (report_type === "pressure") {
+      const data = await getMonthlyPressureData(req.query);
+      responseData.pressureCommissionedSchemes = data.pressureCommissionedSchemes;
+      responseData.pressureHighlights = data.pressureHighlights || [];
     }
 
     res.json(responseData);

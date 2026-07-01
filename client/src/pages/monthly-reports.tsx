@@ -27,6 +27,8 @@ import {
 import DashboardLayout from "@/components/dashboard/dashboard-layout";
 import { useToast } from "@/hooks/use-toast";
 import { generateMonthlyReportPDF } from "@/lib/pdf-generator-monthly";
+import { generateMonthlyChlorineReportPDF } from "@/lib/pdf-generator-monthly-chlorine";
+import { generateMonthlyPressureReportPDF } from "@/lib/pdf-generator-monthly-pressure";
 import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
 
 export default function MonthlyReportsPage() {
@@ -41,6 +43,7 @@ export default function MonthlyReportsPage() {
   const [reportMonth, setReportMonth] = useState<string>(
     new Date().toISOString().substring(0, 7)
   );
+  const [reportType, setReportType] = useState<"LPCD" | "Chlorine" | "Pressure">("LPCD");
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
 
@@ -136,6 +139,7 @@ export default function MonthlyReportsPage() {
       params.append("block", selectedBlock);
       params.append("scheme_id", selectedSchemeId);
       params.append("report_month", reportMonth);
+      params.append("report_type", reportType.toLowerCase());
 
       const response = await fetch(`/api/monthly-reports/data?${params.toString()}`);
 
@@ -146,7 +150,13 @@ export default function MonthlyReportsPage() {
       const data = await response.json();
       console.log("[MonthlyReport] API data received:", data);
 
-      await generateMonthlyReportPDF(data);
+      if (reportType === "LPCD") {
+        await generateMonthlyReportPDF(data);
+      } else if (reportType === "Chlorine") {
+        await generateMonthlyChlorineReportPDF(data);
+      } else if (reportType === "Pressure") {
+        await generateMonthlyPressureReportPDF(data);
+      }
 
       toast({
         title: "Success",
@@ -210,7 +220,27 @@ export default function MonthlyReportsPage() {
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Report Type Filter */}
+              <div className="space-y-2">
+                <Label htmlFor="report-type" className="text-sm font-medium">
+                  Report Type
+                </Label>
+                <Select
+                  value={reportType}
+                  onValueChange={(val: any) => setReportType(val)}
+                >
+                  <SelectTrigger id="report-type" className="w-full h-10">
+                    <SelectValue placeholder="Select Report Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="LPCD">LPCD</SelectItem>
+                    <SelectItem value="Chlorine">Chlorine</SelectItem>
+                    <SelectItem value="Pressure">Pressure</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Scheme Filter */}
               <div className="space-y-2">
                 <Label htmlFor="scheme" className="text-sm font-medium">

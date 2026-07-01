@@ -181,7 +181,7 @@ export async function runPiWaterConsumptionIngestion(rootPath?: string) {
 
 export function initPiWaterConsumptionIngestionCron() {
   // Run daily at 09:51 AM
-  cron.schedule("56 11 * * *", async () => {
+  cron.schedule("29 13 * * *", async () => {
     console.log("Running scheduled PI Web API Water Consumption Ingestion...");
     await runPiWaterConsumptionIngestion();
   });

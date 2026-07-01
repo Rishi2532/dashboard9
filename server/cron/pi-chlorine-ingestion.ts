@@ -49,21 +49,40 @@ export async function runPiChlorineIngestion(rootPath?: string) {
           const values: number[] = [];
           const dates: string[] = [];
 
+          let hasOnlyPtCreated = false;
           const dateMap = new Map<string, number>();
           if (chlorineDataPoints && chlorineDataPoints.length > 0) {
+            let totalBuckets = 0;
+            let ptCreatedCount = 0;
+
             for (const summaryItem of chlorineDataPoints) {
               const pt = summaryItem.Value;
-              if (pt && typeof pt.Value === 'number' && pt.Good !== false && !pt.IsSystem && pt.Name !== 'Pt Created' && pt.Value !== 253 && pt.Value !== 255 && (!pt.Value || (pt.Value.IsSystem !== true && pt.Value.Name !== 'Pt Created'))) {
-                const bucketTimestamp = pt.Timestamp;
-                const dateObj = new Date(bucketTimestamp);
-                const dateStr = format(dateObj, "dd-MMM");
-                dateMap.set(dateStr, pt.Value);
+              if (pt) {
+                totalBuckets++;
+
+                // Check if this bucket is "Pt Created"
+                const isPtCreated = pt.IsSystem || pt.Name === 'Pt Created' || pt.Value === 253 || pt.Value === 255 ||
+                  (typeof pt.Value === 'object' && (pt.Value.IsSystem || pt.Value.Name === 'Pt Created'));
+
+                if (isPtCreated) {
+                  ptCreatedCount++;
+                } else if (typeof pt.Value === 'number' && pt.Good !== false) {
+                  // Only valid numbers make it to the dateMap
+                  const bucketTimestamp = pt.Timestamp;
+                  const dateObj = new Date(bucketTimestamp);
+                  const dateStr = format(dateObj, "dd-MMM");
+                  dateMap.set(dateStr, pt.Value);
+                }
               }
+            }
+
+            if (totalBuckets > 0 && ptCreatedCount === totalBuckets) {
+              hasOnlyPtCreated = true;
             }
           }
 
-          if (dateMap.size === 0) {
-            // If no valid data was found (e.g., entirely 'Pt Created'), remove it from DB so it drops off the dashboard
+          if (chlorineDataPoints === null || hasOnlyPtCreated) {
+            // If the Chlorine attribute physically doesn't exist, OR it only has "Pt Created" values, remove it from DB
             await db.delete(chlorineData).where(
               and(
                 eq(chlorineData.scheme_id, hierarchy.scheme_id),
@@ -188,7 +207,7 @@ export async function runPiChlorineIngestion(rootPath?: string) {
 import cron from "node-cron";
 
 export function initPiChlorineIngestionCron() {
-  cron.schedule("52 11 * * *", async () => {
+  cron.schedule("23 13 * * *", async () => {
     console.log("Running scheduled PI Web API Chlorine Data Ingestion...");
     await runPiChlorineIngestion();
   });
