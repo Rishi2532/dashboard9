@@ -188,7 +188,7 @@ export async function runPiPressureIngestion(rootPath?: string) {
 import cron from "node-cron";
 
 export function initPiPressureIngestionCron() {
-  cron.schedule("28 15 * * *", async () => {
+  cron.schedule("54 11 * * *", async () => {
     console.log("Running scheduled PI Web API Pressure Data Ingestion...");
     await runPiPressureIngestion();
   });

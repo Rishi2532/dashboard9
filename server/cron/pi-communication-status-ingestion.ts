@@ -9,29 +9,26 @@ import {
 
 function checkConnected(pt: any): string | null {
   if (pt === undefined || pt === null) return null;
-  
-  if (typeof pt === 'number') {
-    if (pt === 253 || pt === 255) return 'Not Connected';
-    return 'Connected';
-  }
-  
-  if (typeof pt === 'object') {
-    if (pt.Name === 'Pt Created' || pt.Value === 253 || pt.Value === 255) {
+
+  if (typeof pt === 'object' && pt !== null && 'Value' in pt) {
+    if (pt.IsSystem) {
       return 'Not Connected';
+    } else {
+      return 'Connected';
     }
   }
-  
-  if (typeof pt === 'string' && !isNaN(Number(pt))) {
+
+  if (typeof pt === 'number' || (typeof pt === 'string' && !isNaN(Number(pt)))) {
     return 'Connected';
   }
-  
+
   return 'Not Connected';
 }
 
 function mapStatus24h(pt: any): string | null {
   if (pt === undefined || pt === null) return null;
   const val = typeof pt === 'object' ? pt.Value : pt;
-  if (val === 2 || String(val) === '2') return 'Online';
+  if (val === 1 || String(val) === '1' || val === 2 || String(val) === '2') return 'Online';
   if (val === 0 || String(val) === '0') return 'Offline';
   return null;
 }
@@ -46,7 +43,7 @@ function mapStatus72h(pt: any): string | null {
 
 export async function runPiCommunicationStatusIngestion(rootPath?: string) {
   console.log("Starting PI Web API Communication Status Ingestion...");
-  
+
   try {
     const db = await getDB();
     const esrs: PIElement[] = await getAllESRs(rootPath);
@@ -56,14 +53,14 @@ export async function runPiCommunicationStatusIngestion(rootPath?: string) {
     let errorCount = 0;
 
     const BATCH_SIZE = 4;
-    
+
     for (let i = 0; i < esrs.length; i += BATCH_SIZE) {
       const batch = esrs.slice(i, i + BATCH_SIZE);
-      
+
       await Promise.all(batch.map(async (esr) => {
         try {
           const hierarchy = extractHierarchyFromPath(esr.Path);
-          
+
           if (!hierarchy.scheme_id || !hierarchy.esr_name) {
             return;
           }
@@ -152,8 +149,8 @@ export async function runPiCommunicationStatusIngestion(rootPath?: string) {
           // Using onConflictDoUpdate while strictly omitting timestamp logic
           await db.insert(communicationStatus).values(record).onConflictDoUpdate({
             target: [
-              communicationStatus.scheme_id, 
-              communicationStatus.village_name, 
+              communicationStatus.scheme_id,
+              communicationStatus.village_name,
               communicationStatus.esr_name
             ],
             set: record // record only contains mapped fields, leaving last_seen and uploaded_at completely untouched
@@ -169,13 +166,13 @@ export async function runPiCommunicationStatusIngestion(rootPath?: string) {
           errorCount++;
         }
       }));
-      
+
       console.log(`Processed Communication Status batch ${Math.floor(i / BATCH_SIZE) + 1} / ${Math.ceil(esrs.length / BATCH_SIZE)}`);
     }
 
     console.log(`PI Communication Status Ingestion Complete. Success: ${successCount}, Errors: ${errorCount}`);
     return { success: true, processed: successCount, errors: errorCount };
-    
+
   } catch (err) {
     console.error("Critical error in PI Communication Status Ingestion:", err instanceof Error ? err.message : err);
     return { success: false, error: err instanceof Error ? err.message : String(err) };
@@ -185,7 +182,7 @@ export async function runPiCommunicationStatusIngestion(rootPath?: string) {
 import cron from "node-cron";
 
 export function initPiCommunicationStatusIngestionCron() {
-  cron.schedule("02 14 * * *", async () => {
+  cron.schedule("58 11 * * *", async () => {
     console.log("Running scheduled PI Web API Communication Status Ingestion...");
     await runPiCommunicationStatusIngestion();
   });

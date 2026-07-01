@@ -4,11 +4,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useRouter } from 'expo-router';
 import { DashboardCard } from '@/components/DashboardCard';
 import { fetchApi } from '@/api/client';
 import { Spacing } from '@/constants/theme';
+import { TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function HomeScreen() {
+  const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState({
     totalEsr: '...',
@@ -19,10 +23,6 @@ export default function HomeScreen() {
 
   const loadData = async () => {
     try {
-      // In a real scenario, this would hit a dedicated /api/dashboard endpoint
-      // For now, we will simulate the dashboard metrics
-      // const data = await fetchApi('/dashboard-stats');
-      
       // Simulate network delay
       await new Promise(resolve => setTimeout(resolve, 800));
 
@@ -46,6 +46,16 @@ export default function HomeScreen() {
     await loadData();
     setRefreshing(false);
   };
+
+  const renderDashboardLink = (title: string, icon: keyof typeof Ionicons.glyphMap, route: string, color: string) => (
+    <TouchableOpacity onPress={() => router.push(route)} style={styles.dashboardLink}>
+      <View style={[styles.dashboardIconBox, { backgroundColor: color + '20' }]}>
+        <Ionicons name={icon} size={24} color={color} />
+      </View>
+      <ThemedText type="defaultSemiBold" style={{ flex: 1 }}>{title}</ThemedText>
+      <Ionicons name="chevron-forward" size={20} color="#a1a1aa" />
+    </TouchableOpacity>
+  );
 
   return (
     <ThemedView style={styles.container}>
@@ -73,6 +83,7 @@ export default function HomeScreen() {
               value={stats.activeAlerts} 
               iconName="alert-circle-outline" 
               color="#ef4444" 
+              onPress={() => router.push('/alerts')}
             />
             <DashboardCard 
               title="Offline Sensors" 
@@ -86,13 +97,18 @@ export default function HomeScreen() {
               iconName="flask-outline" 
               color="#10b981" 
               subtitle="Last 24h"
+              onPress={() => router.push('/chlorine')}
             />
           </View>
 
           <View style={styles.section}>
-            <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>Recent Activity</ThemedText>
-            <ThemedView type="backgroundElement" style={styles.placeholderCard}>
-              <ThemedText style={{ opacity: 0.6 }}>No new activity in the last hour.</ThemedText>
+            <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>Detailed Dashboards</ThemedText>
+            <ThemedView type="backgroundElement" style={styles.dashboardList}>
+              {renderDashboardLink('Chlorine Monitoring', 'flask-outline', '/chlorine', '#10b981')}
+              {renderDashboardLink('Pressure Dashboard', 'speedometer-outline', '/pressure', '#6366f1')}
+              {renderDashboardLink('Village LPCD', 'home-outline', '/village-lpcd', '#f59e0b')}
+              {renderDashboardLink('Scheme LPCD', 'business-outline', '/scheme-lpcd', '#3b82f6')}
+              {renderDashboardLink('Water Consumption', 'water-outline', '/water-consumption', '#0ea5e9')}
             </ThemedView>
           </View>
         </ScrollView>
@@ -134,5 +150,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 100,
+  },
+  dashboardList: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  dashboardLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.four,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(150, 150, 150, 0.1)',
+  },
+  dashboardIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.three,
   },
 });

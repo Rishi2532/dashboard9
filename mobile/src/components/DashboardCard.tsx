@@ -1,38 +1,33 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 import { Colors } from '@/constants/theme';
-import { useColorScheme } from 'react-native';
 
-type DashboardCardProps = {
+interface DashboardCardProps {
   title: string;
   value: string | number;
   iconName: keyof typeof Ionicons.glyphMap;
-  color?: string;
+  color: string;
   subtitle?: string;
-};
+  onPress?: () => void;
+}
 
-export function DashboardCard({ title, value, iconName, color, subtitle }: DashboardCardProps) {
-  const scheme = useColorScheme() ?? 'light';
-  const themeColor = color || Colors[scheme].tint;
-
+export function DashboardCard({ title, value, iconName, color, subtitle, onPress }: DashboardCardProps) {
   return (
-    <ThemedView style={styles.card}>
-      <View style={styles.headerRow}>
-        <ThemedText type="defaultSemiBold" style={styles.title}>{title}</ThemedText>
-        <Ionicons name={iconName} size={24} color={themeColor} />
-      </View>
-      <View style={styles.valueRow}>
-        <ThemedText type="title" style={[styles.value, { color: themeColor }]}>
-          {value}
-        </ThemedText>
+    <TouchableOpacity onPress={onPress} activeOpacity={onPress ? 0.7 : 1} style={{ width: '48%', marginBottom: 12 }}>
+      <ThemedView type="backgroundElement" style={[styles.card, { borderTopColor: color, borderTopWidth: 4 }]}>
+        <View style={styles.header}>
+          <ThemedText type="defaultSemiBold" style={styles.title} numberOfLines={1}>{title}</ThemedText>
+          <Ionicons name={iconName} size={20} color={color} />
+        </View>
+        <ThemedText type="title" style={styles.value}>{value}</ThemedText>
         {subtitle && (
-          <ThemedText type="small" style={styles.subtitle}>{subtitle}</ThemedText>
+          <ThemedText style={styles.subtitle}>{subtitle}</ThemedText>
         )}
-      </View>
-    </ThemedView>
+      </ThemedView>
+    </TouchableOpacity>
   );
 }
 

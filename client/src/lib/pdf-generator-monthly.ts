@@ -175,6 +175,7 @@ export async function generateMonthlyProgressPDF(
 }
 
 export interface MonthlyIntegrationData {
+  caseType: string;
   summary: {
     totalSchemesInRegion: number;
     totalEsrIntegrated: number;

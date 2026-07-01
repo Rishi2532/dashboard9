@@ -8,7 +8,14 @@ import {
   PIElement
 } from "../services/pi-web-api-service";
 
+let isIngesting = false;
+
 export async function runPiRealtimeValuesIngestion(rootPath?: string) {
+  if (isIngesting) {
+    console.log("PI Web API Realtime Values Ingestion is already running. Skipping this cycle.");
+    return;
+  }
+  isIngesting = true;
   console.log("Starting PI Web API Realtime Values Ingestion...");
 
   try {
@@ -16,7 +23,7 @@ export async function runPiRealtimeValuesIngestion(rootPath?: string) {
     const esrs: PIElement[] = await getAllESRs(rootPath);
     console.log(`Found ${esrs.length} ESRs in PI AF for Realtime Values.`);
 
-    const BATCH_SIZE = 10;
+    const BATCH_SIZE = 100;
 
     for (let i = 0; i < esrs.length; i += BATCH_SIZE) {
       const batch = esrs.slice(i, i + BATCH_SIZE);
@@ -113,6 +120,8 @@ export async function runPiRealtimeValuesIngestion(rootPath?: string) {
     console.log("Completed PI Web API Realtime Values Ingestion.");
   } catch (error) {
     console.error("Critical error in Realtime Values Ingestion:", error);
+  } finally {
+    isIngesting = false;
   }
 }
 

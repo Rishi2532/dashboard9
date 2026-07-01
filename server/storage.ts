@@ -4197,8 +4197,9 @@ export class PostgresStorage implements IStorage {
             cs.chlorine_status,
             cs.last_seen,
             EXTRACT(DAY FROM (CURRENT_TIMESTAMP - cs.last_seen))::integer as consecutive_days,
-            cd.dashboard_url
+            cd.dashboard_url, ss_status.agency_type
           FROM communication_status cs
+          LEFT JOIN (SELECT scheme_id, MAX(agency_type) as agency_type FROM scheme_status GROUP BY scheme_id) ss_status ON cs.scheme_id = ss_status.scheme_id
           LEFT JOIN chlorine_data cd ON (
             cs.scheme_id = cd.scheme_id AND
             cs.village_name = cd.village_name AND
@@ -4230,6 +4231,7 @@ export class PostgresStorage implements IStorage {
           last_seen: row.last_seen,
           consecutive_days: Number(row.consecutive_days) || 0,
           dashboard_url: row.dashboard_url,
+          agency_type: row.agency_type,
         }));
       } else {
         // Get sensors with consecutive chlorine readings below 0.2, above 0.5, or optimal (0.2-0.5)
@@ -4406,13 +4408,15 @@ export class PostgresStorage implements IStorage {
             ss.consecutive_days,
             lr.latest_chlorine_value,
             lr.latest_chlorine_date,
-            cd.dashboard_url
+            cd.dashboard_url,
+            ss_status.agency_type
           FROM sensor_streaks ss
           JOIN communication_status cs ON (
             ss.scheme_id = cs.scheme_id
             AND ss.village_name = cs.village_name
             AND ss.esr_name = cs.esr_name
           )
+          LEFT JOIN (SELECT scheme_id, MAX(agency_type) as agency_type FROM scheme_status GROUP BY scheme_id) ss_status ON ss.scheme_id = ss_status.scheme_id
           LEFT JOIN latest_readings lr ON (
             ss.scheme_id = lr.scheme_id
             AND ss.village_name = lr.village_name
@@ -4446,6 +4450,7 @@ export class PostgresStorage implements IStorage {
           latest_chlorine_value: row.latest_chlorine_value,
           latest_chlorine_date: row.latest_chlorine_date,
           dashboard_url: row.dashboard_url,
+          agency_type: row.agency_type,
         }));
       }
     } catch (error) {
@@ -4508,8 +4513,10 @@ export class PostgresStorage implements IStorage {
             EXTRACT(DAY FROM (CURRENT_TIMESTAMP - cs.pressure_last_seen))::integer as consecutive_days,
             pd.pressure_value_7 as latest_pressure_value,
             pd.pressure_date_day_7 as latest_pressure_date,
-            pd.dashboard_url
+            pd.dashboard_url,
+            ss_status.agency_type
           FROM communication_status cs
+          LEFT JOIN (SELECT scheme_id, MAX(agency_type) as agency_type FROM scheme_status GROUP BY scheme_id) ss_status ON cs.scheme_id = ss_status.scheme_id
           LEFT JOIN pressure_data pd ON (
             cs.scheme_id = pd.scheme_id AND
             cs.village_name = pd.village_name AND
@@ -4543,6 +4550,7 @@ export class PostgresStorage implements IStorage {
           latest_pressure_value: row.latest_pressure_value,
           latest_pressure_date: row.latest_pressure_date,
           dashboard_url: row.dashboard_url,
+          agency_type: row.agency_type,
         }));
       } else {
         // Metrics logic (below_0_2, above_0_7, optimal_0_2_0_7)
@@ -4735,13 +4743,15 @@ export class PostgresStorage implements IStorage {
             ss.consecutive_days,
             pd.pressure_value_7 as latest_pressure_value,
             pd.pressure_date_day_7 as latest_pressure_date,
-            pd.dashboard_url
+            pd.dashboard_url,
+            ss_status.agency_type
           FROM sensor_streaks ss
           JOIN communication_status cs ON (
             ss.scheme_id = cs.scheme_id
             AND ss.village_name = cs.village_name
             AND ss.esr_name = cs.esr_name
           )
+          LEFT JOIN (SELECT scheme_id, MAX(agency_type) as agency_type FROM scheme_status GROUP BY scheme_id) ss_status ON ss.scheme_id = ss_status.scheme_id
           LEFT JOIN pressure_data pd ON (
             ss.scheme_id = pd.scheme_id
             AND ss.village_name = pd.village_name
@@ -4770,6 +4780,7 @@ export class PostgresStorage implements IStorage {
           latest_pressure_value: row.latest_pressure_value,
           latest_pressure_date: row.latest_pressure_date,
           dashboard_url: row.dashboard_url,
+          agency_type: row.agency_type,
         }));
       }
     } catch (error) {

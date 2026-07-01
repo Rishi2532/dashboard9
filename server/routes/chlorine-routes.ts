@@ -748,6 +748,7 @@ router.get("/division-sensors-export", async (req, res) => {
       { header: 'Block', key: 'block', width: 20 },
       { header: 'Scheme ID', key: 'scheme_id', width: 15 },
       { header: 'Scheme Name', key: 'scheme_name', width: 30 },
+      { header: 'Owner', key: 'owner', width: 15 },
       { header: 'Village', key: 'village_name', width: 25 },
       { header: 'ESR Name', key: 'esr_name', width: 25 },
       { header: 'Chlorine (mg/l)', key: 'chlorine_value_7', width: 15 },
@@ -786,6 +787,7 @@ router.get("/division-sensors-export", async (req, res) => {
         block: row.block,
         scheme_id: row.scheme_id,
         scheme_name: row.scheme_name,
+        owner: row.agency_type || 'N/A',
         village_name: row.village_name,
         esr_name: row.esr_name,
         chlorine_value_7: row.chlorine_value_7 !== null ? Number(row.chlorine_value_7).toFixed(2) : 'N/A',
@@ -966,6 +968,7 @@ router.get(["/day-wise-sensors-export/:metric/:days", "/day-wise-sensors-export"
       { header: 'Block', key: 'block', width: 20 },
       { header: 'Scheme ID', key: 'scheme_id', width: 20 },
       { header: 'Scheme Name', key: 'scheme_name', width: 30 },
+      { header: 'Owner', key: 'owner', width: 15 },
       { header: 'Village', key: 'village_name', width: 25 },
       { header: 'ESR Name', key: 'esr_name', width: 25 },
       { header: 'Status', key: 'chlorine_status', width: 15 },
@@ -994,6 +997,7 @@ router.get(["/day-wise-sensors-export/:metric/:days", "/day-wise-sensors-export"
         block: sensor.block,
         scheme_id: sensor.scheme_id,
         scheme_name: sensor.scheme_name,
+        owner: sensor.owner || 'N/A',
         village_name: sensor.village_name,
         esr_name: sensor.esr_name,
         chlorine_status: sensor.chlorine_status,
@@ -1158,6 +1162,7 @@ router.get("/details/:statisticType", async (req, res) => {
     // Build the complete query
     const query = sql`
       SELECT 
+        ss.agency_type,
         cs.region,
         cs.circle,
         cs.division,
@@ -1208,6 +1213,10 @@ router.get("/details/:statisticType", async (req, res) => {
          ORDER BY ht.created_at DESC LIMIT 1) as remark,
         cd.dashboard_url
       FROM communication_status cs
+      LEFT JOIN scheme_status ss ON (
+        cs.scheme_id = ss.scheme_id AND
+        cs.block = ss.block
+      )
       LEFT JOIN water_consumption wc ON (
         cs.region = wc.region AND
         cs.circle = wc.circle AND
@@ -1755,6 +1764,10 @@ router.get("/export/:statisticType", async (req, res) => {
         cd.chlorine_date_day_7,
         (SELECT dashboard_url FROM chlorine_history ch WHERE ch.scheme_name = cs.scheme_name AND ch.village_name = cs.village_name AND ch.esr_name = cs.esr_name AND ch.dashboard_url IS NOT NULL ORDER BY ch.uploaded_at DESC LIMIT 1) as dashboard_url
       FROM communication_status cs
+      LEFT JOIN scheme_status ss ON (
+        cs.scheme_id = ss.scheme_id AND
+        cs.block = ss.block
+      )
       LEFT JOIN water_consumption wc ON (
         cs.region = wc.region AND
         cs.circle = wc.circle AND
@@ -1809,6 +1822,7 @@ router.get("/export/:statisticType", async (req, res) => {
       { header: 'Block', key: 'block', width: 20 },
       { header: 'Scheme ID', key: 'scheme_id', width: 15 },
       { header: 'Scheme Name', key: 'scheme_name', width: 30 },
+      { header: 'Owner', key: 'owner', width: 15 },
       { header: 'Village Name', key: 'village_name', width: 25 },
       { header: 'ESR Name', key: 'esr_name', width: 25 },
       { header: 'Chlorine Status', key: 'chlorine_status', width: 15 },
@@ -1840,6 +1854,7 @@ router.get("/export/:statisticType", async (req, res) => {
         block: row.block,
         scheme_id: row.scheme_id,
         scheme_name: row.scheme_name,
+        owner: row.agency_type || 'N/A',
         village_name: row.village_name,
         esr_name: row.esr_name,
         chlorine_status: row.chlorine_status,
@@ -3442,6 +3457,7 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
           { header: 'Block', key: 'block', width: 20 },
           { header: 'Scheme ID', key: 'scheme_id', width: 20 },
           { header: 'Scheme Name', key: 'scheme_name', width: 30 },
+      { header: 'Owner', key: 'owner', width: 15 },
           { header: 'Village', key: 'village_name', width: 25 },
           { header: 'Population', key: 'population', width: 15 },
           { header: 'LPCD Value', key: 'lpcd_value', width: 15 },
@@ -3457,6 +3473,7 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
           { header: 'Block', key: 'block', width: 20 },
           { header: 'Scheme ID', key: 'scheme_id', width: 20 },
           { header: 'Scheme Name', key: 'scheme_name', width: 30 },
+      { header: 'Owner', key: 'owner', width: 15 },
           { header: 'Village', key: 'village_name', width: 25 },
           { header: 'ESR Name', key: 'esr_name', width: 25 },
           { header: 'Status', key: 'chlorine_status', width: 15 },
@@ -3470,6 +3487,7 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
           { header: 'Block', key: 'block', width: 20 },
           { header: 'Scheme ID', key: 'scheme_id', width: 20 },
           { header: 'Scheme Name', key: 'scheme_name', width: 30 },
+      { header: 'Owner', key: 'owner', width: 15 },
           { header: 'Village', key: 'village_name', width: 25 },
           { header: 'ESR Name', key: 'esr_name', width: 25 },
           { header: 'Status', key: 'chlorine_status', width: 15 },
@@ -3486,6 +3504,7 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
           { header: 'Block', key: 'block', width: 20 },
           { header: 'Scheme ID', key: 'scheme_id', width: 20 },
           { header: 'Scheme Name', key: 'scheme_name', width: 30 },
+      { header: 'Owner', key: 'owner', width: 15 },
           { header: 'Village', key: 'village_name', width: 25 },
           { header: 'ESR Name', key: 'esr_name', width: 25 },
           { header: 'Chlorine (mg/l)', key: 'chlorine_value', width: 18 },
@@ -3514,6 +3533,7 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
             block: row.block,
             scheme_id: row.scheme_id,
             scheme_name: row.scheme_name,
+        owner: row.agency_type || 'N/A',
             village_name: row.village_name,
             population: row.population,
             lpcd_value: row.lpcd_value !== null ? Number(row.lpcd_value).toFixed(2) : 'N/A',
@@ -3529,6 +3549,7 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
             block: row.block,
             scheme_id: row.scheme_id,
             scheme_name: row.scheme_name,
+        owner: row.agency_type || 'N/A',
             last_seen: row.last_seen || 'N/A',
             dashboard_url: row.dashboard_url || 'N/A',
           });
@@ -3541,6 +3562,7 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
             block: row.block,
             scheme_id: row.scheme_id,
             scheme_name: row.scheme_name,
+        owner: row.agency_type || 'N/A',
             village_name: row.village_name,
             esr_name: row.esr_name,
             chlorine_status: row.chlorine_status,
@@ -3557,6 +3579,7 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
             block: row.block,
             scheme_id: row.scheme_id,
             scheme_name: row.scheme_name,
+        owner: row.agency_type || 'N/A',
             village_name: row.village_name,
             esr_name: row.esr_name,
             chlorine_value: row.chlorine_value !== null ? Number(row.chlorine_value).toFixed(2) : 'N/A',
@@ -4279,6 +4302,7 @@ router.get("/lpcd/day-wise-villages-export/:metric/:days", async (req, res) => {
         { header: 'Block', key: 'block', width: 20 },
         { header: 'Scheme ID', key: 'scheme_id', width: 15 },
         { header: 'Scheme Name', key: 'scheme_name', width: 30 },
+      { header: 'Owner', key: 'owner', width: 15 },
         { header: 'Village', key: 'village_name', width: 25 },
         { header: 'Population', key: 'population', width: 12 },
         { header: 'Latest LPCD', key: 'latest_lpcd_value', width: 12 },
@@ -4304,6 +4328,7 @@ router.get("/lpcd/day-wise-villages-export/:metric/:days", async (req, res) => {
           block: row.block,
           scheme_id: row.scheme_id,
           scheme_name: row.scheme_name,
+        owner: row.agency_type || 'N/A',
           village_name: row.village_name,
           population: row.population || 'N/A',
           latest_lpcd_value: row.latest_lpcd_value !== null ? Number(row.latest_lpcd_value).toFixed(1) : 'N/A',
@@ -4468,6 +4493,7 @@ router.get("/lpcd/region-comparison-total-export", async (req, res) => {
           { header: 'Block', key: 'block', width: 20 },
           { header: 'Scheme ID', key: 'scheme_id', width: 15 },
           { header: 'Scheme Name', key: 'scheme_name', width: 30 },
+      { header: 'Owner', key: 'owner', width: 15 },
           { header: 'Village', key: 'village_name', width: 25 },
           { header: 'Population', key: 'population', width: 12 },
           { header: 'Latest LPCD', key: 'latest_lpcd_value', width: 12 },
@@ -4489,6 +4515,7 @@ router.get("/lpcd/region-comparison-total-export", async (req, res) => {
             block: row.block,
             scheme_id: row.scheme_id,
             scheme_name: row.scheme_name,
+        owner: row.agency_type || 'N/A',
             village_name: row.village_name,
             population: row.population || 'N/A',
             latest_lpcd_value: row.latest_lpcd_value !== null ? Number(row.latest_lpcd_value).toFixed(1) : 'N/A',
@@ -5206,6 +5233,7 @@ router.get("/lpcd/export/:statisticType", async (req, res) => {
           { header: 'Block', key: 'block', width: 20 },
           { header: 'Scheme ID', key: 'scheme_id', width: 15 },
           { header: 'Scheme Name', key: 'scheme_name', width: 30 },
+      { header: 'Owner', key: 'owner', width: 15 },
           { header: 'Village', key: 'village_name', width: 25 },
           { header: 'ESR Name', key: 'esr_name', width: 25 },
           { header: 'Flow Meter Status', key: 'flow_meter_status', width: 18 },
@@ -5222,6 +5250,7 @@ router.get("/lpcd/export/:statisticType", async (req, res) => {
           { header: 'Block', key: 'block', width: 20 },
           { header: 'Scheme ID', key: 'scheme_id', width: 15 },
           { header: 'Scheme Name', key: 'scheme_name', width: 30 },
+      { header: 'Owner', key: 'owner', width: 15 },
           { header: 'Village', key: 'village_name', width: 25 },
           { header: 'Population', key: 'population', width: 12 },
           { header: 'Days Below 55', key: 'consecutive_days', width: 15 },
@@ -5235,6 +5264,7 @@ router.get("/lpcd/export/:statisticType", async (req, res) => {
           { header: 'Block', key: 'block', width: 20 },
           { header: 'Scheme ID', key: 'scheme_id', width: 15 },
           { header: 'Scheme Name', key: 'scheme_name', width: 30 },
+      { header: 'Owner', key: 'owner', width: 15 },
           { header: 'Village', key: 'village_name', width: 25 },
           { header: 'Population', key: 'population', width: 12 },
           { header: 'LPCD (Day 7)', key: 'lpcd_value_day7', width: 15 },
@@ -5260,6 +5290,7 @@ router.get("/lpcd/export/:statisticType", async (req, res) => {
           block: row.block,
           scheme_id: row.scheme_id,
           scheme_name: row.scheme_name,
+        owner: row.agency_type || 'N/A',
           village_name: row.village_name,
           esr_name: row.esr_name || 'N/A',
           flow_meter_status: row.flow_meter_status || 'N/A',
@@ -5555,8 +5586,9 @@ router.get("/scheme-lpcd/details/:statisticType", async (req, res) => {
             sldh.water_value, sldh.lpcd_value, sldh.data_date, 
             sldh.dashboard_url as history_url,
             ss.dashboard_url as status_url,
-            COALESCE(NULLIF(ss.dashboard_url, ''), sldh.dashboard_url) as dashboard_url
-        FROM scheme_lpcd_data_history sldh
+            COALESCE(NULLIF(ss.dashboard_url, ''), sldh.dashboard_url) as dashboard_url,
+                    ss.agency_type
+                FROM scheme_lpcd_data_history sldh
         LEFT JOIN scheme_status ss ON sldh.scheme_id = ss.scheme_id AND sldh.block = ss.block
         WHERE sldh.region IS NOT NULL
           ${regionFilter}
@@ -5773,6 +5805,7 @@ router.get("/scheme-lpcd/details/:statisticType", async (req, res) => {
           block: row.block,
           scheme_id: row.scheme_id,
           scheme_name: row.scheme_name,
+        owner: row.agency_type || 'N/A',
           total_population: parseInt(row.total_population) || 0,
           total_villages: parseInt(row.total_villages) || 0,
           villages_below_55: parseInt(row.villages_below_55) || 0,
@@ -6047,6 +6080,7 @@ router.get("/scheme-lpcd/details-export/:statisticType", async (req, res) => {
         { header: 'Block', key: 'block', width: 20 },
         { header: 'Scheme ID', key: 'scheme_id', width: 15 },
         { header: 'Scheme Name', key: 'scheme_name', width: 30 },
+      { header: 'Owner', key: 'owner', width: 15 },
         { header: 'Total Population', key: 'total_population', width: 15 },
         { header: 'Total Villages', key: 'total_villages', width: 12 },
         { header: 'Villages >55', key: 'villages_above_55', width: 12 },
@@ -6074,6 +6108,7 @@ router.get("/scheme-lpcd/details-export/:statisticType", async (req, res) => {
           block: row.block,
           scheme_id: row.scheme_id,
           scheme_name: row.scheme_name,
+        owner: row.agency_type || 'N/A',
           total_population: row.total_population || 0,
           total_villages: row.total_villages || 0,
           villages_above_55: row.villages_above_55 || 0,
@@ -6303,6 +6338,7 @@ router.get("/scheme-lpcd/division-details/:division/:metric", async (req, res) =
           block: row.block,
           scheme_id: row.scheme_id,
           scheme_name: row.scheme_name,
+        owner: row.agency_type || 'N/A',
           total_population: parseInt(row.total_population) || 0,
           total_villages: parseInt(row.total_villages) || 0,
           villages_below_55: parseInt(row.villages_below_55) || 0,
@@ -6437,6 +6473,7 @@ router.get("/scheme-lpcd/division-details-export/:division/:metric", async (req,
         { header: 'Block', key: 'block', width: 20 },
         { header: 'Scheme ID', key: 'scheme_id', width: 15 },
         { header: 'Scheme Name', key: 'scheme_name', width: 30 },
+      { header: 'Owner', key: 'owner', width: 15 },
         { header: 'Total Population', key: 'total_population', width: 15 },
         { header: 'Total Villages', key: 'total_villages', width: 12 },
         { header: 'Villages >55', key: 'villages_above_55', width: 12 },
@@ -6463,6 +6500,7 @@ router.get("/scheme-lpcd/division-details-export/:division/:metric", async (req,
           block: row.block,
           scheme_id: row.scheme_id,
           scheme_name: row.scheme_name,
+        owner: row.agency_type || 'N/A',
           total_population: row.total_population || 0,
           total_villages: row.total_villages || 0,
           villages_above_55: row.villages_above_55 || 0,
@@ -6966,6 +7004,7 @@ router.get("/scheme-lpcd/day-wise-schemes/:metric/:days", async (req, res) => {
           block: row.block,
           scheme_id: row.scheme_id,
           scheme_name: row.scheme_name,
+        owner: row.agency_type || 'N/A',
           total_population: parseInt(row.total_population) || 0,
           total_villages: parseInt(row.total_villages) || 0,
           consecutive_days: parseInt(row.consecutive_days) || 0,
@@ -7144,6 +7183,7 @@ router.get("/scheme-lpcd/day-wise-schemes-export/:metric/:days", async (req, res
         { header: 'Block', key: 'block', width: 20 },
         { header: 'Scheme ID', key: 'scheme_id', width: 15 },
         { header: 'Scheme Name', key: 'scheme_name', width: 30 },
+      { header: 'Owner', key: 'owner', width: 15 },
         { header: 'Total Population', key: 'total_population', width: 15 },
         { header: 'Total Villages', key: 'total_villages', width: 12 },
         { header: 'Consecutive Days', key: 'consecutive_days', width: 15 },
@@ -7169,6 +7209,7 @@ router.get("/scheme-lpcd/day-wise-schemes-export/:metric/:days", async (req, res
           block: row.block,
           scheme_id: row.scheme_id,
           scheme_name: row.scheme_name,
+        owner: row.agency_type || 'N/A',
           total_population: row.total_population || 0,
           total_villages: row.total_villages || 0,
           consecutive_days: row.consecutive_days || 0,
@@ -7364,7 +7405,7 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
               SELECT DISTINCT ss.region, ss.circle, ss.division, ss.sub_division, 
                               COALESCE(NULLIF(TRIM(ss.block), ''), '') as block, 
                               (ss.scheme_id::text) as scheme_id, ss.scheme_name,
-                              ss.dashboard_url
+                              ss.dashboard_url, ss.agency_type
               FROM scheme_status ss
               WHERE ss.region IS NOT NULL
               ${regionFilter.replace(/sldh\.region/g, 'ss.region')}
@@ -7400,9 +7441,9 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
                 ROUND((${avgCalc}), 2) as lpcd_value,
                 ROUND((SUM(COALESCE(NULLIF(TRIM(water_value::text), '')::numeric, 0)) / ${dateList.length}), 2) as water_value,
                 MAX(data_date) as data_date,
-                MAX(s.dashboard_url) as dashboard_url
+                MAX(s.dashboard_url) as dashboard_url, MAX(s.agency_type) as agency_type
             FROM all_schemes s
-            LEFT JOIN weekly_data w ON s.scheme_id = w.scheme_id AND s.block = w.block
+            LEFT JOIN weekly_data w ON TRIM(s.scheme_id) = TRIM(w.scheme_id) AND s.block = w.block
             GROUP BY s.region, s.scheme_id, s.block
             HAVING ${havingCondition}
             ORDER BY s.region, s.scheme_id
@@ -7470,9 +7511,9 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
             WHERE parsed_date IS NOT NULL
           ),
           latest_scheme_data AS (
-            SELECT lr.*, ss.region, ss.circle, ss.division, ss.sub_division, ss.dashboard_url
+            SELECT lr.*, ss.region, ss.circle, ss.division, ss.sub_division, ss.dashboard_url, ss.agency_type
             FROM latest_ranks lr
-            LEFT JOIN scheme_status ss ON lr.scheme_id = ss.scheme_id
+            LEFT JOIN scheme_status ss ON TRIM(lr.scheme_id) = TRIM(ss.scheme_id)
             WHERE rn = 1
             ${currentRegionFilter}
           )
@@ -7505,6 +7546,7 @@ router.get("/scheme-lpcd/region-comparison-schemes/:category", async (req, res) 
           block: row.block,
           scheme_id: row.scheme_id,  // Added for issue matching
           scheme_name: row.scheme_name,
+        owner: row.agency_type || 'N/A',
           total_population: parseInt(row.total_population) || 0,
           total_villages: parseInt(row.total_villages) || 0,
           lpcd_value: row.lpcd_value ? parseFloat(row.lpcd_value) : null,
@@ -7694,6 +7736,7 @@ router.get("/scheme-lpcd/region-comparison-schemes-export-current/:category", as
         { header: 'Block', key: 'block', width: 15 },
         { header: 'Scheme ID', key: 'scheme_id', width: 15 },
         { header: 'Scheme Name', key: 'scheme_name', width: 30 },
+      { header: 'Owner', key: 'owner', width: 15 },
         { header: 'Total Pop', key: 'total_population', width: 12 },
         { header: 'Villages', key: 'total_villages', width: 10 },
         { header: 'LPCD', key: 'lpcd_value', width: 10 },
@@ -7712,6 +7755,7 @@ router.get("/scheme-lpcd/region-comparison-schemes-export-current/:category", as
           block: row.block,
           scheme_id: row.scheme_id,
           scheme_name: row.scheme_name,
+        owner: row.agency_type || 'N/A',
           total_population: parseInt(row.total_population) || 0,
           total_villages: parseInt(row.total_villages) || 0,
           lpcd_value: row.lpcd_value ? parseFloat(row.lpcd_value) : null,
@@ -7965,8 +8009,9 @@ router.get("/scheme-lpcd/region-comparison-schemes-export/:category/:day", async
           SELECT DISTINCT ON (sldh.scheme_id, sldh.block)
             sldh.scheme_id, sldh.block,
             sldh.circle, sldh.division, sldh.sub_division, sldh.data_date,
-            COALESCE(NULLIF(ss.dashboard_url, ''), sldh.dashboard_url) as dashboard_url
-          FROM scheme_lpcd_data_history sldh
+            COALESCE(NULLIF(ss.dashboard_url, ''), sldh.dashboard_url) as dashboard_url,
+                      ss.agency_type
+                  FROM scheme_lpcd_data_history sldh
           LEFT JOIN scheme_status ss ON ss.scheme_id = sldh.scheme_id AND ss.block = sldh.block
           ORDER BY sldh.scheme_id, sldh.block, sldh.uploaded_at DESC
         )
@@ -8009,6 +8054,7 @@ router.get("/scheme-lpcd/region-comparison-schemes-export/:category/:day", async
         { header: 'Block', key: 'block', width: 20 },
         { header: 'Scheme ID', key: 'scheme_id', width: 15 },
         { header: 'Scheme Name', key: 'scheme_name', width: 30 },
+      { header: 'Owner', key: 'owner', width: 15 },
         { header: 'Total Population', key: 'total_population', width: 15 },
         { header: 'Total Villages', key: 'total_villages', width: 12 },
         { header: 'Consecutive Days', key: 'consecutive_days', width: 15 },
@@ -8034,6 +8080,7 @@ router.get("/scheme-lpcd/region-comparison-schemes-export/:category/:day", async
           block: row.block,
           scheme_id: row.scheme_id,
           scheme_name: row.scheme_name,
+        owner: row.agency_type || 'N/A',
           total_population: row.total_population || 0,
           total_villages: row.total_villages || 0,
           consecutive_days: row.consecutive_days || 0,

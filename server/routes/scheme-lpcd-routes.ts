@@ -37,7 +37,7 @@ router.get('/', async (req, res) => {
         FROM 
           scheme_lpcd sl
         LEFT JOIN
-          scheme_status ss ON sl.scheme_id = ss.scheme_id
+          scheme_status ss ON TRIM(sl.scheme_id) = TRIM(ss.scheme_id)
       `;
 
       // Add WHERE clause for filtering
@@ -144,7 +144,7 @@ router.get('/lpcd-stats', async (req, res) => {
         FROM 
           scheme_lpcd sl
         LEFT JOIN
-          scheme_status ss ON sl.scheme_id = ss.scheme_id
+          scheme_status ss ON TRIM(sl.scheme_id) = TRIM(ss.scheme_id)
       `;
 
       // Add WHERE clauses for geographic filtering
@@ -262,7 +262,7 @@ router.get('/history', async (req, res) => {
             ) as actual_date,
             ss.agency_type
           FROM scheme_lpcd_data_history h
-          LEFT JOIN scheme_status ss ON h.scheme_id = ss.scheme_id
+          LEFT JOIN scheme_status ss ON TRIM(h.scheme_id) = TRIM(ss.scheme_id)
         )
         SELECT 
           *
@@ -397,7 +397,7 @@ router.get('/export/history', async (req, res) => {
             h.mjp_commissioned,
             ss.agency_type
           FROM scheme_lpcd_data_history h
-          LEFT JOIN scheme_status ss ON h.scheme_id = ss.scheme_id
+          LEFT JOIN scheme_status ss ON TRIM(h.scheme_id) = TRIM(ss.scheme_id)
         )
         SELECT 
           *,
@@ -713,9 +713,10 @@ router.post('/populate-history', async (req, res) => {
               SUM(wsd.water_value_day${day}) as total_water,
               MAX(wsd.water_date_day${day}) as data_date,
               MAX(wsd.dashboard_url) as dashboard_url,
-              MAX(ss.mjp_commissioned) as mjp_commissioned
+              MAX(ss.mjp_commissioned) as mjp_commissioned,
+            MAX(ss.agency_type) as agency_type
             FROM deduplicated_villages wsd
-            LEFT JOIN scheme_status ss ON wsd.scheme_id = ss.scheme_id
+            LEFT JOIN scheme_status ss ON TRIM(wsd.scheme_id) = TRIM(ss.scheme_id)
             GROUP BY 
               wsd.scheme_id, wsd.scheme_name, wsd.region, wsd.circle, 
               wsd.division, wsd.sub_division, wsd.block
@@ -741,8 +742,9 @@ router.post('/populate-history', async (req, res) => {
               ELSE 0 
             END as lpcd_value,
             dashboard_url,
-            mjp_commissioned
-          FROM scheme_aggregation
+            mjp_commissioned,
+          agency_type
+        FROM scheme_aggregation
           WHERE data_date IS NOT NULL
           ORDER BY scheme_id, block
         `;
@@ -908,10 +910,11 @@ router.get('/above-55', async (req, res) => {
             la.villages_above_55,
             la.villages_zero_supply,
             MAX(ss.dashboard_url) as dashboard_url,
-            MAX(ss.mjp_commissioned) as mjp_commissioned
+            MAX(ss.mjp_commissioned) as mjp_commissioned,
+            MAX(ss.agency_type) as agency_type
           FROM deduplicated_villages wsd
           JOIN lpcd_aggregation la ON wsd.scheme_id = la.scheme_id AND wsd.block = la.block
-          LEFT JOIN scheme_status ss ON wsd.scheme_id = ss.scheme_id
+          LEFT JOIN scheme_status ss ON TRIM(wsd.scheme_id) = TRIM(ss.scheme_id)
           GROUP BY wsd.scheme_id, wsd.scheme_name, wsd.region, wsd.circle, wsd.division, wsd.sub_division, wsd.block,
                    la.total_villages, la.villages_below_55, la.villages_above_55, la.villages_zero_supply
         )
@@ -930,7 +933,8 @@ router.get('/above-55', async (req, res) => {
           villages_zero_supply,
           CASE WHEN total_population > 0 THEN ROUND((total_water_day7 * 100000) / total_population, 2) ELSE 0 END as lpcd_value_day7,
           dashboard_url,
-          mjp_commissioned
+          mjp_commissioned,
+          agency_type
         FROM scheme_aggregation
         WHERE CASE WHEN total_population > 0 THEN (total_water_day7 * 100000) / total_population ELSE 0 END >= 55
         ${region && region !== 'all' ? 'AND region = $1' : ''}
@@ -1027,10 +1031,11 @@ router.get('/below-55', async (req, res) => {
             la.villages_above_55,
             la.villages_zero_supply,
             MAX(ss.dashboard_url) as dashboard_url,
-            MAX(ss.mjp_commissioned) as mjp_commissioned
+            MAX(ss.mjp_commissioned) as mjp_commissioned,
+            MAX(ss.agency_type) as agency_type
           FROM deduplicated_villages wsd
           JOIN lpcd_aggregation la ON wsd.scheme_id = la.scheme_id AND wsd.block = la.block
-          LEFT JOIN scheme_status ss ON wsd.scheme_id = ss.scheme_id
+          LEFT JOIN scheme_status ss ON TRIM(wsd.scheme_id) = TRIM(ss.scheme_id)
           GROUP BY wsd.scheme_id, wsd.scheme_name, wsd.region, wsd.circle, wsd.division, wsd.sub_division, wsd.block,
                    la.total_villages, la.villages_below_55, la.villages_above_55, la.villages_zero_supply
         )
@@ -1049,7 +1054,8 @@ router.get('/below-55', async (req, res) => {
           villages_zero_supply,
           CASE WHEN total_population > 0 THEN ROUND((total_water_day7 * 100000) / total_population, 2) ELSE 0 END as lpcd_value_day7,
           dashboard_url,
-          mjp_commissioned
+          mjp_commissioned,
+          agency_type
         FROM scheme_aggregation
         WHERE CASE WHEN total_population > 0 THEN (total_water_day7 * 100000) / total_population ELSE 0 END < 55
           AND CASE WHEN total_population > 0 THEN (total_water_day7 * 100000) / total_population ELSE 0 END > 0
@@ -1149,10 +1155,11 @@ router.get('/combined-lpcd', async (req, res) => {
               la.villages_above_55,
               la.villages_zero_supply,
               MAX(ss.dashboard_url) as dashboard_url,
-              MAX(ss.mjp_commissioned) as mjp_commissioned
+              MAX(ss.mjp_commissioned) as mjp_commissioned,
+            MAX(ss.agency_type) as agency_type
             FROM deduplicated_villages wsd
             JOIN lpcd_aggregation la ON wsd.scheme_id = la.scheme_id AND wsd.block = la.block
-            LEFT JOIN scheme_status ss ON wsd.scheme_id = ss.scheme_id
+            LEFT JOIN scheme_status ss ON TRIM(wsd.scheme_id) = TRIM(ss.scheme_id)
             GROUP BY wsd.scheme_id, wsd.scheme_name, wsd.region, wsd.circle, wsd.division, wsd.sub_division, wsd.block,
                      la.total_villages, la.villages_below_55, la.villages_above_55, la.villages_zero_supply
           )
@@ -1171,8 +1178,9 @@ router.get('/combined-lpcd', async (req, res) => {
             villages_zero_supply,
             CASE WHEN total_population > 0 THEN ROUND((total_water_day7 * 100000) / total_population, 2) ELSE 0 END as lpcd_value_day7,
             dashboard_url,
-            mjp_commissioned
-          FROM scheme_aggregation
+            mjp_commissioned,
+          agency_type
+        FROM scheme_aggregation
           WHERE CASE WHEN total_population > 0 THEN (total_water_day7 * 100000) / total_population ELSE 0 END >= 55
           ${region && region !== 'all' ? 'AND LOWER(region) = LOWER($1)' : ''}
           ${schemeId && schemeId !== 'all' ? `AND scheme_id = $${region && region !== 'all' ? '2' : '1'}` : ''}
@@ -1247,10 +1255,11 @@ router.get('/combined-lpcd', async (req, res) => {
               la.villages_above_55,
               la.villages_zero_supply,
               MAX(ss.dashboard_url) as dashboard_url,
-              MAX(ss.mjp_commissioned) as mjp_commissioned
+              MAX(ss.mjp_commissioned) as mjp_commissioned,
+            MAX(ss.agency_type) as agency_type
             FROM deduplicated_villages wsd
             JOIN lpcd_aggregation la ON wsd.scheme_id = la.scheme_id AND wsd.block = la.block
-            LEFT JOIN scheme_status ss ON wsd.scheme_id = ss.scheme_id
+            LEFT JOIN scheme_status ss ON TRIM(wsd.scheme_id) = TRIM(ss.scheme_id)
             GROUP BY wsd.scheme_id, wsd.scheme_name, wsd.region, wsd.circle, wsd.division, wsd.sub_division, wsd.block,
                      la.total_villages, la.villages_below_55, la.villages_above_55, la.villages_zero_supply
           )
@@ -1269,8 +1278,9 @@ router.get('/combined-lpcd', async (req, res) => {
             villages_zero_supply,
             CASE WHEN total_population > 0 THEN ROUND((total_water_day7 * 100000) / total_population, 2) ELSE 0 END as lpcd_value_day7,
             dashboard_url,
-            mjp_commissioned
-          FROM scheme_aggregation
+            mjp_commissioned,
+          agency_type
+        FROM scheme_aggregation
           WHERE CASE WHEN total_population > 0 THEN (total_water_day7 * 100000) / total_population ELSE 0 END < 55
             AND CASE WHEN total_population > 0 THEN (total_water_day7 * 100000) / total_population ELSE 0 END > 0
           ${region && region !== 'all' ? 'AND LOWER(region) = LOWER($1)' : ''}

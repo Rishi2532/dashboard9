@@ -16,7 +16,14 @@ function mapRealtimeStatus(pt: any): string | null {
   return null;
 }
 
+let isIngesting = false;
+
 export async function runPiRealtimeCommIngestion(rootPath?: string) {
+  if (isIngesting) {
+    console.log("PI Web API Realtime Comm Ingestion is already running. Skipping this cycle.");
+    return;
+  }
+  isIngesting = true;
   console.log("Starting PI Web API Realtime Communication Ingestion...");
 
   try {
@@ -24,7 +31,7 @@ export async function runPiRealtimeCommIngestion(rootPath?: string) {
     const esrs: PIElement[] = await getAllESRs(rootPath);
     console.log(`Found ${esrs.length} ESRs in PI AF for Realtime Comm.`);
 
-    const BATCH_SIZE = 10;
+    const BATCH_SIZE = 100;
 
     for (let i = 0; i < esrs.length; i += BATCH_SIZE) {
       const batch = esrs.slice(i, i + BATCH_SIZE);
@@ -83,6 +90,8 @@ export async function runPiRealtimeCommIngestion(rootPath?: string) {
     console.log("Completed PI Web API Realtime Communication Ingestion.");
   } catch (error) {
     console.error("Critical error in Realtime Comm Ingestion:", error);
+  } finally {
+    isIngesting = false;
   }
 }
 

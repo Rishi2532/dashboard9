@@ -18,10 +18,10 @@ export async function runPiSchemeLpcdIngestion(rootPath?: string) {
     let errorCount = 0;
 
     const BATCH_SIZE = 10;
-    
+
     for (let i = 0; i < schemes.length; i += BATCH_SIZE) {
       const batch = schemes.slice(i, i + BATCH_SIZE);
-      
+
       await Promise.all(batch.map(async (scheme) => {
         try {
           const hierarchy = extractHierarchyFromPath(scheme.Path);
@@ -31,21 +31,21 @@ export async function runPiSchemeLpcdIngestion(rootPath?: string) {
           const lpcdPoints = await getAttributeRecordedData(scheme.WebId, 'Calc - Liter Per Capita Day', 't-7d', 't%2B1d');
           const popPoints = await getAttributeSummaryData(scheme.WebId, 'Population', 1, 'Maximum');
           const villagePoints = await getAttributeSummaryData(scheme.WebId, 'Number of Village', 1, 'Maximum');
-          
+
           let population = 0;
           if (popPoints && popPoints.length > 0 && popPoints[0].Value) {
-             population = typeof popPoints[0].Value.Value === 'number' ? popPoints[0].Value.Value : 0;
+            population = typeof popPoints[0].Value.Value === 'number' ? popPoints[0].Value.Value : 0;
           }
           let totalVillages = 0;
           if (villagePoints && villagePoints.length > 0 && villagePoints[0].Value) {
-             totalVillages = typeof villagePoints[0].Value.Value === 'number' ? villagePoints[0].Value.Value : 0;
+            totalVillages = typeof villagePoints[0].Value.Value === 'number' ? villagePoints[0].Value.Value : 0;
           }
 
           const processPoints = (points: any[]) => {
             const vals: number[] = [];
             const dts: string[] = [];
             const dateMap = new Map<string, number>();
-            
+
             if (points && points.length > 0) {
               for (const pt of points) {
                 // For /recorded, pt.Value is the actual number and pt.Good indicates validity
@@ -58,7 +58,7 @@ export async function runPiSchemeLpcdIngestion(rootPath?: string) {
                 }
               }
             }
-            
+
             // Map the last 7 days strictly by date
             for (let i = 0; i < 7; i++) {
               const expectedDate = format(subDays(today, 7 - i), "dd-MMM");
@@ -88,10 +88,10 @@ export async function runPiSchemeLpcdIngestion(rootPath?: string) {
             block: hierarchy.block,
             scheme_id: hierarchy.scheme_id,
             scheme_name: hierarchy.scheme_name,
-            
+
             population,
             total_villages: totalVillages,
-            
+
             water_value_day1: water.vals[0].toString(),
             water_value_day2: water.vals[1].toString(),
             water_value_day3: water.vals[2].toString(),
@@ -99,7 +99,7 @@ export async function runPiSchemeLpcdIngestion(rootPath?: string) {
             water_value_day5: water.vals[4].toString(),
             water_value_day6: water.vals[5].toString(),
             water_value_day7: water.vals[6].toString(),
-            
+
             lpcd_value_day1: lpcd.vals[0].toString(),
             lpcd_value_day2: lpcd.vals[1].toString(),
             lpcd_value_day3: lpcd.vals[2].toString(),
@@ -107,7 +107,7 @@ export async function runPiSchemeLpcdIngestion(rootPath?: string) {
             lpcd_value_day5: lpcd.vals[4].toString(),
             lpcd_value_day6: lpcd.vals[5].toString(),
             lpcd_value_day7: lpcd.vals[6].toString(),
-            
+
             water_date_day1: water.dts[0],
             water_date_day2: water.dts[1],
             water_date_day3: water.dts[2],
@@ -123,7 +123,7 @@ export async function runPiSchemeLpcdIngestion(rootPath?: string) {
             lpcd_date_day5: lpcd.dts[4],
             lpcd_date_day6: lpcd.dts[5],
             lpcd_date_day7: lpcd.dts[6],
-            
+
             consistent_zero_lpcd_for_a_week: zeroLpcdCount === 7 ? 1 : 0,
             below_55_lpcd_count: below55Count,
             above_55_lpcd_count: above55Count,
@@ -170,7 +170,7 @@ export async function runPiSchemeLpcdIngestion(rootPath?: string) {
 }
 
 export function initPiSchemeLpcdIngestionCron() {
-  cron.schedule("38 10 * * *", async () => {
+  cron.schedule("38 09 * * *", async () => {
     console.log("Running scheduled PI Web API Scheme LPCD Data Ingestion...");
     await runPiSchemeLpcdIngestion();
   });

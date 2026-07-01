@@ -11,7 +11,9 @@ export async function fetchApi(endpoint: string, options: RequestInit = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
   try {
     const response = await fetch(url, {
+      credentials: 'omit', // React Native doesn't fully support 'include' over fetch natively unless polyfilled, but let's try it. Actually, React Native doesn't use cookies automatically in fetch without a native cookie manager, but for web testing 'include' is needed. Let's set 'include' for web, and for native we rely on the dummy token or proper headers if we migrate to JWT.
       ...options,
+      credentials: Platform.OS === 'web' ? 'include' : 'omit', // Use include for web to pass session cookies
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,

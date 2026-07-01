@@ -155,12 +155,12 @@ interface DayWiseBreakdown {
 
 interface DayWiseClickedCell {
   metric:
-  | "offline"
-  | "below_0_2"
-  | "above_0_5"
-  | "optimal_0_2_0_5"
-  | "above_0_7"
-  | "optimal_0_2_0_7";
+    | "offline"
+    | "below_0_2"
+    | "above_0_5"
+    | "optimal_0_2_0_5"
+    | "above_0_7"
+    | "optimal_0_2_0_7";
   days: number;
   label: string;
 }
@@ -425,11 +425,11 @@ const DetailedChlorinePage = () => {
     if (!issues || issues.length === 0) {
       return <span className="text-slate-400 dark:text-slate-500">-</span>;
     }
-    const activeIssue = issues.find((i: any) => i.status === 'Active');
-    const textColor = activeIssue 
-      ? 'text-red-600 dark:text-red-400 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50' 
-      : 'text-green-600 dark:text-green-400 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950/50';
-    const displayText = activeIssue ? activeIssue.reason : 'Resolved';
+    const activeIssue = issues.find((i: any) => i.status === "Active");
+    const textColor = activeIssue
+      ? "text-red-600 dark:text-red-400 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
+      : "text-green-600 dark:text-green-400 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950/50";
+    const displayText = activeIssue ? activeIssue.reason : "Resolved";
     return (
       <Button
         variant="ghost"
@@ -439,9 +439,7 @@ const DetailedChlorinePage = () => {
           setSelectedRemarkDetails({ issues, title });
         }}
       >
-        <span className="truncate w-full text-left">
-          {displayText}
-        </span>
+        <span className="truncate w-full text-left">{displayText}</span>
       </Button>
     );
   };
@@ -481,12 +479,11 @@ const DetailedChlorinePage = () => {
       dates?: string[];
     } | null>(null);
 
-  const [clickedFlowmeterCell, setClickedFlowmeterCell] =
-    useState<{
-      category: string;
-      region: string;
-      label: string;
-    } | null>(null);
+  const [clickedFlowmeterCell, setClickedFlowmeterCell] = useState<{
+    category: string;
+    region: string;
+    label: string;
+  } | null>(null);
 
   // LPCD sub-tab: Village or Scheme (within LPCD main tab)
   const [lpcdSubTab, setLpcdSubTab] = useState<"village" | "scheme">("scheme");
@@ -502,8 +499,12 @@ const DetailedChlorinePage = () => {
     useState<ClickedSchemeDivisionCell | null>(null);
   const [schemeLpcdDayWiseRegion, setSchemeLpcdDayWiseRegion] =
     useState<string>("All Regions");
-  const [clickedSchemeDayWiseCell, setClickedSchemeDayWiseCell] =
-    useState<{ metric: string; days: number; region: string; label: string } | null>(null);
+  const [clickedSchemeDayWiseCell, setClickedSchemeDayWiseCell] = useState<{
+    metric: string;
+    days: number;
+    region: string;
+    label: string;
+  } | null>(null);
   const [clickedSchemeComparisonCell, setClickedSchemeComparisonCell] =
     useState<ClickedSchemeComparisonCell | null>(null);
 
@@ -512,13 +513,14 @@ const DetailedChlorinePage = () => {
   const [selectedAgencyType, setSelectedAgencyType] = useState<string>("ALL");
   const [waterSupplyStatus, setWaterSupplyStatus] = useState<string>("All");
 
-  const schemeFilter = uiSchemeFilter !== "all" && waterSupplyStatus !== "All"
-    ? `${uiSchemeFilter}_${waterSupplyStatus.toLowerCase()}`
-    : uiSchemeFilter;
+  const schemeFilter =
+    uiSchemeFilter !== "all" && waterSupplyStatus !== "All"
+      ? `${uiSchemeFilter}_${waterSupplyStatus.toLowerCase()}`
+      : uiSchemeFilter;
 
   // Debug: Log filter changes
   useEffect(() => {
-    console.log('🔍 [FILTER CHANGED]', { schemeFilter, mainTab });
+    console.log("🔍 [FILTER CHANGED]", { schemeFilter, mainTab });
   }, [schemeFilter, mainTab]);
 
   // Fetch active and resolved issues for dashboard visualization
@@ -539,14 +541,14 @@ const DetailedChlorinePage = () => {
     const vMap = new Map<string, any[]>();
     const eMap = new Map<string, any[]>();
 
-    console.log('🔍 DetailedChlorinePage - Creating Issue Maps:', {
+    console.log("🔍 DetailedChlorinePage - Creating Issue Maps:", {
       totalIssues: allIssues.length,
       firstFewIssues: allIssues.slice(0, 3).map((i: any) => ({
         scheme_id: i.scheme_id,
         scheme_name: i.scheme_name,
         village_name: i.village_name,
-        esr_name: i.esr_name
-      }))
+        esr_name: i.esr_name,
+      })),
     });
 
     allIssues.forEach((issue: any) => {
@@ -581,7 +583,11 @@ const DetailedChlorinePage = () => {
       }
     });
 
-    return { schemeIssuesMap: sMap, villageIssuesMap: vMap, esrIssuesMap: eMap };
+    return {
+      schemeIssuesMap: sMap,
+      villageIssuesMap: vMap,
+      esrIssuesMap: eMap,
+    };
   }, [allIssues]);
 
   const formatDate = (dateStr: string | null) => {
@@ -617,22 +623,27 @@ const DetailedChlorinePage = () => {
     error,
     refetch,
   } = useQuery<RegionalChlorineStats[]>({
-    queryKey: ["/api/chlorine/regional-stats", schemeFilter, selectedAgencyType],
+    queryKey: [
+      "/api/chlorine/regional-stats",
+      schemeFilter,
+      selectedAgencyType,
+    ],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (schemeFilter !== 'all') {
+      if (schemeFilter !== "all") {
         params.append("filterType", schemeFilter);
       }
       if (schemeFilter === "fully_completed") {
         params.append("fullyCompleted", "true");
       }
-      if (selectedAgencyType !== 'ALL') {
+      if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
       }
       const queryString = params.toString();
       const url = `/api/chlorine/regional-stats${queryString ? `?${queryString}` : ""}`;
       const response = await fetch(url);
-      if (!response.ok) throw new Error("Failed to fetch chlorine regional statistics");
+      if (!response.ok)
+        throw new Error("Failed to fetch chlorine regional statistics");
       return response.json();
     },
   });
@@ -647,14 +658,16 @@ const DetailedChlorinePage = () => {
     const fullyCompletedSchemeIds = new Set(
       schemeStatusData
         .filter((status) => {
-          const statusValue = String(status.fully_completion_scheme_status || "").toLowerCase();
+          const statusValue = String(
+            status.fully_completion_scheme_status || "",
+          ).toLowerCase();
           return (
             statusValue === "fully completed" ||
             statusValue === "completed" ||
             statusValue === "fully_completed"
           );
         })
-        .map((status) => status.scheme_id)
+        .map((status) => status.scheme_id),
     );
 
     // This would need API support for filtering by scheme list
@@ -680,13 +693,13 @@ const DetailedChlorinePage = () => {
         params.append("region", clickedCell.region);
       }
 
-      if (schemeFilter !== 'all') {
+      if (schemeFilter !== "all") {
         params.append("filterType", schemeFilter);
       }
       if (schemeFilter === "fully_completed") {
         params.append("fullyCompleted", "true");
       }
-      if (selectedAgencyType !== 'ALL') {
+      if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
       }
 
@@ -704,7 +717,12 @@ const DetailedChlorinePage = () => {
     data: DayWiseBreakdown[];
     region: string;
   }>({
-    queryKey: ["/api/chlorine/day-wise-breakdown", dayWiseRegion, schemeFilter, selectedAgencyType],
+    queryKey: [
+      "/api/chlorine/day-wise-breakdown",
+      dayWiseRegion,
+      schemeFilter,
+      selectedAgencyType,
+    ],
     enabled: !!dayWiseRegion,
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -712,13 +730,13 @@ const DetailedChlorinePage = () => {
         params.append("region", dayWiseRegion);
       }
 
-      if (schemeFilter !== 'all') {
+      if (schemeFilter !== "all") {
         params.append("filterType", schemeFilter);
       }
       if (schemeFilter === "fully_completed") {
         params.append("fullyCompleted", "true");
       }
-      if (selectedAgencyType !== 'ALL') {
+      if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
       }
 
@@ -736,7 +754,12 @@ const DetailedChlorinePage = () => {
       success: boolean;
       data: { [region: string]: DayWiseBreakdown[] };
     }>({
-      queryKey: ["/api/chlorine/day-wise-breakdown/all-regions", regionalStats.map((stat) => stat.region).join(","), schemeFilter, selectedAgencyType],
+      queryKey: [
+        "/api/chlorine/day-wise-breakdown/all-regions",
+        regionalStats.map((stat) => stat.region).join(","),
+        schemeFilter,
+        selectedAgencyType,
+      ],
       enabled: regionalStats.length > 0,
       queryFn: async () => {
         const regions = regionalStats.map((stat) => stat.region);
@@ -746,13 +769,13 @@ const DetailedChlorinePage = () => {
           regions.map(async (region) => {
             const params = new URLSearchParams();
             params.append("region", encodeURIComponent(region));
-            if (schemeFilter !== 'all') {
+            if (schemeFilter !== "all") {
               params.append("filterType", schemeFilter);
             }
             if (schemeFilter === "fully_completed") {
               params.append("fullyCompleted", "true");
             }
-            if (selectedAgencyType !== 'ALL') {
+            if (selectedAgencyType !== "ALL") {
               params.append("agencyType", selectedAgencyType);
             }
             const response = await fetch(
@@ -807,13 +830,13 @@ const DetailedChlorinePage = () => {
       if (clickedRegionComparisonCell?.region) {
         params.append("region", clickedRegionComparisonCell.region);
       }
-      if (schemeFilter !== 'all') {
+      if (schemeFilter !== "all") {
         params.append("filterType", schemeFilter);
       }
       if (schemeFilter === "fully_completed") {
         params.append("fullyCompleted", "true");
       }
-      if (selectedAgencyType !== 'ALL') {
+      if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
       }
 
@@ -880,19 +903,24 @@ const DetailedChlorinePage = () => {
     data: LpcdDayWiseBreakdown[];
     region: string;
   }>({
-    queryKey: ["/api/chlorine/lpcd/day-wise-breakdown", lpcdDayWiseRegion, schemeFilter, selectedAgencyType],
+    queryKey: [
+      "/api/chlorine/lpcd/day-wise-breakdown",
+      lpcdDayWiseRegion,
+      schemeFilter,
+      selectedAgencyType,
+    ],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (lpcdDayWiseRegion && lpcdDayWiseRegion !== "All Regions") {
         params.append("region", lpcdDayWiseRegion);
       }
-      if (schemeFilter !== 'all') {
+      if (schemeFilter !== "all") {
         params.append("filterType", schemeFilter);
       }
       if (schemeFilter === "fully_completed") {
         params.append("fullyCompleted", "true");
       }
-      if (selectedAgencyType !== 'ALL') {
+      if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
       }
       const response = await fetch(
@@ -920,13 +948,13 @@ const DetailedChlorinePage = () => {
     enabled: regionalStats.length > 0,
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (schemeFilter !== 'all') {
+      if (schemeFilter !== "all") {
         params.append("filterType", schemeFilter);
       }
       if (schemeFilter === "fully_completed") {
         params.append("fullyCompleted", "true");
       }
-      if (selectedAgencyType !== 'ALL') {
+      if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
       }
       const queryString = params.toString();
@@ -960,13 +988,13 @@ const DetailedChlorinePage = () => {
         if (lpcdDayWiseRegion && lpcdDayWiseRegion !== "All Regions") {
           params.append("region", lpcdDayWiseRegion);
         }
-        if (schemeFilter !== 'all') {
+        if (schemeFilter !== "all") {
           params.append("filterType", schemeFilter);
         }
         if (schemeFilter === "fully_completed") {
           params.append("fullyCompleted", "true");
         }
-        if (selectedAgencyType !== 'ALL') {
+        if (selectedAgencyType !== "ALL") {
           params.append("agencyType", selectedAgencyType);
         }
         const response = await fetch(
@@ -1000,13 +1028,13 @@ const DetailedChlorinePage = () => {
       if (clickedLpcdRegionComparisonCell?.region) {
         params.append("region", clickedLpcdRegionComparisonCell.region);
       }
-      if (schemeFilter !== 'all') {
+      if (schemeFilter !== "all") {
         params.append("filterType", schemeFilter);
       }
       if (schemeFilter === "fully_completed") {
         params.append("fullyCompleted", "true");
       }
-      if (selectedAgencyType !== 'ALL') {
+      if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
       }
       const response = await fetch(
@@ -1038,13 +1066,13 @@ const DetailedChlorinePage = () => {
         if (dayWiseRegion && dayWiseRegion !== "All Regions") {
           params.append("region", dayWiseRegion);
         }
-        if (schemeFilter !== 'all') {
+        if (schemeFilter !== "all") {
           params.append("filterType", schemeFilter);
         }
         if (schemeFilter === "fully_completed") {
           params.append("fullyCompleted", "true");
         }
-        if (selectedAgencyType !== 'ALL') {
+        if (selectedAgencyType !== "ALL") {
           params.append("agencyType", selectedAgencyType);
         }
 
@@ -1074,13 +1102,13 @@ const DetailedChlorinePage = () => {
         if (divisionWiseRegion && divisionWiseRegion !== "All Regions") {
           params.append("region", divisionWiseRegion);
         }
-        if (schemeFilter !== 'all') {
+        if (schemeFilter !== "all") {
           params.append("filterType", schemeFilter);
         }
         if (schemeFilter === "fully_completed") {
           params.append("fullyCompleted", "true");
         }
-        if (selectedAgencyType !== 'ALL') {
+        if (selectedAgencyType !== "ALL") {
           params.append("agencyType", selectedAgencyType);
         }
 
@@ -1119,13 +1147,13 @@ const DetailedChlorinePage = () => {
           params.append("region", clickedDivisionCell.region);
         }
         params.append("metric", clickedDivisionCell!.metric);
-        if (schemeFilter !== 'all') {
+        if (schemeFilter !== "all") {
           params.append("filterType", schemeFilter);
         }
         if (schemeFilter === "fully_completed") {
           params.append("fullyCompleted", "true");
         }
-        if (selectedAgencyType !== 'ALL') {
+        if (selectedAgencyType !== "ALL") {
           params.append("agencyType", selectedAgencyType);
         }
 
@@ -1146,20 +1174,25 @@ const DetailedChlorinePage = () => {
     data: ChlorineDivisionSummary[];
     region: string;
   }>({
-    queryKey: ["/api/chlorine/division-wise-summary", divisionWiseRegion, schemeFilter, selectedAgencyType],
+    queryKey: [
+      "/api/chlorine/division-wise-summary",
+      divisionWiseRegion,
+      schemeFilter,
+      selectedAgencyType,
+    ],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (divisionWiseRegion && divisionWiseRegion !== "All Regions") {
         params.append("region", divisionWiseRegion);
       }
 
-      if (schemeFilter !== 'all') {
+      if (schemeFilter !== "all") {
         params.append("filterType", schemeFilter);
       }
       if (schemeFilter === "fully_completed") {
         params.append("fullyCompleted", "true");
       }
-      if (selectedAgencyType !== 'ALL') {
+      if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
       }
 
@@ -1200,13 +1233,13 @@ const DetailedChlorinePage = () => {
         params.append("region", clickedChlorineDivisionCell.region);
       }
       params.append("metric", clickedChlorineDivisionCell!.metric);
-      if (schemeFilter !== 'all') {
+      if (schemeFilter !== "all") {
         params.append("filterType", schemeFilter);
       }
       if (schemeFilter === "fully_completed") {
         params.append("fullyCompleted", "true");
       }
-      if (selectedAgencyType !== 'ALL') {
+      if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
       }
 
@@ -1225,16 +1258,20 @@ const DetailedChlorinePage = () => {
       success: boolean;
       data: RegionComparisonData[];
     }>({
-      queryKey: ["/api/chlorine/overall-region-comparison", schemeFilter, selectedAgencyType],
+      queryKey: [
+        "/api/chlorine/overall-region-comparison",
+        schemeFilter,
+        selectedAgencyType,
+      ],
       queryFn: async () => {
         const params = new URLSearchParams();
-        if (schemeFilter !== 'all') {
+        if (schemeFilter !== "all") {
           params.append("filterType", schemeFilter);
         }
         if (schemeFilter === "fully_completed") {
           params.append("fullyCompleted", "true");
         }
-        if (selectedAgencyType !== 'ALL') {
+        if (selectedAgencyType !== "ALL") {
           params.append("agencyType", selectedAgencyType);
         }
         const queryString = params.toString();
@@ -1251,16 +1288,20 @@ const DetailedChlorinePage = () => {
       success: boolean;
       data: { region: string; online: number; offline: number }[];
     }>({
-      queryKey: ["/api/flowmeter/overall-region-comparison", schemeFilter, selectedAgencyType],
+      queryKey: [
+        "/api/flowmeter/overall-region-comparison",
+        schemeFilter,
+        selectedAgencyType,
+      ],
       queryFn: async () => {
         const params = new URLSearchParams();
-        if (schemeFilter !== 'all') {
+        if (schemeFilter !== "all") {
           params.append("filterType", schemeFilter);
         }
         if (schemeFilter === "fully_completed") {
           params.append("fullyCompleted", "true");
         }
-        if (selectedAgencyType !== 'ALL') {
+        if (selectedAgencyType !== "ALL") {
           params.append("agencyType", selectedAgencyType);
         }
         const response = await fetch(
@@ -1287,16 +1328,19 @@ const DetailedChlorinePage = () => {
       ],
       queryFn: async () => {
         const params = new URLSearchParams();
-        if (clickedFlowmeterCell?.region && clickedFlowmeterCell.region !== "All Regions") {
+        if (
+          clickedFlowmeterCell?.region &&
+          clickedFlowmeterCell.region !== "All Regions"
+        ) {
           params.append("region", clickedFlowmeterCell.region);
         }
-        if (schemeFilter !== 'all') {
+        if (schemeFilter !== "all") {
           params.append("filterType", schemeFilter);
         }
         if (schemeFilter === "fully_completed") {
           params.append("fullyCompleted", "true");
         }
-        if (selectedAgencyType !== 'ALL') {
+        if (selectedAgencyType !== "ALL") {
           params.append("agencyType", selectedAgencyType);
         }
         const response = await fetch(
@@ -1325,19 +1369,22 @@ const DetailedChlorinePage = () => {
       enabled: !!clickedComparisonCell,
       queryFn: async () => {
         const params = new URLSearchParams();
-        if (clickedComparisonCell?.region && clickedComparisonCell.region !== "All Regions") {
+        if (
+          clickedComparisonCell?.region &&
+          clickedComparisonCell.region !== "All Regions"
+        ) {
           params.append("region", clickedComparisonCell.region);
         }
         if (clickedComparisonCell?.dates) {
           params.append("dates", clickedComparisonCell.dates.join(","));
         }
-        if (schemeFilter !== 'all') {
+        if (schemeFilter !== "all") {
           params.append("filterType", schemeFilter);
         }
         if (schemeFilter === "fully_completed") {
           params.append("fullyCompleted", "true");
         }
-        if (selectedAgencyType !== 'ALL') {
+        if (selectedAgencyType !== "ALL") {
           params.append("agencyType", selectedAgencyType);
         }
 
@@ -1355,16 +1402,20 @@ const DetailedChlorinePage = () => {
       success: boolean;
       data: LPCDRegionalStats[];
     }>({
-      queryKey: ["/api/chlorine/lpcd/regional-stats", schemeFilter, selectedAgencyType],
+      queryKey: [
+        "/api/chlorine/lpcd/regional-stats",
+        schemeFilter,
+        selectedAgencyType,
+      ],
       queryFn: async () => {
         const params = new URLSearchParams();
-        if (schemeFilter !== 'all') {
+        if (schemeFilter !== "all") {
           params.append("filterType", schemeFilter);
         }
         if (schemeFilter === "fully_completed") {
           params.append("fullyCompleted", "true");
         }
-        if (selectedAgencyType !== 'ALL') {
+        if (selectedAgencyType !== "ALL") {
           params.append("agencyType", selectedAgencyType);
         }
         const queryString = params.toString();
@@ -1396,13 +1447,13 @@ const DetailedChlorinePage = () => {
       if (clickedLPCDCell?.region && clickedLPCDCell.region !== "All Regions") {
         params.append("region", clickedLPCDCell.region);
       }
-      if (schemeFilter !== 'all') {
+      if (schemeFilter !== "all") {
         params.append("filterType", schemeFilter);
       }
       if (schemeFilter === "fully_completed") {
         params.append("fullyCompleted", "true");
       }
-      if (selectedAgencyType !== 'ALL') {
+      if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
       }
 
@@ -1416,162 +1467,215 @@ const DetailedChlorinePage = () => {
   });
 
   // Scheme LPCD Regional Stats Query
-  const { data: schemeLpcdRegionalStats, isLoading: isLoadingSchemeLPCDRegional } =
-    useQuery<{
-      success: boolean;
-      data: SchemeLPCDRegionalStats[];
-      latestDate: string;
-    }>({
-      queryKey: ["/api/chlorine/scheme-lpcd/regional-stats", schemeFilter, selectedAgencyType],
-      enabled: mainTab === "lpcd" && lpcdSubTab === "scheme",
-      queryFn: async () => {
-        const params = new URLSearchParams();
-        if (schemeFilter !== 'all') {
-          params.append("filterType", schemeFilter);
-        }
-        if (schemeFilter === "fully_completed") {
-          params.append("fullyCompleted", "true");
-        }
-        if (selectedAgencyType !== 'ALL') {
-          params.append("agencyType", selectedAgencyType);
-        }
-        const queryString = params.toString();
-        const url = `/api/chlorine/scheme-lpcd/regional-stats${queryString ? `?${queryString}` : ""}`;
-        const response = await fetch(url);
-        if (!response.ok)
-          throw new Error("Failed to fetch Scheme LPCD regional statistics");
-        return response.json();
-      },
-    });
-
-  // Scheme LPCD Details Query
-  const { data: schemeLpcdDetails, isLoading: isLoadingSchemeLPCDDetails } = useQuery<{
+  const {
+    data: schemeLpcdRegionalStats,
+    isLoading: isLoadingSchemeLPCDRegional,
+  } = useQuery<{
     success: boolean;
-    data: SchemeLPCDDetailItem[];
-    count: number;
+    data: SchemeLPCDRegionalStats[];
+    latestDate: string;
   }>({
     queryKey: [
-      "/api/chlorine/scheme-lpcd/details",
-      clickedSchemeLPCDCell?.statisticType,
-      clickedSchemeLPCDCell?.region,
+      "/api/chlorine/scheme-lpcd/regional-stats",
       schemeFilter,
       selectedAgencyType,
     ],
-    enabled: !!clickedSchemeLPCDCell,
+    enabled: mainTab === "lpcd" && lpcdSubTab === "scheme",
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (clickedSchemeLPCDCell?.region && clickedSchemeLPCDCell.region !== "All Regions") {
-        params.append("region", clickedSchemeLPCDCell.region);
-      }
-      if (schemeFilter !== 'all') {
+      if (schemeFilter !== "all") {
         params.append("filterType", schemeFilter);
       }
       if (schemeFilter === "fully_completed") {
         params.append("fullyCompleted", "true");
       }
-      if (selectedAgencyType !== 'ALL') {
+      if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
       }
-
-      const response = await fetch(
-        `/api/chlorine/scheme-lpcd/details/${clickedSchemeLPCDCell?.statisticType}?${params.toString()}`,
-      );
-
-      if (!response.ok) throw new Error("Failed to fetch Scheme LPCD details");
+      const queryString = params.toString();
+      const url = `/api/chlorine/scheme-lpcd/regional-stats${queryString ? `?${queryString}` : ""}`;
+      const response = await fetch(url);
+      if (!response.ok)
+        throw new Error("Failed to fetch Scheme LPCD regional statistics");
       return response.json();
     },
   });
 
-  // Scheme LPCD Division Summary Query
-  const { data: schemeLpcdDivisionSummary, isLoading: isLoadingSchemeLpcdDivision } =
-    useQuery<{
-      success: boolean;
-      data: SchemeLPCDDivisionSummary[];
-    }>({
-      queryKey: ["/api/chlorine/scheme-lpcd/division-summary", schemeLpcdDivisionWiseRegion, schemeFilter, selectedAgencyType],
-      enabled: mainTab === "lpcd" && lpcdSubTab === "scheme" && categoryTab === "divisionwise",
-      queryFn: async () => {
-        const params = new URLSearchParams();
-        if (schemeLpcdDivisionWiseRegion && schemeLpcdDivisionWiseRegion !== "All Regions") {
-          params.append("region", schemeLpcdDivisionWiseRegion);
-        }
-        if (schemeFilter !== 'all') {
-          params.append("filterType", schemeFilter);
-        }
-        if (schemeFilter === "fully_completed") {
-          params.append("fullyCompleted", "true");
-        }
-        if (selectedAgencyType !== 'ALL') {
-          params.append("agencyType", selectedAgencyType);
-        }
-        const response = await fetch(`/api/chlorine/scheme-lpcd/division-summary?${params.toString()}`);
-        if (!response.ok) throw new Error("Failed to fetch Scheme LPCD division summary");
-        return response.json();
-      },
-    });
-
-  // Scheme LPCD Division Details Query
-  const { data: schemeLpcdDivisionDetails, isLoading: isLoadingSchemeDivisionDetails } =
+  // Scheme LPCD Details Query
+  const { data: schemeLpcdDetails, isLoading: isLoadingSchemeLPCDDetails } =
     useQuery<{
       success: boolean;
       data: SchemeLPCDDetailItem[];
       count: number;
     }>({
       queryKey: [
-        "/api/chlorine/scheme-lpcd/division-details",
-        clickedSchemeDivisionCell?.division,
-        clickedSchemeDivisionCell?.metric,
-        clickedSchemeDivisionCell?.region,
+        "/api/chlorine/scheme-lpcd/details",
+        clickedSchemeLPCDCell?.statisticType,
+        clickedSchemeLPCDCell?.region,
         schemeFilter,
         selectedAgencyType,
       ],
-      enabled: !!clickedSchemeDivisionCell,
+      enabled: !!clickedSchemeLPCDCell,
       queryFn: async () => {
         const params = new URLSearchParams();
-        if (clickedSchemeDivisionCell?.region && clickedSchemeDivisionCell.region !== "All Regions") {
-          params.append("region", clickedSchemeDivisionCell.region);
+        if (
+          clickedSchemeLPCDCell?.region &&
+          clickedSchemeLPCDCell.region !== "All Regions"
+        ) {
+          params.append("region", clickedSchemeLPCDCell.region);
         }
-        if (schemeFilter !== 'all') {
+        if (schemeFilter !== "all") {
           params.append("filterType", schemeFilter);
         }
         if (schemeFilter === "fully_completed") {
           params.append("fullyCompleted", "true");
         }
-        if (selectedAgencyType !== 'ALL') {
+        if (selectedAgencyType !== "ALL") {
           params.append("agencyType", selectedAgencyType);
         }
+
         const response = await fetch(
-          `/api/chlorine/scheme-lpcd/division-details/${encodeURIComponent(clickedSchemeDivisionCell?.division || '')}/${clickedSchemeDivisionCell?.metric}?${params.toString()}`,
+          `/api/chlorine/scheme-lpcd/details/${clickedSchemeLPCDCell?.statisticType}?${params.toString()}`,
         );
-        if (!response.ok) throw new Error("Failed to fetch Scheme LPCD division details");
+
+        if (!response.ok)
+          throw new Error("Failed to fetch Scheme LPCD details");
         return response.json();
       },
     });
+
+  // Scheme LPCD Division Summary Query
+  const {
+    data: schemeLpcdDivisionSummary,
+    isLoading: isLoadingSchemeLpcdDivision,
+  } = useQuery<{
+    success: boolean;
+    data: SchemeLPCDDivisionSummary[];
+  }>({
+    queryKey: [
+      "/api/chlorine/scheme-lpcd/division-summary",
+      schemeLpcdDivisionWiseRegion,
+      schemeFilter,
+      selectedAgencyType,
+    ],
+    enabled:
+      mainTab === "lpcd" &&
+      lpcdSubTab === "scheme" &&
+      categoryTab === "divisionwise",
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (
+        schemeLpcdDivisionWiseRegion &&
+        schemeLpcdDivisionWiseRegion !== "All Regions"
+      ) {
+        params.append("region", schemeLpcdDivisionWiseRegion);
+      }
+      if (schemeFilter !== "all") {
+        params.append("filterType", schemeFilter);
+      }
+      if (schemeFilter === "fully_completed") {
+        params.append("fullyCompleted", "true");
+      }
+      if (selectedAgencyType !== "ALL") {
+        params.append("agencyType", selectedAgencyType);
+      }
+      const response = await fetch(
+        `/api/chlorine/scheme-lpcd/division-summary?${params.toString()}`,
+      );
+      if (!response.ok)
+        throw new Error("Failed to fetch Scheme LPCD division summary");
+      return response.json();
+    },
+  });
+
+  // Scheme LPCD Division Details Query
+  const {
+    data: schemeLpcdDivisionDetails,
+    isLoading: isLoadingSchemeDivisionDetails,
+  } = useQuery<{
+    success: boolean;
+    data: SchemeLPCDDetailItem[];
+    count: number;
+  }>({
+    queryKey: [
+      "/api/chlorine/scheme-lpcd/division-details",
+      clickedSchemeDivisionCell?.division,
+      clickedSchemeDivisionCell?.metric,
+      clickedSchemeDivisionCell?.region,
+      schemeFilter,
+      selectedAgencyType,
+    ],
+    enabled: !!clickedSchemeDivisionCell,
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (
+        clickedSchemeDivisionCell?.region &&
+        clickedSchemeDivisionCell.region !== "All Regions"
+      ) {
+        params.append("region", clickedSchemeDivisionCell.region);
+      }
+      if (schemeFilter !== "all") {
+        params.append("filterType", schemeFilter);
+      }
+      if (schemeFilter === "fully_completed") {
+        params.append("fullyCompleted", "true");
+      }
+      if (selectedAgencyType !== "ALL") {
+        params.append("agencyType", selectedAgencyType);
+      }
+      const response = await fetch(
+        `/api/chlorine/scheme-lpcd/division-details/${encodeURIComponent(clickedSchemeDivisionCell?.division || "")}/${clickedSchemeDivisionCell?.metric}?${params.toString()}`,
+      );
+      if (!response.ok)
+        throw new Error("Failed to fetch Scheme LPCD division details");
+      return response.json();
+    },
+  });
 
   // Scheme LPCD Day-Wise Breakdown Query
   const { data: schemeLpcdDayWiseData, isLoading: isLoadingSchemeLpcdDayWise } =
     useQuery<{
       success: boolean;
-      data: { days: number; below_55: number; above_55: number; no_water: number; with_water: number }[];
+      data: {
+        days: number;
+        below_55: number;
+        above_55: number;
+        no_water: number;
+        with_water: number;
+      }[];
     }>({
-      queryKey: ["/api/chlorine/scheme-lpcd/day-wise-breakdown", schemeLpcdDayWiseRegion, schemeFilter, selectedAgencyType],
-      enabled: mainTab === "lpcd" && lpcdSubTab === "scheme" && categoryTab === "daywise",
+      queryKey: [
+        "/api/chlorine/scheme-lpcd/day-wise-breakdown",
+        schemeLpcdDayWiseRegion,
+        schemeFilter,
+        selectedAgencyType,
+      ],
+      enabled:
+        mainTab === "lpcd" &&
+        lpcdSubTab === "scheme" &&
+        categoryTab === "daywise",
       queryFn: async () => {
         const params = new URLSearchParams();
-        if (schemeLpcdDayWiseRegion && schemeLpcdDayWiseRegion !== "All Regions") {
+        if (
+          schemeLpcdDayWiseRegion &&
+          schemeLpcdDayWiseRegion !== "All Regions"
+        ) {
           params.append("region", schemeLpcdDayWiseRegion);
         }
-        if (schemeFilter !== 'all') {
+        if (schemeFilter !== "all") {
           params.append("filterType", schemeFilter);
         }
         if (schemeFilter === "fully_completed") {
           params.append("fullyCompleted", "true");
         }
-        if (selectedAgencyType !== 'ALL') {
+        if (selectedAgencyType !== "ALL") {
           params.append("agencyType", selectedAgencyType);
         }
-        const response = await fetch(`/api/chlorine/scheme-lpcd/day-wise-breakdown?${params.toString()}`);
-        if (!response.ok) throw new Error("Failed to fetch Scheme LPCD day-wise breakdown");
+        const response = await fetch(
+          `/api/chlorine/scheme-lpcd/day-wise-breakdown?${params.toString()}`,
+        );
+        if (!response.ok)
+          throw new Error("Failed to fetch Scheme LPCD day-wise breakdown");
         return response.json();
       },
     });
@@ -1592,23 +1696,35 @@ const DetailedChlorinePage = () => {
     dates: string[];
   }
 
-  const { data: weeklyLpcdStats, isLoading: isLoadingWeekly, error: weeklyError } = useQuery<WeeklyLPCDStatsResponse>({
-    queryKey: ["/api/chlorine/weekly-lpcd/stats", schemeFilter, weekOffset, selectedAgencyType],
+  const {
+    data: weeklyLpcdStats,
+    isLoading: isLoadingWeekly,
+    error: weeklyError,
+  } = useQuery<WeeklyLPCDStatsResponse>({
+    queryKey: [
+      "/api/chlorine/weekly-lpcd/stats",
+      schemeFilter,
+      weekOffset,
+      selectedAgencyType,
+    ],
     queryFn: async () => {
       console.log(`Fetching weekly LPCD stats for offset ${weekOffset}...`);
       const params = new URLSearchParams();
-      if (schemeFilter !== 'all') {
+      if (schemeFilter !== "all") {
         params.append("filterType", schemeFilter);
       }
       if (schemeFilter === "fully_completed") {
         params.append("fullyCompleted", "true");
       }
-      if (selectedAgencyType !== 'ALL') {
+      if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
       }
       params.append("weekOffset", weekOffset.toString());
-      const response = await fetch(`/api/chlorine/weekly-lpcd/stats?${params.toString()}`);
-      if (!response.ok) throw new Error("Failed to fetch weekly LPCD statistics");
+      const response = await fetch(
+        `/api/chlorine/weekly-lpcd/stats?${params.toString()}`,
+      );
+      if (!response.ok)
+        throw new Error("Failed to fetch weekly LPCD statistics");
       const data = await response.json();
       console.log("Fetched weekly LPCD stats:", data);
       return data;
@@ -1616,149 +1732,201 @@ const DetailedChlorinePage = () => {
   });
 
   // Log the hook state to debug visibility issues
-  console.log("Weekly LPCD Stats Hook State:", { data: weeklyLpcdStats, isLoading: isLoadingWeekly, error: weeklyError });
+  console.log("Weekly LPCD Stats Hook State:", {
+    data: weeklyLpcdStats,
+    isLoading: isLoadingWeekly,
+    error: weeklyError,
+  });
 
   // Scheme LPCD Day-Wise Schemes List Query
-  const { data: schemeLpcdDayWiseSchemes, isLoading: isLoadingSchemeDayWiseSchemes } =
-    useQuery<{
-      success: boolean;
-      data: SchemeLPCDDetailItem[];
-      count: number;
-    }>({
-      queryKey: [
-        "/api/chlorine/scheme-lpcd/day-wise-schemes",
-        clickedSchemeDayWiseCell?.metric,
-        clickedSchemeDayWiseCell?.days,
-        clickedSchemeDayWiseCell?.region,
-        schemeFilter,
-        selectedAgencyType,
-      ],
-      enabled: !!clickedSchemeDayWiseCell,
-      queryFn: async () => {
-        const params = new URLSearchParams();
-        if (clickedSchemeDayWiseCell?.region && clickedSchemeDayWiseCell.region !== "All Regions") {
-          params.append("region", clickedSchemeDayWiseCell.region);
-        }
-        if (schemeFilter !== 'all') {
-          params.append("filterType", schemeFilter);
-        }
-        if (schemeFilter === "fully_completed") {
-          params.append("fullyCompleted", "true");
-        }
-        if (selectedAgencyType !== 'ALL') {
-          params.append("agencyType", selectedAgencyType);
-        }
-        const response = await fetch(
-          `/api/chlorine/scheme-lpcd/day-wise-schemes/${clickedSchemeDayWiseCell?.metric}/${clickedSchemeDayWiseCell?.days}?${params.toString()}`,
-        );
-        if (!response.ok) throw new Error("Failed to fetch Scheme LPCD day-wise schemes");
-        return response.json();
-      },
-    });
+  const {
+    data: schemeLpcdDayWiseSchemes,
+    isLoading: isLoadingSchemeDayWiseSchemes,
+  } = useQuery<{
+    success: boolean;
+    data: SchemeLPCDDetailItem[];
+    count: number;
+  }>({
+    queryKey: [
+      "/api/chlorine/scheme-lpcd/day-wise-schemes",
+      clickedSchemeDayWiseCell?.metric,
+      clickedSchemeDayWiseCell?.days,
+      clickedSchemeDayWiseCell?.region,
+      schemeFilter,
+      selectedAgencyType,
+    ],
+    enabled: !!clickedSchemeDayWiseCell,
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (
+        clickedSchemeDayWiseCell?.region &&
+        clickedSchemeDayWiseCell.region !== "All Regions"
+      ) {
+        params.append("region", clickedSchemeDayWiseCell.region);
+      }
+      if (schemeFilter !== "all") {
+        params.append("filterType", schemeFilter);
+      }
+      if (schemeFilter === "fully_completed") {
+        params.append("fullyCompleted", "true");
+      }
+      if (selectedAgencyType !== "ALL") {
+        params.append("agencyType", selectedAgencyType);
+      }
+      const response = await fetch(
+        `/api/chlorine/scheme-lpcd/day-wise-schemes/${clickedSchemeDayWiseCell?.metric}/${clickedSchemeDayWiseCell?.days}?${params.toString()}`,
+      );
+      if (!response.ok)
+        throw new Error("Failed to fetch Scheme LPCD day-wise schemes");
+      return response.json();
+    },
+  });
 
   // Scheme LPCD Region Comparison Query
-  const { data: schemeLpcdRegionComparison, isLoading: isLoadingSchemeRegionComparison } =
-    useQuery<{
-      success: boolean;
-      data: { region: string; total_schemes: number; above_55: number; below_55: number; with_water: number; no_water: number }[];
-      latestDate: string;
-    }>({
-      queryKey: ["/api/chlorine/scheme-lpcd/region-comparison", schemeFilter, selectedAgencyType, "v1"],
-      enabled: mainTab === "lpcd" && lpcdSubTab === "scheme" && categoryTab === "overall-comparison",
-      queryFn: async () => {
-        const params = new URLSearchParams();
-        params.append("_t", Date.now().toString());
-        if (schemeFilter !== 'all') {
-          params.append("filterType", schemeFilter);
-        }
-        if (schemeFilter === "fully_completed") {
-          params.append("fullyCompleted", "true");
-        }
-        if (selectedAgencyType !== 'ALL') {
-          params.append("agencyType", selectedAgencyType);
-        }
-        const queryString = params.toString();
-        const url = `/api/chlorine/scheme-lpcd/region-comparison${queryString ? `?${queryString}` : ""}`;
-        const response = await fetch(url);
-        if (!response.ok) throw new Error("Failed to fetch Scheme LPCD region comparison");
-        return response.json();
-      },
-    });
+  const {
+    data: schemeLpcdRegionComparison,
+    isLoading: isLoadingSchemeRegionComparison,
+  } = useQuery<{
+    success: boolean;
+    data: {
+      region: string;
+      total_schemes: number;
+      above_55: number;
+      below_55: number;
+      with_water: number;
+      no_water: number;
+    }[];
+    latestDate: string;
+  }>({
+    queryKey: [
+      "/api/chlorine/scheme-lpcd/region-comparison",
+      schemeFilter,
+      selectedAgencyType,
+      "v1",
+    ],
+    enabled:
+      mainTab === "lpcd" &&
+      lpcdSubTab === "scheme" &&
+      categoryTab === "overall-comparison",
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.append("_t", Date.now().toString());
+      if (schemeFilter !== "all") {
+        params.append("filterType", schemeFilter);
+      }
+      if (schemeFilter === "fully_completed") {
+        params.append("fullyCompleted", "true");
+      }
+      if (selectedAgencyType !== "ALL") {
+        params.append("agencyType", selectedAgencyType);
+      }
+      const queryString = params.toString();
+      const url = `/api/chlorine/scheme-lpcd/region-comparison${queryString ? `?${queryString}` : ""}`;
+      const response = await fetch(url);
+      if (!response.ok)
+        throw new Error("Failed to fetch Scheme LPCD region comparison");
+      return response.json();
+    },
+  });
 
   // Scheme LPCD Day-wise All Regions Query
-  const [schemeLpcdComparisonCategory, setSchemeLpcdComparisonCategory] = useState<
-    "below_55" | "above_55" | "with_water" | "no_water"
-  >("below_55");
+  const [schemeLpcdComparisonCategory, setSchemeLpcdComparisonCategory] =
+    useState<"below_55" | "above_55" | "with_water" | "no_water">("below_55");
 
   const {
     data: schemeLpcdDayWiseAllRegions,
     isLoading: isLoadingSchemeLpcdDayWiseAllRegions,
   } = useQuery<{
     success: boolean;
-    data: { [region: string]: { days: number; below_55: number; above_55: number; with_water: number; no_water: number }[] };
+    data: {
+      [region: string]: {
+        days: number;
+        below_55: number;
+        above_55: number;
+        with_water: number;
+        no_water: number;
+      }[];
+    };
   }>({
-    queryKey: ["/api/chlorine/scheme-lpcd/day-wise-breakdown/all-regions", schemeFilter, selectedAgencyType],
-    enabled: mainTab === "lpcd" && lpcdSubTab === "scheme" && categoryTab === "daywise" && dayWiseSubTab === "region-comparison",
+    queryKey: [
+      "/api/chlorine/scheme-lpcd/day-wise-breakdown/all-regions",
+      schemeFilter,
+      selectedAgencyType,
+    ],
+    enabled:
+      mainTab === "lpcd" &&
+      lpcdSubTab === "scheme" &&
+      categoryTab === "daywise" &&
+      dayWiseSubTab === "region-comparison",
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (schemeFilter !== 'all') {
+      if (schemeFilter !== "all") {
         params.append("filterType", schemeFilter);
       }
       if (schemeFilter === "fully_completed") {
         params.append("fullyCompleted", "true");
       }
-      if (selectedAgencyType !== 'ALL') {
+      if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
       }
       const queryString = params.toString();
       const url = `/api/chlorine/scheme-lpcd/day-wise-breakdown/all-regions${queryString ? `?${queryString}` : ""}`;
       const response = await fetch(url);
-      if (!response.ok) throw new Error("Failed to fetch Scheme LPCD day-wise breakdown for all regions");
+      if (!response.ok)
+        throw new Error(
+          "Failed to fetch Scheme LPCD day-wise breakdown for all regions",
+        );
       return response.json();
     },
   });
 
   // Scheme LPCD Region Comparison Schemes List Query
-  const { data: schemeLpcdComparisonSchemes, isLoading: isLoadingSchemeComparisonSchemes } =
-    useQuery<{
-      success: boolean;
-      data: SchemeLPCDDetailItem[];
-      count: number;
-    }>({
-      queryKey: [
-        "/api/chlorine/scheme-lpcd/region-comparison-schemes",
-        clickedSchemeComparisonCell?.category,
-        clickedSchemeComparisonCell?.region,
-        schemeFilter,
-        selectedAgencyType,
-        "v1",
-      ],
-      enabled: !!clickedSchemeComparisonCell,
-      queryFn: async () => {
-        const params = new URLSearchParams();
-        params.append("_t", Date.now().toString());
-        if (clickedSchemeComparisonCell?.region && clickedSchemeComparisonCell.region !== "All Regions") {
-          params.append("region", clickedSchemeComparisonCell.region);
-        }
-        if (schemeFilter !== 'all') {
-          params.append("filterType", schemeFilter);
-        }
-        if (schemeFilter === "fully_completed") {
-          params.append("fullyCompleted", "true");
-        }
-        if (selectedAgencyType !== 'ALL') {
-          params.append("agencyType", selectedAgencyType);
-        }
-        if (clickedSchemeComparisonCell?.dates) {
-          params.append("dates", clickedSchemeComparisonCell.dates.join(","));
-        }
-        const response = await fetch(
-          `/api/chlorine/scheme-lpcd/region-comparison-schemes/${clickedSchemeComparisonCell?.category}?${params.toString()}`,
-        );
-        if (!response.ok) throw new Error("Failed to fetch Scheme LPCD comparison schemes");
-        return response.json();
-      },
-    });
+  const {
+    data: schemeLpcdComparisonSchemes,
+    isLoading: isLoadingSchemeComparisonSchemes,
+  } = useQuery<{
+    success: boolean;
+    data: SchemeLPCDDetailItem[];
+    count: number;
+  }>({
+    queryKey: [
+      "/api/chlorine/scheme-lpcd/region-comparison-schemes",
+      clickedSchemeComparisonCell?.category,
+      clickedSchemeComparisonCell?.region,
+      schemeFilter,
+      selectedAgencyType,
+      "v1",
+    ],
+    enabled: !!clickedSchemeComparisonCell,
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.append("_t", Date.now().toString());
+      if (
+        clickedSchemeComparisonCell?.region &&
+        clickedSchemeComparisonCell.region !== "All Regions"
+      ) {
+        params.append("region", clickedSchemeComparisonCell.region);
+      }
+      if (schemeFilter !== "all") {
+        params.append("filterType", schemeFilter);
+      }
+      if (schemeFilter === "fully_completed") {
+        params.append("fullyCompleted", "true");
+      }
+      if (selectedAgencyType !== "ALL") {
+        params.append("agencyType", selectedAgencyType);
+      }
+      if (clickedSchemeComparisonCell?.dates) {
+        params.append("dates", clickedSchemeComparisonCell.dates.join(","));
+      }
+      const response = await fetch(
+        `/api/chlorine/scheme-lpcd/region-comparison-schemes/${clickedSchemeComparisonCell?.category}?${params.toString()}`,
+      );
+      if (!response.ok)
+        throw new Error("Failed to fetch Scheme LPCD comparison schemes");
+      return response.json();
+    },
+  });
 
   // Pressure Regional Stats Query
   interface PressureRegionalStats {
@@ -1786,17 +1954,21 @@ const DetailedChlorinePage = () => {
     data: pressureRegionalStats = [],
     isLoading: isLoadingPressureRegional,
   } = useQuery<PressureRegionalStats[]>({
-    queryKey: ["/api/pressure/regional-stats", schemeFilter, selectedAgencyType],
+    queryKey: [
+      "/api/pressure/regional-stats",
+      schemeFilter,
+      selectedAgencyType,
+    ],
     enabled: mainTab === "pressure",
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (schemeFilter !== 'all') {
+      if (schemeFilter !== "all") {
         params.append("filterType", schemeFilter);
       }
       if (schemeFilter === "fully_completed") {
         params.append("fullyCompleted", "true");
       }
-      if (selectedAgencyType !== 'ALL') {
+      if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
       }
       const queryString = params.toString();
@@ -1823,7 +1995,12 @@ const DetailedChlorinePage = () => {
       data: PressureDayWiseBreakdown[];
       region: string;
     }>({
-      queryKey: ["/api/pressure/day-wise-breakdown", pressureDayWiseRegion, schemeFilter, selectedAgencyType],
+      queryKey: [
+        "/api/pressure/day-wise-breakdown",
+        pressureDayWiseRegion,
+        schemeFilter,
+        selectedAgencyType,
+      ],
       enabled: mainTab === "pressure" && !!pressureDayWiseRegion,
       queryFn: async () => {
         const params = new URLSearchParams();
@@ -1836,10 +2013,13 @@ const DetailedChlorinePage = () => {
         if (schemeFilter === "fully_completed") {
           params.append("fullyCompleted", "true");
         }
-        if (selectedAgencyType !== 'ALL') {
+        if (selectedAgencyType !== "ALL") {
           params.append("agencyType", selectedAgencyType);
         }
-        console.log('[Pressure Day-Wise Breakdown] Filter params:', { schemeFilter, params: params.toString() });
+        console.log("[Pressure Day-Wise Breakdown] Filter params:", {
+          schemeFilter,
+          params: params.toString(),
+        });
         const response = await fetch(
           `/api/pressure/day-wise-breakdown?${params.toString()}`,
         );
@@ -1878,7 +2058,7 @@ const DetailedChlorinePage = () => {
           if (schemeFilter === "fully_completed") {
             params.append("fullyCompleted", "true");
           }
-          if (selectedAgencyType !== 'ALL') {
+          if (selectedAgencyType !== "ALL") {
             params.append("agencyType", selectedAgencyType);
           }
           const response = await fetch(
@@ -1941,7 +2121,7 @@ const DetailedChlorinePage = () => {
       if (schemeFilter === "fully_completed") {
         params.append("fullyCompleted", "true");
       }
-      if (selectedAgencyType !== 'ALL') {
+      if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
       }
 
@@ -1991,10 +2171,13 @@ const DetailedChlorinePage = () => {
         if (schemeFilter === "fully_completed") {
           params.append("fullyCompleted", "true");
         }
-        if (selectedAgencyType !== 'ALL') {
+        if (selectedAgencyType !== "ALL") {
           params.append("agencyType", selectedAgencyType);
         }
-        console.log('[Pressure Division Summary] Filter params:', { schemeFilter, params: params.toString() });
+        console.log("[Pressure Division Summary] Filter params:", {
+          schemeFilter,
+          params: params.toString(),
+        });
         const response = await fetch(
           `/api/pressure/division-wise-summary?${params.toString()}`,
         );
@@ -2023,17 +2206,21 @@ const DetailedChlorinePage = () => {
     success: boolean;
     data: PressureOverallComparison[];
   }>({
-    queryKey: ["/api/pressure/overall-region-comparison", schemeFilter, selectedAgencyType],
+    queryKey: [
+      "/api/pressure/overall-region-comparison",
+      schemeFilter,
+      selectedAgencyType,
+    ],
     enabled: mainTab === "pressure",
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (schemeFilter !== 'all') {
+      if (schemeFilter !== "all") {
         params.append("filterType", schemeFilter);
       }
       if (schemeFilter === "fully_completed") {
         params.append("fullyCompleted", "true");
       }
-      if (selectedAgencyType !== 'ALL') {
+      if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
       }
       const queryString = params.toString();
@@ -2073,7 +2260,7 @@ const DetailedChlorinePage = () => {
         if (schemeFilter === "fully_completed") {
           params.append("fullyCompleted", "true");
         }
-        if (selectedAgencyType !== 'ALL') {
+        if (selectedAgencyType !== "ALL") {
           params.append("agencyType", selectedAgencyType);
         }
         const response = await fetch(
@@ -2106,7 +2293,10 @@ const DetailedChlorinePage = () => {
     enabled: !!clickedPressureComparisonCell,
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (clickedPressureComparisonCell?.region && clickedPressureComparisonCell.region !== "All Regions") {
+      if (
+        clickedPressureComparisonCell?.region &&
+        clickedPressureComparisonCell.region !== "All Regions"
+      ) {
         params.append("region", clickedPressureComparisonCell.region);
       }
       if (schemeFilter !== "all") {
@@ -2115,7 +2305,7 @@ const DetailedChlorinePage = () => {
       if (schemeFilter === "fully_completed") {
         params.append("fullyCompleted", "true");
       }
-      if (selectedAgencyType !== 'ALL') {
+      if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
       }
       const response = await fetch(
@@ -2164,7 +2354,7 @@ const DetailedChlorinePage = () => {
       if (schemeFilter === "fully_completed") {
         params.append("fullyCompleted", "true");
       }
-      if (selectedAgencyType !== 'ALL') {
+      if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
       }
       const response = await fetch(
@@ -2204,13 +2394,13 @@ const DetailedChlorinePage = () => {
       if (pressureDayWiseRegion && pressureDayWiseRegion !== "All Regions") {
         params.append("region", pressureDayWiseRegion);
       }
-      if (schemeFilter !== 'all') {
+      if (schemeFilter !== "all") {
         params.append("filterType", schemeFilter);
       }
       if (schemeFilter === "fully_completed") {
         params.append("fullyCompleted", "true");
       }
-      if (selectedAgencyType !== 'ALL') {
+      if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
       }
       const response = await fetch(
@@ -2260,7 +2450,8 @@ const DetailedChlorinePage = () => {
           stat.onlineWithWaterNoPressureData,
         onlineWithoutWater: acc.onlineWithoutWater + stat.onlineWithoutWater,
         totalOffline: acc.totalOffline + stat.totalOffline,
-        offlineWithNoWater: acc.offlineWithNoWater + (stat.offlineWithNoWater || 0),
+        offlineWithNoWater:
+          acc.offlineWithNoWater + (stat.offlineWithNoWater || 0),
         offlineWithWater: acc.offlineWithWater + (stat.offlineWithWater || 0),
         offlineSince7Days: acc.offlineSince7Days + stat.offlineSince7Days,
         offlineSince30Days: acc.offlineSince30Days + stat.offlineSince30Days,
@@ -2405,13 +2596,13 @@ const DetailedChlorinePage = () => {
     if (clickedLPCDCell.region && clickedLPCDCell.region !== "All Regions") {
       params.append("region", clickedLPCDCell.region);
     }
-    if (schemeFilter !== 'all') {
+    if (schemeFilter !== "all") {
       params.append("filterType", schemeFilter);
     }
     if (schemeFilter === "fully_completed") {
       params.append("fullyCompleted", "true");
     }
-    if (selectedAgencyType !== 'ALL') {
+    if (selectedAgencyType !== "ALL") {
       params.append("agencyType", selectedAgencyType);
     }
 
@@ -2490,7 +2681,8 @@ const DetailedChlorinePage = () => {
           acc.onlineWithoutWaterChlorineBelow +
           stat.onlineWithoutWaterChlorineBelow,
         totalOffline: acc.totalOffline + stat.totalOffline,
-        offlineWithNoWater: acc.offlineWithNoWater + (stat.offlineWithNoWater || 0),
+        offlineWithNoWater:
+          acc.offlineWithNoWater + (stat.offlineWithNoWater || 0),
         offlineWithWater: acc.offlineWithWater + (stat.offlineWithWater || 0),
         offlineSince7Days: acc.offlineSince7Days + stat.offlineSince7Days,
         offlineSince30Days: acc.offlineSince30Days + stat.offlineSince30Days,
@@ -2541,7 +2733,7 @@ const DetailedChlorinePage = () => {
     if (schemeFilter === "fully_completed") {
       params.append("fullyCompleted", "true");
     }
-    if (selectedAgencyType !== 'ALL') {
+    if (selectedAgencyType !== "ALL") {
       params.append("agencyType", selectedAgencyType);
     }
 
@@ -3161,11 +3353,15 @@ const DetailedChlorinePage = () => {
 
             {/* Fully Completed Filter Button */}
             <div className="flex flex-nowrap items-center gap-3 mb-6 bg-white dark:bg-gray-800 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-x-auto">
-              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap flex-shrink-0">Filter:</span>
+              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap flex-shrink-0">
+                Filter:
+              </span>
 
               {isAdmin && (
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Scheme Category (Admin):</span>
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                    Scheme Category (Admin):
+                  </span>
                   <Select
                     value={uiSchemeFilter}
                     onValueChange={(val) => {
@@ -3178,24 +3374,55 @@ const DetailedChlorinePage = () => {
                     <SelectContent>
                       <SelectItem value="commissioned">Commissioned</SelectItem>
                       <SelectItem value="all">All Schemes</SelectItem>
-                      <SelectItem value="fully_completed">Fully Completed</SelectItem>
+                      <SelectItem value="fully_completed">
+                        Fully Completed
+                      </SelectItem>
                       <SelectItem value="in_progress">In Progress</SelectItem>
-                      <SelectItem value="common_filter">Common Filter</SelectItem>
-                      <SelectItem value="mjp_commissioned_yes">MJP Commissioned</SelectItem>
+                      <SelectItem value="common_filter">
+                        Common Filter
+                      </SelectItem>
+                      <SelectItem value="mjp_commissioned_yes">
+                        MJP Commissioned
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               )}
 
-              {(uiSchemeFilter === "commissioned" || uiSchemeFilter === "fully_completed") && (
+              {(uiSchemeFilter === "commissioned" ||
+                uiSchemeFilter === "fully_completed") && (
                 <>
                   <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 flex-shrink-0" />
-                  <Tabs value={waterSupplyStatus} onValueChange={setWaterSupplyStatus} className="m-0 flex-shrink-0">
+                  <Tabs
+                    value={waterSupplyStatus}
+                    onValueChange={setWaterSupplyStatus}
+                    className="m-0 flex-shrink-0"
+                  >
                     <TabsList className="h-8 bg-gray-100 dark:bg-gray-800 p-0.5 border border-gray-200 dark:border-gray-700">
-                      <TabsTrigger value="All" className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-blue-600 data-[state=active]:text-white whitespace-nowrap">All</TabsTrigger>
-                      <TabsTrigger value="Full" className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-emerald-600 data-[state=active]:text-white whitespace-nowrap">Full Operational</TabsTrigger>
-                      <TabsTrigger value="Partial" className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-amber-500 data-[state=active]:text-white whitespace-nowrap">Partially Operational</TabsTrigger>
-                      <TabsTrigger value="No" className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-red-500 data-[state=active]:text-white whitespace-nowrap">Not Operational</TabsTrigger>
+                      <TabsTrigger
+                        value="All"
+                        className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-blue-600 data-[state=active]:text-white whitespace-nowrap"
+                      >
+                        All
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="Full"
+                        className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-emerald-600 data-[state=active]:text-white whitespace-nowrap"
+                      >
+                        Full Operational
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="Partial"
+                        className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-amber-500 data-[state=active]:text-white whitespace-nowrap"
+                      >
+                        Partially Operational
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="No"
+                        className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-red-500 data-[state=active]:text-white whitespace-nowrap"
+                      >
+                        Not Operational
+                      </TabsTrigger>
                     </TabsList>
                   </Tabs>
                 </>
@@ -3234,10 +3461,11 @@ const DetailedChlorinePage = () => {
                   setClickedCell(null);
                   setClickedLPCDCell(null);
                 }}
-                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-base transition-all ${mainTab === "lpcd"
-                  ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg scale-105"
-                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
-                  }`}
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-base transition-all ${
+                  mainTab === "lpcd"
+                    ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg scale-105"
+                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                }`}
                 data-testid="main-tab-lpcd"
               >
                 <Home className="h-5 w-5" />
@@ -3249,10 +3477,11 @@ const DetailedChlorinePage = () => {
                   setClickedCell(null);
                   setClickedLPCDCell(null);
                 }}
-                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-base transition-all ${mainTab === "chlorine"
-                  ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg scale-105"
-                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
-                  }`}
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-base transition-all ${
+                  mainTab === "chlorine"
+                    ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg scale-105"
+                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                }`}
                 data-testid="main-tab-chlorine"
               >
                 <Droplet className="h-5 w-5" />
@@ -3264,10 +3493,11 @@ const DetailedChlorinePage = () => {
                   setClickedCell(null);
                   setClickedLPCDCell(null);
                 }}
-                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-base transition-all ${mainTab === "pressure"
-                  ? "bg-gradient-to-r from-orange-600 to-amber-600 text-white shadow-lg scale-105"
-                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
-                  }`}
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-base transition-all ${
+                  mainTab === "pressure"
+                    ? "bg-gradient-to-r from-orange-600 to-amber-600 text-white shadow-lg scale-105"
+                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                }`}
                 data-testid="main-tab-pressure"
               >
                 <Gauge className="h-5 w-5" />
@@ -3278,16 +3508,19 @@ const DetailedChlorinePage = () => {
             {/* Village/Scheme Toggle for LPCD Tab */}
             {mainTab === "lpcd" && (
               <div className="flex items-center gap-2 mb-4 bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700 w-fit">
-                <span className="text-sm font-medium text-gray-600 dark:text-gray-400 mr-2">View:</span>
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-400 mr-2">
+                  View:
+                </span>
                 <button
                   onClick={() => {
                     setLpcdSubTab("scheme");
                     setClickedLPCDCell(null);
                   }}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-medium text-sm transition-all ${lpcdSubTab === "scheme"
-                    ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md"
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                    }`}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                    lpcdSubTab === "scheme"
+                      ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md"
+                      : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  }`}
                   data-testid="lpcd-sub-tab-scheme"
                 >
                   <Building2 className="h-4 w-4" />
@@ -3301,10 +3534,11 @@ const DetailedChlorinePage = () => {
                     setClickedSchemeDayWiseCell(null);
                     setClickedSchemeComparisonCell(null);
                   }}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-medium text-sm transition-all ${lpcdSubTab === "village"
-                    ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md"
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                    }`}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                    lpcdSubTab === "village"
+                      ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md"
+                      : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  }`}
                   data-testid="lpcd-sub-tab-village"
                 >
                   <Home className="h-4 w-4" />
@@ -3527,6 +3761,9 @@ const DetailedChlorinePage = () => {
                                     <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[140px] border-r border-white/10">
                                       Scheme Name
                                     </TableHead>
+                                    <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                      Owner
+                                    </TableHead>
                                     <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[100px] border-r border-white/10">
                                       Village
                                     </TableHead>
@@ -3543,9 +3780,9 @@ const DetailedChlorinePage = () => {
                                       Water (
                                       {sensorDetails?.data?.[0]?.water_date_day7
                                         ? formatDate(
-                                          sensorDetails.data[0]
-                                            .water_date_day7,
-                                        )
+                                            sensorDetails.data[0]
+                                              .water_date_day7,
+                                          )
                                         : "N/A"}
                                       )
                                     </TableHead>
@@ -3554,9 +3791,9 @@ const DetailedChlorinePage = () => {
                                       {sensorDetails?.data?.[0]
                                         ?.chlorine_date_day_7
                                         ? formatDate(
-                                          sensorDetails.data[0]
-                                            .chlorine_date_day_7,
-                                        )
+                                            sensorDetails.data[0]
+                                              .chlorine_date_day_7,
+                                          )
                                         : "N/A"}
                                       )
                                     </TableHead>
@@ -3571,7 +3808,8 @@ const DetailedChlorinePage = () => {
                                 <TableBody>
                                   {sensorDetails.data.map((sensor, idx) => {
                                     const esrKey = `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`;
-                                    const esrIssues = esrIssuesMap.get(esrKey) || [];
+                                    const esrIssues =
+                                      esrIssuesMap.get(esrKey) || [];
                                     const hasIssue = esrIssues.length > 0;
 
                                     return (
@@ -3595,6 +3833,11 @@ const DetailedChlorinePage = () => {
                                         <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-slate-100/80 dark:border-slate-800/60">
                                           {sensor.scheme_name}
                                         </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
+                                          {sensor.owner ||
+                                            sensor.agency_type ||
+                                            "N/A"}
+                                        </TableCell>
                                         <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
                                           {sensor.village_name}
                                         </TableCell>
@@ -3602,8 +3845,13 @@ const DetailedChlorinePage = () => {
                                           {sensor.esr_name}
                                         </TableCell>
                                         <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60 max-w-[150px]">
-                                            {renderRemarkCell((esrIssuesMap?.get(`${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`) || []), `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
-                                          </TableCell>
+                                          {renderRemarkCell(
+                                            esrIssuesMap?.get(
+                                              `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
+                                            ) || [],
+                                            `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
+                                          )}
+                                        </TableCell>
                                         <TableCell className="!px-4 !py-3 text-center border-r border-slate-100/80 dark:border-slate-800/60">
                                           <span
                                             className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${sensor.chlorine_status === "Online" ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60 dark:text-emerald-300 ring-1 ring-emerald-200/80 dark:ring-emerald-700/60" : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"}`}
@@ -3613,7 +3861,7 @@ const DetailedChlorinePage = () => {
                                         </TableCell>
                                         <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
                                           {sensor.water_value_day7 !== null &&
-                                            sensor.water_value_day7 !==
+                                          sensor.water_value_day7 !==
                                             undefined ? (
                                             Number(
                                               sensor.water_value_day7,
@@ -3626,7 +3874,7 @@ const DetailedChlorinePage = () => {
                                         </TableCell>
                                         <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
                                           {sensor.chlorine_value_7 !== null &&
-                                            sensor.chlorine_value_7 !==
+                                          sensor.chlorine_value_7 !==
                                             undefined ? (
                                             Number(
                                               sensor.chlorine_value_7,
@@ -3640,22 +3888,42 @@ const DetailedChlorinePage = () => {
                                         <TableCell className="!px-4 !py-3 text-center border-r border-slate-100/80 dark:border-slate-800/60">
                                           {(sensor as any).dashboard_url ? (
                                             <a
-                                              href={(sensor as any).dashboard_url}
+                                              href={
+                                                (sensor as any).dashboard_url
+                                              }
                                               target="_blank"
                                               rel="noreferrer"
                                               className="inline-flex items-center justify-center p-1.5 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:text-indigo-200 dark:hover:bg-indigo-900/50 rounded-full transition-colors"
                                               title="Open Dashboard"
-                                              onClick={(e) => e.stopPropagation()}
+                                              onClick={(e) =>
+                                                e.stopPropagation()
+                                              }
                                             >
                                               <ExternalLink className="h-3.5 w-3.5" />
                                             </a>
                                           ) : (
-                                            <span className="text-slate-400">-</span>
+                                            <span className="text-slate-400">
+                                              -
+                                            </span>
                                           )}
                                         </TableCell>
-                                        <TableCell className="!px-4 !py-3 text-center border-r border-slate-100/80 dark:border-slate-800/60 max-w-[150px] truncate" title={hasIssue ? esrIssues.map((i: any) => i.reason).join(", ") : "-"}>
-                                            {renderRemarkCell((esrIssuesMap?.get(`${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`) || []), `Remarks for ${sensor.esr_name || "ESR"}, ${sensor.village_name || "Village"}`)}
-                                          </TableCell>
+                                        <TableCell
+                                          className="!px-4 !py-3 text-center border-r border-slate-100/80 dark:border-slate-800/60 max-w-[150px] truncate"
+                                          title={
+                                            hasIssue
+                                              ? esrIssues
+                                                  .map((i: any) => i.reason)
+                                                  .join(", ")
+                                              : "-"
+                                          }
+                                        >
+                                          {renderRemarkCell(
+                                            esrIssuesMap?.get(
+                                              `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
+                                            ) || [],
+                                            `Remarks for ${sensor.esr_name || "ESR"}, ${sensor.village_name || "Village"}`,
+                                          )}
+                                        </TableCell>
                                         <TableCell
                                           className={`!px-4 !py-3 text-center sticky right-0 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-slate-50/60 dark:bg-slate-800/40"} border-l border-slate-200/80 dark:border-slate-700/60`}
                                         >
@@ -4651,6 +4919,9 @@ const DetailedChlorinePage = () => {
                                     <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[140px] border-r border-white/10">
                                       Scheme Name
                                     </TableHead>
+                                    <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                      Owner
+                                    </TableHead>
                                     <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[100px] border-r border-white/10">
                                       Village
                                     </TableHead>
@@ -4672,10 +4943,10 @@ const DetailedChlorinePage = () => {
                                     {clickedLPCDCell.statisticType.startsWith(
                                       "below-55-",
                                     ) && (
-                                        <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center">
-                                          Days &lt;55
-                                        </TableHead>
-                                      )}
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center">
+                                        Days &lt;55
+                                      </TableHead>
+                                    )}
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -4700,15 +4971,25 @@ const DetailedChlorinePage = () => {
                                       <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-slate-100/80 dark:border-slate-800/60">
                                         {item.scheme_name}
                                       </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
+                                        {item.owner ||
+                                          item.agency_type ||
+                                          "N/A"}
+                                      </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60 truncate">
                                         {item.village_name}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60 max-w-[150px]">
-                                            {renderRemarkCell((villageIssuesMap?.get(`${item.scheme_id}-${item.village_name}`) || []), `Remarks for ${item.village_name}`)}
-                                          </TableCell>
+                                        {renderRemarkCell(
+                                          villageIssuesMap?.get(
+                                            `${item.scheme_id}-${item.village_name}`,
+                                          ) || [],
+                                          `Remarks for ${item.village_name}`,
+                                        )}
+                                      </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
                                         {item.population !== null &&
-                                          item.population !== undefined ? (
+                                        item.population !== undefined ? (
                                           Number(
                                             item.population,
                                           ).toLocaleString()
@@ -4720,7 +5001,7 @@ const DetailedChlorinePage = () => {
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium border-r border-slate-100/80 dark:border-slate-800/60">
                                         {item.lpcd_value_day7 !== null &&
-                                          item.lpcd_value_day7 !== undefined ? (
+                                        item.lpcd_value_day7 !== undefined ? (
                                           <span
                                             className={
                                               Number(item.lpcd_value_day7) >= 55
@@ -4740,7 +5021,7 @@ const DetailedChlorinePage = () => {
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
                                         {item.water_value_day7 !== null &&
-                                          item.water_value_day7 !== undefined ? (
+                                        item.water_value_day7 !== undefined ? (
                                           Number(item.water_value_day7).toFixed(
                                             2,
                                           )
@@ -4762,18 +5043,19 @@ const DetailedChlorinePage = () => {
                                             <ExternalLink className="h-3 w-3" />
                                           </a>
                                         ) : (
-                                          <span className="text-gray-300 dark:text-gray-700">-</span>
+                                          <span className="text-gray-300 dark:text-gray-700">
+                                            -
+                                          </span>
                                         )}
                                       </TableCell>
                                       {clickedLPCDCell.statisticType.startsWith(
                                         "below-55-",
                                       ) && (
-                                          <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-bold text-rose-600 dark:text-rose-400">
-                                            {item.consecutive_days || "N/A"}
-                                          </TableCell>
-                                        )}
+                                        <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-bold text-rose-600 dark:text-rose-400">
+                                          {item.consecutive_days || "N/A"}
+                                        </TableCell>
+                                      )}
                                     </TableRow>
-
                                   ))}
                                 </TableBody>
                               </Table>
@@ -4891,7 +5173,12 @@ const DetailedChlorinePage = () => {
                                         </span>
                                       </div>
                                       <div className="text-2xl font-bold text-white">
-                                        {schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.totalSchemes, 0).toLocaleString() || 0}
+                                        {schemeLpcdRegionalStats?.data
+                                          ?.reduce(
+                                            (acc, s) => acc + s.totalSchemes,
+                                            0,
+                                          )
+                                          .toLocaleString() || 0}
                                       </div>
                                     </div>
                                   </div>
@@ -4918,7 +5205,12 @@ const DetailedChlorinePage = () => {
                                         </span>
                                       </div>
                                       <div className="text-2xl font-bold text-white">
-                                        {schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.schemesAbove55, 0).toLocaleString() || 0}
+                                        {schemeLpcdRegionalStats?.data
+                                          ?.reduce(
+                                            (acc, s) => acc + s.schemesAbove55,
+                                            0,
+                                          )
+                                          .toLocaleString() || 0}
                                       </div>
                                     </div>
                                   </div>
@@ -4945,7 +5237,12 @@ const DetailedChlorinePage = () => {
                                         </span>
                                       </div>
                                       <div className="text-2xl font-bold text-white">
-                                        {schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.schemesBelow55, 0).toLocaleString() || 0}
+                                        {schemeLpcdRegionalStats?.data
+                                          ?.reduce(
+                                            (acc, s) => acc + s.schemesBelow55,
+                                            0,
+                                          )
+                                          .toLocaleString() || 0}
                                       </div>
                                     </div>
                                   </div>
@@ -4972,7 +5269,12 @@ const DetailedChlorinePage = () => {
                                         </span>
                                       </div>
                                       <div className="text-2xl font-bold text-white">
-                                        {schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.schemesNoSupply, 0).toLocaleString() || 0}
+                                        {schemeLpcdRegionalStats?.data
+                                          ?.reduce(
+                                            (acc, s) => acc + s.schemesNoSupply,
+                                            0,
+                                          )
+                                          .toLocaleString() || 0}
                                       </div>
                                     </div>
                                   </div>
@@ -4990,7 +5292,11 @@ const DetailedChlorinePage = () => {
                                           {
                                             name: "Total Schemes",
                                             value:
-                                              schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.totalSchemes, 0) || 0,
+                                              schemeLpcdRegionalStats?.data?.reduce(
+                                                (acc, s) =>
+                                                  acc + s.totalSchemes,
+                                                0,
+                                              ) || 0,
                                             color: "#a855f7",
                                             statisticType: "totalSchemes",
                                             label: "Total Schemes",
@@ -4998,7 +5304,11 @@ const DetailedChlorinePage = () => {
                                           {
                                             name: ">55 LPCD",
                                             value:
-                                              schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.schemesAbove55, 0) || 0,
+                                              schemeLpcdRegionalStats?.data?.reduce(
+                                                (acc, s) =>
+                                                  acc + s.schemesAbove55,
+                                                0,
+                                              ) || 0,
                                             color: "#10b981",
                                             statisticType: "schemesAbove55",
                                             label: "Schemes >55 LPCD",
@@ -5006,7 +5316,11 @@ const DetailedChlorinePage = () => {
                                           {
                                             name: "<55 LPCD",
                                             value:
-                                              schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.schemesBelow55, 0) || 0,
+                                              schemeLpcdRegionalStats?.data?.reduce(
+                                                (acc, s) =>
+                                                  acc + s.schemesBelow55,
+                                                0,
+                                              ) || 0,
                                             color: "#f59e0b",
                                             statisticType: "schemesBelow55",
                                             label: "Schemes <55 LPCD",
@@ -5014,7 +5328,11 @@ const DetailedChlorinePage = () => {
                                           {
                                             name: "No Supply",
                                             value:
-                                              schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.schemesNoSupply, 0) || 0,
+                                              schemeLpcdRegionalStats?.data?.reduce(
+                                                (acc, s) =>
+                                                  acc + s.schemesNoSupply,
+                                                0,
+                                              ) || 0,
                                             color: "#f43f5e",
                                             statisticType: "schemesNoSupply",
                                             label: "Schemes No Supply",
@@ -5022,7 +5340,11 @@ const DetailedChlorinePage = () => {
                                           {
                                             name: "<55 (3d)",
                                             value:
-                                              schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.below55For3Days, 0) || 0,
+                                              schemeLpcdRegionalStats?.data?.reduce(
+                                                (acc, s) =>
+                                                  acc + s.below55For3Days,
+                                                0,
+                                              ) || 0,
                                             color: "#f97316",
                                             statisticType: "below55For3Days",
                                             label: "<55 LPCD for 3+ Days",
@@ -5030,7 +5352,11 @@ const DetailedChlorinePage = () => {
                                           {
                                             name: "<55 (7d)",
                                             value:
-                                              schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.below55For7Days, 0) || 0,
+                                              schemeLpcdRegionalStats?.data?.reduce(
+                                                (acc, s) =>
+                                                  acc + s.below55For7Days,
+                                                0,
+                                              ) || 0,
                                             color: "#ef4444",
                                             statisticType: "below55For7Days",
                                             label: "<55 LPCD for 7+ Days",
@@ -5038,7 +5364,11 @@ const DetailedChlorinePage = () => {
                                           {
                                             name: "<55 (30d)",
                                             value:
-                                              schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.below55For30Days, 0) || 0,
+                                              schemeLpcdRegionalStats?.data?.reduce(
+                                                (acc, s) =>
+                                                  acc + s.below55For30Days,
+                                                0,
+                                              ) || 0,
                                             color: "#ec4899",
                                             statisticType: "below55For30Days",
                                             label: "<55 LPCD for 30+ Days",
@@ -5074,7 +5404,8 @@ const DetailedChlorinePage = () => {
                                           onClick={(data: any) => {
                                             if (data && data.value > 0) {
                                               setClickedSchemeLPCDCell({
-                                                statisticType: data.statisticType,
+                                                statisticType:
+                                                  data.statisticType,
                                                 region: "All Regions",
                                                 label: data.label,
                                               });
@@ -5085,43 +5416,71 @@ const DetailedChlorinePage = () => {
                                             {
                                               name: "Total Schemes",
                                               value:
-                                                schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.totalSchemes, 0) || 0,
+                                                schemeLpcdRegionalStats?.data?.reduce(
+                                                  (acc, s) =>
+                                                    acc + s.totalSchemes,
+                                                  0,
+                                                ) || 0,
                                               color: "#a855f7",
                                             },
                                             {
                                               name: ">55 LPCD",
                                               value:
-                                                schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.schemesAbove55, 0) || 0,
+                                                schemeLpcdRegionalStats?.data?.reduce(
+                                                  (acc, s) =>
+                                                    acc + s.schemesAbove55,
+                                                  0,
+                                                ) || 0,
                                               color: "#10b981",
                                             },
                                             {
                                               name: "<55 LPCD",
                                               value:
-                                                schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.schemesBelow55, 0) || 0,
+                                                schemeLpcdRegionalStats?.data?.reduce(
+                                                  (acc, s) =>
+                                                    acc + s.schemesBelow55,
+                                                  0,
+                                                ) || 0,
                                               color: "#f59e0b",
                                             },
                                             {
                                               name: "No Supply",
                                               value:
-                                                schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.schemesNoSupply, 0) || 0,
+                                                schemeLpcdRegionalStats?.data?.reduce(
+                                                  (acc, s) =>
+                                                    acc + s.schemesNoSupply,
+                                                  0,
+                                                ) || 0,
                                               color: "#f43f5e",
                                             },
                                             {
                                               name: "<55 (3d)",
                                               value:
-                                                schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.below55For3Days, 0) || 0,
+                                                schemeLpcdRegionalStats?.data?.reduce(
+                                                  (acc, s) =>
+                                                    acc + s.below55For3Days,
+                                                  0,
+                                                ) || 0,
                                               color: "#f97316",
                                             },
                                             {
                                               name: "<55 (7d)",
                                               value:
-                                                schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.below55For7Days, 0) || 0,
+                                                schemeLpcdRegionalStats?.data?.reduce(
+                                                  (acc, s) =>
+                                                    acc + s.below55For7Days,
+                                                  0,
+                                                ) || 0,
                                               color: "#ef4444",
                                             },
                                             {
                                               name: "<55 (30d)",
                                               value:
-                                                schemeLpcdRegionalStats?.data?.reduce((acc, s) => acc + s.below55For30Days, 0) || 0,
+                                                schemeLpcdRegionalStats?.data?.reduce(
+                                                  (acc, s) =>
+                                                    acc + s.below55For30Days,
+                                                  0,
+                                                ) || 0,
                                               color: "#ec4899",
                                             },
                                           ].map((entry, index) => (
@@ -5146,7 +5505,10 @@ const DetailedChlorinePage = () => {
 
                             {/* Individual Region Views */}
                             {schemeLpcdRegionalStats?.data?.map((stat) => (
-                              <TabsContent key={stat.region} value={stat.region}>
+                              <TabsContent
+                                key={stat.region}
+                                value={stat.region}
+                              >
                                 <div className="space-y-4">
                                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                     <div
@@ -5343,7 +5705,8 @@ const DetailedChlorinePage = () => {
                                             onClick={(data: any) => {
                                               if (data && data.value > 0) {
                                                 setClickedSchemeLPCDCell({
-                                                  statisticType: data.statisticType,
+                                                  statisticType:
+                                                    data.statisticType,
                                                   region: stat.region,
                                                   label: data.label,
                                                 });
@@ -5432,7 +5795,8 @@ const DetailedChlorinePage = () => {
                                     variant="secondary"
                                     className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 !text-[12px] px-1.5 py-0"
                                   >
-                                    {clickedSchemeLPCDCell.region || "All Regions"}
+                                    {clickedSchemeLPCDCell.region ||
+                                      "All Regions"}
                                   </Badge>
                                   <Badge className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 !text-[12px] px-1.5 py-0">
                                     {schemeLpcdDetails?.count || 0} schemes
@@ -5444,21 +5808,31 @@ const DetailedChlorinePage = () => {
                               <Button
                                 onClick={() => {
                                   const params = new URLSearchParams();
-                                  if (clickedSchemeLPCDCell.region && clickedSchemeLPCDCell.region !== "All Regions") {
-                                    params.append("region", clickedSchemeLPCDCell.region);
+                                  if (
+                                    clickedSchemeLPCDCell.region &&
+                                    clickedSchemeLPCDCell.region !==
+                                      "All Regions"
+                                  ) {
+                                    params.append(
+                                      "region",
+                                      clickedSchemeLPCDCell.region,
+                                    );
                                   }
-                                  if (schemeFilter !== 'all') {
+                                  if (schemeFilter !== "all") {
                                     params.append("filterType", schemeFilter);
                                   }
                                   if (schemeFilter === "fully_completed") {
                                     params.append("fullyCompleted", "true");
                                   }
-                                  if (selectedAgencyType !== 'ALL') {
-                                    params.append("agencyType", selectedAgencyType);
+                                  if (selectedAgencyType !== "ALL") {
+                                    params.append(
+                                      "agencyType",
+                                      selectedAgencyType,
+                                    );
                                   }
                                   window.open(
                                     `/api/chlorine/scheme-lpcd/details-export/${clickedSchemeLPCDCell.statisticType}?${params.toString()}`,
-                                    "_blank"
+                                    "_blank",
                                   );
                                 }}
                                 variant="outline"
@@ -5488,7 +5862,8 @@ const DetailedChlorinePage = () => {
                               <Skeleton className="h-10 w-full" />
                               <Skeleton className="h-10 w-full" />
                             </div>
-                          ) : schemeLpcdDetails && schemeLpcdDetails.data.length > 0 ? (
+                          ) : schemeLpcdDetails &&
+                            schemeLpcdDetails.data.length > 0 ? (
                             <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-slate-200/60 dark:border-slate-700/60 rounded-xl m-3 shadow-sm">
                               <Table className="w-full">
                                 <TableHeader className="sticky top-0 z-10">
@@ -5507,6 +5882,9 @@ const DetailedChlorinePage = () => {
                                     </TableHead>
                                     <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[140px] border-r border-white/10">
                                       Scheme Name
+                                    </TableHead>
+                                    <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                      Owner
                                     </TableHead>
                                     <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[150px] text-center border-r border-white/10">
                                       Remark
@@ -5559,23 +5937,40 @@ const DetailedChlorinePage = () => {
                                           item.scheme_name
                                         )}
                                       </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
+                                        {item.owner ||
+                                          item.agency_type ||
+                                          "N/A"}
+                                      </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60 max-w-[150px]">
-                                            {renderRemarkCell((schemeIssuesMap?.get(String(item.scheme_id)) || []), `Remarks for ${item.scheme_name}`)}
-                                          </TableCell>
+                                        {renderRemarkCell(
+                                          schemeIssuesMap?.get(
+                                            String(item.scheme_id),
+                                          ) || [],
+                                          `Remarks for ${item.scheme_name}`,
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
+                                        {item.owner ||
+                                          item.agency_type ||
+                                          "N/A"}
+                                      </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
-                                        {item.total_population?.toLocaleString() || "N/A"}
+                                        {item.total_population?.toLocaleString() ||
+                                          "N/A"}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
                                         {item.total_villages || "N/A"}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center">
                                         {item.lpcd_value !== null &&
-                                          item.lpcd_value !== undefined ? (
+                                        item.lpcd_value !== undefined ? (
                                           <span
-                                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${item.lpcd_value > 55
-                                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300"
-                                              : "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
-                                              }`}
+                                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                                              item.lpcd_value > 55
+                                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300"
+                                                : "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
+                                            }`}
                                           >
                                             {Number(item.lpcd_value).toFixed(1)}
                                           </span>
@@ -5597,7 +5992,9 @@ const DetailedChlorinePage = () => {
                                             View
                                           </a>
                                         ) : (
-                                          <span className="text-slate-400 text-[11px]">-</span>
+                                          <span className="text-slate-400 text-[11px]">
+                                            -
+                                          </span>
                                         )}
                                       </TableCell>
                                     </TableRow>
@@ -5747,14 +6144,17 @@ const DetailedChlorinePage = () => {
 
                                   const params = new URLSearchParams();
                                   if (region) params.append("region", region);
-                                  if (schemeFilter !== 'all') {
+                                  if (schemeFilter !== "all") {
                                     params.append("filterType", schemeFilter);
                                   }
                                   if (schemeFilter === "fully_completed") {
                                     params.append("fullyCompleted", "true");
                                   }
-                                  if (selectedAgencyType !== 'ALL') {
-                                    params.append("agencyType", selectedAgencyType);
+                                  if (selectedAgencyType !== "ALL") {
+                                    params.append(
+                                      "agencyType",
+                                      selectedAgencyType,
+                                    );
                                   }
 
                                   window.open(
@@ -5847,18 +6247,18 @@ const DetailedChlorinePage = () => {
                                         </TableCell>
                                         <TableCell className="!px-4 !py-2 text-center font-mono font-bold">
                                           {item.pressure_value_7 !== null &&
-                                            item.pressure_value_7 !==
+                                          item.pressure_value_7 !==
                                             undefined ? (
                                             <span
                                               className={
                                                 Number(item.pressure_value_7) >=
                                                   0.2 &&
-                                                  Number(item.pressure_value_7) <=
+                                                Number(item.pressure_value_7) <=
                                                   0.7
                                                   ? "text-green-600"
                                                   : Number(
-                                                    item.pressure_value_7,
-                                                  ) < 0.2
+                                                        item.pressure_value_7,
+                                                      ) < 0.2
                                                     ? "text-red-600"
                                                     : "text-purple-600"
                                               }
@@ -5887,8 +6287,13 @@ const DetailedChlorinePage = () => {
                                           </Badge>
                                         </TableCell>
                                         <TableCell className="!px-4 !py-2 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-                                            {renderRemarkCell((esrIssuesMap?.get(`${item.scheme_id}-${item.village_name}-${item.esr_name}`) || []), `Remarks for ${item.esr_name}`)}
-                                          </TableCell>
+                                          {renderRemarkCell(
+                                            esrIssuesMap?.get(
+                                              `${item.scheme_id}-${item.village_name}-${item.esr_name}`,
+                                            ) || [],
+                                            `Remarks for ${item.esr_name}`,
+                                          )}
+                                        </TableCell>
                                         <TableCell className="!px-4 !py-2 text-center">
                                           {item.dashboard_url ? (
                                             <a
@@ -5897,19 +6302,27 @@ const DetailedChlorinePage = () => {
                                               rel="noreferrer"
                                               className="inline-flex items-center justify-center p-1.5 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:text-indigo-200 dark:hover:bg-indigo-900/50 rounded-full transition-colors"
                                               title="Open Dashboard"
-                                              onClick={(e) => e.stopPropagation()}
+                                              onClick={(e) =>
+                                                e.stopPropagation()
+                                              }
                                             >
                                               <ExternalLink className="h-3.5 w-3.5" />
                                             </a>
                                           ) : (
-                                            <span className="text-slate-400">-</span>
+                                            <span className="text-slate-400">
+                                              -
+                                            </span>
                                           )}
                                         </TableCell>
-                                        <TableCell className={`!px-4 !py-2 text-center sticky right-0 ${index % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-orange-50/50 dark:bg-slate-800/60"} border-l border-orange-100/80 dark:border-orange-900/60`}>
+                                        <TableCell
+                                          className={`!px-4 !py-2 text-center sticky right-0 ${index % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-orange-50/50 dark:bg-slate-800/60"} border-l border-orange-100/80 dark:border-orange-900/60`}
+                                        >
                                           <Button
                                             variant="ghost"
                                             size="sm"
-                                            onClick={() => setSelectedSensor(item)}
+                                            onClick={() =>
+                                              setSelectedSensor(item)
+                                            }
                                             className="h-7 px-3 text-[11px] font-semibold bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 hover:from-orange-100 hover:to-amber-100 dark:from-orange-950 dark:to-amber-950 dark:text-orange-300 dark:hover:from-orange-900 dark:hover:to-amber-900 rounded-lg shadow-sm border border-orange-200/50 dark:border-orange-700/50"
                                           >
                                             <Eye className="h-3 w-3 mr-1" />
@@ -5988,7 +6401,11 @@ const DetailedChlorinePage = () => {
                             {mainTab === "lpcd" ? (
                               <>
                                 Numbers represent{" "}
-                                <span className="font-bold">{lpcdSubTab === "scheme" ? "Schemes" : "Villages"}</span>
+                                <span className="font-bold">
+                                  {lpcdSubTab === "scheme"
+                                    ? "Schemes"
+                                    : "Villages"}
+                                </span>
                               </>
                             ) : mainTab === "pressure" ? (
                               <>
@@ -6018,10 +6435,11 @@ const DetailedChlorinePage = () => {
                             setClickedRegionComparisonCell(null);
                             setClickedLpcdRegionComparisonCell(null);
                           }}
-                          className={`px-4 py-2 rounded-md text-xs font-semibold transition-all ${dayWiseSubTab === "single-region"
-                            ? "bg-white dark:bg-gray-700 text-orange-600 dark:text-orange-400 shadow-sm"
-                            : "text-gray-600 dark:text-gray-400 hover:text-gray-800"
-                            }`}
+                          className={`px-4 py-2 rounded-md text-xs font-semibold transition-all ${
+                            dayWiseSubTab === "single-region"
+                              ? "bg-white dark:bg-gray-700 text-orange-600 dark:text-orange-400 shadow-sm"
+                              : "text-gray-600 dark:text-gray-400 hover:text-gray-800"
+                          }`}
                           data-testid="subtab-single-region"
                         >
                           <span className="flex items-center gap-1.5">
@@ -6035,10 +6453,11 @@ const DetailedChlorinePage = () => {
                             setClickedDayWiseCell(null);
                             setClickedLpcdDayWiseCell(null);
                           }}
-                          className={`px-4 py-2 rounded-md text-xs font-semibold transition-all ${dayWiseSubTab === "region-comparison"
-                            ? "bg-white dark:bg-gray-700 text-violet-600 dark:text-violet-400 shadow-sm"
-                            : "text-gray-600 dark:text-gray-400 hover:text-gray-800"
-                            }`}
+                          className={`px-4 py-2 rounded-md text-xs font-semibold transition-all ${
+                            dayWiseSubTab === "region-comparison"
+                              ? "bg-white dark:bg-gray-700 text-violet-600 dark:text-violet-400 shadow-sm"
+                              : "text-gray-600 dark:text-gray-400 hover:text-gray-800"
+                          }`}
                           data-testid="subtab-region-comparison"
                         >
                           <span className="flex items-center gap-1.5">
@@ -6058,10 +6477,11 @@ const DetailedChlorinePage = () => {
                                   setDayWiseRegion("All Regions");
                                   setClickedDayWiseCell(null);
                                 }}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${dayWiseRegion === "All Regions"
-                                  ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md"
-                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950"
-                                  }`}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+                                  dayWiseRegion === "All Regions"
+                                    ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950"
+                                }`}
                                 data-testid="tab-daywise-all-regions"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -6076,10 +6496,11 @@ const DetailedChlorinePage = () => {
                                     setDayWiseRegion(stat.region);
                                     setClickedDayWiseCell(null);
                                   }}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${dayWiseRegion === stat.region
-                                    ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md"
-                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950"
-                                    }`}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+                                    dayWiseRegion === stat.region
+                                      ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md"
+                                      : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950"
+                                  }`}
                                   data-testid={`tab-daywise-${stat.region}`}
                                 >
                                   {stat.region}
@@ -6093,7 +6514,8 @@ const DetailedChlorinePage = () => {
                         )}
 
                       {dayWiseSubTab === "single-region" &&
-                        mainTab === "lpcd" && lpcdSubTab === "village" && (
+                        mainTab === "lpcd" &&
+                        lpcdSubTab === "village" && (
                           <>
                             {/* Region selector for single-region Village LPCD view */}
                             <div className="flex flex-wrap gap-1.5 mb-4">
@@ -6102,10 +6524,11 @@ const DetailedChlorinePage = () => {
                                   setLpcdDayWiseRegion("All Regions");
                                   setClickedLpcdDayWiseCell(null);
                                 }}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${lpcdDayWiseRegion === "All Regions"
-                                  ? "bg-gradient-to-r from-cyan-500 to-teal-500 text-white shadow-md"
-                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950"
-                                  }`}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+                                  lpcdDayWiseRegion === "All Regions"
+                                    ? "bg-gradient-to-r from-cyan-500 to-teal-500 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950"
+                                }`}
                                 data-testid="tab-daywise-lpcd-all"
                               >
                                 All Regions
@@ -6117,10 +6540,11 @@ const DetailedChlorinePage = () => {
                                     setLpcdDayWiseRegion(stat.region);
                                     setClickedLpcdDayWiseCell(null);
                                   }}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${lpcdDayWiseRegion === stat.region
-                                    ? "bg-gradient-to-r from-cyan-500 to-teal-500 text-white shadow-md"
-                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950"
-                                    }`}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+                                    lpcdDayWiseRegion === stat.region
+                                      ? "bg-gradient-to-r from-cyan-500 to-teal-500 text-white shadow-md"
+                                      : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950"
+                                  }`}
                                   data-testid={`tab-daywise-lpcd-${stat.region}`}
                                 >
                                   {stat.region}
@@ -6217,9 +6641,7 @@ const DetailedChlorinePage = () => {
                                       Offline
                                     </div>
                                     <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
-                                      <span className="text-orange-500">
-                                        ⚠
-                                      </span>
+                                      <span className="text-orange-500">⚠</span>
                                       &lt;0.2 mg/l
                                     </div>
                                     <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
@@ -6248,10 +6670,11 @@ const DetailedChlorinePage = () => {
                                         return (
                                           <div
                                             key={row.days}
-                                            className={`grid grid-cols-[90px_1fr_1fr_1fr_1fr] gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${index % 2 === 0
-                                              ? "bg-white dark:bg-gray-900"
-                                              : "bg-gray-50/50 dark:bg-gray-800/20"
-                                              }`}
+                                            className={`grid grid-cols-[90px_1fr_1fr_1fr_1fr] gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
+                                              index % 2 === 0
+                                                ? "bg-white dark:bg-gray-900"
+                                                : "bg-gray-50/50 dark:bg-gray-800/20"
+                                            }`}
                                             data-testid={`row-day-${row.days}`}
                                           >
                                             <div className="flex items-center gap-2">
@@ -6386,10 +6809,14 @@ const DetailedChlorinePage = () => {
                                   <CardTitle className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                       {/* Icon based on metric */}
-                                      <div className={`p-1.5 bg-gradient-to-br ${clickedDayWiseCell.metric === 'offline' ? 'from-red-500 to-red-700' : clickedDayWiseCell.metric === 'optimal_0_2_0_5' ? 'from-emerald-500 to-emerald-700' : 'from-orange-500 to-amber-700'} rounded-lg shadow-sm`}>
-                                        {clickedDayWiseCell.metric === 'offline' ? (
+                                      <div
+                                        className={`p-1.5 bg-gradient-to-br ${clickedDayWiseCell.metric === "offline" ? "from-red-500 to-red-700" : clickedDayWiseCell.metric === "optimal_0_2_0_5" ? "from-emerald-500 to-emerald-700" : "from-orange-500 to-amber-700"} rounded-lg shadow-sm`}
+                                      >
+                                        {clickedDayWiseCell.metric ===
+                                        "offline" ? (
                                           <WifiOff className="h-4 w-4 text-white" />
-                                        ) : clickedDayWiseCell.metric === 'optimal_0_2_0_5' ? (
+                                        ) : clickedDayWiseCell.metric ===
+                                          "optimal_0_2_0_5" ? (
                                           <CheckCircle2 className="h-4 w-4 text-white" />
                                         ) : (
                                           <AlertCircle className="h-4 w-4 text-white" />
@@ -6410,17 +6837,34 @@ const DetailedChlorinePage = () => {
                                       <Button
                                         onClick={() => {
                                           const params = new URLSearchParams();
-                                          if (dayWiseRegion && dayWiseRegion !== "All Regions") {
-                                            params.append("region", dayWiseRegion);
+                                          if (
+                                            dayWiseRegion &&
+                                            dayWiseRegion !== "All Regions"
+                                          ) {
+                                            params.append(
+                                              "region",
+                                              dayWiseRegion,
+                                            );
                                           }
                                           if (schemeFilter !== "all") {
-                                            params.append("filterType", schemeFilter);
+                                            params.append(
+                                              "filterType",
+                                              schemeFilter,
+                                            );
                                           }
-                                          if (schemeFilter === "fully_completed") {
-                                            params.append("fullyCompleted", "true");
+                                          if (
+                                            schemeFilter === "fully_completed"
+                                          ) {
+                                            params.append(
+                                              "fullyCompleted",
+                                              "true",
+                                            );
                                           }
-                                          if (selectedAgencyType !== 'ALL') {
-                                            params.append("agencyType", selectedAgencyType);
+                                          if (selectedAgencyType !== "ALL") {
+                                            params.append(
+                                              "agencyType",
+                                              selectedAgencyType,
+                                            );
                                           }
 
                                           const url = `/api/chlorine/day-wise-sensors-export/${clickedDayWiseCell.metric}/${clickedDayWiseCell.days}?${params.toString()}`;
@@ -6488,18 +6932,18 @@ const DetailedChlorinePage = () => {
                                             </TableHead>
                                             {clickedDayWiseCell.metric !==
                                               "offline" && (
-                                                <>
-                                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
-                                                    Chlorine (mg/l)
-                                                  </TableHead>
-                                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
-                                                    Date
-                                                  </TableHead>
-                                                </>
-                                              )}
+                                              <>
+                                                <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
+                                                  Chlorine (mg/l)
+                                                </TableHead>
+                                                <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
+                                                  Date
+                                                </TableHead>
+                                              </>
+                                            )}
                                             <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
                                               {clickedDayWiseCell.metric ===
-                                                "offline"
+                                              "offline"
                                                 ? "Last Seen"
                                                 : "Consecutive Days"}
                                             </TableHead>
@@ -6537,33 +6981,38 @@ const DetailedChlorinePage = () => {
                                                   {sensor.esr_name}
                                                 </TableCell>
                                                 <TableCell className="!px-3 !py-2 text-[12px] max-w-[150px]">
-                                            {renderRemarkCell((esrIssuesMap?.get(`${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`) || []), `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
-                                          </TableCell>
+                                                  {renderRemarkCell(
+                                                    esrIssuesMap?.get(
+                                                      `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
+                                                    ) || [],
+                                                    `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
+                                                  )}
+                                                </TableCell>
                                                 {clickedDayWiseCell.metric !==
                                                   "offline" && (
-                                                    <>
-                                                      <TableCell className="!px-3 !py-2 text-[12px]">
-                                                        {sensor.latest_chlorine_value !==
-                                                          null &&
-                                                          sensor.latest_chlorine_value !==
-                                                          undefined
-                                                          ? Number(
+                                                  <>
+                                                    <TableCell className="!px-3 !py-2 text-[12px]">
+                                                      {sensor.latest_chlorine_value !==
+                                                        null &&
+                                                      sensor.latest_chlorine_value !==
+                                                        undefined
+                                                        ? Number(
                                                             sensor.latest_chlorine_value,
                                                           ).toFixed(2)
-                                                          : "N/A"}
-                                                      </TableCell>
-                                                      <TableCell className="!px-3 !py-2 text-[12px]">
-                                                        {sensor.latest_chlorine_date ||
-                                                          "N/A"}
-                                                      </TableCell>
-                                                    </>
-                                                  )}
+                                                        : "N/A"}
+                                                    </TableCell>
+                                                    <TableCell className="!px-3 !py-2 text-[12px]">
+                                                      {sensor.latest_chlorine_date ||
+                                                        "N/A"}
+                                                    </TableCell>
+                                                  </>
+                                                )}
                                                 <TableCell className="!px-3 !py-2 text-[12px]">
                                                   {clickedDayWiseCell.metric ===
-                                                    "offline"
+                                                  "offline"
                                                     ? sensor.last_seen || "N/A"
                                                     : sensor.consecutive_days ||
-                                                    0}
+                                                      0}
                                                 </TableCell>
                                               </TableRow>
                                             ),
@@ -6571,11 +7020,8 @@ const DetailedChlorinePage = () => {
                                         </TableBody>
                                       </Table>
                                       <div className="mt-3 text-sm text-gray-600 dark:text-gray-400">
-                                        Total: {dayWiseSensors.count}{" "}
-                                        sensor
-                                        {dayWiseSensors.count !== 1
-                                          ? "s"
-                                          : ""}
+                                        Total: {dayWiseSensors.count} sensor
+                                        {dayWiseSensors.count !== 1 ? "s" : ""}
                                       </div>
                                     </div>
                                   ) : (
@@ -6594,7 +7040,8 @@ const DetailedChlorinePage = () => {
 
                       {/* Village LPCD Single Region View */}
                       {dayWiseSubTab === "single-region" &&
-                        mainTab === "lpcd" && lpcdSubTab === "village" && (
+                        mainTab === "lpcd" &&
+                        lpcdSubTab === "village" && (
                           <>
                             {isLoadingLpcdDayWise ? (
                               <div className="space-y-3">
@@ -6618,7 +7065,9 @@ const DetailedChlorinePage = () => {
                                       </span>
                                     </div>
                                     <div className="text-xl font-bold text-emerald-700 dark:text-emerald-400">
-                                      {lpcdDayWiseData.data.find(row => row.days === 1)?.above_55 || 0}
+                                      {lpcdDayWiseData.data.find(
+                                        (row) => row.days === 1,
+                                      )?.above_55 || 0}
                                     </div>
                                   </div>
                                   <div className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950/50 dark:to-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3 shadow-sm">
@@ -6629,7 +7078,9 @@ const DetailedChlorinePage = () => {
                                       </span>
                                     </div>
                                     <div className="text-xl font-bold text-red-700 dark:text-red-400">
-                                      {lpcdDayWiseData.data.find(row => row.days === 1)?.below_55 || 0}
+                                      {lpcdDayWiseData.data.find(
+                                        (row) => row.days === 1,
+                                      )?.below_55 || 0}
                                     </div>
                                   </div>
 
@@ -6641,7 +7092,9 @@ const DetailedChlorinePage = () => {
                                       </span>
                                     </div>
                                     <div className="text-xl font-bold text-blue-700 dark:text-blue-400">
-                                      {lpcdDayWiseData.data.find(row => row.days === 1)?.with_water || 0}
+                                      {lpcdDayWiseData.data.find(
+                                        (row) => row.days === 1,
+                                      )?.with_water || 0}
                                     </div>
                                   </div>
 
@@ -6653,7 +7106,9 @@ const DetailedChlorinePage = () => {
                                       </span>
                                     </div>
                                     <div className="text-xl font-bold text-gray-700 dark:text-gray-400">
-                                      {lpcdDayWiseData.data.find(row => row.days === 1)?.no_water || 0}
+                                      {lpcdDayWiseData.data.find(
+                                        (row) => row.days === 1,
+                                      )?.no_water || 0}
                                     </div>
                                   </div>
                                 </div>
@@ -6700,10 +7155,11 @@ const DetailedChlorinePage = () => {
                                         return (
                                           <div
                                             key={row.days}
-                                            className={`grid grid-cols-[90px_1fr_1fr_1fr_1fr] gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${index % 2 === 0
-                                              ? "bg-white dark:bg-gray-900"
-                                              : "bg-gray-50/50 dark:bg-gray-800/20"
-                                              }`}
+                                            className={`grid grid-cols-[90px_1fr_1fr_1fr_1fr] gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
+                                              index % 2 === 0
+                                                ? "bg-white dark:bg-gray-900"
+                                                : "bg-gray-50/50 dark:bg-gray-800/20"
+                                            }`}
                                             data-testid={`row-lpcd-day-${row.days}`}
                                           >
                                             <div className="flex items-center gap-2">
@@ -6835,7 +7291,8 @@ const DetailedChlorinePage = () => {
 
                       {/* Scheme LPCD Single Region View - Region Selector */}
                       {dayWiseSubTab === "single-region" &&
-                        mainTab === "lpcd" && lpcdSubTab === "scheme" && (
+                        mainTab === "lpcd" &&
+                        lpcdSubTab === "scheme" && (
                           <>
                             <div className="flex flex-wrap gap-1.5 mb-4">
                               <button
@@ -6843,10 +7300,11 @@ const DetailedChlorinePage = () => {
                                   setSchemeLpcdDayWiseRegion("All Regions");
                                   setClickedSchemeDayWiseCell(null);
                                 }}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${schemeLpcdDayWiseRegion === "All Regions"
-                                  ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md"
-                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950"
-                                  }`}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+                                  schemeLpcdDayWiseRegion === "All Regions"
+                                    ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950"
+                                }`}
                                 data-testid="tab-daywise-scheme-lpcd-all"
                               >
                                 All Regions
@@ -6858,10 +7316,11 @@ const DetailedChlorinePage = () => {
                                     setSchemeLpcdDayWiseRegion(stat.region);
                                     setClickedSchemeDayWiseCell(null);
                                   }}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${schemeLpcdDayWiseRegion === stat.region
-                                    ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md"
-                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950"
-                                    }`}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+                                    schemeLpcdDayWiseRegion === stat.region
+                                      ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md"
+                                      : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950"
+                                  }`}
                                   data-testid={`tab-daywise-scheme-lpcd-${stat.region}`}
                                 >
                                   {stat.region}
@@ -6873,7 +7332,8 @@ const DetailedChlorinePage = () => {
 
                       {/* Scheme LPCD Single Region View - Data Display */}
                       {dayWiseSubTab === "single-region" &&
-                        mainTab === "lpcd" && lpcdSubTab === "scheme" && (
+                        mainTab === "lpcd" &&
+                        lpcdSubTab === "scheme" && (
                           <>
                             {isLoadingSchemeLpcdDayWise ? (
                               <div className="space-y-3">
@@ -6897,7 +7357,9 @@ const DetailedChlorinePage = () => {
                                       </span>
                                     </div>
                                     <div className="text-xl font-bold text-emerald-700 dark:text-emerald-400">
-                                      {schemeLpcdDayWiseData.data.find(row => row.days === 1)?.above_55 || 0}
+                                      {schemeLpcdDayWiseData.data.find(
+                                        (row) => row.days === 1,
+                                      )?.above_55 || 0}
                                     </div>
                                   </div>
                                   <div className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950/50 dark:to-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3 shadow-sm">
@@ -6908,7 +7370,9 @@ const DetailedChlorinePage = () => {
                                       </span>
                                     </div>
                                     <div className="text-xl font-bold text-red-700 dark:text-red-400">
-                                      {schemeLpcdDayWiseData.data.find(row => row.days === 1)?.below_55 || 0}
+                                      {schemeLpcdDayWiseData.data.find(
+                                        (row) => row.days === 1,
+                                      )?.below_55 || 0}
                                     </div>
                                   </div>
 
@@ -6920,7 +7384,9 @@ const DetailedChlorinePage = () => {
                                       </span>
                                     </div>
                                     <div className="text-xl font-bold text-blue-700 dark:text-blue-400">
-                                      {schemeLpcdDayWiseData.data.find(row => row.days === 1)?.with_water || 0}
+                                      {schemeLpcdDayWiseData.data.find(
+                                        (row) => row.days === 1,
+                                      )?.with_water || 0}
                                     </div>
                                   </div>
 
@@ -6932,7 +7398,9 @@ const DetailedChlorinePage = () => {
                                       </span>
                                     </div>
                                     <div className="text-xl font-bold text-gray-700 dark:text-gray-400">
-                                      {schemeLpcdDayWiseData.data.find(row => row.days === 1)?.no_water || 0}
+                                      {schemeLpcdDayWiseData.data.find(
+                                        (row) => row.days === 1,
+                                      )?.no_water || 0}
                                     </div>
                                   </div>
                                 </div>
@@ -6944,7 +7412,8 @@ const DetailedChlorinePage = () => {
                                       Scheme LPCD Day-wise Breakdown
                                     </span>
                                     <span className="!text-[12px] text-gray-500">
-                                      ({schemeLpcdDayWiseData.data.length} days of data)
+                                      ({schemeLpcdDayWiseData.data.length} days
+                                      of data)
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-3 px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
@@ -6969,12 +7438,14 @@ const DetailedChlorinePage = () => {
                                       .sort((a, b) => a.days - b.days)
                                       .map((row) => {
                                         const maxValue = Math.max(
-                                          ...schemeLpcdDayWiseData.data.flatMap((d) => [
-                                            d.above_55 || 0,
-                                            d.below_55 || 0,
-                                            d.with_water || 0,
-                                            d.no_water || 0,
-                                          ]),
+                                          ...schemeLpcdDayWiseData.data.flatMap(
+                                            (d) => [
+                                              d.above_55 || 0,
+                                              d.below_55 || 0,
+                                              d.with_water || 0,
+                                              d.no_water || 0,
+                                            ],
+                                          ),
                                         );
 
                                         return (
@@ -6997,7 +7468,8 @@ const DetailedChlorinePage = () => {
                                                   setClickedSchemeDayWiseCell({
                                                     metric: "above_55",
                                                     days: row.days,
-                                                    region: schemeLpcdDayWiseRegion,
+                                                    region:
+                                                      schemeLpcdDayWiseRegion,
                                                     label: `Schemes >55 LPCD for ${row.days} day${row.days > 1 ? "s" : ""}`,
                                                   })
                                                 }
@@ -7023,7 +7495,8 @@ const DetailedChlorinePage = () => {
                                                   setClickedSchemeDayWiseCell({
                                                     metric: "below_55",
                                                     days: row.days,
-                                                    region: schemeLpcdDayWiseRegion,
+                                                    region:
+                                                      schemeLpcdDayWiseRegion,
                                                     label: `Schemes <55 LPCD for ${row.days} day${row.days > 1 ? "s" : ""}`,
                                                   })
                                                 }
@@ -7049,7 +7522,8 @@ const DetailedChlorinePage = () => {
                                                   setClickedSchemeDayWiseCell({
                                                     metric: "with_water",
                                                     days: row.days,
-                                                    region: schemeLpcdDayWiseRegion,
+                                                    region:
+                                                      schemeLpcdDayWiseRegion,
                                                     label: `Schemes with water for ${row.days} day${row.days > 1 ? "s" : ""}`,
                                                   })
                                                 }
@@ -7075,7 +7549,8 @@ const DetailedChlorinePage = () => {
                                                   setClickedSchemeDayWiseCell({
                                                     metric: "no_water",
                                                     days: row.days,
-                                                    region: schemeLpcdDayWiseRegion,
+                                                    region:
+                                                      schemeLpcdDayWiseRegion,
                                                     label: `Schemes without water for ${row.days} day${row.days > 1 ? "s" : ""}`,
                                                   })
                                                 }
@@ -7120,10 +7595,11 @@ const DetailedChlorinePage = () => {
                                   setPressureDayWiseRegion("All Regions");
                                   setClickedPressureDayWiseCell(null);
                                 }}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${pressureDayWiseRegion === "All Regions"
-                                  ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md"
-                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950"
-                                  }`}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+                                  pressureDayWiseRegion === "All Regions"
+                                    ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950"
+                                }`}
                                 data-testid="tab-pressure-daywise-all"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -7138,10 +7614,11 @@ const DetailedChlorinePage = () => {
                                     setPressureDayWiseRegion(stat.region);
                                     setClickedPressureDayWiseCell(null);
                                   }}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${pressureDayWiseRegion === stat.region
-                                    ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md"
-                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950"
-                                    }`}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+                                    pressureDayWiseRegion === stat.region
+                                      ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md"
+                                      : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950"
+                                  }`}
                                   data-testid={`tab-pressure-daywise-${stat.region}`}
                                 >
                                   {stat.region}
@@ -7237,9 +7714,7 @@ const DetailedChlorinePage = () => {
                                       Offline
                                     </div>
                                     <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
-                                      <span className="text-orange-500">
-                                        ⚠
-                                      </span>
+                                      <span className="text-orange-500">⚠</span>
                                       &lt;0.2 bar
                                     </div>
                                     <div className="!text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
@@ -7270,10 +7745,11 @@ const DetailedChlorinePage = () => {
                                         return (
                                           <div
                                             key={row.days}
-                                            className={`grid grid-cols-[90px_1fr_1fr_1fr_1fr] gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${index % 2 === 0
-                                              ? "bg-white dark:bg-gray-900"
-                                              : "bg-gray-50/50 dark:bg-gray-800/20"
-                                              }`}
+                                            className={`grid grid-cols-[90px_1fr_1fr_1fr_1fr] gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
+                                              index % 2 === 0
+                                                ? "bg-white dark:bg-gray-900"
+                                                : "bg-gray-50/50 dark:bg-gray-800/20"
+                                            }`}
                                             data-testid={`row-pressure-day-${row.days}`}
                                           >
                                             <div className="flex items-center gap-2">
@@ -7423,7 +7899,8 @@ const DetailedChlorinePage = () => {
                                           {clickedPressureDayWiseCell.label}
                                         </div>
                                         <div className="!text-[12px] font-normal text-gray-600 dark:text-gray-400">
-                                          {pressureDayWiseRegion === "All Regions"
+                                          {pressureDayWiseRegion ===
+                                          "All Regions"
                                             ? "All Regions"
                                             : pressureDayWiseRegion}
                                         </div>
@@ -7433,17 +7910,35 @@ const DetailedChlorinePage = () => {
                                       <Button
                                         onClick={() => {
                                           const params = new URLSearchParams();
-                                          if (pressureDayWiseRegion && pressureDayWiseRegion !== "All Regions") {
-                                            params.append("region", pressureDayWiseRegion);
+                                          if (
+                                            pressureDayWiseRegion &&
+                                            pressureDayWiseRegion !==
+                                              "All Regions"
+                                          ) {
+                                            params.append(
+                                              "region",
+                                              pressureDayWiseRegion,
+                                            );
                                           }
-                                          if (schemeFilter !== 'all') {
-                                            params.append("filterType", schemeFilter);
+                                          if (schemeFilter !== "all") {
+                                            params.append(
+                                              "filterType",
+                                              schemeFilter,
+                                            );
                                           }
-                                          if (schemeFilter === "fully_completed") {
-                                            params.append("fullyCompleted", "true");
+                                          if (
+                                            schemeFilter === "fully_completed"
+                                          ) {
+                                            params.append(
+                                              "fullyCompleted",
+                                              "true",
+                                            );
                                           }
-                                          if (selectedAgencyType !== 'ALL') {
-                                            params.append("agencyType", selectedAgencyType);
+                                          if (selectedAgencyType !== "ALL") {
+                                            params.append(
+                                              "agencyType",
+                                              selectedAgencyType,
+                                            );
                                           }
                                           const url = `/api/pressure/day-wise-sensors-export/${clickedPressureDayWiseCell.metric}/${clickedPressureDayWiseCell.days}?${params.toString()}`;
                                           window.open(url, "_blank");
@@ -7510,18 +8005,18 @@ const DetailedChlorinePage = () => {
                                             </TableHead>
                                             {clickedPressureDayWiseCell.metric !==
                                               "offline" && (
-                                                <>
-                                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
-                                                    Pressure (bar)
-                                                  </TableHead>
-                                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
-                                                    Date
-                                                  </TableHead>
-                                                </>
-                                              )}
+                                              <>
+                                                <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
+                                                  Pressure (bar)
+                                                </TableHead>
+                                                <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
+                                                  Date
+                                                </TableHead>
+                                              </>
+                                            )}
                                             <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
                                               {clickedPressureDayWiseCell.metric ===
-                                                "offline"
+                                              "offline"
                                                 ? "Last Seen"
                                                 : "Consecutive Days"}
                                             </TableHead>
@@ -7559,33 +8054,38 @@ const DetailedChlorinePage = () => {
                                                   {sensor.esr_name}
                                                 </TableCell>
                                                 <TableCell className="!px-3 !py-2 text-[12px] max-w-[150px]">
-                                            {renderRemarkCell((esrIssuesMap?.get(`${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`) || []), `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
-                                          </TableCell>
+                                                  {renderRemarkCell(
+                                                    esrIssuesMap?.get(
+                                                      `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
+                                                    ) || [],
+                                                    `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
+                                                  )}
+                                                </TableCell>
                                                 {clickedPressureDayWiseCell.metric !==
                                                   "offline" && (
-                                                    <>
-                                                      <TableCell className="!px-3 !py-2 text-[12px]">
-                                                        {sensor.latest_pressure_value !==
-                                                          null &&
-                                                          sensor.latest_pressure_value !==
-                                                          undefined
-                                                          ? Number(
+                                                  <>
+                                                    <TableCell className="!px-3 !py-2 text-[12px]">
+                                                      {sensor.latest_pressure_value !==
+                                                        null &&
+                                                      sensor.latest_pressure_value !==
+                                                        undefined
+                                                        ? Number(
                                                             sensor.latest_pressure_value,
                                                           ).toFixed(2)
-                                                          : "N/A"}
-                                                      </TableCell>
-                                                      <TableCell className="!px-3 !py-2 text-[12px]">
-                                                        {sensor.latest_pressure_date ||
-                                                          "N/A"}
-                                                      </TableCell>
-                                                    </>
-                                                  )}
+                                                        : "N/A"}
+                                                    </TableCell>
+                                                    <TableCell className="!px-3 !py-2 text-[12px]">
+                                                      {sensor.latest_pressure_date ||
+                                                        "N/A"}
+                                                    </TableCell>
+                                                  </>
+                                                )}
                                                 <TableCell className="!px-3 !py-2 text-[12px]">
                                                   {clickedPressureDayWiseCell.metric ===
-                                                    "offline"
+                                                  "offline"
                                                     ? sensor.last_seen || "N/A"
                                                     : sensor.consecutive_days ||
-                                                    0}
+                                                      0}
                                                 </TableCell>
                                               </TableRow>
                                             ),
@@ -7614,7 +8114,6 @@ const DetailedChlorinePage = () => {
                           </>
                         )}
 
-
                       {/* Chlorine Region Comparison View */}
                       {dayWiseSubTab === "region-comparison" &&
                         mainTab === "chlorine" && (
@@ -7623,10 +8122,11 @@ const DetailedChlorinePage = () => {
                             <div className="flex flex-wrap gap-2 mb-4">
                               <button
                                 onClick={() => setComparisonCategory("offline")}
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${comparisonCategory === "offline"
-                                  ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-md"
-                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-red-300"
-                                  }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                                  comparisonCategory === "offline"
+                                    ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-red-300"
+                                }`}
                                 data-testid="tab-comparison-offline"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -7638,10 +8138,11 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setComparisonCategory("below_0_2")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${comparisonCategory === "below_0_2"
-                                  ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md"
-                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-orange-300"
-                                  }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                                  comparisonCategory === "below_0_2"
+                                    ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-orange-300"
+                                }`}
                                 data-testid="tab-comparison-below"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -7653,10 +8154,11 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setComparisonCategory("above_0_5")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${comparisonCategory === "above_0_5"
-                                  ? "bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow-md"
-                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-rose-300"
-                                  }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                                  comparisonCategory === "above_0_5"
+                                    ? "bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-rose-300"
+                                }`}
                                 data-testid="tab-comparison-above"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -7668,10 +8170,11 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setComparisonCategory("optimal_0_2_0_5")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${comparisonCategory === "optimal_0_2_0_5"
-                                  ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md"
-                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-emerald-300"
-                                  }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                                  comparisonCategory === "optimal_0_2_0_5"
+                                    ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-emerald-300"
+                                }`}
                                 data-testid="tab-comparison-optimal"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -7687,7 +8190,7 @@ const DetailedChlorinePage = () => {
                               </div>
                             ) : regionComparisonData &&
                               Object.keys(regionComparisonData.data).length >
-                              0 ? (
+                                0 ? (
                               <div className="overflow-x-auto rounded-xl border-2 border-blue-200 dark:border-blue-800 shadow-lg">
                                 <Table>
                                   <TableHeader className="sticky top-0 z-10">
@@ -7757,10 +8260,10 @@ const DetailedChlorinePage = () => {
                                               comparisonCategory === "offline"
                                                 ? "from-red-400 to-red-600"
                                                 : comparisonCategory ===
-                                                  "below_0_2"
+                                                    "below_0_2"
                                                   ? "from-orange-400 to-orange-600"
                                                   : comparisonCategory ===
-                                                    "above_0_5"
+                                                      "above_0_5"
                                                     ? "from-rose-400 to-rose-600"
                                                     : "from-emerald-400 to-emerald-600";
 
@@ -7866,7 +8369,7 @@ const DetailedChlorinePage = () => {
                                             : comparisonCategory === "below_0_2"
                                               ? "from-orange-500 to-orange-700"
                                               : comparisonCategory ===
-                                                "above_0_5"
+                                                  "above_0_5"
                                                 ? "from-rose-500 to-rose-700"
                                                 : "from-emerald-500 to-emerald-700";
 
@@ -7908,7 +8411,8 @@ const DetailedChlorinePage = () => {
 
                       {/* LPCD Region Comparison View - Village */}
                       {dayWiseSubTab === "region-comparison" &&
-                        mainTab === "lpcd" && lpcdSubTab === "village" && (
+                        mainTab === "lpcd" &&
+                        lpcdSubTab === "village" && (
                           <>
                             {/* LPCD Category Tabs */}
                             <div className="flex flex-wrap gap-2 mb-4">
@@ -7916,10 +8420,11 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setLpcdComparisonCategory("below_55")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${lpcdComparisonCategory === "below_55"
-                                  ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-md"
-                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-red-300"
-                                  }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                                  lpcdComparisonCategory === "below_55"
+                                    ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-red-300"
+                                }`}
                                 data-testid="tab-lpcd-comparison-below55"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -7931,10 +8436,11 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setLpcdComparisonCategory("above_55")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${lpcdComparisonCategory === "above_55"
-                                  ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md"
-                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-emerald-300"
-                                  }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                                  lpcdComparisonCategory === "above_55"
+                                    ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-emerald-300"
+                                }`}
                                 data-testid="tab-lpcd-comparison-above55"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -7946,10 +8452,11 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setLpcdComparisonCategory("with_water")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${lpcdComparisonCategory === "with_water"
-                                  ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md"
-                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-blue-300"
-                                  }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                                  lpcdComparisonCategory === "with_water"
+                                    ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-blue-300"
+                                }`}
                                 data-testid="tab-lpcd-comparison-withwater"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -7961,10 +8468,11 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setLpcdComparisonCategory("no_water")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${lpcdComparisonCategory === "no_water"
-                                  ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-md"
-                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-400"
-                                  }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                                  lpcdComparisonCategory === "no_water"
+                                    ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-400"
+                                }`}
                                 data-testid="tab-lpcd-comparison-nowater"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -8048,13 +8556,13 @@ const DetailedChlorinePage = () => {
 
                                             const colorClass =
                                               lpcdComparisonCategory ===
-                                                "below_55"
+                                              "below_55"
                                                 ? "from-red-400 to-red-600"
                                                 : lpcdComparisonCategory ===
-                                                  "above_55"
+                                                    "above_55"
                                                   ? "from-emerald-400 to-emerald-600"
                                                   : lpcdComparisonCategory ===
-                                                    "with_water"
+                                                      "with_water"
                                                     ? "from-blue-400 to-blue-600"
                                                     : "from-gray-400 to-gray-600";
 
@@ -8160,10 +8668,10 @@ const DetailedChlorinePage = () => {
                                           lpcdComparisonCategory === "below_55"
                                             ? "from-red-500 to-red-700"
                                             : lpcdComparisonCategory ===
-                                              "above_55"
+                                                "above_55"
                                               ? "from-emerald-500 to-emerald-700"
                                               : lpcdComparisonCategory ===
-                                                "with_water"
+                                                  "with_water"
                                                 ? "from-blue-500 to-blue-700"
                                                 : "from-gray-500 to-gray-700";
 
@@ -8173,20 +8681,29 @@ const DetailedChlorinePage = () => {
                                             className="!px-4 !py-3 cursor-pointer hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors"
                                             onClick={() =>
                                               total > 0 &&
-                                              setClickedLpcdRegionComparisonCell({
-                                                region,
-                                                day: 1,
-                                                category: lpcdComparisonCategory,
-                                                label: `Total (All Regions) - ${lpcdComparisonCategory === "below_55" ? "<55 LPCD" :
-                                                  lpcdComparisonCategory === "above_55" ? "≥55 LPCD" :
-                                                    lpcdComparisonCategory === "with_water" ? "With Water" : "No Water"
+                                              setClickedLpcdRegionComparisonCell(
+                                                {
+                                                  region,
+                                                  day: 1,
+                                                  category:
+                                                    lpcdComparisonCategory,
+                                                  label: `Total (All Regions) - ${
+                                                    lpcdComparisonCategory ===
+                                                    "below_55"
+                                                      ? "<55 LPCD"
+                                                      : lpcdComparisonCategory ===
+                                                          "above_55"
+                                                        ? "≥55 LPCD"
+                                                        : lpcdComparisonCategory ===
+                                                            "with_water"
+                                                          ? "With Water"
+                                                          : "No Water"
                                                   } - ${region}`,
-                                              })
+                                                },
+                                              )
                                             }
                                           >
-                                            <div
-                                              className="flex items-center gap-2"
-                                            >
+                                            <div className="flex items-center gap-2">
                                               <div className="flex-1 h-5 bg-teal-100 dark:bg-teal-900/50 rounded-lg overflow-hidden min-w-[50px] border border-teal-200/50 dark:border-teal-800/50">
                                                 <div
                                                   className={`h-full bg-gradient-to-r ${colorClass} rounded-lg transition-all shadow-sm`}
@@ -8219,7 +8736,8 @@ const DetailedChlorinePage = () => {
 
                       {/* LPCD Region Comparison View - Scheme */}
                       {dayWiseSubTab === "region-comparison" &&
-                        mainTab === "lpcd" && lpcdSubTab === "scheme" && (
+                        mainTab === "lpcd" &&
+                        lpcdSubTab === "scheme" && (
                           <>
                             {/* Scheme LPCD Category Tabs */}
                             <div className="flex flex-wrap gap-2 mb-4">
@@ -8227,10 +8745,11 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setSchemeLpcdComparisonCategory("below_55")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${schemeLpcdComparisonCategory === "below_55"
-                                  ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-md"
-                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-red-300"
-                                  }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                                  schemeLpcdComparisonCategory === "below_55"
+                                    ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-red-300"
+                                }`}
                                 data-testid="tab-scheme-lpcd-comparison-below55"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -8242,10 +8761,11 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setSchemeLpcdComparisonCategory("above_55")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${schemeLpcdComparisonCategory === "above_55"
-                                  ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md"
-                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-emerald-300"
-                                  }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                                  schemeLpcdComparisonCategory === "above_55"
+                                    ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-emerald-300"
+                                }`}
                                 data-testid="tab-scheme-lpcd-comparison-above55"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -8257,10 +8777,11 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setSchemeLpcdComparisonCategory("with_water")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${schemeLpcdComparisonCategory === "with_water"
-                                  ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md"
-                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-blue-300"
-                                  }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                                  schemeLpcdComparisonCategory === "with_water"
+                                    ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-blue-300"
+                                }`}
                                 data-testid="tab-scheme-lpcd-comparison-withwater"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -8272,10 +8793,11 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setSchemeLpcdComparisonCategory("no_water")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${schemeLpcdComparisonCategory === "no_water"
-                                  ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-md"
-                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-400"
-                                  }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                                  schemeLpcdComparisonCategory === "no_water"
+                                    ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-400"
+                                }`}
                                 data-testid="tab-scheme-lpcd-comparison-nowater"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -8290,7 +8812,9 @@ const DetailedChlorinePage = () => {
                                 <Skeleton className="h-64 w-full rounded-lg" />
                               </div>
                             ) : schemeLpcdDayWiseAllRegions &&
-                              Object.keys(schemeLpcdDayWiseAllRegions.data || {}).length > 0 ? (
+                              Object.keys(
+                                schemeLpcdDayWiseAllRegions.data || {},
+                              ).length > 0 ? (
                               <div className="overflow-x-auto rounded-xl border-2 border-emerald-200 dark:border-emerald-800 shadow-lg">
                                 <Table>
                                   <TableHeader className="sticky top-0 z-10">
@@ -8298,7 +8822,9 @@ const DetailedChlorinePage = () => {
                                       <TableHead className="font-bold text-xs uppercase tracking-wide !px-4 !py-3 text-center text-white border-r border-emerald-500/50 min-w-[70px]">
                                         Days
                                       </TableHead>
-                                      {Object.keys(schemeLpcdDayWiseAllRegions.data).map((region) => (
+                                      {Object.keys(
+                                        schemeLpcdDayWiseAllRegions.data,
+                                      ).map((region) => (
                                         <TableHead
                                           key={region}
                                           className="font-bold text-xs uppercase tracking-wide !px-4 !py-3 text-center text-white border-r border-emerald-500/30 last:border-r-0 min-w-[110px]"
@@ -8309,12 +8835,24 @@ const DetailedChlorinePage = () => {
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
-                                    {Array.from({ length: 30 }, (_, i) => i + 1).map((day) => {
-                                      const regions = Object.keys(schemeLpcdDayWiseAllRegions.data);
+                                    {Array.from(
+                                      { length: 30 },
+                                      (_, i) => i + 1,
+                                    ).map((day) => {
+                                      const regions = Object.keys(
+                                        schemeLpcdDayWiseAllRegions.data,
+                                      );
                                       const maxValueForDay = Math.max(
                                         ...regions.map((region) => {
-                                          const dayData = schemeLpcdDayWiseAllRegions.data[region]?.find((d) => d.days === day);
-                                          return dayData ? dayData[schemeLpcdComparisonCategory] : 0;
+                                          const dayData =
+                                            schemeLpcdDayWiseAllRegions.data[
+                                              region
+                                            ]?.find((d) => d.days === day);
+                                          return dayData
+                                            ? dayData[
+                                                schemeLpcdComparisonCategory
+                                              ]
+                                            : 0;
                                         }),
                                       );
 
@@ -8332,30 +8870,67 @@ const DetailedChlorinePage = () => {
                                             </div>
                                           </TableCell>
                                           {regions.map((region) => {
-                                            const dayData = schemeLpcdDayWiseAllRegions.data[region]?.find((d) => d.days === day);
-                                            const value = dayData ? dayData[schemeLpcdComparisonCategory] : 0;
-                                            const barWidth = maxValueForDay > 0 ? (value / maxValueForDay) * 100 : 0;
+                                            const dayData =
+                                              schemeLpcdDayWiseAllRegions.data[
+                                                region
+                                              ]?.find((d) => d.days === day);
+                                            const value = dayData
+                                              ? dayData[
+                                                  schemeLpcdComparisonCategory
+                                                ]
+                                              : 0;
+                                            const barWidth =
+                                              maxValueForDay > 0
+                                                ? (value / maxValueForDay) * 100
+                                                : 0;
 
                                             const colorClass =
-                                              schemeLpcdComparisonCategory === "below_55"
+                                              schemeLpcdComparisonCategory ===
+                                              "below_55"
                                                 ? "from-red-400 to-red-600"
-                                                : schemeLpcdComparisonCategory === "above_55"
+                                                : schemeLpcdComparisonCategory ===
+                                                    "above_55"
                                                   ? "from-emerald-400 to-emerald-600"
-                                                  : schemeLpcdComparisonCategory === "with_water"
+                                                  : schemeLpcdComparisonCategory ===
+                                                      "with_water"
                                                     ? "from-blue-400 to-blue-600"
                                                     : "from-gray-400 to-gray-600";
 
                                             const getCategoryLabel = () => {
-                                              if (schemeLpcdComparisonCategory === "below_55") return "<55 LPCD";
-                                              if (schemeLpcdComparisonCategory === "above_55") return "≥55 LPCD";
-                                              if (schemeLpcdComparisonCategory === "with_water") return "With Water";
+                                              if (
+                                                schemeLpcdComparisonCategory ===
+                                                "below_55"
+                                              )
+                                                return "<55 LPCD";
+                                              if (
+                                                schemeLpcdComparisonCategory ===
+                                                "above_55"
+                                              )
+                                                return "≥55 LPCD";
+                                              if (
+                                                schemeLpcdComparisonCategory ===
+                                                "with_water"
+                                              )
+                                                return "With Water";
                                               return "No Water";
                                             };
 
                                             const getMetric = () => {
-                                              if (schemeLpcdComparisonCategory === "below_55") return "below55";
-                                              if (schemeLpcdComparisonCategory === "above_55") return "above55";
-                                              if (schemeLpcdComparisonCategory === "with_water") return "above55";
+                                              if (
+                                                schemeLpcdComparisonCategory ===
+                                                "below_55"
+                                              )
+                                                return "below55";
+                                              if (
+                                                schemeLpcdComparisonCategory ===
+                                                "above_55"
+                                              )
+                                                return "above55";
+                                              if (
+                                                schemeLpcdComparisonCategory ===
+                                                "with_water"
+                                              )
+                                                return "above55";
                                               return "noSupply";
                                             };
 
@@ -8369,18 +8944,22 @@ const DetailedChlorinePage = () => {
                                                   className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-all"
                                                   onClick={() =>
                                                     value > 0 &&
-                                                    setClickedSchemeDayWiseCell({
-                                                      metric: getMetric(),
-                                                      days: day,
-                                                      region: region,
-                                                      label: `Schemes ${getCategoryLabel()} for ${day} day${day > 1 ? "s" : ""} - ${region}`,
-                                                    })
+                                                    setClickedSchemeDayWiseCell(
+                                                      {
+                                                        metric: getMetric(),
+                                                        days: day,
+                                                        region: region,
+                                                        label: `Schemes ${getCategoryLabel()} for ${day} day${day > 1 ? "s" : ""} - ${region}`,
+                                                      },
+                                                    )
                                                   }
                                                 >
                                                   <div className="flex-1 h-3 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden min-w-[30px]">
                                                     <div
                                                       className={`h-full bg-gradient-to-r ${colorClass} rounded-full transition-all`}
-                                                      style={{ width: `${barWidth}%` }}
+                                                      style={{
+                                                        width: `${barWidth}%`,
+                                                      }}
                                                     ></div>
                                                   </div>
                                                   <span className="text-xs font-bold text-gray-700 dark:text-gray-300 w-6 text-right tabular-nums">
@@ -8402,37 +8981,64 @@ const DetailedChlorinePage = () => {
                                           </span>
                                         </div>
                                       </TableCell>
-                                      {Object.keys(schemeLpcdDayWiseAllRegions.data).map((region) => {
-                                        const total = schemeLpcdDayWiseAllRegions.data[region]?.reduce(
-                                          (sum, d) => sum + d[schemeLpcdComparisonCategory],
-                                          0,
-                                        ) || 0;
+                                      {Object.keys(
+                                        schemeLpcdDayWiseAllRegions.data,
+                                      ).map((region) => {
+                                        const total =
+                                          schemeLpcdDayWiseAllRegions.data[
+                                            region
+                                          ]?.reduce(
+                                            (sum, d) =>
+                                              sum +
+                                              d[schemeLpcdComparisonCategory],
+                                            0,
+                                          ) || 0;
                                         const maxTotal = Math.max(
-                                          ...Object.keys(schemeLpcdDayWiseAllRegions.data).map(
-                                            (r) => schemeLpcdDayWiseAllRegions.data[r]?.reduce(
-                                              (sum, d) => sum + d[schemeLpcdComparisonCategory],
-                                              0,
-                                            ) || 0,
+                                          ...Object.keys(
+                                            schemeLpcdDayWiseAllRegions.data,
+                                          ).map(
+                                            (r) =>
+                                              schemeLpcdDayWiseAllRegions.data[
+                                                r
+                                              ]?.reduce(
+                                                (sum, d) =>
+                                                  sum +
+                                                  d[
+                                                    schemeLpcdComparisonCategory
+                                                  ],
+                                                0,
+                                              ) || 0,
                                           ),
                                         );
-                                        const barWidth = maxTotal > 0 ? (total / maxTotal) * 100 : 0;
+                                        const barWidth =
+                                          maxTotal > 0
+                                            ? (total / maxTotal) * 100
+                                            : 0;
 
                                         const colorClass =
-                                          schemeLpcdComparisonCategory === "below_55"
+                                          schemeLpcdComparisonCategory ===
+                                          "below_55"
                                             ? "from-red-500 to-red-700"
-                                            : schemeLpcdComparisonCategory === "above_55"
+                                            : schemeLpcdComparisonCategory ===
+                                                "above_55"
                                               ? "from-emerald-500 to-emerald-700"
-                                              : schemeLpcdComparisonCategory === "with_water"
+                                              : schemeLpcdComparisonCategory ===
+                                                  "with_water"
                                                 ? "from-blue-500 to-blue-700"
                                                 : "from-gray-500 to-gray-700";
 
                                         return (
-                                          <TableCell key={region} className="!px-4 !py-3">
+                                          <TableCell
+                                            key={region}
+                                            className="!px-4 !py-3"
+                                          >
                                             <div className="flex items-center gap-2">
                                               <div className="flex-1 h-5 bg-emerald-100 dark:bg-emerald-900/50 rounded-lg overflow-hidden min-w-[50px] border border-emerald-200/50 dark:border-emerald-800/50">
                                                 <div
                                                   className={`h-full bg-gradient-to-r ${colorClass} rounded-lg transition-all shadow-sm`}
-                                                  style={{ width: `${barWidth}%` }}
+                                                  style={{
+                                                    width: `${barWidth}%`,
+                                                  }}
                                                 ></div>
                                               </div>
                                               <span className="text-sm font-bold text-emerald-900 dark:text-emerald-100 w-10 text-right tabular-nums">
@@ -8459,7 +9065,10 @@ const DetailedChlorinePage = () => {
 
                       {/* LPCD Region Comparison (Village) Details Card */}
                       {clickedLpcdRegionComparisonCell && (
-                        <Card className="border-0 shadow-lg rounded-xl overflow-hidden mt-4" data-testid="card-lpcd-region-comparison-details">
+                        <Card
+                          className="border-0 shadow-lg rounded-xl overflow-hidden mt-4"
+                          data-testid="card-lpcd-region-comparison-details"
+                        >
                           <CardHeader className="bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-950 dark:to-cyan-950 border-b border-teal-200 dark:border-teal-800 py-2.5">
                             <div className="flex items-center justify-between">
                               <CardTitle className="flex items-center gap-2">
@@ -8488,32 +9097,65 @@ const DetailedChlorinePage = () => {
                                   onClick={() => {
                                     // If it's a "Total" row click (implied by day === 1 for this context when summing totals), use the multi-sheet export
                                     // OR stricter check: if label contains "Total"
-                                    const isTotal = clickedLpcdRegionComparisonCell.label.includes("Total");
+                                    const isTotal =
+                                      clickedLpcdRegionComparisonCell.label.includes(
+                                        "Total",
+                                      );
 
                                     if (isTotal) {
                                       const params = new URLSearchParams();
-                                      if (clickedLpcdRegionComparisonCell.region && clickedLpcdRegionComparisonCell.region !== "All Regions") {
-                                        params.append("region", clickedLpcdRegionComparisonCell.region);
+                                      if (
+                                        clickedLpcdRegionComparisonCell.region &&
+                                        clickedLpcdRegionComparisonCell.region !==
+                                          "All Regions"
+                                      ) {
+                                        params.append(
+                                          "region",
+                                          clickedLpcdRegionComparisonCell.region,
+                                        );
                                       }
-                                      if (schemeFilter !== 'all') {
-                                        params.append("filterType", schemeFilter);
+                                      if (schemeFilter !== "all") {
+                                        params.append(
+                                          "filterType",
+                                          schemeFilter,
+                                        );
                                       }
                                       if (schemeFilter === "fully_completed") {
                                         params.append("fullyCompleted", "true");
                                       }
-                                      if (selectedAgencyType !== 'ALL') {
-                                        params.append("agencyType", selectedAgencyType);
+                                      if (selectedAgencyType !== "ALL") {
+                                        params.append(
+                                          "agencyType",
+                                          selectedAgencyType,
+                                        );
                                       }
-                                      if (selectedAgencyType !== 'ALL') params.append('agencyType', selectedAgencyType);
+                                      if (selectedAgencyType !== "ALL")
+                                        params.append(
+                                          "agencyType",
+                                          selectedAgencyType,
+                                        );
 
-                                      window.open(`/api/chlorine/lpcd/region-comparison-total-export?${params.toString()}`, "_blank");
+                                      window.open(
+                                        `/api/chlorine/lpcd/region-comparison-total-export?${params.toString()}`,
+                                        "_blank",
+                                      );
                                     } else {
                                       const params = new URLSearchParams();
-                                      if (clickedLpcdRegionComparisonCell.region && clickedLpcdRegionComparisonCell.region !== "All Regions") {
-                                        params.append("region", clickedLpcdRegionComparisonCell.region);
+                                      if (
+                                        clickedLpcdRegionComparisonCell.region &&
+                                        clickedLpcdRegionComparisonCell.region !==
+                                          "All Regions"
+                                      ) {
+                                        params.append(
+                                          "region",
+                                          clickedLpcdRegionComparisonCell.region,
+                                        );
                                       }
-                                      if (schemeFilter !== 'all') {
-                                        params.append("filterType", schemeFilter);
+                                      if (schemeFilter !== "all") {
+                                        params.append(
+                                          "filterType",
+                                          schemeFilter,
+                                        );
                                       }
                                       if (schemeFilter === "fully_completed") {
                                         params.append("fullyCompleted", "true");
@@ -8551,7 +9193,8 @@ const DetailedChlorinePage = () => {
                                 <Skeleton className="h-10 w-full" />
                                 <Skeleton className="h-10 w-full" />
                               </div>
-                            ) : lpcdDayWiseVillages && lpcdDayWiseVillages.data.length > 0 ? (
+                            ) : lpcdDayWiseVillages &&
+                              lpcdDayWiseVillages.data.length > 0 ? (
                               <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-teal-200/60 dark:border-teal-800/60 rounded-xl m-3 shadow-sm">
                                 <Table className="min-w-max">
                                   <TableHeader className="sticky top-0 z-10">
@@ -8567,6 +9210,9 @@ const DetailedChlorinePage = () => {
                                       </TableHead>
                                       <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-4 !py-3.5 w-[140px] border-r border-white/10">
                                         Scheme Name
+                                      </TableHead>
+                                      <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                        Owner
                                       </TableHead>
                                       <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
                                         Village
@@ -8589,63 +9235,80 @@ const DetailedChlorinePage = () => {
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
-                                    {lpcdDayWiseVillages.data.map((vehicle: any, idx: number) => (
-                                      <TableRow
-                                        key={`${vehicle.scheme_id}-${vehicle.village_name}-${idx}`}
-                                        className={`transition-all duration-200 hover:bg-teal-50/70 dark:hover:bg-teal-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-teal-50/40 dark:bg-teal-950/20"}`}
-                                      >
-                                        <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-teal-100/80 dark:border-teal-900/60 font-medium">
-                                          {vehicle.region}
-                                        </TableCell>
-                                        <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-teal-100/80 dark:border-teal-900/60">
-                                          {vehicle.division}
-                                        </TableCell>
-                                        <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-teal-700 dark:text-teal-400 border-r border-teal-100/80 dark:border-teal-900/60">
-                                          {vehicle.scheme_id}
-                                        </TableCell>
-                                        <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-teal-100/80 dark:border-teal-900/60">
-                                          {vehicle.scheme_name}
-                                        </TableCell>
-                                        <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-teal-100/80 dark:border-teal-900/60">
-                                          {vehicle.village_name}
-                                        </TableCell>
-                                        <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-teal-100/80 dark:border-teal-900/60">
-                                          {vehicle.latest_lpcd_value ? Number(vehicle.latest_lpcd_value).toFixed(2) : "N/A"}
-                                        </TableCell>
-                                        <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-teal-100/80 dark:border-teal-900/60">
-                                          {vehicle.latest_water_value ? Number(vehicle.latest_water_value).toFixed(2) : "N/A"}
-                                        </TableCell>
-                                        <TableCell className="!px-4 !py-3 text-center text-[12px] text-slate-600 dark:text-slate-400 border-r border-teal-100/80 dark:border-teal-900/60">
-                                          {vehicle.latest_date}
-                                        </TableCell>
-                                        <TableCell className="!px-4 !py-3 text-center">
-                                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm bg-gradient-to-r from-teal-100 to-cyan-100 text-teal-800 dark:from-teal-900/60 dark:to-cyan-900/60 dark:text-teal-300 ring-1 ring-teal-200/80 dark:ring-teal-700/60">
-                                            {vehicle.consecutive_days} day{vehicle.consecutive_days > 1 ? "s" : ""}
-                                          </span>
-                                        </TableCell>
-                                        <TableCell className="!px-4 !py-3 text-center border-l border-teal-100/80 dark:border-teal-900/60">
-                                          {vehicle.dashboard_url && (
-                                            <a
-                                              href={vehicle.dashboard_url}
-                                              target="_blank"
-                                              rel="noreferrer"
-                                              className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors shadow-sm"
-                                              title="Open Dashboard"
-                                              onClick={(e) => e.stopPropagation()}
-                                            >
-                                              <ExternalLink className="h-3.5 w-3.5" />
-                                            </a>
-                                          )}
-                                        </TableCell>
-                                      </TableRow>
-                                    ))}
+                                    {lpcdDayWiseVillages.data.map(
+                                      (vehicle: any, idx: number) => (
+                                        <TableRow
+                                          key={`${vehicle.scheme_id}-${vehicle.village_name}-${idx}`}
+                                          className={`transition-all duration-200 hover:bg-teal-50/70 dark:hover:bg-teal-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-teal-50/40 dark:bg-teal-950/20"}`}
+                                        >
+                                          <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-teal-100/80 dark:border-teal-900/60 font-medium">
+                                            {vehicle.region}
+                                          </TableCell>
+                                          <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-teal-100/80 dark:border-teal-900/60">
+                                            {vehicle.division}
+                                          </TableCell>
+                                          <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-teal-700 dark:text-teal-400 border-r border-teal-100/80 dark:border-teal-900/60">
+                                            {vehicle.scheme_id}
+                                          </TableCell>
+                                          <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-teal-100/80 dark:border-teal-900/60">
+                                            {vehicle.scheme_name}
+                                          </TableCell>
+                                          <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-teal-100/80 dark:border-teal-900/60">
+                                            {vehicle.village_name}
+                                          </TableCell>
+                                          <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-teal-100/80 dark:border-teal-900/60">
+                                            {vehicle.latest_lpcd_value
+                                              ? Number(
+                                                  vehicle.latest_lpcd_value,
+                                                ).toFixed(2)
+                                              : "N/A"}
+                                          </TableCell>
+                                          <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-teal-100/80 dark:border-teal-900/60">
+                                            {vehicle.latest_water_value
+                                              ? Number(
+                                                  vehicle.latest_water_value,
+                                                ).toFixed(2)
+                                              : "N/A"}
+                                          </TableCell>
+                                          <TableCell className="!px-4 !py-3 text-center text-[12px] text-slate-600 dark:text-slate-400 border-r border-teal-100/80 dark:border-teal-900/60">
+                                            {vehicle.latest_date}
+                                          </TableCell>
+                                          <TableCell className="!px-4 !py-3 text-center">
+                                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm bg-gradient-to-r from-teal-100 to-cyan-100 text-teal-800 dark:from-teal-900/60 dark:to-cyan-900/60 dark:text-teal-300 ring-1 ring-teal-200/80 dark:ring-teal-700/60">
+                                              {vehicle.consecutive_days} day
+                                              {vehicle.consecutive_days > 1
+                                                ? "s"
+                                                : ""}
+                                            </span>
+                                          </TableCell>
+                                          <TableCell className="!px-4 !py-3 text-center border-l border-teal-100/80 dark:border-teal-900/60">
+                                            {vehicle.dashboard_url && (
+                                              <a
+                                                href={vehicle.dashboard_url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors shadow-sm"
+                                                title="Open Dashboard"
+                                                onClick={(e) =>
+                                                  e.stopPropagation()
+                                                }
+                                              >
+                                                <ExternalLink className="h-3.5 w-3.5" />
+                                              </a>
+                                            )}
+                                          </TableCell>
+                                        </TableRow>
+                                      ),
+                                    )}
                                   </TableBody>
                                 </Table>
                               </div>
                             ) : (
                               <div className="text-center py-12">
                                 <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                                <p className="text-gray-500">No villages found</p>
+                                <p className="text-gray-500">
+                                  No villages found
+                                </p>
                               </div>
                             )}
                           </CardContent>
@@ -8661,10 +9324,11 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setPressureComparisonCategory("offline")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${pressureComparisonCategory === "offline"
-                                  ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-md"
-                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-400"
-                                  }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                                  pressureComparisonCategory === "offline"
+                                    ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-400"
+                                }`}
                                 data-testid="tab-pressure-comparison-offline"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -8676,10 +9340,11 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setPressureComparisonCategory("below_0_2")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${pressureComparisonCategory === "below_0_2"
-                                  ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-md"
-                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-red-300"
-                                  }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                                  pressureComparisonCategory === "below_0_2"
+                                    ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-red-300"
+                                }`}
                                 data-testid="tab-pressure-comparison-below"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -8691,10 +9356,11 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setPressureComparisonCategory("above_0_7")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${pressureComparisonCategory === "above_0_7"
-                                  ? "bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md"
-                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-purple-300"
-                                  }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                                  pressureComparisonCategory === "above_0_7"
+                                    ? "bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-purple-300"
+                                }`}
                                 data-testid="tab-pressure-comparison-above"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -8708,11 +9374,12 @@ const DetailedChlorinePage = () => {
                                     "optimal_0_2_0_7",
                                   )
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${pressureComparisonCategory ===
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                                  pressureComparisonCategory ===
                                   "optimal_0_2_0_7"
-                                  ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md"
-                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-emerald-300"
-                                  }`}
+                                    ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-emerald-300"
+                                }`}
                                 data-testid="tab-pressure-comparison-optimal"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -8764,8 +9431,8 @@ const DetailedChlorinePage = () => {
                                             ]?.find((d) => d.days === day);
                                           return dayData
                                             ? dayData[
-                                            pressureComparisonCategory
-                                            ]
+                                                pressureComparisonCategory
+                                              ]
                                             : 0;
                                         }),
                                       );
@@ -8789,8 +9456,8 @@ const DetailedChlorinePage = () => {
                                               ]?.find((d) => d.days === day);
                                             const value = dayData
                                               ? dayData[
-                                              pressureComparisonCategory
-                                              ]
+                                                  pressureComparisonCategory
+                                                ]
                                               : 0;
                                             const barWidth =
                                               maxValueForDay > 0
@@ -8799,13 +9466,13 @@ const DetailedChlorinePage = () => {
 
                                             const colorClass =
                                               pressureComparisonCategory ===
-                                                "offline"
+                                              "offline"
                                                 ? "from-gray-500 to-gray-700"
                                                 : pressureComparisonCategory ===
-                                                  "below_0_2"
+                                                    "below_0_2"
                                                   ? "from-red-500 to-red-700"
                                                   : pressureComparisonCategory ===
-                                                    "above_0_7"
+                                                      "above_0_7"
                                                     ? "from-purple-500 to-purple-700"
                                                     : "from-emerald-500 to-emerald-700";
 
@@ -8889,13 +9556,13 @@ const DetailedChlorinePage = () => {
 
                                         const colorClass =
                                           pressureComparisonCategory ===
-                                            "offline"
+                                          "offline"
                                             ? "from-gray-500 to-gray-700"
                                             : pressureComparisonCategory ===
-                                              "below_0_2"
+                                                "below_0_2"
                                               ? "from-red-500 to-red-700"
                                               : pressureComparisonCategory ===
-                                                "above_0_7"
+                                                  "above_0_7"
                                                 ? "from-purple-500 to-purple-700"
                                                 : "from-emerald-500 to-emerald-700";
 
@@ -8968,8 +9635,15 @@ const DetailedChlorinePage = () => {
                             <button
                               onClick={() => {
                                 const params = new URLSearchParams();
-                                if (clickedPressureRegionComparisonCell.region && clickedPressureRegionComparisonCell.region !== "All Regions") {
-                                  params.append("region", clickedPressureRegionComparisonCell.region);
+                                if (
+                                  clickedPressureRegionComparisonCell.region &&
+                                  clickedPressureRegionComparisonCell.region !==
+                                    "All Regions"
+                                ) {
+                                  params.append(
+                                    "region",
+                                    clickedPressureRegionComparisonCell.region,
+                                  );
                                 }
                                 if (schemeFilter !== "all") {
                                   params.append("filterType", schemeFilter);
@@ -8977,8 +9651,11 @@ const DetailedChlorinePage = () => {
                                 if (schemeFilter === "fully_completed") {
                                   params.append("fullyCompleted", "true");
                                 }
-                                if (selectedAgencyType !== 'ALL') {
-                                  params.append("agencyType", selectedAgencyType);
+                                if (selectedAgencyType !== "ALL") {
+                                  params.append(
+                                    "agencyType",
+                                    selectedAgencyType,
+                                  );
                                 }
                                 window.open(
                                   `/api/pressure/day-wise-sensors-export/${clickedPressureRegionComparisonCell.category}/${clickedPressureRegionComparisonCell.day}?${params.toString()}`,
@@ -9030,6 +9707,9 @@ const DetailedChlorinePage = () => {
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[140px] border-r border-white/10">
                                     Scheme Name
                                   </TableHead>
+                                  <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Owner
+                                  </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
                                     Village
                                   </TableHead>
@@ -9076,6 +9756,11 @@ const DetailedChlorinePage = () => {
                                       <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-orange-100/80 dark:border-orange-900/60">
                                         {sensor.scheme_name}
                                       </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
+                                        {sensor.owner ||
+                                          sensor.agency_type ||
+                                          "N/A"}
+                                      </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60">
                                         {sensor.village_name}
                                       </TableCell>
@@ -9083,8 +9768,13 @@ const DetailedChlorinePage = () => {
                                         {sensor.esr_name}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60 max-w-[150px]">
-                                            {renderRemarkCell((esrIssuesMap?.get(`${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`) || []), `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
-                                          </TableCell>
+                                        {renderRemarkCell(
+                                          esrIssuesMap?.get(
+                                            `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
+                                          ) || [],
+                                          `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
+                                        )}
+                                      </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center border-r border-orange-100/80 dark:border-orange-900/60">
                                         <span
                                           className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${sensor.pressure_status === "Online" ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60 dark:text-emerald-300 ring-1 ring-emerald-200/80 dark:ring-emerald-700/60" : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"}`}
@@ -9094,18 +9784,19 @@ const DetailedChlorinePage = () => {
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60">
                                         {sensor.latest_pressure_value !==
-                                          null ? (
+                                        null ? (
                                           <span
-                                            className={`${sensor.latest_pressure_value >=
-                                              0.2 &&
+                                            className={`${
+                                              sensor.latest_pressure_value >=
+                                                0.2 &&
                                               sensor.latest_pressure_value <=
-                                              0.7
-                                              ? "text-emerald-600 dark:text-emerald-400"
-                                              : sensor.latest_pressure_value <
-                                                0.2
-                                                ? "text-red-600 dark:text-red-400"
-                                                : "text-purple-600 dark:text-purple-400"
-                                              }`}
+                                                0.7
+                                                ? "text-emerald-600 dark:text-emerald-400"
+                                                : sensor.latest_pressure_value <
+                                                    0.2
+                                                  ? "text-red-600 dark:text-red-400"
+                                                  : "text-purple-600 dark:text-purple-400"
+                                            }`}
                                           >
                                             {Number(
                                               sensor.latest_pressure_value,
@@ -9194,9 +9885,15 @@ const DetailedChlorinePage = () => {
                                     : dayWiseRegion;
                                 const params = new URLSearchParams();
                                 if (region) params.append("region", region);
-                                if (schemeFilter !== "all") params.append("filterType", schemeFilter);
-                                if (schemeFilter === 'fully_completed') params.append('fullyCompleted', 'true');
-                                if (selectedAgencyType !== 'ALL') params.append('agencyType', selectedAgencyType);
+                                if (schemeFilter !== "all")
+                                  params.append("filterType", schemeFilter);
+                                if (schemeFilter === "fully_completed")
+                                  params.append("fullyCompleted", "true");
+                                if (selectedAgencyType !== "ALL")
+                                  params.append(
+                                    "agencyType",
+                                    selectedAgencyType,
+                                  );
 
                                 const url = `/api/chlorine/day-wise-sensors-export/${clickedDayWiseCell.metric}/${clickedDayWiseCell.days}?${params.toString()}`;
                                 window.open(url, "_blank");
@@ -9242,6 +9939,9 @@ const DetailedChlorinePage = () => {
                                   </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[140px] border-r border-white/10">
                                     Scheme Name
+                                  </TableHead>
+                                  <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Owner
                                   </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
                                     Village
@@ -9289,6 +9989,11 @@ const DetailedChlorinePage = () => {
                                     <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-amber-100/80 dark:border-amber-900/60">
                                       {sensor.scheme_name}
                                     </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
+                                      {sensor.owner ||
+                                        sensor.agency_type ||
+                                        "N/A"}
+                                    </TableCell>
                                     <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-amber-100/80 dark:border-amber-900/60">
                                       {sensor.village_name}
                                     </TableCell>
@@ -9296,8 +10001,13 @@ const DetailedChlorinePage = () => {
                                       {sensor.esr_name}
                                     </TableCell>
                                     <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-amber-100/80 dark:border-amber-900/60 max-w-[150px]">
-                                            {renderRemarkCell((esrIssuesMap?.get(`${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`) || []), `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
-                                          </TableCell>
+                                      {renderRemarkCell(
+                                        esrIssuesMap?.get(
+                                          `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
+                                        ) || [],
+                                        `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
+                                      )}
+                                    </TableCell>
                                     <TableCell className="!px-4 !py-3 text-center border-r border-amber-100/80 dark:border-amber-900/60">
                                       <span
                                         className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${sensor.chlorine_status === "Online" ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60 dark:text-emerald-300 ring-1 ring-emerald-200/80 dark:ring-emerald-700/60" : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"}`}
@@ -9384,10 +10094,16 @@ const DetailedChlorinePage = () => {
                             <button
                               onClick={() => {
                                 const params = new URLSearchParams();
-                                if (pressureDayWiseRegion && pressureDayWiseRegion !== "All Regions") {
-                                  params.append("region", pressureDayWiseRegion);
+                                if (
+                                  pressureDayWiseRegion &&
+                                  pressureDayWiseRegion !== "All Regions"
+                                ) {
+                                  params.append(
+                                    "region",
+                                    pressureDayWiseRegion,
+                                  );
                                 }
-                                if (schemeFilter !== 'all') {
+                                if (schemeFilter !== "all") {
                                   params.append("filterType", schemeFilter);
                                 }
                                 if (schemeFilter === "fully_completed") {
@@ -9443,6 +10159,9 @@ const DetailedChlorinePage = () => {
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[140px] border-r border-white/10">
                                     Scheme Name
                                   </TableHead>
+                                  <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Owner
+                                  </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
                                     Village
                                   </TableHead>
@@ -9489,6 +10208,11 @@ const DetailedChlorinePage = () => {
                                       <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-orange-100/80 dark:border-orange-900/60">
                                         {sensor.scheme_name}
                                       </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
+                                        {sensor.owner ||
+                                          sensor.agency_type ||
+                                          "N/A"}
+                                      </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60">
                                         {sensor.village_name}
                                       </TableCell>
@@ -9496,8 +10220,13 @@ const DetailedChlorinePage = () => {
                                         {sensor.esr_name}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60 max-w-[150px]">
-                                            {renderRemarkCell((esrIssuesMap?.get(`${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`) || []), `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
-                                          </TableCell>
+                                        {renderRemarkCell(
+                                          esrIssuesMap?.get(
+                                            `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
+                                          ) || [],
+                                          `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
+                                        )}
+                                      </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center border-r border-orange-100/80 dark:border-orange-900/60">
                                         <span
                                           className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${sensor.pressure_status === "Online" ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60 dark:text-emerald-300 ring-1 ring-emerald-200/80 dark:ring-emerald-700/60" : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"}`}
@@ -9507,19 +10236,19 @@ const DetailedChlorinePage = () => {
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium border-r border-orange-100/80 dark:border-orange-900/60">
                                         {sensor.latest_pressure_value !==
-                                          null ? (
+                                        null ? (
                                           <span
                                             className={
                                               Number(
                                                 sensor.latest_pressure_value,
                                               ) >= 0.2 &&
-                                                Number(
-                                                  sensor.latest_pressure_value,
-                                                ) <= 0.7
+                                              Number(
+                                                sensor.latest_pressure_value,
+                                              ) <= 0.7
                                                 ? "text-green-600"
                                                 : Number(
-                                                  sensor.latest_pressure_value,
-                                                ) < 0.2
+                                                      sensor.latest_pressure_value,
+                                                    ) < 0.2
                                                   ? "text-red-600"
                                                   : "text-purple-600"
                                             }
@@ -9608,7 +10337,10 @@ const DetailedChlorinePage = () => {
                             <button
                               onClick={() => {
                                 const params = new URLSearchParams();
-                                params.append("region", clickedRegionComparisonCell.region);
+                                params.append(
+                                  "region",
+                                  clickedRegionComparisonCell.region,
+                                );
                                 if (schemeFilter !== "all") {
                                   params.append("filterType", schemeFilter);
                                 }
@@ -9665,6 +10397,9 @@ const DetailedChlorinePage = () => {
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[140px] border-r border-white/10">
                                     Scheme Name
                                   </TableHead>
+                                  <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Owner
+                                  </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
                                     Village
                                   </TableHead>
@@ -9711,6 +10446,11 @@ const DetailedChlorinePage = () => {
                                       <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-violet-100/80 dark:border-violet-900/60">
                                         {sensor.scheme_name}
                                       </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
+                                        {sensor.owner ||
+                                          sensor.agency_type ||
+                                          "N/A"}
+                                      </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-violet-100/80 dark:border-violet-900/60">
                                         {sensor.village_name}
                                       </TableCell>
@@ -9726,7 +10466,7 @@ const DetailedChlorinePage = () => {
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-violet-100/80 dark:border-violet-900/60">
                                         {sensor.latest_chlorine_value !==
-                                          null ? (
+                                        null ? (
                                           Number(
                                             sensor.latest_chlorine_value,
                                           ).toFixed(2)
@@ -9737,8 +10477,13 @@ const DetailedChlorinePage = () => {
                                         )}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-violet-100/80 dark:border-violet-900/60 max-w-[150px]">
-                                            {renderRemarkCell((esrIssuesMap?.get(`${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`) || []), `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
-                                          </TableCell>
+                                        {renderRemarkCell(
+                                          esrIssuesMap?.get(
+                                            `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
+                                          ) || [],
+                                          `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
+                                        )}
+                                      </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] text-slate-600 dark:text-slate-400 border-r border-violet-100/80 dark:border-violet-900/60">
                                         {formatDate(
                                           sensor.latest_chlorine_date,
@@ -9803,7 +10548,8 @@ const DetailedChlorinePage = () => {
                                   variant="secondary"
                                   className="!text-[12px] px-1.5 py-0"
                                 >
-                                  {lpcdDayWiseVillages?.data?.length || 0} villages
+                                  {lpcdDayWiseVillages?.data?.length || 0}{" "}
+                                  villages
                                 </Badge>
                               </div>
                             </div>
@@ -9817,7 +10563,7 @@ const DetailedChlorinePage = () => {
                                     : lpcdDayWiseRegion;
                                 const params = new URLSearchParams();
                                 params.append("region", region);
-                                if (schemeFilter !== 'all') {
+                                if (schemeFilter !== "all") {
                                   params.append("filterType", schemeFilter);
                                 }
                                 if (schemeFilter === "fully_completed") {
@@ -9871,6 +10617,9 @@ const DetailedChlorinePage = () => {
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[140px] border-r border-white/10">
                                     Scheme Name
                                   </TableHead>
+                                  <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Owner
+                                  </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
                                     Village
                                   </TableHead>
@@ -9908,12 +10657,22 @@ const DetailedChlorinePage = () => {
                                       <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-cyan-100/80 dark:border-cyan-900/60">
                                         {sensor.scheme_name}
                                       </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
+                                        {sensor.owner ||
+                                          sensor.agency_type ||
+                                          "N/A"}
+                                      </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-cyan-100/80 dark:border-cyan-900/60 truncate">
                                         {sensor.village_name}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-cyan-100/80 dark:border-cyan-900/60 max-w-[150px]">
-                                            {renderRemarkCell((villageIssuesMap?.get(`${sensor.scheme_id}-${sensor.village_name}`) || []), `Remarks for ${sensor.village_name}`)}
-                                          </TableCell>
+                                        {renderRemarkCell(
+                                          villageIssuesMap?.get(
+                                            `${sensor.scheme_id}-${sensor.village_name}`,
+                                          ) || [],
+                                          `Remarks for ${sensor.village_name}`,
+                                        )}
+                                      </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-cyan-100/80 dark:border-cyan-900/60">
                                         {sensor.latest_lpcd_value !== null ? (
                                           Number(
@@ -9946,7 +10705,9 @@ const DetailedChlorinePage = () => {
                                             <ExternalLink className="h-3.5 w-3.5" />
                                           </a>
                                         ) : (
-                                          <span className="text-slate-400">-</span>
+                                          <span className="text-slate-400">
+                                            -
+                                          </span>
                                         )}
                                       </TableCell>
                                     </TableRow>
@@ -9967,7 +10728,10 @@ const DetailedChlorinePage = () => {
 
                   {/* Scheme LPCD Day-Wise Clicked Scheme List */}
                   {clickedSchemeDayWiseCell && (
-                    <Card className="border-0 shadow-lg rounded-xl overflow-hidden" data-testid="card-scheme-lpcd-daywise-details">
+                    <Card
+                      className="border-0 shadow-lg rounded-xl overflow-hidden"
+                      data-testid="card-scheme-lpcd-daywise-details"
+                    >
                       <CardHeader className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950 dark:to-indigo-950 border-b border-purple-200 dark:border-purple-800 py-2.5">
                         <div className="flex items-center justify-between">
                           <CardTitle className="flex items-center gap-2">
@@ -9986,7 +10750,8 @@ const DetailedChlorinePage = () => {
                                   variant="secondary"
                                   className="!text-[12px] px-1.5 py-0"
                                 >
-                                  {schemeLpcdDayWiseSchemes?.data?.length || 0} schemes
+                                  {schemeLpcdDayWiseSchemes?.data?.length || 0}{" "}
+                                  schemes
                                 </Badge>
                               </div>
                             </div>
@@ -9995,10 +10760,16 @@ const DetailedChlorinePage = () => {
                             <button
                               onClick={() => {
                                 const params = new URLSearchParams();
-                                if (schemeLpcdDayWiseRegion && schemeLpcdDayWiseRegion !== "All Regions") {
-                                  params.append("region", schemeLpcdDayWiseRegion);
+                                if (
+                                  schemeLpcdDayWiseRegion &&
+                                  schemeLpcdDayWiseRegion !== "All Regions"
+                                ) {
+                                  params.append(
+                                    "region",
+                                    schemeLpcdDayWiseRegion,
+                                  );
                                 }
-                                if (schemeFilter !== 'all') {
+                                if (schemeFilter !== "all") {
                                   params.append("filterType", schemeFilter);
                                 }
                                 if (schemeFilter === "fully_completed") {
@@ -10052,6 +10823,9 @@ const DetailedChlorinePage = () => {
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[140px] border-r border-white/10">
                                     Scheme Name
                                   </TableHead>
+                                  <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Owner
+                                  </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[150px] text-center border-r border-white/10">
                                     Remark
                                   </TableHead>
@@ -10073,17 +10847,21 @@ const DetailedChlorinePage = () => {
                                 {schemeLpcdDayWiseSchemes.data.map(
                                   (scheme: any, idx: number) => {
                                     // Check for active issues for this scheme
-                                    const schemeId = scheme.scheme_id?.toString().trim();
-                                    const issues = schemeIssuesMap.get(schemeId) || [];
+                                    const schemeId = scheme.scheme_id
+                                      ?.toString()
+                                      .trim();
+                                    const issues =
+                                      schemeIssuesMap.get(schemeId) || [];
                                     const hasIssue = issues.length > 0;
 
                                     return (
                                       <TableRow
                                         key={`scheme-daywise-${scheme.scheme_id}-${idx}`}
-                                        className={`transition-all duration-200 ${hasIssue
-                                          ? "bg-red-50 hover:bg-red-100/50 dark:bg-red-950/20 dark:hover:bg-red-950/40 border-l-4 border-l-red-500"
-                                          : `hover:bg-purple-50/70 dark:hover:bg-purple-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-indigo-50/40 dark:bg-indigo-950/20"}`
-                                          }`}
+                                        className={`transition-all duration-200 ${
+                                          hasIssue
+                                            ? "bg-red-50 hover:bg-red-100/50 dark:bg-red-950/20 dark:hover:bg-red-950/40 border-l-4 border-l-red-500"
+                                            : `hover:bg-purple-50/70 dark:hover:bg-purple-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-indigo-50/40 dark:bg-indigo-950/20"}`
+                                        }`}
                                         data-testid={`row-scheme-daywise-${idx}`}
                                       >
                                         <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 font-medium">
@@ -10102,7 +10880,9 @@ const DetailedChlorinePage = () => {
                                               target="_blank"
                                               rel="noopener noreferrer"
                                               className="text-blue-600 hover:underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                                              onClick={(e) => e.stopPropagation()}
+                                              onClick={(e) =>
+                                                e.stopPropagation()
+                                              }
                                             >
                                               {scheme.scheme_name}
                                             </a>
@@ -10110,15 +10890,34 @@ const DetailedChlorinePage = () => {
                                             scheme.scheme_name
                                           )}
                                         </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
+                                          {scheme.owner ||
+                                            scheme.agency_type ||
+                                            "N/A"}
+                                        </TableCell>
                                         <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 max-w-[150px]">
-                                            {renderRemarkCell((schemeIssuesMap?.get(String(scheme.scheme_id)) || []), `Remarks for ${scheme.scheme_name}`)}
-                                          </TableCell>
+                                          {renderRemarkCell(
+                                            schemeIssuesMap?.get(
+                                              String(scheme.scheme_id),
+                                            ) || [],
+                                            `Remarks for ${scheme.scheme_name}`,
+                                          )}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
+                                          {scheme.owner ||
+                                            scheme.agency_type ||
+                                            "N/A"}
+                                        </TableCell>
                                         <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60">
                                           {scheme.block}
                                         </TableCell>
                                         <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60">
-                                          {scheme.latest_lpcd_value !== null && scheme.latest_lpcd_value !== undefined ? (
-                                            Number(scheme.latest_lpcd_value).toFixed(2)
+                                          {scheme.latest_lpcd_value !== null &&
+                                          scheme.latest_lpcd_value !==
+                                            undefined ? (
+                                            Number(
+                                              scheme.latest_lpcd_value,
+                                            ).toFixed(2)
                                           ) : (
                                             <span className="text-slate-400">
                                               N/A
@@ -10127,8 +10926,11 @@ const DetailedChlorinePage = () => {
                                         </TableCell>
                                         <TableCell className="!px-4 !py-3 text-center">
                                           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-800 dark:from-purple-900/60 dark:to-indigo-900/60 dark:text-purple-300 ring-1 ring-purple-200/80 dark:ring-purple-700/60">
-                                            {scheme.consecutive_days || clickedSchemeDayWiseCell.days} day
-                                            {(scheme.consecutive_days || clickedSchemeDayWiseCell.days) > 1
+                                            {scheme.consecutive_days ||
+                                              clickedSchemeDayWiseCell.days}{" "}
+                                            day
+                                            {(scheme.consecutive_days ||
+                                              clickedSchemeDayWiseCell.days) > 1
                                               ? "s"
                                               : ""}
                                           </span>
@@ -10141,17 +10943,21 @@ const DetailedChlorinePage = () => {
                                               rel="noopener noreferrer"
                                               className="inline-flex items-center justify-center p-1.5 text-purple-600 hover:text-purple-800 hover:bg-purple-50 dark:text-purple-400 dark:hover:text-purple-200 dark:hover:bg-purple-900/50 rounded-full transition-colors"
                                               title="Open Dashboard"
-                                              onClick={(e) => e.stopPropagation()}
+                                              onClick={(e) =>
+                                                e.stopPropagation()
+                                              }
                                             >
                                               <ExternalLink className="h-3.5 w-3.5" />
                                             </a>
                                           ) : (
-                                            <span className="text-slate-400">-</span>
+                                            <span className="text-slate-400">
+                                              -
+                                            </span>
                                           )}
                                         </TableCell>
                                       </TableRow>
                                     );
-                                  }
+                                  },
                                 )}
                               </TableBody>
                             </Table>
@@ -10197,7 +11003,10 @@ const DetailedChlorinePage = () => {
                             <button
                               onClick={() => {
                                 const params = new URLSearchParams();
-                                params.append("region", clickedLpcdRegionComparisonCell.region);
+                                params.append(
+                                  "region",
+                                  clickedLpcdRegionComparisonCell.region,
+                                );
                                 if (schemeFilter !== "all") {
                                   params.append("filterType", schemeFilter);
                                 }
@@ -10254,6 +11063,9 @@ const DetailedChlorinePage = () => {
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-4 !py-3.5 w-[140px] border-r border-white/10">
                                     Scheme Name
                                   </TableHead>
+                                  <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Owner
+                                  </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
                                     Village
                                   </TableHead>
@@ -10300,6 +11112,11 @@ const DetailedChlorinePage = () => {
                                           sensor.scheme_name
                                         )}
                                       </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
+                                        {sensor.owner ||
+                                          sensor.agency_type ||
+                                          "N/A"}
+                                      </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-teal-100/80 dark:border-teal-900/60">
                                         {sensor.village_name}
                                       </TableCell>
@@ -10335,7 +11152,9 @@ const DetailedChlorinePage = () => {
                                             <ExternalLink className="h-3.5 w-3.5" />
                                           </a>
                                         ) : (
-                                          <span className="text-slate-400">-</span>
+                                          <span className="text-slate-400">
+                                            -
+                                          </span>
                                         )}
                                       </TableCell>
                                     </TableRow>
@@ -10395,7 +11214,9 @@ const DetailedChlorinePage = () => {
                             Numbers represent{" "}
                             <span className="font-bold">
                               {mainTab === "lpcd"
-                                ? lpcdSubTab === "scheme" ? "Schemes" : "Villages"
+                                ? lpcdSubTab === "scheme"
+                                  ? "Schemes"
+                                  : "Villages"
                                 : mainTab === "pressure"
                                   ? "Pressure Sensors"
                                   : "RCAs"}
@@ -10416,10 +11237,11 @@ const DetailedChlorinePage = () => {
                             setClickedPressureDivisionCell(null);
                             setClickedSchemeDivisionCell(null);
                           }}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${divisionWiseRegion === "All Regions"
-                            ? `bg-gradient-to-r ${mainTab === "lpcd" ? "from-emerald-500 to-teal-500" : mainTab === "pressure" ? "from-orange-500 to-amber-500" : "from-blue-500 to-cyan-500"} text-white shadow-md`
-                            : `bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 ${mainTab === "lpcd" ? "hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950" : mainTab === "pressure" ? "hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950" : "hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950"}`
-                            }`}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+                            divisionWiseRegion === "All Regions"
+                              ? `bg-gradient-to-r ${mainTab === "lpcd" ? "from-emerald-500 to-teal-500" : mainTab === "pressure" ? "from-orange-500 to-amber-500" : "from-blue-500 to-cyan-500"} text-white shadow-md`
+                              : `bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 ${mainTab === "lpcd" ? "hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950" : mainTab === "pressure" ? "hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950" : "hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950"}`
+                          }`}
                           data-testid="tab-divisionwise-all-regions"
                         >
                           <span className="flex items-center gap-1.5">
@@ -10439,10 +11261,11 @@ const DetailedChlorinePage = () => {
                               setClickedPressureDivisionCell(null);
                               setClickedSchemeDivisionCell(null);
                             }}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${divisionWiseRegion === stat.region
-                              ? `bg-gradient-to-r ${mainTab === "lpcd" ? "from-emerald-500 to-teal-500" : mainTab === "pressure" ? "from-orange-500 to-amber-500" : "from-blue-500 to-cyan-500"} text-white shadow-md`
-                              : `bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 ${mainTab === "lpcd" ? "hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950" : mainTab === "pressure" ? "hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950" : "hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950"}`
-                              }`}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+                              divisionWiseRegion === stat.region
+                                ? `bg-gradient-to-r ${mainTab === "lpcd" ? "from-emerald-500 to-teal-500" : mainTab === "pressure" ? "from-orange-500 to-amber-500" : "from-blue-500 to-cyan-500"} text-white shadow-md`
+                                : `bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 ${mainTab === "lpcd" ? "hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950" : mainTab === "pressure" ? "hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950" : "hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950"}`
+                            }`}
                             data-testid={`tab-divisionwise-${stat.region}`}
                           >
                             {stat.region}
@@ -10450,7 +11273,8 @@ const DetailedChlorinePage = () => {
                         ))}
                       </div>
 
-                      {mainTab === "lpcd" && lpcdSubTab === "village" &&
+                      {mainTab === "lpcd" &&
+                        lpcdSubTab === "village" &&
                         (isLoadingDivisionSummary ? (
                           <div className="space-y-3">
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -10569,10 +11393,11 @@ const DetailedChlorinePage = () => {
                                     return (
                                       <div
                                         key={`${division.region}-${division.division}-${index}`}
-                                        className={`grid grid-cols-[180px_1fr_1fr_1fr_1fr] gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${index % 2 === 0
-                                          ? "bg-white dark:bg-gray-900"
-                                          : "bg-gray-50/50 dark:bg-gray-800/20"
-                                          }`}
+                                        className={`grid grid-cols-[180px_1fr_1fr_1fr_1fr] gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
+                                          index % 2 === 0
+                                            ? "bg-white dark:bg-gray-900"
+                                            : "bg-gray-50/50 dark:bg-gray-800/20"
+                                        }`}
                                         data-testid={`row-division-${index}`}
                                       >
                                         <div className="flex items-center gap-1.5">
@@ -10735,18 +11560,34 @@ const DetailedChlorinePage = () => {
                                     <button
                                       onClick={() => {
                                         const params = new URLSearchParams();
-                                        params.append("division", clickedDivisionCell.division);
+                                        params.append(
+                                          "division",
+                                          clickedDivisionCell.division,
+                                        );
                                         const region =
-                                          clickedDivisionCell.region === "All Regions"
+                                          clickedDivisionCell.region ===
+                                          "All Regions"
                                             ? ""
                                             : clickedDivisionCell.region;
-                                        if (region) params.append("region", region);
-                                        params.append("metric", clickedDivisionCell.metric);
-                                        if (schemeFilter !== 'all') {
-                                          params.append("filterType", schemeFilter);
+                                        if (region)
+                                          params.append("region", region);
+                                        params.append(
+                                          "metric",
+                                          clickedDivisionCell.metric,
+                                        );
+                                        if (schemeFilter !== "all") {
+                                          params.append(
+                                            "filterType",
+                                            schemeFilter,
+                                          );
                                         }
-                                        if (schemeFilter === "fully_completed") {
-                                          params.append("fullyCompleted", "true");
+                                        if (
+                                          schemeFilter === "fully_completed"
+                                        ) {
+                                          params.append(
+                                            "fullyCompleted",
+                                            "true",
+                                          );
                                         }
                                         window.open(
                                           `/api/category-data/division-villages/export?${params.toString()}`,
@@ -10791,6 +11632,9 @@ const DetailedChlorinePage = () => {
                                       <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-emerald-50 !px-4 !py-3.5 w-[180px] border-r border-white/10">
                                         Scheme Name
                                       </TableHead>
+                                      <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-emerald-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                        Owner
+                                      </TableHead>
                                       <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-emerald-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
                                         Block
                                       </TableHead>
@@ -10825,6 +11669,11 @@ const DetailedChlorinePage = () => {
                                           <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-emerald-100 dark:border-emerald-900 truncate">
                                             {village.scheme_name}
                                           </TableCell>
+                                          <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
+                                            {village.owner ||
+                                              village.agency_type ||
+                                              "N/A"}
+                                          </TableCell>
                                           <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-emerald-100 dark:border-emerald-900 truncate">
                                             {village.block}
                                           </TableCell>
@@ -10836,7 +11685,9 @@ const DetailedChlorinePage = () => {
                                                 rel="noreferrer"
                                                 className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors"
                                                 title="Open Dashboard"
-                                                onClick={(e) => e.stopPropagation()}
+                                                onClick={(e) =>
+                                                  e.stopPropagation()
+                                                }
                                               >
                                                 <ExternalLink className="h-4 w-4" />
                                               </a>
@@ -10855,8 +11706,8 @@ const DetailedChlorinePage = () => {
                                             >
                                               {village.lpcd_value_day7 !== null
                                                 ? Number(
-                                                  village.lpcd_value_day7,
-                                                ).toFixed(1)
+                                                    village.lpcd_value_day7,
+                                                  ).toFixed(1)
                                                 : "N/A"}
                                             </span>
                                           </TableCell>
@@ -10866,13 +11717,18 @@ const DetailedChlorinePage = () => {
                                             >
                                               {village.water_value_day7 !==
                                                 null &&
-                                                village.water_value_day7 > 0
+                                              village.water_value_day7 > 0
                                                 ? "With Water"
                                                 : "No Water"}
                                             </span>
                                           </TableCell>
                                           <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-emerald-100 dark:border-emerald-900 max-w-[150px]">
-                                            {renderRemarkCell((villageIssuesMap?.get(`${village.scheme_id}-${village.village_name}`) || []), `Remarks for ${village.village_name}`)}
+                                            {renderRemarkCell(
+                                              villageIssuesMap?.get(
+                                                `${village.scheme_id}-${village.village_name}`,
+                                              ) || [],
+                                              `Remarks for ${village.village_name}`,
+                                            )}
                                           </TableCell>
                                         </TableRow>
                                       ),
@@ -10893,7 +11749,8 @@ const DetailedChlorinePage = () => {
                       )}
 
                       {/* Scheme LPCD Division Summary */}
-                      {mainTab === "lpcd" && lpcdSubTab === "scheme" &&
+                      {mainTab === "lpcd" &&
+                        lpcdSubTab === "scheme" &&
                         (isLoadingSchemeLpcdDivision ? (
                           <div className="space-y-3">
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -10929,7 +11786,10 @@ const DetailedChlorinePage = () => {
                                 </div>
                                 <div className="text-xl font-bold text-emerald-700 dark:text-emerald-400">
                                   {schemeLpcdDivisionSummary.data
-                                    .reduce((sum, d) => sum + d.schemesWithWater, 0)
+                                    .reduce(
+                                      (sum, d) => sum + d.schemesWithWater,
+                                      0,
+                                    )
                                     .toLocaleString()}
                                 </div>
                               </div>
@@ -10943,7 +11803,10 @@ const DetailedChlorinePage = () => {
                                 </div>
                                 <div className="text-xl font-bold text-blue-700 dark:text-blue-400">
                                   {schemeLpcdDivisionSummary.data
-                                    .reduce((sum, d) => sum + d.schemesAbove55, 0)
+                                    .reduce(
+                                      (sum, d) => sum + d.schemesAbove55,
+                                      0,
+                                    )
                                     .toLocaleString()}
                                 </div>
                               </div>
@@ -10957,7 +11820,10 @@ const DetailedChlorinePage = () => {
                                 </div>
                                 <div className="text-xl font-bold text-orange-700 dark:text-orange-400">
                                   {schemeLpcdDivisionSummary.data
-                                    .reduce((sum, d) => sum + d.schemesBelow55, 0)
+                                    .reduce(
+                                      (sum, d) => sum + d.schemesBelow55,
+                                      0,
+                                    )
                                     .toLocaleString()}
                                 </div>
                               </div>
@@ -10987,140 +11853,145 @@ const DetailedChlorinePage = () => {
                               </div>
 
                               <div className="max-h-[400px] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
-                                {schemeLpcdDivisionSummary.data.map((division, index) => {
-                                  const maxValue = Math.max(
-                                    ...schemeLpcdDivisionSummary.data.flatMap((d) => [
-                                      d.schemesWithWater,
-                                      d.schemesNoWater,
-                                      d.schemesAbove55,
-                                      d.schemesBelow55,
-                                    ]),
-                                  );
+                                {schemeLpcdDivisionSummary.data.map(
+                                  (division, index) => {
+                                    const maxValue = Math.max(
+                                      ...schemeLpcdDivisionSummary.data.flatMap(
+                                        (d) => [
+                                          d.schemesWithWater,
+                                          d.schemesNoWater,
+                                          d.schemesAbove55,
+                                          d.schemesBelow55,
+                                        ],
+                                      ),
+                                    );
 
-                                  return (
-                                    <div
-                                      key={`scheme-${division.region}-${division.division}-${index}`}
-                                      className={`grid grid-cols-[180px_1fr_1fr_1fr_1fr] gap-3 px-4 py-2 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-colors ${index % 2 === 0
-                                        ? "bg-white dark:bg-gray-900"
-                                        : "bg-gray-50/50 dark:bg-gray-800/20"
+                                    return (
+                                      <div
+                                        key={`scheme-${division.region}-${division.division}-${index}`}
+                                        className={`grid grid-cols-[180px_1fr_1fr_1fr_1fr] gap-3 px-4 py-2 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-colors ${
+                                          index % 2 === 0
+                                            ? "bg-white dark:bg-gray-900"
+                                            : "bg-gray-50/50 dark:bg-gray-800/20"
                                         }`}
-                                      data-testid={`row-scheme-division-${index}`}
-                                    >
-                                      <div className="flex items-center gap-1.5">
-                                        <span className="font-medium text-xs text-gray-900 dark:text-white">
-                                          {division.division}
-                                        </span>
-                                        <span className="!text-[12px] text-gray-500 bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded">
-                                          {division.totalSchemes}
-                                        </span>
-                                      </div>
-
-                                      <div className="flex items-center gap-2">
-                                        <div
-                                          className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
-                                          onClick={() =>
-                                            division.schemesWithWater > 0 &&
-                                            setClickedSchemeDivisionCell({
-                                              division: division.division,
-                                              region: division.region,
-                                              metric: "withWater",
-                                              label: `Schemes with Water - ${division.division}`,
-                                            })
-                                          }
-                                          data-testid={`button-scheme-withwater-${index}`}
-                                        >
-                                          <div
-                                            className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full"
-                                            style={{
-                                              width: `${maxValue > 0 ? (division.schemesWithWater / maxValue) * 100 : 0}%`,
-                                            }}
-                                          ></div>
+                                        data-testid={`row-scheme-division-${index}`}
+                                      >
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="font-medium text-xs text-gray-900 dark:text-white">
+                                            {division.division}
+                                          </span>
+                                          <span className="!text-[12px] text-gray-500 bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded">
+                                            {division.totalSchemes}
+                                          </span>
                                         </div>
-                                        <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-right tabular-nums">
-                                          {division.schemesWithWater}
-                                        </span>
-                                      </div>
 
-                                      <div className="flex items-center gap-2">
-                                        <div
-                                          className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
-                                          onClick={() =>
-                                            division.schemesNoWater > 0 &&
-                                            setClickedSchemeDivisionCell({
-                                              division: division.division,
-                                              region: division.region,
-                                              metric: "noWater",
-                                              label: `Schemes without Water - ${division.division}`,
-                                            })
-                                          }
-                                          data-testid={`button-scheme-nowater-${index}`}
-                                        >
+                                        <div className="flex items-center gap-2">
                                           <div
-                                            className="h-full bg-gradient-to-r from-red-400 to-red-600 rounded-full"
-                                            style={{
-                                              width: `${maxValue > 0 ? (division.schemesNoWater / maxValue) * 100 : 0}%`,
-                                            }}
-                                          ></div>
+                                            className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                            onClick={() =>
+                                              division.schemesWithWater > 0 &&
+                                              setClickedSchemeDivisionCell({
+                                                division: division.division,
+                                                region: division.region,
+                                                metric: "withWater",
+                                                label: `Schemes with Water - ${division.division}`,
+                                              })
+                                            }
+                                            data-testid={`button-scheme-withwater-${index}`}
+                                          >
+                                            <div
+                                              className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full"
+                                              style={{
+                                                width: `${maxValue > 0 ? (division.schemesWithWater / maxValue) * 100 : 0}%`,
+                                              }}
+                                            ></div>
+                                          </div>
+                                          <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-right tabular-nums">
+                                            {division.schemesWithWater}
+                                          </span>
                                         </div>
-                                        <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-right tabular-nums">
-                                          {division.schemesNoWater}
-                                        </span>
-                                      </div>
 
-                                      <div className="flex items-center gap-2">
-                                        <div
-                                          className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
-                                          onClick={() =>
-                                            division.schemesAbove55 > 0 &&
-                                            setClickedSchemeDivisionCell({
-                                              division: division.division,
-                                              region: division.region,
-                                              metric: "above55",
-                                              label: `Schemes >55 LPCD - ${division.division}`,
-                                            })
-                                          }
-                                          data-testid={`button-scheme-above55-${index}`}
-                                        >
+                                        <div className="flex items-center gap-2">
                                           <div
-                                            className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full"
-                                            style={{
-                                              width: `${maxValue > 0 ? (division.schemesAbove55 / maxValue) * 100 : 0}%`,
-                                            }}
-                                          ></div>
+                                            className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                            onClick={() =>
+                                              division.schemesNoWater > 0 &&
+                                              setClickedSchemeDivisionCell({
+                                                division: division.division,
+                                                region: division.region,
+                                                metric: "noWater",
+                                                label: `Schemes without Water - ${division.division}`,
+                                              })
+                                            }
+                                            data-testid={`button-scheme-nowater-${index}`}
+                                          >
+                                            <div
+                                              className="h-full bg-gradient-to-r from-red-400 to-red-600 rounded-full"
+                                              style={{
+                                                width: `${maxValue > 0 ? (division.schemesNoWater / maxValue) * 100 : 0}%`,
+                                              }}
+                                            ></div>
+                                          </div>
+                                          <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-right tabular-nums">
+                                            {division.schemesNoWater}
+                                          </span>
                                         </div>
-                                        <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-right tabular-nums">
-                                          {division.schemesAbove55}
-                                        </span>
-                                      </div>
 
-                                      <div className="flex items-center gap-2">
-                                        <div
-                                          className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
-                                          onClick={() =>
-                                            division.schemesBelow55 > 0 &&
-                                            setClickedSchemeDivisionCell({
-                                              division: division.division,
-                                              region: division.region,
-                                              metric: "below55",
-                                              label: `Schemes <55 LPCD - ${division.division}`,
-                                            })
-                                          }
-                                          data-testid={`button-scheme-below55-${index}`}
-                                        >
+                                        <div className="flex items-center gap-2">
                                           <div
-                                            className="h-full bg-gradient-to-r from-orange-400 to-orange-600 rounded-full"
-                                            style={{
-                                              width: `${maxValue > 0 ? (division.schemesBelow55 / maxValue) * 100 : 0}%`,
-                                            }}
-                                          ></div>
+                                            className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                            onClick={() =>
+                                              division.schemesAbove55 > 0 &&
+                                              setClickedSchemeDivisionCell({
+                                                division: division.division,
+                                                region: division.region,
+                                                metric: "above55",
+                                                label: `Schemes >55 LPCD - ${division.division}`,
+                                              })
+                                            }
+                                            data-testid={`button-scheme-above55-${index}`}
+                                          >
+                                            <div
+                                              className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full"
+                                              style={{
+                                                width: `${maxValue > 0 ? (division.schemesAbove55 / maxValue) * 100 : 0}%`,
+                                              }}
+                                            ></div>
+                                          </div>
+                                          <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-right tabular-nums">
+                                            {division.schemesAbove55}
+                                          </span>
                                         </div>
-                                        <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-right tabular-nums">
-                                          {division.schemesBelow55}
-                                        </span>
+
+                                        <div className="flex items-center gap-2">
+                                          <div
+                                            className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
+                                            onClick={() =>
+                                              division.schemesBelow55 > 0 &&
+                                              setClickedSchemeDivisionCell({
+                                                division: division.division,
+                                                region: division.region,
+                                                metric: "below55",
+                                                label: `Schemes <55 LPCD - ${division.division}`,
+                                              })
+                                            }
+                                            data-testid={`button-scheme-below55-${index}`}
+                                          >
+                                            <div
+                                              className="h-full bg-gradient-to-r from-orange-400 to-orange-600 rounded-full"
+                                              style={{
+                                                width: `${maxValue > 0 ? (division.schemesBelow55 / maxValue) * 100 : 0}%`,
+                                              }}
+                                            ></div>
+                                          </div>
+                                          <span className="text-xs font-semibold text-gray-900 dark:text-white w-8 text-right tabular-nums">
+                                            {division.schemesBelow55}
+                                          </span>
+                                        </div>
                                       </div>
-                                    </div>
-                                  );
-                                })}
+                                    );
+                                  },
+                                )}
                               </div>
                             </div>
                           </div>
@@ -11157,7 +12028,8 @@ const DetailedChlorinePage = () => {
                                       {clickedSchemeDivisionCell.division}
                                     </Badge>
                                     <Badge className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 !text-[12px] px-1.5 py-0">
-                                      {schemeLpcdDivisionDetails?.count || 0} schemes
+                                      {schemeLpcdDivisionDetails?.count || 0}{" "}
+                                      schemes
                                     </Badge>
                                   </div>
                                 </div>
@@ -11166,10 +12038,17 @@ const DetailedChlorinePage = () => {
                                 <Button
                                   onClick={() => {
                                     const params = new URLSearchParams();
-                                    if (clickedSchemeDivisionCell.region && clickedSchemeDivisionCell.region !== "All Regions") {
-                                      params.append("region", clickedSchemeDivisionCell.region);
+                                    if (
+                                      clickedSchemeDivisionCell.region &&
+                                      clickedSchemeDivisionCell.region !==
+                                        "All Regions"
+                                    ) {
+                                      params.append(
+                                        "region",
+                                        clickedSchemeDivisionCell.region,
+                                      );
                                     }
-                                    if (schemeFilter !== 'all') {
+                                    if (schemeFilter !== "all") {
                                       params.append("filterType", schemeFilter);
                                     }
                                     if (schemeFilter === "fully_completed") {
@@ -11177,7 +12056,7 @@ const DetailedChlorinePage = () => {
                                     }
                                     window.open(
                                       `/api/chlorine/scheme-lpcd/division-details-export/${encodeURIComponent(clickedSchemeDivisionCell.division)}/${clickedSchemeDivisionCell.metric}?${params.toString()}`,
-                                      "_blank"
+                                      "_blank",
                                     );
                                   }}
                                   variant="outline"
@@ -11189,7 +12068,9 @@ const DetailedChlorinePage = () => {
                                   Export Excel
                                 </Button>
                                 <Button
-                                  onClick={() => setClickedSchemeDivisionCell(null)}
+                                  onClick={() =>
+                                    setClickedSchemeDivisionCell(null)
+                                  }
                                   variant="ghost"
                                   size="sm"
                                   className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
@@ -11207,7 +12088,8 @@ const DetailedChlorinePage = () => {
                                 <Skeleton className="h-10 w-full" />
                                 <Skeleton className="h-10 w-full" />
                               </div>
-                            ) : schemeLpcdDivisionDetails && schemeLpcdDivisionDetails.data?.length > 0 ? (
+                            ) : schemeLpcdDivisionDetails &&
+                              schemeLpcdDivisionDetails.data?.length > 0 ? (
                               <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-slate-200/60 dark:border-slate-700/60 rounded-xl m-3 shadow-sm">
                                 <Table className="w-full">
                                   <TableHeader className="sticky top-0 z-10">
@@ -11227,6 +12109,9 @@ const DetailedChlorinePage = () => {
                                       <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[140px] border-r border-white/10">
                                         Scheme Name
                                       </TableHead>
+                                      <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                        Owner
+                                      </TableHead>
                                       <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
                                         Population
                                       </TableHead>
@@ -11242,70 +12127,98 @@ const DetailedChlorinePage = () => {
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
-                                    {schemeLpcdDivisionDetails.data.map((item, idx) => (
-                                      <TableRow
-                                        key={`scheme-div-${item.scheme_id}-${item.block}-${idx}`}
-                                        className={`transition-all duration-200 hover:bg-purple-50/70 dark:hover:bg-purple-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-slate-50/60 dark:bg-slate-800/40"}`}
-                                        data-testid={`row-scheme-div-detail-${idx}`}
-                                      >
-                                        <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60 font-medium">
-                                          {item.circle}
-                                        </TableCell>
-                                        <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-slate-100/80 dark:border-slate-800/60">
-                                          {item.sub_division}
-                                        </TableCell>
-                                        <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-slate-100/80 dark:border-slate-800/60 text-center">
-                                          {item.dashboard_url && (
-                                            <a
-                                              href={item.dashboard_url}
-                                              target="_blank"
-                                              rel="noreferrer"
-                                              className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors"
-                                              title="Open Dashboard"
-                                              onClick={(e) => e.stopPropagation()}
-                                            >
-                                              <ExternalLink className="h-4 w-4" />
-                                            </a>
-                                          )}
-                                        </TableCell>
-                                        <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-purple-600 dark:text-purple-400 border-r border-slate-100/80 dark:border-slate-800/60">
-                                          {item.scheme_id}
-                                        </TableCell>
-                                        <TableCell className="!px-4 !py-3 text-[12px] font-medium text-slate-800 dark:text-slate-200 border-r border-slate-100/80 dark:border-slate-800/60">
-                                          {item.scheme_name}
-                                        </TableCell>
-                                        <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
-                                          {item.total_population?.toLocaleString() || "N/A"}
-                                        </TableCell>
-                                        <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
-                                          {item.total_villages || "N/A"}
-                                        </TableCell>
-                                        <TableCell className="!px-4 !py-3 text-center border-r border-slate-100/80 dark:border-slate-800/60">
-                                          {item.lpcd_value !== null && item.lpcd_value !== undefined ? (
-                                            <span
-                                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${Number(item.lpcd_value) > 55
-                                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300"
-                                                : "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
-                                                }`}
-                                            >
-                                              {Number(item.lpcd_value).toFixed(1)}
-                                            </span>
-                                          ) : (
-                                            <span className="text-slate-400">N/A</span>
-                                          )}
-                                        </TableCell>
-                                        <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-                                            {renderRemarkCell((schemeIssuesMap?.get(String(item.scheme_id)) || []), `Remarks for ${item.scheme_name}`)}
+                                    {schemeLpcdDivisionDetails.data.map(
+                                      (item, idx) => (
+                                        <TableRow
+                                          key={`scheme-div-${item.scheme_id}-${item.block}-${idx}`}
+                                          className={`transition-all duration-200 hover:bg-purple-50/70 dark:hover:bg-purple-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-slate-50/60 dark:bg-slate-800/40"}`}
+                                          data-testid={`row-scheme-div-detail-${idx}`}
+                                        >
+                                          <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60 font-medium">
+                                            {item.circle}
                                           </TableCell>
-                                      </TableRow>
-                                    ))}
+                                          <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-slate-100/80 dark:border-slate-800/60">
+                                            {item.sub_division}
+                                          </TableCell>
+                                          <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-slate-100/80 dark:border-slate-800/60 text-center">
+                                            {item.dashboard_url && (
+                                              <a
+                                                href={item.dashboard_url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors"
+                                                title="Open Dashboard"
+                                                onClick={(e) =>
+                                                  e.stopPropagation()
+                                                }
+                                              >
+                                                <ExternalLink className="h-4 w-4" />
+                                              </a>
+                                            )}
+                                          </TableCell>
+                                          <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-purple-600 dark:text-purple-400 border-r border-slate-100/80 dark:border-slate-800/60">
+                                            {item.scheme_id}
+                                          </TableCell>
+                                          <TableCell className="!px-4 !py-3 text-[12px] font-medium text-slate-800 dark:text-slate-200 border-r border-slate-100/80 dark:border-slate-800/60">
+                                            {item.scheme_name}
+                                          </TableCell>
+                                          <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
+                                            {item.owner ||
+                                              item.agency_type ||
+                                              "N/A"}
+                                          </TableCell>
+                                          <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
+                                            {item.total_population?.toLocaleString() ||
+                                              "N/A"}
+                                          </TableCell>
+                                          <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
+                                            {item.total_villages || "N/A"}
+                                          </TableCell>
+                                          <TableCell className="!px-4 !py-3 text-center border-r border-slate-100/80 dark:border-slate-800/60">
+                                            {item.lpcd_value !== null &&
+                                            item.lpcd_value !== undefined ? (
+                                              <span
+                                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                                                  Number(item.lpcd_value) > 55
+                                                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300"
+                                                    : "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
+                                                }`}
+                                              >
+                                                {Number(
+                                                  item.lpcd_value,
+                                                ).toFixed(1)}
+                                              </span>
+                                            ) : (
+                                              <span className="text-slate-400">
+                                                N/A
+                                              </span>
+                                            )}
+                                          </TableCell>
+                                          <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+                                            {renderRemarkCell(
+                                              schemeIssuesMap?.get(
+                                                String(item.scheme_id),
+                                              ) || [],
+                                              `Remarks for ${item.scheme_name}`,
+                                            )}
+                                          </TableCell>
+                                          <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
+                                            {item.owner ||
+                                              item.agency_type ||
+                                              "N/A"}
+                                          </TableCell>
+                                        </TableRow>
+                                      ),
+                                    )}
                                   </TableBody>
                                 </Table>
                               </div>
                             ) : (
                               <div className="text-center py-12">
                                 <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                                <p className="text-gray-500">No schemes found for this category</p>
+                                <p className="text-gray-500">
+                                  No schemes found for this category
+                                </p>
                               </div>
                             )}
                           </CardContent>
@@ -11339,14 +12252,16 @@ const DetailedChlorinePage = () => {
                                 </div>
                               </div>
 
-                              <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/50 dark:to-orange-900/30 border border-orange-200 dark:border-orange-800 rounded-lg p-3 shadow-sm cursor-pointer hover:bg-orange-100 dark:hover:bg-orange-800/40 transition-colors"
+                              <div
+                                className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/50 dark:to-orange-900/30 border border-orange-200 dark:border-orange-800 rounded-lg p-3 shadow-sm cursor-pointer hover:bg-orange-100 dark:hover:bg-orange-800/40 transition-colors"
                                 onClick={() => {
-                                  // Find the division with max RCAs to open implicitly or just scroll to list? 
+                                  // Find the division with max RCAs to open implicitly or just scroll to list?
                                   // Actually, this is the summary card. Let's make it not clickable or maybe drill down to all divisions?
                                   // The requirement is "Chlorine Division Summary: Convert the "Total RCAs" badge in the division list".
-                                  // This is the SUMMARY CARD above the list. The requirement says "badge in the division list". 
-                                  // Let's check the list rendering below. 
-                                }}>
+                                  // This is the SUMMARY CARD above the list. The requirement says "badge in the division list".
+                                  // Let's check the list rendering below.
+                                }}
+                              >
                                 <div className="flex items-center gap-1.5 mb-1.5">
                                   <AlertCircle className="h-3.5 w-3.5 text-orange-500" />
                                   <span className="!text-[12px] font-medium text-orange-600 dark:text-orange-400">
@@ -11424,10 +12339,11 @@ const DetailedChlorinePage = () => {
                                     return (
                                       <div
                                         key={`${division.region}-${division.division}-${index}`}
-                                        className={`grid grid-cols-[180px_1fr_1fr_1fr] gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${index % 2 === 0
-                                          ? "bg-white dark:bg-gray-900"
-                                          : "bg-gray-50/50 dark:bg-gray-800/20"
-                                          }`}
+                                        className={`grid grid-cols-[180px_1fr_1fr_1fr] gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
+                                          index % 2 === 0
+                                            ? "bg-white dark:bg-gray-900"
+                                            : "bg-gray-50/50 dark:bg-gray-800/20"
+                                        }`}
                                         data-testid={`row-chlorine-division-${index}`}
                                       >
                                         <div className="flex items-center gap-1.5">
@@ -11640,6 +12556,9 @@ const DetailedChlorinePage = () => {
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-3 !py-3.5 w-[180px] border-r border-white/10">
                                     Scheme Name
                                   </TableHead>
+                                  <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-3 !py-3.5 w-[100px] border-r border-white/10">
+                                    Owner
+                                  </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-3 !py-3.5 w-[100px] border-r border-white/10">
                                     Village
                                   </TableHead>
@@ -11700,6 +12619,11 @@ const DetailedChlorinePage = () => {
                                           sensor.scheme_name
                                         )}
                                       </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
+                                        {sensor.owner ||
+                                          sensor.agency_type ||
+                                          "N/A"}
+                                      </TableCell>
                                       <TableCell className="!px-3 !py-2.5 !text-[12px] text-slate-700 dark:text-slate-300 truncate border-r border-teal-100/80 dark:border-teal-900/60">
                                         {sensor.village_name}
                                       </TableCell>
@@ -11707,33 +12631,39 @@ const DetailedChlorinePage = () => {
                                         {sensor.esr_name}
                                       </TableCell>
                                       <TableCell className="!px-3 !py-2.5 !text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-teal-100/80 dark:border-teal-900/60 max-w-[150px]">
-                                            {renderRemarkCell((esrIssuesMap?.get(`${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`) || []), `Remarks for ${sensor.esr_name}, ${sensor.village_name}`)}
-                                          </TableCell>
+                                        {renderRemarkCell(
+                                          esrIssuesMap?.get(
+                                            `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
+                                          ) || [],
+                                          `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
+                                        )}
+                                      </TableCell>
                                       <TableCell className="!px-3 !py-2.5 text-center text-sm">
                                         <Badge
-                                          className={`text-[10px] ${sensor.latest_chlorine_value !==
-                                            null &&
-                                            sensor.latest_chlorine_value >=
-                                            0.2 &&
-                                            sensor.latest_chlorine_value <= 0.5
-                                            ? "bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-400"
-                                            : sensor.latest_chlorine_value !==
+                                          className={`text-[10px] ${
+                                            sensor.latest_chlorine_value !==
                                               null &&
-                                              sensor.latest_chlorine_value <
-                                              0.2
-                                              ? "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-400"
+                                            sensor.latest_chlorine_value >=
+                                              0.2 &&
+                                            sensor.latest_chlorine_value <= 0.5
+                                              ? "bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-400"
                                               : sensor.latest_chlorine_value !==
-                                                null &&
-                                                sensor.latest_chlorine_value >
-                                                0.5
-                                                ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-400"
-                                                : "bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-400"
-                                            }`}
+                                                    null &&
+                                                  sensor.latest_chlorine_value <
+                                                    0.2
+                                                ? "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-400"
+                                                : sensor.latest_chlorine_value !==
+                                                      null &&
+                                                    sensor.latest_chlorine_value >
+                                                      0.5
+                                                  ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-400"
+                                                  : "bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-400"
+                                          }`}
                                         >
                                           {sensor.latest_chlorine_value !== null
                                             ? Number(
-                                              sensor.latest_chlorine_value,
-                                            ).toFixed(2)
+                                                sensor.latest_chlorine_value,
+                                              ).toFixed(2)
                                             : "N/A"}
                                         </Badge>
                                       </TableCell>
@@ -11885,10 +12815,11 @@ const DetailedChlorinePage = () => {
                                     return (
                                       <div
                                         key={`${division.region}-${division.division}-${index}`}
-                                        className={`grid grid-cols-[180px_1fr_1fr_1fr] gap-3 px-4 py-2 hover:bg-orange-50 dark:hover:bg-orange-950/30 transition-colors ${index % 2 === 0
-                                          ? "bg-white dark:bg-gray-900"
-                                          : "bg-orange-50/30 dark:bg-orange-900/10"
-                                          }`}
+                                        className={`grid grid-cols-[180px_1fr_1fr_1fr] gap-3 px-4 py-2 hover:bg-orange-50 dark:hover:bg-orange-950/30 transition-colors ${
+                                          index % 2 === 0
+                                            ? "bg-white dark:bg-gray-900"
+                                            : "bg-orange-50/30 dark:bg-orange-900/10"
+                                        }`}
                                         data-testid={`row-pressure-division-${index}`}
                                       >
                                         <div className="flex items-center gap-1.5">
@@ -11902,7 +12833,7 @@ const DetailedChlorinePage = () => {
                                                 division.division,
                                                 division.region,
                                                 "all_sensors" as any, // Cast to any because 'all_sensors' might not be in the type definition yet
-                                                `Total Pressure Sensors - ${division.division}`
+                                                `Total Pressure Sensors - ${division.division}`,
                                               )
                                             }
                                           >
@@ -11918,7 +12849,7 @@ const DetailedChlorinePage = () => {
                                             className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
                                             onClick={() =>
                                               (division.sensorsOptimal || 0) >
-                                              0 &&
+                                                0 &&
                                               handlePressureDivisionCellClick(
                                                 division.division,
                                                 division.region,
@@ -11945,7 +12876,7 @@ const DetailedChlorinePage = () => {
                                             className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
                                             onClick={() =>
                                               (division.sensorsBelow02 || 0) >
-                                              0 &&
+                                                0 &&
                                               handlePressureDivisionCellClick(
                                                 division.division,
                                                 division.region,
@@ -11972,7 +12903,7 @@ const DetailedChlorinePage = () => {
                                             className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
                                             onClick={() =>
                                               (division.sensorsAbove07 || 0) >
-                                              0 &&
+                                                0 &&
                                               handlePressureDivisionCellClick(
                                                 division.division,
                                                 division.region,
@@ -12106,6 +13037,9 @@ const DetailedChlorinePage = () => {
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-3 !py-3.5 w-[180px] border-r border-white/10">
                                     Scheme Name
                                   </TableHead>
+                                  <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-3 !py-3.5 w-[100px] border-r border-white/10">
+                                    Owner
+                                  </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-3 !py-3.5 w-[100px] border-r border-white/10">
                                     Village
                                   </TableHead>
@@ -12166,6 +13100,11 @@ const DetailedChlorinePage = () => {
                                           sensor.scheme_name
                                         )}
                                       </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
+                                        {sensor.owner ||
+                                          sensor.agency_type ||
+                                          "N/A"}
+                                      </TableCell>
                                       <TableCell className="!px-3 !py-2.5 !text-[12px] text-slate-700 dark:text-slate-300 truncate border-r border-orange-100/80 dark:border-orange-900/60">
                                         {sensor.village_name}
                                       </TableCell>
@@ -12174,35 +13113,41 @@ const DetailedChlorinePage = () => {
                                       </TableCell>
                                       <TableCell className="!px-3 !py-2.5 text-center text-sm">
                                         <Badge
-                                          className={`text-[10px] ${sensor.latest_pressure_value !==
-                                            null &&
-                                            sensor.latest_pressure_value >=
-                                            0.2 &&
-                                            sensor.latest_pressure_value <= 0.7
-                                            ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-400"
-                                            : sensor.latest_pressure_value !==
+                                          className={`text-[10px] ${
+                                            sensor.latest_pressure_value !==
                                               null &&
-                                              sensor.latest_pressure_value <
-                                              0.2
-                                              ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-400"
+                                            sensor.latest_pressure_value >=
+                                              0.2 &&
+                                            sensor.latest_pressure_value <= 0.7
+                                              ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-400"
                                               : sensor.latest_pressure_value !==
-                                                null &&
-                                                sensor.latest_pressure_value >
-                                                0.7
-                                                ? "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-400"
-                                                : "bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-400"
-                                            }`}
+                                                    null &&
+                                                  sensor.latest_pressure_value <
+                                                    0.2
+                                                ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-400"
+                                                : sensor.latest_pressure_value !==
+                                                      null &&
+                                                    sensor.latest_pressure_value >
+                                                      0.7
+                                                  ? "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-400"
+                                                  : "bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-400"
+                                          }`}
                                         >
                                           {sensor.latest_pressure_value !== null
                                             ? Number(
-                                              sensor.latest_pressure_value,
-                                            ).toFixed(2)
+                                                sensor.latest_pressure_value,
+                                              ).toFixed(2)
                                             : "N/A"}
                                         </Badge>
                                       </TableCell>
                                       <TableCell className="!px-3 !py-2.5 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-                                            {renderRemarkCell((esrIssuesMap?.get(`${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`) || []), `Remarks for ${sensor.esr_name}`)}
-                                          </TableCell>
+                                        {renderRemarkCell(
+                                          esrIssuesMap?.get(
+                                            `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
+                                          ) || [],
+                                          `Remarks for ${sensor.esr_name}`,
+                                        )}
+                                      </TableCell>
                                     </TableRow>
                                   ),
                                 )}
@@ -12286,7 +13231,9 @@ const DetailedChlorinePage = () => {
                                           variant="ghost"
                                           size="icon"
                                           className="h-6 w-6 text-violet-600 hover:text-violet-800 hover:bg-violet-200"
-                                          onClick={() => setWeekOffset(prev => prev + 1)}
+                                          onClick={() =>
+                                            setWeekOffset((prev) => prev + 1)
+                                          }
                                           title="Previous 7 Days"
                                         >
                                           <ChevronLeft className="h-4 w-4" />
@@ -12295,7 +13242,11 @@ const DetailedChlorinePage = () => {
                                           variant="ghost"
                                           size="icon"
                                           className="h-6 w-6 text-violet-600 hover:text-violet-800 disabled:opacity-20 hover:bg-violet-200"
-                                          onClick={() => setWeekOffset(prev => Math.max(0, prev - 1))}
+                                          onClick={() =>
+                                            setWeekOffset((prev) =>
+                                              Math.max(0, prev - 1),
+                                            )
+                                          }
                                           disabled={weekOffset === 0}
                                           title="Next 7 Days"
                                         >
@@ -12303,8 +13254,12 @@ const DetailedChlorinePage = () => {
                                         </Button>
                                       </div>
                                     </div>
-                                    <div className="text-[10px] font-normal text-violet-600 dark:text-violet-300 mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]" title={weeklyLpcdStats?.weekLabel}>
-                                      {weeklyLpcdStats?.weekLabel || "Loading..."}
+                                    <div
+                                      className="text-[10px] font-normal text-violet-600 dark:text-violet-300 mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]"
+                                      title={weeklyLpcdStats?.weekLabel}
+                                    >
+                                      {weeklyLpcdStats?.weekLabel ||
+                                        "Loading..."}
                                     </div>
                                   </div>
                                   {overallComparisonData.data.map(
@@ -12324,15 +13279,29 @@ const DetailedChlorinePage = () => {
 
                                 {/* Current Day Metrics */}
                                 <div className="bg-white dark:bg-gray-900">
-
                                   {/* Weekly Average Rows */}
                                   {[
-                                    { key: 'above_55', label: '>55 LPCD', color: 'bg-emerald-400' },
-                                    { key: 'below_55', label: '<55 LPCD', color: 'bg-orange-400' },
-                                    { key: 'no_water', label: 'No Water', color: 'bg-gray-400' },
+                                    {
+                                      key: "above_55",
+                                      label: ">55 LPCD",
+                                      color: "bg-emerald-400",
+                                    },
+                                    {
+                                      key: "below_55",
+                                      label: "<55 LPCD",
+                                      color: "bg-orange-400",
+                                    },
+                                    {
+                                      key: "no_water",
+                                      label: "No Water",
+                                      color: "bg-gray-400",
+                                    },
                                   ].map((cat) => {
-                                    const villageStats = weeklyLpcdStats?.villageStats || [];
-                                    const weekLabel = weeklyLpcdStats?.weekLabel || "Loading...";
+                                    const villageStats =
+                                      weeklyLpcdStats?.villageStats || [];
+                                    const weekLabel =
+                                      weeklyLpcdStats?.weekLabel ||
+                                      "Loading...";
 
                                     return (
                                       <div
@@ -12344,66 +13313,96 @@ const DetailedChlorinePage = () => {
                                       >
                                         <div className="px-3 py-2.5 text-xs font-medium text-indigo-700 dark:text-indigo-300 border-r-2 border-indigo-200 dark:border-indigo-800 flex flex-col justify-center bg-indigo-50 dark:bg-indigo-950/40 sticky left-0 z-10">
                                           <div className="flex items-center">
-                                            <span className={`w-1.5 h-1.5 rounded-full ${cat.color} mr-1.5`}></span>
-                                            <span className="text-[14px] font-extrabold">{cat.label}</span>
+                                            <span
+                                              className={`w-1.5 h-1.5 rounded-full ${cat.color} mr-1.5`}
+                                            ></span>
+                                            <span className="text-[14px] font-extrabold">
+                                              {cat.label}
+                                            </span>
                                           </div>
                                         </div>
-                                        {overallComparisonData.data.map((regionData) => {
-                                          const regionStat = villageStats.find(s => s.region === regionData.region);
-                                          const value = regionStat ? (regionStat as any)[cat.key] : 0;
+                                        {overallComparisonData.data.map(
+                                          (regionData) => {
+                                            const regionStat =
+                                              villageStats.find(
+                                                (s) =>
+                                                  s.region ===
+                                                  regionData.region,
+                                              );
+                                            const value = regionStat
+                                              ? (regionStat as any)[cat.key]
+                                              : 0;
 
-                                          return (
-                                            <div
-                                              key={`weekly-val-${cat.key}-${regionData.region}`}
-                                              className="px-2 py-2.5 flex items-center justify-center border-r border-indigo-100 dark:border-indigo-900"
-                                            >
-                                              <button
-                                                onClick={() =>
-                                                  value > 0 &&
-                                                  setClickedComparisonCell({
-                                                    category: `weekly_${cat.key}`,
-                                                    region: regionData.region,
-                                                    label: `Weekly Avg ${cat.label} - ${regionData.region}`,
-                                                    isLpcd: true,
-                                                    dates: weeklyLpcdStats?.dates
-                                                  })
-                                                }
-                                                className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${value > 0 ? `${cat.key === 'no_water' ? 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800' : cat.key === 'below_55' ? 'text-gray-700 dark:text-gray-300 hover:bg-orange-200 dark:hover:bg-orange-800' : 'text-gray-700 dark:text-gray-300 hover:bg-emerald-200 dark:hover:bg-emerald-800'} cursor-pointer shadow-sm` : "text-gray-400 dark:text-gray-600"}`}
+                                            return (
+                                              <div
+                                                key={`weekly-val-${cat.key}-${regionData.region}`}
+                                                className="px-2 py-2.5 flex items-center justify-center border-r border-indigo-100 dark:border-indigo-900"
                                               >
-                                                {value}
-                                              </button>
-                                            </div>
-                                          );
-                                        })}
+                                                <button
+                                                  onClick={() =>
+                                                    value > 0 &&
+                                                    setClickedComparisonCell({
+                                                      category: `weekly_${cat.key}`,
+                                                      region: regionData.region,
+                                                      label: `Weekly Avg ${cat.label} - ${regionData.region}`,
+                                                      isLpcd: true,
+                                                      dates:
+                                                        weeklyLpcdStats?.dates,
+                                                    })
+                                                  }
+                                                  className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${value > 0 ? `${cat.key === "no_water" ? "text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800" : cat.key === "below_55" ? "text-gray-700 dark:text-gray-300 hover:bg-orange-200 dark:hover:bg-orange-800" : "text-gray-700 dark:text-gray-300 hover:bg-emerald-200 dark:hover:bg-emerald-800"} cursor-pointer shadow-sm` : "text-gray-400 dark:text-gray-600"}`}
+                                                >
+                                                  {value}
+                                                </button>
+                                              </div>
+                                            );
+                                          },
+                                        )}
                                         <div className="px-2 py-2.5 flex items-center justify-center bg-indigo-50/50 dark:bg-indigo-950/30">
                                           <button
                                             onClick={() =>
-                                              villageStats.reduce((sum, s) => sum + ((s as any)[cat.key] || 0), 0) > 0 &&
+                                              villageStats.reduce(
+                                                (sum, s) =>
+                                                  sum +
+                                                  ((s as any)[cat.key] || 0),
+                                                0,
+                                              ) > 0 &&
                                               setClickedComparisonCell({
                                                 category: `weekly_${cat.key}`,
                                                 region: "All Regions",
                                                 label: `Weekly Avg ${cat.label} - All Regions`,
                                                 isLpcd: true,
-                                                dates: weeklyLpcdStats?.dates
+                                                dates: weeklyLpcdStats?.dates,
                                               })
                                             }
-                                            className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${villageStats.reduce((sum, s) => sum + ((s as any)[cat.key] || 0), 0) > 0
-                                              ? `${cat.key === 'no_water'
-                                                ? 'text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'
-                                                : cat.key === 'below_55'
-                                                  ? 'text-orange-800 dark:text-orange-200 bg-orange-100 dark:bg-orange-900/40 hover:bg-orange-200 dark:hover:bg-orange-800'
-                                                  : 'text-emerald-800 dark:text-emerald-200 bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 dark:hover:bg-emerald-800'
-                                              } cursor-pointer shadow-sm`
-                                              : "text-indigo-800 dark:text-indigo-200"
-                                              }`}
+                                            className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${
+                                              villageStats.reduce(
+                                                (sum, s) =>
+                                                  sum +
+                                                  ((s as any)[cat.key] || 0),
+                                                0,
+                                              ) > 0
+                                                ? `${
+                                                    cat.key === "no_water"
+                                                      ? "text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
+                                                      : cat.key === "below_55"
+                                                        ? "text-orange-800 dark:text-orange-200 bg-orange-100 dark:bg-orange-900/40 hover:bg-orange-200 dark:hover:bg-orange-800"
+                                                        : "text-emerald-800 dark:text-emerald-200 bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 dark:hover:bg-emerald-800"
+                                                  } cursor-pointer shadow-sm`
+                                                : "text-indigo-800 dark:text-indigo-200"
+                                            }`}
                                           >
-                                            {villageStats.reduce((sum, s) => sum + ((s as any)[cat.key] || 0), 0)}
+                                            {villageStats.reduce(
+                                              (sum, s) =>
+                                                sum +
+                                                ((s as any)[cat.key] || 0),
+                                              0,
+                                            )}
                                           </button>
                                         </div>
                                       </div>
                                     );
                                   })}
-
 
                                   {/* LPCD Total Row - Restoration */}
                                   <div
@@ -12418,11 +13417,15 @@ const DetailedChlorinePage = () => {
                                     </div>
                                     {overallComparisonData.data.map(
                                       (regionData, idx) => {
-                                        const regionStat = weeklyLpcdStats?.villageStats?.find(s => s.region === regionData.region);
+                                        const regionStat =
+                                          weeklyLpcdStats?.villageStats?.find(
+                                            (s) =>
+                                              s.region === regionData.region,
+                                          );
                                         const weeklyTotal = regionStat
                                           ? Number(regionStat.above_55 || 0) +
-                                          Number(regionStat.below_55 || 0) +
-                                          Number(regionStat.no_water || 0)
+                                            Number(regionStat.below_55 || 0) +
+                                            Number(regionStat.no_water || 0)
                                           : 0;
                                         return (
                                           <div
@@ -12432,11 +13435,12 @@ const DetailedChlorinePage = () => {
                                             <button
                                               onClick={() =>
                                                 setClickedComparisonCell({
-                                                  category: "weekly_all_villages",
+                                                  category:
+                                                    "weekly_all_villages",
                                                   region: regionData.region,
                                                   label: `Weekly Avg All Villages - ${regionData.region}`,
                                                   isLpcd: true,
-                                                  dates: weeklyLpcdStats?.dates
+                                                  dates: weeklyLpcdStats?.dates,
                                                 })
                                               }
                                               className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-violet-100 dark:bg-violet-900 text-dark-700 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-800 transition-colors"
@@ -12449,19 +13453,25 @@ const DetailedChlorinePage = () => {
                                     )}
                                     <div className="px-2 py-2.5 flex items-center justify-center bg-violet-100/50 dark:bg-violet-950/50">
                                       {(() => {
-                                        const weeklyAllRegionsTotal = weeklyLpcdStats?.villageStats?.reduce(
-                                          (sum, r) => sum + (Number(r.above_55 || 0) + Number(r.below_55 || 0) + Number(r.no_water || 0)),
-                                          0,
-                                        ) || 0;
+                                        const weeklyAllRegionsTotal =
+                                          weeklyLpcdStats?.villageStats?.reduce(
+                                            (sum, r) =>
+                                              sum +
+                                              (Number(r.above_55 || 0) +
+                                                Number(r.below_55 || 0) +
+                                                Number(r.no_water || 0)),
+                                            0,
+                                          ) || 0;
                                         return (
                                           <button
                                             onClick={() =>
                                               setClickedComparisonCell({
                                                 category: "weekly_all_villages",
                                                 region: "All Regions",
-                                                label: "Weekly Avg All Villages - All Regions",
+                                                label:
+                                                  "Weekly Avg All Villages - All Regions",
                                                 isLpcd: true,
-                                                dates: weeklyLpcdStats?.dates
+                                                dates: weeklyLpcdStats?.dates,
                                               })
                                             }
                                             className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-violet-200 dark:bg-violet-800 text-dark-700 dark:text-violet-200 hover:bg-violet-300 dark:hover:bg-violet-700 transition-colors"
@@ -12523,29 +13533,56 @@ const DetailedChlorinePage = () => {
                                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-2"></span>
                                       Online
                                     </div>
-                                    {overallComparisonData.data.map((regionData) => {
-                                      const stat = flowmeterStats?.data.find(s => s.region === regionData.region);
-                                      const val = stat?.online || 0;
-                                      return (
-                                        <div key={`flow-online-${regionData.region}`} className="px-2 py-2.5 flex items-center justify-center border-r border-indigo-100 dark:border-indigo-900">
-                                          <button
-                                            onClick={() => val > 0 && setClickedFlowmeterCell({ category: 'online', region: regionData.region, label: `Online Flowmeters - ${regionData.region}` })}
-                                            className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${val > 0 ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200" : "text-gray-400"}`}
+                                    {overallComparisonData.data.map(
+                                      (regionData) => {
+                                        const stat = flowmeterStats?.data.find(
+                                          (s) => s.region === regionData.region,
+                                        );
+                                        const val = stat?.online || 0;
+                                        return (
+                                          <div
+                                            key={`flow-online-${regionData.region}`}
+                                            className="px-2 py-2.5 flex items-center justify-center border-r border-indigo-100 dark:border-indigo-900"
                                           >
-                                            {val}
-                                          </button>
-                                        </div>
-                                      );
-                                    })}
+                                            <button
+                                              onClick={() =>
+                                                val > 0 &&
+                                                setClickedFlowmeterCell({
+                                                  category: "online",
+                                                  region: regionData.region,
+                                                  label: `Online Flowmeters - ${regionData.region}`,
+                                                })
+                                              }
+                                              className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${val > 0 ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200" : "text-gray-400"}`}
+                                            >
+                                              {val}
+                                            </button>
+                                          </div>
+                                        );
+                                      },
+                                    )}
                                     <div className="px-2 py-2.5 flex items-center justify-center bg-indigo-50/50 dark:bg-indigo-950/30">
                                       <button
                                         onClick={() => {
-                                          const total = flowmeterStats?.data.reduce((sum, s) => sum + (s.online || 0), 0) || 0;
-                                          total > 0 && setClickedFlowmeterCell({ category: 'online', region: 'All Regions', label: 'Online Flowmeters - All Regions' });
+                                          const total =
+                                            flowmeterStats?.data.reduce(
+                                              (sum, s) => sum + (s.online || 0),
+                                              0,
+                                            ) || 0;
+                                          total > 0 &&
+                                            setClickedFlowmeterCell({
+                                              category: "online",
+                                              region: "All Regions",
+                                              label:
+                                                "Online Flowmeters - All Regions",
+                                            });
                                         }}
                                         className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-emerald-200 text-emerald-800"
                                       >
-                                        {flowmeterStats?.data.reduce((sum, s) => sum + (s.online || 0), 0) || 0}
+                                        {flowmeterStats?.data.reduce(
+                                          (sum, s) => sum + (s.online || 0),
+                                          0,
+                                        ) || 0}
                                       </button>
                                     </div>
                                   </div>
@@ -12561,29 +13598,57 @@ const DetailedChlorinePage = () => {
                                       <span className="w-1.5 h-1.5 rounded-full bg-red-400 mr-2"></span>
                                       Offline
                                     </div>
-                                    {overallComparisonData.data.map((regionData) => {
-                                      const stat = flowmeterStats?.data.find(s => s.region === regionData.region);
-                                      const val = stat?.offline || 0;
-                                      return (
-                                        <div key={`flow-offline-${regionData.region}`} className="px-2 py-2.5 flex items-center justify-center border-r border-indigo-100 dark:border-indigo-900">
-                                          <button
-                                            onClick={() => val > 0 && setClickedFlowmeterCell({ category: 'offline', region: regionData.region, label: `Offline Flowmeters - ${regionData.region}` })}
-                                            className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${val > 0 ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 hover:bg-red-200" : "text-gray-400"}`}
+                                    {overallComparisonData.data.map(
+                                      (regionData) => {
+                                        const stat = flowmeterStats?.data.find(
+                                          (s) => s.region === regionData.region,
+                                        );
+                                        const val = stat?.offline || 0;
+                                        return (
+                                          <div
+                                            key={`flow-offline-${regionData.region}`}
+                                            className="px-2 py-2.5 flex items-center justify-center border-r border-indigo-100 dark:border-indigo-900"
                                           >
-                                            {val}
-                                          </button>
-                                        </div>
-                                      );
-                                    })}
+                                            <button
+                                              onClick={() =>
+                                                val > 0 &&
+                                                setClickedFlowmeterCell({
+                                                  category: "offline",
+                                                  region: regionData.region,
+                                                  label: `Offline Flowmeters - ${regionData.region}`,
+                                                })
+                                              }
+                                              className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${val > 0 ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 hover:bg-red-200" : "text-gray-400"}`}
+                                            >
+                                              {val}
+                                            </button>
+                                          </div>
+                                        );
+                                      },
+                                    )}
                                     <div className="px-2 py-2.5 flex items-center justify-center bg-indigo-50/50 dark:bg-indigo-950/30">
                                       <button
                                         onClick={() => {
-                                          const total = flowmeterStats?.data.reduce((sum, s) => sum + (s.offline || 0), 0) || 0;
-                                          total > 0 && setClickedFlowmeterCell({ category: 'offline', region: 'All Regions', label: 'Offline Flowmeters - All Regions' });
+                                          const total =
+                                            flowmeterStats?.data.reduce(
+                                              (sum, s) =>
+                                                sum + (s.offline || 0),
+                                              0,
+                                            ) || 0;
+                                          total > 0 &&
+                                            setClickedFlowmeterCell({
+                                              category: "offline",
+                                              region: "All Regions",
+                                              label:
+                                                "Offline Flowmeters - All Regions",
+                                            });
                                         }}
                                         className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-red-200 text-red-800"
                                       >
-                                        {flowmeterStats?.data.reduce((sum, s) => sum + (s.offline || 0), 0) || 0}
+                                        {flowmeterStats?.data.reduce(
+                                          (sum, s) => sum + (s.offline || 0),
+                                          0,
+                                        ) || 0}
                                       </button>
                                     </div>
                                   </div>
@@ -12599,17 +13664,32 @@ const DetailedChlorinePage = () => {
                                       <span className="w-2 h-2 rounded-full bg-indigo-400 mr-2"></span>
                                       Total
                                     </div>
-                                    {overallComparisonData.data.map((regionData) => {
-                                      const stat = flowmeterStats?.data.find(s => s.region === regionData.region);
-                                      const total = (stat?.online || 0) + (stat?.offline || 0);
-                                      return (
-                                        <div key={`flow-total-${regionData.region}`} className="px-2 py-2.5 flex items-center justify-center border-r border-indigo-200 dark:border-indigo-800 font-bold text-[16px]">
-                                          {total}
-                                        </div>
-                                      );
-                                    })}
+                                    {overallComparisonData.data.map(
+                                      (regionData) => {
+                                        const stat = flowmeterStats?.data.find(
+                                          (s) => s.region === regionData.region,
+                                        );
+                                        const total =
+                                          (stat?.online || 0) +
+                                          (stat?.offline || 0);
+                                        return (
+                                          <div
+                                            key={`flow-total-${regionData.region}`}
+                                            className="px-2 py-2.5 flex items-center justify-center border-r border-indigo-200 dark:border-indigo-800 font-bold text-[16px]"
+                                          >
+                                            {total}
+                                          </div>
+                                        );
+                                      },
+                                    )}
                                     <div className="px-2 py-2.5 flex items-center justify-center bg-indigo-100/50 dark:bg-indigo-950/50 font-bold text-[16px]">
-                                      {flowmeterStats?.data.reduce((sum, s) => sum + (s.online || 0) + (s.offline || 0), 0) || 0}
+                                      {flowmeterStats?.data.reduce(
+                                        (sum, s) =>
+                                          sum +
+                                          (s.online || 0) +
+                                          (s.offline || 0),
+                                        0,
+                                      ) || 0}
                                     </div>
                                   </div>
                                 </div>
@@ -12623,7 +13703,8 @@ const DetailedChlorinePage = () => {
                                     <div className="bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-2.5 flex items-center gap-2">
                                       <Home className="h-4 w-4 text-white" />
                                       <span className="text-white font-semibold text-sm tracking-wide">
-                                        LPCD DETAILED STATISTICS (Villages) (Daily Data)
+                                        LPCD DETAILED STATISTICS (Villages)
+                                        (Daily Data)
                                       </span>
                                       <span className="text-white/90 text-[11px] font-bold uppercase tracking-wider bg-white/10 px-2 py-0.5 rounded border border-white/20 shadow-sm">
                                         No.s Represent Villages
@@ -12694,11 +13775,15 @@ const DetailedChlorinePage = () => {
                                         <div className="px-2 py-2.5 flex items-center justify-center bg-violet-50/50 dark:bg-violet-950/30">
                                           <button
                                             onClick={() =>
-                                              overallComparisonData.data.reduce((sum, r) => sum + r.above_55, 0) > 0 &&
+                                              overallComparisonData.data.reduce(
+                                                (sum, r) => sum + r.above_55,
+                                                0,
+                                              ) > 0 &&
                                               setClickedComparisonCell({
                                                 category: "above_55",
                                                 region: "All Regions",
-                                                label: "Villages >55 LPCD - All Regions",
+                                                label:
+                                                  "Villages >55 LPCD - All Regions",
                                                 isLpcd: true,
                                               })
                                             }
@@ -12750,11 +13835,15 @@ const DetailedChlorinePage = () => {
                                         <div className="px-2 py-2.5 flex items-center justify-center bg-violet-50/50 dark:bg-violet-950/30">
                                           <button
                                             onClick={() =>
-                                              overallComparisonData.data.reduce((sum, r) => sum + r.below_55, 0) > 0 &&
+                                              overallComparisonData.data.reduce(
+                                                (sum, r) => sum + r.below_55,
+                                                0,
+                                              ) > 0 &&
                                               setClickedComparisonCell({
                                                 category: "below_55",
                                                 region: "All Regions",
-                                                label: "Villages <55 LPCD - All Regions",
+                                                label:
+                                                  "Villages <55 LPCD - All Regions",
                                                 isLpcd: true,
                                               })
                                             }
@@ -12806,11 +13895,15 @@ const DetailedChlorinePage = () => {
                                         <div className="px-2 py-2.5 flex items-center justify-center bg-violet-50/50 dark:bg-violet-950/30">
                                           <button
                                             onClick={() =>
-                                              overallComparisonData.data.reduce((sum, r) => sum + r.no_water, 0) > 0 &&
+                                              overallComparisonData.data.reduce(
+                                                (sum, r) => sum + r.no_water,
+                                                0,
+                                              ) > 0 &&
                                               setClickedComparisonCell({
                                                 category: "no_water",
                                                 region: "All Regions",
-                                                label: "Villages No Water - All Regions",
+                                                label:
+                                                  "Villages No Water - All Regions",
                                                 isLpcd: true,
                                               })
                                             }
@@ -12830,8 +13923,6 @@ const DetailedChlorinePage = () => {
                                           7-Day Consistent
                                         </span>
                                       </div>
-
-
 
                                       {/* Consistent >55 LPCD Row */}
                                       <div
@@ -12853,9 +13944,10 @@ const DetailedChlorinePage = () => {
                                               <button
                                                 onClick={() =>
                                                   regionData.consistent_above_55 >
-                                                  0 &&
+                                                    0 &&
                                                   setClickedComparisonCell({
-                                                    category: "consistent_above_55",
+                                                    category:
+                                                      "consistent_above_55",
                                                     region: regionData.region,
                                                     label: `Consistent >55 LPCD (7 days) - ${regionData.region}`,
                                                     isLpcd: true,
@@ -12872,18 +13964,24 @@ const DetailedChlorinePage = () => {
                                         <div className="px-2 py-2.5 flex items-center justify-center bg-violet-50/50 dark:bg-violet-950/30">
                                           <button
                                             onClick={() =>
-                                              overallComparisonData.data.reduce((sum, r) => sum + r.consistent_above_55, 0) > 0 &&
+                                              overallComparisonData.data.reduce(
+                                                (sum, r) =>
+                                                  sum + r.consistent_above_55,
+                                                0,
+                                              ) > 0 &&
                                               setClickedComparisonCell({
                                                 category: "consistent_above_55",
                                                 region: "All Regions",
-                                                label: "Consistent >55 LPCD (7 days) - All Regions",
+                                                label:
+                                                  "Consistent >55 LPCD (7 days) - All Regions",
                                                 isLpcd: true,
                                               })
                                             }
                                             className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${overallComparisonData.data.reduce((sum, r) => sum + r.consistent_above_55, 0) > 0 ? "bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200 hover:bg-green-300 dark:hover:bg-green-700 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
                                           >
                                             {overallComparisonData.data.reduce(
-                                              (sum, r) => sum + r.consistent_above_55,
+                                              (sum, r) =>
+                                                sum + r.consistent_above_55,
                                               0,
                                             )}
                                           </button>
@@ -12910,9 +14008,10 @@ const DetailedChlorinePage = () => {
                                               <button
                                                 onClick={() =>
                                                   regionData.consistent_below_55 >
-                                                  0 &&
+                                                    0 &&
                                                   setClickedComparisonCell({
-                                                    category: "consistent_below_55",
+                                                    category:
+                                                      "consistent_below_55",
                                                     region: regionData.region,
                                                     label: `Consistent <55 LPCD (7 days) - ${regionData.region}`,
                                                     isLpcd: true,
@@ -12929,18 +14028,24 @@ const DetailedChlorinePage = () => {
                                         <div className="px-2 py-2.5 flex items-center justify-center bg-violet-50/50 dark:bg-violet-950/30">
                                           <button
                                             onClick={() =>
-                                              overallComparisonData.data.reduce((sum, r) => sum + r.consistent_below_55, 0) > 0 &&
+                                              overallComparisonData.data.reduce(
+                                                (sum, r) =>
+                                                  sum + r.consistent_below_55,
+                                                0,
+                                              ) > 0 &&
                                               setClickedComparisonCell({
                                                 category: "consistent_below_55",
                                                 region: "All Regions",
-                                                label: "Consistent <55 LPCD (7 days) - All Regions",
+                                                label:
+                                                  "Consistent <55 LPCD (7 days) - All Regions",
                                                 isLpcd: true,
                                               })
                                             }
                                             className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${overallComparisonData.data.reduce((sum, r) => sum + r.consistent_below_55, 0) > 0 ? "bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200 hover:bg-red-300 dark:hover:bg-red-700 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
                                           >
                                             {overallComparisonData.data.reduce(
-                                              (sum, r) => sum + r.consistent_below_55,
+                                              (sum, r) =>
+                                                sum + r.consistent_below_55,
                                               0,
                                             )}
                                           </button>
@@ -12966,9 +14071,11 @@ const DetailedChlorinePage = () => {
                                             >
                                               <button
                                                 onClick={() =>
-                                                  regionData.consistent_no_water > 0 &&
+                                                  regionData.consistent_no_water >
+                                                    0 &&
                                                   setClickedComparisonCell({
-                                                    category: "consistent_no_water",
+                                                    category:
+                                                      "consistent_no_water",
                                                     region: regionData.region,
                                                     label: `Consistent No Water (7 Days) - ${regionData.region}`,
                                                     isLpcd: true,
@@ -12985,11 +14092,16 @@ const DetailedChlorinePage = () => {
                                         <div className="px-2 py-2.5 flex items-center justify-center bg-violet-50/50 dark:bg-violet-950/30">
                                           <button
                                             onClick={() =>
-                                              overallComparisonData.data.reduce((sum, r) => sum + r.consistent_no_water, 0) > 0 &&
+                                              overallComparisonData.data.reduce(
+                                                (sum, r) =>
+                                                  sum + r.consistent_no_water,
+                                                0,
+                                              ) > 0 &&
                                               setClickedComparisonCell({
                                                 category: "consistent_no_water",
                                                 region: "All Regions",
-                                                label: "Consistent No Water (7 Days) - All Regions",
+                                                label:
+                                                  "Consistent No Water (7 Days) - All Regions",
                                                 isLpcd: true,
                                               })
                                             }
@@ -13054,8 +14166,9 @@ const DetailedChlorinePage = () => {
                           )}
 
                           {/* Scheme LPCD Statistics Section */}
-                          {mainTab === "lpcd" && lpcdSubTab === "scheme" && (
-                            isLoadingSchemeRegionComparison ? (
+                          {mainTab === "lpcd" &&
+                            lpcdSubTab === "scheme" &&
+                            (isLoadingSchemeRegionComparison ? (
                               <div className="p-4">
                                 <Skeleton className="h-48 w-full" />
                               </div>
@@ -13087,7 +14200,9 @@ const DetailedChlorinePage = () => {
                                             variant="ghost"
                                             size="icon"
                                             className="h-6 w-6 text-purple-600 hover:text-purple-800 hover:bg-purple-200"
-                                            onClick={() => setWeekOffset(prev => prev + 1)}
+                                            onClick={() =>
+                                              setWeekOffset((prev) => prev + 1)
+                                            }
                                             title="Previous 7 Days"
                                           >
                                             <ChevronLeft className="h-4 w-4" />
@@ -13096,7 +14211,11 @@ const DetailedChlorinePage = () => {
                                             variant="ghost"
                                             size="icon"
                                             className="h-6 w-6 text-purple-600 hover:text-purple-800 disabled:opacity-20 hover:bg-purple-200"
-                                            onClick={() => setWeekOffset(prev => Math.max(0, prev - 1))}
+                                            onClick={() =>
+                                              setWeekOffset((prev) =>
+                                                Math.max(0, prev - 1),
+                                              )
+                                            }
                                             disabled={weekOffset === 0}
                                             title="Next 7 Days"
                                           >
@@ -13104,18 +14223,24 @@ const DetailedChlorinePage = () => {
                                           </Button>
                                         </div>
                                       </div>
-                                      <div className="text-[10px] font-normal text-purple-600 dark:text-purple-300 mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]" title={weeklyLpcdStats?.weekLabel}>
-                                        {weeklyLpcdStats?.weekLabel || "Loading..."}
+                                      <div
+                                        className="text-[10px] font-normal text-purple-600 dark:text-purple-300 mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]"
+                                        title={weeklyLpcdStats?.weekLabel}
+                                      >
+                                        {weeklyLpcdStats?.weekLabel ||
+                                          "Loading..."}
                                       </div>
                                     </div>
-                                    {schemeLpcdRegionComparison?.data?.map((regionData) => (
-                                      <div
-                                        key={`scheme-lpcd-header-${regionData.region}`}
-                                        className="bg-purple-50 dark:bg-purple-950 px-2 py-3 text-center font-bold text-[14px] text-purple-800 dark:text-purple-200 border-r border-purple-200 dark:border-purple-800"
-                                      >
-                                        {regionData.region}
-                                      </div>
-                                    ))}
+                                    {schemeLpcdRegionComparison?.data?.map(
+                                      (regionData) => (
+                                        <div
+                                          key={`scheme-lpcd-header-${regionData.region}`}
+                                          className="bg-purple-50 dark:bg-purple-950 px-2 py-3 text-center font-bold text-[14px] text-purple-800 dark:text-purple-200 border-r border-purple-200 dark:border-purple-800"
+                                        >
+                                          {regionData.region}
+                                        </div>
+                                      ),
+                                    )}
                                     <div className="bg-purple-100 dark:bg-purple-900 px-2 py-3 text-center font-bold text-[14px] text-purple-900 dark:text-purple-100">
                                       TOTAL
                                     </div>
@@ -13123,15 +14248,29 @@ const DetailedChlorinePage = () => {
 
                                   {/* Current Day Metrics */}
                                   <div className="bg-white dark:bg-gray-900">
-
                                     {/* Weekly Average Rows */}
                                     {[
-                                      { key: 'above_55', label: '>55 LPCD', color: 'bg-emerald-400' },
-                                      { key: 'below_55', label: '<55 LPCD', color: 'bg-orange-400' },
-                                      { key: 'no_water', label: 'No Water', color: 'bg-gray-400' },
+                                      {
+                                        key: "above_55",
+                                        label: ">55 LPCD",
+                                        color: "bg-emerald-400",
+                                      },
+                                      {
+                                        key: "below_55",
+                                        label: "<55 LPCD",
+                                        color: "bg-orange-400",
+                                      },
+                                      {
+                                        key: "no_water",
+                                        label: "No Water",
+                                        color: "bg-gray-400",
+                                      },
                                     ].map((cat) => {
-                                      const schemeStats = weeklyLpcdStats?.schemeStats || [];
-                                      const weekLabel = weeklyLpcdStats?.weekLabel || "Loading...";
+                                      const schemeStats =
+                                        weeklyLpcdStats?.schemeStats || [];
+                                      const weekLabel =
+                                        weeklyLpcdStats?.weekLabel ||
+                                        "Loading...";
 
                                       return (
                                         <div
@@ -13143,55 +14282,89 @@ const DetailedChlorinePage = () => {
                                         >
                                           <div className="px-3 py-2.5 text-[14px] font-medium text-indigo-700 dark:text-indigo-300 border-r-2 border-indigo-200 dark:border-indigo-800 flex flex-col justify-center bg-indigo-50 dark:bg-indigo-950/40 sticky left-0 z-10">
                                             <div className="flex items-center">
-                                              <span className={`w-1.5 h-1.5 rounded-full ${cat.color} mr-1.5`}></span>
-                                              <span className="text-[11px] font-extrabold">{cat.label}</span>
+                                              <span
+                                                className={`w-1.5 h-1.5 rounded-full ${cat.color} mr-1.5`}
+                                              ></span>
+                                              <span className="text-[11px] font-extrabold">
+                                                {cat.label}
+                                              </span>
                                             </div>
                                           </div>
-                                          {schemeLpcdRegionComparison.data.map((regionData) => {
-                                            const regionStat = schemeStats.find(s => s.region === regionData.region);
-                                            const value = regionStat ? (regionStat as any)[cat.key] : 0;
-                                            return (
-                                              <div
-                                                key={`weekly-scheme-val-${cat.key}-${regionData.region}`}
-                                                className="px-2 py-2.5 flex items-center justify-center border-r border-indigo-100 dark:border-indigo-900"
-                                              >
-                                                <button
-                                                  onClick={() =>
-                                                    value > 0 &&
-                                                    setClickedSchemeComparisonCell({
-                                                      category: `weekly_${cat.key}`,
-                                                      region: regionData.region,
-                                                      label: `Weekly Avg (${cat.label}) - ${regionData.region}`,
-                                                      dates: weeklyLpcdStats?.dates
-                                                    })
-                                                  }
-                                                  className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${value > 0
-                                                    ? "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-900/60 cursor-pointer shadow-sm"
-                                                    : "text-gray-400 dark:text-gray-600"
-                                                    }`}
+                                          {schemeLpcdRegionComparison.data.map(
+                                            (regionData) => {
+                                              const regionStat =
+                                                schemeStats.find(
+                                                  (s) =>
+                                                    s.region ===
+                                                    regionData.region,
+                                                );
+                                              const value = regionStat
+                                                ? (regionStat as any)[cat.key]
+                                                : 0;
+                                              return (
+                                                <div
+                                                  key={`weekly-scheme-val-${cat.key}-${regionData.region}`}
+                                                  className="px-2 py-2.5 flex items-center justify-center border-r border-indigo-100 dark:border-indigo-900"
                                                 >
-                                                  {value}
-                                                </button>
-                                              </div>
-                                            );
-                                          })}
+                                                  <button
+                                                    onClick={() =>
+                                                      value > 0 &&
+                                                      setClickedSchemeComparisonCell(
+                                                        {
+                                                          category: `weekly_${cat.key}`,
+                                                          region:
+                                                            regionData.region,
+                                                          label: `Weekly Avg (${cat.label}) - ${regionData.region}`,
+                                                          dates:
+                                                            weeklyLpcdStats?.dates,
+                                                        },
+                                                      )
+                                                    }
+                                                    className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${
+                                                      value > 0
+                                                        ? "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-900/60 cursor-pointer shadow-sm"
+                                                        : "text-gray-400 dark:text-gray-600"
+                                                    }`}
+                                                  >
+                                                    {value}
+                                                  </button>
+                                                </div>
+                                              );
+                                            },
+                                          )}
                                           <div className="px-2 py-2.5 flex items-center justify-center bg-indigo-50/50 dark:bg-indigo-950/30">
                                             <button
                                               onClick={() =>
-                                                schemeStats.reduce((sum, s) => sum + ((s as any)[cat.key] || 0), 0) > 0 &&
+                                                schemeStats.reduce(
+                                                  (sum, s) =>
+                                                    sum +
+                                                    ((s as any)[cat.key] || 0),
+                                                  0,
+                                                ) > 0 &&
                                                 setClickedSchemeComparisonCell({
                                                   category: `weekly_${cat.key}`,
                                                   region: "All Regions",
                                                   label: `Weekly Avg (${cat.label}) - All Regions`,
-                                                  dates: weeklyLpcdStats?.dates
+                                                  dates: weeklyLpcdStats?.dates,
                                                 })
                                               }
-                                              className={`font-bold text-[16px] px-2 py-1 rounded-md transition-all ${schemeStats.reduce((sum, s) => sum + ((s as any)[cat.key] || 0), 0) > 0
-                                                ? "bg-indigo-300 dark:bg-indigo-700 text-indigo-900 dark:text-indigo-100 hover:bg-indigo-400 dark:hover:bg-indigo-600 cursor-pointer"
-                                                : "text-indigo-800 dark:text-indigo-200"
-                                                }`}
+                                              className={`font-bold text-[16px] px-2 py-1 rounded-md transition-all ${
+                                                schemeStats.reduce(
+                                                  (sum, s) =>
+                                                    sum +
+                                                    ((s as any)[cat.key] || 0),
+                                                  0,
+                                                ) > 0
+                                                  ? "bg-indigo-300 dark:bg-indigo-700 text-indigo-900 dark:text-indigo-100 hover:bg-indigo-400 dark:hover:bg-indigo-600 cursor-pointer"
+                                                  : "text-indigo-800 dark:text-indigo-200"
+                                              }`}
                                             >
-                                              {schemeStats.reduce((sum, s) => sum + ((s as any)[cat.key] || 0), 0)}
+                                              {schemeStats.reduce(
+                                                (sum, s) =>
+                                                  sum +
+                                                  ((s as any)[cat.key] || 0),
+                                                0,
+                                              )}
                                             </button>
                                           </div>
                                         </div>
@@ -13209,50 +14382,75 @@ const DetailedChlorinePage = () => {
                                         <span className="w-2 h-2 rounded-full bg-purple-500 mr-2"></span>
                                         Total Schemes
                                       </div>
-                                      {schemeLpcdRegionComparison.data.map((regionData) => (
-                                        <div
-                                          key={`scheme-total-${regionData.region}`}
-                                          className="px-2 py-2.5 flex items-center justify-center border-r border-purple-100 dark:border-purple-900"
-                                        >
-                                          {(() => {
-                                            const regionStat = weeklyLpcdStats?.schemeStats?.find(s => s.region === regionData.region);
-                                            const weeklyTotal = regionStat
-                                              ? Number(regionStat.above_55 || 0) +
-                                              Number(regionStat.below_55 || 0) +
-                                              Number(regionStat.no_water || 0)
-                                              : 0;
-                                            return (
-                                              <button
-                                                onClick={() =>
-                                                  setClickedSchemeComparisonCell({
-                                                    category: "weekly_total_schemes",
-                                                    region: regionData.region,
-                                                    label: `Weekly Avg Total Schemes - ${regionData.region}`,
-                                                    dates: weeklyLpcdStats?.dates
-                                                  })
-                                                }
-                                                className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/60 transition-colors"
-                                              >
-                                                {weeklyTotal}
-                                              </button>
-                                            );
-                                          })()}
-                                        </div>
-                                      ))}
+                                      {schemeLpcdRegionComparison.data.map(
+                                        (regionData) => (
+                                          <div
+                                            key={`scheme-total-${regionData.region}`}
+                                            className="px-2 py-2.5 flex items-center justify-center border-r border-purple-100 dark:border-purple-900"
+                                          >
+                                            {(() => {
+                                              const regionStat =
+                                                weeklyLpcdStats?.schemeStats?.find(
+                                                  (s) =>
+                                                    s.region ===
+                                                    regionData.region,
+                                                );
+                                              const weeklyTotal = regionStat
+                                                ? Number(
+                                                    regionStat.above_55 || 0,
+                                                  ) +
+                                                  Number(
+                                                    regionStat.below_55 || 0,
+                                                  ) +
+                                                  Number(
+                                                    regionStat.no_water || 0,
+                                                  )
+                                                : 0;
+                                              return (
+                                                <button
+                                                  onClick={() =>
+                                                    setClickedSchemeComparisonCell(
+                                                      {
+                                                        category:
+                                                          "weekly_total_schemes",
+                                                        region:
+                                                          regionData.region,
+                                                        label: `Weekly Avg Total Schemes - ${regionData.region}`,
+                                                        dates:
+                                                          weeklyLpcdStats?.dates,
+                                                      },
+                                                    )
+                                                  }
+                                                  className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/60 transition-colors"
+                                                >
+                                                  {weeklyTotal}
+                                                </button>
+                                              );
+                                            })()}
+                                          </div>
+                                        ),
+                                      )}
                                       <div className="px-2 py-2.5 flex items-center justify-center bg-purple-50/50 dark:bg-purple-950/30">
                                         {(() => {
-                                          const weeklyAllRegionsTotal = weeklyLpcdStats?.schemeStats?.reduce(
-                                            (sum, r) => sum + (Number(r.above_55 || 0) + Number(r.below_55 || 0) + Number(r.no_water || 0)),
-                                            0,
-                                          ) || 0;
+                                          const weeklyAllRegionsTotal =
+                                            weeklyLpcdStats?.schemeStats?.reduce(
+                                              (sum, r) =>
+                                                sum +
+                                                (Number(r.above_55 || 0) +
+                                                  Number(r.below_55 || 0) +
+                                                  Number(r.no_water || 0)),
+                                              0,
+                                            ) || 0;
                                           return (
                                             <button
                                               onClick={() =>
                                                 setClickedSchemeComparisonCell({
-                                                  category: "weekly_total_schemes",
+                                                  category:
+                                                    "weekly_total_schemes",
                                                   region: "All Regions",
-                                                  label: "Weekly Avg Total Schemes - All Regions",
-                                                  dates: weeklyLpcdStats?.dates
+                                                  label:
+                                                    "Weekly Avg Total Schemes - All Regions",
+                                                  dates: weeklyLpcdStats?.dates,
                                                 })
                                               }
                                               className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-200 hover:bg-purple-300 dark:hover:bg-purple-700 transition-colors"
@@ -13263,7 +14461,6 @@ const DetailedChlorinePage = () => {
                                         })()}
                                       </div>
                                     </div>
-
                                   </div>
                                 </div>
 
@@ -13275,7 +14472,8 @@ const DetailedChlorinePage = () => {
                                       <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2.5 flex items-center gap-2">
                                         <Building2 className="h-4 w-4 text-white" />
                                         <span className="text-white font-semibold text-sm tracking-wide">
-                                          SCHEME LPCD DETAILED STATISTICS (Daily Data)
+                                          SCHEME LPCD DETAILED STATISTICS (Daily
+                                          Data)
                                         </span>
                                         <span className="text-white/90 text-[11px] font-bold uppercase tracking-wider bg-white/10 px-2 py-0.5 rounded border border-white/20 shadow-sm">
                                           No.s Represent Schemes
@@ -13292,14 +14490,16 @@ const DetailedChlorinePage = () => {
                                         <div className="bg-purple-50 dark:bg-purple-950 px-3 py-3 font-semibold text-[14px] text-purple-800 dark:text-purple-200 border-r-2 border-purple-200 dark:border-purple-800 flex items-center">
                                           Metric
                                         </div>
-                                        {schemeLpcdRegionComparison.data.map((regionData) => (
-                                          <div
-                                            key={`scheme-lpcd-header-detailed-${regionData.region}`}
-                                            className="bg-purple-50 dark:bg-purple-950 px-2 py-3 text-center font-bold text-[14px] text-purple-800 dark:text-purple-200 border-r border-purple-200 dark:border-purple-800"
-                                          >
-                                            {regionData.region}
-                                          </div>
-                                        ))}
+                                        {schemeLpcdRegionComparison.data.map(
+                                          (regionData) => (
+                                            <div
+                                              key={`scheme-lpcd-header-detailed-${regionData.region}`}
+                                              className="bg-purple-50 dark:bg-purple-950 px-2 py-3 text-center font-bold text-[14px] text-purple-800 dark:text-purple-200 border-r border-purple-200 dark:border-purple-800"
+                                            >
+                                              {regionData.region}
+                                            </div>
+                                          ),
+                                        )}
                                         <div className="bg-purple-100 dark:bg-purple-900 px-2 py-3 text-center font-bold text-[14px] text-purple-900 dark:text-purple-100">
                                           TOTAL
                                         </div>
@@ -13317,39 +14517,48 @@ const DetailedChlorinePage = () => {
                                             <span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
                                             &gt;55 LPCD (Good)
                                           </div>
-                                          {schemeLpcdRegionComparison.data.map((regionData) => (
-                                            <div
-                                              key={`scheme-above55-${regionData.region}`}
-                                              className="px-2 py-2.5 flex items-center justify-center border-r border-purple-100 dark:border-purple-900"
-                                            >
-                                              <button
-                                                onClick={() =>
-                                                  regionData.above_55 > 0 &&
-                                                  setClickedSchemeComparisonCell({
-                                                    category: "above_55",
-                                                    region: regionData.region,
-                                                    label: `Schemes >55 LPCD - ${regionData.region}`,
-                                                  })
-                                                }
-                                                className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${regionData.above_55 > 0 ? "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
-                                                data-testid={`btn-scheme-above55-${regionData.region}`}
+                                          {schemeLpcdRegionComparison.data.map(
+                                            (regionData) => (
+                                              <div
+                                                key={`scheme-above55-${regionData.region}`}
+                                                className="px-2 py-2.5 flex items-center justify-center border-r border-purple-100 dark:border-purple-900"
                                               >
-                                                {regionData.above_55}
-                                              </button>
-                                            </div>
-                                          ))}
+                                                <button
+                                                  onClick={() =>
+                                                    regionData.above_55 > 0 &&
+                                                    setClickedSchemeComparisonCell(
+                                                      {
+                                                        category: "above_55",
+                                                        region:
+                                                          regionData.region,
+                                                        label: `Schemes >55 LPCD - ${regionData.region}`,
+                                                      },
+                                                    )
+                                                  }
+                                                  className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${regionData.above_55 > 0 ? "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                                  data-testid={`btn-scheme-above55-${regionData.region}`}
+                                                >
+                                                  {regionData.above_55}
+                                                </button>
+                                              </div>
+                                            ),
+                                          )}
                                           <div className="px-2 py-2.5 flex items-center justify-center bg-purple-50/50 dark:bg-purple-950/30">
                                             <button
                                               onClick={() =>
                                                 setClickedSchemeComparisonCell({
                                                   category: "above_55",
                                                   region: "All Regions",
-                                                  label: "Schemes >55 LPCD - All Regions",
+                                                  label:
+                                                    "Schemes >55 LPCD - All Regions",
                                                 })
                                               }
                                               className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200 hover:bg-green-300 dark:hover:bg-green-700 transition-colors"
                                             >
-                                              {schemeLpcdRegionComparison.data.reduce((sum, r) => sum + r.above_55, 0)}
+                                              {schemeLpcdRegionComparison.data.reduce(
+                                                (sum, r) => sum + r.above_55,
+                                                0,
+                                              )}
                                             </button>
                                           </div>
                                         </div>
@@ -13365,39 +14574,48 @@ const DetailedChlorinePage = () => {
                                             <span className="w-2 h-2 rounded-full bg-red-500 mr-2"></span>
                                             &lt;55 LPCD
                                           </div>
-                                          {schemeLpcdRegionComparison.data.map((regionData) => (
-                                            <div
-                                              key={`scheme-below55-${regionData.region}`}
-                                              className="px-2 py-2.5 flex items-center justify-center border-r border-purple-100 dark:border-purple-900"
-                                            >
-                                              <button
-                                                onClick={() =>
-                                                  regionData.below_55 > 0 &&
-                                                  setClickedSchemeComparisonCell({
-                                                    category: "below_55",
-                                                    region: regionData.region,
-                                                    label: `Schemes <55 LPCD - ${regionData.region}`,
-                                                  })
-                                                }
-                                                className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${regionData.below_55 > 0 ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
-                                                data-testid={`btn-scheme-below55-${regionData.region}`}
+                                          {schemeLpcdRegionComparison.data.map(
+                                            (regionData) => (
+                                              <div
+                                                key={`scheme-below55-${regionData.region}`}
+                                                className="px-2 py-2.5 flex items-center justify-center border-r border-purple-100 dark:border-purple-900"
                                               >
-                                                {regionData.below_55}
-                                              </button>
-                                            </div>
-                                          ))}
+                                                <button
+                                                  onClick={() =>
+                                                    regionData.below_55 > 0 &&
+                                                    setClickedSchemeComparisonCell(
+                                                      {
+                                                        category: "below_55",
+                                                        region:
+                                                          regionData.region,
+                                                        label: `Schemes <55 LPCD - ${regionData.region}`,
+                                                      },
+                                                    )
+                                                  }
+                                                  className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${regionData.below_55 > 0 ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                                  data-testid={`btn-scheme-below55-${regionData.region}`}
+                                                >
+                                                  {regionData.below_55}
+                                                </button>
+                                              </div>
+                                            ),
+                                          )}
                                           <div className="px-2 py-2.5 flex items-center justify-center bg-purple-50/50 dark:bg-purple-950/30">
                                             <button
                                               onClick={() =>
                                                 setClickedSchemeComparisonCell({
                                                   category: "below_55",
                                                   region: "All Regions",
-                                                  label: "Schemes <55 LPCD - All Regions",
+                                                  label:
+                                                    "Schemes <55 LPCD - All Regions",
                                                 })
                                               }
                                               className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200 hover:bg-red-300 dark:hover:bg-red-700 transition-colors"
                                             >
-                                              {schemeLpcdRegionComparison.data.reduce((sum, r) => sum + r.below_55, 0)}
+                                              {schemeLpcdRegionComparison.data.reduce(
+                                                (sum, r) => sum + r.below_55,
+                                                0,
+                                              )}
                                             </button>
                                           </div>
                                         </div>
@@ -13413,39 +14631,48 @@ const DetailedChlorinePage = () => {
                                             <span className="w-2 h-2 rounded-full bg-blue-500 mr-2"></span>
                                             With Water
                                           </div>
-                                          {schemeLpcdRegionComparison.data.map((regionData) => (
-                                            <div
-                                              key={`scheme-withwater-${regionData.region}`}
-                                              className="px-2 py-2.5 flex items-center justify-center border-r border-purple-100 dark:border-purple-900"
-                                            >
-                                              <button
-                                                onClick={() =>
-                                                  regionData.with_water > 0 &&
-                                                  setClickedSchemeComparisonCell({
-                                                    category: "with_water",
-                                                    region: regionData.region,
-                                                    label: `Schemes with Water - ${regionData.region}`,
-                                                  })
-                                                }
-                                                className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${regionData.with_water > 0 ? "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
-                                                data-testid={`btn-scheme-withwater-${regionData.region}`}
+                                          {schemeLpcdRegionComparison.data.map(
+                                            (regionData) => (
+                                              <div
+                                                key={`scheme-withwater-${regionData.region}`}
+                                                className="px-2 py-2.5 flex items-center justify-center border-r border-purple-100 dark:border-purple-900"
                                               >
-                                                {regionData.with_water}
-                                              </button>
-                                            </div>
-                                          ))}
+                                                <button
+                                                  onClick={() =>
+                                                    regionData.with_water > 0 &&
+                                                    setClickedSchemeComparisonCell(
+                                                      {
+                                                        category: "with_water",
+                                                        region:
+                                                          regionData.region,
+                                                        label: `Schemes with Water - ${regionData.region}`,
+                                                      },
+                                                    )
+                                                  }
+                                                  className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${regionData.with_water > 0 ? "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                                  data-testid={`btn-scheme-withwater-${regionData.region}`}
+                                                >
+                                                  {regionData.with_water}
+                                                </button>
+                                              </div>
+                                            ),
+                                          )}
                                           <div className="px-2 py-2.5 flex items-center justify-center bg-purple-50/50 dark:bg-purple-950/30">
                                             <button
                                               onClick={() =>
                                                 setClickedSchemeComparisonCell({
                                                   category: "with_water",
                                                   region: "All Regions",
-                                                  label: "Schemes with Water - All Regions",
+                                                  label:
+                                                    "Schemes with Water - All Regions",
                                                 })
                                               }
                                               className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200 hover:bg-blue-300 dark:hover:bg-blue-700 transition-colors"
                                             >
-                                              {schemeLpcdRegionComparison.data.reduce((sum, r) => sum + r.with_water, 0)}
+                                              {schemeLpcdRegionComparison.data.reduce(
+                                                (sum, r) => sum + r.with_water,
+                                                0,
+                                              )}
                                             </button>
                                           </div>
                                         </div>
@@ -13461,39 +14688,48 @@ const DetailedChlorinePage = () => {
                                             <span className="w-2 h-2 rounded-full bg-gray-500 mr-2"></span>
                                             No Water
                                           </div>
-                                          {schemeLpcdRegionComparison.data.map((regionData) => (
-                                            <div
-                                              key={`scheme-nowater-${regionData.region}`}
-                                              className="px-2 py-2.5 flex items-center justify-center border-r border-purple-100 dark:border-purple-900"
-                                            >
-                                              <button
-                                                onClick={() =>
-                                                  regionData.no_water > 0 &&
-                                                  setClickedSchemeComparisonCell({
-                                                    category: "no_water",
-                                                    region: regionData.region,
-                                                    label: `Schemes without Water - ${regionData.region}`,
-                                                  })
-                                                }
-                                                className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${regionData.no_water > 0 ? "bg-gray-100 dark:bg-gray-900/40 text-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
-                                                data-testid={`btn-scheme-nowater-${regionData.region}`}
+                                          {schemeLpcdRegionComparison.data.map(
+                                            (regionData) => (
+                                              <div
+                                                key={`scheme-nowater-${regionData.region}`}
+                                                className="px-2 py-2.5 flex items-center justify-center border-r border-purple-100 dark:border-purple-900"
                                               >
-                                                {regionData.no_water}
-                                              </button>
-                                            </div>
-                                          ))}
+                                                <button
+                                                  onClick={() =>
+                                                    regionData.no_water > 0 &&
+                                                    setClickedSchemeComparisonCell(
+                                                      {
+                                                        category: "no_water",
+                                                        region:
+                                                          regionData.region,
+                                                        label: `Schemes without Water - ${regionData.region}`,
+                                                      },
+                                                    )
+                                                  }
+                                                  className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${regionData.no_water > 0 ? "bg-gray-100 dark:bg-gray-900/40 text-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
+                                                  data-testid={`btn-scheme-nowater-${regionData.region}`}
+                                                >
+                                                  {regionData.no_water}
+                                                </button>
+                                              </div>
+                                            ),
+                                          )}
                                           <div className="px-2 py-2.5 flex items-center justify-center bg-purple-50/50 dark:bg-purple-950/30">
                                             <button
                                               onClick={() =>
                                                 setClickedSchemeComparisonCell({
                                                   category: "no_water",
                                                   region: "All Regions",
-                                                  label: "Schemes without Water - All Regions",
+                                                  label:
+                                                    "Schemes without Water - All Regions",
                                                 })
                                               }
                                               className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
                                             >
-                                              {schemeLpcdRegionComparison.data.reduce((sum, r) => sum + r.no_water, 0)}
+                                              {schemeLpcdRegionComparison.data.reduce(
+                                                (sum, r) => sum + r.no_water,
+                                                0,
+                                              )}
                                             </button>
                                           </div>
                                         </div>
@@ -13509,11 +14745,7 @@ const DetailedChlorinePage = () => {
                                   No scheme LPCD comparison data available
                                 </p>
                               </div>
-                            )
-                          )}
-
-
-
+                            ))}
 
                           {/* Chlorine Statistics Section */}
                           {mainTab === "chlorine" && (
@@ -13555,7 +14787,6 @@ const DetailedChlorinePage = () => {
 
                               {/* Current Day Metrics */}
                               <div className="bg-white dark:bg-gray-900">
-
                                 {/* <0.2 mg/l Row */}
                                 <div
                                   className="grid border-b border-cyan-100 dark:border-cyan-900 hover:bg-cyan-50/50 dark:hover:bg-cyan-950/30 transition-colors"
@@ -13597,7 +14828,8 @@ const DetailedChlorinePage = () => {
                                         setClickedComparisonCell({
                                           category: "below_0_2",
                                           region: "All Regions",
-                                          label: "Chlorine <0.2 mg/l - All Regions",
+                                          label:
+                                            "Chlorine <0.2 mg/l - All Regions",
                                           isLpcd: false,
                                         })
                                       }
@@ -13652,7 +14884,8 @@ const DetailedChlorinePage = () => {
                                         setClickedComparisonCell({
                                           category: "optimal_0_2_0_5",
                                           region: "All Regions",
-                                          label: "Chlorine 0.2-0.5 mg/l - All Regions",
+                                          label:
+                                            "Chlorine 0.2-0.5 mg/l - All Regions",
                                           isLpcd: false,
                                         })
                                       }
@@ -13707,7 +14940,8 @@ const DetailedChlorinePage = () => {
                                         setClickedComparisonCell({
                                           category: "above_0_5",
                                           region: "All Regions",
-                                          label: "Chlorine >0.5 mg/l - All Regions",
+                                          label:
+                                            "Chlorine >0.5 mg/l - All Regions",
                                           isLpcd: false,
                                         })
                                       }
@@ -13812,7 +15046,7 @@ const DetailedChlorinePage = () => {
                                         <button
                                           onClick={() =>
                                             regionData.consistent_below_0_2 >
-                                            0 &&
+                                              0 &&
                                             setClickedComparisonCell({
                                               category: "consistent_below_0_2",
                                               region: regionData.region,
@@ -13834,7 +15068,8 @@ const DetailedChlorinePage = () => {
                                         setClickedComparisonCell({
                                           category: "consistent_below_0_2",
                                           region: "All Regions",
-                                          label: "Consistent <0.2 mg/l (7 days) - All Regions",
+                                          label:
+                                            "Consistent <0.2 mg/l (7 days) - All Regions",
                                           isLpcd: false,
                                         })
                                       }
@@ -13890,7 +15125,8 @@ const DetailedChlorinePage = () => {
                                         setClickedComparisonCell({
                                           category: "consistent_optimal",
                                           region: "All Regions",
-                                          label: "Consistent 0.2-0.5 mg/l (7 days) - All Regions",
+                                          label:
+                                            "Consistent 0.2-0.5 mg/l (7 days) - All Regions",
                                           isLpcd: false,
                                         })
                                       }
@@ -13924,7 +15160,7 @@ const DetailedChlorinePage = () => {
                                         <button
                                           onClick={() =>
                                             regionData.consistent_above_0_5 >
-                                            0 &&
+                                              0 &&
                                             setClickedComparisonCell({
                                               category: "consistent_above_0_5",
                                               region: regionData.region,
@@ -13946,7 +15182,8 @@ const DetailedChlorinePage = () => {
                                         setClickedComparisonCell({
                                           category: "consistent_above_0_5",
                                           region: "All Regions",
-                                          label: "Consistent >0.5 mg/l (7 days) - All Regions",
+                                          label:
+                                            "Consistent >0.5 mg/l (7 days) - All Regions",
                                           isLpcd: false,
                                         })
                                       }
@@ -13990,13 +15227,14 @@ const DetailedChlorinePage = () => {
                                                 category: "consistent_all",
                                                 region: regionData.region,
                                                 label: `7-Day Consistent Total - ${regionData.region}`,
-                                                isLpcd: false
+                                                isLpcd: false,
                                               })
                                             }
-                                            className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${consistentTotal > 0
-                                              ? "bg-cyan-200 dark:bg-cyan-800 text-dark-800 dark:text-cyan-200 hover:bg-cyan-300 dark:hover:bg-cyan-700 cursor-pointer"
-                                              : "text-gray-400 dark:text-gray-600"
-                                              }`}
+                                            className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${
+                                              consistentTotal > 0
+                                                ? "bg-cyan-200 dark:bg-cyan-800 text-dark-800 dark:text-cyan-200 hover:bg-cyan-300 dark:hover:bg-cyan-700 cursor-pointer"
+                                                : "text-gray-400 dark:text-gray-600"
+                                            }`}
                                           >
                                             {consistentTotal}
                                           </button>
@@ -14010,8 +15248,9 @@ const DetailedChlorinePage = () => {
                                         setClickedComparisonCell({
                                           category: "consistent_all",
                                           region: "All Regions",
-                                          label: "7-Day Consistent Total - All Regions",
-                                          isLpcd: false
+                                          label:
+                                            "7-Day Consistent Total - All Regions",
+                                          isLpcd: false,
                                         })
                                       }
                                       className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-cyan-300 dark:bg-cyan-700 text-dark-900 dark:text-cyan-100 hover:bg-cyan-400 dark:hover:bg-cyan-600 transition-colors"
@@ -14030,53 +15269,79 @@ const DetailedChlorinePage = () => {
 
                                 <div className="mt-4 flex flex-wrap items-center justify-center gap-6 py-3 px-4 bg-cyan-50/30 dark:bg-cyan-950/20 rounded-xl border border-cyan-100 dark:border-cyan-900/50 shadow-sm">
                                   <button
-                                    onClick={() => setClickedComparisonCell({
-                                      category: "offline-with-no-water",
-                                      region: "All Regions",
-                                      label: "Offline with no water - All Regions",
-                                      isLpcd: false
-                                    })}
+                                    onClick={() =>
+                                      setClickedComparisonCell({
+                                        category: "offline-with-no-water",
+                                        region: "All Regions",
+                                        label:
+                                          "Offline with no water - All Regions",
+                                        isLpcd: false,
+                                      })
+                                    }
                                     className="flex items-center gap-2 group hover:opacity-80 transition-all font-semibold text-gray-700 dark:text-gray-300"
                                   >
                                     <span className="text-red-500 group-hover:scale-110 transition-transform tabular-nums">
-                                      {overallComparisonData.data.reduce((sum, r) => sum + (r.offline_with_no_water || 0), 0)}
+                                      {overallComparisonData.data.reduce(
+                                        (sum, r) =>
+                                          sum + (r.offline_with_no_water || 0),
+                                        0,
+                                      )}
                                     </span>
-                                    <span className="text-sm">Offline with no water</span>
+                                    <span className="text-sm">
+                                      Offline with no water
+                                    </span>
                                   </button>
                                   <div className="w-px h-4 bg-cyan-200 dark:bg-cyan-800 hidden sm:block"></div>
                                   <button
-                                    onClick={() => setClickedComparisonCell({
-                                      category: "offline-with-water",
-                                      region: "All Regions",
-                                      label: "Offline with water (Data Loss) - All Regions",
-                                      isLpcd: false
-                                    })}
+                                    onClick={() =>
+                                      setClickedComparisonCell({
+                                        category: "offline-with-water",
+                                        region: "All Regions",
+                                        label:
+                                          "Offline with water (Data Loss) - All Regions",
+                                        isLpcd: false,
+                                      })
+                                    }
                                     className="flex items-center gap-2 group hover:opacity-80 transition-all font-semibold text-gray-700 dark:text-gray-300"
                                   >
                                     <span className="text-red-600 group-hover:scale-110 transition-transform tabular-nums">
-                                      {overallComparisonData.data.reduce((sum, r) => sum + (r.offline_with_water || 0), 0)}
+                                      {overallComparisonData.data.reduce(
+                                        (sum, r) =>
+                                          sum + (r.offline_with_water || 0),
+                                        0,
+                                      )}
                                     </span>
-                                    <span className="text-sm">Offline with water (Data Loss)</span>
+                                    <span className="text-sm">
+                                      Offline with water (Data Loss)
+                                    </span>
                                   </button>
                                   <div className="w-px h-4 bg-cyan-200 dark:bg-cyan-800 hidden sm:block"></div>
                                   <button
-                                    onClick={() => setClickedComparisonCell({
-                                      category: "online_no_water",
-                                      region: "All Regions",
-                                      label: "Online with no water - All Regions",
-                                      isLpcd: false
-                                    })}
+                                    onClick={() =>
+                                      setClickedComparisonCell({
+                                        category: "online_no_water",
+                                        region: "All Regions",
+                                        label:
+                                          "Online with no water - All Regions",
+                                        isLpcd: false,
+                                      })
+                                    }
                                     className="flex items-center gap-2 group hover:opacity-80 transition-all font-semibold text-gray-700 dark:text-gray-300"
                                   >
                                     <span className="text-gray-500 group-hover:scale-110 transition-transform tabular-nums">
-                                      {overallComparisonData.data.reduce((sum, r) => sum + (r.online_no_water || 0), 0)}
+                                      {overallComparisonData.data.reduce(
+                                        (sum, r) =>
+                                          sum + (r.online_no_water || 0),
+                                        0,
+                                      )}
                                     </span>
-                                    <span className="text-sm">Online with no water</span>
+                                    <span className="text-sm">
+                                      Online with no water
+                                    </span>
                                   </button>
                                 </div>
                               </div>
                             </div>
-
                           )}
 
                           {/* Pressure Statistics Section */}
@@ -14125,7 +15390,6 @@ const DetailedChlorinePage = () => {
                                   </div>
 
                                   <div className="bg-white dark:bg-gray-900">
-
                                     <div
                                       className="grid border-b border-orange-100 dark:border-orange-900 hover:bg-orange-50/50 dark:hover:bg-orange-950/30 transition-colors"
                                       style={{
@@ -14198,7 +15462,7 @@ const DetailedChlorinePage = () => {
                                             <button
                                               onClick={() =>
                                                 (regionData.below_0_2 || 0) >
-                                                0 &&
+                                                  0 &&
                                                 handlePressureComparisonCellClick(
                                                   "below_0_2",
                                                   regionData.region,
@@ -14251,7 +15515,7 @@ const DetailedChlorinePage = () => {
                                             <button
                                               onClick={() =>
                                                 (regionData.above_0_7 || 0) >
-                                                0 &&
+                                                  0 &&
                                                 handlePressureComparisonCellClick(
                                                   "above_0_7",
                                                   regionData.region,
@@ -14284,10 +15548,6 @@ const DetailedChlorinePage = () => {
                                         </button>
                                       </div>
                                     </div>
-
-
-
-
 
                                     {/* Current Day TOTAL Row */}
                                     <div
@@ -14597,45 +15857,70 @@ const DetailedChlorinePage = () => {
                                   </div>
                                   <div className="mt-4 flex flex-wrap items-center justify-center gap-6 py-3 px-4 bg-orange-50/30 dark:bg-orange-950/20 rounded-xl border border-orange-100 dark:border-orange-900/50 shadow-sm">
                                     <button
-                                      onClick={() => handlePressureComparisonCellClick(
-                                        "offline-with-no-water",
-                                        "All Regions",
-                                        "Offline with no water - All Regions",
-                                      )}
+                                      onClick={() =>
+                                        handlePressureComparisonCellClick(
+                                          "offline-with-no-water",
+                                          "All Regions",
+                                          "Offline with no water - All Regions",
+                                        )
+                                      }
                                       className="flex items-center gap-2 group hover:opacity-80 transition-all font-semibold text-gray-700 dark:text-gray-300"
                                     >
                                       <span className="text-red-500 group-hover:scale-110 transition-transform tabular-nums">
-                                        {pressureOverallComparison.data.reduce((sum: number, r: any) => sum + (r.offline_with_no_water || 0), 0)}
+                                        {pressureOverallComparison.data.reduce(
+                                          (sum: number, r: any) =>
+                                            sum +
+                                            (r.offline_with_no_water || 0),
+                                          0,
+                                        )}
                                       </span>
-                                      <span className="text-sm">Offline with no water</span>
+                                      <span className="text-sm">
+                                        Offline with no water
+                                      </span>
                                     </button>
                                     <div className="w-px h-4 bg-orange-200 dark:bg-orange-800 hidden sm:block"></div>
                                     <button
-                                      onClick={() => handlePressureComparisonCellClick(
-                                        "offline-with-water",
-                                        "All Regions",
-                                        "Offline with water (Data Loss) - All Regions",
-                                      )}
+                                      onClick={() =>
+                                        handlePressureComparisonCellClick(
+                                          "offline-with-water",
+                                          "All Regions",
+                                          "Offline with water (Data Loss) - All Regions",
+                                        )
+                                      }
                                       className="flex items-center gap-2 group hover:opacity-80 transition-all font-semibold text-gray-700 dark:text-gray-300"
                                     >
                                       <span className="text-red-600 group-hover:scale-110 transition-transform tabular-nums">
-                                        {pressureOverallComparison.data.reduce((sum: number, r: any) => sum + (r.offline_with_water || 0), 0)}
+                                        {pressureOverallComparison.data.reduce(
+                                          (sum: number, r: any) =>
+                                            sum + (r.offline_with_water || 0),
+                                          0,
+                                        )}
                                       </span>
-                                      <span className="text-sm">Offline with water (Data Loss)</span>
+                                      <span className="text-sm">
+                                        Offline with water (Data Loss)
+                                      </span>
                                     </button>
                                     <div className="w-px h-4 bg-orange-200 dark:bg-orange-800 hidden sm:block"></div>
                                     <button
-                                      onClick={() => handlePressureComparisonCellClick(
-                                        "online_no_water",
-                                        "All Regions",
-                                        "Online with no water - All Regions",
-                                      )}
+                                      onClick={() =>
+                                        handlePressureComparisonCellClick(
+                                          "online_no_water",
+                                          "All Regions",
+                                          "Online with no water - All Regions",
+                                        )
+                                      }
                                       className="flex items-center gap-2 group hover:opacity-80 transition-all font-semibold text-gray-700 dark:text-gray-300"
                                     >
                                       <span className="text-gray-500 group-hover:scale-110 transition-transform tabular-nums">
-                                        {pressureOverallComparison.data.reduce((sum: number, r: any) => sum + (r.online_no_water || 0), 0)}
+                                        {pressureOverallComparison.data.reduce(
+                                          (sum: number, r: any) =>
+                                            sum + (r.online_no_water || 0),
+                                          0,
+                                        )}
                                       </span>
-                                      <span className="text-sm">Online with no water</span>
+                                      <span className="text-sm">
+                                        Online with no water
+                                      </span>
                                     </button>
                                   </div>
                                 </>
@@ -14699,18 +15984,31 @@ const DetailedChlorinePage = () => {
                                 <button
                                   onClick={() => {
                                     const params = new URLSearchParams();
-                                    if (clickedComparisonCell.region && clickedComparisonCell.region !== "All Regions")
-                                      params.append("region", clickedComparisonCell.region);
+                                    if (
+                                      clickedComparisonCell.region &&
+                                      clickedComparisonCell.region !==
+                                        "All Regions"
+                                    )
+                                      params.append(
+                                        "region",
+                                        clickedComparisonCell.region,
+                                      );
                                     if (clickedComparisonCell.dates)
-                                      params.append("dates", clickedComparisonCell.dates.join(","));
-                                    if (schemeFilter !== 'all') {
+                                      params.append(
+                                        "dates",
+                                        clickedComparisonCell.dates.join(","),
+                                      );
+                                    if (schemeFilter !== "all") {
                                       params.append("filterType", schemeFilter);
                                     }
                                     if (schemeFilter === "fully_completed") {
                                       params.append("fullyCompleted", "true");
                                     }
-                                    if (selectedAgencyType !== 'ALL') {
-                                      params.append("agencyType", selectedAgencyType);
+                                    if (selectedAgencyType !== "ALL") {
+                                      params.append(
+                                        "agencyType",
+                                        selectedAgencyType,
+                                      );
                                     }
 
                                     const url = `/api/chlorine/overall-region-comparison/export/${clickedComparisonCell.category}?${params.toString()}`;
@@ -14769,6 +16067,9 @@ const DetailedChlorinePage = () => {
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[180px] border-r border-white/10">
                                     Scheme Name
                                   </TableHead>
+                                  <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Owner
+                                  </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[90px] border-r border-white/10">
                                     Division
                                   </TableHead>
@@ -14790,9 +16091,12 @@ const DetailedChlorinePage = () => {
                                   ) : (
                                     <>
                                       <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 text-center w-[100px]">
-                                        {clickedComparisonCell.category === "offline" ||
-                                          clickedComparisonCell.category === "offline-with-no-water" ||
-                                          clickedComparisonCell.category === "offline-with-water"
+                                        {clickedComparisonCell.category ===
+                                          "offline" ||
+                                        clickedComparisonCell.category ===
+                                          "offline-with-no-water" ||
+                                        clickedComparisonCell.category ===
+                                          "offline-with-water"
                                           ? "Status"
                                           : "Chlorine (mg/l)"}
                                       </TableHead>
@@ -14820,14 +16124,24 @@ const DetailedChlorinePage = () => {
                                           )}
                                         </TableCell>
                                         <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 max-w-[150px]">
-                                            {renderRemarkCell((esrIssuesMap?.get(`${item.scheme_id}-${item.village_name}-${item.esr_name}`) || []), `Remarks for ${item.esr_name}, ${item.village_name}`)}
-                                          </TableCell>
+                                          {renderRemarkCell(
+                                            esrIssuesMap?.get(
+                                              `${item.scheme_id}-${item.village_name}-${item.esr_name}`,
+                                            ) || [],
+                                            `Remarks for ${item.esr_name}, ${item.village_name}`,
+                                          )}
+                                        </TableCell>
                                       </>
                                     )}
                                     {clickedComparisonCell.isLpcd && (
                                       <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 max-w-[150px]">
-                                            {renderRemarkCell((villageIssuesMap?.get(`${item.scheme_id}-${item.village_name}`) || []), `Remarks for ${item.village_name}`)}
-                                          </TableCell>
+                                        {renderRemarkCell(
+                                          villageIssuesMap?.get(
+                                            `${item.scheme_id}-${item.village_name}`,
+                                          ) || [],
+                                          `Remarks for ${item.village_name}`,
+                                        )}
+                                      </TableCell>
                                     )}
                                     <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
                                       {item.dashboard_url ? (
@@ -14843,6 +16157,9 @@ const DetailedChlorinePage = () => {
                                       ) : (
                                         item.scheme_name
                                       )}
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
+                                      {item.owner || item.agency_type || "N/A"}
                                     </TableCell>
                                     <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
                                       {item.division}
@@ -14879,17 +16196,20 @@ const DetailedChlorinePage = () => {
                                           >
                                             {item.lpcd_value !== undefined
                                               ? Number(item.lpcd_value).toFixed(
-                                                2,
-                                              )
+                                                  2,
+                                                )
                                               : "N/A"}
                                           </span>
                                         </TableCell>
                                       </>
                                     ) : (
                                       <TableCell className="!px-4 !py-3 text-center">
-                                        {clickedComparisonCell.category === "offline" ||
-                                          clickedComparisonCell.category === "offline-with-no-water" ||
-                                          clickedComparisonCell.category === "offline-with-water" ? (
+                                        {clickedComparisonCell.category ===
+                                          "offline" ||
+                                        clickedComparisonCell.category ===
+                                          "offline-with-no-water" ||
+                                        clickedComparisonCell.category ===
+                                          "offline-with-water" ? (
                                           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60">
                                             {item.chlorine_status}
                                           </span>
@@ -14899,8 +16219,8 @@ const DetailedChlorinePage = () => {
                                           >
                                             {item.chlorine_value !== undefined
                                               ? Number(
-                                                item.chlorine_value,
-                                              ).toFixed(2)
+                                                  item.chlorine_value,
+                                                ).toFixed(2)
                                               : "N/A"}
                                           </span>
                                         )}
@@ -14933,7 +16253,10 @@ const DetailedChlorinePage = () => {
 
                   {/* Scheme LPCD Region Comparison Details Card */}
                   {clickedSchemeComparisonCell && (
-                    <Card className="mt-4 border-0 shadow-lg rounded-xl overflow-hidden" data-testid="card-scheme-lpcd-comparison-details">
+                    <Card
+                      className="mt-4 border-0 shadow-lg rounded-xl overflow-hidden"
+                      data-testid="card-scheme-lpcd-comparison-details"
+                    >
                       <CardHeader className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950 dark:to-indigo-950 border-b border-purple-200 dark:border-purple-800 py-2.5">
                         <div className="flex items-center justify-between">
                           <CardTitle className="flex items-center gap-2">
@@ -14952,7 +16275,8 @@ const DetailedChlorinePage = () => {
                                   variant="secondary"
                                   className="!text-[12px] px-1.5 py-0"
                                 >
-                                  {schemeLpcdComparisonSchemes?.count || 0} schemes
+                                  {schemeLpcdComparisonSchemes?.count || 0}{" "}
+                                  schemes
                                 </Badge>
                               </div>
                             </div>
@@ -14963,20 +16287,35 @@ const DetailedChlorinePage = () => {
                                 <button
                                   onClick={() => {
                                     const params = new URLSearchParams();
-                                    if (clickedSchemeComparisonCell.region && clickedSchemeComparisonCell.region !== "All Regions") {
-                                      params.append("region", clickedSchemeComparisonCell.region);
+                                    if (
+                                      clickedSchemeComparisonCell.region &&
+                                      clickedSchemeComparisonCell.region !==
+                                        "All Regions"
+                                    ) {
+                                      params.append(
+                                        "region",
+                                        clickedSchemeComparisonCell.region,
+                                      );
                                     }
                                     if (clickedSchemeComparisonCell.dates) {
-                                      params.append("dates", clickedSchemeComparisonCell.dates.join(","));
+                                      params.append(
+                                        "dates",
+                                        clickedSchemeComparisonCell.dates.join(
+                                          ",",
+                                        ),
+                                      );
                                     }
-                                    if (schemeFilter !== 'all') {
+                                    if (schemeFilter !== "all") {
                                       params.append("filterType", schemeFilter);
                                     }
                                     if (schemeFilter === "fully_completed") {
                                       params.append("fullyCompleted", "true");
                                     }
-                                    if (selectedAgencyType !== 'ALL') {
-                                      params.append("agencyType", selectedAgencyType);
+                                    if (selectedAgencyType !== "ALL") {
+                                      params.append(
+                                        "agencyType",
+                                        selectedAgencyType,
+                                      );
                                     }
                                     window.open(
                                       `/api/chlorine/scheme-lpcd/region-comparison-schemes-export/${clickedSchemeComparisonCell.category}/7?${params.toString()}`,
@@ -14993,7 +16332,9 @@ const DetailedChlorinePage = () => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => setClickedSchemeComparisonCell(null)}
+                              onClick={() =>
+                                setClickedSchemeComparisonCell(null)
+                              }
                               className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
                               data-testid="button-close-scheme-comparison-details"
                             >
@@ -15017,6 +16358,9 @@ const DetailedChlorinePage = () => {
                                 <TableRow className="bg-purple-800 dark:bg-purple-900">
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[180px] border-r border-white/10">
                                     Scheme Name
+                                  </TableHead>
+                                  <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Owner
                                   </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
                                     Region
@@ -15042,83 +16386,116 @@ const DetailedChlorinePage = () => {
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
-                                {schemeLpcdComparisonSchemes.data.map((item: any, idx: number) => {
-                                  // Check for active issues for this scheme
-                                  const schemeId = item.scheme_id?.toString().trim();
-                                  const issues = schemeIssuesMap.get(schemeId) || [];
-                                  const hasIssue = issues.length > 0;
+                                {schemeLpcdComparisonSchemes.data.map(
+                                  (item: any, idx: number) => {
+                                    // Check for active issues for this scheme
+                                    const schemeId = item.scheme_id
+                                      ?.toString()
+                                      .trim();
+                                    const issues =
+                                      schemeIssuesMap.get(schemeId) || [];
+                                    const hasIssue = issues.length > 0;
 
-                                  return (
-                                    <TableRow
-                                      key={`scheme-comp-${item.scheme_id}-${idx}`}
-                                      className={`transition-all duration-200 ${hasIssue
-                                        ? "bg-red-50 hover:bg-red-100/50 dark:bg-red-950/20 dark:hover:bg-red-950/40 border-l-4 border-l-red-500"
-                                        : `hover:bg-purple-50/70 dark:hover:bg-purple-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-indigo-50/40 dark:bg-indigo-950/20"}`
+                                    return (
+                                      <TableRow
+                                        key={`scheme-comp-${item.scheme_id}-${idx}`}
+                                        className={`transition-all duration-200 ${
+                                          hasIssue
+                                            ? "bg-red-50 hover:bg-red-100/50 dark:bg-red-950/20 dark:hover:bg-red-950/40 border-l-4 border-l-red-500"
+                                            : `hover:bg-purple-50/70 dark:hover:bg-purple-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-indigo-50/40 dark:bg-indigo-950/20"}`
                                         }`}
-                                      data-testid={`row-scheme-comparison-${idx}`}
-                                    >
-                                      <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
-                                        <div className="flex items-center gap-2">
-                                          <span className="truncate">
-                                            {item.dashboard_url ? (
-                                              <a
-                                                href={item.dashboard_url}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="text-blue-600 hover:underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                                                onClick={(e) => e.stopPropagation()}
-                                              >
-                                                {item.scheme_name}
-                                              </a>
-                                            ) : (
-                                              item.scheme_name
-                                            )}
-                                          </span>
-                                        </div>
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
-                                        {item.region}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
-                                        {item.division}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
-                                        {item.block}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-purple-100/80 dark:border-purple-900/60 truncate text-center">
-                                        {item.dashboard_url && (
-                                          <a
-                                            href={item.dashboard_url}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors"
-                                            title="Open Dashboard"
-                                            onClick={(e) => e.stopPropagation()}
+                                        data-testid={`row-scheme-comparison-${idx}`}
+                                      >
+                                        <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
+                                          <div className="flex items-center gap-2">
+                                            <span className="truncate">
+                                              {item.dashboard_url ? (
+                                                <a
+                                                  href={item.dashboard_url}
+                                                  target="_blank"
+                                                  rel="noreferrer"
+                                                  className="text-blue-600 hover:underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                                                  onClick={(e) =>
+                                                    e.stopPropagation()
+                                                  }
+                                                >
+                                                  {item.scheme_name}
+                                                </a>
+                                              ) : (
+                                                item.scheme_name
+                                              )}
+                                            </span>
+                                          </div>
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
+                                          {item.owner ||
+                                            item.agency_type ||
+                                            "N/A"}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
+                                          {item.region}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
+                                          {item.division}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
+                                          {item.block}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-purple-100/80 dark:border-purple-900/60 truncate text-center">
+                                          {item.dashboard_url && (
+                                            <a
+                                              href={item.dashboard_url}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors"
+                                              title="Open Dashboard"
+                                              onClick={(e) =>
+                                                e.stopPropagation()
+                                              }
+                                            >
+                                              <ExternalLink className="h-4 w-4" />
+                                            </a>
+                                          )}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 text-center border-r border-purple-100/80 dark:border-purple-900/60">
+                                          {item.total_population?.toLocaleString() || (
+                                            <span className="text-slate-400">
+                                              N/A
+                                            </span>
+                                          )}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-center">
+                                          <span
+                                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${item.lpcd_value !== undefined && item.lpcd_value >= 55 ? "bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 dark:from-blue-900/60 dark:to-indigo-900/60 dark:text-blue-300 ring-1 ring-blue-200/80 dark:ring-blue-700/60" : "bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 dark:from-orange-900/60 dark:to-amber-900/60 dark:text-orange-300 ring-1 ring-orange-200/80 dark:ring-orange-700/60"}`}
                                           >
-                                            <ExternalLink className="h-4 w-4" />
-                                          </a>
-                                        )}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 text-center border-r border-purple-100/80 dark:border-purple-900/60">
-                                        {item.total_population?.toLocaleString() || (
-                                          <span className="text-slate-400">N/A</span>
-                                        )}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-center">
-                                        <span
-                                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${item.lpcd_value !== undefined && item.lpcd_value >= 55 ? "bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 dark:from-blue-900/60 dark:to-indigo-900/60 dark:text-blue-300 ring-1 ring-blue-200/80 dark:ring-blue-700/60" : "bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 dark:from-orange-900/60 dark:to-amber-900/60 dark:text-orange-300 ring-1 ring-orange-200/80 dark:ring-orange-700/60"}`}
+                                            {item.lpcd_value !== undefined
+                                              ? Number(item.lpcd_value).toFixed(
+                                                  1,
+                                                )
+                                              : "N/A"}
+                                          </span>
+                                        </TableCell>
+                                        <TableCell
+                                          className="!px-4 !py-3 text-center border-l border-purple-100/80 dark:border-purple-900/60 max-w-[150px] truncate"
+                                          title={
+                                            hasIssue
+                                              ? issues
+                                                  .map((i: any) => i.reason)
+                                                  .join(", ")
+                                              : "-"
+                                          }
                                         >
-                                          {item.lpcd_value !== undefined
-                                            ? Number(item.lpcd_value).toFixed(1)
-                                            : "N/A"}
-                                        </span>
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-center border-l border-purple-100/80 dark:border-purple-900/60 max-w-[150px] truncate" title={hasIssue ? issues.map((i: any) => i.reason).join(", ") : "-"}>
-                                            {renderRemarkCell((schemeIssuesMap?.get(String(item.scheme_id)) || []), `Remarks for ${item.scheme_name || "Scheme"}`)}
-                                          </TableCell>
-                                    </TableRow>
-                                  );
-                                })}
+                                          {renderRemarkCell(
+                                            schemeIssuesMap?.get(
+                                              String(item.scheme_id),
+                                            ) || [],
+                                            `Remarks for ${item.scheme_name || "Scheme"}`,
+                                          )}
+                                        </TableCell>
+                                      </TableRow>
+                                    );
+                                  },
+                                )}
                               </TableBody>
                             </Table>
                           </div>
@@ -15166,8 +16543,14 @@ const DetailedChlorinePage = () => {
                               size="sm"
                               onClick={() => {
                                 const params = new URLSearchParams();
-                                if (clickedFlowmeterCell.region && clickedFlowmeterCell.region !== "All Regions") {
-                                  params.append("region", clickedFlowmeterCell.region);
+                                if (
+                                  clickedFlowmeterCell.region &&
+                                  clickedFlowmeterCell.region !== "All Regions"
+                                ) {
+                                  params.append(
+                                    "region",
+                                    clickedFlowmeterCell.region,
+                                  );
                                 }
                                 if (schemeFilter !== "all") {
                                   params.append("filterType", schemeFilter);
@@ -15175,8 +16558,11 @@ const DetailedChlorinePage = () => {
                                 if (schemeFilter === "fully_completed") {
                                   params.append("fullyCompleted", "true");
                                 }
-                                if (selectedAgencyType !== 'ALL') {
-                                  params.append('agencyType', selectedAgencyType);
+                                if (selectedAgencyType !== "ALL") {
+                                  params.append(
+                                    "agencyType",
+                                    selectedAgencyType,
+                                  );
                                 }
                                 window.open(
                                   `/api/flowmeter/overall-region-comparison/export/${clickedFlowmeterCell.category}?${params.toString()}`,
@@ -15228,6 +16614,9 @@ const DetailedChlorinePage = () => {
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-indigo-50 !px-4 !py-3.5 w-[180px] border-r border-white/10">
                                     Scheme Name
                                   </TableHead>
+                                  <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-indigo-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Owner
+                                  </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-indigo-50 !px-4 !py-3.5 w-[100px] border-r border-white/10 text-center">
                                     Dashboard
                                   </TableHead>
@@ -15240,62 +16629,76 @@ const DetailedChlorinePage = () => {
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
-                                {flowmeterDetails.data.map((item: any, idx: number) => (
-                                  <TableRow
-                                    key={`${item.scheme_id}-${item.village_name}-${item.esr_name}-${idx}`}
-                                    className={`transition-all duration-200 hover:bg-indigo-50/70 dark:hover:bg-indigo-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-indigo-50/40 dark:bg-indigo-950/20"}`}
-                                  >
-                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-indigo-100/80 dark:border-indigo-900/60 truncate">
-                                      {item.region}
-                                    </TableCell>
-                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-indigo-100/80 dark:border-indigo-900/60 truncate">
-                                      {item.division}
-                                    </TableCell>
-                                    <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-indigo-100/80 dark:border-indigo-900/60 truncate">
-                                      {item.village_name}
-                                    </TableCell>
-                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-indigo-100/80 dark:border-indigo-900/60 truncate font-semibold">
-                                      {item.esr_name}
-                                    </TableCell>
-                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-indigo-100/80 dark:border-indigo-900/60 truncate">
-                                      {item.dashboard_url ? (
-                                        <a
-                                          href={item.dashboard_url}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          className="text-blue-600 hover:underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                                          onClick={(e) => e.stopPropagation()}
+                                {flowmeterDetails.data.map(
+                                  (item: any, idx: number) => (
+                                    <TableRow
+                                      key={`${item.scheme_id}-${item.village_name}-${item.esr_name}-${idx}`}
+                                      className={`transition-all duration-200 hover:bg-indigo-50/70 dark:hover:bg-indigo-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-indigo-50/40 dark:bg-indigo-950/20"}`}
+                                    >
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-indigo-100/80 dark:border-indigo-900/60 truncate">
+                                        {item.region}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-indigo-100/80 dark:border-indigo-900/60 truncate">
+                                        {item.division}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-indigo-100/80 dark:border-indigo-900/60 truncate">
+                                        {item.village_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-indigo-100/80 dark:border-indigo-900/60 truncate font-semibold">
+                                        {item.esr_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-indigo-100/80 dark:border-indigo-900/60 truncate">
+                                        {item.dashboard_url ? (
+                                          <a
+                                            href={item.dashboard_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-blue-600 hover:underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            {item.scheme_name}
+                                          </a>
+                                        ) : (
+                                          item.scheme_name
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
+                                        {item.owner ||
+                                          item.agency_type ||
+                                          "N/A"}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-indigo-100/80 dark:border-indigo-900/60 truncate text-center">
+                                        {item.dashboard_url && (
+                                          <a
+                                            href={item.dashboard_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors"
+                                            title="Open Dashboard"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <ExternalLink className="h-4 w-4" />
+                                          </a>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center">
+                                        <span
+                                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${item.status === "Online" ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60" : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60"}`}
                                         >
-                                          {item.scheme_name}
-                                        </a>
-                                      ) : (
-                                        item.scheme_name
-                                      )}
-                                    </TableCell>
-                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-indigo-100/80 dark:border-indigo-900/60 truncate text-center">
-                                      {item.dashboard_url && (
-                                        <a
-                                          href={item.dashboard_url}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors"
-                                          title="Open Dashboard"
-                                          onClick={(e) => e.stopPropagation()}
-                                        >
-                                          <ExternalLink className="h-4 w-4" />
-                                        </a>
-                                      )}
-                                    </TableCell>
-                                    <TableCell className="!px-4 !py-3 text-center">
-                                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${item.status === 'Online' ? 'bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60' : 'bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60'}`}>
-                                        {item.status}
-                                      </span>
-                                    </TableCell>
-                                    <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-                                            {renderRemarkCell((villageIssuesMap?.get(`${item.scheme_id}-${item.village_name}`) || []), `Remarks for ${item.village_name}`)}
-                                          </TableCell>
-                                  </TableRow>
-                                ))}
+                                          {item.status}
+                                        </span>
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+                                        {renderRemarkCell(
+                                          villageIssuesMap?.get(
+                                            `${item.scheme_id}-${item.village_name}`,
+                                          ) || [],
+                                          `Remarks for ${item.village_name}`,
+                                        )}
+                                      </TableCell>
+                                    </TableRow>
+                                  ),
+                                )}
                               </TableBody>
                             </Table>
                           </div>
@@ -15345,7 +16748,10 @@ const DetailedChlorinePage = () => {
                               onClick={() => {
                                 const params = new URLSearchParams();
                                 if (clickedPressureComparisonCell.region) {
-                                  params.append("region", clickedPressureComparisonCell.region);
+                                  params.append(
+                                    "region",
+                                    clickedPressureComparisonCell.region,
+                                  );
                                 }
                                 if (schemeFilter !== "all") {
                                   params.append("filterType", schemeFilter);
@@ -15353,8 +16759,11 @@ const DetailedChlorinePage = () => {
                                 if (schemeFilter === "fully_completed") {
                                   params.append("fullyCompleted", "true");
                                 }
-                                if (selectedAgencyType !== 'ALL') {
-                                  params.append('agencyType', selectedAgencyType);
+                                if (selectedAgencyType !== "ALL") {
+                                  params.append(
+                                    "agencyType",
+                                    selectedAgencyType,
+                                  );
                                 }
                                 window.open(
                                   `/api/pressure/overall-region-comparison/details-export/${clickedPressureComparisonCell.category}?${params.toString()}`,
@@ -15410,13 +16819,19 @@ const DetailedChlorinePage = () => {
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[180px] border-r border-white/10">
                                     Scheme Name
                                   </TableHead>
+                                  <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Owner
+                                  </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10 text-center">
                                     Dashboard
                                   </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 text-center w-[100px] border-r border-white/10">
-                                    {clickedPressureComparisonCell.category === "offline" ||
-                                      clickedPressureComparisonCell.category === "offline-with-no-water" ||
-                                      clickedPressureComparisonCell.category === "offline-with-water"
+                                    {clickedPressureComparisonCell.category ===
+                                      "offline" ||
+                                    clickedPressureComparisonCell.category ===
+                                      "offline-with-no-water" ||
+                                    clickedPressureComparisonCell.category ===
+                                      "offline-with-water"
                                       ? "Status"
                                       : "Pressure (bar)"}
                                   </TableHead>
@@ -15464,6 +16879,11 @@ const DetailedChlorinePage = () => {
                                           item.scheme_name
                                         )}
                                       </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
+                                        {item.owner ||
+                                          item.agency_type ||
+                                          "N/A"}
+                                      </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-orange-100/80 dark:border-orange-900/60 truncate text-center">
                                         {item.dashboard_url && (
                                           <a
@@ -15479,45 +16899,56 @@ const DetailedChlorinePage = () => {
                                         )}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center">
-                                        {clickedPressureComparisonCell.category === "offline" ||
-                                          clickedPressureComparisonCell.category === "offline-with-no-water" ||
-                                          clickedPressureComparisonCell.category === "offline-with-water" ? (
+                                        {clickedPressureComparisonCell.category ===
+                                          "offline" ||
+                                        clickedPressureComparisonCell.category ===
+                                          "offline-with-no-water" ||
+                                        clickedPressureComparisonCell.category ===
+                                          "offline-with-water" ? (
                                           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60">
                                             Offline
                                           </span>
                                         ) : (
                                           <span
-                                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${item.pressure_value !== null &&
-                                              item.pressure_value !== undefined &&
+                                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${
+                                              item.pressure_value !== null &&
+                                              item.pressure_value !==
+                                                undefined &&
                                               item.pressure_value >= 0.2 &&
                                               item.pressure_value <= 0.7
-                                              ? "bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 dark:from-green-900/60 dark:to-emerald-900/60 dark:text-green-300 ring-1 ring-green-200/80 dark:ring-green-700/60"
-                                              : item.pressure_value !== null &&
-                                                item.pressure_value !==
-                                                undefined &&
-                                                item.pressure_value < 0.2
-                                                ? "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"
+                                                ? "bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 dark:from-green-900/60 dark:to-emerald-900/60 dark:text-green-300 ring-1 ring-green-200/80 dark:ring-green-700/60"
                                                 : item.pressure_value !==
-                                                  null &&
-                                                  item.pressure_value !==
-                                                  undefined &&
-                                                  item.pressure_value > 0.7
-                                                  ? "bg-gradient-to-r from-purple-50 to-violet-50 text-purple-700 dark:from-purple-900/60 dark:to-violet-900/60 dark:text-purple-300 ring-1 ring-purple-200/80 dark:ring-purple-700/60"
-                                                  : "bg-gradient-to-r from-gray-50 to-slate-50 text-gray-700 dark:from-gray-800/60 dark:to-slate-800/60 dark:text-gray-300 ring-1 ring-gray-200/80 dark:ring-gray-700/60"
-                                              }`}
+                                                      null &&
+                                                    item.pressure_value !==
+                                                      undefined &&
+                                                    item.pressure_value < 0.2
+                                                  ? "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"
+                                                  : item.pressure_value !==
+                                                        null &&
+                                                      item.pressure_value !==
+                                                        undefined &&
+                                                      item.pressure_value > 0.7
+                                                    ? "bg-gradient-to-r from-purple-50 to-violet-50 text-purple-700 dark:from-purple-900/60 dark:to-violet-900/60 dark:text-purple-300 ring-1 ring-purple-200/80 dark:ring-purple-700/60"
+                                                    : "bg-gradient-to-r from-gray-50 to-slate-50 text-gray-700 dark:from-gray-800/60 dark:to-slate-800/60 dark:text-gray-300 ring-1 ring-gray-200/80 dark:ring-gray-700/60"
+                                            }`}
                                           >
                                             {item.pressure_value !== null &&
-                                              item.pressure_value !== undefined
+                                            item.pressure_value !== undefined
                                               ? Number(
-                                                item.pressure_value,
-                                              ).toFixed(2)
+                                                  item.pressure_value,
+                                                ).toFixed(2)
                                               : "N/A"}
                                           </span>
                                         )}
                                       </TableCell>
                                       <TableCell className="!px-3 !py-2.5 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-                                            {renderRemarkCell((esrIssuesMap?.get(`${item.scheme_id}-${item.village_name}-${item.esr_name}`) || []), `Remarks for ${item.esr_name}`)}
-                                          </TableCell>
+                                        {renderRemarkCell(
+                                          esrIssuesMap?.get(
+                                            `${item.scheme_id}-${item.village_name}-${item.esr_name}`,
+                                          ) || [],
+                                          `Remarks for ${item.esr_name}`,
+                                        )}
+                                      </TableCell>
                                     </TableRow>
                                   ),
                                 )}
@@ -15539,159 +16970,179 @@ const DetailedChlorinePage = () => {
               </TabsContent>
             </Tabs>
           </div>
-        </div >
-      </div >
+        </div>
+      </div>
 
-      {
-        selectedSensor && (
-          <Dialog
-            open={!!selectedSensor}
-            onOpenChange={(open) => !open && setSelectedSensor(null)}
-          >
-            <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto rounded-2xl">
-              <DialogHeader className="text-center pb-4 border-b">
-                <DialogTitle className="flex items-center justify-center gap-3 text-lg font-bold">
-                  <div className="p-2 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl">
-                    <Droplet className="h-5 w-5 text-white" />
+      {selectedSensor && (
+        <Dialog
+          open={!!selectedSensor}
+          onOpenChange={(open) => !open && setSelectedSensor(null)}
+        >
+          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto rounded-2xl">
+            <DialogHeader className="text-center pb-4 border-b">
+              <DialogTitle className="flex items-center justify-center gap-3 text-lg font-bold">
+                <div className="p-2 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl">
+                  <Droplet className="h-5 w-5 text-white" />
+                </div>
+                {mainTab === "pressure"
+                  ? "7-Day Pressure History"
+                  : "7-Day Water Supply & Chlorine History"}
+                {selectedSensor.dashboard_url && (
+                  <a
+                    href={selectedSensor.dashboard_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="ml-2 inline-flex items-center justify-center px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors text-sm font-medium"
+                    title="Open Dashboard"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-1.5" />
+                    Dashboard
+                  </a>
+                )}
+              </DialogTitle>
+              <DialogDescription>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+                    <span className="text-gray-500 text-xs">Scheme</span>
+                    <p className="font-medium text-gray-900 dark:text-white truncate">
+                      {selectedSensor.scheme_name}
+                    </p>
                   </div>
-                  {mainTab === "pressure" ? "7-Day Pressure History" : "7-Day Water Supply & Chlorine History"}
-                  {selectedSensor.dashboard_url && (
-                    <a
-                      href={selectedSensor.dashboard_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="ml-2 inline-flex items-center justify-center px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors text-sm font-medium"
-                      title="Open Dashboard"
-                    >
-                      <ExternalLink className="h-4 w-4 mr-1.5" />
-                      Dashboard
-                    </a>
-                  )}
-                </DialogTitle>
-                <DialogDescription>
-                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
-                      <span className="text-gray-500 text-xs">Scheme</span>
-                      <p className="font-medium text-gray-900 dark:text-white truncate">
-                        {selectedSensor.scheme_name}
-                      </p>
-                    </div>
-                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
-                      <span className="text-gray-500 text-xs">Village</span>
-                      <p className="font-medium text-gray-900 dark:text-white">
-                        {selectedSensor.village_name}
-                      </p>
-                    </div>
-                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
-                      <span className="text-gray-500 text-xs">ESR</span>
-                      <p className="font-medium text-gray-900 dark:text-white">
-                        {selectedSensor.esr_name}
-                      </p>
-                    </div>
-                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
-                      <span className="text-gray-500 text-xs">Region</span>
-                      <p className="font-medium text-gray-900 dark:text-white">
-                        {selectedSensor.region}
-                      </p>
-                    </div>
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+                    <span className="text-gray-500 text-xs">Village</span>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      {selectedSensor.village_name}
+                    </p>
                   </div>
-                </DialogDescription>
-              </DialogHeader>
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+                    <span className="text-gray-500 text-xs">ESR</span>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      {selectedSensor.esr_name}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+                    <span className="text-gray-500 text-xs">Region</span>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      {selectedSensor.region}
+                    </p>
+                  </div>
+                </div>
+              </DialogDescription>
+            </DialogHeader>
 
-              <div className="mt-4 border border-slate-200/60 dark:border-slate-700/60 rounded-xl overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-slate-800 dark:bg-slate-900">
-                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 text-center !px-4 !py-3.5 w-[80px] border-r border-white/10">
-                        Day
+            <div className="mt-4 border border-slate-200/60 dark:border-slate-700/60 rounded-xl overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-slate-800 dark:bg-slate-900">
+                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 text-center !px-4 !py-3.5 w-[80px] border-r border-white/10">
+                      Day
+                    </TableHead>
+                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 text-center !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                      Date
+                    </TableHead>
+                    {mainTab === "pressure" ? (
+                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 text-center !px-4 !py-3.5 w-[120px]">
+                        Pressure (bar)
                       </TableHead>
-                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 text-center !px-4 !py-3.5 w-[100px] border-r border-white/10">
-                        Date
-                      </TableHead>
-                      {mainTab === "pressure" ? (
-                        <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 text-center !px-4 !py-3.5 w-[120px]">
-                          Pressure (bar)
+                    ) : (
+                      <>
+                        <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 text-center !px-4 !py-3.5 w-[120px] border-r border-white/10">
+                          Water Supply
                         </TableHead>
-                      ) : (
-                        <>
-                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 text-center !px-4 !py-3.5 w-[120px] border-r border-white/10">
-                            Water Supply
-                          </TableHead>
-                          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 text-center !px-4 !py-3.5 w-[120px] border-r border-white/10">
-                            Chlorine (mg/l)
-                          </TableHead>
-                        </>
-                      )}
-                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 text-center !px-4 !py-3.5 w-[150px]">
-                        Remark
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {[1, 2, 3, 4, 5, 6, 7].map((day) => {
-                      const waterKey = `water_value_day${day}` as keyof SensorDetail;
-                      const waterDateKey = `water_date_day${day}` as keyof SensorDetail;
-                      const chlorineKey = `chlorine_value_${day}` as keyof SensorDetail;
-                      const pressureKey = `pressure_value_${day}` as keyof SensorDetail;
-                      const pressureDateKey = `pressure_date_day_${day}` as keyof SensorDetail;
+                        <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 text-center !px-4 !py-3.5 w-[120px] border-r border-white/10">
+                          Chlorine (mg/l)
+                        </TableHead>
+                      </>
+                    )}
+                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 text-center !px-4 !py-3.5 w-[150px]">
+                      Remark
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {[1, 2, 3, 4, 5, 6, 7].map((day) => {
+                    const waterKey =
+                      `water_value_day${day}` as keyof SensorDetail;
+                    const waterDateKey =
+                      `water_date_day${day}` as keyof SensorDetail;
+                    const chlorineKey =
+                      `chlorine_value_${day}` as keyof SensorDetail;
+                    const pressureKey =
+                      `pressure_value_${day}` as keyof SensorDetail;
+                    const pressureDateKey =
+                      `pressure_date_day_${day}` as keyof SensorDetail;
 
-                      const dateValue = mainTab === "pressure"
-                        ? (selectedSensor[pressureDateKey] || selectedSensor[waterDateKey])
+                    const dateValue =
+                      mainTab === "pressure"
+                        ? selectedSensor[pressureDateKey] ||
+                          selectedSensor[waterDateKey]
                         : selectedSensor[waterDateKey];
 
-                      return (
-                        <TableRow
-                          key={day}
-                          className={`transition-all duration-200 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 ${day % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-slate-50/60 dark:bg-slate-800/40"}`}
-                        >
-                          <TableCell className="font-bold text-center !px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
-                            Day {day}
+                    return (
+                      <TableRow
+                        key={day}
+                        className={`transition-all duration-200 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 ${day % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-slate-50/60 dark:bg-slate-800/40"}`}
+                      >
+                        <TableCell className="font-bold text-center !px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
+                          Day {day}
+                        </TableCell>
+                        <TableCell className="text-center !px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-slate-100/80 dark:border-slate-800/60">
+                          {formatDate(dateValue as string | null)}
+                        </TableCell>
+                        {mainTab === "pressure" ? (
+                          <TableCell className="text-center !px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
+                            {selectedSensor[pressureKey] !== null &&
+                            selectedSensor[pressureKey] !== undefined ? (
+                              Number(selectedSensor[pressureKey]).toFixed(2)
+                            ) : (
+                              <span className="text-slate-400">N/A</span>
+                            )}
                           </TableCell>
-                          <TableCell className="text-center !px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-slate-100/80 dark:border-slate-800/60">
-                            {formatDate(dateValue as string | null)}
-                          </TableCell>
-                          {mainTab === "pressure" ? (
+                        ) : (
+                          <>
                             <TableCell className="text-center !px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
-                              {selectedSensor[pressureKey] !== null &&
-                                selectedSensor[pressureKey] !== undefined ? (
-                                Number(selectedSensor[pressureKey]).toFixed(2)
+                              {selectedSensor[waterKey] !== null &&
+                              selectedSensor[waterKey] !== undefined ? (
+                                Number(selectedSensor[waterKey]).toFixed(2)
                               ) : (
                                 <span className="text-slate-400">N/A</span>
                               )}
                             </TableCell>
-                          ) : (
-                            <>
-                              <TableCell className="text-center !px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
-                                {selectedSensor[waterKey] !== null &&
-                                  selectedSensor[waterKey] !== undefined ? (
-                                  Number(selectedSensor[waterKey]).toFixed(2)
-                                ) : (
-                                  <span className="text-slate-400">N/A</span>
-                                )}
-                              </TableCell>
-                            </>
-                          )}
-                          <TableCell className="text-center !px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px] truncate" title={(() => {
+                          </>
+                        )}
+                        <TableCell
+                          className="text-center !px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px] truncate"
+                          title={(() => {
                             const esrKey = `${selectedSensor.scheme_id}-${selectedSensor.village_name}-${selectedSensor.esr_name}`;
                             const issues = esrIssuesMap?.get(esrKey) || [];
-                            const activeIssues = issues.filter((i: any) => i.status !== "Resolved");
-                            return activeIssues.length > 0 ? activeIssues.map((i: any) => i.reason).join(", ") : "-";
-                          })()}>
-                            {(() => {
-                              const esrKey = `${selectedSensor.scheme_id}-${selectedSensor.village_name}-${selectedSensor.esr_name}`;
-                              const issues = esrIssuesMap?.get(esrKey) || [];
-                              return renderRemarkCell(issues, `Remarks for ${selectedSensor.esr_name}, ${selectedSensor.village_name}`);
-                            })()}
-                          </TableCell>                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            </DialogContent>
-          </Dialog >
-        )
-      }
+                            const activeIssues = issues.filter(
+                              (i: any) => i.status !== "Resolved",
+                            );
+                            return activeIssues.length > 0
+                              ? activeIssues
+                                  .map((i: any) => i.reason)
+                                  .join(", ")
+                              : "-";
+                          })()}
+                        >
+                          {(() => {
+                            const esrKey = `${selectedSensor.scheme_id}-${selectedSensor.village_name}-${selectedSensor.esr_name}`;
+                            const issues = esrIssuesMap?.get(esrKey) || [];
+                            return renderRemarkCell(
+                              issues,
+                              `Remarks for ${selectedSensor.esr_name}, ${selectedSensor.village_name}`,
+                            );
+                          })()}
+                        </TableCell>{" "}
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Remark Details Dialog */}
       {selectedRemarkDetails && (
@@ -15701,18 +17152,24 @@ const DetailedChlorinePage = () => {
         >
           <DialogContent className="max-w-2xl bg-white dark:bg-gray-900 border-none shadow-2xl p-0 overflow-hidden">
             {(() => {
-              const hasActive = selectedRemarkDetails.issues.some((i: any) => i.status === 'Active');
+              const hasActive = selectedRemarkDetails.issues.some(
+                (i: any) => i.status === "Active",
+              );
               const headerGradient = hasActive
                 ? "from-red-600 via-rose-600 to-red-700"
                 : "from-emerald-600 via-teal-600 to-emerald-700";
               return (
                 <>
-                  <div className={`bg-gradient-to-r ${headerGradient} p-6 flex justify-between items-center text-white relative`}>
+                  <div
+                    className={`bg-gradient-to-r ${headerGradient} p-6 flex justify-between items-center text-white relative`}
+                  >
                     <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
                     <div className="relative z-10 flex-1 pr-6">
                       <DialogTitle className="text-xl md:text-2xl font-bold flex items-center gap-3">
                         <AlertCircle className="h-6 w-6 md:h-8 md:w-8 text-white/80" />
-                        <span className="tracking-tight">Issue Details & Remarks History</span>
+                        <span className="tracking-tight">
+                          Issue Details & Remarks History
+                        </span>
                       </DialogTitle>
                       <DialogDescription className="text-white/90 mt-2 font-medium flex items-center gap-2">
                         <MapPin className="h-4 w-4" />
@@ -15723,67 +17180,94 @@ const DetailedChlorinePage = () => {
 
                   <div className="p-6 overflow-y-auto max-h-[70vh] bg-slate-50 dark:bg-gray-900/50">
                     <div className="space-y-4">
-                      {selectedRemarkDetails.issues.map((issue: any, index: number) => (
-                        <div
-                          key={index}
-                          className={`bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 ${
-                            issue.status === 'Resolved'
-                              ? 'border-l-4 border-l-emerald-500'
-                              : 'border-l-4 border-l-red-500'
-                          }`}
-                        >
-                          <div className="flex justify-between items-start mb-3 gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider">
-                                  {issue.problem_level ? `${issue.problem_level} Level`.toUpperCase() : (issue.category || "General")}
-                                </span>
-                                <span className={`px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider ${
-                                  issue.status === 'Resolved'
-                                    ? 'bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-400'
-                                    : 'bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-400'
-                                }`}>
-                                  {issue.status || 'Active'}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="text-right flex flex-col items-end">
-                              <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                {issue.creator_name || issue.reported_by || "Field Engineer"}
-                              </div>
-                              <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 whitespace-nowrap">
-                                {new Date(issue.created_at || new Date()).toLocaleString('en-US', {
-                                  month: 'short', day: 'numeric', year: 'numeric',
-                                  hour: 'numeric', minute: '2-digit', hour12: true
-                                })}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-lg border border-slate-100 dark:border-slate-800">
-                            <p className="text-sm text-slate-700 dark:text-slate-300 font-medium">
-                              {issue.reason || issue.issue_description}
-                            </p>
-                            {issue.remarks && (
-                              <p className="text-sm text-slate-600 dark:text-slate-400 mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
-                                <span className="font-semibold text-slate-800 dark:text-slate-200">Additional Remarks:</span> {issue.remarks}
-                              </p>
-                            )}
-                            {issue.status === 'Resolved' && (
-                              <div className="text-sm text-emerald-700 dark:text-emerald-400 mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
-                                <span className="font-semibold text-emerald-900 dark:text-emerald-300">Resolution Remark:</span> {issue.resolution_remark || 'Resolved'}
-                                {issue.resolved_at && (
-                                  <span className="block text-[10px] text-emerald-600 dark:text-emerald-500 mt-1">
-                                    Resolved on: {new Date(issue.resolved_at).toLocaleString('en-US', {
-                                      month: 'short', day: 'numeric', year: 'numeric',
-                                      hour: 'numeric', minute: '2-digit', hour12: true
-                                    })}
+                      {selectedRemarkDetails.issues.map(
+                        (issue: any, index: number) => (
+                          <div
+                            key={index}
+                            className={`bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 ${
+                              issue.status === "Resolved"
+                                ? "border-l-4 border-l-emerald-500"
+                                : "border-l-4 border-l-red-500"
+                            }`}
+                          >
+                            <div className="flex justify-between items-start mb-3 gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider">
+                                    {issue.problem_level
+                                      ? `${issue.problem_level} Level`.toUpperCase()
+                                      : issue.category || "General"}
                                   </span>
-                                )}
+                                  <span
+                                    className={`px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider ${
+                                      issue.status === "Resolved"
+                                        ? "bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-400"
+                                        : "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-400"
+                                    }`}
+                                  >
+                                    {issue.status || "Active"}
+                                  </span>
+                                </div>
                               </div>
-                            )}
+                              <div className="text-right flex flex-col items-end">
+                                <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                  {issue.creator_name ||
+                                    issue.reported_by ||
+                                    "Field Engineer"}
+                                </div>
+                                <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 whitespace-nowrap">
+                                  {new Date(
+                                    issue.created_at || new Date(),
+                                  ).toLocaleString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                    hour12: true,
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="bg-slate-50 dark:bg-slate-900/50 p-3.5 rounded-lg border border-slate-100 dark:border-slate-800">
+                              <p className="text-sm text-slate-700 dark:text-slate-300 font-medium">
+                                {issue.reason || issue.issue_description}
+                              </p>
+                              {issue.remarks && (
+                                <p className="text-sm text-slate-600 dark:text-slate-400 mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                                    Additional Remarks:
+                                  </span>{" "}
+                                  {issue.remarks}
+                                </p>
+                              )}
+                              {issue.status === "Resolved" && (
+                                <div className="text-sm text-emerald-700 dark:text-emerald-400 mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                                  <span className="font-semibold text-emerald-900 dark:text-emerald-300">
+                                    Resolution Remark:
+                                  </span>{" "}
+                                  {issue.resolution_remark || "Resolved"}
+                                  {issue.resolved_at && (
+                                    <span className="block text-[10px] text-emerald-600 dark:text-emerald-500 mt-1">
+                                      Resolved on:{" "}
+                                      {new Date(
+                                        issue.resolved_at,
+                                      ).toLocaleString("en-US", {
+                                        month: "short",
+                                        day: "numeric",
+                                        year: "numeric",
+                                        hour: "numeric",
+                                        minute: "2-digit",
+                                        hour12: true,
+                                      })}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ),
+                      )}
                     </div>
                   </div>
                 </>
@@ -15792,8 +17276,7 @@ const DetailedChlorinePage = () => {
           </DialogContent>
         </Dialog>
       )}
-
-    </DashboardLayout >
+    </DashboardLayout>
   );
 };
 
