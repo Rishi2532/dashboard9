@@ -237,8 +237,10 @@ function cellCenter(text: string | number, fillColor?: string, color?: string): 
   return cell;
 }
 
-function headerCell(text: string): any {
-  return { text, style: "tableHeader" };
+function headerCell(text: string, fillColor?: string): any {
+  const cell: any = { text, style: "tableHeader" };
+  if (fillColor) cell.fillColor = fillColor;
+  return cell;
 }
 
 function pressureCell(val: any): any {
@@ -397,13 +399,8 @@ export async function generateMonthlyPressureReportPDF(data: MonthlyPressureData
   content.push({ text: "Table of Contents", style: "pageTitle", fontSize: 30, margin: [0, 80, 0, 40] });
 
   const tocItems = [
-    { text: data.caseType === "A" ? "1. Monthly Progress — Newly Added Assets This Month" : "1. Progress Summary — Start vs End of Month", margin: [0, 20, 0, 20], fontSize: 18 },
-    { text: "2. Monthly LPCD Integrated Schemes Data", margin: [0, 20, 0, 20], fontSize: 18 },
-    { text: "3. Highlights - Consistent Water Supply", margin: [0, 20, 0, 20], fontSize: 18 },
+    { text: "Monthly Pressure Integrated Schemes Data", margin: [0, 20, 0, 20], fontSize: 18 },
   ];
-  if (data.caseType === "A") {
-    tocItems.push({ text: "4. Overall Summary (Region Totals)", margin: [0, 20, 0, 20], fontSize: 18 });
-  }
   content.push({
     ul: tocItems,
     margin: [160, 10, 0, 0], pageBreak: "after",
@@ -471,7 +468,14 @@ export async function generateMonthlyPressureReportPDF(data: MonthlyPressureData
         const activeFontSize = 6;
         const activeHeaderFontSize = 6;
         lpcdBody.push(actualHeaders.map(key => {
-          const cell = headerCell(abbreviateHeader(String(key)));
+          const keyStr = String(key || "");
+          let fillColor: string | undefined;
+          if (keyStr.includes("0.2-0.7")) {
+            fillColor = themeColors.green;
+          } else if (keyStr.includes("< 0.2") || keyStr.includes("> 0.7")) {
+            fillColor = themeColors.red;
+          }
+          const cell = headerCell(abbreviateHeader(keyStr), fillColor);
           cell.fontSize = activeHeaderFontSize;
           cell.margin = isDense ? [1, 2, 1, 2] : [2, 4, 2, 4];
           return cell;
@@ -540,104 +544,7 @@ export async function generateMonthlyPressureReportPDF(data: MonthlyPressureData
     });
   };
 
-  if (data.caseType === "B" || data.caseType === "C") {
-    const isCaseC = data.caseType === "C";
-    const caseData = (data as any).caseData;
-
-    const progressBody: any[] = [
-      [
-        headerCell("Metric"),
-        headerCell("Start of Month"),
-        headerCell("End of Month"),
-        headerCell("Progress (Difference)")
-      ]
-    ];
-
-    const addProgressRow = (label: string, startVal: number, endVal: number, diffVal: number) => {
-      progressBody.push([
-        { text: label, style: "tableCell", alignment: "left" },
-        cellCenter(startVal),
-        cellCenter(endVal),
-        cellCenter(
-          (diffVal > 0 ? "+" : "") + diffVal,
-          diffVal > 0 ? "#E8F5E9" : (diffVal < 0 ? "#FFEBEE" : undefined),
-          diffVal !== 0 ? themeColors.darkBlue : undefined
-        )
-      ]);
-    };
-
-    if (!isCaseC) {
-      addProgressRow("Schemes Integrated", caseData.start.schemes, caseData.end.schemes, caseData.progress.schemes);
-    }
-    addProgressRow("Villages Integrated", caseData.start.villages, caseData.end.villages, caseData.progress.villages);
-    addProgressRow("ESRs Integrated", caseData.start.esrs, caseData.end.esrs, caseData.progress.esrs);
-    addProgressRow("Flow Meters Connected", caseData.start.flow_meters, caseData.end.flow_meters, caseData.progress.flow_meters);
-    addProgressRow("Chlorine (RCA) Connected", caseData.start.rca, caseData.end.rca, caseData.progress.rca);
-    addProgressRow("Pressure Transmitters Connected", caseData.start.pt, caseData.end.pt, caseData.progress.pt);
-
-    content.push({ text: "1. Progress Summary — Start vs End of Month", style: "pageTitle" });
-    content.push({
-      table: {
-        headerRows: 1,
-        widths: ["*", "auto", "auto", "auto"],
-        body: progressBody
-      },
-      layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => themeColors.lightGrey, vLineColor: () => themeColors.lightGrey },
-      margin: [0, 0, 0, 20],
-      pageBreak: "after"
-    });
-
-  } else {
-    const monthlyBody: any[] = [[headerCell("Region"), headerCell("New ESRs"), headerCell("New Villages"), headerCell("New Schemes"), headerCell("New Flow Meters"), headerCell("New RCAs"), headerCell("New PTs")]];
-    for (const ms of data.monthlySummaryByRegion) {
-      monthlyBody.push([
-        { text: ms.region_name, style: "tableCell", alignment: "left" },
-        cellCenter(ms.newly_added_esr, ms.newly_added_esr > 0 ? "#E8F5E9" : undefined),
-        cellCenter(ms.newly_added_villages, ms.newly_added_villages > 0 ? "#E8F5E9" : undefined),
-        cellCenter(ms.newly_added_schemes), cellCenter(ms.newly_added_flow_meters), cellCenter(ms.newly_added_rca), cellCenter(ms.newly_added_pt),
-      ]);
-    }
-    if (data.monthlySummaryByRegion.length > 0) {
-      const totalRow = {
-        newly_added_esr: data.monthlySummaryByRegion.reduce((sum, item) => sum + (item.newly_added_esr || 0), 0),
-        newly_added_villages: data.monthlySummaryByRegion.reduce((sum, item) => sum + (item.newly_added_villages || 0), 0),
-        newly_added_schemes: data.monthlySummaryByRegion.reduce((sum, item) => sum + (item.newly_added_schemes || 0), 0),
-        newly_added_flow_meters: data.monthlySummaryByRegion.reduce((sum, item) => sum + (item.newly_added_flow_meters || 0), 0),
-        newly_added_rca: data.monthlySummaryByRegion.reduce((sum, item) => sum + (item.newly_added_rca || 0), 0),
-        newly_added_pt: data.monthlySummaryByRegion.reduce((sum, item) => sum + (item.newly_added_pt || 0), 0),
-      };
-      monthlyBody.push([{ text: "Total", style: "tableHeader", alignment: "left" }, cellCenter(totalRow.newly_added_esr, "#FFF3E0", themeColors.darkBlue), cellCenter(totalRow.newly_added_villages, "#FFF3E0", themeColors.darkBlue), cellCenter(totalRow.newly_added_schemes, "#FFF3E0", themeColors.darkBlue), cellCenter(totalRow.newly_added_flow_meters, "#FFF3E0", themeColors.darkBlue), cellCenter(totalRow.newly_added_rca, "#FFF3E0", themeColors.darkBlue), cellCenter(totalRow.newly_added_pt, "#FFF3E0", themeColors.darkBlue)]);
-    }
-    if (data.monthlySummaryByRegion.length === 0) {
-      monthlyBody.push([{ text: "No region history data available for this month. Upload Region CSV to enable monthly tracking.", colSpan: 7, style: "tableCell", color: themeColors.grey, alignment: "center" }, ...Array(6).fill({})]);
-    }
-    content.push({ text: "1. Monthly Progress — Newly Added Assets This Month", style: "pageTitle" });
-    content.push({
-      table: { headerRows: 1, widths: ["*", "auto", "auto", "auto", "auto", "auto", "auto"], body: monthlyBody },
-      layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => themeColors.lightGrey, vLineColor: () => themeColors.lightGrey },
-      margin: [0, 0, 0, 20],
-      pageBreak: "after"
-    });
-  }
-
-  renderLpcdTable(data.pressureCommissionedSchemes, "2. Monthly Pressure Integrated Schemes Data", "Pressure data spanning the valid dates for commissioned schemes, displayed in 2-week sub-tables. Values between 0.2 and 0.7 are highlighted green, < 0.2 in yellow, and > 0.7 in red.");
-  renderLpcdTable(data.pressureHighlights || [], "3. Highlights - Consistent Optimal Pressure", "Schemes that achieved consistent optimal pressure (0.2–0.7 bar) every single recorded day throughout the period.");
-
-  if (data.caseType === "A") {
-    content.push({ text: "4. Overall Summary Report", style: "pageTitle" });
-    content.push({ text: "Current cumulative totals as reported in the Region table, matching the structure of the Region CSV.", alignment: "center", margin: [0, 0, 0, 14], fontSize: 9, color: "#555555" });
-    const summaryBody: any[] = [[headerCell("Region"), headerCell("Total ESR\nIntegrated"), headerCell("Fully\nCompleted\nESR"), headerCell("Partial\nESR"), headerCell("Villages\nIntegrated"), headerCell("Fully\nCompleted\nVillages"), headerCell("Schemes\nIntegrated"), headerCell("Fully\nCompleted\nSchemes"), headerCell("Flow\nMeters"), headerCell("RCA"), headerCell("Pressure\nTransmitter")]];
-    for (const ms of data.monthlySummaryByRegion) {
-      summaryBody.push([{ text: ms.region_name, style: "tableCell", alignment: "left" }, cellCenter(ms.total_esr_integrated ?? 0), cellCenter(ms.fully_completed_esr ?? 0), cellCenter(ms.partial_esr ?? 0), cellCenter(ms.total_villages_integrated ?? 0), cellCenter(ms.fully_completed_villages ?? 0), cellCenter(ms.total_schemes_integrated ?? 0), cellCenter(ms.fully_completed_schemes ?? 0), cellCenter(ms.flow_meter_integrated ?? 0), cellCenter(ms.rca_integrated ?? 0), cellCenter(ms.pressure_transmitter_integrated ?? 0)]);
-    }
-    const totals = data.monthlySummaryByRegion.reduce((acc, ms) => ({ total_esr_integrated: acc.total_esr_integrated + (ms.total_esr_integrated ?? 0), fully_completed_esr: acc.fully_completed_esr + (ms.fully_completed_esr ?? 0), partial_esr: acc.partial_esr + (ms.partial_esr ?? 0), total_villages_integrated: acc.total_villages_integrated + (ms.total_villages_integrated ?? 0), fully_completed_villages: acc.fully_completed_villages + (ms.fully_completed_villages ?? 0), total_schemes_integrated: acc.total_schemes_integrated + (ms.total_schemes_integrated ?? 0), fully_completed_schemes: acc.fully_completed_schemes + (ms.fully_completed_schemes ?? 0), flow_meter_integrated: acc.flow_meter_integrated + (ms.flow_meter_integrated ?? 0), rca_integrated: acc.rca_integrated + (ms.rca_integrated ?? 0), pressure_transmitter_integrated: acc.pressure_transmitter_integrated + (ms.pressure_transmitter_integrated ?? 0) }), { total_esr_integrated: 0, fully_completed_esr: 0, partial_esr: 0, total_villages_integrated: 0, fully_completed_villages: 0, total_schemes_integrated: 0, fully_completed_schemes: 0, flow_meter_integrated: 0, rca_integrated: 0, pressure_transmitter_integrated: 0 });
-    summaryBody.push([{ text: "TOTAL", style: "tableHeader", alignment: "left" }, { text: String(totals.total_esr_integrated), style: "tableHeader" }, { text: String(totals.fully_completed_esr), style: "tableHeader" }, { text: String(totals.partial_esr), style: "tableHeader" }, { text: String(totals.total_villages_integrated), style: "tableHeader" }, { text: String(totals.fully_completed_villages), style: "tableHeader" }, { text: String(totals.total_schemes_integrated), style: "tableHeader" }, { text: String(totals.fully_completed_schemes), style: "tableHeader" }, { text: String(totals.flow_meter_integrated), style: "tableHeader" }, { text: String(totals.rca_integrated), style: "tableHeader" }, { text: String(totals.pressure_transmitter_integrated), style: "tableHeader" }]);
-    content.push({
-      table: { headerRows: 1, widths: ["*", "auto", "auto", "auto", "auto", "auto", "auto", "auto", "auto", "auto", "auto"], body: summaryBody },
-      layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => themeColors.lightGrey, vLineColor: () => themeColors.lightGrey },
-      margin: [0, 0, 0, 20],
-    });
-  }
+  renderLpcdTable(data.pressureCommissionedSchemes, "Monthly Pressure Integrated Schemes Data", "Pressure data spanning the valid dates for commissioned schemes, displayed in 2-week sub-tables. Values between 0.2 and 0.7 are highlighted green, < 0.2 in yellow, and > 0.7 in red.", false);
 
   content.push({ text: "End of Report.", alignment: "center", italics: true, color: themeColors.grey, margin: [0, 40, 0, 0], fontSize: 10 });
   return new Promise<void>((resolve, reject) => {
