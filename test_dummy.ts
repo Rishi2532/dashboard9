@@ -1,0 +1,1 @@
+import { pool } from './server/db-local'; async function run() { const r = await pool.query('SELECT village_name FROM water_consumption_history LIMIT 5'); console.log(r.rows); process.exit(0); } run();

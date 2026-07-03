@@ -55,7 +55,7 @@ export async function getMonthlyChlorineData(reqQuery: any) {
   const dateCond2 = `$${paramIdx++}`;
 
   const historyQuery = `
-    SELECT scheme_id, esr_name, chlorine_date, chlorine_value
+    SELECT scheme_id, village_name, esr_name, chlorine_date, chlorine_value
     FROM chlorine_history
     ${whereClause ? whereClause + " AND " : "WHERE "}
     (chlorine_date LIKE ${dateCond1} OR chlorine_date LIKE ${dateCond2})
@@ -63,7 +63,7 @@ export async function getMonthlyChlorineData(reqQuery: any) {
   const historyRes = await pool.query(historyQuery, historyParams);
 
   const waterQuery = `
-    SELECT scheme_id, esr_name, data_date, water_value
+    SELECT scheme_id, village_name, esr_name, data_date, water_value
     FROM water_consumption_history
     ${whereClause ? whereClause + " AND " : "WHERE "}
     (data_date LIKE ${dateCond1} OR data_date LIKE ${dateCond2})
@@ -204,7 +204,7 @@ export async function getMonthlyPressureData(reqQuery: any) {
   const dateCond2 = `$${paramIdx++}`;
 
   const historyQuery = `
-    SELECT scheme_id, esr_name, pressure_date, pressure_value
+    SELECT scheme_id, village_name, esr_name, pressure_date, pressure_value
     FROM pressure_history
     ${whereClause ? whereClause + " AND " : "WHERE "}
     (pressure_date LIKE ${dateCond1} OR pressure_date LIKE ${dateCond2})
@@ -212,7 +212,7 @@ export async function getMonthlyPressureData(reqQuery: any) {
   const historyRes = await pool.query(historyQuery, historyParams);
 
   const waterQuery = `
-    SELECT scheme_id, esr_name, data_date, water_value
+    SELECT scheme_id, village_name, esr_name, data_date, water_value
     FROM water_consumption_history
     ${whereClause ? whereClause + " AND " : "WHERE "}
     (data_date LIKE ${dateCond1} OR data_date LIKE ${dateCond2})
