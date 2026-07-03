@@ -1,0 +1,1 @@
+import { pool } from './server/db-local'; async function run() { const r = await pool.query('SELECT chlorine_date, chlorine_value FROM chlorine_history WHERE village_name = \'Hasara\' AND esr_name = \'ESR1.50LL\' LIMIT 10'); console.log(r.rows); process.exit(0); } run();

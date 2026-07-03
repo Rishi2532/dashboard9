@@ -1,0 +1,1 @@
+import { pool } from './server/db-local'; async function run() { const r = await pool.query('SELECT column_name FROM information_schema.columns WHERE table_name = \'chlorine_history\''); console.log(r.rows); process.exit(0); } run();

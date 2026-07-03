@@ -1,0 +1,1 @@
+import { pool } from './server/db-local'; async function run() { const r = await pool.query('SELECT DISTINCT village_name, chlorine_date, chlorine_value FROM chlorine_history WHERE scheme_name = \'Dewadi RR WSS\' AND esr_name = \'ESR 1.50 LL\''); console.log(r.rows); process.exit(0); } run();

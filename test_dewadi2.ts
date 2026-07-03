@@ -1,0 +1,1 @@
+import { pool } from './server/db-local'; async function run() { const r = await pool.query('SELECT DISTINCT esr_name, scheme_name FROM water_consumption_history WHERE scheme_name LIKE \'%Dewadi%\''); console.log(r.rows); process.exit(0); } run();

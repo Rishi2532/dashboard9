@@ -1,0 +1,1 @@
+import { pool } from './server/db-local'; async function run() { const r = await pool.query('SELECT data_date, water_value FROM water_consumption_history WHERE scheme_name LIKE \'%Dewadi%\' AND esr_name LIKE \'%1.50%\' LIMIT 20'); console.log(r.rows); process.exit(0); } run();

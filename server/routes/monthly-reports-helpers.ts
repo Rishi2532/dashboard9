@@ -16,8 +16,8 @@ const parseDateString = (dateStr: string) => {
   return dayNum >= 1 && dayNum <= 31 ? dayNum : null;
 };
 
-const sanitizeKey = (schemeId: string, esrName: string) => {
-  return `${schemeId}_${(esrName || "").replace(/\s+/g, '').toLowerCase()}`;
+const sanitizeKey = (schemeId: string, villageName: string, esrName: string) => {
+  return `${schemeId}_${(villageName || "").replace(/\s+/g, '').toLowerCase()}_${(esrName || "").replace(/\s+/g, '').toLowerCase()}`;
 };
 
 export async function getMonthlyChlorineData(reqQuery: any) {
@@ -72,7 +72,7 @@ export async function getMonthlyChlorineData(reqQuery: any) {
 
   const esrMap = new Map();
   for (const esr of esrRes.rows) {
-    const key = sanitizeKey(esr.scheme_id, esr.esr_name);
+    const key = sanitizeKey(esr.scheme_id, esr.village_name, esr.esr_name);
     esrMap.set(key, {
       ...esr,
       days: {},
@@ -89,7 +89,7 @@ export async function getMonthlyChlorineData(reqQuery: any) {
     if (val > 0) {
       const dayNum = parseDateString(w.data_date);
       if (dayNum) {
-         const key = sanitizeKey(w.scheme_id, w.esr_name);
+         const key = sanitizeKey(w.scheme_id, w.village_name, w.esr_name);
          const dayKey = `${key}_${dayNum}`;
          if (!activeWaterDays.has(dayKey)) {
              activeWaterDays.add(dayKey);
@@ -104,7 +104,7 @@ export async function getMonthlyChlorineData(reqQuery: any) {
   const chlorineByDay = new Map<string, number>();
 
   for (const h of historyRes.rows) {
-    const key = sanitizeKey(h.scheme_id, h.esr_name);
+    const key = sanitizeKey(h.scheme_id, h.village_name, h.esr_name);
     if (!esrMap.has(key)) continue;
 
     const dayNum = parseDateString(h.chlorine_date);
@@ -221,7 +221,7 @@ export async function getMonthlyPressureData(reqQuery: any) {
 
   const esrMap = new Map();
   for (const esr of esrRes.rows) {
-    const key = sanitizeKey(esr.scheme_id, esr.esr_name);
+    const key = sanitizeKey(esr.scheme_id, esr.village_name, esr.esr_name);
     esrMap.set(key, {
       ...esr,
       days: {},
@@ -238,7 +238,7 @@ export async function getMonthlyPressureData(reqQuery: any) {
     if (val > 0) {
       const dayNum = parseDateString(w.data_date);
       if (dayNum) {
-         const key = sanitizeKey(w.scheme_id, w.esr_name);
+         const key = sanitizeKey(w.scheme_id, w.village_name, w.esr_name);
          const dayKey = `${key}_${dayNum}`;
          if (!activeWaterDays.has(dayKey)) {
              activeWaterDays.add(dayKey);
@@ -253,7 +253,7 @@ export async function getMonthlyPressureData(reqQuery: any) {
   const pressureByDay = new Map<string, number>();
 
   for (const h of historyRes.rows) {
-    const key = sanitizeKey(h.scheme_id, h.esr_name);
+    const key = sanitizeKey(h.scheme_id, h.village_name, h.esr_name);
     if (!esrMap.has(key)) continue;
 
     const dayNum = parseDateString(h.pressure_date);
