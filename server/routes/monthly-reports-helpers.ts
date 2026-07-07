@@ -101,7 +101,7 @@ export async function getMonthlyChlorineData(reqQuery: any) {
     }
   }
 
-  const chlorineByDay = new Map<string, number>();
+  const chlorineByDay = new Map<string, any>();
 
   for (const h of historyRes.rows) {
     const key = sanitizeKey(h.scheme_id, h.village_name, h.esr_name);
@@ -111,12 +111,15 @@ export async function getMonthlyChlorineData(reqQuery: any) {
     if (dayNum) {
        const dayKey = `${key}_${dayNum}`;
        if (activeWaterDays.has(dayKey)) {
-           chlorineByDay.set(dayKey, Number(h.chlorine_value));
+           chlorineByDay.set(dayKey, h.chlorine_value);
        }
     }
   }
 
-  for (const [dayKey, val] of chlorineByDay.entries()) {
+  for (const [dayKey, rawVal] of chlorineByDay.entries()) {
+      if (rawVal === null || rawVal === undefined || rawVal.toString().trim() === "") continue;
+      const val = Number(rawVal);
+      
       const lastUnderscore = dayKey.lastIndexOf('_');
       const key = dayKey.substring(0, lastUnderscore);
       const esrData = esrMap.get(key);
@@ -250,7 +253,7 @@ export async function getMonthlyPressureData(reqQuery: any) {
     }
   }
 
-  const pressureByDay = new Map<string, number>();
+  const pressureByDay = new Map<string, any>();
 
   for (const h of historyRes.rows) {
     const key = sanitizeKey(h.scheme_id, h.village_name, h.esr_name);
@@ -260,12 +263,15 @@ export async function getMonthlyPressureData(reqQuery: any) {
     if (dayNum) {
        const dayKey = `${key}_${dayNum}`;
        if (activeWaterDays.has(dayKey)) {
-           pressureByDay.set(dayKey, Number(h.pressure_value));
+           pressureByDay.set(dayKey, h.pressure_value);
        }
     }
   }
 
-  for (const [dayKey, val] of pressureByDay.entries()) {
+  for (const [dayKey, rawVal] of pressureByDay.entries()) {
+      if (rawVal === null || rawVal === undefined || rawVal.toString().trim() === "") continue;
+      const val = Number(rawVal);
+
       const lastUnderscore = dayKey.lastIndexOf('_');
       const key = dayKey.substring(0, lastUnderscore);
       const esrData = esrMap.get(key);
