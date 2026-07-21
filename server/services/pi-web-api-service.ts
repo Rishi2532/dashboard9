@@ -100,7 +100,12 @@ export async function getAllESRs(rootPath: string = '\\\\DemoAF\\JJM\\JJM\\Mahar
 
   console.log(`Starting crawl for ESRs at path: ${rootPath}...`);
   try {
-    const esrs = await findElementsByTemplate(rootPath, 'MJP Reservoir Level - Active');
+    const targetTemplates = [
+      'MJP Reservoir Level - Active',
+      'MJP Reservoir MBR FL & CL -  Level - Active',
+      'MJP Reservoir MBR -  Level - Active'
+    ];
+    const esrs = await findElementsByTemplate(rootPath, targetTemplates);
     cachedESRs = esrs;
     lastESRCacheTime = now;
     return esrs;
@@ -111,13 +116,13 @@ export async function getAllESRs(rootPath: string = '\\\\DemoAF\\JJM\\JJM\\Mahar
   }
 }
 
-export async function findElementsByTemplate(startPath: string, targetTemplate: string): Promise<PIElement[]> {
+export async function findElementsByTemplate(startPath: string, targetTemplates: string[]): Promise<PIElement[]> {
   const results: PIElement[] = [];
   
   // Get initial element
   try {
     const rootRes = await fetchWithRetry(`/elements?path=${encodeURIComponent(startPath)}`);
-    await traverseElement(rootRes.data, targetTemplate, results);
+    await traverseElement(rootRes.data, targetTemplates, results);
     return results;
   } catch (error) {
     console.error('Error starting PI hierarchy crawl:', error);
@@ -125,8 +130,8 @@ export async function findElementsByTemplate(startPath: string, targetTemplate: 
   }
 }
 
-async function traverseElement(element: PIElement, targetTemplate: string, results: PIElement[]) {
-  if (element.TemplateName === targetTemplate) {
+async function traverseElement(element: PIElement, targetTemplates: string[], results: PIElement[]) {
+  if (element.TemplateName && targetTemplates.includes(element.TemplateName)) {
     results.push(element);
   }
 
@@ -138,7 +143,7 @@ async function traverseElement(element: PIElement, targetTemplate: string, resul
       
       // Process children in batches to avoid overwhelming the PI server or node
       for (const child of children) {
-        await traverseElement(child, targetTemplate, results);
+        await traverseElement(child, targetTemplates, results);
         // await delay(10); // slight delay to prevent rate limiting if tree is huge
       }
     } catch (error) {

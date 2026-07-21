@@ -70,17 +70,31 @@ export async function runPiWaterConsumptionIngestion(rootPath?: string) {
             const vals: number[] = [];
             const dts: string[] = [];
             const dateMap = new Map<string, number>();
+            let hasOnlyPtCreated = false;
 
             if (points && points.length > 0) {
+              let totalBuckets = 0;
+              let ptCreatedCount = 0;
+
               for (const summaryItem of points) {
                 const pt = summaryItem.Value;
-                if (pt && typeof pt.Value === 'number' && pt.Good !== false) {
-                  const bucketTimestamp = pt.Timestamp;
-                  // Shift the date back by 1 day since data for the day is timestamped at 12 AM the next day
-                  const dateObj = new Date(bucketTimestamp);
-                  const dateStr = format(dateObj, "dd-MMM");
-                  dateMap.set(dateStr, pt.Value);
+                if (pt) {
+                  totalBuckets++;
+                  const isPtCreated = pt.IsSystem || pt.Name === 'Pt Created' || pt.Value === 253 || pt.Value === 255 ||
+                    (typeof pt.Value === 'object' && (pt.Value.IsSystem || pt.Value.Name === 'Pt Created'));
+
+                  if (isPtCreated) {
+                    ptCreatedCount++;
+                  } else if (typeof pt.Value === 'number' && pt.Good !== false) {
+                    const bucketTimestamp = pt.Timestamp;
+                    const dateObj = new Date(bucketTimestamp);
+                    const dateStr = format(dateObj, "dd-MMM");
+                    dateMap.set(dateStr, pt.Value);
+                  }
                 }
+              }
+              if (totalBuckets > 0 && ptCreatedCount === totalBuckets) {
+                hasOnlyPtCreated = true;
               }
             }
 
@@ -89,10 +103,22 @@ export async function runPiWaterConsumptionIngestion(rootPath?: string) {
               dts.push(expectedDate);
               vals.push(dateMap.get(expectedDate) || 0);
             }
-            return { vals, dts };
+            return { vals, dts, hasOnlyPtCreated };
           };
 
           const water = processPoints(waterPoints || []);
+
+          if (waterPoints === null || water.hasOnlyPtCreated) {
+            // Delete if physically missing or completely Pt Created
+            await db.delete(waterConsumption).where(
+              and(
+                eq(waterConsumption.scheme_id, hierarchy.scheme_id),
+                eq(waterConsumption.village_name, hierarchy.village_name),
+                eq(waterConsumption.esr_name, hierarchy.esr_name)
+              )
+            );
+            return;
+          }
 
           let zeroCount = 0;
           for (const val of water.vals) {
@@ -181,7 +207,7 @@ export async function runPiWaterConsumptionIngestion(rootPath?: string) {
 
 export function initPiWaterConsumptionIngestionCron() {
   // Run daily at 09:51 AM
-  cron.schedule("29 13 * * *", async () => {
+  cron.schedule("54 12 * * *", async () => {
     console.log("Running scheduled PI Web API Water Consumption Ingestion...");
     await runPiWaterConsumptionIngestion();
   });

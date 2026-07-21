@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Our Chatbot Works</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        .container {
+            background-color: #fff;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        .step {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f0f7ff;
+            border-left: 4px solid #3498db;
+            border-radius: 4px;
+        }
+        .diagram-container {
+            margin: 40px 0;
+            padding: 20px;
+            background-color: #fff;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            text-align: center;
+        }
+    </style>
+    <!-- Include Mermaid.js -->
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'default' });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>How Our Chatbot Works (Simplified)</h1>
+        <p>This document explains how our chatbot understands your questions and fetches the right information, using simple terms.</p>
+
+        <div class="diagram-container">
+            <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    
+    actor You as ?? You
+    participant ChatWindow as ?? Chatbot Interface
+    participant AIBrain as ?? Smart AI Brain (OpenAI)
+    participant Database as ??? Dashboard Database
+
+    %% 1. You ask a question
+    You->>ChatWindow: "Show me water consumption in Nagpur"
+    
+    %% 2. Figuring out what you mean
+    Note over ChatWindow, AIBrain: Step 2: The Chatbot asks the AI to figure out exactly what you want.
+    ChatWindow->>AIBrain: What is the user asking for?
+    AIBrain-->>ChatWindow: They want "Water Data" for the region "Nagpur"
+    
+    %% 3. Getting the numbers
+    Note over ChatWindow, Database: Step 3: Now that it knows what you want, it fetches the actual numbers.
+    ChatWindow->>Database: Please give me the water data for Nagpur
+    Database-->>ChatWindow: Here are the numbers and statistics...
+    
+    %% 4. Showing the answer
+    Note over ChatWindow, You: Step 4: The Chatbot builds a nice chart or summary.
+    ChatWindow-->>You: Displays a beautiful chart and a simple text answer!
+            </pre>
+        </div>
+
+        <h2>The Four Main Steps Explained</h2>
+        
+        <div class="step">
+            <h3>1. You Ask a Question ?? ?? ??</h3>
+            <p>You type or speak a question into the chat window. For example, <em>"How many water tanks (ESRs) are fully completed?"</em></p>
+        </div>
+
+        <div class="step">
+            <h3>2. The Smart AI Brain Translates ?? ?? ??</h3>
+            <p>The chat window itself doesn't immediately know the answer. Instead, it sends your question to our <strong>Smart AI Brain</strong> (powered by OpenAI). The AI acts like a highly trained assistant whose only job is to figure out <strong>what</strong> you want to know and <strong>where</strong> to look for it. It strips away the conversational fluff and tells the system: <em>"The user is looking for a count of completed ESR tanks."</em></p>
+        </div>
+
+        <div class="step">
+            <h3>3. Fetching the Data ?? ?? ???</h3>
+            <p>Now that the chat window knows exactly what to look for, it reaches into the <strong>Dashboard Database</strong>—the giant digital filing cabinet where all the real-time sensor data, region statistics, and scheme details are stored. It grabs the exact numbers needed to answer your question.</p>
+        </div>
+
+        <div class="step">
+            <h3>4. Creating Your Answer ?? ?? ??</h3>
+            <p>Nobody likes reading raw numbers! The chat window takes the data from the database and magically transforms it into something easy to understand. It might build a colorful chart, a map, or just give you a simple, spoken answer. Finally, it displays this right on your screen.</p>
+        </div>
+    </div>
+</body>
+</html>

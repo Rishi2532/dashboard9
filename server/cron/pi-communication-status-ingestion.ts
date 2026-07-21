@@ -182,7 +182,7 @@ export async function runPiCommunicationStatusIngestion(rootPath?: string) {
 import cron from "node-cron";
 
 export function initPiCommunicationStatusIngestionCron() {
-  cron.schedule("58 11 * * *", async () => {
+  cron.schedule("29 11 * * *", async () => {
     console.log("Running scheduled PI Web API Communication Status Ingestion...");
     await runPiCommunicationStatusIngestion();
   });

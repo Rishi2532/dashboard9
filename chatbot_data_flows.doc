@@ -1,0 +1,91 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+    <meta charset="utf-8">
+    <title>Chatbot Data Flows</title>
+    <style>
+        body { font-family: 'Calibri', 'Segoe UI', sans-serif; }
+        h1 { color: #2c3e50; font-size: 24pt; }
+        h2 { color: #34495e; font-size: 18pt; margin-top: 20px; }
+        h3 { color: #2980b9; font-size: 14pt; }
+        p { font-size: 11pt; line-height: 1.5; }
+        .flow-box { border: 1px solid #bdc3c7; background-color: #f9f9f9; padding: 15px; margin: 15px 0; }
+        .arrow { font-size: 16pt; color: #7f8c8d; text-align: center; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>Chatbot Architecture & Data Flows</h1>
+    <p>This document contains both the technical and non-technical explanations of how the Maharashtra Water Dashboard chatbot processes queries and returns data.</p>
+    
+    <hr>
+
+    <h2>Part 1: Simple Flow (For Non-Technical Audiences)</h2>
+    <p>This explains the journey from a user's question to the chatbot's answer.</p>
+    
+    <h3>The Four Main Steps</h3>
+    
+    <div class="flow-box">
+        <strong>1. You Ask a Question (You -> Chatbot)</strong><br>
+        You type or speak a question into the chat window (e.g., "Show me water consumption in Nagpur").
+    </div>
+    
+    <div class="arrow">&#8595;</div>
+    
+    <div class="flow-box">
+        <strong>2. The Smart AI Brain Translates (Chatbot -> OpenAI)</strong><br>
+        The chat window doesn't immediately know the answer. It sends your question to our Smart AI Brain. The AI strips away the conversational fluff and figures out exactly what you want (e.g., "Water Data" for "Nagpur").
+    </div>
+    
+    <div class="arrow">&#8595;</div>
+
+    <div class="flow-box">
+        <strong>3. Fetching the Data (Chatbot -> Database)</strong><br>
+        Now that the chat window knows what to look for, it reaches into the Dashboard Database (where real-time sensor data is stored) and grabs the exact numbers needed.
+    </div>
+
+    <div class="arrow">&#8595;</div>
+    
+    <div class="flow-box">
+        <strong>4. Creating Your Answer (Chatbot -> You)</strong><br>
+        The chatbot takes the raw numbers and magically transforms them into something easy to understand. It displays a colorful chart, a map, or a simple text answer right on your screen.
+    </div>
+
+    <br><br><hr><br>
+
+    <h2>Part 2: Technical Flow (For Developers & Engineers)</h2>
+    <p>This outlines the data flow between the frontend components, backend services, and external APIs.</p>
+
+    <h3>1. Client-Side (Frontend)</h3>
+    <ul>
+        <li><strong>ChatbotComponent.tsx:</strong> The orchestrator. Manages chat state, handles user inputs, dispatches calls to client services for NLP parsing, triggers data fetching based on intent, and manages widgets.</li>
+        <li><strong>nlp-service.ts & openai-service.ts:</strong> Client-side services that abstract API calls to backend AI routes.</li>
+        <li><strong>widgets/*:</strong> UI components (e.g., Above55LpcdWidget) that receive fetched data and render visual statistics.</li>
+    </ul>
+
+    <h3>2. Backend Server (Node/Express)</h3>
+    <ul>
+        <li><strong>openai-routes.ts:</strong> Exposes endpoints like /enhanced-interpret. Bridges the raw user query to the AI service.</li>
+        <li><strong>openai-service.ts:</strong> Contains core logic for OpenAI API communication, system prompts, database schema definitions (Text-to-SQL), and security constraints.</li>
+        <li><strong>category-data-routes.ts:</strong> Fetches business data from the Postgres database once the AI identifies the intent.</li>
+    </ul>
+
+    <h3>3. External Services & Database</h3>
+    <ul>
+        <li><strong>OpenAI API:</strong> The LLM engine (gpt-4o-mini) that performs intent classification, entity extraction, and SQL generation.</li>
+        <li><strong>Postgres DB:</strong> Persistent storage for telemetry, schemes, and regions.</li>
+    </ul>
+
+    <h3>Data Flow Sequence</h3>
+    <ol>
+        <li><strong>User Input:</strong> User enters a text/voice query in <em>ChatbotComponent</em>.</li>
+        <li><strong>NLP Parsing:</strong> <em>ChatbotComponent</em> passes input to <em>nlp-service.ts</em>, which calls <em>POST /api/ai/enhanced-interpret</em>.</li>
+        <li><strong>Intent Classification:</strong> Backend <em>openai-routes.ts</em> routes to <em>openai-service.ts</em>, which calls the external <strong>OpenAI API</strong>.</li>
+        <li><strong>Entity Extraction:</strong> OpenAI returns JSON containing the Intent and Entities (e.g., scheme ID, region).</li>
+        <li><strong>Data Request:</strong> <em>ChatbotComponent</em> processes the intent and calls Backend Data Routes (e.g., <em>/api/category-data</em>).</li>
+        <li><strong>Database Query:</strong> Backend routes query the <strong>Postgres Database</strong> and return data to the frontend.</li>
+        <li><strong>UI Rendering:</strong> <em>ChatbotComponent</em> selects the appropriate widget from <em>widgets/</em> and passes the data.</li>
+        <li><strong>Final Output:</strong> The widget renders a chart or summary, which is displayed to the user.</li>
+    </ol>
+
+</body>
+</html>

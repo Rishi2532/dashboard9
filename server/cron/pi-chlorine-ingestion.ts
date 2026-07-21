@@ -207,7 +207,7 @@ export async function runPiChlorineIngestion(rootPath?: string) {
 import cron from "node-cron";
 
 export function initPiChlorineIngestionCron() {
-  cron.schedule("23 13 * * *", async () => {
+  cron.schedule("23 11 * * *", async () => {
     console.log("Running scheduled PI Web API Chlorine Data Ingestion...");
     await runPiChlorineIngestion();
   });
