@@ -5950,11 +5950,6 @@ const DetailedChlorinePage = () => {
                                           `Remarks for ${item.scheme_name}`,
                                         )}
                                       </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
-                                        {item.owner ||
-                                          item.agency_type ||
-                                          "N/A"}
-                                      </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
                                         {item.total_population?.toLocaleString() ||
                                           "N/A"}
@@ -10903,11 +10898,6 @@ const DetailedChlorinePage = () => {
                                             `Remarks for ${scheme.scheme_name}`,
                                           )}
                                         </TableCell>
-                                        <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
-                                          {scheme.owner ||
-                                            scheme.agency_type ||
-                                            "N/A"}
-                                        </TableCell>
                                         <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60">
                                           {scheme.block}
                                         </TableCell>
@@ -12201,11 +12191,6 @@ const DetailedChlorinePage = () => {
                                               ) || [],
                                               `Remarks for ${item.scheme_name}`,
                                             )}
-                                          </TableCell>
-                                          <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
-                                            {item.owner ||
-                                              item.agency_type ||
-                                              "N/A"}
                                           </TableCell>
                                         </TableRow>
                                       ),
