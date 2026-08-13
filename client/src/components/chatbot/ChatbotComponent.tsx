@@ -1895,11 +1895,11 @@ const CustomChatbot = ({
       )
       .replace(/^.*?\b(report|reports)\s+(for|of|on)\s+/i, "")
       .replace(
-        /^(smart|pdf|professional|comprehensive|detailed|performance|report|reports|generate|create|download)\s+/gi,
+        /^(?:(?:scheme|smart|pdf|professional|comprehensive|detailed|performance|report|reports|generate|create|download)\s+)+/gi,
         "",
       )
       .replace(
-        /\s+(smart|pdf|professional|comprehensive|detailed|performance|report|reports)$/gi,
+        /(?:\s+(?:scheme|smart|pdf|professional|comprehensive|detailed|performance|report|reports))+$/gi,
         "",
       )
       .trim();
@@ -4117,8 +4117,8 @@ const CustomChatbot = ({
                       comprehensiveText += `• Villages Below 55 LPCD: ${waterData.villages_below_55_lpcd}\n`;
                       comprehensiveText += `• Villages Consistently Above 55 LPCD: ${waterData.villages_consistently_above_55_lpcd}\n`;
                       comprehensiveText += `• Villages Consistently Below 55 LPCD: ${waterData.villages_consistently_below_55_lpcd}\n`;
-                      comprehensiveText += `• Total Population Covered: ${waterData.total_population_covered.toLocaleString()}\n`;
-                      comprehensiveText += `• Average LPCD: ${waterData.avg_lpcd_day7.toFixed(
+                      comprehensiveText += `• Total Population Covered: ${(waterData.total_population_covered || 0).toLocaleString()}\n`;
+                      comprehensiveText += `• Average LPCD: ${(waterData.avg_lpcd_day7 || 0).toFixed(
                         2,
                       )}\n\n`;
 
@@ -4129,7 +4129,7 @@ const CustomChatbot = ({
                       comprehensiveText += `• ESR Above Optimal: ${sensorData.chlorine_sensors.above_range_greater_than_0_5}\n`;
                       comprehensiveText += `• ESR with Zero Readings: ${sensorData.chlorine_sensors.zero_readings}\n`;
                       comprehensiveText += `• ESR Consistently Optimal: ${sensorData.chlorine_sensors.consistent_optimal_range}\n`;
-                      comprehensiveText += `• Average Chlorine Level: ${sensorData.chlorine_sensors.avg_chlorine_day7.toFixed(
+                      comprehensiveText += `• Average Chlorine Level: ${(sensorData.chlorine_sensors.avg_chlorine_day7 || 0).toFixed(
                         2,
                       )} mg/L\n\n`;
 
@@ -4139,7 +4139,7 @@ const CustomChatbot = ({
                       comprehensiveText += `• ESR Above Optimal: ${sensorData.pressure_sensors.above_range_greater_than_0_7}\n`;
                       comprehensiveText += `• ESR with Zero Readings: ${sensorData.pressure_sensors.zero_readings}\n`;
                       comprehensiveText += `• ESR Consistently Optimal: ${sensorData.pressure_sensors.consistent_optimal_range}\n`;
-                      comprehensiveText += `• Average Pressure Level: ${sensorData.pressure_sensors.avg_pressure_day7.toFixed(
+                      comprehensiveText += `• Average Pressure Level: ${(sensorData.pressure_sensors.avg_pressure_day7 || 0).toFixed(
                         2,
                       )} bar\n\n`;
 
@@ -8545,11 +8545,11 @@ const CustomChatbot = ({
             // Clean up only report-related keywords at the start/end, preserve everything else
             schemeIdentifier = cleanedText
               .replace(
-                /^(smart|pdf|professional|comprehensive|detailed|performance|report|reports|generate|create|download)\s+/gi,
+                /^(?:(?:scheme|smart|pdf|professional|comprehensive|detailed|performance|report|reports|generate|create|download)\s+)+/gi,
                 "",
               )
               .replace(
-                /\s+(smart|pdf|professional|comprehensive|detailed|performance|report|reports)$/gi,
+                /(?:\s+(?:scheme|smart|pdf|professional|comprehensive|detailed|performance|report|reports))+$/gi,
                 "",
               )
               .trim();
