@@ -1221,10 +1221,10 @@ export default function CommunicationStatusPage() {
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between text-xs">
                       <span className="text-orange-600">
-                        &gt; 72h: {overview.flow_meter_less_72h}
+                        &lt; 72h: {overview.flow_meter_less_72h}
                       </span>
                       <span className="text-red-600">
-                        &lt; 72h: {overview.flow_meter_more_72h}
+                        &gt; 72h: {overview.flow_meter_more_72h}
                       </span>
                     </div>
                   </div>
@@ -1290,11 +1290,11 @@ export default function CommunicationStatusPage() {
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between text-xs">
                       <span className="text-orange-600">
-                        &gt; 72h: {overview.chlorine_less_72h}
+                        &lt; 72h: {overview.chlorine_less_72h}
                       </span>
                       <span className="text-red-600">
                         {" "}
-                        &lt; 72h: {overview.chlorine_more_72h}
+                        &gt; 72h: {overview.chlorine_more_72h}
                       </span>
                     </div>
                   </div>
@@ -1359,10 +1359,10 @@ export default function CommunicationStatusPage() {
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between text-xs">
                       <span className="text-orange-600">
-                        &gt; 72h: {overview.pressure_less_72h}
+                        &lt; 72h: {overview.pressure_less_72h}
                       </span>
                       <span className="text-red-600">
-                        &lt; 72h: {overview.pressure_more_72h}
+                        &gt; 72h: {overview.pressure_more_72h}
                       </span>
                     </div>
                   </div>

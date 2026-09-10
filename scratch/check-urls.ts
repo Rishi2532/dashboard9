@@ -1,13 +1,32 @@
-import pg from 'pg';
-const { Pool } = pg;
-const pool = new Pool({
-  connectionString: 'postgresql://postgres:Ceinsys@2025@localhost:5432/water_scheme_dashboard'
-});
-async function run() {
-  const result = await pool.query(`SELECT dashboard_url FROM water_scheme_data WHERE dashboard_url IS NOT NULL LIMIT 2;`);
-  console.log("Water Scheme Data URLs:", result.rows);
-  const result2 = await pool.query(`SELECT dashboard_url FROM scheme_lpcd WHERE dashboard_url IS NOT NULL LIMIT 2;`);
-  console.log("Scheme LPCD URLs:", result2.rows);
+import { getDB } from '../server/db.ts';
+import { sql } from 'drizzle-orm';
+
+async function checkDashboardUrls() {
+  const db = await getDB();
+  const wcRows = await db.execute(sql`
+    SELECT scheme_id, village_name, esr_name, dashboard_url
+    FROM water_consumption
+    WHERE lower(region) LIKE '%amravati%' AND dashboard_url IS NOT NULL
+    LIMIT 5
+  `);
+  console.log('Sample water_consumption dashboard_url:', wcRows.rows);
+
+  const histWithUrl = await db.execute(sql`
+    SELECT count(*) as cnt
+    FROM water_consumption_history
+    WHERE lower(region) LIKE '%amravati%' AND dashboard_url IS NOT NULL
+  `);
+  console.log('Count of history rows with dashboard_url:', histWithUrl.rows);
+
+  const sampleHist = await db.execute(sql`
+    SELECT scheme_id, village_name, esr_name, dashboard_url
+    FROM water_consumption_history
+    WHERE lower(region) LIKE '%amravati%' AND dashboard_url IS NOT NULL
+    LIMIT 5
+  `);
+  console.log('Sample history dashboard_url:', sampleHist.rows);
+
   process.exit(0);
 }
-run();
+
+checkDashboardUrls();
