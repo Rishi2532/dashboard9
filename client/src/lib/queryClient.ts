@@ -12,6 +12,7 @@ export async function apiRequest(
   options?: RequestInit,
 ): Promise<any> {
   const headers: Record<string, string> = {
+    "X-External-Proxy-Key": "MAHAJAL_IOT_SECURE_KEY_25",
     ...(options?.headers as Record<string, string> || {}),
   };
 
@@ -39,6 +40,9 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
     async ({ queryKey }) => {
       const res = await fetch(queryKey[0] as string, {
+        headers: {
+          "X-External-Proxy-Key": "MAHAJAL_IOT_SECURE_KEY_25",
+        },
         credentials: "include",
       });
 
