@@ -168,10 +168,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/ai", aiRoutes);
 
   // Mount water scheme routes
-  app.use("/api/water-scheme-data", requireApiKeyOrAuth, waterSchemeRoutes);
+  app.use("/api/water-scheme-data", waterSchemeRoutes);
 
   // Mount scheme LPCD routes
-  app.use("/api/scheme-lpcd-data", requireApiKeyOrAuth, schemeLpcdRoutes);
+  app.use("/api/scheme-lpcd-data", schemeLpcdRoutes);
 
   // Mount reports routes for Excel file uploads/downloads
   app.use("/api/reports", reportsRoutes);
@@ -193,28 +193,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Mount chlorine data routes
-  app.use("/api/chlorine", requireApiKeyOrAuth, chlorineRoutes);
+  app.use("/api/chlorine", chlorineRoutes);
 
   // Mount pressure data routes
-  app.use("/api/pressure", requireApiKeyOrAuth, pressureRoutes);
+  app.use("/api/pressure", pressureRoutes);
 
   // Mount water consumption data routes
-  app.use("/api/water-consumption", requireApiKeyOrAuth, waterConsumptionRoutes);
+  app.use("/api/water-consumption", waterConsumptionRoutes);
 
   // Mount communication status routes
-  app.use("/api/communication", requireApiKeyOrAuth, communicationRoutes);
+  app.use("/api/communication", communicationRoutes);
 
   // Mount translation routes
   app.use("/api/translation", translationRoutes);
 
   // Mount population tracking routes
-  app.use("/api/population-tracking", requireApiKeyOrAuth, populationRoutes);
+  app.use("/api/population-tracking", populationRoutes);
 
   // Mount ESR monitoring routes
-  app.use("/api/esr", requireApiKeyOrAuth, esrRoutes);
+  app.use("/api/esr", esrRoutes);
 
   // Mount communication status routes
-  app.use("/api/communication-status", requireApiKeyOrAuth, communicationStatusRoutes);
+  app.use("/api/communication-status", communicationStatusRoutes);
 
   // Mount village data routes (admin only)
   app.use("/api/villages", requireAdmin, villageRoutes);
@@ -222,20 +222,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Mount helpdesk routes (protected)
   app.use("/api/helpdesk", requireAuth, helpdeskRoutes);
 
-  // Mount issue reporting routes (protected)
-  app.use("/api/issue-reporting", requireAuth, issueReportingRoutes);
+  // Mount issue reporting routes (contains public reads + protected writes)
+  app.use("/api/issue-reporting", issueReportingRoutes);
 
   // Mount chatbot helpdesk routes (protected)
   app.use("/api/chatbot/helpdesk", requireAuth, chatbotHelpdeskRoutes);
 
   // Mount scheme analysis routes
-  app.use("/api/scheme-analysis", requireApiKeyOrAuth, schemeAnalysisRoutes);
+  app.use("/api/scheme-analysis", schemeAnalysisRoutes);
 
   // Mount category data routes (keyword-based queries for water scheme categories)
-  app.use("/api/category-data", requireApiKeyOrAuth, categoryDataRoutes);
+  app.use("/api/category-data", categoryDataRoutes);
 
   // Mount NLP chatbot routes
-  app.use("/api/nlp-chatbot", requireApiKeyOrAuth, nlpChatbotRoutes);
+  app.use("/api/nlp-chatbot", nlpChatbotRoutes);
 
   // Mount Smart Reports routes
   app.use("/api/smart-reports", smartReportsRoutes);
@@ -250,7 +250,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/flowmeter", flowmeterRoutes);
 
   // Mount Alerts Progress routes
-  app.use("/api/alerts-progress", requireApiKeyOrAuth, alertsProgressRoutes);
+  app.use("/api/alerts-progress", alertsProgressRoutes);
 
   // Mount Acknowledge routes (public — no auth needed so engineer can click from email)
   app.use("/api/acknowledge", acknowledgeRoutes);
@@ -1633,7 +1633,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/log-activity", async (req, res) => {
     try {
       if (!req.session || !req.session.userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        return res.json({ logged: false, message: "Activity not logged (unauthenticated)" });
       }
 
       const {
