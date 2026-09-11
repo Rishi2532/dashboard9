@@ -112,20 +112,13 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
     if (smtpUser && smtpPassword) {
       const transporter = getSmtpTransporter();
 
-      // **CRITICAL FIX for OUTLOOK:** 
-      // Do NOT use a custom display name like "Maharashtra Water <email@gmail.com>"
-      // Just use the bare email address. Outlook flags free @gmail.com accounts 
-      // that try to spoof names from scripts.
-      const fromAddress = smtpUser;
+      const fromAddress = `"MahaJal IoT Alerts" <${smtpUser}>`;
 
       const mailOptions: any = {
         from: fromAddress,
         to: params.to,
         subject: params.subject,
-        // **CRITICAL FIX for OUTLOOK:** Add headers to make it look like a real client
         headers: {
-          "X-Mailer": "Microsoft Outlook 16.0", // Trick some basic filters
-          "MIME-Version": "1.0",
           ...params.headers
         }
       };
