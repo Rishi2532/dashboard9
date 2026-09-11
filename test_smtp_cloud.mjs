@@ -34,7 +34,7 @@ function checkPort(host, port, timeoutMs = 7000) {
 
 async function run() {
   console.log(`\n🔍 Checking outbound network connectivity to ${smtpHost}...`);
-  const ports = [587, 465, 25];
+  const ports = [587, 465, 25, 2525, 2096, 443];
   const results = await Promise.all(ports.map(p => checkPort(smtpHost, p)));
 
   for (const res of results) {
@@ -45,7 +45,8 @@ async function run() {
     }
   }
 
-  const openPort = results.find(r => r.open)?.port;
+  const smtpCandidatePorts = [587, 465, 25, 2525];
+  const openPort = results.find(r => r.open && smtpCandidatePorts.includes(r.port))?.port;
   if (!openPort) {
     console.error(`\n❌ None of the standard SMTP ports (587, 465, 25) could connect from this server.`);
     console.error(`Please check Windows Firewall Outbound Rules or Cloud Security Group outbound rules.`);
