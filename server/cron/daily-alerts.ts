@@ -182,37 +182,47 @@ export async function runDailyAlertsJob() {
       }
 
       if (schemeAlerts.length > 0) {
+        const sanitizeEmail = (email: string | null | undefined): string | null => {
+          if (!email) return null;
+          const cleaned = email.trim().replace(/^['"]+|['"]+$/g, '').trim().toLowerCase();
+          const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+          return emailRegex.test(cleaned) ? cleaned : null;
+        };
+
         // Civil Engineer
-        if (engineer.civil_engineer_email && engineer.civil_engineer_email.includes('@')) {
-          if (!emailsToSend[engineer.civil_engineer_email]) {
-            emailsToSend[engineer.civil_engineer_email] = {
+        const civEmail = sanitizeEmail(engineer.civil_engineer_email);
+        if (civEmail) {
+          if (!emailsToSend[civEmail]) {
+            emailsToSend[civEmail] = {
               name: engineer.civil_engineer_name || "Civil Engineer",
               alerts: [],
             };
           }
-          emailsToSend[engineer.civil_engineer_email].alerts.push(...schemeAlerts);
+          emailsToSend[civEmail].alerts.push(...schemeAlerts);
         }
 
         // Mechanical Engineer
-        if (engineer.mechanical_engineer_email && engineer.mechanical_engineer_email.includes('@')) {
-          if (!emailsToSend[engineer.mechanical_engineer_email]) {
-            emailsToSend[engineer.mechanical_engineer_email] = {
+        const mechEmail = sanitizeEmail(engineer.mechanical_engineer_email);
+        if (mechEmail) {
+          if (!emailsToSend[mechEmail]) {
+            emailsToSend[mechEmail] = {
               name: engineer.mechanical_engineer_name || "Mechanical Engineer",
               alerts: [],
             };
           }
-          emailsToSend[engineer.mechanical_engineer_email].alerts.push(...schemeAlerts);
+          emailsToSend[mechEmail].alerts.push(...schemeAlerts);
         }
 
         // Site Supervisor
-        if (engineer.site_supervisor_email && engineer.site_supervisor_email.includes('@')) {
-          if (!emailsToSend[engineer.site_supervisor_email]) {
-            emailsToSend[engineer.site_supervisor_email] = {
+        const siteEmail = sanitizeEmail(engineer.site_supervisor_email);
+        if (siteEmail) {
+          if (!emailsToSend[siteEmail]) {
+            emailsToSend[siteEmail] = {
               name: engineer.site_supervisor_name || "Site Supervisor",
               alerts: [],
             };
           }
-          emailsToSend[engineer.site_supervisor_email].alerts.push(...schemeAlerts);
+          emailsToSend[siteEmail].alerts.push(...schemeAlerts);
         }
 
         // --- SMS Grouping ---
@@ -345,6 +355,9 @@ export async function runDailyAlertsJob() {
       } catch (err) {
         console.error(`❌ Failed to send alert email to ${email}:`, err);
       }
+
+      // Add 1-second delay between outgoing emails to prevent mail server rate-limit blocks
+      await new Promise(r => setTimeout(r, 1000));
     }
 
     // Send the consolidated SMS alerts
