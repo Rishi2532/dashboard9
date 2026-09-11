@@ -49,7 +49,10 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
 import { randomBytes } from "crypto";
+
+const PgSession = connectPgSimple(session);
 import "./init-database.js"; // Initial data cleanup (optional, based on requirements)
 // initializeDataCleanup();
 // Server restart trigger: Row reorder complete 14:15
@@ -105,18 +108,27 @@ app.use((req, res, next) => {
   next();
 });
 
-// Configure session middleware with stable secret and root path
+// Configure session middleware with PostgreSQL store for cloud / multi-process persistence
+const sessionStore = process.env.DATABASE_URL
+  ? new PgSession({
+      conString: process.env.DATABASE_URL,
+      createTableIfMissing: true,
+      tableName: "session",
+    })
+  : undefined;
+
 app.use(
   session({
+    store: sessionStore,
     secret: process.env.SESSION_SECRET || "maharashtra-water-iot-session-secret-2025-prod",
     resave: false,
     saveUninitialized: false,
     cookie: {
       path: "/",
       sameSite: "lax",
-      secure: false, // Allows session cookie over standard HTTP in dev
+      secure: false, // Allows session cookie over standard HTTP in dev & behind reverse proxies
       httpOnly: true,
-      // No maxAge => session cookie expires when browser is closed
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days session persistence
     },
   }),
 );

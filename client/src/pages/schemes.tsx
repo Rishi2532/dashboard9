@@ -210,8 +210,15 @@ export default function Schemes() {
         const mjpFc = String(status.mjp_fully_completed || "").trim().toLowerCase();
 
         if (uiSchemeFilter === "commissioned") {
-          // Commissioned: MJP commissioned Yes OR water_supply Yes
-          return mjpComm === "yes" || ws === "yes";
+          // Commissioned: 100% Civil Work Completed (water_supply = Yes)
+          const isCivilCompleted = ws === "yes";
+          if (!isCivilCompleted) return false;
+
+          if (waterSupplyStatus !== "All") {
+            const wss = String(status.water_supply_status || "").trim().toLowerCase();
+            return wss === waterSupplyStatus.toLowerCase();
+          }
+          return true;
         }
 
         if (uiSchemeFilter === "fully_completed") {
@@ -225,9 +232,9 @@ export default function Schemes() {
         }
 
         if (uiSchemeFilter === "common_filter") {
-          // Common filter: Instrumented AND Civil work completed
-          const isInstrumented = fcs === "fully completed" || fcs === "completed" || fcs === "connected" || fcs === "fully-completed";
-          const isCivilCompleted = ws === "yes" || mjpComm === "yes";
+          // Common filter: Instrumented AND Civil work completed (water_supply = Yes)
+          const isInstrumented = fcs === "fully completed" || fcs === "completed" || fcs === "connected" || fcs === "fully-completed" || mjpFc === "yes";
+          const isCivilCompleted = ws === "yes";
           return isInstrumented && isCivilCompleted;
         }
 
@@ -236,14 +243,6 @@ export default function Schemes() {
         }
 
         return true;
-      });
-    }
-
-    // 2. Apply Water Supply Status Filter (Tabs)
-    if (waterSupplyStatus !== "All") {
-      filtered = filtered.filter((status) => {
-        const wss = String(status.water_supply_status || "").trim().toLowerCase();
-        return wss === waterSupplyStatus.toLowerCase();
       });
     }
 
@@ -751,13 +750,16 @@ export default function Schemes() {
               value={uiSchemeFilter}
               onValueChange={(val) => {
                 setUiSchemeFilter(val);
+                if (val !== "commissioned") {
+                  setWaterSupplyStatus("All");
+                }
               }}
             >
-              <SelectTrigger className="h-8 w-[180px] text-xs bg-white border-blue-200">
+              <SelectTrigger className="h-8 w-[200px] text-xs bg-white border-blue-200">
                 <SelectValue placeholder="Select Category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="commissioned">Commissioned</SelectItem>
+                <SelectItem value="commissioned">Commissioned (100% Civil)</SelectItem>
                 <SelectItem value="all">All Schemes</SelectItem>
                 <SelectItem value="fully_completed">Fully Completed</SelectItem>
                 <SelectItem value="in_progress">In Progress</SelectItem>
@@ -772,17 +774,19 @@ export default function Schemes() {
               onAgencyTypeChange={setSelectedAgencyType}
             />
           </div>
-          <div>
-            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-2">Water Supply Status</p>
-            <Tabs value={waterSupplyStatus} onValueChange={setWaterSupplyStatus}>
-              <TabsList className="h-8 p-0.5 bg-white border border-blue-200 gap-0.5">
-                <TabsTrigger value="All" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white">All</TabsTrigger>
-                <TabsTrigger value="Full" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Fully Operational</TabsTrigger>
-                <TabsTrigger value="Partial" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partially Operational</TabsTrigger>
-                <TabsTrigger value="No" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-red-500 data-[state=active]:text-white">Not Operational</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
+          {uiSchemeFilter === "commissioned" && (
+            <div>
+              <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-2">Water Supply Status</p>
+              <Tabs value={waterSupplyStatus} onValueChange={setWaterSupplyStatus}>
+                <TabsList className="h-8 p-0.5 bg-white border border-blue-200 gap-0.5">
+                  <TabsTrigger value="All" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white">All</TabsTrigger>
+                  <TabsTrigger value="Full" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Fully Operational</TabsTrigger>
+                  <TabsTrigger value="Partial" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-amber-500 data-[state=active]:text-white">Partially Operational</TabsTrigger>
+                  <TabsTrigger value="No" className="h-7 px-3 text-xs font-medium data-[state=active]:bg-red-500 data-[state=active]:text-white">Not Operational</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          )}
         </div>
       </div>
 

@@ -2005,6 +2005,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const division = req.query.division as string;
       const subdivision = req.query.subdivision as string;
       const agencyType = req.query.agencyType as string;
+      const filterType = req.query.filterType as string;
 
       const db = await storage.getDb();
       const scope = getEngineerSchemeScope(req);
@@ -2028,10 +2029,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? inArray(schemeStatuses.scheme_id, scope.schemeIds)
         : undefined;
 
-      // Get regions (filtered by agency type if provided)
+      let filterTypeCondition: any = undefined;
+      if (filterType && filterType !== "all") {
+        if (filterType === "commissioned") {
+          filterTypeCondition = eq(schemeStatuses.water_supply, "Yes");
+        } else if (filterType === "commissioned_full") {
+          filterTypeCondition = and(
+            eq(schemeStatuses.water_supply, "Yes"),
+            sql`TRIM(LOWER(${schemeStatuses.water_supply_status})) IN ('full', 'fully operational')`
+          );
+        } else if (filterType === "commissioned_partial") {
+          filterTypeCondition = and(
+            eq(schemeStatuses.water_supply, "Yes"),
+            sql`TRIM(LOWER(${schemeStatuses.water_supply_status})) IN ('partial', 'partially operational')`
+          );
+        } else if (filterType === "commissioned_no") {
+          filterTypeCondition = and(
+            eq(schemeStatuses.water_supply, "Yes"),
+            sql`TRIM(LOWER(${schemeStatuses.water_supply_status})) IN ('no', 'not operational', 'non operational')`
+          );
+        } else if (filterType === "fully_completed") {
+          filterTypeCondition = sql`TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN ('fully completed', 'completed', 'connected', 'fully-completed') OR TRIM(LOWER(${schemeStatuses.mjp_fully_completed})) = 'yes'`;
+        } else if (filterType === "in_progress") {
+          filterTypeCondition = sql`TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN ('in progress', 'in-progress') OR TRIM(LOWER(${schemeStatuses.mjp_fully_completed})) = 'in progress'`;
+        } else if (filterType === "common_filter") {
+          filterTypeCondition = and(
+            sql`TRIM(LOWER(${schemeStatuses.fully_completion_scheme_status})) IN ('fully completed', 'completed', 'connected', 'fully-completed') OR TRIM(LOWER(${schemeStatuses.mjp_fully_completed})) = 'yes'`,
+            eq(schemeStatuses.water_supply, "Yes")
+          );
+        } else if (filterType === "mjp_commissioned_yes") {
+          filterTypeCondition = eq(schemeStatuses.mjp_commissioned, "Yes");
+        }
+      }
+
+      // Get regions (filtered by agency type and filterType if provided)
       const regionConditions = [];
       if (agencyCondition) regionConditions.push(agencyCondition);
       if (engineerCondition) regionConditions.push(engineerCondition);
+      if (filterTypeCondition) regionConditions.push(filterTypeCondition);
       regionConditions.push(sql`${schemeStatuses.region} is not null and ${schemeStatuses.region} != ''`);
       
       const regionsList = await db
@@ -2046,6 +2081,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         circleConditions.push(eq(schemeStatuses.region, region));
       if (agencyCondition) circleConditions.push(agencyCondition);
       if (engineerCondition) circleConditions.push(engineerCondition);
+      if (filterTypeCondition) circleConditions.push(filterTypeCondition);
       circleConditions.push(sql`${schemeStatuses.circle} is not null and ${schemeStatuses.circle} != ''`);
 
       const circles = await db
@@ -2062,6 +2098,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         divisionConditions.push(eq(schemeStatuses.circle, circle));
       if (agencyCondition) divisionConditions.push(agencyCondition);
       if (engineerCondition) divisionConditions.push(engineerCondition);
+      if (filterTypeCondition) divisionConditions.push(filterTypeCondition);
       divisionConditions.push(sql`${schemeStatuses.division} is not null and ${schemeStatuses.division} != ''`);
 
       const divisions = await db
@@ -2080,6 +2117,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subdivisionConditions.push(eq(schemeStatuses.division, division));
       if (agencyCondition) subdivisionConditions.push(agencyCondition);
       if (engineerCondition) subdivisionConditions.push(engineerCondition);
+      if (filterTypeCondition) subdivisionConditions.push(filterTypeCondition);
       subdivisionConditions.push(sql`${schemeStatuses.sub_division} is not null and ${schemeStatuses.sub_division} != ''`);
 
       const subdivisions = await db
@@ -2100,6 +2138,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         blockConditions.push(eq(schemeStatuses.sub_division, subdivision));
       if (agencyCondition) blockConditions.push(agencyCondition);
       if (engineerCondition) blockConditions.push(engineerCondition);
+      if (filterTypeCondition) blockConditions.push(filterTypeCondition);
       blockConditions.push(sql`${schemeStatuses.block} is not null and ${schemeStatuses.block} != ''`);
 
       const blocks = await db
