@@ -11,8 +11,9 @@ dotenv.config();
 console.log("📄 Loaded .env file");
 
 
-console.log(`   GMAIL_USER: ${process.env.GMAIL_USER ? 'SET (' + process.env.GMAIL_USER + ')' : 'NOT SET'}`);
-console.log(`   GMAIL_PASSWORD: ${process.env.GMAIL_PASSWORD ? 'SET (length: ' + process.env.GMAIL_PASSWORD.length + ')' : 'NOT SET'}`);
+console.log(`   SMTP_HOST: ${process.env.SMTP_HOST || 'smtp.gmail.com (default)'}`);
+console.log(`   SMTP_PORT: ${process.env.SMTP_PORT || '465 (default)'}`);
+console.log(`   SMTP_USER: ${process.env.SMTP_USER || process.env.GMAIL_USER || 'NOT SET'}`);
 
 // Also try to load .env.vscode if it exists
 const envVscodePath = path.join(process.cwd(), '.env.vscode');
