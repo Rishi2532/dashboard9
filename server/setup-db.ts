@@ -138,6 +138,30 @@ export async function initializeTables(db: any) {
       );
     `);
 
+    // Create safe_to_date helper function in PostgreSQL for resilient date parsing
+    await db.execute(`
+      CREATE OR REPLACE FUNCTION safe_to_date(val text, fmt text) RETURNS date AS $$
+      BEGIN
+        RETURN TO_DATE(val, fmt);
+      EXCEPTION WHEN OTHERS THEN
+        BEGIN
+          RETURN TO_DATE(
+            regexp_replace(
+              regexp_replace(
+                regexp_replace(val, '29-Feb', '28-Feb', 'i'),
+                '29([/-])02', '28\\1'
+              ),
+              '02([/-])29', '02\\128'
+            ),
+            fmt
+          );
+        EXCEPTION WHEN OTHERS THEN
+          RETURN NULL;
+        END;
+      END;
+      $$ LANGUAGE plpgsql IMMUTABLE;
+    `);
+
     // Create unique index on region_name for upsert operations
     await db.execute(`
       CREATE UNIQUE INDEX IF NOT EXISTS "idx_region_region_name" 

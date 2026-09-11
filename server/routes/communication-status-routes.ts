@@ -6,7 +6,7 @@ import { communicationStatus, schemeStatuses, waterSchemeData, chlorineData, pre
 import multer from "multer";
 import * as csv from "csv-parse";
 import fs from "fs";
-import { getFilteredSchemeIds } from "./filter-utils";
+import { getFilteredSchemeIds, getEngineerSchemeScope } from "./filter-utils";
 import { sendAutomaticOfflineEmails } from "../services/email-service";
 
 const router = Router();
@@ -26,8 +26,18 @@ router.get("/overview", async (req, res) => {
     const filterType = req.query.filterType as string;
     const fullyCompleted = req.query.fullyCompleted as string;
 
+    const scope = getEngineerSchemeScope(req);
+
     // Build filter conditions
     const conditions = [];
+    if (scope.isEngineer) {
+      if (scope.schemeIds.length === 0 || scope.schemeIds.includes('__NO_MATCHING_SCHEMES__')) {
+        conditions.push(sql`1 = 0`);
+      } else {
+        conditions.push(inArray(communicationStatus.scheme_id, scope.schemeIds));
+      }
+    }
+
     if (region && region !== "all")
       conditions.push(eq(communicationStatus.region, region));
     if (circle && circle !== "all")
@@ -41,7 +51,7 @@ router.get("/overview", async (req, res) => {
 
     // Handle standard filter types (like on schemes page)
     if (filterType || fullyCompleted) {
-      const filteredSchemeIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType);
+      const filteredSchemeIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType, scope);
       if (filteredSchemeIds) {
         if (filteredSchemeIds.includes('NO_MATCHES')) {
           conditions.push(sql`1 = 0`); // No matches
@@ -174,8 +184,18 @@ router.get("/schemes", async (req, res) => {
     const filterType = req.query.filterType as string;
     const fullyCompleted = req.query.fullyCompleted as string;
 
+    const scope = getEngineerSchemeScope(req);
+
     // Build filter conditions
     const conditions = [];
+    if (scope.isEngineer) {
+      if (scope.schemeIds.length === 0 || scope.schemeIds.includes('__NO_MATCHING_SCHEMES__')) {
+        conditions.push(sql`1 = 0`);
+      } else {
+        conditions.push(inArray(communicationStatus.scheme_id, scope.schemeIds));
+      }
+    }
+
     if (region && region !== "all")
       conditions.push(eq(communicationStatus.region, region));
     if (circle && circle !== "all")
@@ -189,7 +209,7 @@ router.get("/schemes", async (req, res) => {
 
     // Handle standard filter types (like on schemes page)
     if (filterType || fullyCompleted) {
-      const filteredSchemeIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType);
+      const filteredSchemeIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType, scope);
       if (filteredSchemeIds) {
         if (filteredSchemeIds.includes('NO_MATCHES')) {
           conditions.push(sql`1 = 0`); // No matches
@@ -608,8 +628,18 @@ router.get("/download", async (req, res) => {
     const filterType = req.query.filterType as string;
     const fullyCompleted = req.query.fullyCompleted as string;
 
+    const scope = getEngineerSchemeScope(req);
+
     // Build filter conditions
     const conditions = [];
+    if (scope.isEngineer) {
+      if (scope.schemeIds.length === 0 || scope.schemeIds.includes('__NO_MATCHING_SCHEMES__')) {
+        conditions.push(sql`1 = 0`);
+      } else {
+        conditions.push(inArray(communicationStatus.scheme_id, scope.schemeIds));
+      }
+    }
+
     if (region && region !== "all")
       conditions.push(eq(communicationStatus.region, region));
     if (circle && circle !== "all")
@@ -623,7 +653,7 @@ router.get("/download", async (req, res) => {
 
     // Handle standard filter types (like on schemes page)
     if (filterType || fullyCompleted) {
-      const filteredSchemeIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType);
+      const filteredSchemeIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType, scope);
       if (filteredSchemeIds) {
         if (filteredSchemeIds.includes('NO_MATCHES')) {
           conditions.push(sql`1 = 0`); // No matches

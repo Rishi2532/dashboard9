@@ -1,6 +1,7 @@
 import express from 'express';
 import * as db from '../db';
 import pg from 'pg';
+import { getEngineerSchemeScope } from './filter-utils';
 
 const router = express.Router();
 
@@ -96,6 +97,17 @@ router.get('/', async (req, res) => {
       if (targetAgencyType && targetAgencyType.toUpperCase() !== 'ALL') {
         conditions.push('UPPER(ss.agency_type) = $' + (queryParams.length + 1));
         queryParams.push(targetAgencyType.toUpperCase());
+      }
+
+      // Apply engineer scheme scope
+      const scope = getEngineerSchemeScope(req);
+      if (scope.isEngineer) {
+        if (scope.schemeIds.length > 0) {
+          conditions.push(`sl.scheme_id = ANY($${queryParams.length + 1})`);
+          queryParams.push(scope.schemeIds);
+        } else {
+          conditions.push(`1 = 0`);
+        }
       }
 
       // Add WHERE clause if there are conditions

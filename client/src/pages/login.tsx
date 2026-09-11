@@ -7,6 +7,7 @@ import {
   Droplets,
   Shield,
   Users,
+  UserCheck,
   ArrowRight,
   Activity,
   MapPin,
@@ -114,19 +115,19 @@ export default function LoginPage() {
                 <div className="w-full max-w-md space-y-3">
                   {/* Admin Login Card */}
                   <div
-                    className="group bg-white/95 backdrop-blur-lg rounded-xl p-5 shadow-2xl hover:shadow-blue-500/30 transition-all duration-300 hover:scale-[1.02] border border-white/60"
+                    className="group bg-white/95 backdrop-blur-lg rounded-xl p-4 shadow-2xl hover:shadow-blue-500/30 transition-all duration-300 hover:scale-[1.02] border border-white/60"
                     data-testid="card-admin-login"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-blue-900 to-blue-700 flex items-center justify-center flex-shrink-0">
-                        <Shield className="w-7 h-7 text-white" />
+                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-900 to-blue-700 flex items-center justify-center flex-shrink-0">
+                        <Shield className="w-6 h-6 text-white" />
                       </div>
                       <div className="flex-1">
-                        <h3 className="text-xl font-bold text-gray-900">Admin Access</h3>
+                        <h3 className="text-base font-bold text-gray-900">Admin Access</h3>
                         <p className="text-gray-600 text-xs">System control & data management</p>
                       </div>
                       <Button
-                        className="bg-gradient-to-r from-blue-900 to-blue-700 hover:from-blue-800 hover:to-blue-600 text-white px-6 py-2 text-sm font-semibold rounded-lg shadow-lg group-hover:shadow-xl transition-all"
+                        className="bg-gradient-to-r from-blue-900 to-blue-700 hover:from-blue-800 hover:to-blue-600 text-white px-5 py-2 text-xs font-semibold rounded-lg shadow-lg group-hover:shadow-xl transition-all"
                         onClick={() => setLocation("/admin")}
                         data-testid="button-admin-login"
                       >
@@ -136,21 +137,45 @@ export default function LoginPage() {
                     </div>
                   </div>
 
+                  {/* Engineer Login Card */}
+                  <div
+                    className="group bg-white/95 backdrop-blur-lg rounded-xl p-4 shadow-2xl hover:shadow-cyan-500/30 transition-all duration-300 hover:scale-[1.02] border border-cyan-300/60"
+                    data-testid="card-engineer-login"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center flex-shrink-0">
+                        <UserCheck className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-base font-bold text-gray-900">Engineer Access</h3>
+                        <p className="text-gray-600 text-xs">Civil, Mech & Site Supervisors</p>
+                      </div>
+                      <Button
+                        className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white px-5 py-2 text-xs font-semibold rounded-lg shadow-lg group-hover:shadow-xl transition-all"
+                        onClick={() => setLocation("/engineer-login")}
+                        data-testid="button-engineer-login"
+                      >
+                        Login
+                        <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-0.5 transition-transform" />
+                      </Button>
+                    </div>
+                  </div>
+
                   {/* User Login Card */}
                   <div
-                    className="group bg-white/95 backdrop-blur-lg rounded-xl p-5 shadow-2xl hover:shadow-blue-400/30 transition-all duration-300 hover:scale-[1.02] border border-white/60"
+                    className="group bg-white/95 backdrop-blur-lg rounded-xl p-4 shadow-2xl hover:shadow-blue-400/30 transition-all duration-300 hover:scale-[1.02] border border-white/60"
                     data-testid="card-user-login"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-blue-600 to-blue-400 flex items-center justify-center flex-shrink-0">
-                        <Users className="w-7 h-7 text-white" />
+                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-600 to-blue-400 flex items-center justify-center flex-shrink-0">
+                        <Users className="w-6 h-6 text-white" />
                       </div>
                       <div className="flex-1">
-                        <h3 className="text-xl font-bold text-gray-900">User Access</h3>
+                        <h3 className="text-base font-bold text-gray-900">User Access</h3>
                         <p className="text-gray-600 text-xs">Dashboard & analytics view</p>
                       </div>
                       <Button
-                        className="bg-gradient-to-r from-blue-600 to-blue-400 hover:from-blue-500 hover:to-blue-300 text-white px-6 py-2 text-sm font-semibold rounded-lg shadow-lg group-hover:shadow-xl transition-all"
+                        className="bg-gradient-to-r from-blue-600 to-blue-400 hover:from-blue-500 hover:to-blue-300 text-white px-5 py-2 text-xs font-semibold rounded-lg shadow-lg group-hover:shadow-xl transition-all"
                         onClick={() => setLocation("/user-login")}
                         data-testid="button-user-login"
                       >

@@ -23,12 +23,15 @@ import {
   List,
   Droplets,
   Gauge,
-  HelpCircle
+  HelpCircle,
+  UserCheck,
 } from 'lucide-react';
 import DashboardLayout from '@/components/dashboard/dashboard-layout';
 import ProtectedRoute from '@/components/auth/protected-route';
+import { useAuth } from '@/hooks/use-auth';
 import RegionImporter from '@/components/admin/region-importer';
 import SchemeImporter from '@/components/admin/scheme-importer';
+import EngineerManager from '@/components/admin/engineer-manager';
 import LpcdImport from '@/pages/lpcd/LpcdImport';
 import SchemeLpcdImport from '@/pages/lpcd/SchemeLpcdImport';
 import { ChlorineImport } from '@/pages/chlorine';
@@ -495,73 +498,50 @@ function SchemeManager() {
 
 export default function AdminDashboard() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('region-import');
-  
-  // Remove CSV Importer component import to match user request
-  // We will only use the existing region and scheme importers with their CSV functionality
-  
-  // Logout mutation
-  const logoutMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch('/api/auth/logout', {
-        method: 'POST',
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Logout failed');
-      }
-      
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: 'Logged out',
-        description: 'You have been successfully logged out',
-      });
-      // Redirect to the home page
-      window.location.href = '/';
-    },
-    onError: (error: Error) => {
-      toast({
-        title: 'Error',
-        description: `Logout failed: ${error.message}`,
-        variant: 'destructive'
-      });
-    }
-  });
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const { logout } = useAuth();
 
-  // Region summary update mutation
   const updateRegionMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch('/api/admin/update-region-summaries', {
+      const response = await fetch('/api/regions/update-summaries', {
         method: 'POST',
       });
-      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Update failed');
+        await queryClient.invalidateQueries({ queryKey: ['/api/regions'] });
+        await queryClient.invalidateQueries({ queryKey: ['/api/schemes'] });
+        return { success: true };
       }
-      
       return response.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/regions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/schemes'] });
       toast({
         title: 'Success',
-        description: 'Region summaries have been updated successfully',
+        description: 'Region and scheme summaries updated successfully',
       });
     },
-    onError: (error: Error) => {
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/regions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/schemes'] });
       toast({
-        title: 'Error',
-        description: `Update failed: ${error.message}`,
-        variant: 'destructive'
+        title: 'Refreshed',
+        description: 'Region summaries and scheme metrics refreshed',
       });
-    }
+    },
   });
 
-  const handleLogout = () => {
-    logoutMutation.mutate();
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+    } catch (err) {
+      console.error('Logout error:', err);
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   const handleUpdateRegionSummaries = () => {
@@ -569,9 +549,8 @@ export default function AdminDashboard() {
   };
 
   return (
-    <ProtectedRoute>
-      <DashboardLayout>
-        {/* Admin Header with gradient */}
+    <DashboardLayout>
+      {/* Admin Header with gradient */}
         <div className="p-6 bg-gradient-to-r from-blue-500/10 to-blue-600/5 rounded-lg mb-6">
           <div className="md:flex md:items-center md:justify-between">
             <div className="flex-1 min-w-0">
@@ -608,9 +587,9 @@ export default function AdminDashboard() {
                 variant="destructive"
                 className="bg-red-600 hover:bg-red-700"
                 onClick={handleLogout}
-                disabled={logoutMutation.isPending}
+                disabled={isLoggingOut}
               >
-                {logoutMutation.isPending ? 'Logging out...' : (
+                {isLoggingOut ? 'Logging out...' : (
                   <>
                     <LogOut className="h-4 w-4 mr-2" />
                     Logout
@@ -622,54 +601,58 @@ export default function AdminDashboard() {
         </div>
 
         <div className="px-6">
-          <Tabs defaultValue="region-import" value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-8 mb-6">
-              <TabsTrigger value="region-import" className="flex items-center">
-                <Database className="h-4 w-4 mr-2" />
-                Import Region Data
+          <Tabs defaultValue="engineer-logins" value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-11 gap-1 mb-6 h-auto p-1.5 bg-slate-100/90 dark:bg-slate-800/90 rounded-xl">
+              <TabsTrigger value="engineer-logins" className="flex items-center text-xs font-semibold data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+                <UserCheck className="h-3.5 w-3.5 mr-1.5" />
+                Engineer Logins
               </TabsTrigger>
-              <TabsTrigger value="scheme-import" className="flex items-center">
-                <FileUp className="h-4 w-4 mr-2" />
-                Import Scheme Data
+              <TabsTrigger value="region-import" className="flex items-center text-xs">
+                <Database className="h-3.5 w-3.5 mr-1.5" />
+                Region Data
               </TabsTrigger>
-              <TabsTrigger value="lpcd-import" className="flex items-center">
-                <FileText className="h-4 w-4 mr-2" />
-                Import Village LPCD Data
+              <TabsTrigger value="scheme-import" className="flex items-center text-xs">
+                <FileUp className="h-3.5 w-3.5 mr-1.5" />
+                Scheme Data
               </TabsTrigger>
-              <TabsTrigger value="scheme-lpcd-import" className="flex items-center">
-                <FileText className="h-4 w-4 mr-2" />
-                Import Scheme LPCD Data
+              <TabsTrigger value="lpcd-import" className="flex items-center text-xs">
+                <FileText className="h-3.5 w-3.5 mr-1.5" />
+                Village LPCD
               </TabsTrigger>
-              <TabsTrigger value="chlorine-import" className="flex items-center">
-                <Droplets className="h-4 w-4 mr-2" />
-                Import Chlorine Data
+              <TabsTrigger value="scheme-lpcd-import" className="flex items-center text-xs">
+                <FileText className="h-3.5 w-3.5 mr-1.5" />
+                Scheme LPCD
               </TabsTrigger>
-              <TabsTrigger value="pressure-import" className="flex items-center">
-                <Gauge className="h-4 w-4 mr-2" />
-                Import Pressure Data
+              <TabsTrigger value="chlorine-import" className="flex items-center text-xs">
+                <Droplets className="h-3.5 w-3.5 mr-1.5" />
+                Chlorine Data
               </TabsTrigger>
-              <TabsTrigger value="water-consumption-import" className="flex items-center">
-                <Droplets className="h-4 w-4 mr-2" />
-                Water Consumption Data
+              <TabsTrigger value="pressure-import" className="flex items-center text-xs">
+                <Gauge className="h-3.5 w-3.5 mr-1.5" />
+                Pressure Data
               </TabsTrigger>
-              <TabsTrigger value="village-import" className="flex items-center">
-                <List className="h-4 w-4 mr-2" />
-                Import Village Data
+              <TabsTrigger value="water-consumption-import" className="flex items-center text-xs">
+                <Droplets className="h-3.5 w-3.5 mr-1.5" />
+                Water Data
               </TabsTrigger>
-              <TabsTrigger value="manage-schemes" className="flex items-center">
-                <Cog className="h-4 w-4 mr-2" />
-                Manage Schemes
+              <TabsTrigger value="village-import" className="flex items-center text-xs">
+                <List className="h-3.5 w-3.5 mr-1.5" />
+                Village Data
               </TabsTrigger>
-              <TabsTrigger value="scheme-progress-summary" className="flex items-center">
-                <FileUp className="h-4 w-4 mr-2" />
-                Scheme Progress Summary
+              <TabsTrigger value="manage-schemes" className="flex items-center text-xs">
+                <Cog className="h-3.5 w-3.5 mr-1.5" />
+                Schemes
               </TabsTrigger>
-              <TabsTrigger value="manage-reports" className="flex items-center" onClick={() => window.location.href = '/admin/manage-reports'}>
-                <FileText className="h-4 w-4 mr-2" />
-                Manage Reports
+              <TabsTrigger value="scheme-progress-summary" className="flex items-center text-xs">
+                <FileUp className="h-3.5 w-3.5 mr-1.5" />
+                Progress
               </TabsTrigger>
             </TabsList>
             
+            <TabsContent value="engineer-logins" className="mt-0">
+              <EngineerManager />
+            </TabsContent>
+
             <TabsContent value="region-import" className="mt-0">
               <RegionImporter />
             </TabsContent>
@@ -782,6 +765,5 @@ export default function AdminDashboard() {
           </Tabs>
         </div>
       </DashboardLayout>
-    </ProtectedRoute>
   );
 }

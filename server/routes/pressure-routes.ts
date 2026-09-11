@@ -7,9 +7,7 @@ import { getDB } from "../db";
 import { eq, sql, and } from "drizzle-orm";
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
-import pg from 'pg';
-import { getFilteredSchemeIds } from "./filter-utils";
-import { runDailyAlertsJob } from '../cron/daily-alerts';
+import { getFilteredSchemeIds, getEngineerSchemeScope } from "./filter-utils";
 
 const router = express.Router();
 
@@ -45,6 +43,17 @@ router.get("/filters", async (req, res) => {
     if (agencyType) filter.agencyType = agencyType as string;
 
     const filterOptions = await storage.getPressureFilterOptions(filter);
+    const scope = getEngineerSchemeScope(req);
+    if (scope.isEngineer) {
+      const allowedIds = new Set(scope.schemeIds);
+      const allowedNames = new Set(scope.schemeNames);
+      if (Array.isArray(filterOptions?.schemes)) {
+        filterOptions.schemes = filterOptions.schemes.filter((s: any) => {
+          if (typeof s === "string") return allowedIds.has(s) || allowedNames.has(s);
+          return (s?.id && allowedIds.has(s.id)) || (s?.name && allowedNames.has(s.name));
+        });
+      }
+    }
     res.json(filterOptions);
   } catch (error) {
     console.error("Error getting pressure filter options:", error);
@@ -69,7 +78,17 @@ router.get("/historical", async (req, res) => {
 
     console.log("Historical pressure data request:", filter);
 
-    const historicalData = await storage.getHistoricalPressureData(filter);
+    let historicalData = await storage.getHistoricalPressureData(filter);
+
+    const scope = getEngineerSchemeScope(req);
+    if (scope.isEngineer) {
+      const allowedIds = new Set(scope.schemeIds);
+      const allowedNames = new Set(scope.schemeNames);
+      historicalData = historicalData.filter(item => 
+        (item.scheme_id && allowedIds.has(item.scheme_id)) ||
+        (item.scheme_name && allowedNames.has(item.scheme_name))
+      );
+    }
 
     console.log(`Returning ${historicalData.length} historical pressure records`);
     res.json(historicalData);
@@ -116,14 +135,26 @@ router.get("/", async (req, res) => {
 
     // Apply scheme status filters
     const db = await getDB();
-    const schemeIds = await getFilteredSchemeIds(db, activeFilter, fullyCompleted as string, agencyType as string);
+    const scope = getEngineerSchemeScope(req);
+    const schemeIds = await getFilteredSchemeIds(db, activeFilter, fullyCompleted as string, agencyType as string, scope);
     if (schemeIds) {
       filter.schemeIds = schemeIds;
     }
 
     console.log("Applied pressure filter object:", { ...filter, schemeIds: filter.schemeIds ? `[${filter.schemeIds.length} IDs]` : undefined });
 
-    const pressureData = await storage.getAllPressureData(filter);
+    let pressureData = await storage.getAllPressureData(filter);
+
+    // Apply engineer scheme scope
+    if (scope.isEngineer) {
+      const allowedIds = new Set(scope.schemeIds);
+      const allowedNames = new Set(scope.schemeNames);
+      pressureData = pressureData.filter(item => 
+        (item.scheme_id && allowedIds.has(item.scheme_id)) ||
+        (item.scheme_name && allowedNames.has(item.scheme_name))
+      );
+    }
+
     console.log(`Returning ${pressureData.length} pressure records after filtering`);
 
     // For debugging - log a sample of the first few data points
@@ -156,7 +187,8 @@ router.get("/dashboard-stats", async (req, res) => {
       : (uiSchemeFilter || filterType) as string;
 
     const db = await getDB();
-    const schemeIdsForStats = await getFilteredSchemeIds(db, activeFilter, fullyCompleted as string, agencyType as string);
+    const scope = getEngineerSchemeScope(req);
+    const schemeIdsForStats = await getFilteredSchemeIds(db, activeFilter, fullyCompleted as string, agencyType as string, scope);
 
     // Build filter object with all geographic parameters
     const filter: any = {};
@@ -1869,9 +1901,6 @@ router.post("/import/csv", requireAdmin, upload.single("file"), async (req, res)
       // Pass the clearExisting option to the import function
       const result = await storage.importPressureDataFromCSV(req.file.buffer, { clearExisting });
       console.log(`CSV import completed successfully (clearExisting=${clearExisting}):`, result);
-
-      // Trigger alert emails asynchronously
-      runDailyAlertsJob().catch(console.error);
 
       res.json(result);
     } catch (importError: any) {

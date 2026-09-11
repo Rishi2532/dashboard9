@@ -3,7 +3,7 @@ import { getDB } from "../db";
 import { eq, and, sql, isNotNull, ilike, inArray } from "drizzle-orm";
 import { waterSchemeData, chlorineData, pressureData, waterConsumption, schemeStatuses, villages, regions, waterSchemeDataHistory, chlorineHistory, pressureHistory } from "@shared/schema";
 import ExcelJS from "exceljs";
-import { getFilteredSchemeIds } from "./filter-utils";
+import { getFilteredSchemeIds, getEngineerSchemeScope } from "./filter-utils";
 
 const router = Router();
 
@@ -3051,6 +3051,20 @@ router.get("/:category", async (req, res) => {
         break;
       default:
         return res.status(400).json({ error: `Unknown category: ${category}` });
+    }
+
+    const scope = getEngineerSchemeScope(req);
+    if (scope.isEngineer) {
+      if (scope.schemeIds.length === 0 || scope.schemeIds.includes('__NO_MATCHING_SCHEMES__')) {
+        return res.json([]);
+      }
+      data = data.filter((item: any) =>
+        scope.schemeIds.includes(String(item.scheme_id)) ||
+        scope.schemeNames.some((name: string) => 
+          (item.scheme_name && item.scheme_name.toLowerCase().includes(name.toLowerCase())) ||
+          (item.scheme && item.scheme.toLowerCase().includes(name.toLowerCase()))
+        )
+      );
     }
     
     console.log(`Found ${data.length} results for category: ${category}`);

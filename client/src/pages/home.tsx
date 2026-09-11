@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
-import { Shield, LogIn } from "lucide-react";
+import { Shield, LogIn, UserCheck } from "lucide-react";
 import {
   Droplets,
   Activity,
@@ -207,28 +207,39 @@ export default function HomePage() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 sm:gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
               <Button
                 variant="outline"
                 size="sm"
-                className="border-blue-600 text-blue-600 hover:bg-blue-50 text-xs sm:text-sm px-2 sm:px-4 h-8 sm:h-9"
+                className="border-blue-600 text-blue-600 hover:bg-blue-50 text-xs sm:text-sm px-2 sm:px-3 h-8 sm:h-9"
                 onClick={() => setLocation("/admin")}
                 data-testid="button-admin-login"
                 aria-label="Admin Login"
               >
-                <Shield className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                <Shield className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" />
                 <span className="sm:hidden">Admin</span>
                 <span className="hidden sm:inline">Admin Login</span>
               </Button>
               <Button
                 size="sm"
-                className="bg-orange-500 hover:bg-orange-600 text-white text-xs sm:text-sm px-2 sm:px-4 h-8 sm:h-9"
+                className="bg-cyan-600 hover:bg-cyan-700 text-white text-xs sm:text-sm px-2 sm:px-3 h-8 sm:h-9"
+                onClick={() => setLocation("/engineer-login")}
+                data-testid="button-engineer-login"
+                aria-label="Engineer Login"
+              >
+                <UserCheck className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" />
+                <span className="sm:hidden">Engineer</span>
+                <span className="hidden sm:inline">Engineer Login</span>
+              </Button>
+              <Button
+                size="sm"
+                className="bg-orange-500 hover:bg-orange-600 text-white text-xs sm:text-sm px-2 sm:px-3 h-8 sm:h-9"
                 onClick={() => setLocation("/user-login")}
                 data-testid="button-user-login"
                 aria-label="User Login"
               >
-                <LogIn className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                <span className="sm:hidden">Login</span>
+                <LogIn className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" />
+                <span className="sm:hidden">User</span>
                 <span className="hidden sm:inline">User Login</span>
               </Button>
             </div>

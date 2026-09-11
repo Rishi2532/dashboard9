@@ -104,18 +104,18 @@ app.use((req, res, next) => {
   next();
 });
 
-// Configure session middleware
+// Configure session middleware with stable secret and root path
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || randomBytes(32).toString("hex"),
+    secret: process.env.SESSION_SECRET || "maharashtra-water-iot-session-secret-2025-prod",
     resave: false,
     saveUninitialized: false,
     cookie: {
-      path: "/api",
+      path: "/",
       sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
+      secure: false, // Allows session cookie over standard HTTP in dev
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      // No maxAge => session cookie expires when browser is closed
     },
   }),
 );

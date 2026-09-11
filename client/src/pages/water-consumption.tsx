@@ -656,47 +656,37 @@ const WaterConsumptionPage: React.FC = () => {
     if (uiSchemeFilter !== "all") {
       filtered = filtered.filter((record) => {
         const status = schemeStatusMap.get(record.scheme_id);
-        if (!status) return true;
+        if (!status) return false;
+
+        const fcs = String(status.fully_completion_scheme_status || "").trim().toLowerCase();
+        const ws = String(status.water_supply || "").trim().toLowerCase();
+        const mjpComm = String(status.mjp_commissioned || "").trim().toLowerCase();
+        const mjpFc = String(status.mjp_fully_completed || "").trim().toLowerCase();
 
         if (uiSchemeFilter === "commissioned") {
-          // 100% Civil work Completed: water_supply = Yes
-          const isCivilCompleted = status.water_supply === "Yes";
+          const isCivilCompleted = mjpComm === "yes" || ws === "yes";
           if (!isCivilCompleted) return false;
 
-          // Water supply status tabs: Full, Partial, No
           if (waterSupplyStatus === "All") return true;
-          return status.water_supply_status === waterSupplyStatus;
+          return String(status.water_supply_status || "").trim().toLowerCase() === waterSupplyStatus.toLowerCase();
         }
 
         if (uiSchemeFilter === "fully_completed") {
-          // Fully Instrumented: fully_completion_scheme_status = Fully Completed or Completed
-          const statusValue = String(
-            status.fully_completion_scheme_status || "",
-          );
-          return (
-            statusValue === "Fully Completed" || statusValue === "Completed"
-          );
+          return fcs === "fully completed" || fcs === "completed" || fcs === "connected" || fcs === "fully-completed" || mjpFc === "yes";
         }
 
         if (uiSchemeFilter === "in_progress") {
-          // Partially instrumented: fully_completion_scheme_status = In Progress
-          return status.fully_completion_scheme_status === "In Progress";
+          return fcs === "in progress" || fcs === "in-progress" || mjpFc === "in progress";
         }
 
         if (uiSchemeFilter === "common_filter") {
-          // Common filter: (fully_completion_scheme_status = Fully Completed or Completed) AND water_supply = Yes
-          const statusValue = String(
-            status.fully_completion_scheme_status || "",
-          );
-          const isInstrumented =
-            statusValue === "Fully Completed" || statusValue === "Completed";
-          const isCivilCompleted = status.water_supply === "Yes";
+          const isInstrumented = fcs === "fully completed" || fcs === "completed" || fcs === "connected" || fcs === "fully-completed";
+          const isCivilCompleted = ws === "yes" || mjpComm === "yes";
           return isInstrumented && isCivilCompleted;
         }
 
         if (uiSchemeFilter === "mjp_commissioned_yes") {
-          // Commissioned: mjp_commissioned = Yes
-          return status.mjp_commissioned === "Yes";
+          return mjpComm === "yes";
         }
 
         return true;
@@ -1872,43 +1862,22 @@ const WaterConsumptionPage: React.FC = () => {
                   </Select>
                 </div>
 
-                {isAdmin && (
-                  <div className="min-w-[200px]">
-                    <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1.5">Scheme Category (Admin)</p>
-                    <Select value={uiSchemeFilter} onValueChange={(value) => { setUiSchemeFilter(value); setPage(1); }}>
-                      <SelectTrigger className="w-full bg-white border-blue-200 h-9">
-                        <SelectValue placeholder="Scheme Category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Schemes</SelectItem>
-                        <SelectItem value="commissioned">Commissioned (100% Civil)</SelectItem>
-                        <SelectItem value="fully_completed">Fully Instrumented (100% IoT)</SelectItem>
-                        <SelectItem value="in_progress">Partially Instrumented (In Progress)</SelectItem>
-                        <SelectItem value="common_filter">Common (Civil + IoT Done)</SelectItem>
-                        <SelectItem value="mjp_commissioned_yes">MJP Commissioned</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {isAdmin && (
-                  <div className="min-w-[200px]">
-                    <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1.5">Scheme Category (Admin)</p>
-                    <Select value={uiSchemeFilter} onValueChange={(value) => { setUiSchemeFilter(value); setPage(1); }}>
-                      <SelectTrigger className="w-full bg-white border-blue-200 h-9">
-                        <SelectValue placeholder="Scheme Category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Schemes</SelectItem>
-                        <SelectItem value="commissioned">Commissioned (100% Civil)</SelectItem>
-                        <SelectItem value="fully_completed">Fully Instrumented (100% IoT)</SelectItem>
-                        <SelectItem value="in_progress">Partially Instrumented (In Progress)</SelectItem>
-                        <SelectItem value="common_filter">Common (Civil + IoT Done)</SelectItem>
-                        <SelectItem value="mjp_commissioned_yes">MJP Commissioned</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+                <div className="min-w-[200px]">
+                  <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1.5">Scheme Category</p>
+                  <Select value={uiSchemeFilter} onValueChange={(value) => { setUiSchemeFilter(value); setPage(1); }}>
+                    <SelectTrigger className="w-full bg-white border-blue-200 h-9">
+                      <SelectValue placeholder="Scheme Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Schemes</SelectItem>
+                      <SelectItem value="commissioned">Commissioned (100% Civil)</SelectItem>
+                      <SelectItem value="fully_completed">Fully Instrumented (100% IoT)</SelectItem>
+                      <SelectItem value="in_progress">Partially Instrumented (In Progress)</SelectItem>
+                      <SelectItem value="common_filter">Common (Civil + IoT Done)</SelectItem>
+                      <SelectItem value="mjp_commissioned_yes">MJP Commissioned</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 <div className="w-full sm:w-auto">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Consumption Filter</p>

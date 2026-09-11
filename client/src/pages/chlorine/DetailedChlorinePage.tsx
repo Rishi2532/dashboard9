@@ -3357,37 +3357,35 @@ const DetailedChlorinePage = () => {
                 Filter:
               </span>
 
-              {isAdmin && (
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                    Scheme Category (Admin):
-                  </span>
-                  <Select
-                    value={uiSchemeFilter}
-                    onValueChange={(val) => {
-                      setUiSchemeFilter(val);
-                    }}
-                  >
-                    <SelectTrigger className="h-8 w-[180px] text-xs bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700">
-                      <SelectValue placeholder="Select Category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="commissioned">Commissioned</SelectItem>
-                      <SelectItem value="all">All Schemes</SelectItem>
-                      <SelectItem value="fully_completed">
-                        Fully Completed
-                      </SelectItem>
-                      <SelectItem value="in_progress">In Progress</SelectItem>
-                      <SelectItem value="common_filter">
-                        Common Filter
-                      </SelectItem>
-                      <SelectItem value="mjp_commissioned_yes">
-                        MJP Commissioned
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                  Scheme Category:
+                </span>
+                <Select
+                  value={uiSchemeFilter}
+                  onValueChange={(val) => {
+                    setUiSchemeFilter(val);
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-[180px] text-xs bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700">
+                    <SelectValue placeholder="Select Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="commissioned">Commissioned</SelectItem>
+                    <SelectItem value="all">All Schemes</SelectItem>
+                    <SelectItem value="fully_completed">
+                      Fully Completed
+                    </SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="common_filter">
+                      Common Filter
+                    </SelectItem>
+                    <SelectItem value="mjp_commissioned_yes">
+                      MJP Commissioned
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
               {(uiSchemeFilter === "commissioned" ||
                 uiSchemeFilter === "fully_completed") && (

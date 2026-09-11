@@ -1,7 +1,8 @@
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { Spinner } from '@/components/ui/spinner';
+import { useAuth } from '@/hooks/use-auth';
 
 interface AuthStatusResponse {
   isLoggedIn: boolean;
@@ -20,34 +21,41 @@ export default function ProtectedRoute({
   redirectTo = '/login' 
 }: ProtectedRouteProps) {
   const [, setLocation] = useLocation();
-  const [isChecking, setIsChecking] = useState(true);
+  const auth = useAuth();
 
-  // Check authentication status
-  const { data, isLoading, isError } = useQuery<AuthStatusResponse>({
+  // Check authentication status with real-time freshness
+  const { data, isLoading, isError, isFetching } = useQuery<AuthStatusResponse>({
     queryKey: ['/api/auth/status'],
-    refetchOnWindowFocus: false,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
     retry: 1,
   });
 
+  const isAuth = auth.isAuthenticated || Boolean(data?.isLoggedIn);
+  const isAdm = Boolean(auth.isAdmin || data?.isAdmin || auth.role === 'admin' || auth.user?.role === 'admin');
+  
+  // Only show pending if auth is still initializing, or if not yet authorized while query is in flight
+  const isPending = auth.isLoading || (!isAuth && (isLoading || isFetching)) || (requireAdmin && !isAdm && (isLoading || isFetching));
+
   useEffect(() => {
-    if (!isLoading) {
-      setIsChecking(false);
-      
+    if (!isPending) {
       // Not logged in at all - redirect to login
-      if (!data?.isLoggedIn) {
+      if (!isAuth) {
         setLocation(redirectTo);
         return;
       }
       
       // Logged in but not admin when admin is required - redirect
-      if (requireAdmin && !data.isAdmin) {
+      if (requireAdmin && !isAdm) {
         setLocation(redirectTo);
         return;
       }
     }
-  }, [data, isLoading, setLocation, requireAdmin, redirectTo]);
+  }, [isAuth, isAdm, isPending, setLocation, requireAdmin, redirectTo]);
 
-  if (isChecking || isLoading) {
+  if (isPending) {
     // Show loading spinner while checking auth status
     return (
       <div className="flex items-center justify-center h-screen">
@@ -60,8 +68,7 @@ export default function ProtectedRoute({
   }
 
   // Not authenticated or not admin when required
-  if (isError || !data?.isLoggedIn || (requireAdmin && !data.isAdmin)) {
-    // Return null (useEffect will handle redirect)
+  if (!isAuth || (requireAdmin && !isAdm)) {
     return null;
   }
 

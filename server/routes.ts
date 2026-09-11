@@ -20,7 +20,8 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import { updateRegionSummaries, resetRegionData, getDB } from "./db";
-import { eq, sql, and, asc } from "drizzle-orm";
+import { eq, sql, and, asc, inArray } from "drizzle-orm";
+import { getEngineerAssignedSchemes, getEngineerSchemeScope } from "./routes/filter-utils";
 import "express-session";
 import multer from "multer";
 import * as XLSX from "xlsx";
@@ -46,6 +47,7 @@ import populationRoutes from "./routes/population-routes";
 import esrRoutes from "./routes/esr-routes";
 import communicationStatusRoutes from "./routes/communication-status-routes";
 import villageRoutes from "./routes/village-routes";
+import engineerAdminRoutes from "./routes/admin/engineer-routes";
 import helpdeskRoutes from "./routes/helpdesk-routes";
 import schemeAnalysisRoutes from "./routes/scheme-analysis-routes";
 import categoryDataRoutes from "./routes/category-data-routes";
@@ -86,7 +88,8 @@ const requireAuth = (req: Request, res: Response, next: NextFunction) => {
 
 // Admin authorization middleware - checks if logged in user is an admin
 const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
-  if (!req.session || !req.session.userId || !req.session.isAdmin) {
+  const isAdmin = Boolean(req.session?.isAdmin || req.session?.role === "admin");
+  if (!req.session || !req.session.userId || !isAdmin) {
     return res
       .status(403)
       .json({ message: "Forbidden. Admin privileges required." });
@@ -108,15 +111,43 @@ const requireApiKeyOrAuth = (req: Request, res: Response, next: NextFunction) =>
   // 2. Fallback to standard session authentication
   if (!req.session || !req.session.userId) {
     return res.status(401).json({ 
-      error: "Unauthorized", 
       message: "Please provide a valid API key (X-External-Proxy-Key) or login." 
     });
   }
-  
-  next(); // Session is valid, allow access
+  next();
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Mount admin engineer credential management routes (admin only)
+  app.use("/api/admin/engineers", requireAdmin, engineerAdminRoutes);
+
+  // Mount LPCD import routes (admin-only)
+  app.use("/api/admin", requireAdmin, lpcdImportRoutes);
+
+  // Auto-hydrate engineer session to ensure assignedSchemeIds is always accurate
+  app.use(async (req, res, next) => {
+    if (req.session && req.session.userId) {
+      const isEngineer = req.session.role === "engineer" || req.session.isEngineer === true;
+      if (isEngineer) {
+        try {
+          const user = await storage.getUser(req.session.userId);
+          if (user) {
+            const db = await getDB();
+            const engineerData = await getEngineerAssignedSchemes(db, user);
+            req.session.assignedSchemes = engineerData.assignedSchemes;
+            req.session.assignedSchemeIds = engineerData.assignedSchemeIds;
+            req.session.assignedSchemeNames = engineerData.assignedSchemeNames;
+            req.session.engineerProfile = engineerData.engineerProfile;
+            req.session.isEngineer = true;
+          }
+        } catch (e) {
+          console.error("Error auto-hydrating engineer session:", e);
+        }
+      }
+    }
+    next();
+  });
+
   // Configure file upload middleware with memory storage
   const upload = multer({
     storage: multer.memoryStorage(),
@@ -864,6 +895,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate request body using registerUserSchema (includes confirm password)
       const registerData = registerUserSchema.parse(req.body);
 
+      // Check if trying to register as admin or engineer without admin session
+      const targetRole = registerData.role || "user";
+      if (targetRole !== "user") {
+        const isAdmin = Boolean(req.session?.isAdmin || req.session?.role === "admin");
+        if (!isAdmin) {
+          return res.status(403).json({
+            message: "Access denied. Only administrators can create engineer or admin accounts."
+          });
+        }
+      }
+
       // Check if username already exists
       const existingUser = await storage.getUserByUsername(
         registerData.username,
@@ -875,8 +917,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Remove confirmPassword before creating user as it's not in our database schema
       const { confirmPassword, ...userData } = registerData;
 
-      // Create the new user
-      const newUser = await storage.createUser(userData);
+      // Create the new user with enforced role
+      const newUser = await storage.createUser({
+        ...userData,
+        role: targetRole,
+      });
 
       // Return success without sensitive data
       res.status(201).json({
@@ -913,25 +958,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .json({ message: "Invalid username or password" });
       }
 
-      // Set a session value to track login
-      if (req.session) {
-        req.session.userId = user.id;
-        req.session.isAdmin = user.role === "admin";
+      // Check exact roles from user record
+      const isUserAdmin = user.role === "admin";
+      const isUserEngineer = user.role === "engineer";
+
+      // Check for engineer role and look up assigned schemes only for engineers
+      let assignedSchemes: any[] = [];
+      let assignedSchemeIds: string[] = [];
+      let assignedSchemeNames: string[] = [];
+      let engineerProfile: any = null;
+
+      if (isUserEngineer) {
+        try {
+          const db = await getDB();
+          const engineerData = await getEngineerAssignedSchemes(db, user);
+          assignedSchemes = engineerData.assignedSchemes;
+          assignedSchemeIds = engineerData.assignedSchemeIds;
+          assignedSchemeNames = engineerData.assignedSchemeNames;
+          engineerProfile = engineerData.engineerProfile;
+        } catch (engErr) {
+          console.error("Error looking up engineer schemes:", engErr);
+        }
       }
 
-      // Log the user login with IP address and user agent
-      try {
-        const ipAddress = req.ip || req.connection.remoteAddress || "unknown";
-        const userAgent = req.get("User-Agent") || "unknown";
-        const sessionId = req.sessionID;
+      // Strict role & portal enforcement based on exact user role credentials
+      const portal = credentials.portal;
+      if (portal === "admin") {
+        if (!isUserAdmin) {
+          return res.status(403).json({
+            message: "Access denied. Only Administrator credentials can log in here."
+          });
+        }
+      } else if (portal === "engineer") {
+        if (isUserAdmin) {
+          return res.status(403).json({
+            message: "Access denied. Administrators must use the Admin Login portal."
+          });
+        }
+        if (!isUserEngineer) {
+          return res.status(403).json({
+            message: "Access denied. Only registered engineers can log in through the Engineer Portal."
+          });
+        }
+      } else if (portal === "user") {
+        if (isUserAdmin) {
+          return res.status(403).json({
+            message: "Access denied. Administrators must use the Admin Login portal."
+          });
+        }
+        if (isUserEngineer) {
+          return res.status(403).json({
+            message: "Access denied. Engineers must use the Engineer Login portal."
+          });
+        }
+      }
 
-        await storage.logUserLogin(user, ipAddress, userAgent, sessionId);
-        console.log(
-          `User login logged: ${user.username} (${user.name}) at ${new Date().toISOString()}`,
-        );
-      } catch (logError) {
-        console.error("Error logging user login:", logError);
-        // Don't fail the login if logging fails
+      // Set session values
+      if (req.session) {
+        req.session.userId = user.id;
+        req.session.role = user.role;
+        req.session.isAdmin = isUserAdmin;
+        req.session.isEngineer = isUserEngineer;
+        req.session.assignedSchemes = assignedSchemes;
+        req.session.assignedSchemeIds = assignedSchemeIds;
+        req.session.assignedSchemeNames = assignedSchemeNames;
+        req.session.engineerProfile = engineerProfile;
+
+        // Log the user login with IP address and user agent
+        try {
+          const ipAddress = req.ip || req.connection.remoteAddress || "unknown";
+          const userAgent = req.get("User-Agent") || "unknown";
+          const sessionId = req.sessionID;
+
+          await storage.logUserLogin(user, ipAddress, userAgent, sessionId);
+          console.log(
+            `User login logged: ${user.username} (${user.name}) role=${user.role} portal=${portal || 'default'} at ${new Date().toISOString()}`,
+          );
+        } catch (logError) {
+          console.error("Error logging user login:", logError);
+        }
+
+        return req.session.save((err) => {
+          if (err) {
+            console.error("Session save error:", err);
+          }
+          res.json({
+            id: user.id,
+            username: user.username,
+            role: user.role,
+            name: user.name,
+            isAdmin: isUserAdmin,
+            isEngineer: isUserEngineer,
+            assignedSchemes,
+            assignedSchemeIds,
+            assignedSchemeNames,
+            engineerProfile,
+          });
+        });
       }
 
       res.json({
@@ -939,7 +1062,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         username: user.username,
         role: user.role,
         name: user.name,
-        isAdmin: user.role === "admin",
+        isAdmin: isUserAdmin,
+        isEngineer: isUserEngineer,
+        assignedSchemes,
+        assignedSchemeIds,
+        assignedSchemeNames,
+        engineerProfile,
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -962,7 +1090,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     );
     const isLoggedIn = !!(req.session && req.session.userId);
     const isAdmin = !!(req.session && req.session.isAdmin === true);
-    res.json({ isLoggedIn, isAdmin });
+    const isEngineer = !!(req.session && (req.session.isEngineer === true || req.session.role === "engineer"));
+    const role = req.session?.role || (isAdmin ? "admin" : isEngineer ? "engineer" : "user");
+    const assignedSchemes = req.session?.assignedSchemes || [];
+    const assignedSchemeIds = req.session?.assignedSchemeIds || [];
+    const assignedSchemeNames = req.session?.assignedSchemeNames || [];
+    const engineerProfile = req.session?.engineerProfile || null;
+
+    res.json({
+      isLoggedIn,
+      isAdmin,
+      isEngineer,
+      role,
+      assignedSchemes,
+      assignedSchemeIds,
+      assignedSchemeNames,
+      engineerProfile,
+    });
   });
 
   // Get current user details
@@ -977,12 +1121,467 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
+      const isEngineer = req.session.role === "engineer" || req.session.isEngineer === true || user.role === "engineer";
+      const assignedSchemes = req.session.assignedSchemes || [];
+      const assignedSchemeIds = req.session.assignedSchemeIds || [];
+      const assignedSchemeNames = req.session.assignedSchemeNames || [];
+      const engineerProfile = req.session.engineerProfile || null;
+
       // Return user details excluding password
       const { password, ...userDetails } = user;
-      res.json(userDetails);
+      res.json({
+        ...userDetails,
+        isAdmin: user.role === "admin",
+        isEngineer,
+        assignedSchemes,
+        assignedSchemeIds,
+        assignedSchemeNames,
+        engineerProfile,
+      });
     } catch (error) {
       console.error("Error fetching user details:", error);
       res.status(500).json({ message: "Failed to fetch user details" });
+    }
+  });
+
+  // Engineer dashboard summary endpoint
+  app.get("/api/engineer/schemes-summary", async (req, res) => {
+    try {
+      if (!req.session || !req.session.userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const assignedSchemeIds: string[] = req.session.assignedSchemeIds || [];
+      const assignedSchemeNames: string[] = req.session.assignedSchemeNames || [];
+      const assignedSchemes: any[] = req.session.assignedSchemes || [];
+      const isAdmin = req.session.isAdmin === true;
+
+      const db = await getDB();
+
+      let targetSchemeIds = assignedSchemeIds;
+      if (isAdmin) {
+        if (req.query.scheme_id) {
+          targetSchemeIds = [req.query.scheme_id as string];
+        } else {
+          const allSchemesRes = await db.select({ scheme_id: schemeStatuses.scheme_id }).from(schemeStatuses).limit(50);
+          targetSchemeIds = allSchemesRes.map(r => r.scheme_id).filter(Boolean) as string[];
+        }
+      }
+
+      if (targetSchemeIds.length === 0) {
+        return res.json({
+          schemes: [],
+          totalSchemes: 0,
+          totalEsrs: 0,
+          chlorineOkCount: 0,
+          chlorineCriticalCount: 0,
+          pressureOkCount: 0,
+          pressureCriticalCount: 0,
+          lpcdCompliantCount: 0,
+          lpcdNonCompliantCount: 0,
+          onlineSensorsCount: 0,
+          offlineSensorsCount: 0,
+          activeAlertsCount: 0,
+        });
+      }
+
+      const idPlaceholders = targetSchemeIds.map(id => `'${id}'`).join(",");
+
+      // 1. Fetch scheme status metadata
+      const schemeStatusRes: any = await db.execute(sql`
+        SELECT scheme_id, scheme_name, region, circle, division, sub_division, block, 
+                total_number_of_esr, total_esr_integrated, water_supply, fully_completion_scheme_status,
+                flow_meters_connected, pressure_transmitter_connected, residual_chlorine_analyzer_connected
+        FROM scheme_status 
+        WHERE scheme_id IN (${sql.raw(idPlaceholders)})
+      `);
+
+      // 2. Fetch Chlorine data
+      const chlorineRes: any = await db.execute(sql`
+        SELECT scheme_id, scheme_name, village_name, esr_name, chlorine_value_7, chlorine_date_day_7
+        FROM chlorine_data 
+        WHERE scheme_id IN (${sql.raw(idPlaceholders)})
+      `);
+
+      // 3. Fetch Pressure data
+      const pressureRes: any = await db.execute(sql`
+        SELECT scheme_id, scheme_name, village_name, esr_name, pressure_value_7, pressure_date_day_7
+        FROM pressure_data 
+        WHERE scheme_id IN (${sql.raw(idPlaceholders)})
+      `);
+
+      // 4. Fetch Water & LPCD data
+      const waterRes: any = await db.execute(sql`
+        SELECT scheme_id, scheme_name, village_name, lpcd_value_day7, water_value_day7, population, number_of_esr
+        FROM water_scheme_data 
+        WHERE scheme_id IN (${sql.raw(idPlaceholders)})
+      `);
+
+      // 5. Fetch Communication status
+      const commRes: any = await db.execute(sql`
+        SELECT scheme_id, scheme_name, village_name, esr_name, chlorine_status, pressure_status, flow_meter_status
+        FROM communication_status 
+        WHERE scheme_id IN (${sql.raw(idPlaceholders)})
+      `);
+
+      // 6. Fetch Recent alerts and total alerts count with acknowledgement status
+      const alertsRes: any = await db.execute(sql`
+        SELECT a.id, a.scheme_id, a.scheme_name, a.village_name, a.esr_name, a.alert_type, a.alert_value, a.sent_date, a.sent_time, a.ticket_id,
+               ea.acknowledged_at, ea.engineer_name as acknowledged_by,
+               (ea.acknowledged_at IS NOT NULL) as is_acknowledged
+        FROM email_alert_logs a
+        LEFT JOIN LATERAL (
+          SELECT ea.acknowledged_at, ea.engineer_name
+          FROM email_acknowledgements ea
+          WHERE (
+            -- 1. Exact alert match by alert_id
+            (ea.alert_id IS NOT NULL AND ea.alert_id = a.id)
+            -- 2. Exact match by ticket_id if available
+            OR (ea.alert_id IS NULL AND ea.ticket_id IS NOT NULL AND a.ticket_id IS NOT NULL AND ea.ticket_id = a.ticket_id)
+            -- 3. Fallback ONLY for unlinked legacy rows (where both alert_id and ticket_id are NULL)
+            OR (
+              ea.alert_id IS NULL AND ea.ticket_id IS NULL
+              AND ea.scheme_id = a.scheme_id 
+              AND ea.alert_type = a.alert_type 
+              AND ea.sent_date::date = a.sent_date::date 
+              AND COALESCE(NULLIF(TRIM(ea.esr_name), '-'), '') = COALESCE(NULLIF(TRIM(a.esr_name), '-'), '')
+            )
+          )
+          AND ea.acknowledged_at IS NOT NULL
+          ORDER BY ea.acknowledged_at DESC
+          LIMIT 1
+        ) ea ON true
+        WHERE a.scheme_id IN (${sql.raw(idPlaceholders)})
+        ORDER BY a.id DESC LIMIT 200
+      `);
+
+      const totalAlertsRes: any = await db.execute(sql`
+        SELECT COUNT(*)::int as count
+        FROM email_alert_logs 
+        WHERE scheme_id IN (${sql.raw(idPlaceholders)})
+      `);
+
+      const schemeStatusRows = schemeStatusRes.rows || schemeStatusRes;
+      const chlorineRows = chlorineRes.rows || chlorineRes;
+      const pressureRows = pressureRes.rows || pressureRes;
+      const waterRows = waterRes.rows || waterRes;
+      const commRows = commRes.rows || commRes;
+      const alertsRows = alertsRes.rows || alertsRes;
+      const totalAlertsCount = (totalAlertsRes.rows && totalAlertsRes.rows[0]?.count) || alertsRows.length;
+
+      // Map by scheme_id
+      const chlorineByScheme: Record<string, any[]> = {};
+      chlorineRows.forEach((r: any) => {
+        if (!chlorineByScheme[r.scheme_id]) chlorineByScheme[r.scheme_id] = [];
+        chlorineByScheme[r.scheme_id].push(r);
+      });
+
+      const pressureByScheme: Record<string, any[]> = {};
+      pressureRows.forEach((r: any) => {
+        if (!pressureByScheme[r.scheme_id]) pressureByScheme[r.scheme_id] = [];
+        pressureByScheme[r.scheme_id].push(r);
+      });
+
+      const waterByScheme: Record<string, any[]> = {};
+      waterRows.forEach((r: any) => {
+        if (!waterByScheme[r.scheme_id]) waterByScheme[r.scheme_id] = [];
+        waterByScheme[r.scheme_id].push(r);
+      });
+
+      const commByScheme: Record<string, any[]> = {};
+      commRows.forEach((r: any) => {
+        if (!commByScheme[r.scheme_id]) commByScheme[r.scheme_id] = [];
+        commByScheme[r.scheme_id].push(r);
+      });
+
+      const alertsByScheme: Record<string, any[]> = {};
+      alertsRows.forEach((r: any) => {
+        if (!alertsByScheme[r.scheme_id]) alertsByScheme[r.scheme_id] = [];
+        const isAck = Boolean(r.acknowledged_at || r.is_acknowledged);
+        alertsByScheme[r.scheme_id].push({
+          ...r,
+          is_acknowledged: isAck,
+          acknowledged: isAck,
+        });
+      });
+
+      let totalEsrs = 0;
+      let totalVillages = 0;
+      let villageLpcdCompliantCount = 0;
+      let villageLpcdNonCompliantCount = 0;
+      let chlorineOkCount = 0;
+      let chlorineCriticalCount = 0;
+      let chlorineHighCount = 0;
+      let chlorineNoDataCount = 0;
+      let pressureOkCount = 0;
+      let pressureLowCount = 0;
+      let pressureHighCount = 0;
+      let pressureNoDataCount = 0;
+      let lpcdCompliantCount = 0;
+      let lpcdNonCompliantCount = 0;
+      let onlineSensorsCount = 0;
+      let offlineSensorsCount = 0;
+
+      const schemeSummaries = schemeStatusRows.map((statusRow: any) => {
+        const sId = statusRow.scheme_id;
+        const clList = chlorineByScheme[sId] || [];
+        const prList = pressureByScheme[sId] || [];
+        const wtList = waterByScheme[sId] || [];
+        const cmList = commByScheme[sId] || [];
+        const alList = alertsByScheme[sId] || [];
+
+        // ESR Count
+        const esrCount = parseInt(statusRow.total_number_of_esr) || wtList.reduce((acc, v) => acc + (parseInt(v.number_of_esr) || 1), 0) || clList.length || prList.length || 1;
+        totalEsrs += esrCount;
+
+        // Village LPCD Breakdown
+        const villages = wtList.map((w: any) => {
+          const rawLpcd = parseFloat(w.lpcd_value_day7);
+          const validLpcd = !isNaN(rawLpcd) ? Math.round(rawLpcd * 10) / 10 : null;
+          const isCompliant = validLpcd !== null && validLpcd >= 55;
+          return {
+            village_name: w.village_name,
+            lpcd_value: validLpcd,
+            water_value: parseFloat(w.water_value_day7) || null,
+            population: parseInt(w.population) || 0,
+            number_of_esr: parseInt(w.number_of_esr) || 1,
+            is_compliant: isCompliant,
+          };
+        });
+
+        totalVillages += villages.length;
+        const schVillagesCompliant = villages.filter(v => v.is_compliant).length;
+        const schVillagesNonCompliant = villages.filter(v => v.lpcd_value !== null && !v.is_compliant).length;
+        villageLpcdCompliantCount += schVillagesCompliant;
+        villageLpcdNonCompliantCount += schVillagesNonCompliant;
+
+        // Average Scheme LPCD
+        let totalLpcd = 0;
+        let lpcdCount = 0;
+        villages.forEach((v) => {
+          if (v.lpcd_value !== null && v.lpcd_value > 0) {
+            totalLpcd += v.lpcd_value;
+            lpcdCount++;
+          }
+        });
+        const avgLpcd = lpcdCount > 0 ? Math.round(totalLpcd / lpcdCount) : null;
+        const isLpcdCompliant = avgLpcd !== null && avgLpcd >= 55;
+        if (isLpcdCompliant) {
+          lpcdCompliantCount++;
+        } else if (avgLpcd !== null) {
+          lpcdNonCompliantCount++;
+        }
+
+        // Chlorine Breakdown (Optimal: 0.2 - 0.5 mg/L, Low/Critical: < 0.2, High: > 0.5)
+        let schClOk = 0;
+        let schClCritical = 0;
+        let schClHigh = 0;
+        let schClNoData = 0;
+        let clSum = 0;
+        let clValidCount = 0;
+
+        const chlorineSensors = clList.map((c: any) => {
+          const raw = c.chlorine_value_7;
+          const val = raw !== null && raw !== undefined && raw !== "" ? parseFloat(raw) : null;
+          let status: "ok" | "critical" | "high" | "no_data" = "no_data";
+          if (val !== null && !isNaN(val)) {
+            clSum += val;
+            clValidCount++;
+            if (val >= 0.2 && val <= 0.5) {
+              status = "ok";
+              schClOk++;
+            } else if (val < 0.2) {
+              status = "critical";
+              schClCritical++;
+            } else {
+              status = "high";
+              schClHigh++;
+            }
+          } else {
+            schClNoData++;
+          }
+          return {
+            esr_name: c.esr_name,
+            village_name: c.village_name,
+            value: val !== null && !isNaN(val) ? val.toFixed(2) : null,
+            date: c.chlorine_date_day_7,
+            status,
+          };
+        });
+
+        chlorineOkCount += schClOk;
+        chlorineCriticalCount += schClCritical;
+        chlorineHighCount += schClHigh;
+        chlorineNoDataCount += schClNoData;
+
+        const avgChlorine = clValidCount > 0 ? (clSum / clValidCount).toFixed(2) : null;
+        const hasChlorineIssue = schClCritical > 0 || schClHigh > 0;
+
+        // Pressure Breakdown (Optimal: 0.2 - 0.7 Bar, Low: < 0.2 Bar, High/Above: > 0.7 Bar)
+        let schPrOk = 0;
+        let schPrLow = 0;
+        let schPrHigh = 0;
+        let schPrNoData = 0;
+        let prSum = 0;
+        let prValidCount = 0;
+
+        const pressureSensors = prList.map((p: any) => {
+          const raw = p.pressure_value_7;
+          const val = raw !== null && raw !== undefined && raw !== "" ? parseFloat(raw) : null;
+          let status: "ok" | "low" | "high" | "no_data" = "no_data";
+          if (val !== null && !isNaN(val)) {
+            prSum += val;
+            prValidCount++;
+            if (val >= 0.2 && val <= 0.7) {
+              status = "ok";
+              schPrOk++;
+            } else if (val < 0.2) {
+              status = "low";
+              schPrLow++;
+            } else {
+              status = "high";
+              schPrHigh++;
+            }
+          } else {
+            schPrNoData++;
+          }
+          return {
+            esr_name: p.esr_name,
+            village_name: p.village_name,
+            value: val !== null && !isNaN(val) ? val.toFixed(2) : null,
+            date: p.pressure_date_day_7,
+            status,
+          };
+        });
+
+        pressureOkCount += schPrOk;
+        pressureLowCount += schPrLow;
+        pressureHighCount += schPrHigh;
+        pressureNoDataCount += schPrNoData;
+
+        const avgPressure = prValidCount > 0 ? (prSum / prValidCount).toFixed(2) : null;
+        const hasPressureIssue = schPrLow > 0 || schPrHigh > 0;
+
+        // Sensor online/offline
+        let schemeOnline = 0;
+        let schemeOffline = 0;
+        cmList.forEach((cm) => {
+          if (cm.chlorine_status === "Online") schemeOnline++;
+          else if (cm.chlorine_status === "Offline") schemeOffline++;
+          if (cm.pressure_status === "Online") schemeOnline++;
+          else if (cm.pressure_status === "Offline") schemeOffline++;
+          if (cm.flow_meter_status === "Online") schemeOnline++;
+          else if (cm.flow_meter_status === "Offline") schemeOffline++;
+        });
+        onlineSensorsCount += schemeOnline;
+        offlineSensorsCount += schemeOffline;
+
+        const assignedMeta = assignedSchemes.find(a => a.scheme_id === sId);
+
+        const latestDate = alList.length > 0 ? alList[0].sent_date : null;
+        const latestAlerts = latestDate ? alList.filter(a => a.sent_date === latestDate) : alList;
+
+        return {
+          scheme_id: sId,
+          scheme_name: statusRow.scheme_name,
+          region: statusRow.region,
+          circle: statusRow.circle,
+          division: statusRow.division,
+          sub_division: statusRow.sub_division,
+          block: statusRow.block,
+          engineer_role: assignedMeta?.engineer_role || "Assigned",
+          engineer_name: assignedMeta?.engineer_name || "",
+          total_esrs: esrCount,
+          total_villages: villages.length,
+          villages: villages,
+          villages_compliant_count: schVillagesCompliant,
+          villages_non_compliant_count: schVillagesNonCompliant,
+          avg_lpcd: avgLpcd,
+          is_lpcd_compliant: isLpcdCompliant,
+          avg_chlorine: avgChlorine,
+          chlorine_status: hasChlorineIssue ? "Critical" : clList.length > 0 ? "Normal" : "No Data",
+          has_chlorine_issue: hasChlorineIssue,
+          chlorine_count: clList.length,
+          chlorine_ok_count: schClOk,
+          chlorine_critical_count: schClCritical,
+          chlorine_high_count: schClHigh,
+          chlorine_nodata_count: schClNoData,
+          chlorine_sensors: chlorineSensors,
+          avg_pressure: avgPressure,
+          pressure_status: hasPressureIssue ? "Critical" : prList.length > 0 ? "Normal" : "No Data",
+          has_pressure_issue: hasPressureIssue,
+          pressure_count: prList.length,
+          pressure_ok_count: schPrOk,
+          pressure_low_count: schPrLow,
+          pressure_high_count: schPrHigh,
+          pressure_nodata_count: schPrNoData,
+          pressure_sensors: pressureSensors,
+          online_sensors: schemeOnline,
+          offline_sensors: schemeOffline,
+          active_alerts: alList,
+          recent_alert_count: latestAlerts.length,
+        };
+      });
+
+      const totalActiveAlerts = schemeSummaries.reduce((sum: number, s: any) => sum + (s.recent_alert_count || 0), 0);
+
+      const totalChlorineSensors = chlorineOkCount + chlorineCriticalCount + chlorineHighCount + chlorineNoDataCount;
+      const chlorineNonOptimalCount = chlorineCriticalCount + chlorineHighCount + chlorineNoDataCount;
+
+      const totalPressureSensors = pressureOkCount + pressureLowCount + pressureHighCount + pressureNoDataCount;
+      const pressureNonOptimalCount = pressureLowCount + pressureHighCount + pressureNoDataCount;
+
+      const totalSensorsCount = onlineSensorsCount + offlineSensorsCount;
+
+      // Fetch recent 5 login records for this engineer
+      let recentLogins: any[] = [];
+      const currentUserId = req.session?.userId;
+      if (currentUserId) {
+        try {
+          const loginRes: any = await db.execute(sql`
+            SELECT id, user_id, username, user_name, login_time, logout_time, session_duration, ip_address, user_agent, is_active
+            FROM user_login_logs
+            WHERE user_id = ${currentUserId}
+            ORDER BY login_time DESC
+            LIMIT 5
+          `);
+          recentLogins = loginRes.rows || loginRes || [];
+        } catch (logErr) {
+          console.error("Error fetching engineer recent logins:", logErr);
+        }
+      }
+
+      res.json({
+        schemes: schemeSummaries,
+        totalSchemes: schemeSummaries.length,
+        totalEsrs,
+        totalVillages,
+        villageLpcdCompliantCount,
+        villageLpcdNonCompliantCount,
+        totalChlorineSensors,
+        chlorineOkCount,
+        chlorineCriticalCount,
+        chlorineHighCount,
+        chlorineNoDataCount,
+        chlorineNonOptimalCount,
+        totalPressureSensors,
+        pressureOkCount,
+        pressureLowCount,
+        pressureHighCount,
+        pressureNoDataCount,
+        pressureNonOptimalCount,
+        totalSensorsCount,
+        lpcdCompliantCount,
+        lpcdNonCompliantCount,
+        onlineSensorsCount,
+        offlineSensorsCount,
+        activeAlertsCount: totalActiveAlerts,
+        totalAlertsCount,
+        recentLogins,
+      });
+    } catch (error) {
+      console.error("Error fetching engineer schemes summary:", error);
+      res.status(500).json({ message: "Failed to fetch engineer schemes summary" });
     }
   });
 
@@ -1106,25 +1705,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Logout endpoint
   app.post("/api/auth/logout", async (req, res) => {
-    if (req.session && req.session.userId) {
-      const sessionId = req.sessionID;
+    const sessionId = req.session?.sessionID || req.sessionID;
 
+    if (sessionId) {
       try {
-        // Log the logout time in the database
         await storage.logUserLogout(sessionId);
         console.log(`User logout logged for session: ${sessionId}`);
       } catch (error) {
         console.error("Error logging logout:", error);
       }
+    }
 
-      // Explicitly clear the session cookie
-      res.clearCookie("connect.sid", {
-        path: "/",
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-      });
+    // Always clear the session cookie
+    res.clearCookie("connect.sid", {
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax",
+    });
 
+    if (req.session) {
       req.session.destroy((err: Error | null) => {
         if (err) {
           console.error("Session destruction error:", err);
@@ -1133,7 +1732,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json({ message: "Logged out successfully" });
       });
     } else {
-      res.json({ message: "Not logged in" });
+      res.json({ message: "Logged out successfully" });
     }
   });
 
@@ -1141,6 +1740,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/regions", async (req, res) => {
     try {
       const view = (req.query.view as "ALL" | "INSTRUMENTED") || "ALL";
+      const scope = getEngineerSchemeScope(req);
+      if (scope.isEngineer) {
+        if (scope.schemeIds.length === 0 || scope.schemeIds.includes('__NO_MATCHING_SCHEMES__')) {
+          return res.json([]);
+        }
+        const db = await getDB();
+        const idPlaceholders = scope.schemeIds.map(id => `'${id}'`).join(',');
+        const result: any = await db.execute(sql`
+          SELECT 
+            region as region_name,
+            COUNT(DISTINCT scheme_id)::int as total_schemes_integrated,
+            COUNT(DISTINCT scheme_id) FILTER (WHERE TRIM(LOWER(fully_completion_scheme_status)) IN ('fully completed', 'completed'))::int as fully_completed_schemes,
+            COALESCE(SUM(total_villages_integrated), 0)::int as total_villages_integrated,
+            COALESCE(SUM(fully_completed_villages), 0)::int as fully_completed_villages,
+            COALESCE(SUM(total_esr_integrated), 0)::int as total_esr_integrated,
+            COALESCE(SUM(no_fully_completed_esr), 0)::int as fully_completed_esr,
+            COALESCE(SUM(GREATEST(0, COALESCE(total_esr_integrated, 0) - COALESCE(no_fully_completed_esr, 0))), 0)::int as partial_esr,
+            COALESCE(SUM(flow_meters_connected), 0)::int as flow_meter_integrated,
+            COALESCE(SUM(residual_chlorine_analyzer_connected), 0)::int as rca_integrated,
+            COALESCE(SUM(pressure_transmitter_connected), 0)::int as pressure_transmitter_integrated
+          FROM scheme_status
+          WHERE scheme_id IN (${sql.raw(idPlaceholders)})
+          GROUP BY region
+        `);
+        const rows = result.rows || result;
+        return res.json(rows.map((r: any, idx: number) => ({
+          region_id: idx + 1,
+          ...r
+        })));
+      }
+
       const regions = await storage.getAllRegions(view);
       res.json(regions);
     } catch (error) {
@@ -1156,9 +1786,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const region = (req.query.region as string) || "all";
       const db = await getDB();
       const filterByRegion = region && region !== "all";
-      // Some rows in scheme_progress_summary use a surrogate `scheme_id` and
-      // store the real scheme identifier in `scheme_name`. We resolve the
-      // region by matching scheme_status.scheme_id against EITHER column.
+      const scope = getEngineerSchemeScope(req);
+      
+      let engineerFilter = sql``;
+      if (scope.isEngineer) {
+        if (scope.schemeIds.length === 0 || scope.schemeIds.includes('__NO_MATCHING_SCHEMES__')) {
+          return res.json({
+            totalSchemes: 0,
+            totalVillages: 0,
+            totalEsr: 0,
+            totalFlowmeterScope: 0,
+            totalRcaScope: 0,
+            totalPtScope: 0,
+          });
+        }
+        const idList = scope.schemeIds.map(id => `'${id}'`).join(',');
+        engineerFilter = sql`AND (scheme_id IN (${sql.raw(idList)}) OR scheme_name IN (${sql.raw(idList)}))`;
+      }
+
       const result = await db.execute(sql`
         SELECT
           COUNT(DISTINCT scheme_id)::bigint AS total_schemes,
@@ -1168,7 +1813,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           COALESCE(SUM(total_rca_scope), 0)::bigint AS total_rca_scope,
           COALESCE(SUM(total_pt_scope), 0)::bigint AS total_pt_scope
         FROM scheme_progress_summary
-        ${filterByRegion ? sql`WHERE region = ${region}` : sql``}
+        WHERE 1=1
+        ${filterByRegion ? sql`AND region = ${region}` : sql``}
+        ${engineerFilter}
       `);
       const row = (result as any).rows ? (result as any).rows[0] : (result as any)[0];
       const toNum = (v: any) => (v === null || v === undefined ? 0 : Number(v));
@@ -1187,12 +1834,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get region summary (filtered by region if provided)
-    app.get("/api/regions/summary", async (req, res) => {
+  app.get("/api/regions/summary", async (req, res) => {
     try {
       const regionName = req.query.region as string;
       const view = (req.query.view as "ALL" | "INSTRUMENTED") || "ALL";
-      // Handle "all" value as no specific region
       const regionNameToUse = regionName === "all" ? undefined : regionName;
+      const scope = getEngineerSchemeScope(req);
+
+      if (scope.isEngineer) {
+        if (scope.schemeIds.length === 0 || scope.schemeIds.includes('__NO_MATCHING_SCHEMES__')) {
+          return res.json({
+            total_schemes_integrated: "0",
+            fully_completed_schemes: "0",
+            total_villages_integrated: "0",
+            fully_completed_villages: "0",
+            total_esr_integrated: "0",
+            fully_completed_esr: "0",
+            partial_esr: "0",
+            flow_meter_integrated: "0",
+            rca_integrated: "0",
+            pressure_transmitter_integrated: "0",
+            filtered_scheme_count: 0,
+            view,
+          });
+        }
+
+        const db = await getDB();
+        const idPlaceholders = scope.schemeIds.map(id => `'${id}'`).join(',');
+        const regionFilterClause = regionNameToUse ? sql`AND region = ${regionNameToUse}` : sql``;
+
+        const result: any = await db.execute(sql`
+          SELECT 
+            COUNT(DISTINCT scheme_id)::text as total_schemes_integrated,
+            COUNT(DISTINCT scheme_id) FILTER (WHERE TRIM(LOWER(fully_completion_scheme_status)) IN ('fully completed', 'completed'))::text as fully_completed_schemes,
+            COALESCE(SUM(total_villages_integrated), 0)::text as total_villages_integrated,
+            COALESCE(SUM(fully_completed_villages), 0)::text as fully_completed_villages,
+            COALESCE(SUM(total_esr_integrated), 0)::text as total_esr_integrated,
+            COALESCE(SUM(no_fully_completed_esr), 0)::text as fully_completed_esr,
+            COALESCE(SUM(GREATEST(0, COALESCE(total_esr_integrated, 0) - COALESCE(no_fully_completed_esr, 0))), 0)::text as partial_esr,
+            COALESCE(SUM(flow_meters_connected), 0)::text as flow_meter_integrated,
+            COALESCE(SUM(residual_chlorine_analyzer_connected), 0)::text as rca_integrated,
+            COALESCE(SUM(pressure_transmitter_connected), 0)::text as pressure_transmitter_integrated
+          FROM scheme_status
+          WHERE scheme_id IN (${sql.raw(idPlaceholders)})
+          ${regionFilterClause}
+        `);
+
+        const summaryRow = (result.rows && result.rows[0]) ? result.rows[0] : (result[0] || {});
+        return res.json({
+          ...summaryRow,
+          filtered_scheme_count: Number(summaryRow.total_schemes_integrated || 0),
+          view,
+        });
+      }
+
       const summary = await storage.getRegionSummary(
         regionNameToUse,
         undefined,
@@ -1312,15 +2007,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const agencyType = req.query.agencyType as string;
 
       const db = await storage.getDb();
+      const scope = getEngineerSchemeScope(req);
+
+      if (scope.isEngineer && (scope.schemeIds.length === 0 || scope.schemeIds.includes('__NO_MATCHING_SCHEMES__'))) {
+        return res.json({
+          regions: [],
+          circles: [],
+          divisions: [],
+          subdivisions: [],
+          blocks: [],
+        });
+      }
 
       // Common condition for agency type
       const agencyCondition = agencyType && agencyType !== "ALL" 
         ? eq(schemeStatuses.agency_type, agencyType) 
         : undefined;
 
+      const engineerCondition = scope.isEngineer
+        ? inArray(schemeStatuses.scheme_id, scope.schemeIds)
+        : undefined;
+
       // Get regions (filtered by agency type if provided)
       const regionConditions = [];
       if (agencyCondition) regionConditions.push(agencyCondition);
+      if (engineerCondition) regionConditions.push(engineerCondition);
       regionConditions.push(sql`${schemeStatuses.region} is not null and ${schemeStatuses.region} != ''`);
       
       const regionsList = await db
@@ -1334,6 +2045,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (region && region !== "all")
         circleConditions.push(eq(schemeStatuses.region, region));
       if (agencyCondition) circleConditions.push(agencyCondition);
+      if (engineerCondition) circleConditions.push(engineerCondition);
       circleConditions.push(sql`${schemeStatuses.circle} is not null and ${schemeStatuses.circle} != ''`);
 
       const circles = await db
@@ -1349,6 +2061,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (circle && circle !== "all")
         divisionConditions.push(eq(schemeStatuses.circle, circle));
       if (agencyCondition) divisionConditions.push(agencyCondition);
+      if (engineerCondition) divisionConditions.push(engineerCondition);
       divisionConditions.push(sql`${schemeStatuses.division} is not null and ${schemeStatuses.division} != ''`);
 
       const divisions = await db
@@ -1366,6 +2079,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (division && division !== "all")
         subdivisionConditions.push(eq(schemeStatuses.division, division));
       if (agencyCondition) subdivisionConditions.push(agencyCondition);
+      if (engineerCondition) subdivisionConditions.push(engineerCondition);
       subdivisionConditions.push(sql`${schemeStatuses.sub_division} is not null and ${schemeStatuses.sub_division} != ''`);
 
       const subdivisions = await db
@@ -1385,6 +2099,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (subdivision && subdivision !== "all")
         blockConditions.push(eq(schemeStatuses.sub_division, subdivision));
       if (agencyCondition) blockConditions.push(agencyCondition);
+      if (engineerCondition) blockConditions.push(engineerCondition);
       blockConditions.push(sql`${schemeStatuses.block} is not null and ${schemeStatuses.block} != ''`);
 
       const blocks = await db
@@ -1520,6 +2235,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
       }
 
+      // Apply Engineer Scoping
+      const scope = getEngineerSchemeScope(req);
+      if (scope.isEngineer) {
+        if (scope.schemeIds.length === 0 || scope.schemeIds.includes('__NO_MATCHING_SCHEMES__')) {
+          return res.json([]);
+        }
+        schemes = schemes.filter((scheme: any) =>
+          scope.schemeIds.includes(String(scheme.scheme_id)) ||
+          scope.schemeNames.some((name: string) => scheme.scheme_name && scheme.scheme_name.toLowerCase().includes(name.toLowerCase()))
+        );
+      }
+
       res.json(schemes);
     } catch (error) {
       console.error("Error fetching schemes:", error);
@@ -1539,6 +2266,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const division = req.query.division as string;
       const subdivision = req.query.subdivision as string;
       const block = req.query.block as string;
+
+      const scope = getEngineerSchemeScope(req);
+      if (scope.isEngineer) {
+        if (scope.schemeIds.length === 0 || scope.schemeIds.includes('__NO_MATCHING_SCHEMES__')) {
+          return res.json({
+            filteredCount: 0,
+            totalCount: 0,
+            region: regionName || "all",
+          });
+        }
+
+        const agencyType = req.query.agencyType as string;
+        const status = req.query.status as string;
+
+        let engineerSchemes = await storage.getAllSchemes(
+          status,
+          undefined,
+          circle,
+          division,
+          subdivision,
+          block,
+          agencyType,
+        );
+
+        engineerSchemes = engineerSchemes.filter((s: any) =>
+          scope.schemeIds.includes(String(s.scheme_id)) ||
+          scope.schemeNames.some((name: string) => s.scheme_name && s.scheme_name.toLowerCase().includes(name.toLowerCase()))
+        );
+
+        if (regionName && regionName !== "all") {
+          engineerSchemes = engineerSchemes.filter((s: any) => s.region === regionName);
+        }
+
+        return res.json({
+          filteredCount: engineerSchemes.length,
+          totalCount: scope.assignedSchemes.length,
+          region: regionName || "all",
+        });
+      }
 
       if (regionName && regionName !== "all") {
         // Get filtered scheme count from scheme_status table for specific region
@@ -2424,12 +3190,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         filter.maxLpcd = maxLpcd;
       }
 
-      if (zeroSupplyForWeek) {
-        filter.zeroSupplyForWeek = true;
-      }
-
       // Get data with the provided filters
-      const waterSchemeData = await storage.getAllWaterSchemeData(filter);
+      let waterSchemeData = await storage.getAllWaterSchemeData(filter);
+
+      const scope = getEngineerSchemeScope(req);
+      if (scope.isEngineer) {
+        if (scope.schemeIds.length === 0 || scope.schemeIds.includes('__NO_MATCHING_SCHEMES__')) {
+          return res.json([]);
+        }
+        waterSchemeData = waterSchemeData.filter((item: any) =>
+          scope.schemeIds.includes(String(item.scheme_id)) ||
+          scope.schemeNames.some((name: string) => item.scheme_name && item.scheme_name.toLowerCase().includes(name.toLowerCase()))
+        );
+      }
 
       // Return the filtered data
       res.json(waterSchemeData);

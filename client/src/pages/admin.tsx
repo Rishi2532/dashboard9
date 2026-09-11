@@ -26,6 +26,9 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, LockIcon, LogIn, ArrowLeft } from "lucide-react";
 import backgroundImage from "../../../attached_assets/image_1759735212447.png";
 
+import { useAuth } from "@/hooks/use-auth";
+import { useLocation } from "wouter";
+
 // Login form schema
 const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
@@ -34,28 +37,12 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-// Auth status response type
-interface AuthStatusResponse {
-  isLoggedIn: boolean;
-  isAdmin: boolean;
-}
-
 export default function AdminPage() {
   const { toast } = useToast();
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [, setLocation] = useLocation();
+  const { login } = useAuth();
 
-  // Check if user is already logged in
-  const authStatusQuery = useQuery<AuthStatusResponse>({
-    queryKey: ["/api/auth/status"],
-    refetchOnWindowFocus: false,
-  });
-
-  // Redirect to admin dashboard if already logged in as admin
-  useEffect(() => {
-    if (authStatusQuery.data?.isLoggedIn && authStatusQuery.data?.isAdmin) {
-      window.location.href = "/admin/dashboard";
-    }
-  }, [authStatusQuery.data]);
   // Login form setup
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -68,41 +55,15 @@ export default function AdminPage() {
   // Login mutation
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginFormValues) => {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(credentials),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Login failed");
-      }
-
-      return response.json();
+      return await login(credentials.username, credentials.password, "admin");
     },
-    onSuccess: (data) => {
-      // Check if the user is an admin
-      if (data.role !== "admin") {
-        setLoginError(
-          "You are not authorized to access the admin panel. This login is for administrators only.",
-        );
-
-        // Log out the non-admin user who tried to log in
-        fetch("/api/auth/logout", { method: "POST" });
-
-        return;
-      }
-
+    onSuccess: () => {
       toast({
         title: "Login successful",
         description: "You are now logged in as admin",
       });
       setLoginError(null);
-      // Redirect to admin dashboard
-      window.location.href = "/admin/dashboard";
+      setLocation("/admin/dashboard");
     },
     onError: (error: Error) => {
       setLoginError(error.message);
@@ -112,6 +73,7 @@ export default function AdminPage() {
 
   // Form submission handler
   const onSubmit = (data: LoginFormValues) => {
+    setLoginError(null);
     loginMutation.mutate(data);
   };
 

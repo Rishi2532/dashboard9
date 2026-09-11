@@ -81,6 +81,30 @@ async function initializeDatabase() {
     // Create required tables if they don't exist
     console.log('🔄 Checking and creating required tables...');
     
+    // Create safe_to_date helper function in PostgreSQL
+    await pool.query(`
+      CREATE OR REPLACE FUNCTION safe_to_date(val text, fmt text) RETURNS date AS $$
+      BEGIN
+        RETURN TO_DATE(val, fmt);
+      EXCEPTION WHEN OTHERS THEN
+        BEGIN
+          RETURN TO_DATE(
+            regexp_replace(
+              regexp_replace(
+                regexp_replace(val, '29-Feb', '28-Feb', 'i'),
+                '29([/-])02', '28\\1'
+              ),
+              '02([/-])29', '02\\128'
+            ),
+            fmt
+          );
+        EXCEPTION WHEN OTHERS THEN
+          RETURN NULL;
+        END;
+      END;
+      $$ LANGUAGE plpgsql IMMUTABLE;
+    `);
+
     // Region table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS "region" (

@@ -325,23 +325,21 @@ const MqttTopicConfiguration = () => {
               </p>
             </div>
             
-            {/* Admin Excel Download Button */}
-            {authData?.isAdmin && (
-              <Button
-                onClick={handleExcelDownload}
-                disabled={isDownloading}
-                variant="outline"
-                className="flex items-center gap-2"
-                data-testid="button-download-excel"
-              >
-                {isDownloading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Download className="h-4 w-4" />
-                )}
-                {isDownloading ? "Downloading..." : "Download Excel"}
-              </Button>
-            )}
+            {/* Excel Download Button */}
+            <Button
+              onClick={handleExcelDownload}
+              disabled={isDownloading}
+              variant="outline"
+              className="flex items-center gap-2"
+              data-testid="button-download-excel"
+            >
+              {isDownloading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              {isDownloading ? "Downloading..." : "Download Excel"}
+            </Button>
           </div>
         </div>
 

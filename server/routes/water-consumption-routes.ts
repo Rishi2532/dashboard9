@@ -5,6 +5,7 @@ import fs from "fs";
 import { PostgresStorage } from "../storage";
 import pg from "pg";
 import ExcelJS from "exceljs";
+import { getEngineerSchemeScope } from "./filter-utils";
 
 const router = Router();
 const storage = new PostgresStorage();
@@ -39,6 +40,17 @@ router.get("/filters", async (req, res) => {
     if (block) filter.block = block as string;
 
     const filterOptions = await storage.getWaterConsumptionFilterOptions(filter);
+    const scope = getEngineerSchemeScope(req);
+    if (scope.isEngineer && scope.assignedSchemes.length > 0) {
+      const myRegions = new Set(scope.assignedSchemes.map((s: any) => s.region).filter(Boolean));
+      const myDivisions = new Set(scope.assignedSchemes.map((s: any) => s.division).filter(Boolean));
+      if (myRegions.size > 0 && Array.isArray(filterOptions.regions)) {
+        filterOptions.regions = filterOptions.regions.filter((r: string) => myRegions.has(r));
+      }
+      if (myDivisions.size > 0 && Array.isArray(filterOptions.divisions)) {
+        filterOptions.divisions = filterOptions.divisions.filter((d: string) => myDivisions.has(d));
+      }
+    }
     res.json(filterOptions);
   } catch (error) {
     console.error("Error getting water consumption filter options:", error);
@@ -60,8 +72,20 @@ router.get("/", async (req, res) => {
     if (block) filter.block = block as string;
     if (agencyType) filter.agencyType = agencyType as string;
 
-    const waterConsumptionData =
+    let waterConsumptionData =
       await storage.getAllWaterConsumptionWithSchemeStatus(filter);
+
+    const scope = getEngineerSchemeScope(req);
+    if (scope.isEngineer) {
+      if (scope.schemeIds.length === 0 || scope.schemeIds.includes('__NO_MATCHING_SCHEMES__')) {
+        return res.json([]);
+      }
+      waterConsumptionData = waterConsumptionData.filter((item: any) =>
+        scope.schemeIds.includes(String(item.scheme_id)) ||
+        scope.schemeNames.some((name: string) => item.scheme_name && item.scheme_name.toLowerCase().includes(name.toLowerCase()))
+      );
+    }
+
     res.json(waterConsumptionData);
   } catch (error) {
     console.error("Error fetching water consumption data:", error);

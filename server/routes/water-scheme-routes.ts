@@ -10,7 +10,7 @@ import { parse } from 'csv-parse';
 import pg from 'pg';
 import { fileURLToPath } from 'url';
 import { storage as storageInstance } from '../storage';
-import { runDailyAlertsJob } from '../cron/daily-alerts';
+import { getEngineerSchemeScope } from './filter-utils';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -122,6 +122,17 @@ router.get('/', async (req, res) => {
       if (agencyType && agencyType !== 'ALL') {
         conditions.push(`EXISTS (SELECT 1 FROM scheme_status ss WHERE ss.scheme_id = water_scheme_data.scheme_id AND ss.agency_type = $${queryParams.length + 1})`);
         queryParams.push(agencyType);
+      }
+
+      // Apply engineer scheme scope
+      const scope = getEngineerSchemeScope(req);
+      if (scope.isEngineer) {
+        if (scope.schemeIds.length > 0) {
+          conditions.push(`scheme_id = ANY($${queryParams.length + 1})`);
+          queryParams.push(scope.schemeIds);
+        } else {
+          conditions.push(`1 = 0`);
+        }
       }
 
       // Build final query with conditions
@@ -547,9 +558,6 @@ router.post('/import/excel', upload.single('file'), async (req, res) => {
       // Don't fail the import if population tracking fails
     }
 
-    // Trigger alert emails asynchronously
-    runDailyAlertsJob().catch(console.error);
-
     res.json(result);
   } catch (error) {
     console.error('Error importing from Excel:', error);
@@ -579,9 +587,6 @@ router.post('/import/csv', upload.single('file'), async (req, res) => {
       console.error('❌ Error updating population tracking:', popError);
       // Don't fail the import if population tracking fails
     }
-
-    // Trigger alert emails asynchronously
-    runDailyAlertsJob().catch(console.error);
 
     res.json(result);
   } catch (error) {

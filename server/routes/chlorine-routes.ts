@@ -9,10 +9,7 @@ import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
 import pg from 'pg';
 import { sql, and, eq } from "drizzle-orm";
-import { schemeStatuses } from "@shared/schema";
-import { getFilteredSchemeIds, getRollingWindowInfo } from "./filter-utils";
-import { runDailyAlertsJob } from '../cron/daily-alerts';
-
+import { getFilteredSchemeIds, getRollingWindowInfo, getEngineerSchemeScope } from "./filter-utils";
 
 const router = express.Router();
 
@@ -32,7 +29,8 @@ router.get("/weekly-lpcd/stats", async (req, res) => {
     console.log(`Weekly LPCD Stats Request (Rolling):`, { fullyCompleted, filterType, agencyType, dates: weekInfo.dates });
 
     // Get filtered scheme IDs
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
+    const scope = getEngineerSchemeScope(req);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string, scope);
     let fullyCompletedSchemeIds: Set<string> | undefined;
 
     if (filteredIds) {
@@ -90,6 +88,17 @@ router.get("/filters", async (req, res) => {
     if (agencyType) filter.agencyType = agencyType as string;
 
     const options = await storage.getChlorineFilterOptions(filter);
+    const scope = getEngineerSchemeScope(req);
+    if (scope.isEngineer) {
+      const allowedIds = new Set(scope.schemeIds);
+      const allowedNames = new Set(scope.schemeNames);
+      if (Array.isArray(options?.schemes)) {
+        options.schemes = options.schemes.filter((s: any) => {
+          if (typeof s === "string") return allowedIds.has(s) || allowedNames.has(s);
+          return (s?.id && allowedIds.has(s.id)) || (s?.name && allowedNames.has(s.name));
+        });
+      }
+    }
     res.json(options);
   } catch (error) {
     console.error("Error fetching chlorine filter options:", error);
@@ -139,7 +148,19 @@ router.get("/", async (req, res) => {
 
     console.log("Applied filter object:", filter);
 
-    const chlorineData = await storage.getAllChlorineData(filter);
+    let chlorineData = await storage.getAllChlorineData(filter);
+
+    // Apply engineer scheme scope
+    const scope = getEngineerSchemeScope(req);
+    if (scope.isEngineer) {
+      const allowedIds = new Set(scope.schemeIds);
+      const allowedNames = new Set(scope.schemeNames);
+      chlorineData = chlorineData.filter(item => 
+        (item.scheme_id && allowedIds.has(item.scheme_id)) ||
+        (item.scheme_name && allowedNames.has(item.scheme_name))
+      );
+    }
+
     console.log(`Returning ${chlorineData.length} chlorine records after filtering`);
 
     // For debugging - log a sample of the first few data points to see what's returned
@@ -311,7 +332,8 @@ router.get("/regional-stats", async (req, res) => {
 
     // Get filtered scheme IDs if filter is enabled
     let schemeIdFilter = "";
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
+    const scope = getEngineerSchemeScope(req);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string, scope);
     if (filteredIds) {
       const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
       schemeIdFilter = `AND cs.scheme_id IN (${ids})`;
@@ -2048,9 +2070,6 @@ router.post("/import/csv", requireAdmin, upload.single("file"), async (req, res)
       }, 5, 2000); // 5 retries with 2 second initial delay (with exponential backoff)
 
       console.log("CSV import completed successfully with retry support:", result);
-
-      // Trigger alert emails asynchronously
-      runDailyAlertsJob().catch(console.error);
 
       res.json(result);
     } catch (importError: any) {

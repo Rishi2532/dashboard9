@@ -8,12 +8,15 @@ import Settings from "./pages/settings";
 import AdminDashboard from "./pages/admin/dashboard";
 import ManageReports from "./pages/admin/manage-reports";
 import LoginLogsPage from "./pages/admin/login-logs";
-import AdminLoginPage from "./pages/admin";
+import AdminLoginPage from "./pages/admin-login";
+import AdminPortalHub from "./pages/admin/index";
 import ImportDataPage from "./pages/import-data";
 import NotFound from "./pages/not-found";
 import HomePage from "./pages/home";
 import LoginPage from "./pages/login";
 import UserLoginPage from "./pages/user-login";
+import EngineerLoginPage from "./pages/engineer-login";
+import EngineerDashboard from "./pages/engineer/EngineerDashboard";
 import RegisterPage from "./pages/register";
 import ForgotPasswordPage from "./pages/forgot-password";
 import LpcdPage from "./pages/LpcdPage";
@@ -70,6 +73,7 @@ function App() {
     "/",
     "/login",
     "/user-login",
+    "/engineer-login",
     "/register",
     "/forgot-password",
     "/admin",
@@ -131,12 +135,22 @@ function App() {
                     <Route path="/" component={HomePage} />
                     <Route path="/login" component={LoginPage} />
                     <Route path="/user-login" component={UserLoginPage} />
+                    <Route path="/engineer-login" component={EngineerLoginPage} />
                     <Route path="/register" component={RegisterPage} />
                     <Route
                       path="/forgot-password"
                       component={ForgotPasswordPage}
                     />
                     <Route path="/admin" component={AdminLoginPage} />
+                    <Route path="/admin-login" component={AdminLoginPage} />
+                    <Route path="/admin/login" component={AdminLoginPage} />
+
+                    {/* Engineer dedicated route */}
+                    <Route path="/engineer">
+                      <ProtectedRoute>
+                        <EngineerDashboard />
+                      </ProtectedRoute>
+                    </Route>
 
                     {/* User protected routes */}
                     <Route path="/dashboard">
@@ -162,11 +176,6 @@ function App() {
                     <Route path="/reports">
                       <ProtectedRoute>
                         <Reports />
-                      </ProtectedRoute>
-                    </Route>
-                    <Route path="/monthly-reports">
-                      <ProtectedRoute requireAdmin={true}>
-                        <MonthlyReportsPage />
                       </ProtectedRoute>
                     </Route>
                     <Route path="/smart-reports">
@@ -326,43 +335,43 @@ function App() {
 
                     {/* Admin protected routes */}
                     <Route path="/admin/dashboard">
-                      <ProtectedRoute requireAdmin={true}>
+                      <ProtectedRoute requireAdmin={true} redirectTo="/admin">
                         <AdminDashboard />
                       </ProtectedRoute>
                     </Route>
 
                     <Route path="/admin/import-data">
-                      <ProtectedRoute requireAdmin={true}>
+                      <ProtectedRoute requireAdmin={true} redirectTo="/admin">
                         <ImportDataPage />
                       </ProtectedRoute>
                     </Route>
 
                     <Route path="/admin/chlorine-import">
-                      <ProtectedRoute requireAdmin={true}>
+                      <ProtectedRoute requireAdmin={true} redirectTo="/admin">
                         <ChlorineImport />
                       </ProtectedRoute>
                     </Route>
 
                     <Route path="/admin/communication-import">
-                      <ProtectedRoute requireAdmin={true}>
+                      <ProtectedRoute requireAdmin={true} redirectTo="/admin">
                         <ImportCommunicationStatus />
                       </ProtectedRoute>
                     </Route>
 
                     <Route path="/admin/import-communication-status">
-                      <ProtectedRoute requireAdmin={true}>
+                      <ProtectedRoute requireAdmin={true} redirectTo="/admin">
                         <ImportCommunicationStatus />
                       </ProtectedRoute>
                     </Route>
 
                     <Route path="/admin/manage-reports">
-                      <ProtectedRoute requireAdmin={true}>
+                      <ProtectedRoute requireAdmin={true} redirectTo="/admin">
                         <ManageReports />
                       </ProtectedRoute>
                     </Route>
 
                     <Route path="/admin/login-logs">
-                      <ProtectedRoute requireAdmin={true}>
+                      <ProtectedRoute requireAdmin={true} redirectTo="/admin">
                         <LoginLogsPage />
                       </ProtectedRoute>
                     </Route>
@@ -370,6 +379,12 @@ function App() {
                     <Route path="/admin/helpdesk">
                       <ProtectedRoute requireAdmin={true}>
                         <AdminHelpdeskPage />
+                      </ProtectedRoute>
+                    </Route>
+
+                    <Route path="/admin/portal">
+                      <ProtectedRoute requireAdmin={true}>
+                        <AdminPortalHub />
                       </ProtectedRoute>
                     </Route>
 

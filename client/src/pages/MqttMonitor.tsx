@@ -227,67 +227,65 @@ export default function MqttMonitor() {
           </p>
         </div>
 
-        {/* Admin Controls */}
-        {isAdmin && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Admin Controls - MQTT Configuration Management</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-4 flex-wrap">
-                <div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".xlsx,.xls"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                    id="excel-upload"
-                    data-testid="input-excel-upload"
-                  />
-                  <Button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploading}
-                    data-testid="button-upload-excel"
-                  >
-                    {isUploading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="h-4 w-4 mr-2" />
-                        Upload Excel
-                      </>
-                    )}
-                  </Button>
-                </div>
+        {/* MQTT Configuration Management */}
+        <Card>
+          <CardHeader>
+            <CardTitle>MQTT Configuration Management</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-4 flex-wrap">
+              <div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  id="excel-upload"
+                  data-testid="input-excel-upload"
+                />
                 <Button
-                  onClick={handleDownloadExcel}
-                  disabled={isDownloading}
-                  variant="outline"
-                  data-testid="button-download-excel"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  data-testid="button-upload-excel"
                 >
-                  {isDownloading ? (
+                  {isUploading ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Downloading...
+                      Uploading...
                     </>
                   ) : (
                     <>
-                      <Download className="h-4 w-4 mr-2" />
-                      Download Excel Report
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Excel
                     </>
                   )}
                 </Button>
               </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-3">
-                Upload Excel file with 6 sheets named: Amravati, Nashik, Konkan, Pune, CS, and Nagpur. Each sheet should have 17 columns: Sr.No, Region, Circle, Division, Sub Division, Block, Scheme ID Name, Vendor, Village, Reservoir, Message Type, Topic For Flow Meter, Topic For CL, Type of CL, Topic For Pressure, Received Date, Date of Integration
-              </p>
-            </CardContent>
-          </Card>
-        )}
+              <Button
+                onClick={handleDownloadExcel}
+                disabled={isDownloading}
+                variant="outline"
+                data-testid="button-download-excel"
+              >
+                {isDownloading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Downloading...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download Current Configuration
+                  </>
+                )}
+              </Button>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-3">
+              Upload Excel file with 6 sheets named: Amravati, Nashik, Konkan, Pune, CS, and Nagpur. Each sheet should have 17 columns: Sr.No, Region, Circle, Division, Sub Division, Block, Scheme ID Name, Vendor, Village, Reservoir, Message Type, Topic For Flow Meter, Topic For CL, Type of CL, Topic For Pressure, Received Date, Date of Integration
+            </p>
+          </CardContent>
+        </Card>
 
         {/* Search Interface */}
         <Card>

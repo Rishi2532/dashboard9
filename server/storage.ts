@@ -3872,13 +3872,16 @@ export class PostgresStorage implements IStorage {
             (
               CASE 
                 WHEN regexp_replace(ch.chlorine_date, '\\s', '', 'g') ~ '^[0-9.]+$' AND length(regexp_replace(ch.chlorine_date, '\\s', '', 'g')) <= 7 THEN (DATE '1899-12-30' + (regexp_replace(ch.chlorine_date, '\\s', '', 'g')::numeric)::integer)
-                WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(ch.chlorine_date, 'DD-Mon-YYYY')
-                WHEN ch.chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(ch.chlorine_date, 'YYYY-MM-DD')
-                WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}$' THEN 
+                WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN safe_to_date(ch.chlorine_date, 'DD-Mon-YYYY')
+                WHEN ch.chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN safe_to_date(ch.chlorine_date, 'YYYY-MM-DD')
+                WHEN ch.chlorine_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN safe_to_date(ch.chlorine_date, 'DD/MM/YYYY')
+                WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN safe_to_date(ch.chlorine_date, 'DD-Mon-YY')
+                WHEN ch.chlorine_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
                   CASE 
-                    WHEN TO_DATE(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE), 'DD-Mon-YYYY') > CURRENT_DATE 
-                    THEN TO_DATE(ch.chlorine_date || '-' || (EXTRACT(YEAR FROM CURRENT_DATE) - 1), 'DD-Mon-YYYY')
-                    ELSE TO_DATE(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE), 'DD-Mon-YYYY')
+                    WHEN safe_to_date('01-' || substring(ch.chlorine_date from '[A-Za-z]{3}'), 'DD-Mon') IS NOT NULL 
+                         AND EXTRACT(MONTH FROM safe_to_date('01-' || substring(ch.chlorine_date from '[A-Za-z]{3}'), 'DD-Mon')) > EXTRACT(MONTH FROM CURRENT_DATE) 
+                    THEN safe_to_date(ch.chlorine_date || '-' || (EXTRACT(YEAR FROM CURRENT_DATE) - 1)::text, 'DD-Mon-YYYY')
+                    ELSE safe_to_date(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE)::text, 'DD-Mon-YYYY')
                   END
                 ELSE NULL 
               END
@@ -3886,17 +3889,19 @@ export class PostgresStorage implements IStorage {
             
             -- Calculate Previous Date (chronologically next because of DESC sort) for gap detection
             LAG(
-            -- Robust Date Parsing Logic
             (
               CASE 
                 WHEN regexp_replace(ch.chlorine_date, '\\s', '', 'g') ~ '^[0-9.]+$' AND length(regexp_replace(ch.chlorine_date, '\\s', '', 'g')) <= 7 THEN (DATE '1899-12-30' + (regexp_replace(ch.chlorine_date, '\\s', '', 'g')::numeric)::integer)
-                WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(ch.chlorine_date, 'DD-Mon-YYYY')
-                WHEN ch.chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(ch.chlorine_date, 'YYYY-MM-DD')
-                WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}$' THEN 
+                WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN safe_to_date(ch.chlorine_date, 'DD-Mon-YYYY')
+                WHEN ch.chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN safe_to_date(ch.chlorine_date, 'YYYY-MM-DD')
+                WHEN ch.chlorine_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN safe_to_date(ch.chlorine_date, 'DD/MM/YYYY')
+                WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN safe_to_date(ch.chlorine_date, 'DD-Mon-YY')
+                WHEN ch.chlorine_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
                   CASE 
-                    WHEN TO_DATE(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE), 'DD-Mon-YYYY') > CURRENT_DATE 
-                    THEN TO_DATE(ch.chlorine_date || '-' || (EXTRACT(YEAR FROM CURRENT_DATE) - 1), 'DD-Mon-YYYY')
-                    ELSE TO_DATE(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE), 'DD-Mon-YYYY')
+                    WHEN safe_to_date('01-' || substring(ch.chlorine_date from '[A-Za-z]{3}'), 'DD-Mon') IS NOT NULL 
+                         AND EXTRACT(MONTH FROM safe_to_date('01-' || substring(ch.chlorine_date from '[A-Za-z]{3}'), 'DD-Mon')) > EXTRACT(MONTH FROM CURRENT_DATE) 
+                    THEN safe_to_date(ch.chlorine_date || '-' || (EXTRACT(YEAR FROM CURRENT_DATE) - 1)::text, 'DD-Mon-YYYY')
+                    ELSE safe_to_date(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE)::text, 'DD-Mon-YYYY')
                   END
                 ELSE NULL 
               END
@@ -3906,13 +3911,16 @@ export class PostgresStorage implements IStorage {
               ORDER BY (
                 CASE 
                   WHEN regexp_replace(ch.chlorine_date, '\\s', '', 'g') ~ '^[0-9.]+$' AND length(regexp_replace(ch.chlorine_date, '\\s', '', 'g')) <= 7 THEN (DATE '1899-12-30' + (regexp_replace(ch.chlorine_date, '\\s', '', 'g')::numeric)::integer)
-                  WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(ch.chlorine_date, 'DD-Mon-YYYY')
-                  WHEN ch.chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(ch.chlorine_date, 'YYYY-MM-DD')
-                  WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}$' THEN 
+                  WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN safe_to_date(ch.chlorine_date, 'DD-Mon-YYYY')
+                  WHEN ch.chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN safe_to_date(ch.chlorine_date, 'YYYY-MM-DD')
+                  WHEN ch.chlorine_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN safe_to_date(ch.chlorine_date, 'DD/MM/YYYY')
+                  WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN safe_to_date(ch.chlorine_date, 'DD-Mon-YY')
+                  WHEN ch.chlorine_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
                     CASE 
-                      WHEN TO_DATE(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE), 'DD-Mon-YYYY') > CURRENT_DATE 
-                      THEN TO_DATE(ch.chlorine_date || '-' || (EXTRACT(YEAR FROM CURRENT_DATE) - 1), 'DD-Mon-YYYY')
-                      ELSE TO_DATE(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE), 'DD-Mon-YYYY')
+                      WHEN safe_to_date('01-' || substring(ch.chlorine_date from '[A-Za-z]{3}'), 'DD-Mon') IS NOT NULL 
+                           AND EXTRACT(MONTH FROM safe_to_date('01-' || substring(ch.chlorine_date from '[A-Za-z]{3}'), 'DD-Mon')) > EXTRACT(MONTH FROM CURRENT_DATE) 
+                      THEN safe_to_date(ch.chlorine_date || '-' || (EXTRACT(YEAR FROM CURRENT_DATE) - 1)::text, 'DD-Mon-YYYY')
+                      ELSE safe_to_date(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE)::text, 'DD-Mon-YYYY')
                     END
                   ELSE NULL 
                 END
@@ -3924,13 +3932,16 @@ export class PostgresStorage implements IStorage {
               PARTITION BY ch.scheme_id, ch.village_name, ch.esr_name, (
                 CASE 
                   WHEN regexp_replace(ch.chlorine_date, '\\s', '', 'g') ~ '^[0-9.]+$' AND length(regexp_replace(ch.chlorine_date, '\\s', '', 'g')) <= 7 THEN (DATE '1899-12-30' + (regexp_replace(ch.chlorine_date, '\\s', '', 'g')::numeric)::integer)
-                  WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(ch.chlorine_date, 'DD-Mon-YYYY')
-                  WHEN ch.chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(ch.chlorine_date, 'YYYY-MM-DD')
-                  WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}$' THEN 
+                  WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN safe_to_date(ch.chlorine_date, 'DD-Mon-YYYY')
+                  WHEN ch.chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN safe_to_date(ch.chlorine_date, 'YYYY-MM-DD')
+                  WHEN ch.chlorine_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN safe_to_date(ch.chlorine_date, 'DD/MM/YYYY')
+                  WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN safe_to_date(ch.chlorine_date, 'DD-Mon-YY')
+                  WHEN ch.chlorine_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
                     CASE 
-                      WHEN TO_DATE(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE), 'DD-Mon-YYYY') > CURRENT_DATE 
-                      THEN TO_DATE(ch.chlorine_date || '-' || (EXTRACT(YEAR FROM CURRENT_DATE) - 1), 'DD-Mon-YYYY')
-                      ELSE TO_DATE(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE), 'DD-Mon-YYYY')
+                      WHEN safe_to_date('01-' || substring(ch.chlorine_date from '[A-Za-z]{3}'), 'DD-Mon') IS NOT NULL 
+                           AND EXTRACT(MONTH FROM safe_to_date('01-' || substring(ch.chlorine_date from '[A-Za-z]{3}'), 'DD-Mon')) > EXTRACT(MONTH FROM CURRENT_DATE) 
+                      THEN safe_to_date(ch.chlorine_date || '-' || (EXTRACT(YEAR FROM CURRENT_DATE) - 1)::text, 'DD-Mon-YYYY')
+                      ELSE safe_to_date(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE)::text, 'DD-Mon-YYYY')
                     END
                   ELSE NULL 
                 END
@@ -3941,13 +3952,16 @@ export class PostgresStorage implements IStorage {
             ROW_NUMBER() OVER (PARTITION BY ch.scheme_id, ch.village_name, ch.esr_name ORDER BY (
               CASE 
                 WHEN regexp_replace(ch.chlorine_date, '\\s', '', 'g') ~ '^[0-9.]+$' AND length(regexp_replace(ch.chlorine_date, '\\s', '', 'g')) <= 7 THEN (DATE '1899-12-30' + (regexp_replace(ch.chlorine_date, '\\s', '', 'g')::numeric)::integer)
-                WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(ch.chlorine_date, 'DD-Mon-YYYY')
-                WHEN ch.chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(ch.chlorine_date, 'YYYY-MM-DD')
-                WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}$' THEN 
+                WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN safe_to_date(ch.chlorine_date, 'DD-Mon-YYYY')
+                WHEN ch.chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN safe_to_date(ch.chlorine_date, 'YYYY-MM-DD')
+                WHEN ch.chlorine_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN safe_to_date(ch.chlorine_date, 'DD/MM/YYYY')
+                WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN safe_to_date(ch.chlorine_date, 'DD-Mon-YY')
+                WHEN ch.chlorine_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
                   CASE 
-                    WHEN TO_DATE(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE), 'DD-Mon-YYYY') > CURRENT_DATE 
-                    THEN TO_DATE(ch.chlorine_date || '-' || (EXTRACT(YEAR FROM CURRENT_DATE) - 1), 'DD-Mon-YYYY')
-                    ELSE TO_DATE(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE), 'DD-Mon-YYYY')
+                    WHEN safe_to_date('01-' || substring(ch.chlorine_date from '[A-Za-z]{3}'), 'DD-Mon') IS NOT NULL 
+                         AND EXTRACT(MONTH FROM safe_to_date('01-' || substring(ch.chlorine_date from '[A-Za-z]{3}'), 'DD-Mon')) > EXTRACT(MONTH FROM CURRENT_DATE) 
+                    THEN safe_to_date(ch.chlorine_date || '-' || (EXTRACT(YEAR FROM CURRENT_DATE) - 1)::text, 'DD-Mon-YYYY')
+                    ELSE safe_to_date(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE)::text, 'DD-Mon-YYYY')
                   END
                 ELSE NULL 
               END
@@ -3959,13 +3973,16 @@ export class PostgresStorage implements IStorage {
           WHERE (
               CASE 
                 WHEN regexp_replace(ch.chlorine_date, '\\s', '', 'g') ~ '^[0-9.]+$' AND length(regexp_replace(ch.chlorine_date, '\\s', '', 'g')) <= 7 THEN (DATE '1899-12-30' + (regexp_replace(ch.chlorine_date, '\\s', '', 'g')::numeric)::integer)
-                WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(ch.chlorine_date, 'DD-Mon-YYYY')
-                WHEN ch.chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(ch.chlorine_date, 'YYYY-MM-DD')
-                WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}$' THEN 
+                WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN safe_to_date(ch.chlorine_date, 'DD-Mon-YYYY')
+                WHEN ch.chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN safe_to_date(ch.chlorine_date, 'YYYY-MM-DD')
+                WHEN ch.chlorine_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN safe_to_date(ch.chlorine_date, 'DD/MM/YYYY')
+                WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN safe_to_date(ch.chlorine_date, 'DD-Mon-YY')
+                WHEN ch.chlorine_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
                   CASE 
-                    WHEN TO_DATE(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE), 'DD-Mon-YYYY') > CURRENT_DATE 
-                    THEN TO_DATE(ch.chlorine_date || '-' || (EXTRACT(YEAR FROM CURRENT_DATE) - 1), 'DD-Mon-YYYY')
-                    ELSE TO_DATE(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE), 'DD-Mon-YYYY')
+                    WHEN safe_to_date('01-' || substring(ch.chlorine_date from '[A-Za-z]{3}'), 'DD-Mon') IS NOT NULL 
+                         AND EXTRACT(MONTH FROM safe_to_date('01-' || substring(ch.chlorine_date from '[A-Za-z]{3}'), 'DD-Mon')) > EXTRACT(MONTH FROM CURRENT_DATE) 
+                    THEN safe_to_date(ch.chlorine_date || '-' || (EXTRACT(YEAR FROM CURRENT_DATE) - 1)::text, 'DD-Mon-YYYY')
+                    ELSE safe_to_date(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE)::text, 'DD-Mon-YYYY')
                   END
                 ELSE NULL 
               END
@@ -3973,13 +3990,16 @@ export class PostgresStorage implements IStorage {
             AND (
               CASE 
                 WHEN regexp_replace(ch.chlorine_date, '\\s', '', 'g') ~ '^[0-9.]+$' AND length(regexp_replace(ch.chlorine_date, '\\s', '', 'g')) <= 7 THEN (DATE '1899-12-30' + (regexp_replace(ch.chlorine_date, '\\s', '', 'g')::numeric)::integer)
-                WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(ch.chlorine_date, 'DD-Mon-YYYY')
-                WHEN ch.chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(ch.chlorine_date, 'YYYY-MM-DD')
-                WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}$' THEN 
+                WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN safe_to_date(ch.chlorine_date, 'DD-Mon-YYYY')
+                WHEN ch.chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN safe_to_date(ch.chlorine_date, 'YYYY-MM-DD')
+                WHEN ch.chlorine_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN safe_to_date(ch.chlorine_date, 'DD/MM/YYYY')
+                WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN safe_to_date(ch.chlorine_date, 'DD-Mon-YY')
+                WHEN ch.chlorine_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
                   CASE 
-                    WHEN TO_DATE(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE), 'DD-Mon-YYYY') > CURRENT_DATE 
-                    THEN TO_DATE(ch.chlorine_date || '-' || (EXTRACT(YEAR FROM CURRENT_DATE) - 1), 'DD-Mon-YYYY')
-                    ELSE TO_DATE(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE), 'DD-Mon-YYYY')
+                    WHEN safe_to_date('01-' || substring(ch.chlorine_date from '[A-Za-z]{3}'), 'DD-Mon') IS NOT NULL 
+                         AND EXTRACT(MONTH FROM safe_to_date('01-' || substring(ch.chlorine_date from '[A-Za-z]{3}'), 'DD-Mon')) > EXTRACT(MONTH FROM CURRENT_DATE) 
+                    THEN safe_to_date(ch.chlorine_date || '-' || (EXTRACT(YEAR FROM CURRENT_DATE) - 1)::text, 'DD-Mon-YYYY')
+                    ELSE safe_to_date(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE)::text, 'DD-Mon-YYYY')
                   END
                 ELSE NULL 
               END
@@ -4256,13 +4276,16 @@ export class PostgresStorage implements IStorage {
               (
               CASE 
                 WHEN regexp_replace(ch.chlorine_date, '\\s', '', 'g') ~ '^[0-9.]+$' AND length(regexp_replace(ch.chlorine_date, '\\s', '', 'g')) <= 7 THEN (DATE '1899-12-30' + (regexp_replace(ch.chlorine_date, '\\s', '', 'g')::numeric)::integer)
-                WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(ch.chlorine_date, 'DD-Mon-YYYY')
-                WHEN ch.chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(ch.chlorine_date, 'YYYY-MM-DD')
-                WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}$' THEN 
+                WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN safe_to_date(ch.chlorine_date, 'DD-Mon-YYYY')
+                WHEN ch.chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN safe_to_date(ch.chlorine_date, 'YYYY-MM-DD')
+                WHEN ch.chlorine_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN safe_to_date(ch.chlorine_date, 'DD/MM/YYYY')
+                WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN safe_to_date(ch.chlorine_date, 'DD-Mon-YY')
+                WHEN ch.chlorine_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
                   CASE 
-                    WHEN TO_DATE(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE), 'DD-Mon-YYYY') > CURRENT_DATE 
-                    THEN TO_DATE(ch.chlorine_date || '-' || (EXTRACT(YEAR FROM CURRENT_DATE) - 1), 'DD-Mon-YYYY')
-                    ELSE TO_DATE(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE), 'DD-Mon-YYYY')
+                    WHEN safe_to_date('01-' || substring(ch.chlorine_date from '[A-Za-z]{3}'), 'DD-Mon') IS NOT NULL 
+                         AND EXTRACT(MONTH FROM safe_to_date('01-' || substring(ch.chlorine_date from '[A-Za-z]{3}'), 'DD-Mon')) > EXTRACT(MONTH FROM CURRENT_DATE) 
+                    THEN safe_to_date(ch.chlorine_date || '-' || (EXTRACT(YEAR FROM CURRENT_DATE) - 1)::text, 'DD-Mon-YYYY')
+                    ELSE safe_to_date(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE)::text, 'DD-Mon-YYYY')
                   END
                 ELSE NULL 
               END
@@ -4272,13 +4295,16 @@ export class PostgresStorage implements IStorage {
               LAG(
                 CASE 
                   WHEN regexp_replace(ch.chlorine_date, '\\s', '', 'g') ~ '^[0-9.]+$' AND length(regexp_replace(ch.chlorine_date, '\\s', '', 'g')) <= 7 THEN (DATE '1899-12-30' + (regexp_replace(ch.chlorine_date, '\\s', '', 'g')::numeric)::integer)
-                  WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(ch.chlorine_date, 'DD-Mon-YYYY')
-                  WHEN ch.chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(ch.chlorine_date, 'YYYY-MM-DD')
-                  WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}$' THEN 
+                  WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN safe_to_date(ch.chlorine_date, 'DD-Mon-YYYY')
+                  WHEN ch.chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN safe_to_date(ch.chlorine_date, 'YYYY-MM-DD')
+                  WHEN ch.chlorine_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN safe_to_date(ch.chlorine_date, 'DD/MM/YYYY')
+                  WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN safe_to_date(ch.chlorine_date, 'DD-Mon-YY')
+                  WHEN ch.chlorine_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
                     CASE 
-                      WHEN TO_DATE(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE), 'DD-Mon-YYYY') > CURRENT_DATE 
-                      THEN TO_DATE(ch.chlorine_date || '-' || (EXTRACT(YEAR FROM CURRENT_DATE) - 1), 'DD-Mon-YYYY')
-                      ELSE TO_DATE(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE), 'DD-Mon-YYYY')
+                      WHEN safe_to_date('01-' || substring(ch.chlorine_date from '[A-Za-z]{3}'), 'DD-Mon') IS NOT NULL 
+                           AND EXTRACT(MONTH FROM safe_to_date('01-' || substring(ch.chlorine_date from '[A-Za-z]{3}'), 'DD-Mon')) > EXTRACT(MONTH FROM CURRENT_DATE) 
+                      THEN safe_to_date(ch.chlorine_date || '-' || (EXTRACT(YEAR FROM CURRENT_DATE) - 1)::text, 'DD-Mon-YYYY')
+                      ELSE safe_to_date(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE)::text, 'DD-Mon-YYYY')
                     END
                   ELSE NULL 
                 END
@@ -4286,13 +4312,17 @@ export class PostgresStorage implements IStorage {
                 PARTITION BY ch.scheme_id, ch.village_name, ch.esr_name 
                 ORDER BY (
                   CASE 
-                    WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(ch.chlorine_date, 'DD-Mon-YYYY')
-                    WHEN ch.chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(ch.chlorine_date, 'YYYY-MM-DD')
-                    WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}$' THEN 
+                    WHEN regexp_replace(ch.chlorine_date, '\\s', '', 'g') ~ '^[0-9.]+$' AND length(regexp_replace(ch.chlorine_date, '\\s', '', 'g')) <= 7 THEN (DATE '1899-12-30' + (regexp_replace(ch.chlorine_date, '\\s', '', 'g')::numeric)::integer)
+                    WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN safe_to_date(ch.chlorine_date, 'DD-Mon-YYYY')
+                    WHEN ch.chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN safe_to_date(ch.chlorine_date, 'YYYY-MM-DD')
+                    WHEN ch.chlorine_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN safe_to_date(ch.chlorine_date, 'DD/MM/YYYY')
+                    WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN safe_to_date(ch.chlorine_date, 'DD-Mon-YY')
+                    WHEN ch.chlorine_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
                       CASE 
-                        WHEN TO_DATE(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE), 'DD-Mon-YYYY') > CURRENT_DATE 
-                        THEN TO_DATE(ch.chlorine_date || '-' || (EXTRACT(YEAR FROM CURRENT_DATE) - 1), 'DD-Mon-YYYY')
-                        ELSE TO_DATE(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE), 'DD-Mon-YYYY')
+                        WHEN safe_to_date('01-' || substring(ch.chlorine_date from '[A-Za-z]{3}'), 'DD-Mon') IS NOT NULL 
+                             AND EXTRACT(MONTH FROM safe_to_date('01-' || substring(ch.chlorine_date from '[A-Za-z]{3}'), 'DD-Mon')) > EXTRACT(MONTH FROM CURRENT_DATE) 
+                        THEN safe_to_date(ch.chlorine_date || '-' || (EXTRACT(YEAR FROM CURRENT_DATE) - 1)::text, 'DD-Mon-YYYY')
+                        ELSE safe_to_date(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE)::text, 'DD-Mon-YYYY')
                       END
                     ELSE NULL 
                   END
@@ -4303,13 +4333,17 @@ export class PostgresStorage implements IStorage {
                 PARTITION BY ch.scheme_id, ch.village_name, ch.esr_name 
                 ORDER BY (
                   CASE 
-                    WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(ch.chlorine_date, 'DD-Mon-YYYY')
-                    WHEN ch.chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(ch.chlorine_date, 'YYYY-MM-DD')
-                    WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}$' THEN 
+                    WHEN regexp_replace(ch.chlorine_date, '\\s', '', 'g') ~ '^[0-9.]+$' AND length(regexp_replace(ch.chlorine_date, '\\s', '', 'g')) <= 7 THEN (DATE '1899-12-30' + (regexp_replace(ch.chlorine_date, '\\s', '', 'g')::numeric)::integer)
+                    WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN safe_to_date(ch.chlorine_date, 'DD-Mon-YYYY')
+                    WHEN ch.chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN safe_to_date(ch.chlorine_date, 'YYYY-MM-DD')
+                    WHEN ch.chlorine_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN safe_to_date(ch.chlorine_date, 'DD/MM/YYYY')
+                    WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN safe_to_date(ch.chlorine_date, 'DD-Mon-YY')
+                    WHEN ch.chlorine_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
                       CASE 
-                        WHEN TO_DATE(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE), 'DD-Mon-YYYY') > CURRENT_DATE 
-                        THEN TO_DATE(ch.chlorine_date || '-' || (EXTRACT(YEAR FROM CURRENT_DATE) - 1), 'DD-Mon-YYYY')
-                        ELSE TO_DATE(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE), 'DD-Mon-YYYY')
+                        WHEN safe_to_date('01-' || substring(ch.chlorine_date from '[A-Za-z]{3}'), 'DD-Mon') IS NOT NULL 
+                             AND EXTRACT(MONTH FROM safe_to_date('01-' || substring(ch.chlorine_date from '[A-Za-z]{3}'), 'DD-Mon')) > EXTRACT(MONTH FROM CURRENT_DATE) 
+                        THEN safe_to_date(ch.chlorine_date || '-' || (EXTRACT(YEAR FROM CURRENT_DATE) - 1)::text, 'DD-Mon-YYYY')
+                        ELSE safe_to_date(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE)::text, 'DD-Mon-YYYY')
                       END
                     ELSE NULL 
                   END
@@ -4320,13 +4354,16 @@ export class PostgresStorage implements IStorage {
             WHERE (
                 CASE 
                   WHEN regexp_replace(ch.chlorine_date, '\\s', '', 'g') ~ '^[0-9.]+$' AND length(regexp_replace(ch.chlorine_date, '\\s', '', 'g')) <= 7 THEN (DATE '1899-12-30' + (regexp_replace(ch.chlorine_date, '\\s', '', 'g')::numeric)::integer)
-                  WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(ch.chlorine_date, 'DD-Mon-YYYY')
-                  WHEN ch.chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(ch.chlorine_date, 'YYYY-MM-DD')
-                  WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}$' THEN 
+                  WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN safe_to_date(ch.chlorine_date, 'DD-Mon-YYYY')
+                  WHEN ch.chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN safe_to_date(ch.chlorine_date, 'YYYY-MM-DD')
+                  WHEN ch.chlorine_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN safe_to_date(ch.chlorine_date, 'DD/MM/YYYY')
+                  WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN safe_to_date(ch.chlorine_date, 'DD-Mon-YY')
+                  WHEN ch.chlorine_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
                     CASE 
-                      WHEN TO_DATE(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE), 'DD-Mon-YYYY') > CURRENT_DATE 
-                      THEN TO_DATE(ch.chlorine_date || '-' || (EXTRACT(YEAR FROM CURRENT_DATE) - 1), 'DD-Mon-YYYY')
-                      ELSE TO_DATE(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE), 'DD-Mon-YYYY')
+                      WHEN safe_to_date('01-' || substring(ch.chlorine_date from '[A-Za-z]{3}'), 'DD-Mon') IS NOT NULL 
+                           AND EXTRACT(MONTH FROM safe_to_date('01-' || substring(ch.chlorine_date from '[A-Za-z]{3}'), 'DD-Mon')) > EXTRACT(MONTH FROM CURRENT_DATE) 
+                      THEN safe_to_date(ch.chlorine_date || '-' || (EXTRACT(YEAR FROM CURRENT_DATE) - 1)::text, 'DD-Mon-YYYY')
+                      ELSE safe_to_date(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE)::text, 'DD-Mon-YYYY')
                     END
                   ELSE NULL 
                 END
@@ -4334,13 +4371,16 @@ export class PostgresStorage implements IStorage {
               AND (
                 CASE 
                   WHEN regexp_replace(ch.chlorine_date, '\\s', '', 'g') ~ '^[0-9.]+$' AND length(regexp_replace(ch.chlorine_date, '\\s', '', 'g')) <= 7 THEN (DATE '1899-12-30' + (regexp_replace(ch.chlorine_date, '\\s', '', 'g')::numeric)::integer)
-                  WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(ch.chlorine_date, 'DD-Mon-YYYY')
-                  WHEN ch.chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(ch.chlorine_date, 'YYYY-MM-DD')
-                  WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}$' THEN 
+                  WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN safe_to_date(ch.chlorine_date, 'DD-Mon-YYYY')
+                  WHEN ch.chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN safe_to_date(ch.chlorine_date, 'YYYY-MM-DD')
+                  WHEN ch.chlorine_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN safe_to_date(ch.chlorine_date, 'DD/MM/YYYY')
+                  WHEN ch.chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN safe_to_date(ch.chlorine_date, 'DD-Mon-YY')
+                  WHEN ch.chlorine_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
                     CASE 
-                      WHEN TO_DATE(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE), 'DD-Mon-YYYY') > CURRENT_DATE 
-                      THEN TO_DATE(ch.chlorine_date || '-' || (EXTRACT(YEAR FROM CURRENT_DATE) - 1), 'DD-Mon-YYYY')
-                      ELSE TO_DATE(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE), 'DD-Mon-YYYY')
+                      WHEN safe_to_date('01-' || substring(ch.chlorine_date from '[A-Za-z]{3}'), 'DD-Mon') IS NOT NULL 
+                           AND EXTRACT(MONTH FROM safe_to_date('01-' || substring(ch.chlorine_date from '[A-Za-z]{3}'), 'DD-Mon')) > EXTRACT(MONTH FROM CURRENT_DATE) 
+                      THEN safe_to_date(ch.chlorine_date || '-' || (EXTRACT(YEAR FROM CURRENT_DATE) - 1)::text, 'DD-Mon-YYYY')
+                      ELSE safe_to_date(ch.chlorine_date || '-' || EXTRACT(YEAR FROM CURRENT_DATE)::text, 'DD-Mon-YYYY')
                     END
                   ELSE NULL 
                 END
@@ -4576,61 +4616,60 @@ export class PostgresStorage implements IStorage {
               ph.village_name,
               ph.esr_name,
               -- Deduplicate by date: use ROW_NUMBER
-              CASE 
-                WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(ph.pressure_date, 'DD-Mon-YYYY')
-                WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}$' THEN 
-                  make_date(
+              (
+                CASE 
+                  WHEN regexp_replace(ph.pressure_date, '\\s', '', 'g') ~ '^[0-9.]+$' AND length(regexp_replace(ph.pressure_date, '\\s', '', 'g')) <= 7 THEN (DATE '1899-12-30' + (regexp_replace(ph.pressure_date, '\\s', '', 'g')::numeric)::integer)
+                  WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN safe_to_date(ph.pressure_date, 'DD-Mon-YYYY')
+                  WHEN ph.pressure_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN safe_to_date(ph.pressure_date, 'YYYY-MM-DD')
+                  WHEN ph.pressure_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN safe_to_date(ph.pressure_date, 'DD/MM/YYYY')
+                  WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN safe_to_date(ph.pressure_date, 'DD-Mon-YY')
+                  WHEN ph.pressure_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
                     CASE 
-                      WHEN EXTRACT(MONTH FROM TO_DATE(ph.pressure_date, 'DD-Mon')) > EXTRACT(MONTH FROM ph.uploaded_at)
-                      THEN EXTRACT(YEAR FROM ph.uploaded_at)::int - 1
-                      ELSE EXTRACT(YEAR FROM ph.uploaded_at)::int
-                    END,
-                    EXTRACT(MONTH FROM TO_DATE(ph.pressure_date, 'DD-Mon'))::int,
-                    EXTRACT(DAY FROM TO_DATE(ph.pressure_date, 'DD-Mon'))::int
-                  )
-                WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN TO_DATE(ph.pressure_date, 'DD-Mon-YY')
-                WHEN ph.pressure_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN TO_DATE(ph.pressure_date, 'DD/MM/YYYY')
-                WHEN ph.pressure_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(ph.pressure_date, 'YYYY-MM-DD')
-                ELSE NULL
-              END as date_val,
+                      WHEN safe_to_date('01-' || substring(ph.pressure_date from '[A-Za-z]{3}'), 'DD-Mon') IS NOT NULL 
+                           AND EXTRACT(MONTH FROM safe_to_date('01-' || substring(ph.pressure_date from '[A-Za-z]{3}'), 'DD-Mon')) > EXTRACT(MONTH FROM COALESCE(ph.uploaded_at, CURRENT_DATE)) THEN
+                        safe_to_date(ph.pressure_date || '-' || (EXTRACT(YEAR FROM COALESCE(ph.uploaded_at, CURRENT_DATE)) - 1)::text, 'DD-Mon-YYYY')
+                      ELSE 
+                        safe_to_date(ph.pressure_date || '-' || EXTRACT(YEAR FROM COALESCE(ph.uploaded_at, CURRENT_DATE))::text, 'DD-Mon-YYYY')
+                    END
+                  ELSE NULL 
+                END
+              ) as date_val,
               
               LAG(
                 CASE 
-                    WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(ph.pressure_date, 'DD-Mon-YYYY')
-                    WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}$' THEN 
-                      make_date(
-                        CASE 
-                          WHEN EXTRACT(MONTH FROM TO_DATE(ph.pressure_date, 'DD-Mon')) > EXTRACT(MONTH FROM ph.uploaded_at)
-                          THEN EXTRACT(YEAR FROM ph.uploaded_at)::int - 1
-                          ELSE EXTRACT(YEAR FROM ph.uploaded_at)::int
-                        END,
-                        EXTRACT(MONTH FROM TO_DATE(ph.pressure_date, 'DD-Mon'))::int,
-                        EXTRACT(DAY FROM TO_DATE(ph.pressure_date, 'DD-Mon'))::int
-                      )
-                    WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN TO_DATE(ph.pressure_date, 'DD-Mon-YY')
-                    WHEN ph.pressure_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN TO_DATE(ph.pressure_date, 'DD/MM/YYYY')
-                    WHEN ph.pressure_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(ph.pressure_date, 'YYYY-MM-DD')
-                    ELSE NULL
+                  WHEN regexp_replace(ph.pressure_date, '\\s', '', 'g') ~ '^[0-9.]+$' AND length(regexp_replace(ph.pressure_date, '\\s', '', 'g')) <= 7 THEN (DATE '1899-12-30' + (regexp_replace(ph.pressure_date, '\\s', '', 'g')::numeric)::integer)
+                  WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN safe_to_date(ph.pressure_date, 'DD-Mon-YYYY')
+                  WHEN ph.pressure_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN safe_to_date(ph.pressure_date, 'YYYY-MM-DD')
+                  WHEN ph.pressure_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN safe_to_date(ph.pressure_date, 'DD/MM/YYYY')
+                  WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN safe_to_date(ph.pressure_date, 'DD-Mon-YY')
+                  WHEN ph.pressure_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
+                    CASE 
+                      WHEN safe_to_date('01-' || substring(ph.pressure_date from '[A-Za-z]{3}'), 'DD-Mon') IS NOT NULL 
+                           AND EXTRACT(MONTH FROM safe_to_date('01-' || substring(ph.pressure_date from '[A-Za-z]{3}'), 'DD-Mon')) > EXTRACT(MONTH FROM COALESCE(ph.uploaded_at, CURRENT_DATE)) THEN
+                        safe_to_date(ph.pressure_date || '-' || (EXTRACT(YEAR FROM COALESCE(ph.uploaded_at, CURRENT_DATE)) - 1)::text, 'DD-Mon-YYYY')
+                      ELSE 
+                        safe_to_date(ph.pressure_date || '-' || EXTRACT(YEAR FROM COALESCE(ph.uploaded_at, CURRENT_DATE))::text, 'DD-Mon-YYYY')
+                    END
+                  ELSE NULL 
                 END
               ) OVER (
                 PARTITION BY ph.scheme_id, ph.village_name, ph.esr_name 
                 ORDER BY 
                   CASE 
-                    WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(ph.pressure_date, 'DD-Mon-YYYY')
-                    WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}$' THEN 
-                      make_date(
-                        CASE 
-                          WHEN EXTRACT(MONTH FROM TO_DATE(ph.pressure_date, 'DD-Mon')) > EXTRACT(MONTH FROM ph.uploaded_at)
-                          THEN EXTRACT(YEAR FROM ph.uploaded_at)::int - 1
-                          ELSE EXTRACT(YEAR FROM ph.uploaded_at)::int
-                        END,
-                        EXTRACT(MONTH FROM TO_DATE(ph.pressure_date, 'DD-Mon'))::int,
-                        EXTRACT(DAY FROM TO_DATE(ph.pressure_date, 'DD-Mon'))::int
-                      )
-                    WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN TO_DATE(ph.pressure_date, 'DD-Mon-YY')
-                    WHEN ph.pressure_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN TO_DATE(ph.pressure_date, 'DD/MM/YYYY')
-                    WHEN ph.pressure_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(ph.pressure_date, 'YYYY-MM-DD')
-                    ELSE NULL
+                    WHEN regexp_replace(ph.pressure_date, '\\s', '', 'g') ~ '^[0-9.]+$' AND length(regexp_replace(ph.pressure_date, '\\s', '', 'g')) <= 7 THEN (DATE '1899-12-30' + (regexp_replace(ph.pressure_date, '\\s', '', 'g')::numeric)::integer)
+                    WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN safe_to_date(ph.pressure_date, 'DD-Mon-YYYY')
+                    WHEN ph.pressure_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN safe_to_date(ph.pressure_date, 'YYYY-MM-DD')
+                    WHEN ph.pressure_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN safe_to_date(ph.pressure_date, 'DD/MM/YYYY')
+                    WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN safe_to_date(ph.pressure_date, 'DD-Mon-YY')
+                    WHEN ph.pressure_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
+                      CASE 
+                        WHEN safe_to_date('01-' || substring(ph.pressure_date from '[A-Za-z]{3}'), 'DD-Mon') IS NOT NULL 
+                             AND EXTRACT(MONTH FROM safe_to_date('01-' || substring(ph.pressure_date from '[A-Za-z]{3}'), 'DD-Mon')) > EXTRACT(MONTH FROM COALESCE(ph.uploaded_at, CURRENT_DATE)) THEN
+                          safe_to_date(ph.pressure_date || '-' || (EXTRACT(YEAR FROM COALESCE(ph.uploaded_at, CURRENT_DATE)) - 1)::text, 'DD-Mon-YYYY')
+                        ELSE 
+                          safe_to_date(ph.pressure_date || '-' || EXTRACT(YEAR FROM COALESCE(ph.uploaded_at, CURRENT_DATE))::text, 'DD-Mon-YYYY')
+                      END
+                    ELSE NULL 
                   END DESC NULLS LAST
               ) as prev_date_val,
 
@@ -4638,24 +4677,22 @@ export class PostgresStorage implements IStorage {
                 PARTITION BY ph.scheme_id, ph.village_name, ph.esr_name 
                 ORDER BY 
                   CASE 
-                    WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(ph.pressure_date, 'DD-Mon-YYYY')
-                    WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}$' THEN 
-                      make_date(
-                        CASE 
-                          WHEN EXTRACT(MONTH FROM TO_DATE(ph.pressure_date, 'DD-Mon')) > EXTRACT(MONTH FROM ph.uploaded_at)
-                          THEN EXTRACT(YEAR FROM ph.uploaded_at)::int - 1
-                          ELSE EXTRACT(YEAR FROM ph.uploaded_at)::int
-                        END,
-                        EXTRACT(MONTH FROM TO_DATE(ph.pressure_date, 'DD-Mon'))::int,
-                        EXTRACT(DAY FROM TO_DATE(ph.pressure_date, 'DD-Mon'))::int
-                      )
-                    WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN TO_DATE(ph.pressure_date, 'DD-Mon-YY')
-                    WHEN ph.pressure_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN TO_DATE(ph.pressure_date, 'DD/MM/YYYY')
-                    WHEN ph.pressure_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(ph.pressure_date, 'YYYY-MM-DD')
-                    ELSE NULL
+                    WHEN regexp_replace(ph.pressure_date, '\\s', '', 'g') ~ '^[0-9.]+$' AND length(regexp_replace(ph.pressure_date, '\\s', '', 'g')) <= 7 THEN (DATE '1899-12-30' + (regexp_replace(ph.pressure_date, '\\s', '', 'g')::numeric)::integer)
+                    WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN safe_to_date(ph.pressure_date, 'DD-Mon-YYYY')
+                    WHEN ph.pressure_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN safe_to_date(ph.pressure_date, 'YYYY-MM-DD')
+                    WHEN ph.pressure_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN safe_to_date(ph.pressure_date, 'DD/MM/YYYY')
+                    WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN safe_to_date(ph.pressure_date, 'DD-Mon-YY')
+                    WHEN ph.pressure_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
+                      CASE 
+                        WHEN safe_to_date('01-' || substring(ph.pressure_date from '[A-Za-z]{3}'), 'DD-Mon') IS NOT NULL 
+                             AND EXTRACT(MONTH FROM safe_to_date('01-' || substring(ph.pressure_date from '[A-Za-z]{3}'), 'DD-Mon')) > EXTRACT(MONTH FROM COALESCE(ph.uploaded_at, CURRENT_DATE)) THEN
+                          safe_to_date(ph.pressure_date || '-' || (EXTRACT(YEAR FROM COALESCE(ph.uploaded_at, CURRENT_DATE)) - 1)::text, 'DD-Mon-YYYY')
+                        ELSE 
+                          safe_to_date(ph.pressure_date || '-' || EXTRACT(YEAR FROM COALESCE(ph.uploaded_at, CURRENT_DATE))::text, 'DD-Mon-YYYY')
+                      END
+                    ELSE NULL 
                   END DESC NULLS LAST
               ) as rn,
-              -- Determine if this row meets the criteria
               -- Determine if this row meets the criteria
               CASE 
                 WHEN ${metric === 'below_0_2' ? sql`AVG(ph.pressure_value) < 0.2` :
@@ -4675,21 +4712,20 @@ export class PostgresStorage implements IStorage {
               ph.esr_name,
               -- Group by Date Logic
               CASE 
-                WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(ph.pressure_date, 'DD-Mon-YYYY')
-                WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}$' THEN 
-                  make_date(
-                    CASE 
-                      WHEN EXTRACT(MONTH FROM TO_DATE(ph.pressure_date, 'DD-Mon')) > EXTRACT(MONTH FROM ph.uploaded_at)
-                      THEN EXTRACT(YEAR FROM ph.uploaded_at)::int - 1
-                      ELSE EXTRACT(YEAR FROM ph.uploaded_at)::int
-                    END,
-                    EXTRACT(MONTH FROM TO_DATE(ph.pressure_date, 'DD-Mon'))::int,
-                    EXTRACT(DAY FROM TO_DATE(ph.pressure_date, 'DD-Mon'))::int
-                  )
-                WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN TO_DATE(ph.pressure_date, 'DD-Mon-YY')
-                WHEN ph.pressure_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN TO_DATE(ph.pressure_date, 'DD/MM/YYYY')
-                WHEN ph.pressure_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(ph.pressure_date, 'YYYY-MM-DD')
-                ELSE NULL
+                WHEN regexp_replace(ph.pressure_date, '\\s', '', 'g') ~ '^[0-9.]+$' AND length(regexp_replace(ph.pressure_date, '\\s', '', 'g')) <= 7 THEN (DATE '1899-12-30' + (regexp_replace(ph.pressure_date, '\\s', '', 'g')::numeric)::integer)
+                WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN safe_to_date(ph.pressure_date, 'DD-Mon-YYYY')
+                WHEN ph.pressure_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN safe_to_date(ph.pressure_date, 'YYYY-MM-DD')
+                WHEN ph.pressure_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN safe_to_date(ph.pressure_date, 'DD/MM/YYYY')
+                WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN safe_to_date(ph.pressure_date, 'DD-Mon-YY')
+                WHEN ph.pressure_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
+                  CASE 
+                    WHEN safe_to_date('01-' || substring(ph.pressure_date from '[A-Za-z]{3}'), 'DD-Mon') IS NOT NULL 
+                         AND EXTRACT(MONTH FROM safe_to_date('01-' || substring(ph.pressure_date from '[A-Za-z]{3}'), 'DD-Mon')) > EXTRACT(MONTH FROM COALESCE(ph.uploaded_at, CURRENT_DATE)) THEN
+                      safe_to_date(ph.pressure_date || '-' || (EXTRACT(YEAR FROM COALESCE(ph.uploaded_at, CURRENT_DATE)) - 1)::text, 'DD-Mon-YYYY')
+                    ELSE 
+                      safe_to_date(ph.pressure_date || '-' || EXTRACT(YEAR FROM COALESCE(ph.uploaded_at, CURRENT_DATE))::text, 'DD-Mon-YYYY')
+                  END
+                ELSE NULL 
               END
           ),
           valid_history AS (
@@ -4854,27 +4890,27 @@ export class PostgresStorage implements IStorage {
         raw_history AS (
           SELECT 
             ph.scheme_id, ph.village_name, ph.esr_name, ph.pressure_value,
-            CASE 
-              WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(ph.pressure_date, 'DD-Mon-YYYY')
-              WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}$' THEN 
-                make_date(
+            (
+              CASE 
+                WHEN regexp_replace(ph.pressure_date, '\\s', '', 'g') ~ '^[0-9.]+$' AND length(regexp_replace(ph.pressure_date, '\\s', '', 'g')) <= 7 THEN (DATE '1899-12-30' + (regexp_replace(ph.pressure_date, '\\s', '', 'g')::numeric)::integer)
+                WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN safe_to_date(ph.pressure_date, 'DD-Mon-YYYY')
+                WHEN ph.pressure_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN safe_to_date(ph.pressure_date, 'YYYY-MM-DD')
+                WHEN ph.pressure_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN safe_to_date(ph.pressure_date, 'DD/MM/YYYY')
+                WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN safe_to_date(ph.pressure_date, 'DD-Mon-YY')
+                WHEN ph.pressure_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
                   CASE 
-                    WHEN EXTRACT(MONTH FROM TO_DATE(ph.pressure_date, 'DD-Mon')) > EXTRACT(MONTH FROM ph.uploaded_at)
-                    THEN EXTRACT(YEAR FROM ph.uploaded_at)::int - 1
-                    ELSE EXTRACT(YEAR FROM ph.uploaded_at)::int
-                  END,
-                  EXTRACT(MONTH FROM TO_DATE(ph.pressure_date, 'DD-Mon'))::int,
-                  EXTRACT(DAY FROM TO_DATE(ph.pressure_date, 'DD-Mon'))::int
-                )
-              WHEN ph.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN TO_DATE(ph.pressure_date, 'DD-Mon-YY')
-              WHEN ph.pressure_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN TO_DATE(ph.pressure_date, 'DD/MM/YYYY')
-              WHEN ph.pressure_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(ph.pressure_date, 'YYYY-MM-DD')
-              ELSE NULL
-            END as date_val
+                    WHEN safe_to_date('01-' || substring(ph.pressure_date from '[A-Za-z]{3}'), 'DD-Mon') IS NOT NULL 
+                         AND EXTRACT(MONTH FROM safe_to_date('01-' || substring(ph.pressure_date from '[A-Za-z]{3}'), 'DD-Mon')) > EXTRACT(MONTH FROM COALESCE(ph.uploaded_at, CURRENT_DATE)) THEN
+                      safe_to_date(ph.pressure_date || '-' || (EXTRACT(YEAR FROM COALESCE(ph.uploaded_at, CURRENT_DATE)) - 1)::text, 'DD-Mon-YYYY')
+                    ELSE 
+                      safe_to_date(ph.pressure_date || '-' || EXTRACT(YEAR FROM COALESCE(ph.uploaded_at, CURRENT_DATE))::text, 'DD-Mon-YYYY')
+                  END
+                ELSE NULL 
+              END
+            ) as date_val
           FROM pressure_history ph
           WHERE ph.pressure_value IS NOT NULL
             ${historyRegionFilter}
-            ${historySchemeFilter}
             ${historySchemeFilter}
             AND EXISTS (
               SELECT 1 FROM communication_status cs 

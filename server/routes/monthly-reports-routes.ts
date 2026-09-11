@@ -887,16 +887,18 @@ router.get("/data", async (req, res) => {
               CASE 
                 WHEN chlorine_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
                   CASE 
-                    WHEN EXTRACT(MONTH FROM TO_DATE(chlorine_date, 'DD-Mon')) >= 11 AND EXTRACT(MONTH FROM uploaded_at) <= 2 THEN
-                      TO_DATE(chlorine_date || '-' || (EXTRACT(YEAR FROM uploaded_at) - 1)::text, 'DD-Mon-YYYY')
+                    WHEN safe_to_date('01-' || substring(chlorine_date from '[A-Za-z]{3}'), 'DD-Mon') IS NOT NULL 
+                         AND EXTRACT(MONTH FROM safe_to_date('01-' || substring(chlorine_date from '[A-Za-z]{3}'), 'DD-Mon')) >= 11 
+                         AND EXTRACT(MONTH FROM COALESCE(uploaded_at, CURRENT_DATE)) <= 2 THEN
+                      safe_to_date(chlorine_date || '-' || (EXTRACT(YEAR FROM COALESCE(uploaded_at, CURRENT_DATE)) - 1)::text, 'DD-Mon-YYYY')
                     ELSE 
-                      TO_DATE(chlorine_date || '-' || EXTRACT(YEAR FROM uploaded_at)::text, 'DD-Mon-YYYY')
+                      safe_to_date(chlorine_date || '-' || EXTRACT(YEAR FROM COALESCE(uploaded_at, CURRENT_DATE))::text, 'DD-Mon-YYYY')
                   END
-                WHEN chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(chlorine_date, 'DD-Mon-YYYY')
-                WHEN chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN TO_DATE(chlorine_date, 'DD-Mon-YY')
-                WHEN chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(chlorine_date, 'YYYY-MM-DD')
-                WHEN chlorine_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN TO_DATE(chlorine_date, 'DD/MM/YYYY')
-                WHEN chlorine_date ~ '^[0-9]+\\.?[0-9]*$' AND CAST(chlorine_date AS NUMERIC) < 1000000 THEN (TO_DATE('1899-12-30', 'YYYY-MM-DD') + (INTERVAL '1 day' * CAST(chlorine_date AS NUMERIC)))::date 
+                WHEN chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN safe_to_date(chlorine_date, 'DD-Mon-YYYY')
+                WHEN chlorine_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN safe_to_date(chlorine_date, 'DD-Mon-YY')
+                WHEN chlorine_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN safe_to_date(chlorine_date, 'YYYY-MM-DD')
+                WHEN chlorine_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN safe_to_date(chlorine_date, 'DD/MM/YYYY')
+                WHEN chlorine_date ~ '^[0-9]+\\.?[0-9]*$' AND CAST(chlorine_date AS NUMERIC) < 1000000 THEN (safe_to_date('1899-12-30', 'YYYY-MM-DD') + (INTERVAL '1 day' * CAST(chlorine_date AS NUMERIC)))::date 
                 ELSE NULL
               END
             ) as actual_date

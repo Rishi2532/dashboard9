@@ -1,5 +1,5 @@
 import { sql, and } from "drizzle-orm";
-import { schemeStatuses } from "../../shared/schema";
+import { schemeStatuses, schemeEngineerDetails } from "../../shared/schema";
 
 /**
  * Helper function to get dates for a specific ISO week, offset by a number of weeks
@@ -136,11 +136,29 @@ export async function getRollingWindowInfo(db: any, weekOffset: number = 0): Pro
  * Enhanced function to get filtered scheme IDs based on filterType, fullyCompleted, and agencyType.
  * Supports specialized water supply filters for Fully Instrumented Schemes.
  */
-export async function getFilteredSchemeIds(db: any, filterType: any, fullyCompleted: any, agencyType?: string | string[]): Promise<string[] | undefined> {
+export async function getFilteredSchemeIds(
+  db: any,
+  filterType: any,
+  fullyCompleted: any,
+  agencyType?: string | string[],
+  engineerScope?: { isEngineer: boolean; schemeIds: string[] } | null
+): Promise<string[] | undefined> {
   let activeFilter = filterType || (fullyCompleted === "true" ? "fully_completed" : undefined);
   
   // Handle case where agencyType might be an array
   const targetAgencyType = Array.isArray(agencyType) ? agencyType[0] : agencyType;
+
+  const applyScope = (ids: string[]): string[] => {
+    if (engineerScope?.isEngineer) {
+      if (!engineerScope.schemeIds || engineerScope.schemeIds.length === 0 || engineerScope.schemeIds.includes('__NO_MATCHING_SCHEMES__')) {
+        return ['NO_MATCHES'];
+      }
+      const allowed = new Set(engineerScope.schemeIds);
+      const scoped = ids.filter(id => allowed.has(id));
+      return scoped.length > 0 ? scoped : ['NO_MATCHES'];
+    }
+    return ids;
+  };
 
   // 1. Identify and remove any status suffix (_full, _partial, _no)
   let statusSuffix: string | undefined;
@@ -172,7 +190,7 @@ export async function getFilteredSchemeIds(db: any, filterType: any, fullyComple
   // This logic is specifically for instrumented schemes that report 0 LPCD
   if (statusSuffix === 'no' && activeFilter !== 'commissioned' && activeFilter !== 'fully_completed') {
     // Determine base IDs to apply the LPCD=0 filter to
-    const baseIds: string[] | undefined = await getFilteredSchemeIds(db, activeFilter, fullyCompleted, targetAgencyType);
+    const baseIds: string[] | undefined = await getFilteredSchemeIds(db, activeFilter, fullyCompleted, targetAgencyType, engineerScope);
     if (!baseIds || baseIds[0] === 'NO_MATCHES') return ['NO_MATCHES'];
 
     const weekInfo = await getRollingWindowInfo(db, 0);
@@ -201,11 +219,15 @@ export async function getFilteredSchemeIds(db: any, filterType: any, fullyComple
         ) deduplicated
         GROUP BY scheme_id
       )
-      SELECT scheme_id FROM scheme_averages WHERE avg_lpcd = 0
+      SELECT s.scheme_id 
+      FROM scheme_status s
+      JOIN scheme_averages l ON s.scheme_id = l.scheme_id
+      WHERE s.scheme_id IN (${sql.raw(baseIds.map(id => `'${id}'`).join(','))})
+      AND l.avg_lpcd = 0
+      AND (s.water_supply_status IS NULL OR LOWER(s.water_supply_status) != 'full')
     `);
-    
     const ids = result.rows.map((r: any) => r.scheme_id);
-    return ids.length > 0 ? ids : ['NO_MATCHES'];
+    return ids.length > 0 ? applyScope(ids) : ['NO_MATCHES'];
   }
 
   // Base conditions building
@@ -277,7 +299,7 @@ export async function getFilteredSchemeIds(db: any, filterType: any, fullyComple
           AND LOWER(s.water_supply_status) = 'full'
         `);
         const ids = result.rows.map((r: any) => r.scheme_id);
-        return ids.length > 0 ? ids : ['NO_MATCHES'];
+        return ids.length > 0 ? applyScope(ids) : ['NO_MATCHES'];
 
       } else if (statusSuffix === 'no') {
         const result = await db.execute(sql`
@@ -311,18 +333,18 @@ export async function getFilteredSchemeIds(db: any, filterType: any, fullyComple
           AND (s.water_supply_status IS NULL OR LOWER(s.water_supply_status) != 'full')
         `);
         const ids = result.rows.map((r: any) => r.scheme_id);
-        return ids.length > 0 ? ids : ['NO_MATCHES'];
+        return ids.length > 0 ? applyScope(ids) : ['NO_MATCHES'];
 
       } else if (statusSuffix === 'partial') {
         // Partial = Total - Full - No
-        const fullIds: string[] | undefined = await getFilteredSchemeIds(db, 'commissioned_full', undefined, targetAgencyType);
-        const noIds: string[] | undefined = await getFilteredSchemeIds(db, 'commissioned_no', undefined, targetAgencyType);
+        const fullIds: string[] | undefined = await getFilteredSchemeIds(db, 'commissioned_full', undefined, targetAgencyType, engineerScope);
+        const noIds: string[] | undefined = await getFilteredSchemeIds(db, 'commissioned_no', undefined, targetAgencyType, engineerScope);
         
         const fullSet = new Set(fullIds && fullIds[0] !== 'NO_MATCHES' ? fullIds : []);
         const noSet = new Set(noIds && noIds[0] !== 'NO_MATCHES' ? noIds : []);
         
         const partialIds = baseIds.filter((id: string) => !fullSet.has(id) && !noSet.has(id));
-        return partialIds.length > 0 ? partialIds : ['NO_MATCHES'];
+        return partialIds.length > 0 ? applyScope(partialIds) : ['NO_MATCHES'];
       }
     } else if (activeFilter === 'fully_completed') {
        // Logic for Fully Instrumented Schemes (IoT)
@@ -355,7 +377,7 @@ export async function getFilteredSchemeIds(db: any, filterType: any, fullyComple
           AND LOWER(s.water_supply_status) = 'full'
         `);
         const ids = result.rows.map((r: any) => r.scheme_id);
-        return ids.length > 0 ? ids : ['NO_MATCHES'];
+        return ids.length > 0 ? applyScope(ids) : ['NO_MATCHES'];
  
        } else if (statusSuffix === 'no') {
          const result = await db.execute(sql`
@@ -388,18 +410,18 @@ export async function getFilteredSchemeIds(db: any, filterType: any, fullyComple
           AND (s.water_supply_status IS NULL OR LOWER(s.water_supply_status) != 'full')
          `);
          const ids = result.rows.map((r: any) => r.scheme_id);
-         return ids.length > 0 ? ids : ['NO_MATCHES'];
+         return ids.length > 0 ? applyScope(ids) : ['NO_MATCHES'];
  
        } else if (statusSuffix === 'partial') {
          // Partial = Total IoT - (Full IoT + No IoT)
-         const fullIds: string[] | undefined = await getFilteredSchemeIds(db, 'fully_completed_full', undefined, targetAgencyType);
-         const noIds: string[] | undefined = await getFilteredSchemeIds(db, 'fully_completed_no', undefined, targetAgencyType);
+         const fullIds: string[] | undefined = await getFilteredSchemeIds(db, 'fully_completed_full', undefined, targetAgencyType, engineerScope);
+         const noIds: string[] | undefined = await getFilteredSchemeIds(db, 'fully_completed_no', undefined, targetAgencyType, engineerScope);
          
          const fullSet = new Set(fullIds && fullIds[0] !== 'NO_MATCHES' ? fullIds : []);
          const noSet = new Set(noIds && noIds[0] !== 'NO_MATCHES' ? noIds : []);
          
          const partialIds = baseIds.filter((id: string) => !fullSet.has(id) && !noSet.has(id));
-         return partialIds.length > 0 ? partialIds : ['NO_MATCHES'];
+         return partialIds.length > 0 ? applyScope(partialIds) : ['NO_MATCHES'];
        }
     }
 
@@ -410,9 +432,7 @@ export async function getFilteredSchemeIds(db: any, filterType: any, fullyComple
     } else if (statusSuffix === 'partial') {
       conditions.push(sql`LOWER(${schemeStatuses.water_supply_status}) = 'partial'`);
     } else if (statusSuffix === 'no') {
-       // Keep existing rolling average logic for other filters if needed, 
-       // but here we already handled statusSuffix === 'no' globally at line 156?
-       // Wait, I should move the global 'no' handler down or adjust.
+       // Keep existing rolling average logic for other filters if needed
     }
   }
 
@@ -423,14 +443,205 @@ export async function getFilteredSchemeIds(db: any, filterType: any, fullyComple
     // Use a Set to ensure we return ONLY distinct scheme_ids
     const idSet = new Set<string>(rows.map((r: any) => r.scheme_id));
     const ids: string[] = Array.from(idSet);
-    return ids.length > 0 ? ids : ['NO_MATCHES'];
+    return ids.length > 0 ? applyScope(ids) : ['NO_MATCHES'];
   }
   
   // If no filter is applied, we still want to apply Rule 1 for "All Schemes"
-  // unless explicitly requested otherwise (but the user wants consistent logic)
   const allRows = await db.select({ scheme_id: schemeStatuses.scheme_id })
     .from(schemeStatuses)
     .where(ruleAllSchemes);
   const allIds = Array.from(new Set<string>(allRows.map((r: any) => r.scheme_id)));
-  return allIds.length > 0 ? allIds : ['NO_MATCHES'];
+  return allIds.length > 0 ? applyScope(allIds) : ['NO_MATCHES'];
 }
+
+/**
+ * Normalizes name strings for comparison (handles Rushikesh vs Rishikesh, Salunke vs Salunkhe, etc.)
+ */
+function normalizeName(name: string): string {
+  return (name || "")
+    .toLowerCase()
+    .trim()
+    .replace(/sh/g, "s")
+    .replace(/kh/g, "k")
+    .replace(/ph/g, "f")
+    .replace(/w/g, "v")
+    .replace(/ee/g, "i")
+    .replace(/oo/g, "u")
+    .replace(/^ru/, "ri")
+    .replace(/[\s._-]/g, "");
+}
+
+/**
+ * Finds all schemes assigned to an engineer from scheme_engineer_details.
+ * Matches by user's email, phone, username, or full name against civil/mech/supervisor columns.
+ */
+export async function getEngineerAssignedSchemes(
+  db: any,
+  user: { email?: string | null; phone?: string | null; username?: string; name?: string | null }
+) {
+  const userEmails = (user.email || "")
+    .split(/[,;\s]+/)
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  const userUsername = (user.username || "").trim().toLowerCase();
+  const userName = (user.name || "").trim().toLowerCase();
+  const uNameNorm = normalizeName(userName);
+  const uUserNorm = normalizeName(userUsername);
+
+  const allEngineers = await db.select().from(schemeEngineerDetails);
+
+  const assigned: {
+    scheme_id: string;
+    scheme_name: string;
+    region?: string | null;
+    district?: string | null;
+    division?: string | null;
+    engineer_role?: string;
+    engineer_name?: string;
+    engineer_email?: string;
+    engineer_phone?: string;
+  }[] = [];
+
+  let engineerProfile: {
+    name: string;
+    email: string;
+    phone: string;
+    role: string;
+    region?: string | null;
+    division?: string | null;
+    district?: string | null;
+  } | null = null;
+
+  const isMatchingPerson = (eEmailRaw: string | null | undefined, ePhoneRaw: string | null | undefined, eNameRaw: string | null | undefined) => {
+    const eEmail = (eEmailRaw || "").trim().toLowerCase();
+    const eName = (eNameRaw || "").trim().toLowerCase();
+    const eNameNorm = normalizeName(eName);
+
+    if (!eName || !eEmail) return false;
+
+    // 1. Name Condition: exact name or normalized transliteration
+    const isNameMatch = Boolean(userName && (userName === eName || uNameNorm === eNameNorm));
+
+    // 2. Email Condition: exact email match against user's email in users table
+    const isEmailMatch = Boolean(userEmails.length > 0 && userEmails.includes(eEmail));
+
+    // BOTH Name and Email must match simultaneously
+    return isNameMatch && isEmailMatch;
+  };
+
+  for (const eng of allEngineers) {
+    let matchedRole = "";
+    let matchedName = "";
+    let matchedEmail = "";
+    let matchedPhone = "";
+
+    if (isMatchingPerson(eng.civil_engineer_email, eng.civil_engineer_mobile, eng.civil_engineer_name)) {
+      matchedRole = "Civil Engineer";
+      matchedName = eng.civil_engineer_name || "";
+      matchedEmail = eng.civil_engineer_email || "";
+      matchedPhone = eng.civil_engineer_mobile || "";
+    } else if (isMatchingPerson(eng.mechanical_engineer_email, eng.mechanical_engineer_mobile, eng.mechanical_engineer_name)) {
+      matchedRole = "Mechanical Engineer";
+      matchedName = eng.mechanical_engineer_name || "";
+      matchedEmail = eng.mechanical_engineer_email || "";
+      matchedPhone = eng.mechanical_engineer_mobile || "";
+    } else if (isMatchingPerson(eng.site_supervisor_email, eng.site_supervisor_mobile, eng.site_supervisor_name)) {
+      matchedRole = "Site Supervisor";
+      matchedName = eng.site_supervisor_name || "";
+      matchedEmail = eng.site_supervisor_email || "";
+      matchedPhone = eng.site_supervisor_mobile || "";
+    }
+
+    if (matchedRole && eng.scheme_id) {
+      assigned.push({
+        scheme_id: eng.scheme_id,
+        scheme_name: eng.scheme || eng.scheme_id,
+        region: eng.region,
+        district: eng.district,
+        division: eng.division,
+        engineer_role: matchedRole,
+        engineer_name: matchedName,
+        engineer_email: matchedEmail,
+        engineer_phone: matchedPhone,
+      });
+
+      if (!engineerProfile) {
+        engineerProfile = {
+          name: matchedName || user.name || user.username || "Engineer",
+          email: matchedEmail || user.email || "",
+          phone: matchedPhone || user.phone || "",
+          role: matchedRole,
+          region: eng.region,
+          district: eng.district,
+          division: eng.division,
+        };
+      }
+    }
+  }
+
+  // Deduplicate by scheme_id
+  const uniqueMap = new Map();
+  assigned.forEach((item) => uniqueMap.set(item.scheme_id, item));
+  const uniqueAssigned = Array.from(uniqueMap.values());
+
+  const assignedSchemeIds = uniqueAssigned.length > 0 
+    ? uniqueAssigned.map((s) => s.scheme_id) 
+    : ['__NO_MATCHING_SCHEMES__'];
+  const assignedSchemeNames = uniqueAssigned.map((s) => s.scheme_name);
+
+  return {
+    assignedSchemes: uniqueAssigned,
+    assignedSchemeIds,
+    assignedSchemeNames,
+    engineerProfile: engineerProfile || {
+      name: user.name || user.username || "Engineer",
+      email: user.email || "",
+      phone: user.phone || "",
+      role: "Engineer",
+      region: null,
+      district: null,
+      division: null,
+    },
+  };
+}
+
+/**
+ * Extracts engineer scope from session if the user is an engineer.
+ */
+export function getEngineerSchemeScope(req: any): {
+  isEngineer: boolean;
+  schemeIds: string[];
+  schemeNames: string[];
+  assignedSchemes: any[];
+  engineerProfile: any;
+} {
+  const session = req?.session;
+  if (!session || !session.userId) {
+    return {
+      isEngineer: false,
+      schemeIds: [],
+      schemeNames: [],
+      assignedSchemes: [],
+      engineerProfile: null,
+    };
+  }
+
+  const isEngineer = session.role === "engineer" || session.isEngineer === true;
+  let schemeIds = Array.isArray(session.assignedSchemeIds) ? session.assignedSchemeIds : [];
+  if (isEngineer && schemeIds.length === 0) {
+    schemeIds = ['__NO_MATCHING_SCHEMES__'];
+  }
+  const schemeNames = Array.isArray(session.assignedSchemeNames) ? session.assignedSchemeNames : [];
+  const assignedSchemes = Array.isArray(session.assignedSchemes) ? session.assignedSchemes : [];
+  const engineerProfile = session.engineerProfile || null;
+
+  return {
+    isEngineer,
+    schemeIds,
+    schemeNames,
+    assignedSchemes,
+    engineerProfile,
+  };
+}
+
+

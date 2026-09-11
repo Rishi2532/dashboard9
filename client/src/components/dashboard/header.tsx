@@ -26,11 +26,13 @@ import {
   MessageSquare,
   MapPinned,
   ChevronDown,
+  UserCheck,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import Sidebar from "./sidebar";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
+import { useAuth } from "@/hooks/use-auth";
 import { LanguageSelectorMinimal } from "../ui/language-selector";
 import { useTranslation } from "../../contexts/TranslationContext";
 import { TranslatedText } from "../ui/translated-text";
@@ -48,6 +50,7 @@ export default function Header() {
   const { theme, toggleTheme } = useTheme();
   const { openChatbot } = useChatbot();
 
+  const { logout, isEngineer, isAdmin } = useAuth();
   const { data: authData } = useQuery<AuthStatusResponse>({
     queryKey: ["/api/auth/status"],
     refetchOnWindowFocus: false,
@@ -58,27 +61,12 @@ export default function Header() {
   const isActive = (path: string) => {
     if (path === "/dashboard") return location === "/dashboard";
     if (path === "/chlorine") return location === "/chlorine";
+    if (path === "/engineer") return location === "/engineer";
     return location.startsWith(path);
   };
 
-  const [, setLocation] = useLocation();
-  const logoutMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch("/api/auth/logout", {
-        method: "POST",
-      });
-      if (!response.ok) {
-        throw new Error("Logout failed");
-      }
-      return response.json();
-    },
-    onSuccess: () => {
-      window.location.href = "/";
-    },
-  });
-
-  const handleLogout = () => {
-    logoutMutation.mutate();
+  const handleLogout = async () => {
+    await logout();
   };
 
   return (
@@ -141,6 +129,24 @@ export default function Header() {
                   <Menu className="h-5 w-5" />
                 </Button>
               </div>
+
+              {/* Engineer Portal Direct Header Button - ONLY SHOWN FOR ENGINEERS */}
+              {authData?.isLoggedIn && (isEngineer || authData?.isEngineer) && !authData?.isAdmin && (
+                <Link href="/engineer">
+                  <Button
+                    size="sm"
+                    className={cn(
+                      "hidden sm:flex h-8 text-xs font-semibold mr-1 shadow-sm transition-all",
+                      isActive("/engineer")
+                        ? "bg-blue-800 text-white ring-2 ring-blue-400"
+                        : "bg-blue-600 hover:bg-blue-700 text-white"
+                    )}
+                  >
+                    <UserCheck className="h-3.5 w-3.5 mr-1" />
+                    Engineer Portal
+                  </Button>
+                </Link>
+              )}
 
               {authData?.isLoggedIn && !authData?.isAdmin && (
                 <>
@@ -205,6 +211,23 @@ export default function Header() {
       <div className="hidden lg:block bg-cyan-500 shadow-sm">
         <div className="mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-center gap-1 h-10">
+            {(isEngineer || authData?.isEngineer) && !authData?.isAdmin && (
+              <Link href="/engineer">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "text-white h-8 px-3 text-xs font-medium transition-all duration-200",
+                    isActive("/engineer")
+                      ? "bg-white/30 shadow-inner font-bold"
+                      : "hover:bg-black hover:bg-opacity-20"
+                  )}
+                >
+                  <UserCheck className="h-3.5 w-3.5 mr-1.5" />
+                  Engineer Portal
+                </Button>
+              </Link>
+            )}
             {/* <Link href="/home">
               <Button
                 variant="ghost"
@@ -437,6 +460,23 @@ export default function Header() {
       {isMobileMenuOpen && (
         <div className="lg:hidden bg-white border-t-2 border-cyan-500">
           <div className="px-4 py-2 space-y-1 max-h-[60vh] overflow-y-auto">
+            {(isEngineer || authData?.isEngineer) && !authData?.isAdmin && (
+              <Link href="/engineer" onClick={() => setIsMobileMenuOpen(false)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "w-full justify-start h-10 font-semibold transition-colors",
+                    isActive("/engineer")
+                      ? "bg-blue-50 text-blue-700 border-l-4 border-blue-600 rounded-none pl-3"
+                      : "text-gray-700 hover:bg-gray-100"
+                  )}
+                >
+                  <UserCheck className="h-4 w-4 mr-2 text-blue-600" />
+                  Engineer Portal
+                </Button>
+              </Link>
+            )}
             <Link href="/home" onClick={() => setIsMobileMenuOpen(false)}>
               <Button
                 variant="ghost"

@@ -1467,23 +1467,21 @@ export default function CommunicationStatusPage() {
                 </div>
               </div>
 
-              {isAdmin && (
-                <div className="min-w-[200px]">
-                  <Select value={uiSchemeFilter} onValueChange={(value) => { setUiSchemeFilter(value); setCurrentPage(1); }}>
-                    <SelectTrigger className="w-full bg-white border-blue-200">
-                      <SelectValue placeholder="Scheme Category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Schemes</SelectItem>
-                      <SelectItem value="commissioned">Commissioned (100% Civil)</SelectItem>
-                      <SelectItem value="fully_completed">Fully Instrumented (100% IoT)</SelectItem>
-                      <SelectItem value="in_progress">Partially Instrumented (In Progress)</SelectItem>
-                      <SelectItem value="common_filter">Common (Civil + IoT Done)</SelectItem>
-                      <SelectItem value="mjp_commissioned_yes">MJP Commissioned</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+              <div className="min-w-[200px]">
+                <Select value={uiSchemeFilter} onValueChange={(value) => { setUiSchemeFilter(value); setCurrentPage(1); }}>
+                  <SelectTrigger className="w-full bg-white border-blue-200">
+                    <SelectValue placeholder="Scheme Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Schemes</SelectItem>
+                    <SelectItem value="commissioned">Commissioned (100% Civil)</SelectItem>
+                    <SelectItem value="fully_completed">Fully Instrumented (100% IoT)</SelectItem>
+                    <SelectItem value="in_progress">Partially Instrumented (In Progress)</SelectItem>
+                    <SelectItem value="common_filter">Common (Civil + IoT Done)</SelectItem>
+                    <SelectItem value="mjp_commissioned_yes">MJP Commissioned</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
               {activeListTab === "scheme" ? (
                 <Button

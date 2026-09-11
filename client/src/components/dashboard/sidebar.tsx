@@ -18,6 +18,7 @@ import {
   FileText,
   HelpCircle,
   BellRing,
+  UserCheck,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -29,7 +30,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
 
 // Define the type for navigation items
 type NavigationItem = {
@@ -39,13 +40,14 @@ type NavigationItem = {
   prefix?: string;
   adminOnly?: boolean;
   userOnly?: boolean;
+  engineerOnly?: boolean;
+  hideForEngineer?: boolean;
 };
 
 const navigationItems: NavigationItem[] = [
-  { name: "Dashboard", href: "/dashboard", icon: Home },
+  { name: "Dashboard", href: "/dashboard" },
   { name: "Schemes", href: "/schemes", icon: GitBranchPlus },
   { name: "Regions", href: "/regions", icon: MapPin },
-  // { name: "Maharashtra Map", href: "/maharashtra-map", icon: Map },
   { name: "Reports", href: "/reports", icon: BarChart2 },
   { name: "Smart Reports", href: "/smart-reports", icon: FileText },
   { name: "Monthly Reports", href: "/monthly-reports", icon: FileText },
@@ -57,29 +59,17 @@ const navigationItems: NavigationItem[] = [
   { name: "Pressure Monitoring", href: "/pressure", icon: Gauge },
   { name: "Water Consumption", href: "/water-consumption", prefix: "WC" },
   { name: "Communication Status", href: "/communication", icon: Wifi },
-  { name: "MQTT Topic Config", href: "/mqtt-topic-config", icon: Settings },
-  { name: "MQTT Topic Config", href: "/mqtt-topic-config", icon: Settings },
-  { name: "Issue Reporting", href: "/helpdesk/issue-reporting", icon: FileText, userOnly: true },
-  { name: "Raise Issue", href: "/helpdesk/raise-issue", icon: FileText, userOnly: true },
-  { name: "Track Tickets", href: "/helpdesk/track-tickets", icon: HelpCircle, adminOnly: true },
-  // { name: "Settings", href: "/settings", icon: Settings },
+  { name: "MQTT Topic Config", href: "/mqtt-topic-config", icon: Settings, adminOnly: true },
+  { name: "Issue Reporting", href: "/helpdesk/issue-reporting", icon: FileText },
+  { name: "Raise Issue", href: "/helpdesk/raise-issue", icon: FileText },
+  { name: "Track Tickets", href: "/helpdesk/track-tickets", icon: HelpCircle },
 ];
-
-interface AuthStatusResponse {
-  isLoggedIn: boolean;
-  isAdmin: boolean;
-}
 
 export default function Sidebar() {
   const [location] = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const isMobile = useIsMobile();
-
-  // Check if user is admin
-  const { data: authData } = useQuery<AuthStatusResponse>({
-    queryKey: ["/api/auth/status"],
-    refetchOnWindowFocus: false,
-  });
+  const { isAdmin, isEngineer } = useAuth();
 
   // Store sidebar state in localStorage to persist between page loads
   useEffect(() => {
@@ -131,12 +121,22 @@ export default function Sidebar() {
           <nav className="flex-1 px-2 space-y-1 py-4">
             {navigationItems.map((item) => {
               // Skip admin-only items if user is not admin
-              if (item.adminOnly && !authData?.isAdmin) {
+              if (item.adminOnly && !isAdmin) {
                 return null;
               }
 
               // Skip user-only items if user is admin
-              if (item.userOnly && authData?.isAdmin) {
+              if (item.userOnly && isAdmin) {
+                return null;
+              }
+
+              // Skip engineer-only items if user is not engineer
+              if (item.engineerOnly && !isEngineer && !isAdmin) {
+                return null;
+              }
+
+              // Skip items hidden for engineers
+              if (item.hideForEngineer && isEngineer) {
                 return null;
               }
 

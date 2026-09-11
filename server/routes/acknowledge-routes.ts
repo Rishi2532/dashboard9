@@ -18,14 +18,24 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
         token VARCHAR(128) NOT NULL,
         scheme_id VARCHAR(50) NOT NULL,
         alert_type VARCHAR(20) NOT NULL,
+        alert_id INTEGER,
+        ticket_id VARCHAR(100),
+        esr_name VARCHAR(255),
         engineer_email VARCHAR(255) NOT NULL,
         engineer_name VARCHAR(255),
         sent_date DATE NOT NULL DEFAULT CURRENT_DATE,
         acknowledged_at TIMESTAMP WITH TIME ZONE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
+      ALTER TABLE email_acknowledgements 
+      ADD COLUMN IF NOT EXISTS alert_id INTEGER,
+      ADD COLUMN IF NOT EXISTS ticket_id VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS esr_name VARCHAR(255);
+
       CREATE INDEX IF NOT EXISTS idx_email_acknowledgements_token ON email_acknowledgements(token);
       CREATE INDEX IF NOT EXISTS idx_email_acknowledgements_scheme ON email_acknowledgements(scheme_id, alert_type, sent_date);
+      CREATE INDEX IF NOT EXISTS idx_email_acknowledgements_alert_id ON email_acknowledgements(alert_id);
+      CREATE INDEX IF NOT EXISTS idx_email_acknowledgements_ticket_id ON email_acknowledgements(ticket_id);
     `);
     console.log('✅ email_acknowledgements table ready');
   } catch (e: any) {
@@ -91,6 +101,104 @@ router.get('/', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error processing acknowledgement:', error);
     return res.status(500).send(renderPage('Server Error', 'Something went wrong. Please try again later or contact the administrator.', false));
+  } finally {
+    client.release();
+  }
+});
+
+/**
+ * POST /api/acknowledge
+ * Used by dashboard to acknowledge an alert directly from the UI.
+ */
+router.post('/', async (req: Request, res: Response) => {
+  const { scheme_id, alert_type, sent_date, ticket_id, alert_id, esr_name, engineer_email, engineer_name } = req.body;
+
+  if (!scheme_id || !alert_type) {
+    return res.status(400).json({ error: 'scheme_id and alert_type are required' });
+  }
+
+  const client = await pool.connect();
+  try {
+    const sessionUser = (req as any).session;
+    const email = engineer_email || sessionUser?.email || 'engineer@swsm.gov.in';
+    const name = engineer_name || sessionUser?.name || 'Engineer';
+    const date = sent_date ? String(sent_date).slice(0, 10) : new Date().toISOString().split('T')[0];
+    const parsedAlertId = alert_id ? parseInt(String(alert_id), 10) : null;
+
+    const cleanEsr = (esr_name && esr_name !== '-' && esr_name !== 'null') ? String(esr_name).trim() : null;
+
+    // Check if row already exists for THIS specific alert (by alert_id, or ticket_id, or unlinked exact ESR match)
+    let checkRes;
+    if (parsedAlertId) {
+      checkRes = await client.query(
+        `SELECT id, acknowledged_at FROM email_acknowledgements WHERE alert_id = $1`,
+        [parsedAlertId]
+      );
+    }
+    if ((!checkRes || checkRes.rows.length === 0) && ticket_id) {
+      checkRes = await client.query(
+        `SELECT id, acknowledged_at FROM email_acknowledgements WHERE ticket_id = $1`,
+        [ticket_id]
+      );
+    }
+    if (!checkRes || checkRes.rows.length === 0) {
+      if (cleanEsr) {
+        checkRes = await client.query(
+          `SELECT id, acknowledged_at FROM email_acknowledgements 
+           WHERE alert_id IS NULL AND ticket_id IS NULL AND scheme_id = $1 AND alert_type = $2 AND sent_date = $3 AND TRIM(esr_name) = $4`,
+          [scheme_id, alert_type, date, cleanEsr]
+        );
+      } else {
+        checkRes = await client.query(
+          `SELECT id, acknowledged_at FROM email_acknowledgements 
+           WHERE alert_id IS NULL AND ticket_id IS NULL AND scheme_id = $1 AND alert_type = $2 AND sent_date = $3 AND (esr_name IS NULL OR TRIM(esr_name) = '' OR TRIM(esr_name) = '-')`,
+          [scheme_id, alert_type, date]
+        );
+      }
+    }
+
+    let ackTime: Date;
+    if (checkRes && checkRes.rows.length > 0) {
+      const ackRowId = checkRes.rows[0].id;
+      const updateRes = await client.query(
+        `UPDATE email_acknowledgements 
+         SET acknowledged_at = NOW(), 
+             engineer_name = COALESCE($1, engineer_name), 
+             engineer_email = COALESCE($2, engineer_email),
+             alert_id = COALESCE($3, alert_id),
+             ticket_id = COALESCE($4, ticket_id),
+             esr_name = COALESCE($5, esr_name)
+         WHERE id = $6
+         RETURNING acknowledged_at`,
+        [name, email, parsedAlertId, ticket_id || null, cleanEsr, ackRowId]
+      );
+      ackTime = updateRes.rows[0]?.acknowledged_at || new Date();
+    } else {
+      const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+      const insertRes = await client.query(
+        `INSERT INTO email_acknowledgements (token, scheme_id, alert_type, alert_id, ticket_id, esr_name, engineer_email, engineer_name, sent_date, acknowledged_at, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+         RETURNING acknowledged_at`,
+        [token, scheme_id, alert_type, parsedAlertId, ticket_id || null, cleanEsr, email, name, date]
+      );
+      ackTime = insertRes.rows[0]?.acknowledged_at || new Date();
+    }
+
+    res.json({
+      success: true,
+      message: 'Alert acknowledged successfully',
+      acknowledged_at: ackTime,
+      is_acknowledged: true,
+      scheme_id,
+      alert_type,
+      alert_id: parsedAlertId,
+      ticket_id,
+      esr_name,
+      sent_date: date,
+    });
+  } catch (error: any) {
+    console.error('Error recording acknowledgement:', error);
+    res.status(500).json({ error: 'Failed to record acknowledgement' });
   } finally {
     client.release();
   }

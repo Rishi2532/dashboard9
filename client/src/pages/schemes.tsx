@@ -78,7 +78,9 @@ export default function Schemes() {
         params.append("fullyCompleted", "true");
       }
 
-      const response = await fetch(`/api/schemes/filters?${params.toString()}`);
+      const response = await fetch(`/api/schemes/filters?${params.toString()}`, {
+        credentials: "include",
+      });
       return response.json();
     },
   });
@@ -128,17 +130,11 @@ export default function Schemes() {
         params.append("agencyType", selectedAgencyType);
       }
 
-      // We now handle specialized filtering on the frontend for exact logic
-      // params.append("filterType", schemeFilter);
-      // if (schemeFilter === "fully_completed") {
-      //   params.append("fullyCompleted", "true");
-      // }
-
       if (params.toString()) {
         url += `?${params.toString()}`;
       }
 
-      return fetch(url).then((res) => res.json());
+      return fetch(url, { credentials: "include" }).then((res) => res.json());
     },
   });
 
@@ -200,41 +196,43 @@ export default function Schemes() {
 
   // Frontend filtering logic with exact requirements
   const globallyFilteredSchemes = useMemo(() => {
-    if (!schemes) return [];
+    if (!schemes || !Array.isArray(schemes)) return [];
     let filtered = [...schemes];
 
-    // 1. Apply Scheme Category Filter (Admin)
+    // 1. Apply Scheme Category Filter
     if (uiSchemeFilter !== "all") {
       filtered = filtered.filter((status) => {
-        if (!status) return true;
+        if (!status) return false;
+
+        const fcs = String(status.fully_completion_scheme_status || "").trim().toLowerCase();
+        const ws = String(status.water_supply || "").trim().toLowerCase();
+        const mjpComm = String(status.mjp_commissioned || "").trim().toLowerCase();
+        const mjpFc = String(status.mjp_fully_completed || "").trim().toLowerCase();
 
         if (uiSchemeFilter === "commissioned") {
-          // 100% Civil work Completed: water_supply = Yes
-          return status.water_supply === "Yes";
+          // Commissioned: MJP commissioned Yes OR water_supply Yes
+          return mjpComm === "yes" || ws === "yes";
         }
 
         if (uiSchemeFilter === "fully_completed") {
-          // Fully Instrumented: fully_completion_scheme_status = Fully Completed or Completed
-          const statusValue = String(status.fully_completion_scheme_status || "");
-          return statusValue === "Fully Completed" || statusValue === "Completed";
+          // Fully Instrumented
+          return fcs === "fully completed" || fcs === "completed" || fcs === "connected" || fcs === "fully-completed" || mjpFc === "yes";
         }
 
         if (uiSchemeFilter === "in_progress") {
-          // Partially instrumented: fully_completion_scheme_status = In Progress
-          return status.fully_completion_scheme_status === "In Progress";
+          // Partially instrumented
+          return fcs === "in progress" || fcs === "in-progress" || mjpFc === "in progress";
         }
 
         if (uiSchemeFilter === "common_filter") {
-          // Common filter: (fully_completion_scheme_status = Fully Completed or Completed) AND water_supply = Yes
-          const statusValue = String(status.fully_completion_scheme_status || "");
-          const isInstrumented = statusValue === "Fully Completed" || statusValue === "Completed";
-          const isCivilCompleted = status.water_supply === "Yes";
+          // Common filter: Instrumented AND Civil work completed
+          const isInstrumented = fcs === "fully completed" || fcs === "completed" || fcs === "connected" || fcs === "fully-completed";
+          const isCivilCompleted = ws === "yes" || mjpComm === "yes";
           return isInstrumented && isCivilCompleted;
         }
 
         if (uiSchemeFilter === "mjp_commissioned_yes") {
-          // Commissioned: mjp_commissioned = Yes
-          return status.mjp_commissioned === "Yes";
+          return mjpComm === "yes";
         }
 
         return true;
@@ -244,7 +242,8 @@ export default function Schemes() {
     // 2. Apply Water Supply Status Filter (Tabs)
     if (waterSupplyStatus !== "All") {
       filtered = filtered.filter((status) => {
-        return status.water_supply_status === waterSupplyStatus;
+        const wss = String(status.water_supply_status || "").trim().toLowerCase();
+        return wss === waterSupplyStatus.toLowerCase();
       });
     }
 
@@ -746,29 +745,27 @@ export default function Schemes() {
 
         {/* Agency Type + Water Supply Status on one line */}
         <div className="px-4 py-3 bg-blue-50 flex flex-wrap gap-x-6 gap-y-3 items-end">
-          {isAdmin && (
-            <div className="flex flex-col gap-2">
-              <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Scheme Category (Admin)</p>
-              <Select
-                value={uiSchemeFilter}
-                onValueChange={(val) => {
-                  setUiSchemeFilter(val);
-                }}
-              >
-                <SelectTrigger className="h-8 w-[180px] text-xs bg-white border-blue-200">
-                  <SelectValue placeholder="Select Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="commissioned">Commissioned</SelectItem>
-                  <SelectItem value="all">All Schemes</SelectItem>
-                  <SelectItem value="fully_completed">Fully Completed</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="common_filter">Common Filter</SelectItem>
-                  <SelectItem value="mjp_commissioned_yes">MJP Commissioned</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          <div className="flex flex-col gap-2">
+            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Scheme Category</p>
+            <Select
+              value={uiSchemeFilter}
+              onValueChange={(val) => {
+                setUiSchemeFilter(val);
+              }}
+            >
+              <SelectTrigger className="h-8 w-[180px] text-xs bg-white border-blue-200">
+                <SelectValue placeholder="Select Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="commissioned">Commissioned</SelectItem>
+                <SelectItem value="all">All Schemes</SelectItem>
+                <SelectItem value="fully_completed">Fully Completed</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
+                <SelectItem value="common_filter">Common Filter</SelectItem>
+                <SelectItem value="mjp_commissioned_yes">MJP Commissioned</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div>
             <AgencyTypeFilter
               selectedAgencyType={selectedAgencyType}
