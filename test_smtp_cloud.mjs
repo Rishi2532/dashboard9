@@ -1,46 +1,90 @@
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
+import net from "net";
 
 dotenv.config();
 
 const smtpHost = process.env.SMTP_HOST || "111.118.179.118";
-const smtpPort = parseInt(process.env.SMTP_PORT || "587", 10);
 const smtpUser = process.env.SMTP_USER || "info@mahajaliot.in";
 const smtpPassword = process.env.SMTP_PASSWORD || "S}p9%3ExATwtGouV";
 
-console.log(`Testing SMTP connection to ${smtpHost}:${smtpPort} as ${smtpUser}...`);
+function checkPort(host, port, timeoutMs = 7000) {
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    let status = false;
 
-const transporter = nodemailer.createTransport({
-  host: smtpHost,
-  port: smtpPort,
-  secure: smtpPort === 465,
-  auth: {
-    user: smtpUser,
-    pass: smtpPassword,
-  },
-  tls: {
-    rejectUnauthorized: false,
-  },
-  connectionTimeout: 15000,
-});
+    socket.setTimeout(timeoutMs);
+    socket.on("connect", () => {
+      status = true;
+      socket.destroy();
+      resolve({ port, open: true });
+    });
+    socket.on("timeout", () => {
+      socket.destroy();
+      resolve({ port, open: false, error: "Timed out" });
+    });
+    socket.on("error", (err) => {
+      socket.destroy();
+      resolve({ port, open: false, error: err.message });
+    });
 
-transporter.verify((error, success) => {
-  if (error) {
-    console.error("❌ SMTP Verification Failed:", error);
+    socket.connect(port, host);
+  });
+}
+
+async function run() {
+  console.log(`\n🔍 Checking outbound network connectivity to ${smtpHost}...`);
+  const ports = [587, 465, 25];
+  const results = await Promise.all(ports.map(p => checkPort(smtpHost, p)));
+
+  for (const res of results) {
+    if (res.open) {
+      console.log(`✅ Port ${res.port}: OPEN & REACHABLE`);
+    } else {
+      console.log(`❌ Port ${res.port}: BLOCKED / UNREACHABLE (${res.error})`);
+    }
+  }
+
+  const openPort = results.find(r => r.open)?.port;
+  if (!openPort) {
+    console.error(`\n❌ None of the standard SMTP ports (587, 465, 25) could connect from this server.`);
+    console.error(`Please check Windows Firewall Outbound Rules or Cloud Security Group outbound rules.`);
     process.exit(1);
-  } else {
-    console.log("✅ SMTP Server is ready to send messages!");
-    transporter.sendMail({
+  }
+
+  console.log(`\n📧 Testing nodemailer authentication using OPEN port ${openPort}...`);
+  const transporter = nodemailer.createTransport({
+    host: smtpHost,
+    port: openPort,
+    secure: openPort === 465,
+    auth: {
+      user: smtpUser,
+      pass: smtpPassword,
+    },
+    tls: {
+      rejectUnauthorized: false,
+    },
+    connectionTimeout: 10000,
+  });
+
+  try {
+    await transporter.verify();
+    console.log(`✅ Authentication succeeded on port ${openPort}!`);
+
+    const info = await transporter.sendMail({
       from: `"MahaJal IoT" <${smtpUser}>`,
       to: smtpUser,
-      subject: "MahaJal Cloud SMTP Test Success",
-      text: "The cloud SMTP configuration is working properly!",
-    }).then(info => {
-      console.log("✅ Test email sent successfully! Message ID:", info.messageId);
-      process.exit(0);
-    }).catch(err => {
-      console.error("❌ Failed to send email:", err);
-      process.exit(1);
+      subject: `MahaJal Cloud SMTP Test Success (Port ${openPort})`,
+      text: `SMTP on port ${openPort} is working properly!`,
     });
+    console.log(`✅ Test email sent successfully! Message ID:`, info.messageId);
+    console.log(`\n👉 Set SMTP_PORT=${openPort} in your .env file!`);
+    process.exit(0);
+  } catch (err) {
+    console.error(`❌ Authentication/Send failed on port ${openPort}:`, err);
+    process.exit(1);
   }
-});
+}
+
+run();
+
