@@ -204,22 +204,24 @@ export default function AlertsProgressPage() {
   };
 
   const renderEngineerContact = (name: string | null, email: string | null, role: string, ackStatus?: any) => {
-    if (!name || !email) return null;
+    if (!name && !email) return null;
     return (
       <div className="flex items-start justify-between gap-4 py-2 border-b border-slate-50 last:border-0">
         <div className="flex gap-2">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-600 text-xs font-bold mt-0.5">
-            {getInitials(name)}
+            {getInitials(name || email || 'NA')}
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-semibold text-slate-800">
-              {name}
+              {name || 'Assigned Personnel'}
             </span>
             <span className="text-[11px] text-slate-500 font-medium">{role}</span>
-            <a href={`mailto:${email}`} className="text-xs text-indigo-500 hover:text-indigo-700 hover:underline flex items-center gap-1 mt-1">
-              <Mail className="h-3 w-3" />
-              <span className="truncate max-w-[180px]">{email}</span>
-            </a>
+            {email && (
+              <a href={`mailto:${email}`} className="text-xs text-indigo-500 hover:text-indigo-700 hover:underline flex items-center gap-1 mt-1">
+                <Mail className="h-3 w-3" />
+                <span className="truncate max-w-[180px]">{email}</span>
+              </a>
+            )}
           </div>
         </div>
         {ackStatus !== undefined && (
@@ -408,7 +410,7 @@ export default function AlertsProgressPage() {
                   {type === "offline" ? "Offline Sensors" : `Alert Value (${alertValueLabel})`}
                 </th>
                 <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200">
-                  {type === "offline" ? "Assigned Vendor" : "Notified Engineers"}
+                  {type === "offline" ? "Notified Personnel" : "Notified Engineers"}
                 </th>
                 <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200">Remarks</th>
               </tr>
@@ -494,7 +496,7 @@ export default function AlertsProgressPage() {
                             <div className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
                             Offline
                           </div>
-                          <div className="text-xs text-slate-500 mt-1 font-semibold">Vendor Attention</div>
+                          <div className="text-xs text-slate-500 mt-1 font-semibold">Sensor Dropout</div>
                         </div>
                       ) : failing ? (
                         <div className="flex flex-col items-center">
@@ -515,15 +517,24 @@ export default function AlertsProgressPage() {
                       {(() => {
                         const hasEngineers = !!(row.civil_engineer_name || row.mechanical_engineer_name || row.site_supervisor_name);
                         
-                        // Calculate real total based on available emails
-                        const trueTotal = [row.civil_engineer_email, row.mechanical_engineer_email, row.site_supervisor_email].filter(Boolean).length;
+                        // Normalized assigned emails
+                        const assignedEmails = [
+                          row.civil_engineer_email?.toLowerCase().trim(),
+                          row.mechanical_engineer_email?.toLowerCase().trim(),
+                          row.site_supervisor_email?.toLowerCase().trim()
+                        ].filter(Boolean) as string[];
+                        
+                        const trueTotal = assignedEmails.length;
                         
                         // Calculate unique acknowledgements
-                        const uniqueAcks = new Set();
+                        const uniqueAcks = new Set<string>();
                         if (row.acknowledgements) {
                           row.acknowledgements.forEach((a: any) => {
                             if (a.acknowledged_at && a.engineer_email) {
-                              uniqueAcks.add(a.engineer_email);
+                              const normEmail = a.engineer_email.toLowerCase().trim();
+                              if (assignedEmails.includes(normEmail)) {
+                                uniqueAcks.add(normEmail);
+                              }
                             }
                           });
                         }
@@ -532,27 +543,10 @@ export default function AlertsProgressPage() {
 
                         return (
                           <div className="flex items-center justify-center gap-2 mt-1">
-                            {type === "offline" ? (
+                            {hasEngineers ? (
                               <>
-                                <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-md text-xs font-bold bg-blue-50 text-blue-600 border border-blue-100">
-                                  Vendor Notified
-                                </span>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-7 w-7 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 shrink-0 border border-indigo-100"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedEngineers({ title: row.scheme_name, row });
-                                  }}
-                                >
-                                  <Eye className="h-3.5 w-3.5" />
-                                </Button>
-                              </>
-                            ) : hasEngineers ? (
-                              <>
-                                {activeSubTab === 'current' && trueTotal > 0 ? (
-                                  <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-md text-xs font-bold border ${isAllAckd ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
+                                {(activeSubTab === 'current' || type === 'offline') && trueTotal > 0 ? (
+                                  <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-md text-xs font-bold border ${isAllAckd ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : ackd > 0 ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
                                     {ackd}/{trueTotal} Acknowledged
                                   </span>
                                 ) : (
@@ -568,6 +562,7 @@ export default function AlertsProgressPage() {
                                     e.stopPropagation();
                                     setSelectedEngineers({ title: row.scheme_name, row });
                                   }}
+                                  title="View Assigned Personnel & Status"
                                 >
                                   <Eye className="h-3.5 w-3.5" />
                                 </Button>
@@ -905,7 +900,7 @@ export default function AlertsProgressPage() {
                 <DialogHeader className="border-b border-slate-100 pb-4">
                   <DialogTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
                     <Users className="h-5 w-5 text-indigo-500" />
-                    {activeTab === "offline" ? "Assigned Vendor Details" : "Notified Engineers"}
+                    Notified Engineers & Status
                   </DialogTitle>
                   <DialogDescription className="text-slate-500 font-medium">
                     {selectedEngineers.title}
@@ -914,27 +909,47 @@ export default function AlertsProgressPage() {
                 <div className="flex flex-col py-2">
                   {(() => {
                     const getAckStatus = (email: string | null) => {
-                      if (!selectedEngineers.row.acknowledgements || !email) return undefined;
-                      const matches = selectedEngineers.row.acknowledgements.filter((a: any) => a.engineer_email === email);
-                      if (matches.length === 0) return undefined;
-                      return matches.find((a: any) => a.acknowledged_at) || matches[0];
+                      if (!email) return undefined;
+                      const target = email.toLowerCase().trim();
+                      if (!selectedEngineers.row.acknowledgements) return { acknowledged_at: null };
+                      const match = selectedEngineers.row.acknowledgements.find((a: any) => 
+                        a.engineer_email && a.engineer_email.toLowerCase().trim() === target
+                      );
+                      return match || { acknowledged_at: null };
                     };
                     
+                    const isVendorOnly = !selectedEngineers.row.mechanical_engineer_name && !selectedEngineers.row.site_supervisor_name && (selectedEngineers.row.civil_engineer_name?.toLowerCase().includes('vendor') || !selectedEngineers.row.civil_engineer_email?.includes('@'));
+
                     return (
                       <>
-                        {activeTab === "offline" ? (
-                          selectedEngineers.row.civil_engineer_name ? (
-                            renderEngineerContact(selectedEngineers.row.civil_engineer_name, selectedEngineers.row.civil_engineer_email, "Assigned Vendor")
-                          ) : (
-                            <div className="text-sm text-slate-500 py-2">No Vendor assigned</div>
+                        {selectedEngineers.row.civil_engineer_name ? (
+                          renderEngineerContact(
+                            selectedEngineers.row.civil_engineer_name, 
+                            selectedEngineers.row.civil_engineer_email, 
+                            isVendorOnly ? "Assigned Vendor" : "Civil Engineer", 
+                            getAckStatus(selectedEngineers.row.civil_engineer_email)
                           )
                         ) : (
-                          <>
-                            {selectedEngineers.row.civil_engineer_name ? renderEngineerContact(selectedEngineers.row.civil_engineer_name, selectedEngineers.row.civil_engineer_email, "Civil Engineer", getAckStatus(selectedEngineers.row.civil_engineer_email)) : <div className="text-sm text-slate-500 py-2 border-b border-slate-50">No Civil Engineer assigned</div>}
-                            {selectedEngineers.row.mechanical_engineer_name ? renderEngineerContact(selectedEngineers.row.mechanical_engineer_name, selectedEngineers.row.mechanical_engineer_email, "Mechanical Engineer", getAckStatus(selectedEngineers.row.mechanical_engineer_email)) : <div className="text-sm text-slate-500 py-2 border-b border-slate-50">No Mechanical Engineer assigned</div>}
-                            {selectedEngineers.row.site_supervisor_name ? renderEngineerContact(selectedEngineers.row.site_supervisor_name, selectedEngineers.row.site_supervisor_email, "Site Supervisor", getAckStatus(selectedEngineers.row.site_supervisor_email)) : <div className="text-sm text-slate-500 py-2">No Site Supervisor assigned</div>}
-                          </>
+                          <div className="text-sm text-slate-500 py-2 border-b border-slate-50">No Civil Engineer assigned</div>
                         )}
+
+                        {selectedEngineers.row.mechanical_engineer_name ? (
+                          renderEngineerContact(
+                            selectedEngineers.row.mechanical_engineer_name, 
+                            selectedEngineers.row.mechanical_engineer_email, 
+                            "Mechanical Engineer", 
+                            getAckStatus(selectedEngineers.row.mechanical_engineer_email)
+                          )
+                        ) : null}
+
+                        {selectedEngineers.row.site_supervisor_name ? (
+                          renderEngineerContact(
+                            selectedEngineers.row.site_supervisor_name, 
+                            selectedEngineers.row.site_supervisor_email, 
+                            "Site Supervisor", 
+                            getAckStatus(selectedEngineers.row.site_supervisor_email)
+                          )
+                        ) : null}
                       </>
                     );
                   })()}

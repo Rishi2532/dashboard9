@@ -463,10 +463,11 @@ export async function sendDailyAlertEmail(
     <table style="width: 100%; border-collapse: collapse; margin: 15px 0; border: 1px solid #cbd5e1; font-size: 13px;">
       <thead>
         <tr style="background-color: #f1f5f9; border-bottom: 2px solid #cbd5e1;">
-          <th style="padding: 10px; text-align: center; font-weight: bold; color: #475569; width: 40px; border: 1px solid #cbd5e1;">#</th>
+          <th style="padding: 10px; text-align: center; font-weight: bold; color: #475569; width: 30px; border: 1px solid #cbd5e1;">#</th>
           <th style="padding: 10px; text-align: left; font-weight: bold; color: #475569; border: 1px solid #cbd5e1;">Scheme / Village</th>
           <th style="padding: 10px; text-align: left; font-weight: bold; color: #475569; border: 1px solid #cbd5e1;">ESR</th>
-          <th style="padding: 10px; text-align: left; font-weight: bold; color: #475569; border: 1px solid #cbd5e1;">Issues</th>
+          <th style="padding: 10px; text-align: left; font-weight: bold; color: #475569; border: 1px solid #cbd5e1;">Critical Issues</th>
+          <th style="padding: 10px; text-align: center; font-weight: bold; color: #475569; border: 1px solid #cbd5e1; width: 110px;">Action</th>
         </tr>
       </thead>
       <tbody>
@@ -474,25 +475,38 @@ export async function sendDailyAlertEmail(
 
   alertsData.forEach((alert, index) => {
     const issues = [];
-    if (alert.chlorine_issue) issues.push(`<span style="color: #dc2626; font-weight: bold;">Chlorine:</span> ${alert.chlorine_value} mg/L`);
-    if (alert.pressure_issue) issues.push(`<span style="color: #dc2626; font-weight: bold;">Pressure:</span> ${alert.pressure_value} Bar`);
-    if (alert.lpcd_issue) issues.push(`<span style="color: #dc2626; font-weight: bold;">LPCD:</span> ${alert.lpcd_value}`);
+    if (alert.chlorine_issue) issues.push(`<span style="color: #dc2626; font-weight: bold;">Chlorine:</span> ${alert.chlorine_value} mg/L (Below 0.2)`);
+    if (alert.pressure_issue) issues.push(`<span style="color: #dc2626; font-weight: bold;">Pressure:</span> ${alert.pressure_value} Bar (Below 0.2)`);
+    if (alert.lpcd_issue) issues.push(`<span style="color: #dc2626; font-weight: bold;">LPCD:</span> ${alert.lpcd_value} (Below 55)`);
     if (alert.water_issue) issues.push(`<span style="color: #dc2626; font-weight: bold;">Water:</span> 0 (Zero Supply)`);
+    if (alert.offline_issue) issues.push(`<span style="color: #ea580c; font-weight: bold;">Offline:</span> ${alert.offline_sensors || 'Sensors Offline'}`);
+
+    const ackLink = alert.token 
+      ? `${baseUrl}/api/acknowledge?token=${alert.token}` 
+      : (acknowledgeToken ? `${baseUrl}/api/acknowledge?token=${acknowledgeToken}` : null);
 
     alertsHtml += `
-        <tr style="border-bottom: 1px solid #e2e8f0; background-color: #fffafb;">
-          <td style="padding: 10px; color: #1e293b; border: 1px solid #cbd5e1; vertical-align: top; text-align: center;">
+        <tr style="border-bottom: 1px solid #e2e8f0; background-color: ${alert.offline_issue ? '#fff7ed' : '#fffafb'};">
+          <td style="padding: 10px; color: #1e293b; border: 1px solid #cbd5e1; vertical-align: middle; text-align: center;">
             ${index + 1}
           </td>
-          <td style="padding: 10px; color: #1e293b; border: 1px solid #cbd5e1; vertical-align: top;">
+          <td style="padding: 10px; color: #1e293b; border: 1px solid #cbd5e1; vertical-align: middle;">
             <strong>${alert.scheme_name}</strong><br>
             <span style="font-size: 11px; color: #64748b;">${alert.village_name || 'N/A'} (ID: ${alert.scheme_id})</span>
           </td>
-          <td style="padding: 10px; color: #1e293b; border: 1px solid #cbd5e1; vertical-align: top;">
+          <td style="padding: 10px; color: #1e293b; border: 1px solid #cbd5e1; vertical-align: middle;">
             ${alert.esr_name || '-'}
           </td>
-          <td style="padding: 10px; color: #1e293b; border: 1px solid #cbd5e1; vertical-align: top;">
-            ${issues.join('<br>')}
+          <td style="padding: 10px; color: #1e293b; border: 1px solid #cbd5e1; vertical-align: middle;">
+            ${issues.length > 0 ? issues.join('<br>') : '<span style="color: #64748b;">Critical Alert</span>'}
+          </td>
+          <td style="padding: 10px; color: #1e293b; border: 1px solid #cbd5e1; vertical-align: middle; text-align: center;">
+            ${ackLink ? `
+              <a href="${ackLink}"
+                 style="display: inline-block; background: #16a34a; color: #ffffff !important; text-decoration: none; padding: 7px 14px; border-radius: 6px; font-size: 12px; font-weight: bold; white-space: nowrap;">
+                ✅ Acknowledge
+              </a>
+            ` : '-'}
           </td>
         </tr>
     `;
@@ -506,13 +520,13 @@ export async function sendDailyAlertEmail(
   // Single Acknowledge All button at the bottom of the email
   const ackButtonHtml = acknowledgeToken ? `
     <div style="background-color: #f0fdf4; border: 2px solid #16a34a; border-radius: 10px; padding: 20px; margin: 24px 0; text-align: center;">
-      <p style="margin: 0 0 6px 0; color: #15803d; font-weight: 700; font-size: 15px;">✅ Confirm Receipt of This Alert</p>
-      <p style="margin: 0 0 16px 0; color: #166534; font-size: 13px;">Click the button below to confirm you have received and acknowledged all the alerts listed above.</p>
+      <p style="margin: 0 0 6px 0; color: #15803d; font-weight: 700; font-size: 15px;">✅ Confirm Receipt of All Alerts</p>
+      <p style="margin: 0 0 16px 0; color: #166534; font-size: 13px;">Click the button below to acknowledge all ${alertsData.length} alerts in this email at once.</p>
       <a href="${baseUrl}/api/acknowledge?token=${acknowledgeToken}"
          style="display: inline-block; background: #16a34a; color: white; text-decoration: none; padding: 13px 36px; border-radius: 8px; font-size: 15px; font-weight: 700; letter-spacing: 0.3px;">
-        ✅ Acknowledge All Alerts 
+        ✅ Acknowledge All Alerts (${alertsData.length})
       </a>
-      <p style="margin: 10px 0 0 0; font-size: 11px; color: #6b7280;">This will mark all the above schemes as acknowledged on the dashboard.</p>
+      <p style="margin: 10px 0 0 0; font-size: 11px; color: #6b7280;">Or use the individual buttons in the table above to acknowledge schemes separately.</p>
     </div>
   ` : '';
 

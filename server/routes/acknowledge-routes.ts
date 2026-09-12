@@ -75,26 +75,35 @@ router.get('/', async (req: Request, res: Response) => {
     if (alreadyAcknowledged) {
       const ackTime = new Date(firstRecord.acknowledged_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
       const schemeCount = findResult.rows.length;
+      const isSingle = schemeCount === 1;
+      const detailMsg = isSingle 
+        ? `the <strong>${firstRecord.alert_type}</strong> alert for scheme <strong>${firstRecord.scheme_id}</strong>${firstRecord.esr_name ? ` (ESR: ${firstRecord.esr_name})` : ''}`
+        : `${schemeCount} scheme alerts`;
+
       return res.send(renderPage(
         'Already Acknowledged',
-        `You already acknowledged ${schemeCount} scheme alert${schemeCount > 1 ? 's' : ''} on <strong>${ackTime} IST</strong>.<br><br>No further action is needed.`,
+        `You already acknowledged ${detailMsg} on <strong>${ackTime} IST</strong>.<br><br>No further action is needed.`,
         true
       ));
     }
 
     // Mark ALL rows with this token as acknowledged
     const updateResult = await client.query(
-      `UPDATE email_acknowledgements SET acknowledged_at = NOW() WHERE token = $1 AND acknowledged_at IS NULL RETURNING scheme_id`,
+      `UPDATE email_acknowledgements SET acknowledged_at = NOW() WHERE token = $1 AND acknowledged_at IS NULL RETURNING scheme_id, alert_type`,
       [token]
     );
 
     const acknowledgedSchemes = updateResult.rows.length;
     const engineerName = firstRecord.engineer_name || firstRecord.engineer_email;
+    const isSingle = acknowledgedSchemes === 1;
+    const successDetail = isSingle
+      ? `<strong>${firstRecord.alert_type}</strong> alert for Scheme <strong>${firstRecord.scheme_id}</strong>${firstRecord.esr_name ? ` (ESR: ${firstRecord.esr_name})` : ''}`
+      : `<strong>${acknowledgedSchemes} scheme alert${acknowledgedSchemes > 1 ? 's' : ''}</strong>`;
 
     return res.send(renderPage(
-      '✅ Alerts Acknowledged!',
+      '✅ Alert Acknowledged!',
       `Thank you, <strong>${engineerName}</strong>!<br><br>
-       You have successfully acknowledged <strong>${acknowledgedSchemes} scheme alert${acknowledgedSchemes > 1 ? 's' : ''}</strong>.<br><br>
+       You have successfully acknowledged the ${successDetail}.<br><br>
        Your acknowledgement has been recorded on the dashboard. Please ensure you take the necessary action to investigate and resolve the reported issues promptly.`,
       true
     ));
@@ -120,39 +129,39 @@ router.post('/', async (req: Request, res: Response) => {
   const client = await pool.connect();
   try {
     const sessionUser = (req as any).session;
-    const email = engineer_email || sessionUser?.email || 'engineer@swsm.gov.in';
-    const name = engineer_name || sessionUser?.name || 'Engineer';
+    const email = (engineer_email || sessionUser?.email || 'engineer@swsm.gov.in').trim().toLowerCase();
+    const name = engineer_name || sessionUser?.name || sessionUser?.username || 'Engineer';
     const date = sent_date ? String(sent_date).slice(0, 10) : new Date().toISOString().split('T')[0];
     const parsedAlertId = alert_id ? parseInt(String(alert_id), 10) : null;
 
     const cleanEsr = (esr_name && esr_name !== '-' && esr_name !== 'null') ? String(esr_name).trim() : null;
 
-    // Check if row already exists for THIS specific alert (by alert_id, or ticket_id, or unlinked exact ESR match)
+    // Check if row already exists for THIS specific alert FOR THIS ENGINEER
     let checkRes;
     if (parsedAlertId) {
       checkRes = await client.query(
-        `SELECT id, acknowledged_at FROM email_acknowledgements WHERE alert_id = $1`,
-        [parsedAlertId]
+        `SELECT id, acknowledged_at FROM email_acknowledgements WHERE alert_id = $1 AND LOWER(TRIM(engineer_email)) = $2`,
+        [parsedAlertId, email]
       );
     }
     if ((!checkRes || checkRes.rows.length === 0) && ticket_id) {
       checkRes = await client.query(
-        `SELECT id, acknowledged_at FROM email_acknowledgements WHERE ticket_id = $1`,
-        [ticket_id]
+        `SELECT id, acknowledged_at FROM email_acknowledgements WHERE ticket_id = $1 AND LOWER(TRIM(engineer_email)) = $2`,
+        [ticket_id, email]
       );
     }
     if (!checkRes || checkRes.rows.length === 0) {
       if (cleanEsr) {
         checkRes = await client.query(
           `SELECT id, acknowledged_at FROM email_acknowledgements 
-           WHERE alert_id IS NULL AND ticket_id IS NULL AND scheme_id = $1 AND alert_type = $2 AND sent_date = $3 AND TRIM(esr_name) = $4`,
-          [scheme_id, alert_type, date, cleanEsr]
+           WHERE LOWER(TRIM(engineer_email)) = $1 AND scheme_id = $2 AND alert_type = $3 AND sent_date = $4 AND TRIM(esr_name) = $5`,
+          [email, scheme_id, alert_type, date, cleanEsr]
         );
       } else {
         checkRes = await client.query(
           `SELECT id, acknowledged_at FROM email_acknowledgements 
-           WHERE alert_id IS NULL AND ticket_id IS NULL AND scheme_id = $1 AND alert_type = $2 AND sent_date = $3 AND (esr_name IS NULL OR TRIM(esr_name) = '' OR TRIM(esr_name) = '-')`,
-          [scheme_id, alert_type, date]
+           WHERE LOWER(TRIM(engineer_email)) = $1 AND scheme_id = $2 AND alert_type = $3 AND sent_date = $4 AND (esr_name IS NULL OR TRIM(esr_name) = '' OR TRIM(esr_name) = '-')`,
+          [email, scheme_id, alert_type, date]
         );
       }
     }
@@ -194,6 +203,8 @@ router.post('/', async (req: Request, res: Response) => {
       alert_id: parsedAlertId,
       ticket_id,
       esr_name,
+      engineer_email: email,
+      engineer_name: name,
       sent_date: date,
     });
   } catch (error: any) {

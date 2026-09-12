@@ -1164,6 +1164,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const assignedSchemes: any[] = req.session.assignedSchemes || [];
       const isAdmin = req.session.isAdmin === true;
 
+      const user = await storage.getUser(req.session.userId);
+      const userEmail = (user?.email || req.session.engineerProfile?.email || '').trim().toLowerCase();
+
       const db = await getDB();
 
       let targetSchemeIds = assignedSchemeIds;
@@ -1232,7 +1235,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         WHERE scheme_id IN (${sql.raw(idPlaceholders)})
       `);
 
-      // 6. Fetch Recent alerts and total alerts count with acknowledgement status
+      // 6. Fetch Recent alerts and total alerts count with acknowledgement status scoped to current engineer
       const alertsRes: any = await db.execute(sql`
         SELECT a.id, a.scheme_id, a.scheme_name, a.village_name, a.esr_name, a.alert_type, a.alert_value, a.sent_date, a.sent_time, a.ticket_id,
                ea.acknowledged_at, ea.engineer_name as acknowledged_by,
@@ -1256,6 +1259,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             )
           )
           AND ea.acknowledged_at IS NOT NULL
+          AND (${sql.raw(userEmail && !isAdmin ? `LOWER(TRIM(ea.engineer_email)) = '${userEmail}'` : `true`)})
           ORDER BY ea.acknowledged_at DESC
           LIMIT 1
         ) ea ON true

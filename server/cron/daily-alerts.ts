@@ -29,12 +29,16 @@ interface Alert {
   lpcd_value?: string | number;
   water_issue?: boolean;
   water_value?: string | number;
+  offline_issue?: boolean;
+  offline_sensors?: string;
+  ticket_id?: string;
+  token?: string;
 }
 
 export function startDailyAlertsCron() {
   // Run every day at 11:13 AM
   // You can adjust the cron expression as needed: '13 11 * * *'
-  cron.schedule("55 18   * * *", async () => {
+  cron.schedule("55 16   * * *", async () => {
     await runDailyAlertsJob();
     console.log("? Running automatic offline emails to vendors...");
     await sendAutomaticOfflineEmails();
@@ -150,7 +154,44 @@ export async function runDailyAlertsJob() {
       });
     });
 
-    // 4. Fetch Scheme Engineer Details for all schemes that have alerts
+    // 4. Check Offline Sensors Data (communication_status)
+    try {
+      const offlineRowsRes = await pool.query(`
+        SELECT 
+          scheme_id,
+          scheme_name,
+          region,
+          village_name,
+          esr_name,
+          chlorine_status,
+          pressure_status,
+          flow_meter_status
+        FROM communication_status
+        WHERE chlorine_status = 'Offline' 
+           OR pressure_status = 'Offline' 
+           OR flow_meter_status = 'Offline'
+      `);
+
+      offlineRowsRes.rows.forEach((row: any) => {
+        const offlineSensorsList: string[] = [];
+        if (row.chlorine_status === 'Offline') offlineSensorsList.push('Chlorine');
+        if (row.pressure_status === 'Offline') offlineSensorsList.push('Pressure');
+        if (row.flow_meter_status === 'Offline') offlineSensorsList.push('Flow Meter');
+
+        addAlert(row.scheme_id, row.scheme_name, {
+          scheme_id: row.scheme_id || "N/A",
+          scheme_name: row.scheme_name || "N/A",
+          village_name: row.village_name || "N/A",
+          esr_name: row.esr_name || "N/A",
+          offline_issue: true,
+          offline_sensors: offlineSensorsList.join(', '),
+        });
+      });
+    } catch (offlineErr) {
+      console.error("⚠️ Error checking offline sensors for daily alerts:", offlineErr);
+    }
+
+    // 5. Fetch Scheme Engineer Details for all schemes that have alerts
     const schemeIdsWithAlerts = Object.keys(allAlertsBySchemeId);
     const schemeNamesWithAlerts = Object.keys(allAlertsBySchemeName);
 
@@ -289,6 +330,9 @@ export async function runDailyAlertsJob() {
           if (alert.water_issue) {
             emailLogsToInsert.push({ ...baseLog, alert_type: "Water", alert_value: String(alert.water_value), ticket_id: generateTicketId() });
           }
+          if (alert.offline_issue) {
+            emailLogsToInsert.push({ ...baseLog, alert_type: "Offline", alert_value: String(alert.offline_sensors || "Offline"), ticket_id: generateTicketId() });
+          }
         });
       }
     });
@@ -302,6 +346,9 @@ export async function runDailyAlertsJob() {
             token VARCHAR(128) NOT NULL,
             scheme_id VARCHAR(50) NOT NULL,
             alert_type VARCHAR(20) NOT NULL,
+            alert_id INTEGER,
+            ticket_id VARCHAR(100),
+            esr_name VARCHAR(255),
             engineer_email VARCHAR(255) NOT NULL,
             engineer_name VARCHAR(255),
             sent_date DATE NOT NULL DEFAULT CURRENT_DATE,
@@ -326,22 +373,40 @@ export async function runDailyAlertsJob() {
       // Deduplicate alerts for this person just in case
       const uniqueAlertsMap = new Map();
       alerts.forEach(a => {
-        const key = `${a.scheme_id}-${a.village_name}-${a.esr_name}-${a.chlorine_issue}-${a.pressure_issue}-${a.lpcd_issue}-${a.water_issue}`;
+        const key = `${a.scheme_id}-${a.village_name}-${a.esr_name}-${a.chlorine_issue}-${a.pressure_issue}-${a.lpcd_issue}-${a.water_issue}-${a.offline_issue}-${a.offline_sensors}`;
         uniqueAlertsMap.set(key, a);
       });
-      const uniqueAlerts = Array.from(uniqueAlertsMap.values());
+      const uniqueAlerts: Alert[] = Array.from(uniqueAlertsMap.values());
 
-      // Generate ONE token for this engineer that covers all their schemes in this email.
-      const engineerToken = generateAcknowledgeToken();
+      // Master token for "Acknowledge All" button
+      const masterToken = generateAcknowledgeToken();
       const tokenClient = await pool.connect();
       try {
         for (const alert of uniqueAlerts) {
-          const alertType = alert.chlorine_issue ? 'Chlorine' : alert.pressure_issue ? 'Pressure' : 'LPCD';
-          // Insert one row per scheme — all sharing the same engineer token.
+          const alertType = alert.offline_issue
+            ? 'Offline'
+            : alert.chlorine_issue
+              ? 'Chlorine'
+              : alert.pressure_issue
+                ? 'Pressure'
+                : 'LPCD';
+
+          // Individual token for separate per-alert acknowledgement button
+          const itemToken = generateAcknowledgeToken();
+          alert.token = itemToken;
+
+          // 1. Insert per-alert token
           await tokenClient.query(
-            `INSERT INTO email_acknowledgements (token, scheme_id, alert_type, engineer_email, engineer_name, sent_date)
-               VALUES ($1, $2, $3, $4, $5, CURRENT_DATE)`,
-            [engineerToken, alert.scheme_id, alertType, email, name]
+            `INSERT INTO email_acknowledgements (token, scheme_id, alert_type, esr_name, engineer_email, engineer_name, sent_date)
+             VALUES ($1, $2, $3, $4, $5, $6, CURRENT_DATE)`,
+            [itemToken, alert.scheme_id, alertType, alert.esr_name || null, email, name]
+          );
+
+          // 2. Insert master token for bulk action
+          await tokenClient.query(
+            `INSERT INTO email_acknowledgements (token, scheme_id, alert_type, esr_name, engineer_email, engineer_name, sent_date)
+             VALUES ($1, $2, $3, $4, $5, $6, CURRENT_DATE)`,
+            [masterToken, alert.scheme_id, alertType, alert.esr_name || null, email, name]
           );
         }
       } finally {
@@ -349,8 +414,8 @@ export async function runDailyAlertsJob() {
       }
 
       try {
-        // Pass the single engineer token — email shows ONE acknowledge button for the whole email.
-        await sendDailyAlertEmail(email, name, uniqueAlerts, engineerToken);
+        // Pass uniqueAlerts with alert.token attached and masterToken for Acknowledge All
+        await sendDailyAlertEmail(email, name, uniqueAlerts, masterToken);
         console.log(`✅ Sent alert email to ${email} for ${uniqueAlerts.length} issues.`);
       } catch (err) {
         console.error(`❌ Failed to send alert email to ${email}:`, err);

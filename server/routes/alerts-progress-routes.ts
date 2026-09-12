@@ -52,16 +52,18 @@ router.get('/lpcd', async (req, res) => {
                  json_agg(json_build_object(
                    'engineer_email', engineer_email,
                    'engineer_name', engineer_name,
-                   'acknowledged_at', acknowledged_at
+                   'acknowledged_at', max_ack
                  )) as acknowledgements
           FROM (
-            SELECT scheme_id, engineer_email, engineer_name, acknowledged_at,
-                   ROW_NUMBER() OVER (PARTITION BY scheme_id, engineer_email ORDER BY created_at DESC) as rn
+            SELECT scheme_id, 
+                   LOWER(TRIM(engineer_email)) as engineer_email, 
+                   MAX(engineer_name) as engineer_name, 
+                   MAX(acknowledged_at) as max_ack
             FROM email_acknowledgements
             WHERE alert_type IN ('LPCD', 'Water')
               AND ${dateFilter}
+            GROUP BY scheme_id, LOWER(TRIM(engineer_email))
           ) sub
-          WHERE rn = 1
           GROUP BY scheme_id
         )
         SELECT 
@@ -140,16 +142,18 @@ router.get('/chlorine', async (req, res) => {
                  json_agg(json_build_object(
                    'engineer_email', engineer_email,
                    'engineer_name', engineer_name,
-                   'acknowledged_at', acknowledged_at
+                   'acknowledged_at', max_ack
                  )) as acknowledgements
           FROM (
-            SELECT scheme_id, engineer_email, engineer_name, acknowledged_at,
-                   ROW_NUMBER() OVER (PARTITION BY scheme_id, engineer_email ORDER BY created_at DESC) as rn
+            SELECT scheme_id, 
+                   LOWER(TRIM(engineer_email)) as engineer_email, 
+                   MAX(engineer_name) as engineer_name, 
+                   MAX(acknowledged_at) as max_ack
             FROM email_acknowledgements
             WHERE alert_type = 'Chlorine'
               AND ${dateFilter}
+            GROUP BY scheme_id, LOWER(TRIM(engineer_email))
           ) sub
-          WHERE rn = 1
           GROUP BY scheme_id
         )
         SELECT 
@@ -229,16 +233,18 @@ router.get('/pressure', async (req, res) => {
                  json_agg(json_build_object(
                    'engineer_email', engineer_email,
                    'engineer_name', engineer_name,
-                   'acknowledged_at', acknowledged_at
+                   'acknowledged_at', max_ack
                  )) as acknowledgements
           FROM (
-            SELECT scheme_id, engineer_email, engineer_name, acknowledged_at,
-                   ROW_NUMBER() OVER (PARTITION BY scheme_id, engineer_email ORDER BY created_at DESC) as rn
+            SELECT scheme_id, 
+                   LOWER(TRIM(engineer_email)) as engineer_email, 
+                   MAX(engineer_name) as engineer_name, 
+                   MAX(acknowledged_at) as max_ack
             FROM email_acknowledgements
             WHERE alert_type = 'Pressure'
               AND ${dateFilter}
+            GROUP BY scheme_id, LOWER(TRIM(engineer_email))
           ) sub
-          WHERE rn = 1
           GROUP BY scheme_id
         )
         SELECT 
@@ -276,9 +282,52 @@ router.get('/pressure', async (req, res) => {
 
 router.get('/offline', async (req, res) => {
   try {
+    const requestedDate = req.query.date as string;
+    const dateFilter = requestedDate 
+      ? `sent_date = $1::date` 
+      : `sent_date >= CURRENT_DATE - INTERVAL '1 day'`;
+    const queryParams = requestedDate ? [requestedDate] : [];
+
     const client = await pool.connect();
     try {
       const query = `
+        WITH issues AS (
+          SELECT scheme_id, 
+                 json_agg(json_build_object(
+                   'problem_level', problem_level,
+                   'village_name', village_name,
+                   'esr_name', esr_name,
+                   'reason', reason,
+                   'status', status,
+                   'status_value', status_value,
+                   'resolution_remark', resolution_remark,
+                   'created_at', created_at,
+                   'resolved_at', resolved_at,
+                   'creator_name', creator_name
+                 )) as remarks
+          FROM issue_reports
+          WHERE sensor_type = 'Offline' OR status_value LIKE '%Offline%' OR reason LIKE '%Offline%'
+          GROUP BY scheme_id
+        ),
+        ack_status AS (
+          SELECT scheme_id,
+                 json_agg(json_build_object(
+                   'engineer_email', engineer_email,
+                   'engineer_name', engineer_name,
+                   'acknowledged_at', max_ack
+                 )) as acknowledgements
+          FROM (
+            SELECT scheme_id, 
+                   LOWER(TRIM(engineer_email)) as engineer_email, 
+                   MAX(engineer_name) as engineer_name, 
+                   MAX(acknowledged_at) as max_ack
+            FROM email_acknowledgements
+            WHERE alert_type = 'Offline'
+              AND ${dateFilter}
+            GROUP BY scheme_id, LOWER(TRIM(engineer_email))
+          ) sub
+          GROUP BY scheme_id
+        )
         SELECT 
           c.id,
           c.scheme_id,
@@ -294,23 +343,32 @@ router.get('/offline', async (req, res) => {
           c.flow_meter_connected,
           c.last_seen,
           c.pressure_last_seen,
-          v.employee_name as civil_engineer_name,
-          v.email as civil_engineer_email,
-          v.phone as civil_engineer_mobile
+          COALESCE(sed.civil_engineer_name, v.employee_name) as civil_engineer_name,
+          COALESCE(sed.civil_engineer_email, v.email) as civil_engineer_email,
+          COALESCE(sed.civil_engineer_mobile, v.phone) as civil_engineer_mobile,
+          sed.mechanical_engineer_name,
+          sed.mechanical_engineer_email,
+          sed.site_supervisor_name,
+          sed.site_supervisor_email,
+          COALESCE(i.remarks, '[]'::json) as remarks,
+          COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
         FROM communication_status c
         INNER JOIN scheme_status s ON c.scheme_id = s.scheme_id
+        LEFT JOIN scheme_engineer_details sed ON c.scheme_id = sed.scheme_id
         LEFT JOIN (
           SELECT DISTINCT ON (region) region, employee_name, email, phone
           FROM vendor
           ORDER BY region, id
         ) v ON c.region = v.region
+        LEFT JOIN issues i ON c.scheme_id = i.scheme_id
+        LEFT JOIN ack_status a ON c.scheme_id = a.scheme_id
         WHERE (c.chlorine_status = 'Offline' 
            OR c.pressure_status = 'Offline' 
            OR c.flow_meter_status = 'Offline')
           AND s.water_supply = 'Yes'
         ORDER BY c.region, c.scheme_name, c.village_name;
       `;
-      const result = await client.query(query);
+      const result = await client.query(query, queryParams);
       
       const mappedRows = result.rows.map((row: any) => {
         const offlineList: string[] = [];
@@ -327,15 +385,16 @@ router.get('/offline', async (req, res) => {
           current_value: offlineList.join(', '),
           previous_value: null,
           historical_value: null,
-          civil_engineer_name: row.civil_engineer_name || 'No Vendor Assigned',
+          civil_engineer_name: row.civil_engineer_name || 'No Engineer/Vendor Assigned',
           civil_engineer_email: row.civil_engineer_email || null,
           civil_engineer_mobile: row.civil_engineer_mobile || null,
-          mechanical_engineer_name: null,
-          mechanical_engineer_email: null,
-          site_supervisor_name: null,
-          site_supervisor_email: null,
+          mechanical_engineer_name: row.mechanical_engineer_name || null,
+          mechanical_engineer_email: row.mechanical_engineer_email || null,
+          site_supervisor_name: row.site_supervisor_name || null,
+          site_supervisor_email: row.site_supervisor_email || null,
           created_at: new Date().toISOString(),
-          remarks: []
+          remarks: row.remarks || [],
+          acknowledgements: row.acknowledgements || []
         };
       });
       

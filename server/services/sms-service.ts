@@ -13,6 +13,7 @@ interface Alert {
   pressure_issue?: boolean;
   lpcd_issue?: boolean;
   water_issue?: boolean;
+  offline_issue?: boolean;
 }
 
 /**
@@ -27,12 +28,14 @@ export async function sendDailyAlertSMS(mobile: string, name: string, alerts: Al
     let pressureCount = 0;
     let lpcdCount = 0;
     let waterCount = 0;
+    let offlineCount = 0;
 
     alerts.forEach((alert) => {
       if (alert.chlorine_issue) chlorineCount++;
       if (alert.pressure_issue) pressureCount++;
       if (alert.lpcd_issue) lpcdCount++;
       if (alert.water_issue) waterCount++;
+      if (alert.offline_issue) offlineCount++;
     });
 
     const parts = [];
@@ -40,6 +43,7 @@ export async function sendDailyAlertSMS(mobile: string, name: string, alerts: Al
     if (pressureCount > 0) parts.push(`${pressureCount} Pressure`);
     if (lpcdCount > 0) parts.push(`${lpcdCount} LPCD`);
     if (waterCount > 0) parts.push(`${waterCount} Water Supply`);
+    if (offlineCount > 0) parts.push(`${offlineCount} Offline Sensors`);
 
     const summaryText = parts.join(", ");
     
