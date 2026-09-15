@@ -1578,17 +1578,17 @@ export default function EngineerDashboard() {
           ) : (
             <Card className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
               <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left border-collapse">
+                <table className="w-full text-xs text-left border-collapse table-auto">
                   <thead className="bg-slate-50/90 dark:bg-slate-800/70 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold uppercase tracking-wider text-[11px]">
                     <tr>
-                      <th className="py-3 px-3 text-center w-10">#</th>
-                      <th className="py-3 px-4 text-left min-w-[220px]">Scheme & Location</th>
-                      <th className="py-3 px-4 text-left min-w-[170px]">ESR Reservoir</th>
-                      <th className="py-3 px-3 text-center min-w-[130px]">Alert Type</th>
-                      <th className="py-3 px-4 text-left min-w-[240px]">Recorded Value</th>
-                      <th className="py-3 px-3 text-center min-w-[100px]">Date</th>
-                      <th className="py-3 px-3 text-center min-w-[110px]">Status</th>
-                      <th className="py-3 px-4 text-right min-w-[210px]">Actions</th>
+                      <th className="py-3 px-2 text-center w-10">#</th>
+                      <th className="py-3 px-3 text-left min-w-[180px]">Scheme & Location</th>
+                      <th className="py-3 px-3 text-left min-w-[140px]">ESR Reservoir</th>
+                      <th className="py-3 px-2 text-center w-28 whitespace-nowrap">Alert Type</th>
+                      <th className="py-3 px-3 text-left min-w-[200px]">Recorded Value</th>
+                      <th className="py-3 px-2 text-center w-28 whitespace-nowrap">Date</th>
+                      <th className="py-3 px-2 text-center w-28 whitespace-nowrap">Status</th>
+                      <th className="py-3 px-4 text-right min-w-[160px] whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
@@ -1612,13 +1612,13 @@ export default function EngineerDashboard() {
                           className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors group"
                         >
                           {/* 1. Index */}
-                          <td className="py-3.5 px-3 text-center font-medium text-slate-400 group-hover:text-slate-600 align-middle">
+                          <td className="py-3 px-2 text-center font-medium text-slate-400 group-hover:text-slate-600 align-middle">
                             {idx + 1}
                           </td>
 
                           {/* 2. Scheme & Location */}
-                          <td className="py-3.5 px-4 align-middle">
-                            <div className="font-bold text-slate-900 dark:text-white leading-snug">
+                          <td className="py-3 px-3 align-middle">
+                            <div className="font-bold text-slate-900 dark:text-white leading-snug break-words">
                               {alert.parentSchemeName || alert.scheme_name || alert.scheme_id}
                             </div>
                             <div className="flex items-center gap-1.5 mt-1 flex-wrap">
@@ -1634,8 +1634,8 @@ export default function EngineerDashboard() {
                           </td>
 
                           {/* 3. ESR Reservoir */}
-                          <td className="py-3.5 px-4 align-middle">
-                            <div className="font-semibold text-slate-800 dark:text-slate-200">
+                          <td className="py-3 px-3 align-middle">
+                            <div className="font-semibold text-slate-800 dark:text-slate-200 break-words">
                               {alert.esr_name || "-"}
                             </div>
                             {alert.village_name && (
@@ -1646,14 +1646,14 @@ export default function EngineerDashboard() {
                           </td>
 
                           {/* 4. Alert Type Badge */}
-                          <td className="py-3.5 px-3 text-center align-middle">
+                          <td className="py-3 px-2 text-center align-middle whitespace-nowrap">
                             <Badge className={`${getAlertBadgeClass(formattedType)} px-2.5 py-1 text-[11px] font-bold shadow-xs whitespace-nowrap`}>
                               {formattedType}
                             </Badge>
                           </td>
 
                           {/* 5. Recorded Value Column */}
-                          <td className="py-3.5 px-4 align-middle">
+                          <td className="py-3 px-3 align-middle">
                             <div className="font-bold text-rose-600 dark:text-rose-400 text-xs leading-tight">
                               {getAlertValueDisplay(alert, formattedType)}
                             </div>
@@ -1661,12 +1661,17 @@ export default function EngineerDashboard() {
                               <div className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-[10px] font-medium shadow-xs">
                                 <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
                                 <span>Reminder sent: {reminderRecord.vendor_name || reminderRecord.vendor_email}</span>
+                                {reminderRecord.sent_at && (
+                                  <span className="text-amber-600/80 dark:text-amber-400/80 font-normal">
+                                    ({formatReminderTime(reminderRecord.sent_at)})
+                                  </span>
+                                )}
                               </div>
                             )}
                           </td>
 
                           {/* 6. Date & Ticket */}
-                          <td className="py-3.5 px-3 text-center align-middle">
+                          <td className="py-3 px-2 text-center align-middle whitespace-nowrap">
                             <div className="font-medium text-slate-700 dark:text-slate-300">
                               {alert.sent_date ? String(alert.sent_date).slice(0, 10) : "-"}
                             </div>
@@ -1678,7 +1683,7 @@ export default function EngineerDashboard() {
                           </td>
 
                           {/* 7. Status Badge */}
-                          <td className="py-3.5 px-3 text-center align-middle">
+                          <td className="py-3 px-2 text-center align-middle whitespace-nowrap">
                             {isAcked ? (
                               <Badge className="bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.5 inline-flex items-center gap-1 shadow-xs">
                                 <CheckCircle2 className="w-3 h-3 text-emerald-600" />
@@ -1693,61 +1698,53 @@ export default function EngineerDashboard() {
                           </td>
 
                           {/* 8. Actions */}
-                          <td className="py-3.5 px-4 text-right align-middle">
-                            <div className="flex flex-col items-end gap-1.5">
-                              <div className="flex items-center justify-end gap-1.5 flex-wrap">
-                                {formattedType === "Offline" && (
-                                  <Button
-                                    size="sm"
-                                    onClick={() => sendReminderMutation.mutate(alert)}
-                                    disabled={sendingReminderKey === alertKey || sendReminderMutation.isPending}
-                                    className={`h-7 px-2.5 text-xs font-semibold shadow-xs flex items-center gap-1 transition-all ${
-                                      reminderRecord
-                                        ? "bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800"
-                                        : "bg-amber-600 hover:bg-amber-700 text-white"
-                                    }`}
-                                    title={
-                                      reminderRecord
-                                        ? `Reminder previously sent to ${reminderRecord.vendor_name || reminderRecord.vendor_email}. Click to resend.`
-                                        : "Send offline reminder email to regional vendor"
-                                    }
-                                  >
-                                    {sendingReminderKey === alertKey ? (
-                                      <>
-                                        <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
-                                        Sending...
-                                      </>
-                                    ) : (
-                                      <>
-                                        <BellRing className="w-3.5 h-3.5 mr-1" />
-                                        {reminderRecord ? "Resend" : "Send Reminder"}
-                                      </>
-                                    )}
-                                  </Button>
-                                )}
-                                {!isAcked && (
-                                  <Button
-                                    size="sm"
-                                    onClick={() => acknowledgeMutation.mutate(alert)}
-                                    disabled={acknowledgeMutation.isPending}
-                                    className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs flex items-center gap-1"
-                                  >
-                                    <Check className="w-3.5 h-3.5" />
-                                    Acknowledge
-                                  </Button>
-                                )}
-                                <Link href={`/helpdesk/issue-reporting?scheme_id=${alert.scheme_id}`}>
-                                  <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs text-slate-700 hover:text-slate-900 border-slate-300 font-medium">
-                                    Remark
-                                  </Button>
-                                </Link>
-                              </div>
-                              {formattedType === "Offline" && reminderRecord && (
-                                <div className="text-[10px] text-amber-700 dark:text-amber-400 font-medium flex items-center gap-1">
-                                  <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
-                                  <span>Reminder sent to {reminderRecord.vendor_name || reminderRecord.vendor_email} ({formatReminderTime(reminderRecord.sent_at)})</span>
-                                </div>
+                          <td className="py-3 px-4 text-right align-middle whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1.5 flex-nowrap">
+                              {formattedType === "Offline" && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => sendReminderMutation.mutate(alert)}
+                                  disabled={sendingReminderKey === alertKey || sendReminderMutation.isPending}
+                                  className={`h-7 px-2.5 text-xs font-semibold shadow-xs flex items-center gap-1 shrink-0 transition-all ${
+                                    reminderRecord
+                                      ? "bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800"
+                                      : "bg-amber-600 hover:bg-amber-700 text-white"
+                                  }`}
+                                  title={
+                                    reminderRecord
+                                      ? `Reminder previously sent to ${reminderRecord.vendor_name || reminderRecord.vendor_email} (${formatReminderTime(reminderRecord.sent_at)}). Click to resend.`
+                                      : "Send offline reminder email to regional vendor"
+                                  }
+                                >
+                                  {sendingReminderKey === alertKey ? (
+                                    <>
+                                      <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                                      Sending...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <BellRing className="w-3.5 h-3.5 mr-1" />
+                                      {reminderRecord ? "Resend" : "Send Reminder"}
+                                    </>
+                                  )}
+                                </Button>
                               )}
+                              {!isAcked && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => acknowledgeMutation.mutate(alert)}
+                                  disabled={acknowledgeMutation.isPending}
+                                  className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs flex items-center gap-1 shrink-0"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  Acknowledge
+                                </Button>
+                              )}
+                              <Link href={`/helpdesk/issue-reporting?scheme_id=${alert.scheme_id}`}>
+                                <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs text-slate-700 hover:text-slate-900 border-slate-300 font-medium shrink-0">
+                                  Remark
+                                </Button>
+                              </Link>
                             </div>
                           </td>
                         </tr>
