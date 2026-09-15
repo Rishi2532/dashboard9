@@ -467,7 +467,6 @@ export async function sendDailyAlertEmail(
           <th style="padding: 10px; text-align: left; font-weight: bold; color: #475569; border: 1px solid #cbd5e1;">Scheme / Village</th>
           <th style="padding: 10px; text-align: left; font-weight: bold; color: #475569; border: 1px solid #cbd5e1;">ESR</th>
           <th style="padding: 10px; text-align: left; font-weight: bold; color: #475569; border: 1px solid #cbd5e1;">Critical Issues</th>
-          <th style="padding: 10px; text-align: center; font-weight: bold; color: #475569; border: 1px solid #cbd5e1; width: 110px;">Action</th>
         </tr>
       </thead>
       <tbody>
@@ -480,10 +479,6 @@ export async function sendDailyAlertEmail(
     if (alert.lpcd_issue) issues.push(`<span style="color: #dc2626; font-weight: bold;">LPCD:</span> ${alert.lpcd_value} (Below 55)`);
     if (alert.water_issue) issues.push(`<span style="color: #dc2626; font-weight: bold;">Water:</span> 0 (Zero Supply)`);
     if (alert.offline_issue) issues.push(`<span style="color: #ea580c; font-weight: bold;">Offline:</span> ${alert.offline_sensors || 'Sensors Offline'}`);
-
-    const ackLink = alert.token 
-      ? `${baseUrl}/api/acknowledge?token=${alert.token}` 
-      : (acknowledgeToken ? `${baseUrl}/api/acknowledge?token=${acknowledgeToken}` : null);
 
     alertsHtml += `
         <tr style="border-bottom: 1px solid #e2e8f0; background-color: ${alert.offline_issue ? '#fff7ed' : '#fffafb'};">
@@ -500,14 +495,6 @@ export async function sendDailyAlertEmail(
           <td style="padding: 10px; color: #1e293b; border: 1px solid #cbd5e1; vertical-align: middle;">
             ${issues.length > 0 ? issues.join('<br>') : '<span style="color: #64748b;">Critical Alert</span>'}
           </td>
-          <td style="padding: 10px; color: #1e293b; border: 1px solid #cbd5e1; vertical-align: middle; text-align: center;">
-            ${ackLink ? `
-              <a href="${ackLink}"
-                 style="display: inline-block; background: #16a34a; color: #ffffff !important; text-decoration: none; padding: 7px 14px; border-radius: 6px; font-size: 12px; font-weight: bold; white-space: nowrap;">
-                ✅ Acknowledge
-              </a>
-            ` : '-'}
-          </td>
         </tr>
     `;
   });
@@ -517,18 +504,24 @@ export async function sendDailyAlertEmail(
     </table>
   `;
 
-  // Single Acknowledge All button at the bottom of the email
-  const ackButtonHtml = acknowledgeToken ? `
+  const dashboardUrl = `${baseUrl.replace(/\/$/, '')}/engineer`;
+
+  // Instructions directing engineer to the dashboard to acknowledge
+  const ackInstructionsHtml = `
     <div style="background-color: #f0fdf4; border: 2px solid #16a34a; border-radius: 10px; padding: 20px; margin: 24px 0; text-align: center;">
-      <p style="margin: 0 0 6px 0; color: #15803d; font-weight: 700; font-size: 15px;">✅ Confirm Receipt of All Alerts</p>
-      <p style="margin: 0 0 16px 0; color: #166534; font-size: 13px;">Click the button below to acknowledge all ${alertsData.length} alerts in this email at once.</p>
-      <a href="${baseUrl}/api/acknowledge?token=${acknowledgeToken}"
-         style="display: inline-block; background: #16a34a; color: white; text-decoration: none; padding: 13px 36px; border-radius: 8px; font-size: 15px; font-weight: 700; letter-spacing: 0.3px;">
-        ✅ Acknowledge All Alerts (${alertsData.length})
+      <p style="margin: 0 0 8px 0; color: #15803d; font-weight: 700; font-size: 16px;">📌 Acknowledgement & Action Required</p>
+      <p style="margin: 0 0 16px 0; color: #166534; font-size: 14px; line-height: 1.5;">
+        Please visit the <strong>Engineer Dashboard</strong> on the MahaJal IoT portal to view and acknowledge these critical alerts, track scheme status, and submit action remarks.
+      </p>
+      <a href="${dashboardUrl}"
+         style="display: inline-block; background: #16a34a; color: #ffffff !important; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 700; letter-spacing: 0.3px;">
+        🔗 Visit Engineer Dashboard to Acknowledge
       </a>
-      <p style="margin: 10px 0 0 0; font-size: 11px; color: #6b7280;">Or use the individual buttons in the table above to acknowledge schemes separately.</p>
+      <p style="margin: 12px 0 0 0; font-size: 12px; color: #64748b;">
+        Direct URL: <a href="${dashboardUrl}" style="color: #2563eb; text-decoration: underline;">${dashboardUrl}</a>
+      </p>
     </div>
-  ` : '';
+  `;
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
@@ -543,11 +536,11 @@ export async function sendDailyAlertEmail(
 
         ${alertsHtml}
 
-        ${ackButtonHtml}
+        ${ackInstructionsHtml}
 
         <div style="background-color: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 20px 0;">
           <p style="margin: 0; color: #92400e;"><strong>⏰ Action Required:</strong></p>
-          <p style="margin: 5px 0 0 0; color: #92400e;">Please review these schemes immediately to resolve the underlying issues. If the issue persists after 48 hours please visit <a href="https://dashboard1.mahajaliot.in/helpdesk/issue-reporting" style="color: #2563eb; text-decoration: underline;">dashboard1.mahajaliot.in</a> and write the remark on issue reports page.</p>
+          <p style="margin: 5px 0 0 0; color: #92400e;">Please review these schemes immediately to resolve the underlying issues. If the issue persists after 48 hours please visit <a href="${baseUrl.replace(/\/$/, '')}/helpdesk/issue-reporting" style="color: #2563eb; text-decoration: underline;">Issue Reporting</a> and record your remark.</p>
         </div>
 
         <p style="color: #374151;">This is an automated notification from Maharashtra Water Infrastructure Management Platform.</p>
