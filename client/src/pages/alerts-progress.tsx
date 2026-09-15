@@ -1135,19 +1135,18 @@ export default function AlertsProgressPage() {
                                   <div className="space-y-0.5">
                                     {row.civil_engineer_name && (
                                       <div className="text-[11px] text-slate-700">
-                                        <span className="font-semibold">{row.civil_engineer_name}</span> (Civil)
+                                        <span className="font-semibold">{row.civil_engineer_name}</span> (DE/AE Civil)
                                       </div>
                                     )}
-                                    {row.mechanical_engineer_name && (
+                                    {row.site_supervisor_name ? (
                                       <div className="text-[11px] text-slate-700">
-                                        <span className="font-semibold">{row.mechanical_engineer_name}</span> (Mech)
+                                        <span className="font-semibold">{row.site_supervisor_name}</span> (DE/AE Mech)
                                       </div>
-                                    )}
-                                    {row.site_supervisor_name && (
+                                    ) : row.mechanical_engineer_name ? (
                                       <div className="text-[11px] text-slate-700">
-                                        <span className="font-semibold">{row.site_supervisor_name}</span> (Supervisor)
+                                        <span className="font-semibold">{row.mechanical_engineer_name}</span> (DE/AE Mech)
                                       </div>
-                                    )}
+                                    ) : null}
                                     {!row.civil_engineer_name && !row.mechanical_engineer_name && !row.site_supervisor_name && (
                                       <span className="text-slate-400 italic">No engineer assigned</span>
                                     )}
@@ -1352,28 +1351,26 @@ export default function AlertsProgressPage() {
                           renderEngineerContact(
                             selectedEngineers.row.civil_engineer_name, 
                             selectedEngineers.row.civil_engineer_email, 
-                            isVendorOnly ? "Assigned Vendor" : "Civil Engineer", 
+                            isVendorOnly ? "Assigned Vendor" : "DE/AE (Civil)", 
                             getAckStatus(selectedEngineers.row.civil_engineer_email)
                           )
                         ) : (
-                          <div className="text-sm text-slate-500 py-2 border-b border-slate-50">No Civil Engineer assigned</div>
+                          <div className="text-sm text-slate-500 py-2 border-b border-slate-50">No DE/AE (Civil) assigned</div>
                         )}
-
-                        {selectedEngineers.row.mechanical_engineer_name ? (
-                          renderEngineerContact(
-                            selectedEngineers.row.mechanical_engineer_name, 
-                            selectedEngineers.row.mechanical_engineer_email, 
-                            "Mechanical Engineer", 
-                            getAckStatus(selectedEngineers.row.mechanical_engineer_email)
-                          )
-                        ) : null}
 
                         {selectedEngineers.row.site_supervisor_name ? (
                           renderEngineerContact(
                             selectedEngineers.row.site_supervisor_name, 
                             selectedEngineers.row.site_supervisor_email, 
-                            "Site Supervisor", 
+                            "DE/AE (Mech)", 
                             getAckStatus(selectedEngineers.row.site_supervisor_email)
+                          )
+                        ) : selectedEngineers.row.mechanical_engineer_name ? (
+                          renderEngineerContact(
+                            selectedEngineers.row.mechanical_engineer_name, 
+                            selectedEngineers.row.mechanical_engineer_email, 
+                            "DE/AE (Mech)", 
+                            getAckStatus(selectedEngineers.row.mechanical_engineer_email)
                           )
                         ) : null}
                       </>

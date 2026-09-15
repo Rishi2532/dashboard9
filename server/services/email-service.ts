@@ -95,7 +95,8 @@ function getSmtpTransporter() {
 }
 
 interface EmailParams {
-  to: string;
+  to: string | string[];
+  cc?: string | string[];
   from: string | { name: string; email: string };
   replyTo?: string;
   subject: string;
@@ -123,12 +124,13 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
         }
       };
 
+      if (params.cc) mailOptions.cc = params.cc;
       if (params.html) mailOptions.html = params.html;
       if (params.text) mailOptions.text = params.text;
       if (params.replyTo) mailOptions.replyTo = params.replyTo;
 
       await transporter.sendMail(mailOptions);
-      console.log(`Email sent successfully to ${params.to} via SMTP`);
+      console.log(`Email sent successfully to ${Array.isArray(params.to) ? params.to.join(', ') : params.to} ${params.cc ? `(cc: ${Array.isArray(params.cc) ? params.cc.join(', ') : params.cc})` : ''} via SMTP`);
       return true;
     } else {
       const { client, fromEmail } = await getUncachableResendClient();
@@ -144,12 +146,13 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
         subject: params.subject,
       };
 
+      if (params.cc) emailData.cc = params.cc;
       if (params.html) emailData.html = params.html;
       if (params.text) emailData.text = params.text;
       if (params.replyTo) emailData.reply_to = params.replyTo;
 
       await client.emails.send(emailData);
-      console.log(`Email sent successfully to ${params.to} via Resend`);
+      console.log(`Email sent successfully to ${Array.isArray(params.to) ? params.to.join(', ') : params.to} via Resend`);
       return true;
     }
   } catch (error) {
@@ -741,6 +744,13 @@ export async function sendAutomaticOfflineEmails(): Promise<void> {
   }
 }
 
+export interface OfflineReminderEngineer {
+  role: string;
+  name: string;
+  email?: string | null;
+  mobile?: string | null;
+}
+
 export interface OfflineReminderEmailParams {
   vendorEmail: string;
   vendorName: string;
@@ -753,6 +763,8 @@ export interface OfflineReminderEmailParams {
   ticket_id?: string | null;
   engineerName?: string | null;
   engineerEmail?: string | null;
+  engineers?: OfflineReminderEngineer[];
+  ccEmails?: string[];
 }
 
 export async function sendSingleOfflineReminderEmail(
@@ -769,6 +781,45 @@ export async function sendSingleOfflineReminderEmail(
     minute: "2-digit",
     hour12: true,
   });
+
+  let engineersHtml = "";
+  if (params.engineers && params.engineers.length > 0) {
+    let engRows = "";
+    params.engineers.forEach((eng, idx) => {
+      engRows += `
+        <tr style="border-bottom: 1px solid #e2e8f0; background-color: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+          <td style="padding: 6px 10px; font-weight: 700; color: #1e293b; border: 1px solid #cbd5e1; width: 140px;">${eng.role}</td>
+          <td style="padding: 6px 10px; color: #334155; border: 1px solid #cbd5e1;">${eng.name || "-"}</td>
+          <td style="padding: 6px 10px; color: #2563eb; border: 1px solid #cbd5e1;">${eng.email ? `<a href="mailto:${eng.email}" style="color: #2563eb; text-decoration: none;">${eng.email}</a>` : "-"}</td>
+          <td style="padding: 6px 10px; font-family: monospace; color: #475569; border: 1px solid #cbd5e1;">${eng.mobile || "-"}</td>
+        </tr>
+      `;
+    });
+
+    engineersHtml = `
+      <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px 16px; margin: 20px 0;">
+        <p style="margin: 0 0 10px 0; font-weight: 700; color: #0f172a; font-size: 13px;">
+          👥 Copied Supervisory Department Engineers (Oversight Team):
+        </p>
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px; border: 1px solid #cbd5e1;">
+          <thead>
+            <tr style="background-color: #e2e8f0; color: #334155; font-size: 11px; text-transform: uppercase;">
+              <th style="padding: 6px 10px; text-align: left; border: 1px solid #cbd5e1;">Designation</th>
+              <th style="padding: 6px 10px; text-align: left; border: 1px solid #cbd5e1;">Name</th>
+              <th style="padding: 6px 10px; text-align: left; border: 1px solid #cbd5e1;">Email</th>
+              <th style="padding: 6px 10px; text-align: left; border: 1px solid #cbd5e1;">Mobile</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${engRows}
+          </tbody>
+        </table>
+        <p style="margin: 8px 0 0 0; font-size: 11px; color: #64748b;">
+          * Note: Department engineers (DE/AE Civil, DE/AE Mech, Superintending Engineer, Chief Engineer) are copied on this notification for institutional oversight and compliance tracking.
+        </p>
+      </div>
+    `;
+  }
 
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden;">
@@ -821,6 +872,8 @@ export async function sendSingleOfflineReminderEmail(
           </table>
         </div>
 
+        ${engineersHtml}
+
         <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px; padding: 14px 16px; margin: 20px 0;">
           <p style="margin: 0; color: #92400e; font-weight: 700; font-size: 13px;">⚡ Immediate Action Requested:</p>
           <p style="margin: 5px 0 0 0; color: #92400e; font-size: 13px; line-height: 1.4;">
@@ -838,6 +891,7 @@ export async function sendSingleOfflineReminderEmail(
 
   return sendEmail({
     to: params.vendorEmail,
+    cc: params.ccEmails && params.ccEmails.length > 0 ? params.ccEmails : undefined,
     from: "Maharashtra Water Alert",
     replyTo: params.engineerEmail || "noreply@maharashtrawater.gov.in",
     subject,
@@ -864,6 +918,8 @@ export interface BatchOfflineReminderEmailParams {
   }>;
   engineerName?: string | null;
   engineerEmail?: string | null;
+  engineers?: OfflineReminderEngineer[];
+  ccEmails?: string[];
 }
 
 export async function sendBatchOfflineReminderEmail(
@@ -906,6 +962,45 @@ export async function sendBatchOfflineReminderEmail(
     `;
   });
 
+  let engineersHtml = "";
+  if (params.engineers && params.engineers.length > 0) {
+    let engRows = "";
+    params.engineers.forEach((eng, idx) => {
+      engRows += `
+        <tr style="border-bottom: 1px solid #e2e8f0; background-color: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+          <td style="padding: 6px 10px; font-weight: 700; color: #1e293b; border: 1px solid #cbd5e1; width: 140px;">${eng.role}</td>
+          <td style="padding: 6px 10px; color: #334155; border: 1px solid #cbd5e1;">${eng.name || "-"}</td>
+          <td style="padding: 6px 10px; color: #2563eb; border: 1px solid #cbd5e1;">${eng.email ? `<a href="mailto:${eng.email}" style="color: #2563eb; text-decoration: none;">${eng.email}</a>` : "-"}</td>
+          <td style="padding: 6px 10px; font-family: monospace; color: #475569; border: 1px solid #cbd5e1;">${eng.mobile || "-"}</td>
+        </tr>
+      `;
+    });
+
+    engineersHtml = `
+      <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px 16px; margin: 20px 0;">
+        <p style="margin: 0 0 10px 0; font-weight: 700; color: #0f172a; font-size: 13px;">
+          👥 Copied Supervisory Department Engineers (Oversight Team):
+        </p>
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px; border: 1px solid #cbd5e1;">
+          <thead>
+            <tr style="background-color: #e2e8f0; color: #334155; font-size: 11px; text-transform: uppercase;">
+              <th style="padding: 6px 10px; text-align: left; border: 1px solid #cbd5e1;">Designation</th>
+              <th style="padding: 6px 10px; text-align: left; border: 1px solid #cbd5e1;">Name</th>
+              <th style="padding: 6px 10px; text-align: left; border: 1px solid #cbd5e1;">Email</th>
+              <th style="padding: 6px 10px; text-align: left; border: 1px solid #cbd5e1;">Mobile</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${engRows}
+          </tbody>
+        </table>
+        <p style="margin: 8px 0 0 0; font-size: 11px; color: #64748b;">
+          * Note: Department engineers (DE/AE Civil, DE/AE Mech, Superintending Engineer, Chief Engineer) are copied on this consolidated notification for institutional oversight and compliance tracking.
+        </p>
+      </div>
+    `;
+  }
+
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 680px; margin: 0 auto; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden;">
       <div style="background-color: #dc2626; color: white; padding: 22px 20px; text-align: center;">
@@ -934,6 +1029,8 @@ export async function sendBatchOfflineReminderEmail(
           </tbody>
         </table>
 
+        ${engineersHtml}
+
         <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px; padding: 14px 16px; margin: 20px 0;">
           <p style="margin: 0; color: #92400e; font-weight: 700; font-size: 13px;">⚡ Immediate Action Requested:</p>
           <p style="margin: 5px 0 0 0; color: #92400e; font-size: 13px; line-height: 1.4;">
@@ -954,6 +1051,7 @@ export async function sendBatchOfflineReminderEmail(
 
   return sendEmail({
     to: params.vendorEmail,
+    cc: params.ccEmails && params.ccEmails.length > 0 ? params.ccEmails : undefined,
     from: "Maharashtra Water Alert",
     replyTo: params.engineerEmail || "noreply@maharashtrawater.gov.in",
     subject,

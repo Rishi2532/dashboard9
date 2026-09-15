@@ -127,7 +127,7 @@ const requireApiKeyOrAuth = (req: Request, res: Response, next: NextFunction) =>
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Ensure offline_reminder_logs table exists
+  // Ensure offline_reminder_logs table and scheme_engineer_details columns exist
   try {
     const initDb = await getDB();
     await initDb.execute(sql`
@@ -146,14 +146,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sent_by_user_id INTEGER,
         sent_by_name VARCHAR(255),
         sent_by_email VARCHAR(255),
+        copied_engineers TEXT,
+        ee_civil_email VARCHAR(255),
+        ee_mech_email VARCHAR(255),
+        de_ae_civil_email VARCHAR(255),
+        de_ae_mech_email VARCHAR(255),
+        se_email VARCHAR(255),
+        chief_engineer_email VARCHAR(255),
         sent_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
       CREATE INDEX IF NOT EXISTS idx_offline_reminder_logs_alert_id ON offline_reminder_logs(alert_id);
       CREATE INDEX IF NOT EXISTS idx_offline_reminder_logs_scheme ON offline_reminder_logs(scheme_id);
       CREATE INDEX IF NOT EXISTS idx_offline_reminder_logs_ticket ON offline_reminder_logs(ticket_id);
+
+      -- Ensure columns in offline_reminder_logs
+      ALTER TABLE offline_reminder_logs ADD COLUMN IF NOT EXISTS ee_civil_email VARCHAR(255);
+      ALTER TABLE offline_reminder_logs ADD COLUMN IF NOT EXISTS ee_mech_email VARCHAR(255);
+
+      -- Ensure columns in scheme_engineer_details
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS ee_civil_name VARCHAR(255);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS ee_civil_mobile VARCHAR(20);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS ee_civil_email VARCHAR(255);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS ee_mech_name VARCHAR(255);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS ee_mech_mobile VARCHAR(20);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS ee_mech_email VARCHAR(255);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS de_ae_civil_name VARCHAR(255);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS de_ae_civil_mobile VARCHAR(20);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS de_ae_civil_email VARCHAR(255);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS de_ae_mech_name VARCHAR(255);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS de_ae_mech_mobile VARCHAR(20);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS de_ae_mech_email VARCHAR(255);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS se_name VARCHAR(255);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS se_mobile VARCHAR(20);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS se_email VARCHAR(255);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS chief_engineer_name VARCHAR(255);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS chief_engineer_mobile VARCHAR(20);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS chief_engineer_email VARCHAR(255);
+
+      UPDATE scheme_engineer_details
+      SET de_ae_mech_name = COALESCE(de_ae_mech_name, site_supervisor_name),
+          de_ae_mech_mobile = COALESCE(de_ae_mech_mobile, site_supervisor_mobile),
+          de_ae_mech_email = COALESCE(de_ae_mech_email, site_supervisor_email)
+      WHERE de_ae_mech_name IS NULL AND site_supervisor_name IS NOT NULL;
+
+      UPDATE scheme_engineer_details
+      SET de_ae_civil_name = COALESCE(de_ae_civil_name, civil_engineer_name),
+          de_ae_civil_mobile = COALESCE(de_ae_civil_mobile, civil_engineer_mobile),
+          de_ae_civil_email = COALESCE(de_ae_civil_email, civil_engineer_email)
+      WHERE de_ae_civil_name IS NULL AND civil_engineer_name IS NOT NULL;
     `);
   } catch (initErr) {
-    console.error("Error ensuring offline_reminder_logs table:", initErr);
+    console.error("Error ensuring offline_reminder_logs and scheme_engineer_details table:", initErr);
   }
 
   // Mount admin engineer credential management routes (admin only)
@@ -1731,12 +1774,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const engineerEmail = currentUser?.email || req.session?.engineerEmail || "";
       const currentUserId = req.session?.userId || null;
 
-      // 4. Send reminder email to each matching vendor and log to DB
+      // 3.5. Fetch scheme engineers (EE Civil, EE Mech, DE/AE Civil, DE/AE Mech, SE, Chief Engineer)
+      const engDetailsRes: any = await db.execute(sql`
+        SELECT 
+          scheme_id,
+          ee_civil_name,
+          ee_civil_email,
+          ee_civil_mobile,
+          ee_mech_name,
+          ee_mech_email,
+          ee_mech_mobile,
+          COALESCE(de_ae_civil_name, civil_engineer_name) as de_ae_civil_name,
+          COALESCE(de_ae_civil_email, civil_engineer_email) as de_ae_civil_email,
+          COALESCE(de_ae_civil_mobile, civil_engineer_mobile) as de_ae_civil_mobile,
+          COALESCE(de_ae_mech_name, site_supervisor_name, mechanical_engineer_name) as de_ae_mech_name,
+          COALESCE(de_ae_mech_email, site_supervisor_email, mechanical_engineer_email) as de_ae_mech_email,
+          COALESCE(de_ae_mech_mobile, site_supervisor_mobile, mechanical_engineer_mobile) as de_ae_mech_mobile,
+          se_name,
+          se_email,
+          se_mobile,
+          chief_engineer_name,
+          chief_engineer_email,
+          chief_engineer_mobile
+        FROM scheme_engineer_details
+        WHERE scheme_id = ${scheme_id}
+        LIMIT 1
+      `);
+      const engRow = (engDetailsRes.rows || engDetailsRes || [])[0] || null;
+
+      const schemeEngineersList: Array<{ role: string; name: string; email?: string | null; mobile?: string | null }> = [];
+      const ccEmailsSet = new Set<string>();
+
+      if (engRow) {
+        if (engRow.ee_civil_name || engRow.ee_civil_email) {
+          schemeEngineersList.push({
+            role: "EE (Civil)",
+            name: engRow.ee_civil_name || "EE (Civil)",
+            email: engRow.ee_civil_email,
+            mobile: engRow.ee_civil_mobile,
+          });
+          if (engRow.ee_civil_email && engRow.ee_civil_email.includes("@")) {
+            ccEmailsSet.add(engRow.ee_civil_email.trim().toLowerCase());
+          }
+        }
+
+        if (engRow.ee_mech_name || engRow.ee_mech_email) {
+          schemeEngineersList.push({
+            role: "EE (Mech)",
+            name: engRow.ee_mech_name || "EE (Mech)",
+            email: engRow.ee_mech_email,
+            mobile: engRow.ee_mech_mobile,
+          });
+          if (engRow.ee_mech_email && engRow.ee_mech_email.includes("@")) {
+            ccEmailsSet.add(engRow.ee_mech_email.trim().toLowerCase());
+          }
+        }
+
+        if (engRow.de_ae_civil_name || engRow.de_ae_civil_email) {
+          schemeEngineersList.push({
+            role: "DE/AE (Civil)",
+            name: engRow.de_ae_civil_name || "DE/AE (Civil)",
+            email: engRow.de_ae_civil_email,
+            mobile: engRow.de_ae_civil_mobile,
+          });
+          if (engRow.de_ae_civil_email && engRow.de_ae_civil_email.includes("@")) {
+            ccEmailsSet.add(engRow.de_ae_civil_email.trim().toLowerCase());
+          }
+        }
+
+        if (engRow.de_ae_mech_name || engRow.de_ae_mech_email) {
+          schemeEngineersList.push({
+            role: "DE/AE (Mech)",
+            name: engRow.de_ae_mech_name || "DE/AE (Mech)",
+            email: engRow.de_ae_mech_email,
+            mobile: engRow.de_ae_mech_mobile,
+          });
+          if (engRow.de_ae_mech_email && engRow.de_ae_mech_email.includes("@")) {
+            ccEmailsSet.add(engRow.de_ae_mech_email.trim().toLowerCase());
+          }
+        }
+
+        if (engRow.se_name || engRow.se_email) {
+          schemeEngineersList.push({
+            role: "Superintending Engineer (SE)",
+            name: engRow.se_name || "Superintending Engineer",
+            email: engRow.se_email,
+            mobile: engRow.se_mobile,
+          });
+          if (engRow.se_email && engRow.se_email.includes("@")) {
+            ccEmailsSet.add(engRow.se_email.trim().toLowerCase());
+          }
+        }
+
+        if (engRow.chief_engineer_name || engRow.chief_engineer_email) {
+          schemeEngineersList.push({
+            role: "Chief Engineer",
+            name: engRow.chief_engineer_name || "Chief Engineer",
+            email: engRow.chief_engineer_email,
+            mobile: engRow.chief_engineer_mobile,
+          });
+          if (engRow.chief_engineer_email && engRow.chief_engineer_email.includes("@")) {
+            ccEmailsSet.add(engRow.chief_engineer_email.trim().toLowerCase());
+          }
+        }
+      }
+
+      if (engineerEmail && engineerEmail.includes("@")) {
+        ccEmailsSet.add(engineerEmail.trim().toLowerCase());
+      }
+
+      const copiedEngineersText = schemeEngineersList
+        .map((e) => `${e.role}: ${e.name}${e.email ? ` (${e.email})` : ""}`)
+        .join("; ");
+
+      // 4. Send reminder email to each matching vendor (with CC to engineers) and log to DB
       const sentVendors: { name: string; email: string }[] = [];
       const offlineSensorText = offline_sensors || "Sensors Offline";
 
       for (const vendor of validVendors) {
         try {
+          const vendorEmailClean = vendor.email.trim().toLowerCase();
+          const finalCcList = Array.from(ccEmailsSet).filter((e) => e !== vendorEmailClean);
+
           await sendSingleOfflineReminderEmail({
             vendorEmail: vendor.email.trim(),
             vendorName: vendor.employee_name || "Regional Vendor",
@@ -1749,14 +1908,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ticket_id: ticket_id || null,
             engineerName,
             engineerEmail,
+            engineers: schemeEngineersList,
+            ccEmails: finalCcList,
           });
 
-          // Insert into offline_reminder_logs
+          // Insert into offline_reminder_logs with copied engineers recorded
           await db.execute(sql`
             INSERT INTO offline_reminder_logs (
               alert_id, ticket_id, scheme_id, scheme_name, village_name, esr_name,
               region, offline_sensors, vendor_name, vendor_email,
-              sent_by_user_id, sent_by_name, sent_by_email, sent_at
+              sent_by_user_id, sent_by_name, sent_by_email,
+              copied_engineers, ee_civil_email, ee_mech_email, de_ae_civil_email, de_ae_mech_email, se_email, chief_engineer_email,
+              sent_at
             ) VALUES (
               ${alert_id ? parseInt(String(alert_id)) : null},
               ${ticket_id || null},
@@ -1771,6 +1934,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               ${currentUserId},
               ${engineerName},
               ${engineerEmail},
+              ${copiedEngineersText || null},
+              ${engRow?.ee_civil_email || null},
+              ${engRow?.ee_mech_email || null},
+              ${engRow?.de_ae_civil_email || null},
+              ${engRow?.de_ae_mech_email || null},
+              ${engRow?.se_email || null},
+              ${engRow?.chief_engineer_email || null},
               NOW()
             )
           `);
@@ -1925,6 +2095,143 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const email of emails) {
         const group = vendorGroups[email];
         try {
+          // Query scheme_engineer_details for all schemes in this vendor group
+          const groupSchemeIds = Array.from(new Set(group.items.map((it) => it.scheme_id)));
+          let groupEngineersList: Array<{ role: string; name: string; email?: string | null; mobile?: string | null }> = [];
+          const groupCcEmailsSet = new Set<string>();
+
+          if (groupSchemeIds.length > 0) {
+            const engRes: any = await db.execute(sql`
+              SELECT 
+                scheme_id,
+                ee_civil_name,
+                ee_civil_email,
+                ee_civil_mobile,
+                ee_mech_name,
+                ee_mech_email,
+                ee_mech_mobile,
+                COALESCE(de_ae_civil_name, civil_engineer_name) as de_ae_civil_name,
+                COALESCE(de_ae_civil_email, civil_engineer_email) as de_ae_civil_email,
+                COALESCE(de_ae_civil_mobile, civil_engineer_mobile) as de_ae_civil_mobile,
+                COALESCE(de_ae_mech_name, site_supervisor_name, mechanical_engineer_name) as de_ae_mech_name,
+                COALESCE(de_ae_mech_email, site_supervisor_email, mechanical_engineer_email) as de_ae_mech_email,
+                COALESCE(de_ae_mech_mobile, site_supervisor_mobile, mechanical_engineer_mobile) as de_ae_mech_mobile,
+                se_name,
+                se_email,
+                se_mobile,
+                chief_engineer_name,
+                chief_engineer_email,
+                chief_engineer_mobile
+              FROM scheme_engineer_details
+              WHERE scheme_id = ANY(${groupSchemeIds})
+            `);
+            const engRows = engRes.rows || engRes || [];
+            const seenRoles = new Set<string>();
+
+            for (const er of engRows) {
+              if (er.ee_civil_name || er.ee_civil_email) {
+                const k = `ee-civil-${er.ee_civil_email || er.ee_civil_name}`;
+                if (!seenRoles.has(k)) {
+                  seenRoles.add(k);
+                  groupEngineersList.push({
+                    role: "EE (Civil)",
+                    name: er.ee_civil_name || "EE (Civil)",
+                    email: er.ee_civil_email,
+                    mobile: er.ee_civil_mobile,
+                  });
+                  if (er.ee_civil_email && er.ee_civil_email.includes("@")) {
+                    groupCcEmailsSet.add(er.ee_civil_email.trim().toLowerCase());
+                  }
+                }
+              }
+              if (er.ee_mech_name || er.ee_mech_email) {
+                const k = `ee-mech-${er.ee_mech_email || er.ee_mech_name}`;
+                if (!seenRoles.has(k)) {
+                  seenRoles.add(k);
+                  groupEngineersList.push({
+                    role: "EE (Mech)",
+                    name: er.ee_mech_name || "EE (Mech)",
+                    email: er.ee_mech_email,
+                    mobile: er.ee_mech_mobile,
+                  });
+                  if (er.ee_mech_email && er.ee_mech_email.includes("@")) {
+                    groupCcEmailsSet.add(er.ee_mech_email.trim().toLowerCase());
+                  }
+                }
+              }
+              if (er.de_ae_civil_name || er.de_ae_civil_email) {
+                const k = `civil-${er.de_ae_civil_email || er.de_ae_civil_name}`;
+                if (!seenRoles.has(k)) {
+                  seenRoles.add(k);
+                  groupEngineersList.push({
+                    role: "DE/AE (Civil)",
+                    name: er.de_ae_civil_name || "DE/AE (Civil)",
+                    email: er.de_ae_civil_email,
+                    mobile: er.de_ae_civil_mobile,
+                  });
+                  if (er.de_ae_civil_email && er.de_ae_civil_email.includes("@")) {
+                    groupCcEmailsSet.add(er.de_ae_civil_email.trim().toLowerCase());
+                  }
+                }
+              }
+              if (er.de_ae_mech_name || er.de_ae_mech_email) {
+                const k = `mech-${er.de_ae_mech_email || er.de_ae_mech_name}`;
+                if (!seenRoles.has(k)) {
+                  seenRoles.add(k);
+                  groupEngineersList.push({
+                    role: "DE/AE (Mech)",
+                    name: er.de_ae_mech_name || "DE/AE (Mech)",
+                    email: er.de_ae_mech_email,
+                    mobile: er.de_ae_mech_mobile,
+                  });
+                  if (er.de_ae_mech_email && er.de_ae_mech_email.includes("@")) {
+                    groupCcEmailsSet.add(er.de_ae_mech_email.trim().toLowerCase());
+                  }
+                }
+              }
+              if (er.se_name || er.se_email) {
+                const k = `se-${er.se_email || er.se_name}`;
+                if (!seenRoles.has(k)) {
+                  seenRoles.add(k);
+                  groupEngineersList.push({
+                    role: "Superintending Engineer (SE)",
+                    name: er.se_name || "Superintending Engineer",
+                    email: er.se_email,
+                    mobile: er.se_mobile,
+                  });
+                  if (er.se_email && er.se_email.includes("@")) {
+                    groupCcEmailsSet.add(er.se_email.trim().toLowerCase());
+                  }
+                }
+              }
+              if (er.chief_engineer_name || er.chief_engineer_email) {
+                const k = `ce-${er.chief_engineer_email || er.chief_engineer_name}`;
+                if (!seenRoles.has(k)) {
+                  seenRoles.add(k);
+                  groupEngineersList.push({
+                    role: "Chief Engineer",
+                    name: er.chief_engineer_name || "Chief Engineer",
+                    email: er.chief_engineer_email,
+                    mobile: er.chief_engineer_mobile,
+                  });
+                  if (er.chief_engineer_email && er.chief_engineer_email.includes("@")) {
+                    groupCcEmailsSet.add(er.chief_engineer_email.trim().toLowerCase());
+                  }
+                }
+              }
+            }
+          }
+
+          if (engineerEmail && engineerEmail.includes("@")) {
+            groupCcEmailsSet.add(engineerEmail.trim().toLowerCase());
+          }
+          groupCcEmailsSet.delete(group.vendorEmail.toLowerCase());
+
+          const finalGroupCcList = Array.from(groupCcEmailsSet);
+          const copiedEngineersText = groupEngineersList
+            .map((e) => `${e.role}: ${e.name}${e.email ? ` (${e.email})` : ""}`)
+            .join("; ");
+
           if (group.items.length === 1) {
             const single = group.items[0];
             await sendSingleOfflineReminderEmail({
@@ -1939,6 +2246,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               ticket_id: single.ticket_id,
               engineerName,
               engineerEmail,
+              engineers: groupEngineersList,
+              ccEmails: finalGroupCcList,
             });
           } else {
             await sendBatchOfflineReminderEmail({
@@ -1948,6 +2257,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               items: group.items,
               engineerName,
               engineerEmail,
+              engineers: groupEngineersList,
+              ccEmails: finalGroupCcList,
             });
           }
 
@@ -1959,7 +2270,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               INSERT INTO offline_reminder_logs (
                 alert_id, ticket_id, scheme_id, scheme_name, village_name, esr_name,
                 region, offline_sensors, vendor_name, vendor_email,
-                sent_by_user_id, sent_by_name, sent_by_email, sent_at
+                sent_by_user_id, sent_by_name, sent_by_email,
+                copied_engineers,
+                sent_at
               ) VALUES (
                 ${item.alert_id},
                 ${item.ticket_id},
@@ -1974,6 +2287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 ${currentUserId},
                 ${engineerName},
                 ${engineerEmail},
+                ${copiedEngineersText || null},
                 NOW()
               )
             `);

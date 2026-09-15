@@ -39,7 +39,7 @@ interface Alert {
 export function startDailyAlertsCron() {
   // Run every day at 11:13 AM
   // You can adjust the cron expression as needed: '13 11 * * *'
-  cron.schedule("54 11   * * *", async () => {
+  cron.schedule("25 13   * * *", async () => {
     await runDailyAlertsJob();
     console.log("? Running automatic offline emails to vendors...");
     await sendAutomaticOfflineEmails();
@@ -233,74 +233,147 @@ export async function runDailyAlertsJob() {
           return emailRegex.test(cleaned) ? cleaned : null;
         };
 
-        // Civil Engineer
-        const civEmail = sanitizeEmail(engineer.civil_engineer_email);
+        // 1. EE (Civil) - Executive Engineer
+        const eeCivEmail = sanitizeEmail(engineer.ee_civil_email);
+        if (eeCivEmail) {
+          if (!emailsToSend[eeCivEmail]) {
+            emailsToSend[eeCivEmail] = {
+              name: engineer.ee_civil_name || "EE (Civil)",
+              alerts: [],
+            };
+          }
+          emailsToSend[eeCivEmail].alerts.push(...schemeAlerts);
+        }
+
+        // 2. EE (Mech) - Executive Engineer
+        const eeMechEmail = sanitizeEmail(engineer.ee_mech_email);
+        if (eeMechEmail) {
+          if (!emailsToSend[eeMechEmail]) {
+            emailsToSend[eeMechEmail] = {
+              name: engineer.ee_mech_name || "EE (Mech)",
+              alerts: [],
+            };
+          }
+          emailsToSend[eeMechEmail].alerts.push(...schemeAlerts);
+        }
+
+        // 3. DE/AE (Civil)
+        const civEmail = sanitizeEmail(engineer.de_ae_civil_email || engineer.civil_engineer_email);
         if (civEmail) {
           if (!emailsToSend[civEmail]) {
             emailsToSend[civEmail] = {
-              name: engineer.civil_engineer_name || "Civil Engineer",
+              name: engineer.de_ae_civil_name || engineer.civil_engineer_name || "DE/AE (Civil)",
               alerts: [],
             };
           }
           emailsToSend[civEmail].alerts.push(...schemeAlerts);
         }
 
-        // Mechanical Engineer
-        const mechEmail = sanitizeEmail(engineer.mechanical_engineer_email);
+        // 4. DE/AE (Mech)
+        const mechEmail = sanitizeEmail(engineer.de_ae_mech_email || engineer.site_supervisor_email || engineer.mechanical_engineer_email);
         if (mechEmail) {
           if (!emailsToSend[mechEmail]) {
             emailsToSend[mechEmail] = {
-              name: engineer.mechanical_engineer_name || "Mechanical Engineer",
+              name: engineer.de_ae_mech_name || engineer.site_supervisor_name || engineer.mechanical_engineer_name || "DE/AE (Mech)",
               alerts: [],
             };
           }
           emailsToSend[mechEmail].alerts.push(...schemeAlerts);
         }
 
-        // Site Supervisor
-        const siteEmail = sanitizeEmail(engineer.site_supervisor_email);
-        if (siteEmail) {
-          if (!emailsToSend[siteEmail]) {
-            emailsToSend[siteEmail] = {
-              name: engineer.site_supervisor_name || "Site Supervisor",
+        // 5. Superintending Engineer (SE)
+        const seEmail = sanitizeEmail(engineer.se_email);
+        if (seEmail) {
+          if (!emailsToSend[seEmail]) {
+            emailsToSend[seEmail] = {
+              name: engineer.se_name || "Superintending Engineer (SE)",
               alerts: [],
             };
           }
-          emailsToSend[siteEmail].alerts.push(...schemeAlerts);
+          emailsToSend[seEmail].alerts.push(...schemeAlerts);
+        }
+
+        // 6. Chief Engineer
+        const ceEmail = sanitizeEmail(engineer.chief_engineer_email);
+        if (ceEmail) {
+          if (!emailsToSend[ceEmail]) {
+            emailsToSend[ceEmail] = {
+              name: engineer.chief_engineer_name || "Chief Engineer",
+              alerts: [],
+            };
+          }
+          emailsToSend[ceEmail].alerts.push(...schemeAlerts);
         }
 
         // --- SMS Grouping ---
-        // Civil Engineer Mobile
-        if (engineer.civil_engineer_mobile && engineer.civil_engineer_mobile.length >= 10) {
-          if (!smsToSend[engineer.civil_engineer_mobile]) {
-            smsToSend[engineer.civil_engineer_mobile] = {
-              name: engineer.civil_engineer_name || "Civil Engineer",
+        // EE (Civil) Mobile
+        const eeCivMobile = engineer.ee_civil_mobile;
+        if (eeCivMobile && eeCivMobile.length >= 10) {
+          if (!smsToSend[eeCivMobile]) {
+            smsToSend[eeCivMobile] = {
+              name: engineer.ee_civil_name || "EE (Civil)",
               alerts: [],
             };
           }
-          smsToSend[engineer.civil_engineer_mobile].alerts.push(...schemeAlerts);
+          smsToSend[eeCivMobile].alerts.push(...schemeAlerts);
         }
 
-        // Mechanical Engineer Mobile
-        if (engineer.mechanical_engineer_mobile && engineer.mechanical_engineer_mobile.length >= 10) {
-          if (!smsToSend[engineer.mechanical_engineer_mobile]) {
-            smsToSend[engineer.mechanical_engineer_mobile] = {
-              name: engineer.mechanical_engineer_name || "Mechanical Engineer",
+        // EE (Mech) Mobile
+        const eeMechMobile = engineer.ee_mech_mobile;
+        if (eeMechMobile && eeMechMobile.length >= 10) {
+          if (!smsToSend[eeMechMobile]) {
+            smsToSend[eeMechMobile] = {
+              name: engineer.ee_mech_name || "EE (Mech)",
               alerts: [],
             };
           }
-          smsToSend[engineer.mechanical_engineer_mobile].alerts.push(...schemeAlerts);
+          smsToSend[eeMechMobile].alerts.push(...schemeAlerts);
         }
 
-        // Site Supervisor Mobile
-        if (engineer.site_supervisor_mobile && engineer.site_supervisor_mobile.length >= 10) {
-          if (!smsToSend[engineer.site_supervisor_mobile]) {
-            smsToSend[engineer.site_supervisor_mobile] = {
-              name: engineer.site_supervisor_name || "Site Supervisor",
+        // DE/AE (Civil) Mobile
+        const civMobile = engineer.de_ae_civil_mobile || engineer.civil_engineer_mobile;
+        if (civMobile && civMobile.length >= 10) {
+          if (!smsToSend[civMobile]) {
+            smsToSend[civMobile] = {
+              name: engineer.de_ae_civil_name || engineer.civil_engineer_name || "DE/AE (Civil)",
               alerts: [],
             };
           }
-          smsToSend[engineer.site_supervisor_mobile].alerts.push(...schemeAlerts);
+          smsToSend[civMobile].alerts.push(...schemeAlerts);
+        }
+
+        // DE/AE (Mech) Mobile
+        const mechMobile = engineer.de_ae_mech_mobile || engineer.site_supervisor_mobile || engineer.mechanical_engineer_mobile;
+        if (mechMobile && mechMobile.length >= 10) {
+          if (!smsToSend[mechMobile]) {
+            smsToSend[mechMobile] = {
+              name: engineer.de_ae_mech_name || engineer.site_supervisor_name || engineer.mechanical_engineer_name || "DE/AE (Mech)",
+              alerts: [],
+            };
+          }
+          smsToSend[mechMobile].alerts.push(...schemeAlerts);
+        }
+
+        // SE Mobile
+        if (engineer.se_mobile && engineer.se_mobile.length >= 10) {
+          if (!smsToSend[engineer.se_mobile]) {
+            smsToSend[engineer.se_mobile] = {
+              name: engineer.se_name || "Superintending Engineer (SE)",
+              alerts: [],
+            };
+          }
+          smsToSend[engineer.se_mobile].alerts.push(...schemeAlerts);
+        }
+
+        // Chief Engineer Mobile
+        if (engineer.chief_engineer_mobile && engineer.chief_engineer_mobile.length >= 10) {
+          if (!smsToSend[engineer.chief_engineer_mobile]) {
+            smsToSend[engineer.chief_engineer_mobile] = {
+              name: engineer.chief_engineer_name || "Chief Engineer",
+              alerts: [],
+            };
+          }
+          smsToSend[engineer.chief_engineer_mobile].alerts.push(...schemeAlerts);
         }
 
         // Build emailAlertLogs entries for each issue in this scheme
@@ -311,12 +384,24 @@ export async function runDailyAlertsJob() {
             region: engineer.region || null,
             village_name: alert.village_name || null,
             esr_name: alert.esr_name || null,
-            civil_engineer_name: engineer.civil_engineer_name || null,
-            civil_engineer_email: engineer.civil_engineer_email || null,
-            mechanical_engineer_name: engineer.mechanical_engineer_name || null,
-            mechanical_engineer_email: engineer.mechanical_engineer_email || null,
-            site_supervisor_name: engineer.site_supervisor_name || null,
-            site_supervisor_email: engineer.site_supervisor_email || null,
+            ee_civil_name: engineer.ee_civil_name || null,
+            ee_civil_email: engineer.ee_civil_email || null,
+            ee_mech_name: engineer.ee_mech_name || null,
+            ee_mech_email: engineer.ee_mech_email || null,
+            civil_engineer_name: engineer.de_ae_civil_name || engineer.civil_engineer_name || null,
+            civil_engineer_email: engineer.de_ae_civil_email || engineer.civil_engineer_email || null,
+            de_ae_civil_name: engineer.de_ae_civil_name || engineer.civil_engineer_name || null,
+            de_ae_civil_email: engineer.de_ae_civil_email || engineer.civil_engineer_email || null,
+            mechanical_engineer_name: engineer.de_ae_mech_name || engineer.site_supervisor_name || engineer.mechanical_engineer_name || null,
+            mechanical_engineer_email: engineer.de_ae_mech_email || engineer.site_supervisor_email || engineer.mechanical_engineer_email || null,
+            site_supervisor_name: engineer.de_ae_mech_name || engineer.site_supervisor_name || null,
+            site_supervisor_email: engineer.de_ae_mech_email || engineer.site_supervisor_email || null,
+            de_ae_mech_name: engineer.de_ae_mech_name || engineer.site_supervisor_name || engineer.mechanical_engineer_name || null,
+            de_ae_mech_email: engineer.de_ae_mech_email || engineer.site_supervisor_email || engineer.mechanical_engineer_email || null,
+            se_name: engineer.se_name || null,
+            se_email: engineer.se_email || null,
+            chief_engineer_name: engineer.chief_engineer_name || null,
+            chief_engineer_email: engineer.chief_engineer_email || null,
           };
 
           const generateTicketId = () => `TKT-${Date.now().toString().slice(-4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;

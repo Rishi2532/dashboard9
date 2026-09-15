@@ -535,21 +535,26 @@ export async function getEngineerAssignedSchemes(
     let matchedEmail = "";
     let matchedPhone = "";
 
-    if (isMatchingPerson(eng.civil_engineer_email, eng.civil_engineer_mobile, eng.civil_engineer_name)) {
-      matchedRole = "Civil Engineer";
-      matchedName = eng.civil_engineer_name || "";
-      matchedEmail = eng.civil_engineer_email || "";
-      matchedPhone = eng.civil_engineer_mobile || "";
-    } else if (isMatchingPerson(eng.mechanical_engineer_email, eng.mechanical_engineer_mobile, eng.mechanical_engineer_name)) {
-      matchedRole = "Mechanical Engineer";
-      matchedName = eng.mechanical_engineer_name || "";
-      matchedEmail = eng.mechanical_engineer_email || "";
-      matchedPhone = eng.mechanical_engineer_mobile || "";
-    } else if (isMatchingPerson(eng.site_supervisor_email, eng.site_supervisor_mobile, eng.site_supervisor_name)) {
-      matchedRole = "Site Supervisor";
-      matchedName = eng.site_supervisor_name || "";
-      matchedEmail = eng.site_supervisor_email || "";
-      matchedPhone = eng.site_supervisor_mobile || "";
+    if (isMatchingPerson(eng.de_ae_civil_email || eng.civil_engineer_email, eng.de_ae_civil_mobile || eng.civil_engineer_mobile, eng.de_ae_civil_name || eng.civil_engineer_name)) {
+      matchedRole = "DE/AE (Civil)";
+      matchedName = eng.de_ae_civil_name || eng.civil_engineer_name || "";
+      matchedEmail = eng.de_ae_civil_email || eng.civil_engineer_email || "";
+      matchedPhone = eng.de_ae_civil_mobile || eng.civil_engineer_mobile || "";
+    } else if (isMatchingPerson(eng.de_ae_mech_email || eng.site_supervisor_email || eng.mechanical_engineer_email, eng.de_ae_mech_mobile || eng.site_supervisor_mobile || eng.mechanical_engineer_mobile, eng.de_ae_mech_name || eng.site_supervisor_name || eng.mechanical_engineer_name)) {
+      matchedRole = "DE/AE (Mech)";
+      matchedName = eng.de_ae_mech_name || eng.site_supervisor_name || eng.mechanical_engineer_name || "";
+      matchedEmail = eng.de_ae_mech_email || eng.site_supervisor_email || eng.mechanical_engineer_email || "";
+      matchedPhone = eng.de_ae_mech_mobile || eng.site_supervisor_mobile || eng.mechanical_engineer_mobile || "";
+    } else if (isMatchingPerson(eng.se_email, eng.se_mobile, eng.se_name)) {
+      matchedRole = "Superintending Engineer (SE)";
+      matchedName = eng.se_name || "";
+      matchedEmail = eng.se_email || "";
+      matchedPhone = eng.se_mobile || "";
+    } else if (isMatchingPerson(eng.chief_engineer_email, eng.chief_engineer_mobile, eng.chief_engineer_name)) {
+      matchedRole = "Chief Engineer";
+      matchedName = eng.chief_engineer_name || "";
+      matchedEmail = eng.chief_engineer_email || "";
+      matchedPhone = eng.chief_engineer_mobile || "";
     }
 
     if (matchedRole && eng.scheme_id) {

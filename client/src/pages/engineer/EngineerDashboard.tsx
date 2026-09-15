@@ -55,6 +55,7 @@ import {
   X,
   Send,
   Filter,
+  Info,
 } from "lucide-react";
 
 interface VillageSummary {
@@ -1480,7 +1481,7 @@ export default function EngineerDashboard() {
                 onClick={() => sendAllRemindersMutation.mutate(offlineAlertsList)}
                 disabled={offlineAlertsList.length === 0 || sendAllRemindersMutation.isPending}
                 className="h-9 px-3.5 text-xs bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 active:scale-95 text-white font-semibold shadow-md flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                title={offlineAlertsList.length > 0 ? `Send consolidated offline reminder email(s) to regional vendors for ${offlineAlertsList.length} locations` : "No offline alerts"}
+                title={offlineAlertsList.length > 0 ? `Send consolidated offline reminder email(s) to regional vendors and copy supervisory engineers (DE/AE Civil, DE/AE Mech, SE, Chief Engineer) for ${offlineAlertsList.length} locations` : "No offline alerts"}
               >
                 {sendAllRemindersMutation.isPending ? (
                   <>
@@ -1494,6 +1495,17 @@ export default function EngineerDashboard() {
                   </>
                 )}
               </Button>
+            </div>
+          </div>
+
+          {/* Explanatory Banner: What does "Send Reminder" mean? */}
+          <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-100 shadow-xs">
+            <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-semibold text-amber-300">What does &quot;Send Reminder&quot; mean?</span>
+              <p className="text-slate-300 text-[11.5px] mt-0.5 leading-relaxed">
+                Clicking <strong>Send Reminder</strong> dispatches an official priority offline telemetry alert email directly to the assigned <strong>Regional Vendor</strong>, while automatically copying supervisory department engineers: <strong>EE (Civil)</strong>, <strong>EE (Mech)</strong>, <strong>DE/AE (Civil)</strong>, <strong>DE/AE (Mech)</strong>, <strong>Superintending Engineer (SE)</strong>, and the <strong>Chief Engineer</strong> to ensure immediate physical inspection and telemetry restoration.
+              </p>
             </div>
           </div>
 
@@ -1712,8 +1724,8 @@ export default function EngineerDashboard() {
                                   }`}
                                   title={
                                     reminderRecord
-                                      ? `Reminder previously sent to ${reminderRecord.vendor_name || reminderRecord.vendor_email} (${formatReminderTime(reminderRecord.sent_at)}). Click to resend.`
-                                      : "Send offline reminder email to regional vendor"
+                                      ? `Reminder previously sent to ${reminderRecord.vendor_name || reminderRecord.vendor_email} and copied supervisory engineers (${formatReminderTime(reminderRecord.sent_at)}). Click to resend.`
+                                      : "Send urgent offline reminder email to regional vendor (and copy DE/AE Civil, DE/AE Mech, SE, Chief Engineer)"
                                   }
                                 >
                                   {sendingReminderKey === alertKey ? (

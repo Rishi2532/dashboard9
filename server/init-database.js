@@ -443,11 +443,84 @@ async function ensureSchemeProgressSummaryTable() {
   }
 }
 
+/**
+ * Ensure scheme_engineer_details columns for:
+ * DE/AE (Civil), DE/AE (Mech) [renamed from site engineer],
+ * SE (Superintending Engineer), and Chief Engineer
+ */
+async function ensureSchemeEngineerDetailsColumns() {
+  const poolConfig = { connectionString: process.env.DATABASE_URL };
+  const isLocalHost = process.env.DATABASE_URL?.includes('localhost') ||
+                      process.env.DATABASE_URL?.includes('127.0.0.1');
+  if (process.env.NODE_ENV === 'production' && !isLocalHost) {
+    poolConfig.ssl = { require: true, rejectUnauthorized: false };
+  }
+  const pool = new Pool(poolConfig);
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS scheme_engineer_details (
+        id SERIAL PRIMARY KEY,
+        region VARCHAR(100),
+        district VARCHAR(100),
+        division VARCHAR(100),
+        scheme_id VARCHAR(100),
+        scheme VARCHAR(255),
+        civil_engineer_name VARCHAR(255),
+        civil_engineer_mobile VARCHAR(20),
+        civil_engineer_email VARCHAR(255),
+        mechanical_engineer_name VARCHAR(255),
+        mechanical_engineer_mobile VARCHAR(20),
+        mechanical_engineer_email VARCHAR(255),
+        site_supervisor_name VARCHAR(255),
+        site_supervisor_mobile VARCHAR(20),
+        site_supervisor_email VARCHAR(255)
+      );
+
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS ee_civil_name VARCHAR(255);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS ee_civil_mobile VARCHAR(20);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS ee_civil_email VARCHAR(255);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS ee_mech_name VARCHAR(255);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS ee_mech_mobile VARCHAR(20);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS ee_mech_email VARCHAR(255);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS de_ae_civil_name VARCHAR(255);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS de_ae_civil_mobile VARCHAR(20);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS de_ae_civil_email VARCHAR(255);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS de_ae_mech_name VARCHAR(255);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS de_ae_mech_mobile VARCHAR(20);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS de_ae_mech_email VARCHAR(255);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS se_name VARCHAR(255);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS se_mobile VARCHAR(20);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS se_email VARCHAR(255);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS chief_engineer_name VARCHAR(255);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS chief_engineer_mobile VARCHAR(20);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS chief_engineer_email VARCHAR(255);
+
+      UPDATE scheme_engineer_details
+      SET de_ae_mech_name = COALESCE(de_ae_mech_name, site_supervisor_name),
+          de_ae_mech_mobile = COALESCE(de_ae_mech_mobile, site_supervisor_mobile),
+          de_ae_mech_email = COALESCE(de_ae_mech_email, site_supervisor_email)
+      WHERE de_ae_mech_name IS NULL AND site_supervisor_name IS NOT NULL;
+
+      UPDATE scheme_engineer_details
+      SET de_ae_civil_name = COALESCE(de_ae_civil_name, civil_engineer_name),
+          de_ae_civil_mobile = COALESCE(de_ae_civil_mobile, civil_engineer_mobile),
+          de_ae_civil_email = COALESCE(de_ae_civil_email, civil_engineer_email)
+      WHERE de_ae_civil_name IS NULL AND civil_engineer_name IS NOT NULL;
+    `);
+    console.log('✅ Verified scheme_engineer_details table and new engineer hierarchy columns');
+  } catch (error) {
+    console.error('❌ Error ensuring scheme_engineer_details columns:', error);
+  } finally {
+    await pool.end();
+  }
+}
+
 // Import auto-generate-dashboard-urls script
 import './auto-generate-dashboard-urls.js';
 
-// Always ensure scheme_progress_summary exists, regardless of init marker.
+// Always ensure schema tables exist, regardless of init marker.
 ensureSchemeProgressSummaryTable();
+ensureSchemeEngineerDetailsColumns();
 
 // Only run initialization if it hasn't been run before
 const initMarkerPath = path.join(process.cwd(), '.db-initialized');

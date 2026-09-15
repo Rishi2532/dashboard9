@@ -1415,15 +1415,36 @@ export const schemeEngineerDetails = pgTable("scheme_engineer_details", {
   division: varchar("division", { length: 100 }),
   scheme_id: varchar("scheme_id", { length: 100 }),
   scheme: varchar("scheme", { length: 255 }),
+  // EE (Civil) - Executive Engineer
+  ee_civil_name: varchar("ee_civil_name", { length: 255 }),
+  ee_civil_mobile: varchar("ee_civil_mobile", { length: 20 }),
+  ee_civil_email: varchar("ee_civil_email", { length: 255 }),
+  // EE (Mech) - Executive Engineer
+  ee_mech_name: varchar("ee_mech_name", { length: 255 }),
+  ee_mech_mobile: varchar("ee_mech_mobile", { length: 20 }),
+  ee_mech_email: varchar("ee_mech_email", { length: 255 }),
+  // DE/AE (Civil)
+  de_ae_civil_name: varchar("de_ae_civil_name", { length: 255 }),
+  de_ae_civil_mobile: varchar("de_ae_civil_mobile", { length: 20 }),
+  de_ae_civil_email: varchar("de_ae_civil_email", { length: 255 }),
   civil_engineer_name: varchar("civil_engineer_name", { length: 255 }),
   civil_engineer_mobile: varchar("civil_engineer_mobile", { length: 20 }),
   civil_engineer_email: varchar("civil_engineer_email", { length: 255 }),
+  // DE/AE (Mech)
+  de_ae_mech_name: varchar("de_ae_mech_name", { length: 255 }),
+  de_ae_mech_mobile: varchar("de_ae_mech_mobile", { length: 20 }),
+  de_ae_mech_email: varchar("de_ae_mech_email", { length: 255 }),
   mechanical_engineer_name: varchar("mechanical_engineer_name", { length: 255 }),
   mechanical_engineer_mobile: varchar("mechanical_engineer_mobile", { length: 20 }),
   mechanical_engineer_email: varchar("mechanical_engineer_email", { length: 255 }),
-  site_supervisor_name: varchar("site_supervisor_name", { length: 255 }),
-  site_supervisor_mobile: varchar("site_supervisor_mobile", { length: 20 }),
-  site_supervisor_email: varchar("site_supervisor_email", { length: 255 }),
+  // SE (Superintending Engineer)
+  se_name: varchar("se_name", { length: 255 }),
+  se_mobile: varchar("se_mobile", { length: 20 }),
+  se_email: varchar("se_email", { length: 255 }),
+  // Chief Engineer
+  chief_engineer_name: varchar("chief_engineer_name", { length: 255 }),
+  chief_engineer_mobile: varchar("chief_engineer_mobile", { length: 20 }),
+  chief_engineer_email: varchar("chief_engineer_email", { length: 255 }),
 });
 
 export const insertSchemeEngineerDetailsSchema = createInsertSchema(schemeEngineerDetails).omit({
@@ -1443,12 +1464,24 @@ export const emailAlertLogs = pgTable("email_alert_logs", {
   esr_name: varchar("esr_name", { length: 255 }),
   alert_type: varchar("alert_type", { length: 50 }).notNull(), // 'LPCD', 'Chlorine', 'Pressure', 'Water'
   alert_value: varchar("alert_value", { length: 100 }).notNull(), // The failing value
+  ee_civil_name: varchar("ee_civil_name", { length: 255 }),
+  ee_civil_email: varchar("ee_civil_email", { length: 255 }),
+  ee_mech_name: varchar("ee_mech_name", { length: 255 }),
+  ee_mech_email: varchar("ee_mech_email", { length: 255 }),
   civil_engineer_name: varchar("civil_engineer_name", { length: 255 }),
   civil_engineer_email: varchar("civil_engineer_email", { length: 255 }),
+  de_ae_civil_name: varchar("de_ae_civil_name", { length: 255 }),
+  de_ae_civil_email: varchar("de_ae_civil_email", { length: 255 }),
   mechanical_engineer_name: varchar("mechanical_engineer_name", { length: 255 }),
   mechanical_engineer_email: varchar("mechanical_engineer_email", { length: 255 }),
   site_supervisor_name: varchar("site_supervisor_name", { length: 255 }),
   site_supervisor_email: varchar("site_supervisor_email", { length: 255 }),
+  de_ae_mech_name: varchar("de_ae_mech_name", { length: 255 }),
+  de_ae_mech_email: varchar("de_ae_mech_email", { length: 255 }),
+  se_name: varchar("se_name", { length: 255 }),
+  se_email: varchar("se_email", { length: 255 }),
+  chief_engineer_name: varchar("chief_engineer_name", { length: 255 }),
+  chief_engineer_email: varchar("chief_engineer_email", { length: 255 }),
   sent_date: date("sent_date").defaultNow().notNull(), // e.g. '2026-06-02'
   sent_time: time("sent_time").defaultNow().notNull(), // e.g. '14:55:00'
   ticket_id: varchar("ticket_id", { length: 100 }).unique(),
