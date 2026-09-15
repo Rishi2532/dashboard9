@@ -46,7 +46,15 @@ router.get('/lpcd', async (req, res) => {
           GROUP BY scheme_id
         ),
         recent_logs AS (
-          SELECT DISTINCT ON (scheme_id, village_name, sent_date) scheme_id, village_name, ticket_id, alert_value, civil_engineer_name, civil_engineer_email,
+          SELECT DISTINCT ON (scheme_id, village_name, sent_date) 
+                 scheme_id, village_name, ticket_id, alert_value, 
+                 ee_civil_name, ee_civil_email,
+                 ee_mech_name, ee_mech_email,
+                 de_ae_civil_name, de_ae_civil_email,
+                 de_ae_mech_name, de_ae_mech_email,
+                 se_name, se_email,
+                 chief_engineer_name, chief_engineer_email,
+                 civil_engineer_name, civil_engineer_email,
                  mechanical_engineer_name, mechanical_engineer_email,
                  site_supervisor_name, site_supervisor_email,
                  created_at, sent_date
@@ -82,15 +90,31 @@ router.get('/lpcd', async (req, res) => {
           w.lpcd_value_day7 as current_value,
           w.lpcd_value_day6 as previous_value,
           e.alert_value as historical_value,
-          e.civil_engineer_name, e.civil_engineer_email,
-          e.mechanical_engineer_name, e.mechanical_engineer_email,
-          e.site_supervisor_name, e.site_supervisor_email,
+          COALESCE(e.ee_civil_name, sed.ee_civil_name) as ee_civil_name,
+          COALESCE(e.ee_civil_email, sed.ee_civil_email) as ee_civil_email,
+          COALESCE(e.ee_mech_name, sed.ee_mech_name) as ee_mech_name,
+          COALESCE(e.ee_mech_email, sed.ee_mech_email) as ee_mech_email,
+          COALESCE(e.de_ae_civil_name, sed.de_ae_civil_name, e.civil_engineer_name) as de_ae_civil_name,
+          COALESCE(e.de_ae_civil_email, sed.de_ae_civil_email, e.civil_engineer_email) as de_ae_civil_email,
+          COALESCE(e.de_ae_mech_name, sed.de_ae_mech_name, e.mechanical_engineer_name, e.site_supervisor_name) as de_ae_mech_name,
+          COALESCE(e.de_ae_mech_email, sed.de_ae_mech_email, e.mechanical_engineer_email, e.site_supervisor_email) as de_ae_mech_email,
+          COALESCE(e.se_name, sed.se_name) as se_name,
+          COALESCE(e.se_email, sed.se_email) as se_email,
+          COALESCE(e.chief_engineer_name, sed.chief_engineer_name) as chief_engineer_name,
+          COALESCE(e.chief_engineer_email, sed.chief_engineer_email) as chief_engineer_email,
+          COALESCE(e.de_ae_civil_name, sed.de_ae_civil_name, e.civil_engineer_name) as civil_engineer_name,
+          COALESCE(e.de_ae_civil_email, sed.de_ae_civil_email, e.civil_engineer_email) as civil_engineer_email,
+          COALESCE(e.de_ae_mech_name, sed.de_ae_mech_name, e.mechanical_engineer_name) as mechanical_engineer_name,
+          COALESCE(e.de_ae_mech_email, sed.de_ae_mech_email, e.mechanical_engineer_email) as mechanical_engineer_email,
+          COALESCE(e.de_ae_mech_name, sed.de_ae_mech_name, e.site_supervisor_name) as site_supervisor_name,
+          COALESCE(e.de_ae_mech_email, sed.de_ae_mech_email, e.site_supervisor_email) as site_supervisor_email,
           e.created_at, e.sent_date, e.ticket_id,
           COALESCE(i.remarks, '[]'::json) as remarks,
           COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
         FROM water_scheme_data w
         JOIN recent_logs e ON w.scheme_id = e.scheme_id AND w.village_name IS NOT DISTINCT FROM e.village_name
         JOIN scheme_status s ON w.scheme_id = s.scheme_id
+        LEFT JOIN scheme_engineer_details sed ON (w.scheme_id = sed.scheme_id OR w.scheme_name ILIKE sed.scheme)
         LEFT JOIN issues i ON w.scheme_id = i.scheme_id
         LEFT JOIN ack_status a ON w.scheme_id = a.scheme_id
         WHERE s.water_supply = 'Yes'
@@ -136,7 +160,15 @@ router.get('/chlorine', async (req, res) => {
           GROUP BY scheme_id
         ),
         recent_logs AS (
-          SELECT DISTINCT ON (scheme_id, esr_name, sent_date) scheme_id, esr_name, ticket_id, alert_value, civil_engineer_name, civil_engineer_email,
+          SELECT DISTINCT ON (scheme_id, esr_name, sent_date) 
+                 scheme_id, esr_name, ticket_id, alert_value, 
+                 ee_civil_name, ee_civil_email,
+                 ee_mech_name, ee_mech_email,
+                 de_ae_civil_name, de_ae_civil_email,
+                 de_ae_mech_name, de_ae_mech_email,
+                 se_name, se_email,
+                 chief_engineer_name, chief_engineer_email,
+                 civil_engineer_name, civil_engineer_email,
                  mechanical_engineer_name, mechanical_engineer_email,
                  site_supervisor_name, site_supervisor_email,
                  created_at, sent_date
@@ -173,15 +205,31 @@ router.get('/chlorine', async (req, res) => {
           c.chlorine_value_7 as current_value,
           c.chlorine_value_6 as previous_value,
           e.alert_value as historical_value,
-          e.civil_engineer_name, e.civil_engineer_email,
-          e.mechanical_engineer_name, e.mechanical_engineer_email,
-          e.site_supervisor_name, e.site_supervisor_email,
+          COALESCE(e.ee_civil_name, sed.ee_civil_name) as ee_civil_name,
+          COALESCE(e.ee_civil_email, sed.ee_civil_email) as ee_civil_email,
+          COALESCE(e.ee_mech_name, sed.ee_mech_name) as ee_mech_name,
+          COALESCE(e.ee_mech_email, sed.ee_mech_email) as ee_mech_email,
+          COALESCE(e.de_ae_civil_name, sed.de_ae_civil_name, e.civil_engineer_name) as de_ae_civil_name,
+          COALESCE(e.de_ae_civil_email, sed.de_ae_civil_email, e.civil_engineer_email) as de_ae_civil_email,
+          COALESCE(e.de_ae_mech_name, sed.de_ae_mech_name, e.mechanical_engineer_name, e.site_supervisor_name) as de_ae_mech_name,
+          COALESCE(e.de_ae_mech_email, sed.de_ae_mech_email, e.mechanical_engineer_email, e.site_supervisor_email) as de_ae_mech_email,
+          COALESCE(e.se_name, sed.se_name) as se_name,
+          COALESCE(e.se_email, sed.se_email) as se_email,
+          COALESCE(e.chief_engineer_name, sed.chief_engineer_name) as chief_engineer_name,
+          COALESCE(e.chief_engineer_email, sed.chief_engineer_email) as chief_engineer_email,
+          COALESCE(e.de_ae_civil_name, sed.de_ae_civil_name, e.civil_engineer_name) as civil_engineer_name,
+          COALESCE(e.de_ae_civil_email, sed.de_ae_civil_email, e.civil_engineer_email) as civil_engineer_email,
+          COALESCE(e.de_ae_mech_name, sed.de_ae_mech_name, e.mechanical_engineer_name) as mechanical_engineer_name,
+          COALESCE(e.de_ae_mech_email, sed.de_ae_mech_email, e.mechanical_engineer_email) as mechanical_engineer_email,
+          COALESCE(e.de_ae_mech_name, sed.de_ae_mech_name, e.site_supervisor_name) as site_supervisor_name,
+          COALESCE(e.de_ae_mech_email, sed.de_ae_mech_email, e.site_supervisor_email) as site_supervisor_email,
           e.created_at, e.sent_date, e.ticket_id,
           COALESCE(i.remarks, '[]'::json) as remarks,
           COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
         FROM chlorine_data c
         JOIN recent_logs e ON c.scheme_id = e.scheme_id AND c.esr_name IS NOT DISTINCT FROM e.esr_name
         JOIN scheme_status s ON c.scheme_id = s.scheme_id
+        LEFT JOIN scheme_engineer_details sed ON (c.scheme_id = sed.scheme_id OR c.scheme_name ILIKE sed.scheme)
         LEFT JOIN issues i ON c.scheme_id = i.scheme_id
         LEFT JOIN ack_status a ON c.scheme_id = a.scheme_id
         WHERE s.water_supply = 'Yes'
@@ -227,7 +275,15 @@ router.get('/pressure', async (req, res) => {
           GROUP BY scheme_id
         ),
         recent_logs AS (
-          SELECT DISTINCT ON (scheme_id, esr_name, sent_date) scheme_id, esr_name, ticket_id, alert_value, civil_engineer_name, civil_engineer_email,
+          SELECT DISTINCT ON (scheme_id, esr_name, sent_date) 
+                 scheme_id, esr_name, ticket_id, alert_value, 
+                 ee_civil_name, ee_civil_email,
+                 ee_mech_name, ee_mech_email,
+                 de_ae_civil_name, de_ae_civil_email,
+                 de_ae_mech_name, de_ae_mech_email,
+                 se_name, se_email,
+                 chief_engineer_name, chief_engineer_email,
+                 civil_engineer_name, civil_engineer_email,
                  mechanical_engineer_name, mechanical_engineer_email,
                  site_supervisor_name, site_supervisor_email,
                  created_at, sent_date
@@ -264,15 +320,31 @@ router.get('/pressure', async (req, res) => {
           p.pressure_value_7 as current_value,
           p.pressure_value_6 as previous_value,
           e.alert_value as historical_value,
-          e.civil_engineer_name, e.civil_engineer_email,
-          e.mechanical_engineer_name, e.mechanical_engineer_email,
-          e.site_supervisor_name, e.site_supervisor_email,
+          COALESCE(e.ee_civil_name, sed.ee_civil_name) as ee_civil_name,
+          COALESCE(e.ee_civil_email, sed.ee_civil_email) as ee_civil_email,
+          COALESCE(e.ee_mech_name, sed.ee_mech_name) as ee_mech_name,
+          COALESCE(e.ee_mech_email, sed.ee_mech_email) as ee_mech_email,
+          COALESCE(e.de_ae_civil_name, sed.de_ae_civil_name, e.civil_engineer_name) as de_ae_civil_name,
+          COALESCE(e.de_ae_civil_email, sed.de_ae_civil_email, e.civil_engineer_email) as de_ae_civil_email,
+          COALESCE(e.de_ae_mech_name, sed.de_ae_mech_name, e.mechanical_engineer_name, e.site_supervisor_name) as de_ae_mech_name,
+          COALESCE(e.de_ae_mech_email, sed.de_ae_mech_email, e.mechanical_engineer_email, e.site_supervisor_email) as de_ae_mech_email,
+          COALESCE(e.se_name, sed.se_name) as se_name,
+          COALESCE(e.se_email, sed.se_email) as se_email,
+          COALESCE(e.chief_engineer_name, sed.chief_engineer_name) as chief_engineer_name,
+          COALESCE(e.chief_engineer_email, sed.chief_engineer_email) as chief_engineer_email,
+          COALESCE(e.de_ae_civil_name, sed.de_ae_civil_name, e.civil_engineer_name) as civil_engineer_name,
+          COALESCE(e.de_ae_civil_email, sed.de_ae_civil_email, e.civil_engineer_email) as civil_engineer_email,
+          COALESCE(e.de_ae_mech_name, sed.de_ae_mech_name, e.mechanical_engineer_name) as mechanical_engineer_name,
+          COALESCE(e.de_ae_mech_email, sed.de_ae_mech_email, e.mechanical_engineer_email) as mechanical_engineer_email,
+          COALESCE(e.de_ae_mech_name, sed.de_ae_mech_name, e.site_supervisor_name) as site_supervisor_name,
+          COALESCE(e.de_ae_mech_email, sed.de_ae_mech_email, e.site_supervisor_email) as site_supervisor_email,
           e.created_at, e.sent_date, e.ticket_id,
           COALESCE(i.remarks, '[]'::json) as remarks,
           COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
         FROM pressure_data p
         JOIN recent_logs e ON p.scheme_id = e.scheme_id AND p.esr_name IS NOT DISTINCT FROM e.esr_name
         JOIN scheme_status s ON p.scheme_id = s.scheme_id
+        LEFT JOIN scheme_engineer_details sed ON (p.scheme_id = sed.scheme_id OR p.scheme_name ILIKE sed.scheme)
         LEFT JOIN issues i ON p.scheme_id = i.scheme_id
         LEFT JOIN ack_status a ON p.scheme_id = a.scheme_id
         WHERE s.water_supply = 'Yes'
@@ -351,6 +423,27 @@ router.get('/offline', async (req, res) => {
           c.flow_meter_connected,
           c.last_seen,
           c.pressure_last_seen,
+          sed.ee_civil_name,
+          sed.ee_civil_email,
+          sed.ee_civil_mobile,
+          sed.ee_mech_name,
+          sed.ee_mech_email,
+          sed.ee_mech_mobile,
+          sed.de_ae_civil_name,
+          sed.de_ae_civil_email,
+          sed.de_ae_civil_mobile,
+          sed.de_ae_mech_name,
+          sed.de_ae_mech_email,
+          sed.de_ae_mech_mobile,
+          sed.se_name,
+          sed.se_email,
+          sed.se_mobile,
+          sed.chief_engineer_name,
+          sed.chief_engineer_email,
+          sed.chief_engineer_mobile,
+          v.employee_name as vendor_name,
+          v.email as vendor_email,
+          v.phone as vendor_phone,
           COALESCE(sed.de_ae_civil_name, v.employee_name) as civil_engineer_name,
           COALESCE(sed.de_ae_civil_email, v.email) as civil_engineer_email,
           COALESCE(sed.de_ae_civil_mobile, v.phone) as civil_engineer_mobile,
@@ -362,7 +455,7 @@ router.get('/offline', async (req, res) => {
           COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
         FROM communication_status c
         INNER JOIN scheme_status s ON c.scheme_id = s.scheme_id
-        LEFT JOIN scheme_engineer_details sed ON c.scheme_id = sed.scheme_id
+        LEFT JOIN scheme_engineer_details sed ON (c.scheme_id = sed.scheme_id OR c.scheme_name ILIKE sed.scheme)
         LEFT JOIN (
           SELECT DISTINCT ON (region) region, employee_name, email, phone
           FROM vendor
@@ -393,6 +486,20 @@ router.get('/offline', async (req, res) => {
           current_value: offlineList.join(', '),
           previous_value: null,
           historical_value: null,
+          ee_civil_name: row.ee_civil_name || null,
+          ee_civil_email: row.ee_civil_email || null,
+          ee_mech_name: row.ee_mech_name || null,
+          ee_mech_email: row.ee_mech_email || null,
+          de_ae_civil_name: row.de_ae_civil_name || null,
+          de_ae_civil_email: row.de_ae_civil_email || null,
+          de_ae_mech_name: row.de_ae_mech_name || null,
+          de_ae_mech_email: row.de_ae_mech_email || null,
+          se_name: row.se_name || null,
+          se_email: row.se_email || null,
+          chief_engineer_name: row.chief_engineer_name || null,
+          chief_engineer_email: row.chief_engineer_email || null,
+          vendor_name: row.vendor_name || null,
+          vendor_email: row.vendor_email || null,
           civil_engineer_name: row.civil_engineer_name || 'No Engineer/Vendor Assigned',
           civil_engineer_email: row.civil_engineer_email || null,
           civil_engineer_mobile: row.civil_engineer_mobile || null,

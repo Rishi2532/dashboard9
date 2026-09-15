@@ -65,6 +65,20 @@ interface AlertData {
   previous_value: number | string | null;
   historical_value?: number | string | null;
   ticket_id?: string;
+  ee_civil_name?: string | null;
+  ee_civil_email?: string | null;
+  ee_mech_name?: string | null;
+  ee_mech_email?: string | null;
+  de_ae_civil_name?: string | null;
+  de_ae_civil_email?: string | null;
+  de_ae_mech_name?: string | null;
+  de_ae_mech_email?: string | null;
+  se_name?: string | null;
+  se_email?: string | null;
+  chief_engineer_name?: string | null;
+  chief_engineer_email?: string | null;
+  vendor_name?: string | null;
+  vendor_email?: string | null;
   civil_engineer_name: string | null;
   civil_engineer_email: string | null;
   mechanical_engineer_name: string | null;
@@ -97,46 +111,161 @@ const parseIssues = (rawIssues: any) => {
   return issues;
 };
 
-// Helper to determine acknowledgement info for a row
-export const getRowAckInfo = (row: AlertData) => {
-  const assignedEmails = [
-    row.civil_engineer_email?.toLowerCase().trim(),
-    row.mechanical_engineer_email?.toLowerCase().trim(),
-    row.site_supervisor_email?.toLowerCase().trim()
-  ].filter(Boolean) as string[];
+export interface AlertRecipient {
+  role: string;
+  name: string;
+  email: string | null;
+  isAcknowledged: boolean;
+  acknowledged_at: string | null;
+}
 
-  const acksList: { name: string; email: string; acknowledged_at: string }[] = [];
-  const uniqueAckEmails = new Set<string>();
+// Helper to gather all recipients for a scheme who received or are assigned the alert email
+export const getRowRecipients = (row: AlertData): AlertRecipient[] => {
+  const recipients: AlertRecipient[] = [];
 
-  if (row.acknowledgements && Array.isArray(row.acknowledgements)) {
-    row.acknowledgements.forEach((a: any) => {
-      if (a.acknowledged_at && a.engineer_email) {
-        const norm = a.engineer_email.toLowerCase().trim();
-        if (assignedEmails.length === 0 || assignedEmails.includes(norm)) {
-          if (!uniqueAckEmails.has(norm)) {
-            uniqueAckEmails.add(norm);
-            acksList.push({
-              name: a.engineer_name || "Engineer",
-              email: a.engineer_email,
-              acknowledged_at: a.acknowledged_at
-            });
-          }
-        }
-      }
+  const checkAck = (email: string | null, name: string | null) => {
+    if (!row.acknowledgements || !Array.isArray(row.acknowledgements)) {
+      return { isAck: false, acknowledged_at: null };
+    }
+    const targetEmail = email ? email.toLowerCase().trim() : '';
+    const targetName = name ? name.toLowerCase().trim() : '';
+
+    const match = row.acknowledgements.find((a: any) => {
+      if (!a.acknowledged_at) return false;
+      const aEmail = a.engineer_email ? a.engineer_email.toLowerCase().trim() : '';
+      const aName = a.engineer_name ? a.engineer_name.toLowerCase().trim() : '';
+      if (targetEmail && aEmail && aEmail === targetEmail) return true;
+      if (targetName && aName && aName === targetName) return true;
+      return false;
+    });
+
+    return {
+      isAck: !!match,
+      acknowledged_at: match?.acknowledged_at || null
+    };
+  };
+
+  // 1. Executive Engineer (Civil)
+  if (row.ee_civil_name || row.ee_civil_email) {
+    const { isAck, acknowledged_at } = checkAck(row.ee_civil_email || null, row.ee_civil_name || null);
+    recipients.push({
+      role: "Executive Engineer (Civil)",
+      name: row.ee_civil_name || "EE (Civil)",
+      email: row.ee_civil_email || null,
+      isAcknowledged: isAck,
+      acknowledged_at
     });
   }
 
-  const ackCount = uniqueAckEmails.size;
-  const totalRequired = assignedEmails.length;
+  // 2. Executive Engineer (Mech)
+  if (row.ee_mech_name || row.ee_mech_email) {
+    const { isAck, acknowledged_at } = checkAck(row.ee_mech_email || null, row.ee_mech_name || null);
+    recipients.push({
+      role: "Executive Engineer (Mech)",
+      name: row.ee_mech_name || "EE (Mech)",
+      email: row.ee_mech_email || null,
+      isAcknowledged: isAck,
+      acknowledged_at
+    });
+  }
+
+  // 3. DE/AE (Civil)
+  const civilName = row.de_ae_civil_name || row.civil_engineer_name;
+  const civilEmail = row.de_ae_civil_email || row.civil_engineer_email;
+  const isVendorCivil = !row.de_ae_civil_name && civilName && (civilName.toLowerCase().includes("vendor") || civilName === "No Engineer/Vendor Assigned");
+  if ((civilName || civilEmail) && !isVendorCivil) {
+    const { isAck, acknowledged_at } = checkAck(civilEmail || null, civilName || null);
+    recipients.push({
+      role: "DE/AE (Civil)",
+      name: civilName || "DE/AE (Civil)",
+      email: civilEmail || null,
+      isAcknowledged: isAck,
+      acknowledged_at
+    });
+  }
+
+  // 4. DE/AE (Mech)
+  const mechName = row.de_ae_mech_name || row.mechanical_engineer_name || row.site_supervisor_name;
+  const mechEmail = row.de_ae_mech_email || row.mechanical_engineer_email || row.site_supervisor_email;
+  if (mechName || mechEmail) {
+    const { isAck, acknowledged_at } = checkAck(mechEmail || null, mechName || null);
+    recipients.push({
+      role: "DE/AE (Mech)",
+      name: mechName || "DE/AE (Mech)",
+      email: mechEmail || null,
+      isAcknowledged: isAck,
+      acknowledged_at
+    });
+  }
+
+  // 5. Superintending Engineer (SE)
+  if (row.se_name || row.se_email) {
+    const { isAck, acknowledged_at } = checkAck(row.se_email || null, row.se_name || null);
+    recipients.push({
+      role: "Superintending Engineer (SE)",
+      name: row.se_name || "Superintending Engineer (SE)",
+      email: row.se_email || null,
+      isAcknowledged: isAck,
+      acknowledged_at
+    });
+  }
+
+  // 6. Chief Engineer
+  if (row.chief_engineer_name || row.chief_engineer_email) {
+    const { isAck, acknowledged_at } = checkAck(row.chief_engineer_email || null, row.chief_engineer_name || null);
+    recipients.push({
+      role: "Chief Engineer",
+      name: row.chief_engineer_name || "Chief Engineer",
+      email: row.chief_engineer_email || null,
+      isAcknowledged: isAck,
+      acknowledged_at
+    });
+  }
+
+  // 7. Assigned Vendor (for offline alerts if vendor is assigned)
+  const vendorName = row.vendor_name || (isVendorCivil ? civilName : null);
+  const vendorEmail = row.vendor_email || (isVendorCivil ? civilEmail : null);
+  if (vendorName && vendorName !== 'No Engineer/Vendor Assigned') {
+    const { isAck, acknowledged_at } = checkAck(vendorEmail || null, vendorName || null);
+    recipients.push({
+      role: "Assigned Vendor",
+      name: vendorName,
+      email: vendorEmail || null,
+      isAcknowledged: isAck,
+      acknowledged_at
+    });
+  }
+
+  return recipients;
+};
+
+// Helper to determine acknowledgement info for a row
+export const getRowAckInfo = (row: AlertData) => {
+  const recipients = getRowRecipients(row);
+  // Email recipients are those who actually received the email
+  const emailRecipients = recipients.filter(r => !!r.email);
+  const activeRecipients = emailRecipients.length > 0 ? emailRecipients : recipients;
+
+  const ackCount = activeRecipients.filter(r => r.isAcknowledged).length;
+  const totalRequired = activeRecipients.length;
   const isAcknowledged = ackCount > 0;
   const isFullyAcknowledged = totalRequired > 0 && ackCount === totalRequired;
+
+  const acksList = activeRecipients
+    .filter(r => r.isAcknowledged)
+    .map(r => ({
+      name: r.name,
+      email: r.email || "",
+      acknowledged_at: r.acknowledged_at || ""
+    }));
 
   return {
     isAcknowledged,
     isFullyAcknowledged,
     ackCount,
     totalRequired,
-    acksList
+    acksList,
+    recipients
   };
 };
 
@@ -432,12 +561,13 @@ export default function AlertsProgressPage() {
     const totalAcknowledged = acknowledgedRows.length;
     const totalPending = pendingRows.length;
 
-    // Count unique engineers
+    // Count unique notified engineers
     const engineersSet = new Set<string>();
     baseData.forEach(r => {
-      if (r.civil_engineer_email) engineersSet.add(r.civil_engineer_email);
-      if (r.mechanical_engineer_email) engineersSet.add(r.mechanical_engineer_email);
-      if (r.site_supervisor_email) engineersSet.add(r.site_supervisor_email);
+      const recs = getRowRecipients(r);
+      recs.forEach(rec => {
+        if (rec.email) engineersSet.add(rec.email.toLowerCase().trim());
+      });
     });
     const totalEngineers = engineersSet.size;
 
@@ -656,7 +786,7 @@ export default function AlertsProgressPage() {
                   const rowTodayStr = rowDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 
                   const ackInfo = getRowAckInfo(row);
-                  const hasEngineers = !!(row.civil_engineer_name || row.mechanical_engineer_name || row.site_supervisor_name);
+                  const hasEngineers = ackInfo.recipients.length > 0;
 
                   return (
                     <tr key={`${row.scheme_id}-${idx}`} className="border-b border-slate-100 hover:bg-slate-50/80 transition-colors">
@@ -1132,23 +1262,26 @@ export default function AlertsProgressPage() {
                                     <span className="text-slate-400 italic">Confirmed</span>
                                   )
                                 ) : (
-                                  <div className="space-y-0.5">
-                                    {row.civil_engineer_name && (
-                                      <div className="text-[11px] text-slate-700">
-                                        <span className="font-semibold">{row.civil_engineer_name}</span> (DE/AE Civil)
+                                  <div className="space-y-1">
+                                    {getRowRecipients(row).map((rec, rIdx) => (
+                                      <div key={rIdx} className="text-[11px] text-slate-700 flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-1.5 truncate">
+                                          <span className="font-semibold text-slate-900 truncate">{rec.name}</span>
+                                          <span className="text-[10px] text-slate-500 shrink-0">({rec.role})</span>
+                                        </div>
+                                        {rec.isAcknowledged ? (
+                                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded shrink-0">
+                                            ✓ Ack
+                                          </span>
+                                        ) : (
+                                          <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded shrink-0">
+                                            Pending
+                                          </span>
+                                        )}
                                       </div>
-                                    )}
-                                    {row.site_supervisor_name ? (
-                                      <div className="text-[11px] text-slate-700">
-                                        <span className="font-semibold">{row.site_supervisor_name}</span> (DE/AE Mech)
-                                      </div>
-                                    ) : row.mechanical_engineer_name ? (
-                                      <div className="text-[11px] text-slate-700">
-                                        <span className="font-semibold">{row.mechanical_engineer_name}</span> (DE/AE Mech)
-                                      </div>
-                                    ) : null}
-                                    {!row.civil_engineer_name && !row.mechanical_engineer_name && !row.site_supervisor_name && (
-                                      <span className="text-slate-400 italic">No engineer assigned</span>
+                                    ))}
+                                    {getRowRecipients(row).length === 0 && (
+                                      <span className="text-slate-400 italic text-xs">No engineer assigned</span>
                                     )}
                                   </div>
                                 )}
@@ -1321,62 +1454,129 @@ export default function AlertsProgressPage() {
           {/* Engineers Details Dialog */}
           {selectedEngineers && (
             <Dialog open={!!selectedEngineers} onOpenChange={(open) => !open && setSelectedEngineers(null)}>
-              <DialogContent className="max-w-md bg-white border border-slate-200 shadow-xl rounded-xl">
+              <DialogContent className="max-w-lg bg-white border border-slate-200 shadow-2xl rounded-2xl p-6">
                 <DialogHeader className="border-b border-slate-100 pb-4">
-                  <DialogTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                    <Users className="h-5 w-5 text-indigo-500" />
-                    Notified Engineers & Status
-                  </DialogTitle>
-                  <DialogDescription className="text-slate-500 font-medium">
-                    {selectedEngineers.title}
+                  <div className="flex items-center justify-between gap-2">
+                    <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                      <Users className="h-5 w-5 text-indigo-600" />
+                      Email Alert Recipients & Acknowledgement
+                    </DialogTitle>
+                  </div>
+                  <DialogDescription className="text-slate-600 font-medium text-xs mt-1">
+                    Scheme: <span className="font-semibold text-slate-800">{selectedEngineers.title}</span>
+                    {selectedEngineers.row.village_name && (
+                      <span className="text-slate-400 ml-1.5">• Village: {selectedEngineers.row.village_name}</span>
+                    )}
+                    {selectedEngineers.row.ticket_id && (
+                      <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 text-[10px] font-mono font-bold text-slate-600">
+                        {selectedEngineers.row.ticket_id}
+                      </span>
+                    )}
                   </DialogDescription>
                 </DialogHeader>
-                <div className="flex flex-col py-2">
-                  {(() => {
-                    const getAckStatus = (email: string | null) => {
-                      if (!email) return undefined;
-                      const target = email.toLowerCase().trim();
-                      if (!selectedEngineers.row.acknowledgements) return { acknowledged_at: null };
-                      const match = selectedEngineers.row.acknowledgements.find((a: any) => 
-                        a.engineer_email && a.engineer_email.toLowerCase().trim() === target
-                      );
-                      return match || { acknowledged_at: null };
-                    };
-                    
-                    const isVendorOnly = !selectedEngineers.row.mechanical_engineer_name && !selectedEngineers.row.site_supervisor_name && (selectedEngineers.row.civil_engineer_name?.toLowerCase().includes('vendor') || !selectedEngineers.row.civil_engineer_email?.includes('@'));
 
-                    return (
-                      <>
-                        {selectedEngineers.row.civil_engineer_name ? (
-                          renderEngineerContact(
-                            selectedEngineers.row.civil_engineer_name, 
-                            selectedEngineers.row.civil_engineer_email, 
-                            isVendorOnly ? "Assigned Vendor" : "DE/AE (Civil)", 
-                            getAckStatus(selectedEngineers.row.civil_engineer_email)
-                          )
+                {(() => {
+                  const ackInfo = getRowAckInfo(selectedEngineers.row);
+                  const recipients = ackInfo.recipients;
+
+                  const getRoleBadgeStyle = (role: string) => {
+                    if (role.includes("Chief")) return "bg-rose-50 text-rose-700 border-rose-200";
+                    if (role.includes("Superintending") || role.includes("SE")) return "bg-purple-50 text-purple-700 border-purple-200";
+                    if (role.includes("Executive") || role.includes("EE")) return "bg-indigo-50 text-indigo-700 border-indigo-200";
+                    if (role.includes("Civil")) return "bg-sky-50 text-sky-700 border-sky-200";
+                    if (role.includes("Mech")) return "bg-blue-50 text-blue-700 border-blue-200";
+                    return "bg-teal-50 text-teal-700 border-teal-200";
+                  };
+
+                  return (
+                    <div className="flex flex-col space-y-4 py-2">
+                      {/* Summary Badges Bar */}
+                      <div className="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-center">
+                        <div className="flex flex-col items-center">
+                          <span className="text-[11px] font-semibold text-slate-500">Recipients</span>
+                          <span className="text-base font-bold text-slate-800">{recipients.length}</span>
+                        </div>
+                        <div className="flex flex-col items-center border-x border-slate-200">
+                          <span className="text-[11px] font-semibold text-emerald-600">Acknowledged</span>
+                          <span className="text-base font-bold text-emerald-700">{ackInfo.ackCount}</span>
+                        </div>
+                        <div className="flex flex-col items-center">
+                          <span className="text-[11px] font-semibold text-amber-600">Pending</span>
+                          <span className="text-base font-bold text-amber-700">{Math.max(0, recipients.length - ackInfo.ackCount)}</span>
+                        </div>
+                      </div>
+
+                      {/* Recipient Cards List */}
+                      <div className="max-h-[380px] overflow-y-auto space-y-2 pr-1">
+                        {recipients.length === 0 ? (
+                          <div className="text-center py-8 text-slate-400 text-sm">
+                            No assigned personnel found for this scheme.
+                          </div>
                         ) : (
-                          <div className="text-sm text-slate-500 py-2 border-b border-slate-50">No DE/AE (Civil) assigned</div>
-                        )}
+                          recipients.map((rec, idx) => (
+                            <div 
+                              key={idx}
+                              className="flex items-start justify-between gap-3 p-3 rounded-xl border border-slate-100 bg-white hover:bg-slate-50/70 transition-colors shadow-sm"
+                            >
+                              <div className="flex items-start gap-3 min-w-0">
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-50 to-indigo-100 text-indigo-700 text-xs font-bold shadow-inner">
+                                  {getInitials(rec.name || rec.email || "NA")}
+                                </div>
+                                <div className="flex flex-col min-w-0">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="text-sm font-bold text-slate-900 truncate">
+                                      {rec.name}
+                                    </span>
+                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border ${getRoleBadgeStyle(rec.role)}`}>
+                                      {rec.role}
+                                    </span>
+                                  </div>
+                                  {rec.email ? (
+                                    <a 
+                                      href={`mailto:${rec.email}`} 
+                                      className="text-xs text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1 mt-1 truncate"
+                                    >
+                                      <Mail className="h-3 w-3 shrink-0" />
+                                      <span className="truncate">{rec.email}</span>
+                                    </a>
+                                  ) : (
+                                    <span className="text-xs text-slate-400 mt-1 italic">No email address on record</span>
+                                  )}
+                                </div>
+                              </div>
 
-                        {selectedEngineers.row.site_supervisor_name ? (
-                          renderEngineerContact(
-                            selectedEngineers.row.site_supervisor_name, 
-                            selectedEngineers.row.site_supervisor_email, 
-                            "DE/AE (Mech)", 
-                            getAckStatus(selectedEngineers.row.site_supervisor_email)
-                          )
-                        ) : selectedEngineers.row.mechanical_engineer_name ? (
-                          renderEngineerContact(
-                            selectedEngineers.row.mechanical_engineer_name, 
-                            selectedEngineers.row.mechanical_engineer_email, 
-                            "DE/AE (Mech)", 
-                            getAckStatus(selectedEngineers.row.mechanical_engineer_email)
-                          )
-                        ) : null}
-                      </>
-                    );
-                  })()}
-                </div>
+                              <div className="flex flex-col items-end shrink-0 pt-0.5">
+                                {rec.isAcknowledged ? (
+                                  <>
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm">
+                                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                                      Acknowledged
+                                    </span>
+                                    {rec.acknowledged_at && (
+                                      <span className="text-[10px] font-medium text-slate-500 mt-1">
+                                        {new Date(rec.acknowledged_at).toLocaleString('en-IN', {
+                                          day: '2-digit',
+                                          month: 'short',
+                                          hour: '2-digit',
+                                          minute: '2-digit'
+                                        })}
+                                      </span>
+                                    )}
+                                  </>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                    <Clock className="h-3.5 w-3.5 text-amber-600" />
+                                    Pending
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </DialogContent>
             </Dialog>
           )}
