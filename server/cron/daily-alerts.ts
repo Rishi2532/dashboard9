@@ -39,7 +39,7 @@ interface Alert {
 export function startDailyAlertsCron() {
   // Run every day at 11:13 AM
   // You can adjust the cron expression as needed: '13 11 * * *'
-  cron.schedule("26 13   * * *", async () => {
+  cron.schedule("47 13   * * *", async () => {
     await runDailyAlertsJob();
     console.log("? Running automatic offline emails to vendors...");
     await sendAutomaticOfflineEmails();
@@ -258,11 +258,11 @@ export async function runDailyAlertsJob() {
         }
 
         // 3. DE/AE (Civil)
-        const civEmail = sanitizeEmail(engineer.de_ae_civil_email);
+        const civEmail = sanitizeEmail(engineer.de_ae_civil_email || engineer.civil_engineer_email);
         if (civEmail) {
           if (!emailsToSend[civEmail]) {
             emailsToSend[civEmail] = {
-              name: engineer.de_ae_civil_name || "DE/AE (Civil)",
+              name: engineer.de_ae_civil_name || engineer.civil_engineer_name || "DE/AE (Civil)",
               alerts: [],
             };
           }
@@ -270,11 +270,11 @@ export async function runDailyAlertsJob() {
         }
 
         // 4. DE/AE (Mech)
-        const mechEmail = sanitizeEmail(engineer.de_ae_mech_email);
+        const mechEmail = sanitizeEmail(engineer.de_ae_mech_email || engineer.site_supervisor_email || engineer.mechanical_engineer_email);
         if (mechEmail) {
           if (!emailsToSend[mechEmail]) {
             emailsToSend[mechEmail] = {
-              name: engineer.de_ae_mech_name || "DE/AE (Mech)",
+              name: engineer.de_ae_mech_name || engineer.site_supervisor_name || engineer.mechanical_engineer_name || "DE/AE (Mech)",
               alerts: [],
             };
           }
@@ -331,11 +331,11 @@ export async function runDailyAlertsJob() {
         }
 
         // DE/AE (Civil) Mobile
-        const civMobile = engineer.de_ae_civil_mobile;
+        const civMobile = engineer.de_ae_civil_mobile || engineer.civil_engineer_mobile;
         if (civMobile && civMobile.length >= 10) {
           if (!smsToSend[civMobile]) {
             smsToSend[civMobile] = {
-              name: engineer.de_ae_civil_name || "DE/AE (Civil)",
+              name: engineer.de_ae_civil_name || engineer.civil_engineer_name || "DE/AE (Civil)",
               alerts: [],
             };
           }
@@ -343,11 +343,11 @@ export async function runDailyAlertsJob() {
         }
 
         // DE/AE (Mech) Mobile
-        const mechMobile = engineer.de_ae_mech_mobile;
+        const mechMobile = engineer.de_ae_mech_mobile || engineer.site_supervisor_mobile || engineer.mechanical_engineer_mobile;
         if (mechMobile && mechMobile.length >= 10) {
           if (!smsToSend[mechMobile]) {
             smsToSend[mechMobile] = {
-              name: engineer.de_ae_mech_name || "DE/AE (Mech)",
+              name: engineer.de_ae_mech_name || engineer.site_supervisor_name || engineer.mechanical_engineer_name || "DE/AE (Mech)",
               alerts: [],
             };
           }
@@ -388,16 +388,16 @@ export async function runDailyAlertsJob() {
             ee_civil_email: engineer.ee_civil_email || null,
             ee_mech_name: engineer.ee_mech_name || null,
             ee_mech_email: engineer.ee_mech_email || null,
-            de_ae_civil_name: engineer.de_ae_civil_name || null,
-            de_ae_civil_email: engineer.de_ae_civil_email || null,
-            civil_engineer_name: engineer.de_ae_civil_name || null,
-            civil_engineer_email: engineer.de_ae_civil_email || null,
-            de_ae_mech_name: engineer.de_ae_mech_name || null,
-            de_ae_mech_email: engineer.de_ae_mech_email || null,
-            mechanical_engineer_name: engineer.de_ae_mech_name || null,
-            mechanical_engineer_email: engineer.de_ae_mech_email || null,
-            site_supervisor_name: engineer.de_ae_mech_name || null,
-            site_supervisor_email: engineer.de_ae_mech_email || null,
+            civil_engineer_name: engineer.de_ae_civil_name || engineer.civil_engineer_name || null,
+            civil_engineer_email: engineer.de_ae_civil_email || engineer.civil_engineer_email || null,
+            de_ae_civil_name: engineer.de_ae_civil_name || engineer.civil_engineer_name || null,
+            de_ae_civil_email: engineer.de_ae_civil_email || engineer.civil_engineer_email || null,
+            mechanical_engineer_name: engineer.de_ae_mech_name || engineer.site_supervisor_name || engineer.mechanical_engineer_name || null,
+            mechanical_engineer_email: engineer.de_ae_mech_email || engineer.site_supervisor_email || engineer.mechanical_engineer_email || null,
+            site_supervisor_name: engineer.de_ae_mech_name || engineer.site_supervisor_name || null,
+            site_supervisor_email: engineer.de_ae_mech_email || engineer.site_supervisor_email || null,
+            de_ae_mech_name: engineer.de_ae_mech_name || engineer.site_supervisor_name || engineer.mechanical_engineer_name || null,
+            de_ae_mech_email: engineer.de_ae_mech_email || engineer.site_supervisor_email || engineer.mechanical_engineer_email || null,
             se_name: engineer.se_name || null,
             se_email: engineer.se_email || null,
             chief_engineer_name: engineer.chief_engineer_name || null,
