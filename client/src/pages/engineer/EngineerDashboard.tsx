@@ -159,6 +159,155 @@ interface SchemesSummaryResponse {
   recentLogins?: LoginRecord[];
 }
 
+// --- Top-Level Pure Helper Functions (outside component to prevent any TDZ or reference order errors) ---
+
+const getAlertKey = (a: any) => {
+  if (a.id) return `alert-id-${a.id}`;
+  if (a.ticket_id) return `ticket-${a.ticket_id}`;
+  return `alert-${a.scheme_id}-${a.alert_type}-${a.esr_name || ''}-${a.village_name || ''}-${a.sent_date ? String(a.sent_date).slice(0, 10) : ''}-${a.alert_value || ''}`;
+};
+
+const getFormattedAlertType = (alert: any) => {
+  const rawType = (alert.alert_type || "").trim();
+  if (rawType.toLowerCase() === "offline") return "Offline";
+
+  if (rawType.toLowerCase() === "lpcd" || rawType.toLowerCase() === "low lpcd") {
+    return "Low LPCD";
+  }
+
+  if (rawType.toLowerCase() === "pressure" || rawType.toLowerCase() === "low pressure") {
+    return "Low Pressure";
+  }
+
+  if (rawType.toLowerCase().includes("chlorine")) {
+    if (rawType.toLowerCase() === "high chlorine") return "High Chlorine";
+    if (rawType.toLowerCase() === "low chlorine") return "Low Chlorine";
+    const cleaned = String(alert.alert_value || "0").replace(/[^0-9.]/g, '');
+    const numVal = parseFloat(cleaned);
+    if (!isNaN(numVal) && numVal > 0.5) {
+      return "High Chlorine";
+    }
+    return "Low Chlorine";
+  }
+
+  if (rawType.toLowerCase() === "water" || rawType.toLowerCase() === "zero water supply") {
+    return "Zero Water Supply";
+  }
+
+  return rawType;
+};
+
+const getAlertBadgeClass = (formattedType: string) => {
+  switch (formattedType) {
+    case "Offline":
+      return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 font-medium";
+    case "Low LPCD":
+      return "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800 font-medium";
+    case "Low Pressure":
+      return "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800 font-medium";
+    case "Low Chlorine":
+      return "bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-300 dark:border-cyan-800 font-medium";
+    case "High Chlorine":
+      return "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800 font-medium";
+    case "Zero Water Supply":
+      return "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800 font-medium";
+    default:
+      return "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 font-medium";
+  }
+};
+
+const formatOfflineSensorsValue = (rawVal: string): string => {
+  const val = String(rawVal ?? "").trim();
+  if (!val || val === "null" || val === "undefined") return "Sensor Offline";
+  const lower = val.toLowerCase();
+  const hasChlorine = lower.includes("chlorine");
+  const hasFlow = lower.includes("flow");
+  const hasPressure = lower.includes("pressure");
+
+  if (hasChlorine && hasFlow && hasPressure) {
+    return "Flow, Pressure and Chlorine Sensor Offline";
+  }
+  if (hasFlow && hasPressure) {
+    return "Flow and Pressure Sensor Offline";
+  }
+  if (hasChlorine && hasFlow) {
+    return "Chlorine and Flow Sensor Offline";
+  }
+  if (hasChlorine && hasPressure) {
+    return "Chlorine and Pressure Sensor Offline";
+  }
+  if (hasChlorine) {
+    return "Chlorine Sensor Offline";
+  }
+  if (hasFlow) {
+    return "Flow Sensor Offline";
+  }
+  if (hasPressure) {
+    return "Pressure Sensor Offline";
+  }
+  if (lower.includes("sensor offline")) return val;
+  return `${val} Sensor Offline`;
+};
+
+const getAlertValueDisplay = (alert: any, formattedType: string) => {
+  const val = String(alert.alert_value ?? "").trim();
+  if (!val || val === "null" || val === "undefined") return "-";
+  if (formattedType === "Offline") {
+    return formatOfflineSensorsValue(val);
+  }
+  if (formattedType === "Low Chlorine" || formattedType === "High Chlorine") {
+    return val.toLowerCase().includes("mg/l") ? val : `${val} mg/L`;
+  }
+  if (formattedType === "Low Pressure") {
+    return val.toLowerCase().includes("bar") ? val : `${val} Bar`;
+  }
+  return val;
+};
+
+const formatLoginTime = (dateStr?: string | null) => {
+  if (!dateStr) return "-";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return String(dateStr);
+    return d.toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  } catch {
+    return String(dateStr);
+  }
+};
+
+const getDeviceLabel = (ua?: string | null) => {
+  if (!ua) return "Desktop";
+  if (ua.includes("Mobile") || ua.includes("Android") || ua.includes("iPhone")) return "Mobile";
+  if (ua.includes("Chrome")) return "Chrome (PC)";
+  if (ua.includes("Firefox")) return "Firefox (PC)";
+  if (ua.includes("Safari") && !ua.includes("Chrome")) return "Safari (Mac)";
+  if (ua.includes("Edge")) return "Edge (PC)";
+  return "Web Browser";
+};
+
+const formatReminderTime = (dateStr?: string | null) => {
+  if (!dateStr) return "recently";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return String(dateStr);
+    return d.toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  } catch {
+    return String(dateStr);
+  }
+};
+
 export default function EngineerDashboard() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -175,11 +324,11 @@ export default function EngineerDashboard() {
   // Local state to track acknowledged alert keys for instant optimistic feedback
   const [acknowledgedAlertKeys, setAcknowledgedAlertKeys] = useState<Set<string>>(new Set());
 
-  const getAlertKey = (a: any) => {
-    if (a.id) return `alert-id-${a.id}`;
-    if (a.ticket_id) return `ticket-${a.ticket_id}`;
-    return `alert-${a.scheme_id}-${a.alert_type}-${a.esr_name || ''}-${a.village_name || ''}-${a.sent_date ? String(a.sent_date).slice(0, 10) : ''}-${a.alert_value || ''}`;
-  };
+  // Local state to track reminders sent in the current session for immediate UI reflection
+  const [reminderSentRecords, setReminderSentRecords] = useState<
+    Record<string, { vendor_name?: string; vendor_email?: string; sent_at?: string }>
+  >({});
+  const [sendingReminderKey, setSendingReminderKey] = useState<string | null>(null);
 
   // Login logs modal state
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
@@ -261,131 +410,6 @@ export default function EngineerDashboard() {
 
   // Offline alerts list
   const offlineAlertsList = displayedAlerts.filter((a) => getFormattedAlertType(a) === "Offline");
-
-  const getFormattedAlertType = (alert: any) => {
-    const rawType = (alert.alert_type || "").trim();
-    if (rawType.toLowerCase() === "offline") return "Offline";
-
-    if (rawType.toLowerCase() === "lpcd" || rawType.toLowerCase() === "low lpcd") {
-      return "Low LPCD";
-    }
-
-    if (rawType.toLowerCase() === "pressure" || rawType.toLowerCase() === "low pressure") {
-      return "Low Pressure";
-    }
-
-    if (rawType.toLowerCase().includes("chlorine")) {
-      if (rawType.toLowerCase() === "high chlorine") return "High Chlorine";
-      if (rawType.toLowerCase() === "low chlorine") return "Low Chlorine";
-      const cleaned = String(alert.alert_value || "0").replace(/[^0-9.]/g, '');
-      const numVal = parseFloat(cleaned);
-      if (!isNaN(numVal) && numVal > 0.5) {
-        return "High Chlorine";
-      }
-      return "Low Chlorine";
-    }
-
-    if (rawType.toLowerCase() === "water" || rawType.toLowerCase() === "zero water supply") {
-      return "Zero Water Supply";
-    }
-
-    return rawType;
-  };
-
-  const getAlertBadgeClass = (formattedType: string) => {
-    switch (formattedType) {
-      case "Offline":
-        return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 font-medium";
-      case "Low LPCD":
-        return "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800 font-medium";
-      case "Low Pressure":
-        return "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800 font-medium";
-      case "Low Chlorine":
-        return "bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-300 dark:border-cyan-800 font-medium";
-      case "High Chlorine":
-        return "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800 font-medium";
-      case "Zero Water Supply":
-        return "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800 font-medium";
-      default:
-        return "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 font-medium";
-    }
-  };
-
-  const formatOfflineSensorsValue = (rawVal: string): string => {
-    const val = String(rawVal ?? "").trim();
-    if (!val || val === "null" || val === "undefined") return "Sensor Offline";
-    const lower = val.toLowerCase();
-    const hasChlorine = lower.includes("chlorine");
-    const hasFlow = lower.includes("flow");
-    const hasPressure = lower.includes("pressure");
-
-    if (hasChlorine && hasFlow && hasPressure) {
-      return "Flow, Pressure and Chlorine Sensor Offline";
-    }
-    if (hasFlow && hasPressure) {
-      return "Flow and Pressure Sensor Offline";
-    }
-    if (hasChlorine && hasFlow) {
-      return "Chlorine and Flow Sensor Offline";
-    }
-    if (hasChlorine && hasPressure) {
-      return "Chlorine and Pressure Sensor Offline";
-    }
-    if (hasChlorine) {
-      return "Chlorine Sensor Offline";
-    }
-    if (hasFlow) {
-      return "Flow Sensor Offline";
-    }
-    if (hasPressure) {
-      return "Pressure Sensor Offline";
-    }
-    if (lower.includes("sensor offline")) return val;
-    return `${val} Sensor Offline`;
-  };
-
-  const getAlertValueDisplay = (alert: any, formattedType: string) => {
-    const val = String(alert.alert_value ?? "").trim();
-    if (!val || val === "null" || val === "undefined") return "-";
-    if (formattedType === "Offline") {
-      return formatOfflineSensorsValue(val);
-    }
-    if (formattedType === "Low Chlorine" || formattedType === "High Chlorine") {
-      return val.toLowerCase().includes("mg/l") ? val : `${val} mg/L`;
-    }
-    if (formattedType === "Low Pressure") {
-      return val.toLowerCase().includes("bar") ? val : `${val} Bar`;
-    }
-    return val;
-  };
-
-  // Helper for formatting login timestamps
-  const formatLoginTime = (dateStr?: string | null) => {
-    if (!dateStr) return "-";
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return String(dateStr);
-      return d.toLocaleString("en-IN", {
-        day: "2-digit",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      });
-    } catch {
-      return String(dateStr);
-    }
-  };
-
-  const getDeviceLabel = (ua?: string | null) => {
-    if (!ua) return "Desktop";
-    if (ua.includes("Mobile") || ua.includes("Android") || ua.includes("iPhone")) return "Mobile";
-    if (ua.includes("Chrome")) return "Chrome (PC)";
-    if (ua.includes("Firefox")) return "Firefox (PC)";
-    if (ua.includes("Safari") && !ua.includes("Chrome")) return "Safari (Mac)";
-    if (ua.includes("Edge")) return "Edge (PC)";
-    return "Web Browser";
-  };
 
   // Performance calculations
   const totalVillages = data?.totalVillages ?? 0;
@@ -562,30 +586,6 @@ export default function EngineerDashboard() {
       });
     },
   });
-
-  // Helper for formatting reminder timestamps
-  const formatReminderTime = (dateStr?: string | null) => {
-    if (!dateStr) return "recently";
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return String(dateStr);
-      return d.toLocaleString("en-IN", {
-        day: "2-digit",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      });
-    } catch {
-      return String(dateStr);
-    }
-  };
-
-  // Local state to track reminders sent in the current session for immediate UI reflection
-  const [reminderSentRecords, setReminderSentRecords] = useState<
-    Record<string, { vendor_name?: string; vendor_email?: string; sent_at?: string }>
-  >({});
-  const [sendingReminderKey, setSendingReminderKey] = useState<string | null>(null);
 
   const sendReminderMutation = useMutation({
     mutationFn: async (alert: any) => {
