@@ -39,7 +39,7 @@ interface Alert {
 export function startDailyAlertsCron() {
   // Run every day at 11:13 AM
   // You can adjust the cron expression as needed: '13 11 * * *'
-  cron.schedule("47 10   * * *", async () => {
+  cron.schedule("54 11   * * *", async () => {
     await runDailyAlertsJob();
     console.log("? Running automatic offline emails to vendors...");
     await sendAutomaticOfflineEmails();
@@ -84,7 +84,7 @@ export async function runDailyAlertsJob() {
       .select()
       .from(chlorineData)
       .where(
-        sql`chlorine_value_7 IS NOT NULL 
+        sql`chlorine_value_7 IS NOT NULL
             AND NULLIF(REGEXP_REPLACE(chlorine_value_7::text, '[^0-9.]', '', 'g'), '') IS NOT NULL
             AND (
               (NULLIF(REGEXP_REPLACE(chlorine_value_7::text, '[^0-9.]', '', 'g'), '')::numeric) < 0.2
@@ -111,7 +111,7 @@ export async function runDailyAlertsJob() {
       .select()
       .from(pressureData)
       .where(
-        sql`pressure_value_7 IS NOT NULL 
+        sql`pressure_value_7 IS NOT NULL
             AND NULLIF(REGEXP_REPLACE(pressure_value_7::text, '[^0-9.]', '', 'g'), '') IS NOT NULL
             AND (NULLIF(REGEXP_REPLACE(pressure_value_7::text, '[^0-9.]', '', 'g'), '')::numeric) < 0.2
             AND (NULLIF(REGEXP_REPLACE(pressure_value_7::text, '[^0-9.]', '', 'g'), '')::numeric) >= 0`
@@ -160,7 +160,7 @@ export async function runDailyAlertsJob() {
     // 4. Check Offline Sensors Data (communication_status)
     try {
       const offlineRowsRes = await pool.query(`
-        SELECT 
+        SELECT
           scheme_id,
           scheme_name,
           region,
@@ -170,8 +170,8 @@ export async function runDailyAlertsJob() {
           pressure_status,
           flow_meter_status
         FROM communication_status
-        WHERE chlorine_status = 'Offline' 
-           OR pressure_status = 'Offline' 
+        WHERE chlorine_status = 'Offline'
+           OR pressure_status = 'Offline'
            OR flow_meter_status = 'Offline'
       `);
 

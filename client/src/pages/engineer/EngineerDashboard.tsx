@@ -1443,7 +1443,7 @@ export default function EngineerDashboard() {
                   </Badge>
                   {pendingAlertsToAck.length > 0 && (
                     <Badge className="bg-amber-500/20 text-amber-300 border-amber-400/40 text-[11px] font-bold px-2 py-0.5">
-                      {pendingAlertsToAck.length} Pending Ack
+                      {pendingAlertsToAck.length} Pending Acknowledgment
                     </Badge>
                   )}
                 </div>
@@ -1588,7 +1588,7 @@ export default function EngineerDashboard() {
                       <th className="py-2.5 px-3 text-left">Recorded Value</th>
                       <th className="py-2.5 px-2 text-center w-24 whitespace-nowrap">Date</th>
                       <th className="py-2.5 px-2 text-center w-24 whitespace-nowrap">Status</th>
-                      <th className="py-2.5 px-3 text-right w-[195px] whitespace-nowrap">Actions</th>
+                      <th className="py-2.5 px-3 text-right w-[270px] whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
@@ -1692,14 +1692,14 @@ export default function EngineerDashboard() {
                             ) : (
                               <Badge className="bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 text-[10px] font-bold px-2 py-0.5 inline-flex items-center gap-1 shadow-xs">
                                 <Clock className="w-3 h-3 text-amber-600" />
-                                Pending Ack
+                                Pending
                               </Badge>
                             )}
                           </td>
 
                           {/* 8. Actions */}
                           <td className="py-2.5 px-3 text-right align-middle whitespace-nowrap">
-                            <div className="flex items-center justify-end gap-1 flex-nowrap">
+                            <div className="flex items-center justify-end gap-1.5 flex-nowrap">
                               {formattedType === "Offline" && (
                                 <Button
                                   size="sm"
@@ -1724,7 +1724,7 @@ export default function EngineerDashboard() {
                                   ) : (
                                     <>
                                       <BellRing className="w-3 h-3 mr-0.5" />
-                                      {reminderRecord ? "Resend" : "Remind"}
+                                      {reminderRecord ? "Resend" : "Send Reminder"}
                                     </>
                                   )}
                                 </Button>
@@ -1734,11 +1734,11 @@ export default function EngineerDashboard() {
                                   size="sm"
                                   onClick={() => acknowledgeMutation.mutate(alert)}
                                   disabled={acknowledgeMutation.isPending}
-                                  className="h-7 px-2 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs flex items-center gap-1 shrink-0"
+                                  className="h-7 px-2.5 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs flex items-center gap-1 shrink-0"
                                   title="Acknowledge this alert"
                                 >
                                   <Check className="w-3 h-3" />
-                                  Ack
+                                  Acknowledge
                                 </Button>
                               )}
                               <Link href={`/helpdesk/issue-reporting?scheme_id=${alert.scheme_id}`}>

@@ -59,14 +59,14 @@ import "./init-database.js"; // Initial data cleanup (optional, based on require
 import { initializeDataCleanup } from "./data-cleanup.js"; // Run data cleanup on startup
 import { mqttService } from "./mqtt-service"; // Initialize MQTT service
 import { startDailyAlertsCron } from "./cron/daily-alerts.js"; // Start daily alerts cron
-import { initPiChlorineIngestionCron } from "./cron/pi-chlorine-ingestion.js"; // Start PI Ingestion cron
-import { initPiPressureIngestionCron } from "./cron/pi-pressure-ingestion.js"; // Start PI Pressure Ingestion cron
-import { initPiWaterSchemeIngestionCron } from "./cron/pi-water-scheme-ingestion.js"; 
-import { initPiSchemeLpcdIngestionCron } from "./cron/pi-scheme-lpcd-ingestion.js";
-import { initPiWaterConsumptionIngestionCron } from "./cron/pi-water-consumption-ingestion.js";
-import { initPiCommunicationStatusIngestionCron } from "./cron/pi-communication-status-ingestion.js";
-import { initPiRealtimeValuesCron } from "./cron/pi-realtime-values.js";
-import { initPiRealtimeCommCron } from "./cron/pi-realtime-comm.js";
+// import { initPiChlorineIngestionCron } from "./cron/pi-chlorine-ingestion.js"; // Start PI Ingestion cron
+// import { initPiPressureIngestionCron } from "./cron/pi-pressure-ingestion.js"; // Start PI Pressure Ingestion cron
+// import { initPiWaterSchemeIngestionCron } from "./cron/pi-water-scheme-ingestion.js"; 
+// import { initPiSchemeLpcdIngestionCron } from "./cron/pi-scheme-lpcd-ingestion.js";
+// import { initPiWaterConsumptionIngestionCron } from "./cron/pi-water-consumption-ingestion.js";
+// import { initPiCommunicationStatusIngestionCron } from "./cron/pi-communication-status-ingestion.js";
+// import { initPiRealtimeValuesCron } from "./cron/pi-realtime-values.js";
+// import { initPiRealtimeCommCron } from "./cron/pi-realtime-comm.js";
 
 const app = express();
 app.disable('x-powered-by');
@@ -87,7 +87,7 @@ app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Credentials", "true");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
-  
+
   if (req.method === "OPTIONS") {
     res.sendStatus(200);
   } else {
@@ -111,10 +111,10 @@ app.use((req, res, next) => {
 // Configure session middleware with PostgreSQL store for cloud / multi-process persistence
 const sessionStore = process.env.DATABASE_URL
   ? new PgSession({
-      conString: process.env.DATABASE_URL,
-      createTableIfMissing: true,
-      tableName: "session",
-    })
+    conString: process.env.DATABASE_URL,
+    createTableIfMissing: true,
+    tableName: "session",
+  })
   : undefined;
 
 app.use(
@@ -227,14 +227,14 @@ app.use((req, res, next) => {
       setTimeout(() => {
         initializeDataCleanup().catch(console.error);
         startDailyAlertsCron(); // Start the daily alerts cron job
-        initPiChlorineIngestionCron(); // Start PI Web API Sync
-        initPiPressureIngestionCron(); // Start PI Web API Pressure Sync
-        initPiWaterSchemeIngestionCron();
-        initPiSchemeLpcdIngestionCron();
-        initPiWaterConsumptionIngestionCron();
-        initPiCommunicationStatusIngestionCron();
-        initPiRealtimeValuesCron();
-        initPiRealtimeCommCron();
+        // initPiChlorineIngestionCron(); // Start PI Web API Sync
+        // initPiPressureIngestionCron(); // Start PI Web API Pressure Sync
+        // initPiWaterSchemeIngestionCron();
+        // initPiSchemeLpcdIngestionCron();
+        // initPiWaterConsumptionIngestionCron();
+        // initPiCommunicationStatusIngestionCron();
+        // initPiRealtimeValuesCron();
+        // initPiRealtimeCommCron();
       }, 5000); // Wait 5 seconds after server start
     },
   );
