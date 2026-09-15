@@ -9,12 +9,33 @@ CREATE TABLE IF NOT EXISTS public.email_alert_logs (
     esr_name VARCHAR(255),
     alert_type VARCHAR(50) NOT NULL, -- e.g., 'LPCD', 'Chlorine', 'Pressure', 'Water'
     alert_value VARCHAR(100) NOT NULL, -- The failing value that triggered the alert
+    
+    -- Executive Engineers
+    ee_civil_name VARCHAR(255),
+    ee_civil_email VARCHAR(255),
+    ee_mech_name VARCHAR(255),
+    ee_mech_email VARCHAR(255),
+    
+    -- DE/AE
+    de_ae_civil_name VARCHAR(255),
+    de_ae_civil_email VARCHAR(255),
+    de_ae_mech_name VARCHAR(255),
+    de_ae_mech_email VARCHAR(255),
+    
+    -- Supervisory Leadership
+    se_name VARCHAR(255),
+    se_email VARCHAR(255),
+    chief_engineer_name VARCHAR(255),
+    chief_engineer_email VARCHAR(255),
+
+    -- Legacy columns
     civil_engineer_name VARCHAR(255),
     civil_engineer_email VARCHAR(255),
     mechanical_engineer_name VARCHAR(255),
     mechanical_engineer_email VARCHAR(255),
     site_supervisor_name VARCHAR(255),
     site_supervisor_email VARCHAR(255),
+    
     sent_date DATE NOT NULL DEFAULT CURRENT_DATE,
     sent_time TIME NOT NULL DEFAULT CURRENT_TIME,
     ticket_id VARCHAR(100) UNIQUE,

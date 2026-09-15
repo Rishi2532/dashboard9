@@ -163,6 +163,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ALTER TABLE offline_reminder_logs ADD COLUMN IF NOT EXISTS ee_civil_email VARCHAR(255);
       ALTER TABLE offline_reminder_logs ADD COLUMN IF NOT EXISTS ee_mech_email VARCHAR(255);
 
+      -- Ensure columns in email_alert_logs
+      ALTER TABLE email_alert_logs ADD COLUMN IF NOT EXISTS ee_civil_name VARCHAR(255);
+      ALTER TABLE email_alert_logs ADD COLUMN IF NOT EXISTS ee_civil_email VARCHAR(255);
+      ALTER TABLE email_alert_logs ADD COLUMN IF NOT EXISTS ee_mech_name VARCHAR(255);
+      ALTER TABLE email_alert_logs ADD COLUMN IF NOT EXISTS ee_mech_email VARCHAR(255);
+      ALTER TABLE email_alert_logs ADD COLUMN IF NOT EXISTS de_ae_civil_name VARCHAR(255);
+      ALTER TABLE email_alert_logs ADD COLUMN IF NOT EXISTS de_ae_civil_email VARCHAR(255);
+      ALTER TABLE email_alert_logs ADD COLUMN IF NOT EXISTS de_ae_mech_name VARCHAR(255);
+      ALTER TABLE email_alert_logs ADD COLUMN IF NOT EXISTS de_ae_mech_email VARCHAR(255);
+      ALTER TABLE email_alert_logs ADD COLUMN IF NOT EXISTS se_name VARCHAR(255);
+      ALTER TABLE email_alert_logs ADD COLUMN IF NOT EXISTS se_email VARCHAR(255);
+      ALTER TABLE email_alert_logs ADD COLUMN IF NOT EXISTS chief_engineer_name VARCHAR(255);
+      ALTER TABLE email_alert_logs ADD COLUMN IF NOT EXISTS chief_engineer_email VARCHAR(255);
+
       -- Ensure columns in scheme_engineer_details
       ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS ee_civil_name VARCHAR(255);
       ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS ee_civil_mobile VARCHAR(20);
