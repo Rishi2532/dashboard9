@@ -493,7 +493,6 @@ export async function sendDailyAlertEmail(
       issues.push(`<span style="color: #dc2626; font-weight: bold;">Low Pressure:</span> ${dispP} (Below 0.2)`);
     }
     if (alert.lpcd_issue) issues.push(`<span style="color: #ea580c; font-weight: bold;">Low LPCD:</span> ${alert.lpcd_value} (Below 55)`);
-    if (alert.water_issue) issues.push(`<span style="color: #dc2626; font-weight: bold;">Water:</span> 0 (Zero Supply)`);
     if (alert.offline_issue) issues.push(`<span style="color: #ea580c; font-weight: bold;">Offline:</span> ${alert.offline_sensors || 'Sensors Offline'}`);
 
     alertsHtml += `

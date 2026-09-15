@@ -17,7 +17,13 @@ import {
   Droplets,
   GaugeCircle,
   History,
-  Download
+  Download,
+  Search,
+  X,
+  Filter,
+  Clock,
+  ShieldAlert,
+  ArrowRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -29,6 +35,7 @@ import {
   DialogDescription,
   DialogHeader
 } from "@/components/ui/dialog";
+import { useAuth } from "@/hooks/use-auth";
 
 // Define TypeScript interfaces for our data
 interface IssueRemark {
@@ -90,10 +97,57 @@ const parseIssues = (rawIssues: any) => {
   return issues;
 };
 
+// Helper to determine acknowledgement info for a row
+export const getRowAckInfo = (row: AlertData) => {
+  const assignedEmails = [
+    row.civil_engineer_email?.toLowerCase().trim(),
+    row.mechanical_engineer_email?.toLowerCase().trim(),
+    row.site_supervisor_email?.toLowerCase().trim()
+  ].filter(Boolean) as string[];
+
+  const acksList: { name: string; email: string; acknowledged_at: string }[] = [];
+  const uniqueAckEmails = new Set<string>();
+
+  if (row.acknowledgements && Array.isArray(row.acknowledgements)) {
+    row.acknowledgements.forEach((a: any) => {
+      if (a.acknowledged_at && a.engineer_email) {
+        const norm = a.engineer_email.toLowerCase().trim();
+        if (assignedEmails.length === 0 || assignedEmails.includes(norm)) {
+          if (!uniqueAckEmails.has(norm)) {
+            uniqueAckEmails.add(norm);
+            acksList.push({
+              name: a.engineer_name || "Engineer",
+              email: a.engineer_email,
+              acknowledged_at: a.acknowledged_at
+            });
+          }
+        }
+      }
+    });
+  }
+
+  const ackCount = uniqueAckEmails.size;
+  const totalRequired = assignedEmails.length;
+  const isAcknowledged = ackCount > 0;
+  const isFullyAcknowledged = totalRequired > 0 && ackCount === totalRequired;
+
+  return {
+    isAcknowledged,
+    isFullyAcknowledged,
+    ackCount,
+    totalRequired,
+    acksList
+  };
+};
+
 export default function AlertsProgressPage() {
+  const { user, isAdmin, isLoading: authLoading } = useAuth();
+
   const [activeTab, setActiveTab] = useState("lpcd");
   const [activeSubTab, setActiveSubTab] = useState<"current" | "previous" | "custom">("current");
   const [customDate, setCustomDate] = useState<string>("");
+  const [schemeSearch, setSchemeSearch] = useState<string>("");
+  const [ackStatusFilter, setAckStatusFilter] = useState<"all" | "acknowledged" | "pending">("all");
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -108,11 +162,18 @@ export default function AlertsProgressPage() {
     row: AlertData;
   } | null>(null);
 
+  // Modal dialog for viewing the full list of acknowledged or pending schemes
+  const [ackModalData, setAckModalData] = useState<{
+    title: string;
+    type: "acknowledged" | "pending";
+    rows: AlertData[];
+  } | null>(null);
+  const [modalSearch, setModalSearch] = useState("");
+
   const handleDownloadReport = async () => {
     setIsDownloading(true);
     try {
       window.location.href = "/api/alerts-progress/download-14-day-report";
-      // Adding a small delay to simulate loading for the user since window.location.href doesn't give a callback
       setTimeout(() => {
         setIsDownloading(false);
       }, 2000);
@@ -128,8 +189,10 @@ export default function AlertsProgressPage() {
     queryFn: async () => {
       const url = customDate ? `/api/alerts-progress/lpcd?date=${customDate}` : "/api/alerts-progress/lpcd";
       const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to fetch LPCD alerts");
       return res.json();
     },
+    enabled: !!isAdmin,
   });
 
   const { data: chlorineData = [], isLoading: isLoadingChlorine } = useQuery<AlertData[]>({
@@ -137,8 +200,10 @@ export default function AlertsProgressPage() {
     queryFn: async () => {
       const url = customDate ? `/api/alerts-progress/chlorine?date=${customDate}` : "/api/alerts-progress/chlorine";
       const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to fetch Chlorine alerts");
       return res.json();
     },
+    enabled: !!isAdmin,
   });
 
   const { data: pressureData = [], isLoading: isLoadingPressure } = useQuery<AlertData[]>({
@@ -146,17 +211,46 @@ export default function AlertsProgressPage() {
     queryFn: async () => {
       const url = customDate ? `/api/alerts-progress/pressure?date=${customDate}` : "/api/alerts-progress/pressure";
       const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to fetch Pressure alerts");
       return res.json();
     },
+    enabled: !!isAdmin,
   });
 
   const { data: offlineData = [], isLoading: isLoadingOffline } = useQuery<AlertData[]>({
     queryKey: ["/api/alerts-progress/offline"],
     queryFn: async () => {
       const res = await fetch("/api/alerts-progress/offline");
+      if (!res.ok) throw new Error("Failed to fetch Offline alerts");
       return res.json();
     },
+    enabled: !!isAdmin,
   });
+
+  // Access check guard for non-admins
+  if (!authLoading && !isAdmin) {
+    return (
+      <DashboardLayout>
+        <div className="min-h-[80vh] flex items-center justify-center p-6">
+          <div className="max-w-md w-full p-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl text-center space-y-4">
+            <div className="h-16 w-16 mx-auto bg-rose-100 text-rose-600 rounded-full flex items-center justify-center shadow-inner">
+              <ShieldAlert className="h-8 w-8" />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Admin Access Restricted</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              The Alert Progress tracking portal is strictly restricted to platform administrators.
+            </p>
+            <Button
+              onClick={() => (window.location.href = "/dashboard")}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 shadow-md"
+            >
+              Return to Main Dashboard
+            </Button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   // Helper to filter data based on strict literal calendar dates
   const getFilteredData = (data: AlertData[], type: "lpcd" | "chlorine" | "pressure" | "offline") => {
@@ -296,9 +390,9 @@ export default function AlertsProgressPage() {
       return <div className="p-16 text-center text-slate-500 font-medium">Loading alerts data...</div>;
     }
 
-    const data = getFilteredData(rawData, type);
+    const baseData = getFilteredData(rawData, type);
 
-    if (data.length === 0) {
+    if (baseData.length === 0) {
       return (
         <div className="p-16 text-center flex flex-col items-center gap-4 bg-slate-50 rounded-xl border border-dashed border-slate-200 m-6">
           <div className="h-16 w-16 bg-emerald-100 rounded-full flex items-center justify-center mb-2">
@@ -307,7 +401,7 @@ export default function AlertsProgressPage() {
           <h3 className="text-xl font-bold text-slate-900">
             Everything is looking great!
           </h3>
-          <p className="text-slate-500 max-w-sm">
+          <p className="text-slate-500 max-w-sm text-sm">
             {type === "offline"
               ? "All IoT sensors are currently online. No communication dropouts reported."
               : activeSubTab === "current"
@@ -321,21 +415,26 @@ export default function AlertsProgressPage() {
     }
 
     // Calculations for KPIs
-    const totalSchemes = data.length;
     const firstKpiLabel = type === "lpcd" ? "Total Villages" : type === "offline" ? "Offline Records" : "Total Sensors";
     const firstKpiValue = type === "lpcd" 
-      ? data.reduce((acc, row) => {
+      ? baseData.reduce((acc, row) => {
           if (typeof row.village_name === 'string') {
             return acc + row.village_name.split(',').length;
           }
           return acc + 1;
         }, 0)
-      : data.length;
+      : baseData.length;
     const alertValueLabel = type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : type === "pressure" ? "Pressure" : "Offline Sensors";
     
+    // Acknowledgement lists over all base date records
+    const acknowledgedRows = baseData.filter((r) => getRowAckInfo(r).isAcknowledged);
+    const pendingRows = baseData.filter((r) => !getRowAckInfo(r).isAcknowledged);
+    const totalAcknowledged = acknowledgedRows.length;
+    const totalPending = pendingRows.length;
+
     // Count unique engineers
     const engineersSet = new Set<string>();
-    data.forEach(r => {
+    baseData.forEach(r => {
       if (r.civil_engineer_email) engineersSet.add(r.civil_engineer_email);
       if (r.mechanical_engineer_email) engineersSet.add(r.mechanical_engineer_email);
       if (r.site_supervisor_email) engineersSet.add(r.site_supervisor_email);
@@ -343,256 +442,368 @@ export default function AlertsProgressPage() {
     const totalEngineers = engineersSet.size;
 
     // Count remarks added
-    const totalRemarks = data.filter(r => parseIssues(r.remarks).length > 0).length;
+    const totalRemarks = baseData.filter(r => parseIssues(r.remarks).length > 0).length;
+
+    // Filter by Scheme Search & Acknowledgement status
+    const displayData = baseData.filter((row) => {
+      if (schemeSearch.trim()) {
+        const q = schemeSearch.toLowerCase().trim();
+        const matches =
+          (row.scheme_name && row.scheme_name.toLowerCase().includes(q)) ||
+          (row.scheme_id && row.scheme_id.toLowerCase().includes(q)) ||
+          (row.village_name && row.village_name.toLowerCase().includes(q)) ||
+          (row.esr_name && row.esr_name.toLowerCase().includes(q)) ||
+          (row.region && row.region.toLowerCase().includes(q));
+        if (!matches) return false;
+      }
+      if (ackStatusFilter === "acknowledged") {
+        return getRowAckInfo(row).isAcknowledged;
+      }
+      if (ackStatusFilter === "pending") {
+        return !getRowAckInfo(row).isAcknowledged;
+      }
+      return true;
+    });
 
     // Pagination Logic
     const startIdx = (page - 1) * rowsPerPage;
     const endIdx = page * rowsPerPage;
-    const totalPages = Math.ceil(data.length / rowsPerPage);
-    const paginatedData = data.slice(startIdx, endIdx);
-    const startItem = startIdx + 1;
-    const endItem = Math.min(endIdx, data.length);
+    const totalPages = Math.ceil(displayData.length / rowsPerPage);
+    const paginatedData = displayData.slice(startIdx, endIdx);
+    const startItem = displayData.length > 0 ? startIdx + 1 : 0;
+    const endItem = Math.min(endIdx, displayData.length);
 
     return (
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-8">
         
-        {/* KPI Cards Row */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-6 border-b border-slate-100 bg-slate-50/50">
-          <div className="flex items-center gap-4 bg-rose-50/50 p-4 rounded-xl border border-rose-100">
-            <div className="h-10 w-10 shrink-0 bg-rose-100 text-rose-500 rounded-lg flex items-center justify-center">
+        {/* KPI Cards Row - 5 Cards including Acknowledged with onclick list */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 p-5 border-b border-slate-100 bg-slate-50/50">
+          
+          {/* Card 1: Total Alerts */}
+          <div 
+            onClick={() => setAckStatusFilter("all")}
+            className={`cursor-pointer flex items-center gap-3.5 p-3.5 rounded-xl border transition-all ${
+              ackStatusFilter === "all" 
+                ? "bg-white border-indigo-400 ring-2 ring-indigo-200 shadow-sm" 
+                : "bg-white/80 border-slate-200 hover:border-slate-300 shadow-sm"
+            }`}
+            title="Click to view all alerts"
+          >
+            <div className="h-10 w-10 shrink-0 bg-rose-100 text-rose-600 rounded-lg flex items-center justify-center">
               <AlertTriangle className="h-5 w-5" />
             </div>
-            <div>
-              <div className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-0.5">{firstKpiLabel}</div>
-              <div className="text-xl font-bold text-slate-900">{firstKpiValue}</div>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-4 bg-red-50/50 p-4 rounded-xl border border-red-100">
-            <div className="h-10 w-10 shrink-0 bg-red-100 text-red-500 rounded-lg flex items-center justify-center">
-              <Waves className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-0.5">Low {alertValueLabel} Alerts</div>
-              <div className="text-2xl font-bold text-slate-900 leading-none">{totalSchemes}</div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">Total Alerts</div>
+              <div className="text-xl font-extrabold text-slate-900">{baseData.length}</div>
+              <div className="text-[10px] text-slate-400 truncate">{firstKpiValue} {firstKpiLabel}</div>
             </div>
           </div>
 
-          <div className="flex items-center gap-4 bg-amber-50/50 p-4 rounded-xl border border-amber-100">
-            <div className="h-10 w-10 shrink-0 bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center">
+          {/* Card 2: Acknowledged (Clickable with List Available!) */}
+          <div 
+            onClick={() => {
+              setAckModalData({
+                title: `Acknowledged Alerts (${totalAcknowledged})`,
+                type: "acknowledged",
+                rows: acknowledgedRows
+              });
+              setModalSearch("");
+            }}
+            className={`cursor-pointer group flex items-center gap-3.5 p-3.5 rounded-xl border transition-all ${
+              ackStatusFilter === "acknowledged" 
+                ? "bg-emerald-50 border-emerald-400 ring-2 ring-emerald-200 shadow-sm" 
+                : "bg-gradient-to-br from-emerald-50/70 to-white border-emerald-200 hover:border-emerald-300 hover:shadow-md"
+            }`}
+            title="Click to view list of acknowledged schemes"
+          >
+            <div className="h-10 w-10 shrink-0 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform">
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider truncate flex items-center justify-between">
+                <span>Acknowledged</span>
+                <span className="text-[10px] font-semibold text-emerald-600 underline group-hover:text-emerald-800 flex items-center">
+                  List <ArrowRight className="h-2.5 w-2.5 ml-0.5" />
+                </span>
+              </div>
+              <div className="text-xl font-extrabold text-emerald-700">{totalAcknowledged}</div>
+              <div className="text-[10px] text-emerald-600 font-medium truncate">
+                {Math.round((totalAcknowledged / (baseData.length || 1)) * 100)}% of alerts
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3: Pending Ack (Clickable with List Available!) */}
+          <div 
+            onClick={() => {
+              setAckModalData({
+                title: `Pending Acknowledgement Alerts (${totalPending})`,
+                type: "pending",
+                rows: pendingRows
+              });
+              setModalSearch("");
+            }}
+            className={`cursor-pointer group flex items-center gap-3.5 p-3.5 rounded-xl border transition-all ${
+              ackStatusFilter === "pending" 
+                ? "bg-amber-50 border-amber-400 ring-2 ring-amber-200 shadow-sm" 
+                : "bg-gradient-to-br from-amber-50/70 to-white border-amber-200 hover:border-amber-300 hover:shadow-md"
+            }`}
+            title="Click to view list of pending acknowledgement schemes"
+          >
+            <div className="h-10 w-10 shrink-0 bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform">
+              <Clock className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] font-bold text-amber-800 uppercase tracking-wider truncate flex items-center justify-between">
+                <span>Pending Ack</span>
+                <span className="text-[10px] font-semibold text-amber-600 underline group-hover:text-amber-800 flex items-center">
+                  List <ArrowRight className="h-2.5 w-2.5 ml-0.5" />
+                </span>
+              </div>
+              <div className="text-xl font-extrabold text-amber-700">{totalPending}</div>
+              <div className="text-[10px] text-amber-600 font-medium truncate">Awaiting action</div>
+            </div>
+          </div>
+
+          {/* Card 4: Engineers Notified */}
+          <div className="flex items-center gap-3.5 p-3.5 rounded-xl border border-slate-200 bg-white/80 shadow-sm">
+            <div className="h-10 w-10 shrink-0 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center">
               <Users className="h-5 w-5" />
             </div>
-            <div>
-              <div className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-0.5">Engineers Notified</div>
-              <div className="text-2xl font-bold text-slate-900 leading-none">{totalEngineers}</div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">Engineers</div>
+              <div className="text-xl font-extrabold text-slate-900">{totalEngineers}</div>
+              <div className="text-[10px] text-slate-400 truncate">Assigned personnel</div>
             </div>
           </div>
 
-          <div className="flex items-center gap-4 bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+          {/* Card 5: Remarks Added */}
+          <div className="flex items-center gap-3.5 p-3.5 rounded-xl border border-slate-200 bg-white/80 shadow-sm">
             <div className="h-10 w-10 shrink-0 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center">
               <MessageSquare className="h-5 w-5" />
             </div>
-            <div>
-              <div className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-0.5">Remarks Added</div>
-              <div className="text-2xl font-bold text-slate-900 leading-none">{totalRemarks}</div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">Remarks Added</div>
+              <div className="text-xl font-extrabold text-slate-900">{totalRemarks}</div>
+              <div className="text-[10px] text-slate-400 truncate">Feedback logged</div>
             </div>
           </div>
+
         </div>
+
+        {/* Active Filters Bar */}
+        {(ackStatusFilter !== "all" || schemeSearch) && (
+          <div className="px-6 py-2.5 bg-slate-100/90 border-b border-slate-200 flex items-center justify-between text-xs flex-wrap gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-slate-500 font-medium">Active Filter:</span>
+              {ackStatusFilter !== "all" && (
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-semibold text-xs border ${
+                  ackStatusFilter === "acknowledged" 
+                    ? "bg-emerald-100 text-emerald-800 border-emerald-200" 
+                    : "bg-amber-100 text-amber-800 border-amber-200"
+                }`}>
+                  Status: {ackStatusFilter === "acknowledged" ? "Acknowledged Only" : "Pending Ack Only"}
+                  <button onClick={() => setAckStatusFilter("all")} className="hover:opacity-75 ml-1">✕</button>
+                </span>
+              )}
+              {schemeSearch && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-semibold text-xs bg-indigo-100 text-indigo-800 border border-indigo-200">
+                  Search: "{schemeSearch}"
+                  <button onClick={() => setSchemeSearch("")} className="hover:opacity-75 ml-1">✕</button>
+                </span>
+              )}
+              <span className="text-slate-500 font-medium">({displayData.length} schemes displayed)</span>
+            </div>
+            <button
+              onClick={() => {
+                setAckStatusFilter("all");
+                setSchemeSearch("");
+              }}
+              className="text-indigo-600 hover:text-indigo-800 font-semibold underline text-xs"
+            >
+              Reset to All Schemes
+            </button>
+          </div>
+        )}
 
         {/* Data Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-100/50 border-b border-slate-200">
-                <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200 w-12">#</th>
-                <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200">Scheme Details</th>
-                <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200">
-                  {type === "offline" ? "Offline Sensors" : `Alert Value (${alertValueLabel})`}
-                </th>
-                <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200">
-                  {type === "offline" ? "Notified Personnel" : "Notified Engineers"}
-                </th>
-                <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200">Remarks</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedData.map((row, idx) => {
-                const actualIndex = startIdx + idx + 1;
-                const failing = isStillFailing(row, type);
-                
-                const rowDate = row.created_at ? new Date(row.created_at) : new Date();
-                const rowTodayStr = rowDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-                const rowYesterdayDate = new Date(rowDate);
-                rowYesterdayDate.setDate(rowYesterdayDate.getDate() - 1);
-                const rowYesterdayStr = rowYesterdayDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+          {displayData.length === 0 ? (
+            <div className="p-12 text-center text-slate-500 text-sm font-medium">
+              No schemes match your current search or status filter.
+            </div>
+          ) : (
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-100/60 border-b border-slate-200">
+                  <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200 w-12">#</th>
+                  <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200">Scheme Details</th>
+                  <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200">
+                    {type === "offline" ? "Offline Sensors" : `Alert Value (${alertValueLabel})`}
+                  </th>
+                  <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200">
+                    {type === "offline" ? "Notified Personnel" : "Notified Engineers"}
+                  </th>
+                  <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200">Remarks</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedData.map((row, idx) => {
+                  const actualIndex = startIdx + idx + 1;
+                  const failing = isStillFailing(row, type);
+                  
+                  const rowDate = row.created_at ? new Date(row.created_at) : new Date();
+                  const rowTodayStr = rowDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 
-                return (
-                  <tr key={`${row.scheme_id}-${idx}`} className="border-b border-slate-100 hover:bg-slate-50/80 transition-colors">
-                    <td className="py-4 px-6 align-top text-center border-x border-slate-200">
-                      <span className="text-sm font-medium text-slate-500">{actualIndex}</span>
-                    </td>
-                    
-                    <td className="py-4 px-6 align-top text-center border-x border-slate-200">
-                      <div className="font-bold text-slate-900 text-sm">{row.scheme_name}</div>
-                      <div className="flex items-center justify-center gap-2 mt-1.5 text-xs text-slate-500">
-                        <span>ID: {row.scheme_id}</span>
-                        <MapPin className="h-3 w-3 text-slate-400 ml-1" />
-                        <span>{row.region}</span>
-                      </div>
-                      {row.ticket_id && (
-                        <div className="mt-2">
-                          <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
-                            Ticket: {row.ticket_id}
-                          </span>
-                        </div>
-                      )}
-                      {(row.village_name || row.esr_name) && (
-                        <div className="mt-2.5 flex flex-wrap justify-center gap-1.5">
-                          {row.village_name && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-600">
-                              {row.village_name}
-                            </span>
-                          )}
-                          {row.esr_name && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-sky-50 text-sky-600">
-                              {row.esr_name}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </td>
+                  const ackInfo = getRowAckInfo(row);
+                  const hasEngineers = !!(row.civil_engineer_name || row.mechanical_engineer_name || row.site_supervisor_name);
 
-                    <td className="py-4 px-6 align-middle text-center border-x border-slate-200">
-                      {type === "offline" ? (
-                        <div className="flex flex-wrap justify-center gap-1.5">
-                          {String(row.current_value).split(', ').map((sensor) => (
-                            <span key={sensor} className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-rose-50 text-rose-600 border border-rose-100 shadow-sm">
-                              {sensor}
+                  return (
+                    <tr key={`${row.scheme_id}-${idx}`} className="border-b border-slate-100 hover:bg-slate-50/80 transition-colors">
+                      <td className="py-4 px-6 align-top text-center border-x border-slate-200">
+                        <span className="text-sm font-medium text-slate-500">{actualIndex}</span>
+                      </td>
+                      
+                      <td className="py-4 px-6 align-top text-center border-x border-slate-200">
+                        <div className="font-bold text-slate-900 text-sm">{row.scheme_name}</div>
+                        <div className="flex items-center justify-center gap-2 mt-1.5 text-xs text-slate-500">
+                          <span>ID: {row.scheme_id}</span>
+                          <MapPin className="h-3 w-3 text-slate-400 ml-1" />
+                          <span>{row.region}</span>
+                        </div>
+                        {row.ticket_id && (
+                          <div className="mt-2">
+                            <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
+                              Ticket: {row.ticket_id}
                             </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="flex flex-col gap-1.5 w-full max-w-[140px] mx-auto">
-                          <div className="flex items-center justify-between text-xs bg-slate-50 px-2 py-1.5 rounded border border-slate-100">
-                            <span className="text-slate-500 font-medium">
-                              {activeSubTab === "current" ? "Alert Value" : rowTodayStr}
-                            </span>
-                            <span className="font-semibold text-slate-700">{row.historical_value ?? row.previous_value ?? "N/A"}</span>
                           </div>
-                          <div className="flex items-center justify-between text-xs bg-indigo-50/50 px-2 py-1.5 rounded border border-indigo-100">
-                            <span className="text-slate-500 font-medium">
-                              {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                            </span>
-                            <span className={`font-bold ${failing ? 'text-rose-600' : 'text-emerald-600'}`}>{row.current_value ?? "N/A"}</span>
-                          </div>
-                        </div>
-                      )}
-                    </td>
-
-                    <td className="py-4 px-6 align-top text-center border-x border-slate-200">
-                      {type === "offline" ? (
-                        <div className="flex flex-col items-center">
-                          <div className="flex items-center justify-center gap-1.5 text-sm font-bold text-slate-900">
-                            <div className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
-                            Offline
-                          </div>
-                          <div className="text-xs text-slate-500 mt-1 font-semibold">Sensor Dropout</div>
-                        </div>
-                      ) : failing ? (
-                        <div className="flex flex-col items-center">
-                          <div className="flex items-center justify-center gap-1.5 text-sm font-bold text-slate-900">
-                            <div className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
-                            Threshold Violated
-                          </div>
-                          <div className="text-xs text-slate-500 mt-1">Action Required</div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center">
-                          <div className="flex items-center justify-center gap-1.5 text-sm font-bold text-slate-900">
-                            <div className="h-2 w-2 rounded-full bg-emerald-500" />
-                            Resolved
-                          </div>
-                        </div>
-                      )}
-                      {(() => {
-                        const hasEngineers = !!(row.civil_engineer_name || row.mechanical_engineer_name || row.site_supervisor_name);
-                        
-                        // Normalized assigned emails
-                        const assignedEmails = [
-                          row.civil_engineer_email?.toLowerCase().trim(),
-                          row.mechanical_engineer_email?.toLowerCase().trim(),
-                          row.site_supervisor_email?.toLowerCase().trim()
-                        ].filter(Boolean) as string[];
-                        
-                        const trueTotal = assignedEmails.length;
-                        
-                        // Calculate unique acknowledgements
-                        const uniqueAcks = new Set<string>();
-                        if (row.acknowledgements) {
-                          row.acknowledgements.forEach((a: any) => {
-                            if (a.acknowledged_at && a.engineer_email) {
-                              const normEmail = a.engineer_email.toLowerCase().trim();
-                              if (assignedEmails.includes(normEmail)) {
-                                uniqueAcks.add(normEmail);
-                              }
-                            }
-                          });
-                        }
-                        const ackd = uniqueAcks.size;
-                        const isAllAckd = trueTotal > 0 && ackd === trueTotal;
-
-                        return (
-                          <div className="flex items-center justify-center gap-2 mt-1">
-                            {hasEngineers ? (
-                              <>
-                                {(activeSubTab === 'current' || type === 'offline') && trueTotal > 0 ? (
-                                  <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-md text-xs font-bold border ${isAllAckd ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : ackd > 0 ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
-                                    {ackd}/{trueTotal} Acknowledged
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-50 text-emerald-600 border border-emerald-100">
-                                    Yes
-                                  </span>
-                                )}
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-7 w-7 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 shrink-0 border border-indigo-100"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedEngineers({ title: row.scheme_name, row });
-                                  }}
-                                  title="View Assigned Personnel & Status"
-                                >
-                                  <Eye className="h-3.5 w-3.5" />
-                                </Button>
-                              </>
-                            ) : (
-                              <span className="text-xs font-medium text-slate-400 border border-slate-100 px-2.5 py-1 rounded-md bg-slate-50">
-                                None
+                        )}
+                        {(row.village_name || row.esr_name) && (
+                          <div className="mt-2.5 flex flex-wrap justify-center gap-1.5">
+                            {row.village_name && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-600">
+                                {row.village_name}
+                              </span>
+                            )}
+                            {row.esr_name && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-sky-50 text-sky-600">
+                                {row.esr_name}
                               </span>
                             )}
                           </div>
-                        );
-                      })()}
-                    </td>
+                        )}
+                      </td>
 
-                    <td className="py-4 px-6 align-top text-center border-x border-slate-200">
-                      <div className="flex justify-center">
-                        {renderRemarkCell(row.remarks, `Remarks for ${row.esr_name || row.village_name || row.scheme_name}`)}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      <td className="py-4 px-6 align-middle text-center border-x border-slate-200">
+                        {type === "offline" ? (
+                          <div className="flex flex-wrap justify-center gap-1.5">
+                            {String(row.current_value).split(', ').map((sensor) => (
+                              <span key={sensor} className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-rose-50 text-rose-600 border border-rose-100 shadow-sm">
+                                {sensor}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="flex flex-col gap-1.5 w-full max-w-[140px] mx-auto">
+                            <div className="flex items-center justify-between text-xs bg-slate-50 px-2 py-1.5 rounded border border-slate-100">
+                              <span className="text-slate-500 font-medium">
+                                {activeSubTab === "current" ? "Alert Value" : rowTodayStr}
+                              </span>
+                              <span className="font-semibold text-slate-700">{row.historical_value ?? row.previous_value ?? "N/A"}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-xs bg-indigo-50/50 px-2 py-1.5 rounded border border-indigo-100">
+                              <span className="text-slate-500 font-medium">
+                                {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                              </span>
+                              <span className={`font-bold ${failing ? 'text-rose-600' : 'text-emerald-600'}`}>{row.current_value ?? "N/A"}</span>
+                            </div>
+                          </div>
+                        )}
+                      </td>
+
+                      <td className="py-4 px-6 align-top text-center border-x border-slate-200">
+                        {type === "offline" ? (
+                          <div className="flex flex-col items-center">
+                            <div className="flex items-center justify-center gap-1.5 text-sm font-bold text-slate-900">
+                              <div className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                              Offline
+                            </div>
+                            <div className="text-xs text-slate-500 mt-1 font-semibold">Sensor Dropout</div>
+                          </div>
+                        ) : failing ? (
+                          <div className="flex flex-col items-center">
+                            <div className="flex items-center justify-center gap-1.5 text-sm font-bold text-slate-900">
+                              <div className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                              Threshold Violated
+                            </div>
+                            <div className="text-xs text-slate-500 mt-1">Action Required</div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center">
+                            <div className="flex items-center justify-center gap-1.5 text-sm font-bold text-slate-900">
+                              <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                              Resolved
+                            </div>
+                          </div>
+                        )}
+                        
+                        <div className="flex items-center justify-center gap-2 mt-2">
+                          {hasEngineers ? (
+                            <>
+                              <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-md text-xs font-bold border ${
+                                ackInfo.isFullyAcknowledged
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : ackInfo.isAcknowledged
+                                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                  : 'bg-amber-50 text-amber-700 border-amber-200'
+                              }`}>
+                                {ackInfo.ackCount > 0 ? (
+                                  <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+                                ) : (
+                                  <Clock className="w-3.5 h-3.5 mr-1 text-amber-600" />
+                                )}
+                                {ackInfo.totalRequired > 0 
+                                  ? `${ackInfo.ackCount}/${ackInfo.totalRequired} Acknowledged`
+                                  : ackInfo.isAcknowledged ? 'Acknowledged' : 'Pending'}
+                              </span>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-7 w-7 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 shrink-0 border border-indigo-100"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedEngineers({ title: row.scheme_name, row });
+                                }}
+                                title="View Assigned Personnel & Status"
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                              </Button>
+                            </>
+                          ) : (
+                            <span className="text-xs font-medium text-slate-400 border border-slate-100 px-2.5 py-1 rounded-md bg-slate-50">
+                              None Assigned
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="py-4 px-6 align-top text-center border-x border-slate-200">
+                        <div className="flex justify-center">
+                          {renderRemarkCell(row.remarks, `Remarks for ${row.esr_name || row.village_name || row.scheme_name}`)}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
 
         {/* Pagination Controls */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-white">
           <div className="text-sm text-slate-500 font-medium">
-            Showing {startItem} to {endItem} of {data.length} entries
+            Showing {startItem} to {endItem} of {displayData.length} entries
           </div>
           
           <div className="flex items-center gap-6">
@@ -624,9 +835,7 @@ export default function AlertsProgressPage() {
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               
-              {/* Simple page numbers */}
               {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
-                // Show windows of 5 pages max around current page
                 let p = i + 1;
                 if (totalPages > 5 && page > 3) {
                   p = page - 2 + i;
@@ -637,7 +846,7 @@ export default function AlertsProgressPage() {
                   <Button
                     key={p}
                     variant={page === p ? "default" : "outline"}
-                    className={`h-8 w-8 text-sm ${page === p ? 'bg-indigo-600 hover:bg-indigo-700' : 'text-slate-600 border-slate-200'}`}
+                    className={`h-8 w-8 text-sm ${page === p ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'text-slate-600 border-slate-200'}`}
                     onClick={() => setPage(p)}
                   >
                     {p}
@@ -661,7 +870,7 @@ export default function AlertsProgressPage() {
               <Button 
                 variant="outline" 
                 size="icon" 
-                className="h-8 w-8 text-slate-500 border-slate-200"
+                className="h-8 w-8 text-slate-500 border-slate-200" 
                 disabled={page === totalPages || totalPages === 0}
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               >
@@ -674,6 +883,20 @@ export default function AlertsProgressPage() {
     );
   };
 
+  // Filter rows inside the Acknowledged / Pending Modal dialog
+  const modalFilteredRows = useMemo(() => {
+    if (!ackModalData) return [];
+    if (!modalSearch.trim()) return ackModalData.rows;
+    const q = modalSearch.toLowerCase().trim();
+    return ackModalData.rows.filter(row => 
+      (row.scheme_name && row.scheme_name.toLowerCase().includes(q)) ||
+      (row.scheme_id && row.scheme_id.toLowerCase().includes(q)) ||
+      (row.village_name && row.village_name.toLowerCase().includes(q)) ||
+      (row.esr_name && row.esr_name.toLowerCase().includes(q)) ||
+      (row.region && row.region.toLowerCase().includes(q))
+    );
+  }, [ackModalData, modalSearch]);
+
   return (
     <DashboardLayout>
       <div className="min-h-screen bg-slate-50/30">
@@ -685,19 +908,19 @@ export default function AlertsProgressPage() {
             setPage(1);
           }} className="w-full">
             <TabsList className="grid w-full grid-cols-4 max-w-2xl mb-8 border border-slate-200 shadow-sm bg-white p-1 rounded-lg">
-              <TabsTrigger value="lpcd" className="rounded-md data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700">Water & LPCD</TabsTrigger>
-              <TabsTrigger value="chlorine" className="rounded-md data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700">Chlorine</TabsTrigger>
-              <TabsTrigger value="pressure" className="rounded-md data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700">Pressure</TabsTrigger>
-              <TabsTrigger value="offline" className="rounded-md data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700">Offline</TabsTrigger>
+              <TabsTrigger value="lpcd" className="rounded-md data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700 font-semibold">LPCD</TabsTrigger>
+              <TabsTrigger value="chlorine" className="rounded-md data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700 font-semibold">Chlorine</TabsTrigger>
+              <TabsTrigger value="pressure" className="rounded-md data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700 font-semibold">Pressure</TabsTrigger>
+              <TabsTrigger value="offline" className="rounded-md data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700 font-semibold">Offline</TabsTrigger>
             </TabsList>
           </Tabs>
 
           {/* Header Row */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
             <div>
               <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
                 {activeTab === "lpcd"
-                  ? "Water & LPCD Alerts"
+                  ? "LPCD Alerts"
                   : activeTab === "chlorine"
                   ? "Chlorine Alerts"
                   : activeTab === "pressure"
@@ -707,11 +930,38 @@ export default function AlertsProgressPage() {
               <p className="text-slate-500 text-sm mt-1 font-medium">
                 {activeTab === "offline"
                   ? "Sensors currently offline and requiring vendor attention."
-                  : "Schemes currently violating thresholds."}
+                  : "Schemes currently violating telemetry thresholds."}
               </p>
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Scheme Search Input */}
+              <div className="relative min-w-[240px] max-w-xs">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input 
+                  type="text"
+                  placeholder="Search scheme name or ID..."
+                  value={schemeSearch}
+                  onChange={(e) => {
+                    setSchemeSearch(e.target.value);
+                    setPage(1);
+                  }}
+                  className="w-full pl-9 pr-8 py-2 text-xs bg-white border border-slate-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 placeholder-slate-400"
+                />
+                {schemeSearch && (
+                  <button 
+                    onClick={() => {
+                      setSchemeSearch("");
+                      setPage(1);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    title="Clear search"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
               {activeTab !== "offline" && (
                 <>
                   <div className="flex items-center gap-2 p-1 bg-white border border-slate-200 rounded-lg shadow-sm">
@@ -786,6 +1036,182 @@ export default function AlertsProgressPage() {
             {activeTab === "pressure" && renderDataTable(pressureData, "pressure", isLoadingPressure)}
             {activeTab === "offline" && renderDataTable(offlineData, "offline", isLoadingOffline)}
           </div>
+
+          {/* On-Click Modal Dialog for Acknowledged / Pending List */}
+          {ackModalData && (
+            <Dialog open={!!ackModalData} onOpenChange={(open) => !open && setAckModalData(null)}>
+              <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col p-0 overflow-hidden bg-white border border-slate-200 shadow-2xl">
+                {/* Header */}
+                <div className={`p-5 border-b text-white flex items-center justify-between ${
+                  ackModalData.type === "acknowledged"
+                    ? "bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700"
+                    : "bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700"
+                }`}>
+                  <div>
+                    <DialogTitle className="text-xl font-bold flex items-center gap-2 text-white">
+                      {ackModalData.type === "acknowledged" ? (
+                        <CheckCircle2 className="h-5 w-5 text-white" />
+                      ) : (
+                        <Clock className="h-5 w-5 text-white" />
+                      )}
+                      {ackModalData.title}
+                    </DialogTitle>
+                    <DialogDescription className="text-white/90 text-xs mt-1">
+                      {ackModalData.type === "acknowledged"
+                        ? "Schemes where alert notifications have been confirmed and acknowledged by field engineers."
+                        : "Schemes awaiting confirmation and acknowledgement from assigned engineers."}
+                    </DialogDescription>
+                  </div>
+                </div>
+
+                {/* Sub-search bar inside modal */}
+                <div className="p-3.5 border-b border-slate-200 bg-slate-50 flex items-center justify-between gap-3">
+                  <div className="relative flex-1 max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder={`Search ${ackModalData.type} schemes...`}
+                      value={modalSearch}
+                      onChange={(e) => setModalSearch(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <span className="text-xs font-semibold text-slate-600">
+                    {modalFilteredRows.length} of {ackModalData.rows.length} schemes
+                  </span>
+                </div>
+
+                {/* List Table */}
+                <div className="overflow-y-auto flex-1 p-4">
+                  {modalFilteredRows.length === 0 ? (
+                    <div className="p-12 text-center text-slate-500 text-xs font-medium">
+                      No matching schemes found.
+                    </div>
+                  ) : (
+                    <table className="w-full text-xs text-left border-collapse">
+                      <thead className="bg-slate-100 text-slate-700 font-bold sticky top-0 border-b border-slate-200">
+                        <tr>
+                          <th className="p-2.5 text-center w-10">#</th>
+                          <th className="p-2.5">Scheme Details</th>
+                          <th className="p-2.5 text-center">ESR / Village</th>
+                          <th className="p-2.5 text-center">Alert Value</th>
+                          <th className="p-2.5">
+                            {ackModalData.type === "acknowledged" ? "Acknowledged By" : "Assigned Engineers"}
+                          </th>
+                          <th className="p-2.5 text-right">
+                            {ackModalData.type === "acknowledged" ? "Acknowledged At" : "Status"}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {modalFilteredRows.map((row, idx) => {
+                          const ackInfo = getRowAckInfo(row);
+                          return (
+                            <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
+                              <td className="p-2.5 text-center text-slate-500 font-medium">{idx + 1}</td>
+                              <td className="p-2.5">
+                                <div className="font-bold text-slate-900">{row.scheme_name}</div>
+                                <div className="text-[11px] text-slate-500">ID: {row.scheme_id} • {row.region}</div>
+                              </td>
+                              <td className="p-2.5 text-center text-slate-700 font-medium">
+                                {row.esr_name || row.village_name || "-"}
+                              </td>
+                              <td className="p-2.5 text-center font-bold text-rose-600">
+                                {row.current_value || row.historical_value || "-"}
+                              </td>
+                              <td className="p-2.5">
+                                {ackModalData.type === "acknowledged" ? (
+                                  ackInfo.acksList.length > 0 ? (
+                                    ackInfo.acksList.map((a, i) => (
+                                      <div key={i} className="mb-1 last:mb-0">
+                                        <div className="font-semibold text-slate-800">{a.name}</div>
+                                        <div className="text-[10px] text-slate-500">{a.email}</div>
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <span className="text-slate-400 italic">Confirmed</span>
+                                  )
+                                ) : (
+                                  <div className="space-y-0.5">
+                                    {row.civil_engineer_name && (
+                                      <div className="text-[11px] text-slate-700">
+                                        <span className="font-semibold">{row.civil_engineer_name}</span> (Civil)
+                                      </div>
+                                    )}
+                                    {row.mechanical_engineer_name && (
+                                      <div className="text-[11px] text-slate-700">
+                                        <span className="font-semibold">{row.mechanical_engineer_name}</span> (Mech)
+                                      </div>
+                                    )}
+                                    {row.site_supervisor_name && (
+                                      <div className="text-[11px] text-slate-700">
+                                        <span className="font-semibold">{row.site_supervisor_name}</span> (Supervisor)
+                                      </div>
+                                    )}
+                                    {!row.civil_engineer_name && !row.mechanical_engineer_name && !row.site_supervisor_name && (
+                                      <span className="text-slate-400 italic">No engineer assigned</span>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="p-2.5 text-right font-medium text-slate-600 whitespace-nowrap">
+                                {ackModalData.type === "acknowledged" ? (
+                                  ackInfo.acksList[0]?.acknowledged_at ? (
+                                    <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold">
+                                      <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                                      {new Date(ackInfo.acksList[0].acknowledged_at).toLocaleString('en-IN', {
+                                        day: '2-digit',
+                                        month: 'short',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                      })}
+                                    </span>
+                                  ) : (
+                                    <span className="text-emerald-700 font-semibold">Acknowledged</span>
+                                  )
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800">
+                                    <Clock className="h-3 w-3" /> Pending Ack
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="p-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setAckStatusFilter(ackModalData.type);
+                      setAckModalData(null);
+                    }}
+                    className={`text-xs font-semibold ${
+                      ackModalData.type === "acknowledged"
+                        ? "text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+                        : "text-amber-700 border-amber-300 hover:bg-amber-50"
+                    }`}
+                  >
+                    <Filter className="w-3.5 h-3.5 mr-1" />
+                    Filter Page Table to {ackModalData.type === "acknowledged" ? "Acknowledged" : "Pending"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => setAckModalData(null)}
+                    className="bg-slate-800 hover:bg-slate-900 text-white text-xs px-4"
+                  >
+                    Close
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
 
           {/* Remark Details Dialog */}
           {selectedRemarkDetails && (

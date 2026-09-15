@@ -204,9 +204,14 @@ export default function EngineerDashboard() {
     return true;
   });
 
-  // Collect all active alerts across all assigned schemes
+  // Collect all active alerts across all assigned schemes (exclude water value 0 / zero water supply as LPCD covers it)
   const allAlerts = schemes.flatMap((s) =>
-    (s.active_alerts || []).map((a) => ({ ...a, parentSchemeName: s.scheme_name }))
+    (s.active_alerts || [])
+      .filter((a: any) => {
+        const rawType = (a.alert_type || "").trim().toLowerCase();
+        return rawType !== "water" && rawType !== "zero water supply";
+      })
+      .map((a: any) => ({ ...a, parentSchemeName: s.scheme_name }))
   );
 
   // Identify latest alert date (defaulting to current day / most recent log date)

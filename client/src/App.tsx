@@ -290,7 +290,7 @@ function App() {
                     </Route>
 
                     <Route path="/alerts-progress">
-                      <ProtectedRoute>
+                      <ProtectedRoute requireAdmin={true} redirectTo="/dashboard">
                         <AlertsProgressPage />
                       </ProtectedRoute>
                     </Route>

@@ -1268,14 +1268,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ORDER BY ea.acknowledged_at DESC
           LIMIT 1
         ) ea ON true
-        WHERE a.scheme_id IN (${sql.raw(idPlaceholders)})
+        WHERE a.scheme_id IN (${sql.raw(idPlaceholders)}) AND a.alert_type NOT IN ('Water', 'Zero Water Supply')
         ORDER BY a.id DESC LIMIT 200
       `);
 
       const totalAlertsRes: any = await db.execute(sql`
         SELECT COUNT(*)::int as count
         FROM email_alert_logs 
-        WHERE scheme_id IN (${sql.raw(idPlaceholders)})
+        WHERE scheme_id IN (${sql.raw(idPlaceholders)}) AND alert_type NOT IN ('Water', 'Zero Water Supply')
       `);
 
       const schemeStatusRows = schemeStatusRes.rows || schemeStatusRes;

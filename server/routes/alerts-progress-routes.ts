@@ -8,6 +8,14 @@ const router = Router();
 const { Pool } = pg;
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
+// Restrict all alerts-progress endpoints to administrators only
+router.use((req: any, res: any, next: any) => {
+  if (!req.session || !req.session.userId || !req.session.isAdmin) {
+    return res.status(403).json({ error: 'Access restricted to administrators only' });
+  }
+  next();
+});
+
 router.get('/lpcd', async (req, res) => {
   try {
     const requestedDate = req.query.date as string;
@@ -43,7 +51,7 @@ router.get('/lpcd', async (req, res) => {
                  site_supervisor_name, site_supervisor_email,
                  created_at, sent_date
           FROM email_alert_logs
-          WHERE alert_type IN ('LPCD', 'Water')
+          WHERE alert_type IN ('LPCD', 'Low LPCD')
             AND ${dateFilter}
           ORDER BY scheme_id, village_name, sent_date, created_at DESC
         ),
@@ -60,7 +68,7 @@ router.get('/lpcd', async (req, res) => {
                    MAX(engineer_name) as engineer_name, 
                    MAX(acknowledged_at) as max_ack
             FROM email_acknowledgements
-            WHERE alert_type IN ('LPCD', 'Water')
+            WHERE alert_type IN ('LPCD', 'Low LPCD')
               AND ${dateFilter}
             GROUP BY scheme_id, LOWER(TRIM(engineer_email))
           ) sub
@@ -133,7 +141,7 @@ router.get('/chlorine', async (req, res) => {
                  site_supervisor_name, site_supervisor_email,
                  created_at, sent_date
           FROM email_alert_logs
-          WHERE alert_type = 'Chlorine'
+          WHERE alert_type IN ('Chlorine', 'Low Chlorine', 'High Chlorine')
             AND ${dateFilter}
           ORDER BY scheme_id, esr_name, sent_date, created_at DESC
         ),
@@ -150,7 +158,7 @@ router.get('/chlorine', async (req, res) => {
                    MAX(engineer_name) as engineer_name, 
                    MAX(acknowledged_at) as max_ack
             FROM email_acknowledgements
-            WHERE alert_type = 'Chlorine'
+            WHERE alert_type IN ('Chlorine', 'Low Chlorine', 'High Chlorine')
               AND ${dateFilter}
             GROUP BY scheme_id, LOWER(TRIM(engineer_email))
           ) sub
@@ -224,7 +232,7 @@ router.get('/pressure', async (req, res) => {
                  site_supervisor_name, site_supervisor_email,
                  created_at, sent_date
           FROM email_alert_logs
-          WHERE alert_type = 'Pressure'
+          WHERE alert_type IN ('Pressure', 'Low Pressure')
             AND ${dateFilter}
           ORDER BY scheme_id, esr_name, sent_date, created_at DESC
         ),
@@ -241,7 +249,7 @@ router.get('/pressure', async (req, res) => {
                    MAX(engineer_name) as engineer_name, 
                    MAX(acknowledged_at) as max_ack
             FROM email_acknowledgements
-            WHERE alert_type = 'Pressure'
+            WHERE alert_type IN ('Pressure', 'Low Pressure')
               AND ${dateFilter}
             GROUP BY scheme_id, LOWER(TRIM(engineer_email))
           ) sub

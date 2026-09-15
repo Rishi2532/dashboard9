@@ -39,7 +39,7 @@ interface Alert {
 export function startDailyAlertsCron() {
   // Run every day at 11:13 AM
   // You can adjust the cron expression as needed: '13 11 * * *'
-  cron.schedule("59 09   * * *", async () => {
+  cron.schedule("44 10   * * *", async () => {
     await runDailyAlertsJob();
     console.log("? Running automatic offline emails to vendors...");
     await sendAutomaticOfflineEmails();
@@ -132,36 +132,29 @@ export async function runDailyAlertsJob() {
       }
     });
 
-    // 3. Check Water Scheme Data (LPCD < 55 or Water == 0)
-    const waterIssues = await db
+    // 3. Check Water Scheme Data (Keep ONLY LPCD < 55; water value 0 removed as lpcd 0 is included)
+    const lpcdIssues = await db
       .select()
       .from(waterSchemeData)
       .where(
-        or(
-          and(
-            isNotNull(waterSchemeData.lpcd_value_day7),
-            lt(waterSchemeData.lpcd_value_day7, "55")
-          ),
-          and(
-            isNotNull(waterSchemeData.water_value_day7),
-            eq(waterSchemeData.water_value_day7, "0")
-          )
+        and(
+          isNotNull(waterSchemeData.lpcd_value_day7),
+          lt(waterSchemeData.lpcd_value_day7, "55")
         )
       );
 
-    waterIssues.forEach((row) => {
+    lpcdIssues.forEach((row) => {
       const isLpcdIssue = row.lpcd_value_day7 !== null && parseFloat(row.lpcd_value_day7 as any) < 55;
-      const isWaterIssue = row.water_value_day7 !== null && parseFloat(row.water_value_day7 as any) === 0;
 
-      addAlert(row.scheme_id, row.scheme_name, {
-        scheme_id: row.scheme_id || "N/A",
-        scheme_name: row.scheme_name || "N/A",
-        village_name: row.village_name || "N/A",
-        lpcd_issue: isLpcdIssue,
-        lpcd_value: isLpcdIssue ? row.lpcd_value_day7 : undefined,
-        water_issue: isWaterIssue,
-        water_value: isWaterIssue ? row.water_value_day7 : undefined,
-      });
+      if (isLpcdIssue) {
+        addAlert(row.scheme_id, row.scheme_name, {
+          scheme_id: row.scheme_id || "N/A",
+          scheme_name: row.scheme_name || "N/A",
+          village_name: row.village_name || "N/A",
+          lpcd_issue: true,
+          lpcd_value: row.lpcd_value_day7,
+        });
+      }
     });
 
     // 4. Check Offline Sensors Data (communication_status)
@@ -338,9 +331,6 @@ export async function runDailyAlertsJob() {
           if (alert.lpcd_issue) {
             emailLogsToInsert.push({ ...baseLog, alert_type: "Low LPCD", alert_value: String(alert.lpcd_value), ticket_id: generateTicketId() });
           }
-          if (alert.water_issue) {
-            emailLogsToInsert.push({ ...baseLog, alert_type: "Zero Water Supply", alert_value: String(alert.water_value), ticket_id: generateTicketId() });
-          }
           if (alert.offline_issue) {
             emailLogsToInsert.push({ ...baseLog, alert_type: "Offline", alert_value: String(alert.offline_sensors || "Offline"), ticket_id: generateTicketId() });
           }
@@ -384,7 +374,7 @@ export async function runDailyAlertsJob() {
       // Deduplicate alerts for this person just in case
       const uniqueAlertsMap = new Map();
       alerts.forEach(a => {
-        const key = `${a.scheme_id}-${a.village_name}-${a.esr_name}-${a.chlorine_issue}-${a.chlorine_type}-${a.pressure_issue}-${a.lpcd_issue}-${a.water_issue}-${a.offline_issue}-${a.offline_sensors}`;
+        const key = `${a.scheme_id}-${a.village_name}-${a.esr_name}-${a.chlorine_issue}-${a.chlorine_type}-${a.pressure_issue}-${a.lpcd_issue}-${a.offline_issue}-${a.offline_sensors}`;
         uniqueAlertsMap.set(key, a);
       });
       const uniqueAlerts: Alert[] = Array.from(uniqueAlertsMap.values());
@@ -446,7 +436,7 @@ export async function runDailyAlertsJob() {
         // Deduplicate alerts
         const uniqueAlertsMap = new Map();
         alerts.forEach(a => {
-          const key = `${a.scheme_id}-${a.village_name}-${a.esr_name}-${a.chlorine_issue}-${a.pressure_issue}-${a.lpcd_issue}-${a.water_issue}`;
+          const key = `${a.scheme_id}-${a.village_name}-${a.esr_name}-${a.chlorine_issue}-${a.pressure_issue}-${a.lpcd_issue}`;
           uniqueAlertsMap.set(key, a);
         });
         const uniqueAlerts = Array.from(uniqueAlertsMap.values());
