@@ -474,9 +474,25 @@ export async function sendDailyAlertEmail(
 
   alertsData.forEach((alert, index) => {
     const issues = [];
-    if (alert.chlorine_issue) issues.push(`<span style="color: #dc2626; font-weight: bold;">Chlorine:</span> ${alert.chlorine_value} mg/L (Below 0.2)`);
-    if (alert.pressure_issue) issues.push(`<span style="color: #dc2626; font-weight: bold;">Pressure:</span> ${alert.pressure_value} Bar (Below 0.2)`);
-    if (alert.lpcd_issue) issues.push(`<span style="color: #dc2626; font-weight: bold;">LPCD:</span> ${alert.lpcd_value} (Below 55)`);
+    if (alert.chlorine_issue) {
+      const cClean = String(alert.chlorine_value || "0").replace(/[^0-9.]/g, '');
+      const cVal = parseFloat(cClean);
+      const dispC = String(alert.chlorine_value || "").toLowerCase().includes("mg/l")
+        ? alert.chlorine_value
+        : `${alert.chlorine_value} mg/L`;
+      if (cVal > 0.5 || alert.chlorine_type === "High Chlorine") {
+        issues.push(`<span style="color: #7c3aed; font-weight: bold;">High Chlorine:</span> ${dispC} (Above 0.5)`);
+      } else {
+        issues.push(`<span style="color: #dc2626; font-weight: bold;">Low Chlorine:</span> ${dispC} (Below 0.2)`);
+      }
+    }
+    if (alert.pressure_issue) {
+      const dispP = String(alert.pressure_value || "").toLowerCase().includes("bar")
+        ? alert.pressure_value
+        : `${alert.pressure_value} Bar`;
+      issues.push(`<span style="color: #dc2626; font-weight: bold;">Low Pressure:</span> ${dispP} (Below 0.2)`);
+    }
+    if (alert.lpcd_issue) issues.push(`<span style="color: #ea580c; font-weight: bold;">Low LPCD:</span> ${alert.lpcd_value} (Below 55)`);
     if (alert.water_issue) issues.push(`<span style="color: #dc2626; font-weight: bold;">Water:</span> 0 (Zero Supply)`);
     if (alert.offline_issue) issues.push(`<span style="color: #ea580c; font-weight: bold;">Offline:</span> ${alert.offline_sensors || 'Sensors Offline'}`);
 

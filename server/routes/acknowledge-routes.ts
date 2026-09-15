@@ -154,13 +154,27 @@ router.post('/', async (req: Request, res: Response) => {
       if (cleanEsr) {
         checkRes = await client.query(
           `SELECT id, acknowledged_at FROM email_acknowledgements 
-           WHERE LOWER(TRIM(engineer_email)) = $1 AND scheme_id = $2 AND alert_type = $3 AND sent_date = $4 AND TRIM(esr_name) = $5`,
+           WHERE LOWER(TRIM(engineer_email)) = $1 AND scheme_id = $2 
+             AND (
+               alert_type = $3 
+               OR (alert_type IN ('Pressure', 'Low Pressure') AND $3 IN ('Pressure', 'Low Pressure'))
+               OR (alert_type IN ('LPCD', 'Low LPCD') AND $3 IN ('LPCD', 'Low LPCD'))
+               OR (alert_type IN ('Chlorine', 'Low Chlorine', 'High Chlorine') AND $3 IN ('Chlorine', 'Low Chlorine', 'High Chlorine'))
+             )
+             AND sent_date = $4 AND TRIM(esr_name) = $5`,
           [email, scheme_id, alert_type, date, cleanEsr]
         );
       } else {
         checkRes = await client.query(
           `SELECT id, acknowledged_at FROM email_acknowledgements 
-           WHERE LOWER(TRIM(engineer_email)) = $1 AND scheme_id = $2 AND alert_type = $3 AND sent_date = $4 AND (esr_name IS NULL OR TRIM(esr_name) = '' OR TRIM(esr_name) = '-')`,
+           WHERE LOWER(TRIM(engineer_email)) = $1 AND scheme_id = $2 
+             AND (
+               alert_type = $3 
+               OR (alert_type IN ('Pressure', 'Low Pressure') AND $3 IN ('Pressure', 'Low Pressure'))
+               OR (alert_type IN ('LPCD', 'Low LPCD') AND $3 IN ('LPCD', 'Low LPCD'))
+               OR (alert_type IN ('Chlorine', 'Low Chlorine', 'High Chlorine') AND $3 IN ('Chlorine', 'Low Chlorine', 'High Chlorine'))
+             )
+             AND sent_date = $4 AND (esr_name IS NULL OR TRIM(esr_name) = '' OR TRIM(esr_name) = '-')`,
           [email, scheme_id, alert_type, date]
         );
       }

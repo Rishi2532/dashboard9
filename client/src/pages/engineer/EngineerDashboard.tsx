@@ -227,6 +227,67 @@ export default function EngineerDashboard() {
     return true; // 'all'
   });
 
+  const getFormattedAlertType = (alert: any) => {
+    const rawType = (alert.alert_type || "").trim();
+    if (rawType.toLowerCase() === "offline") return "Offline";
+
+    if (rawType.toLowerCase() === "lpcd" || rawType.toLowerCase() === "low lpcd") {
+      return "Low LPCD";
+    }
+
+    if (rawType.toLowerCase() === "pressure" || rawType.toLowerCase() === "low pressure") {
+      return "Low Pressure";
+    }
+
+    if (rawType.toLowerCase().includes("chlorine")) {
+      if (rawType.toLowerCase() === "high chlorine") return "High Chlorine";
+      if (rawType.toLowerCase() === "low chlorine") return "Low Chlorine";
+      const cleaned = String(alert.alert_value || "0").replace(/[^0-9.]/g, '');
+      const numVal = parseFloat(cleaned);
+      if (!isNaN(numVal) && numVal > 0.5) {
+        return "High Chlorine";
+      }
+      return "Low Chlorine";
+    }
+
+    if (rawType.toLowerCase() === "water" || rawType.toLowerCase() === "zero water supply") {
+      return "Zero Water Supply";
+    }
+
+    return rawType;
+  };
+
+  const getAlertBadgeClass = (formattedType: string) => {
+    switch (formattedType) {
+      case "Offline":
+        return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 font-medium";
+      case "Low LPCD":
+        return "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800 font-medium";
+      case "Low Pressure":
+        return "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800 font-medium";
+      case "Low Chlorine":
+        return "bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-300 dark:border-cyan-800 font-medium";
+      case "High Chlorine":
+        return "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800 font-medium";
+      case "Zero Water Supply":
+        return "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800 font-medium";
+      default:
+        return "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 font-medium";
+    }
+  };
+
+  const getAlertValueDisplay = (alert: any, formattedType: string) => {
+    const val = String(alert.alert_value ?? "").trim();
+    if (!val || val === "null" || val === "undefined") return "-";
+    if (formattedType === "Low Chlorine" || formattedType === "High Chlorine") {
+      return val.toLowerCase().includes("mg/l") ? val : `${val} mg/L`;
+    }
+    if (formattedType === "Low Pressure") {
+      return val.toLowerCase().includes("bar") ? val : `${val} Bar`;
+    }
+    return val;
+  };
+
   // Helper for formatting login timestamps
   const formatLoginTime = (dateStr?: string | null) => {
     if (!dateStr) return "-";
@@ -317,7 +378,7 @@ export default function EngineerDashboard() {
 
       toast({
         title: "Alert Acknowledged",
-        description: `Alert ${variables.ticket_id ? `#${variables.ticket_id}` : `ID ${variables.id || ''}`} (${variables.alert_type}${variables.esr_name ? ` - ${variables.esr_name}` : ''}) has been marked as acknowledged.`,
+        description: `Alert ${variables.ticket_id ? `#${variables.ticket_id}` : `ID ${variables.id || ''}`} (${getFormattedAlertType(variables)}${variables.esr_name ? ` - ${variables.esr_name}` : ''}) has been marked as acknowledged.`,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/engineer/schemes-summary"] });
       refetch();
@@ -1209,6 +1270,7 @@ export default function EngineerDashboard() {
                         Boolean(alert.acknowledged) ||
                         Boolean(alert.acknowledged_at) ||
                         acknowledgedAlertKeys.has(alertKey);
+                      const formattedType = getFormattedAlertType(alert);
                       return (
                         <tr key={alert.id || idx} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
                           <td className="p-3 font-medium text-slate-900 dark:text-white">
@@ -1218,20 +1280,12 @@ export default function EngineerDashboard() {
                             {alert.esr_name || "-"}
                           </td>
                           <td className="p-3">
-                            <Badge
-                              className={
-                                alert.alert_type === "Chlorine"
-                                  ? "bg-cyan-50 text-cyan-700 border-cyan-200"
-                                  : alert.alert_type === "Pressure"
-                                  ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                                  : "bg-amber-50 text-amber-700 border-amber-200"
-                              }
-                            >
-                              {alert.alert_type}
+                            <Badge className={getAlertBadgeClass(formattedType)}>
+                              {formattedType}
                             </Badge>
                           </td>
                           <td className="p-3 font-bold text-rose-600">
-                            {alert.alert_value} {alert.alert_type === "Chlorine" ? "mg/L" : alert.alert_type === "Pressure" ? "Bar" : ""}
+                            {getAlertValueDisplay(alert, formattedType)}
                           </td>
                           <td className="p-3 text-slate-500">
                             {alert.sent_date ? String(alert.sent_date).slice(0, 10) : "-"}

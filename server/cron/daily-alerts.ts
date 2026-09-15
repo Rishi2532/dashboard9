@@ -22,6 +22,7 @@ interface Alert {
   village_name?: string;
   esr_name?: string;
   chlorine_issue?: boolean;
+  chlorine_type?: string;
   chlorine_value?: string | number;
   pressure_issue?: boolean;
   pressure_value?: string | number;
@@ -38,7 +39,7 @@ interface Alert {
 export function startDailyAlertsCron() {
   // Run every day at 11:13 AM
   // You can adjust the cron expression as needed: '13 11 * * *'
-  cron.schedule("38 09   * * *", async () => {
+  cron.schedule("59 09   * * *", async () => {
     await runDailyAlertsJob();
     console.log("? Running automatic offline emails to vendors...");
     await sendAutomaticOfflineEmails();
@@ -78,48 +79,57 @@ export async function runDailyAlertsJob() {
       }
     };
 
-    // 1. Check Chlorine Data
+    // 1. Check Chlorine Data (Low Chlorine < 0.2 mg/L, High Chlorine > 0.5 mg/L)
     const chlorineIssues = await db
       .select()
       .from(chlorineData)
       .where(
-        and(
-          isNotNull(chlorineData.chlorine_value_7),
-          lt(chlorineData.chlorine_value_7, "0.2")
-        )
+        sql`chlorine_value_7 IS NOT NULL 
+            AND NULLIF(REGEXP_REPLACE(chlorine_value_7::text, '[^0-9.]', '', 'g'), '') IS NOT NULL
+            AND (
+              (NULLIF(REGEXP_REPLACE(chlorine_value_7::text, '[^0-9.]', '', 'g'), '')::numeric) < 0.2
+              OR (NULLIF(REGEXP_REPLACE(chlorine_value_7::text, '[^0-9.]', '', 'g'), '')::numeric) > 0.5
+            )`
       );
 
     chlorineIssues.forEach((row) => {
+      const numVal = parseFloat(String(row.chlorine_value_7 || "0"));
+      const isHigh = numVal > 0.5;
       addAlert(row.scheme_id, row.scheme_name, {
         scheme_id: row.scheme_id || "N/A",
         scheme_name: row.scheme_name || "N/A",
         village_name: row.village_name || "N/A",
         esr_name: row.esr_name || "N/A",
         chlorine_issue: true,
+        chlorine_type: isHigh ? "High Chlorine" : "Low Chlorine",
         chlorine_value: row.chlorine_value_7,
       });
     });
 
-    // 2. Check Pressure Data
+    // 2. Check Pressure Data (Strictly LOW PRESSURE ONLY: < 0.2 Bar, never >= 0.2)
     const pressureIssues = await db
       .select()
       .from(pressureData)
       .where(
-        and(
-          isNotNull(pressureData.pressure_value_7),
-          lt(pressureData.pressure_value_7, "0.2")
-        )
+        sql`pressure_value_7 IS NOT NULL 
+            AND NULLIF(REGEXP_REPLACE(pressure_value_7::text, '[^0-9.]', '', 'g'), '') IS NOT NULL
+            AND (NULLIF(REGEXP_REPLACE(pressure_value_7::text, '[^0-9.]', '', 'g'), '')::numeric) < 0.2
+            AND (NULLIF(REGEXP_REPLACE(pressure_value_7::text, '[^0-9.]', '', 'g'), '')::numeric) >= 0`
       );
 
     pressureIssues.forEach((row) => {
-      addAlert(row.scheme_id, row.scheme_name, {
-        scheme_id: row.scheme_id || "N/A",
-        scheme_name: row.scheme_name || "N/A",
-        village_name: row.village_name || "N/A",
-        esr_name: row.esr_name || "N/A",
-        pressure_issue: true,
-        pressure_value: row.pressure_value_7,
-      });
+      const numVal = parseFloat(String(row.pressure_value_7 || "0"));
+      // Strict guard in JS: only send alert email when pressure is strictly below 0.2 Bar
+      if (!isNaN(numVal) && numVal < 0.2 && numVal >= 0) {
+        addAlert(row.scheme_id, row.scheme_name, {
+          scheme_id: row.scheme_id || "N/A",
+          scheme_name: row.scheme_name || "N/A",
+          village_name: row.village_name || "N/A",
+          esr_name: row.esr_name || "N/A",
+          pressure_issue: true,
+          pressure_value: row.pressure_value_7,
+        });
+      }
     });
 
     // 3. Check Water Scheme Data (LPCD < 55 or Water == 0)
@@ -319,16 +329,17 @@ export async function runDailyAlertsJob() {
           const generateTicketId = () => `TKT-${Date.now().toString().slice(-4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
           if (alert.chlorine_issue) {
-            emailLogsToInsert.push({ ...baseLog, alert_type: "Chlorine", alert_value: String(alert.chlorine_value), ticket_id: generateTicketId() });
+            const chlorineType = alert.chlorine_type || (parseFloat(String(alert.chlorine_value || "0").replace(/[^0-9.]/g, '')) > 0.5 ? "High Chlorine" : "Low Chlorine");
+            emailLogsToInsert.push({ ...baseLog, alert_type: chlorineType, alert_value: String(alert.chlorine_value), ticket_id: generateTicketId() });
           }
           if (alert.pressure_issue) {
-            emailLogsToInsert.push({ ...baseLog, alert_type: "Pressure", alert_value: String(alert.pressure_value), ticket_id: generateTicketId() });
+            emailLogsToInsert.push({ ...baseLog, alert_type: "Low Pressure", alert_value: String(alert.pressure_value), ticket_id: generateTicketId() });
           }
           if (alert.lpcd_issue) {
-            emailLogsToInsert.push({ ...baseLog, alert_type: "LPCD", alert_value: String(alert.lpcd_value), ticket_id: generateTicketId() });
+            emailLogsToInsert.push({ ...baseLog, alert_type: "Low LPCD", alert_value: String(alert.lpcd_value), ticket_id: generateTicketId() });
           }
           if (alert.water_issue) {
-            emailLogsToInsert.push({ ...baseLog, alert_type: "Water", alert_value: String(alert.water_value), ticket_id: generateTicketId() });
+            emailLogsToInsert.push({ ...baseLog, alert_type: "Zero Water Supply", alert_value: String(alert.water_value), ticket_id: generateTicketId() });
           }
           if (alert.offline_issue) {
             emailLogsToInsert.push({ ...baseLog, alert_type: "Offline", alert_value: String(alert.offline_sensors || "Offline"), ticket_id: generateTicketId() });
@@ -373,7 +384,7 @@ export async function runDailyAlertsJob() {
       // Deduplicate alerts for this person just in case
       const uniqueAlertsMap = new Map();
       alerts.forEach(a => {
-        const key = `${a.scheme_id}-${a.village_name}-${a.esr_name}-${a.chlorine_issue}-${a.pressure_issue}-${a.lpcd_issue}-${a.water_issue}-${a.offline_issue}-${a.offline_sensors}`;
+        const key = `${a.scheme_id}-${a.village_name}-${a.esr_name}-${a.chlorine_issue}-${a.chlorine_type}-${a.pressure_issue}-${a.lpcd_issue}-${a.water_issue}-${a.offline_issue}-${a.offline_sensors}`;
         uniqueAlertsMap.set(key, a);
       });
       const uniqueAlerts: Alert[] = Array.from(uniqueAlertsMap.values());
@@ -386,10 +397,10 @@ export async function runDailyAlertsJob() {
           const alertType = alert.offline_issue
             ? 'Offline'
             : alert.chlorine_issue
-              ? 'Chlorine'
+              ? (alert.chlorine_type || (parseFloat(String(alert.chlorine_value || "0").replace(/[^0-9.]/g, '')) > 0.5 ? 'High Chlorine' : 'Low Chlorine'))
               : alert.pressure_issue
-                ? 'Pressure'
-                : 'LPCD';
+                ? 'Low Pressure'
+                : 'Low LPCD';
 
           // Individual token for separate per-alert acknowledgement button
           const itemToken = generateAcknowledgeToken();

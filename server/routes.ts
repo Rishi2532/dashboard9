@@ -1253,7 +1253,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             OR (
               ea.alert_id IS NULL AND ea.ticket_id IS NULL
               AND ea.scheme_id = a.scheme_id 
-              AND ea.alert_type = a.alert_type 
+              AND (
+                ea.alert_type = a.alert_type 
+                OR (ea.alert_type IN ('Pressure', 'Low Pressure') AND a.alert_type IN ('Pressure', 'Low Pressure'))
+                OR (ea.alert_type IN ('LPCD', 'Low LPCD') AND a.alert_type IN ('LPCD', 'Low LPCD'))
+                OR (ea.alert_type IN ('Chlorine', 'Low Chlorine', 'High Chlorine') AND a.alert_type IN ('Chlorine', 'Low Chlorine', 'High Chlorine'))
+              )
               AND ea.sent_date::date = a.sent_date::date 
               AND COALESCE(NULLIF(TRIM(ea.esr_name), '-'), '') = COALESCE(NULLIF(TRIM(a.esr_name), '-'), '')
             )
