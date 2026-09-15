@@ -49,6 +49,8 @@ import {
   Calendar,
   Check,
   Laptop,
+  BellRing,
+  Loader2,
 } from "lucide-react";
 
 interface VillageSummary {
@@ -211,7 +213,7 @@ export default function EngineerDashboard() {
         const rawType = (a.alert_type || "").trim().toLowerCase();
         return rawType !== "water" && rawType !== "zero water supply";
       })
-      .map((a: any) => ({ ...a, parentSchemeName: s.scheme_name }))
+      .map((a: any) => ({ ...a, parentSchemeName: s.scheme_name, region: a.region || s.region }))
   );
 
   // Identify latest alert date (defaulting to current day / most recent log date)
@@ -281,9 +283,45 @@ export default function EngineerDashboard() {
     }
   };
 
+  const formatOfflineSensorsValue = (rawVal: string): string => {
+    const val = String(rawVal ?? "").trim();
+    if (!val || val === "null" || val === "undefined") return "Sensor Offline";
+    const lower = val.toLowerCase();
+    const hasChlorine = lower.includes("chlorine");
+    const hasFlow = lower.includes("flow");
+    const hasPressure = lower.includes("pressure");
+
+    if (hasChlorine && hasFlow && hasPressure) {
+      return "Flow, Pressure and Chlorine Sensor Offline";
+    }
+    if (hasFlow && hasPressure) {
+      return "Flow and Pressure Sensor Offline";
+    }
+    if (hasChlorine && hasFlow) {
+      return "Chlorine and Flow Sensor Offline";
+    }
+    if (hasChlorine && hasPressure) {
+      return "Chlorine and Pressure Sensor Offline";
+    }
+    if (hasChlorine) {
+      return "Chlorine Sensor Offline";
+    }
+    if (hasFlow) {
+      return "Flow Sensor Offline";
+    }
+    if (hasPressure) {
+      return "Pressure Sensor Offline";
+    }
+    if (lower.includes("sensor offline")) return val;
+    return `${val} Sensor Offline`;
+  };
+
   const getAlertValueDisplay = (alert: any, formattedType: string) => {
     const val = String(alert.alert_value ?? "").trim();
     if (!val || val === "null" || val === "undefined") return "-";
+    if (formattedType === "Offline") {
+      return formatOfflineSensorsValue(val);
+    }
     if (formattedType === "Low Chlorine" || formattedType === "High Chlorine") {
       return val.toLowerCase().includes("mg/l") ? val : `${val} mg/L`;
     }
@@ -392,6 +430,82 @@ export default function EngineerDashboard() {
       toast({
         title: "Acknowledgement Error",
         description: err.message || "Failed to record acknowledgement.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Helper for formatting reminder timestamps
+  const formatReminderTime = (dateStr?: string | null) => {
+    if (!dateStr) return "recently";
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return String(dateStr);
+      return d.toLocaleString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
+    } catch {
+      return String(dateStr);
+    }
+  };
+
+  // Local state to track reminders sent in the current session for immediate UI reflection
+  const [reminderSentRecords, setReminderSentRecords] = useState<
+    Record<string, { vendor_name?: string; vendor_email?: string; sent_at?: string }>
+  >({});
+  const [sendingReminderKey, setSendingReminderKey] = useState<string | null>(null);
+
+  const sendReminderMutation = useMutation({
+    mutationFn: async (alert: any) => {
+      const alertKey = getAlertKey(alert);
+      setSendingReminderKey(alertKey);
+      const res = await fetch("/api/engineer/send-offline-reminder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          alert_id: alert.id,
+          ticket_id: alert.ticket_id,
+          scheme_id: alert.scheme_id,
+          scheme_name: alert.parentSchemeName || alert.scheme_name,
+          village_name: alert.village_name,
+          esr_name: alert.esr_name,
+          offline_sensors: formatOfflineSensorsValue(alert.alert_value),
+          region: alert.region,
+        }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to send offline reminder");
+      }
+      return res.json();
+    },
+    onSuccess: (resData, variables) => {
+      const alertKey = getAlertKey(variables);
+      setSendingReminderKey(null);
+      setReminderSentRecords((prev) => ({
+        ...prev,
+        [alertKey]: {
+          vendor_name: resData.vendor_name,
+          vendor_email: resData.vendor_email,
+          sent_at: resData.sent_at || new Date().toISOString(),
+        },
+      }));
+      toast({
+        title: "Reminder Sent Successfully",
+        description: resData.message || `Offline reminder email sent to ${resData.vendor_name}`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/engineer/schemes-summary"] });
+      refetch();
+    },
+    onError: (err: any) => {
+      setSendingReminderKey(null);
+      toast({
+        title: "Failed to Send Reminder",
+        description: err.message || "Could not send reminder email to vendor.",
         variant: "destructive",
       });
     },
@@ -1276,6 +1390,12 @@ export default function EngineerDashboard() {
                         Boolean(alert.acknowledged_at) ||
                         acknowledgedAlertKeys.has(alertKey);
                       const formattedType = getFormattedAlertType(alert);
+                      const reminderRecord = reminderSentRecords[alertKey] || (alert.reminder_sent_at ? {
+                        vendor_name: alert.reminder_vendor_name,
+                        vendor_email: alert.reminder_vendor_email,
+                        sent_at: alert.reminder_sent_at,
+                      } : null);
+
                       return (
                         <tr key={alert.id || idx} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
                           <td className="p-3 font-medium text-slate-900 dark:text-white">
@@ -1290,7 +1410,13 @@ export default function EngineerDashboard() {
                             </Badge>
                           </td>
                           <td className="p-3 font-bold text-rose-600">
-                            {getAlertValueDisplay(alert, formattedType)}
+                            <div>{getAlertValueDisplay(alert, formattedType)}</div>
+                            {formattedType === "Offline" && reminderRecord && (
+                              <div className="text-[10px] text-amber-700 dark:text-amber-400 font-medium mt-0.5 flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                                <span>Reminder sent: {reminderRecord.vendor_name || reminderRecord.vendor_email}</span>
+                              </div>
+                            )}
                           </td>
                           <td className="p-3 text-slate-500">
                             {alert.sent_date ? String(alert.sent_date).slice(0, 10) : "-"}
@@ -1309,23 +1435,60 @@ export default function EngineerDashboard() {
                             )}
                           </td>
                           <td className="p-3 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              {!isAcked && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => acknowledgeMutation.mutate(alert)}
-                                  disabled={acknowledgeMutation.isPending}
-                                  className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm"
-                                >
-                                  <Check className="w-3.5 h-3.5 mr-1" />
-                                  Acknowledge
-                                </Button>
+                            <div className="flex flex-col items-end gap-1">
+                              <div className="flex items-center justify-end gap-1.5">
+                                {formattedType === "Offline" && (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => sendReminderMutation.mutate(alert)}
+                                    disabled={sendingReminderKey === alertKey || sendReminderMutation.isPending}
+                                    className={`h-7 px-2.5 text-xs font-medium shadow-sm flex items-center gap-1 ${
+                                      reminderRecord
+                                        ? "bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800"
+                                        : "bg-amber-600 hover:bg-amber-700 text-white"
+                                    }`}
+                                    title={
+                                      reminderRecord
+                                        ? `Reminder previously sent to ${reminderRecord.vendor_name || reminderRecord.vendor_email}. Click to resend.`
+                                        : "Send offline reminder email to regional vendor"
+                                    }
+                                  >
+                                    {sendingReminderKey === alertKey ? (
+                                      <>
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                                        Sending...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <BellRing className="w-3.5 h-3.5 mr-1" />
+                                        {reminderRecord ? "Resend Reminder" : "Send Reminder"}
+                                      </>
+                                    )}
+                                  </Button>
+                                )}
+                                {!isAcked && (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => acknowledgeMutation.mutate(alert)}
+                                    disabled={acknowledgeMutation.isPending}
+                                    className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm"
+                                  >
+                                    <Check className="w-3.5 h-3.5 mr-1" />
+                                    Acknowledge
+                                  </Button>
+                                )}
+                                <Link href={`/helpdesk/issue-reporting?scheme_id=${alert.scheme_id}`}>
+                                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-slate-600 hover:text-slate-900">
+                                    Remark
+                                  </Button>
+                                </Link>
+                              </div>
+                              {formattedType === "Offline" && reminderRecord && (
+                                <div className="text-[10px] text-amber-700 dark:text-amber-400 font-medium flex items-center gap-1">
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                                  <span>Reminder sent to {reminderRecord.vendor_name || reminderRecord.vendor_email} ({formatReminderTime(reminderRecord.sent_at)})</span>
+                                </div>
                               )}
-                              <Link href={`/helpdesk/issue-reporting?scheme_id=${alert.scheme_id}`}>
-                                <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-slate-600 hover:text-slate-900">
-                                  Remark
-                                </Button>
-                              </Link>
                             </div>
                           </td>
                         </tr>

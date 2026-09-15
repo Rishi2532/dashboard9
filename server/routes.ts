@@ -60,6 +60,7 @@ import issueReportingRoutes from "./routes/issue-reporting-routes";
 import flowmeterRoutes from "./routes/flowmeter-routes";
 import alertsProgressRoutes from "./routes/alerts-progress-routes";
 import acknowledgeRoutes from "./routes/acknowledge-routes";
+import { sendSingleOfflineReminderEmail } from "./services/email-service";
 // import { mqttService } from "./mqtt-service";
 
 const exec = promisify(cp.exec);
@@ -126,6 +127,35 @@ const requireApiKeyOrAuth = (req: Request, res: Response, next: NextFunction) =>
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Ensure offline_reminder_logs table exists
+  try {
+    const initDb = await getDB();
+    await initDb.execute(sql`
+      CREATE TABLE IF NOT EXISTS offline_reminder_logs (
+        id SERIAL PRIMARY KEY,
+        alert_id INTEGER,
+        ticket_id VARCHAR(100),
+        scheme_id VARCHAR(100) NOT NULL,
+        scheme_name VARCHAR(255),
+        village_name VARCHAR(255),
+        esr_name VARCHAR(255),
+        region VARCHAR(100),
+        offline_sensors VARCHAR(255),
+        vendor_name VARCHAR(255),
+        vendor_email VARCHAR(255) NOT NULL,
+        sent_by_user_id INTEGER,
+        sent_by_name VARCHAR(255),
+        sent_by_email VARCHAR(255),
+        sent_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_offline_reminder_logs_alert_id ON offline_reminder_logs(alert_id);
+      CREATE INDEX IF NOT EXISTS idx_offline_reminder_logs_scheme ON offline_reminder_logs(scheme_id);
+      CREATE INDEX IF NOT EXISTS idx_offline_reminder_logs_ticket ON offline_reminder_logs(ticket_id);
+    `);
+  } catch (initErr) {
+    console.error("Error ensuring offline_reminder_logs table:", initErr);
+  }
+
   // Mount admin engineer credential management routes (admin only)
   app.use("/api/admin/engineers", requireAdmin, engineerAdminRoutes);
 
@@ -1237,9 +1267,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // 6. Fetch Recent alerts and total alerts count with acknowledgement status scoped to current engineer
       const alertsRes: any = await db.execute(sql`
-        SELECT a.id, a.scheme_id, a.scheme_name, a.village_name, a.esr_name, a.alert_type, a.alert_value, a.sent_date, a.sent_time, a.ticket_id,
+        SELECT a.id, a.scheme_id, a.scheme_name, a.region, a.village_name, a.esr_name, a.alert_type, a.alert_value, a.sent_date, a.sent_time, a.ticket_id,
                ea.acknowledged_at, ea.engineer_name as acknowledged_by,
-               (ea.acknowledged_at IS NOT NULL) as is_acknowledged
+               (ea.acknowledged_at IS NOT NULL) as is_acknowledged,
+               rem.vendor_name as reminder_vendor_name,
+               rem.vendor_email as reminder_vendor_email,
+               rem.sent_at as reminder_sent_at
         FROM email_alert_logs a
         LEFT JOIN LATERAL (
           SELECT ea.acknowledged_at, ea.engineer_name
@@ -1268,6 +1301,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ORDER BY ea.acknowledged_at DESC
           LIMIT 1
         ) ea ON true
+        LEFT JOIN LATERAL (
+          SELECT r.vendor_name, r.vendor_email, r.sent_at
+          FROM offline_reminder_logs r
+          WHERE (
+            (r.alert_id IS NOT NULL AND r.alert_id = a.id)
+            OR (r.ticket_id IS NOT NULL AND a.ticket_id IS NOT NULL AND r.ticket_id = a.ticket_id)
+            OR (r.scheme_id = a.scheme_id AND r.sent_at::date = a.sent_date::date AND COALESCE(NULLIF(TRIM(r.esr_name), '-'), '') = COALESCE(NULLIF(TRIM(a.esr_name), '-'), ''))
+          )
+          ORDER BY r.sent_at DESC
+          LIMIT 1
+        ) rem ON true
         WHERE a.scheme_id IN (${sql.raw(idPlaceholders)}) AND a.alert_type NOT IN ('Water', 'Zero Water Supply')
         ORDER BY a.id DESC LIMIT 200
       `);
@@ -1319,6 +1363,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ...r,
           is_acknowledged: isAck,
           acknowledged: isAck,
+          reminder_vendor_name: r.reminder_vendor_name || null,
+          reminder_vendor_email: r.reminder_vendor_email || null,
+          reminder_sent_at: r.reminder_sent_at || null,
         });
       });
 
@@ -1599,6 +1646,161 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching engineer schemes summary:", error);
       res.status(500).json({ message: "Failed to fetch engineer schemes summary" });
+    }
+  });
+
+  // Send Offline Sensor Reminder to Regional Vendor
+  app.post("/api/engineer/send-offline-reminder", async (req: any, res: Response) => {
+    try {
+      const {
+        alert_id,
+        ticket_id,
+        scheme_id,
+        scheme_name,
+        village_name,
+        esr_name,
+        offline_sensors,
+      } = req.body;
+
+      if (!scheme_id) {
+        return res.status(400).json({ error: "Scheme ID is required" });
+      }
+
+      const db = await getDB();
+
+      // 1. Resolve Region
+      let region = req.body.region;
+      if (!region) {
+        const regRes: any = await db.execute(sql`
+          SELECT region FROM scheme_status WHERE scheme_id = ${scheme_id} LIMIT 1
+        `);
+        const regRows = regRes.rows || regRes;
+        if (regRows.length > 0 && regRows[0].region) {
+          region = regRows[0].region;
+        } else {
+          const commRegRes: any = await db.execute(sql`
+            SELECT region FROM communication_status WHERE scheme_id = ${scheme_id} LIMIT 1
+          `);
+          const commRows = commRegRes.rows || commRegRes;
+          if (commRows.length > 0 && commRows[0].region) {
+            region = commRows[0].region;
+          }
+        }
+      }
+
+      if (!region) {
+        return res.status(400).json({ error: `Could not identify region for scheme ${scheme_id}` });
+      }
+
+      // 2. Query vendor table for this region
+      const cleanRegion = String(region).trim();
+      let vendorRows: any[] = [];
+
+      const vendorRes: any = await db.execute(sql`
+        SELECT id, employee_name, email, phone, agency, region
+        FROM vendor
+        WHERE LOWER(TRIM(region)) = LOWER(TRIM(${cleanRegion}))
+      `);
+      vendorRows = vendorRes.rows || vendorRes || [];
+
+      // If no exact match, try fuzzy matching
+      if (vendorRows.length === 0) {
+        const fuzzyPattern = `%${cleanRegion}%`;
+        const fuzzyRes: any = await db.execute(sql`
+          SELECT id, employee_name, email, phone, agency, region
+          FROM vendor
+          WHERE region ILIKE ${fuzzyPattern} OR ${cleanRegion} ILIKE '%' || region || '%'
+        `);
+        vendorRows = fuzzyRes.rows || fuzzyRes || [];
+      }
+
+      // Filter valid email addresses
+      const validVendors = vendorRows.filter(
+        (v: any) => v.email && v.email.includes("@")
+      );
+
+      if (validVendors.length === 0) {
+        return res.status(404).json({
+          error: `No vendor with a registered email address was found for region "${region}". Please verify the vendor directory.`,
+        });
+      }
+
+      // 3. Sender info from session
+      const currentUser = req.session?.user || req.session;
+      const engineerName = currentUser?.name || currentUser?.username || req.session?.engineerName || "Assigned Engineer";
+      const engineerEmail = currentUser?.email || req.session?.engineerEmail || "";
+      const currentUserId = req.session?.userId || null;
+
+      // 4. Send reminder email to each matching vendor and log to DB
+      const sentVendors: { name: string; email: string }[] = [];
+      const offlineSensorText = offline_sensors || "Sensors Offline";
+
+      for (const vendor of validVendors) {
+        try {
+          await sendSingleOfflineReminderEmail({
+            vendorEmail: vendor.email.trim(),
+            vendorName: vendor.employee_name || "Regional Vendor",
+            region: vendor.region || region,
+            scheme_id,
+            scheme_name: scheme_name || scheme_id,
+            village_name: village_name || null,
+            esr_name: esr_name || null,
+            offline_sensors: offlineSensorText,
+            ticket_id: ticket_id || null,
+            engineerName,
+            engineerEmail,
+          });
+
+          // Insert into offline_reminder_logs
+          await db.execute(sql`
+            INSERT INTO offline_reminder_logs (
+              alert_id, ticket_id, scheme_id, scheme_name, village_name, esr_name,
+              region, offline_sensors, vendor_name, vendor_email,
+              sent_by_user_id, sent_by_name, sent_by_email, sent_at
+            ) VALUES (
+              ${alert_id ? parseInt(String(alert_id)) : null},
+              ${ticket_id || null},
+              ${scheme_id},
+              ${scheme_name || scheme_id},
+              ${village_name || null},
+              ${esr_name || null},
+              ${vendor.region || region},
+              ${offlineSensorText},
+              ${vendor.employee_name || "Vendor"},
+              ${vendor.email.trim()},
+              ${currentUserId},
+              ${engineerName},
+              ${engineerEmail},
+              NOW()
+            )
+          `);
+
+          sentVendors.push({
+            name: vendor.employee_name || "Vendor",
+            email: vendor.email.trim(),
+          });
+        } catch (emailErr) {
+          console.error(`Failed to send offline reminder to vendor ${vendor.email}:`, emailErr);
+        }
+      }
+
+      if (sentVendors.length === 0) {
+        return res.status(500).json({ error: "Failed to dispatch reminder email to vendor." });
+      }
+
+      const vendorNames = sentVendors.map((v) => v.name).join(", ");
+      const vendorEmails = sentVendors.map((v) => v.email).join(", ");
+
+      return res.json({
+        success: true,
+        message: `Offline reminder email sent to ${vendorNames} (${vendorEmails})`,
+        vendor_name: vendorNames,
+        vendor_email: vendorEmails,
+        sent_at: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      console.error("Error in /api/engineer/send-offline-reminder:", error);
+      return res.status(500).json({ error: error.message || "Failed to process offline reminder" });
     }
   });
 

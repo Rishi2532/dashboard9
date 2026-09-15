@@ -740,3 +740,113 @@ export async function sendAutomaticOfflineEmails(): Promise<void> {
     await pool.end();
   }
 }
+
+export interface OfflineReminderEmailParams {
+  vendorEmail: string;
+  vendorName: string;
+  region: string;
+  scheme_id: string;
+  scheme_name: string;
+  village_name?: string | null;
+  esr_name?: string | null;
+  offline_sensors: string;
+  ticket_id?: string | null;
+  engineerName?: string | null;
+  engineerEmail?: string | null;
+}
+
+export async function sendSingleOfflineReminderEmail(
+  params: OfflineReminderEmailParams
+): Promise<boolean> {
+  const subject = `🚨 URGENT: Offline Sensors Reminder - ${params.scheme_name} (${params.region} Region)`;
+
+  const nowFormatted = new Date().toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden;">
+      <div style="background-color: #dc2626; color: white; padding: 22px 20px; text-align: center;">
+        <h1 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px;">⚠️ JJM SWSM IoT Maharashtra</h1>
+        <p style="margin: 6px 0 0 0; opacity: 0.95; font-size: 14px; font-weight: 500;">URGENT IOT SENSOR OFFLINE REMINDER</p>
+      </div>
+
+      <div style="padding: 24px 28px; background-color: #ffffff;">
+        <h2 style="color: #1e293b; margin-top: 0; font-size: 17px;">Dear ${params.vendorName || "Vendor Team"},</h2>
+        <p style="color: #334155; font-size: 14px; line-height: 1.5; margin-bottom: 20px;">
+          This is an official reminder regarding <strong>offline IoT sensors</strong> detected for a water supply scheme within your jurisdiction in the <strong>${params.region}</strong> region. Field telemetry data has ceased transmission and requires immediate restoration.
+        </p>
+
+        <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 18px 20px; margin: 20px 0;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <tr>
+              <td style="padding: 6px 0; color: #64748b; width: 130px; font-weight: 600;">Scheme:</td>
+              <td style="padding: 6px 0; color: #0f172a; font-weight: 700;">${params.scheme_name} <span style="color: #64748b; font-weight: normal;">(ID: ${params.scheme_id})</span></td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Region:</td>
+              <td style="padding: 6px 0; color: #0f172a; font-weight: 600;">${params.region}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Village / ESR:</td>
+              <td style="padding: 6px 0; color: #0f172a;">${params.village_name || "-"} ${params.esr_name ? `(${params.esr_name})` : ""}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #dc2626; font-weight: 700;">Offline Status:</td>
+              <td style="padding: 8px 0;">
+                <span style="display: inline-block; background-color: #fee2e2; color: #991b1b; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 13px; border: 1px solid #fca5a5;">
+                  🚨 ${params.offline_sensors}
+                </span>
+              </td>
+            </tr>
+            ${params.ticket_id ? `
+            <tr>
+              <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Ticket ID:</td>
+              <td style="padding: 6px 0; color: #2563eb; font-family: monospace; font-weight: bold;">${params.ticket_id}</td>
+            </tr>` : ""}
+            <tr>
+              <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Reported By:</td>
+              <td style="padding: 6px 0; color: #334155;">${params.engineerName || "Assigned Engineer"}${params.engineerEmail ? ` (${params.engineerEmail})` : ""}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Reminder Sent:</td>
+              <td style="padding: 6px 0; color: #475569;">${nowFormatted} IST</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px; padding: 14px 16px; margin: 20px 0;">
+          <p style="margin: 0; color: #92400e; font-weight: 700; font-size: 13px;">⚡ Immediate Action Requested:</p>
+          <p style="margin: 5px 0 0 0; color: #92400e; font-size: 13px; line-height: 1.4;">
+            Please coordinate with your on-ground technical maintenance team to inspect the IoT gateway, sensor power supplies, GSM/network antennae, and field cabling at this ESR immediately.
+          </p>
+        </div>
+
+        <p style="color: #64748b; font-size: 12px; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 16px; line-height: 1.4;">
+          This is an automated priority reminder sent via Maharashtra Water Infrastructure Management Platform.<br>
+          Please ensure connectivity is restored and telemetry is streaming to the central dashboard.
+        </p>
+      </div>
+    </div>
+  `;
+
+  return sendEmail({
+    to: params.vendorEmail,
+    from: "Maharashtra Water Alert",
+    replyTo: params.engineerEmail || "noreply@maharashtrawater.gov.in",
+    subject,
+    html,
+    headers: {
+      "X-Priority": "1",
+      "X-MSMail-Priority": "High",
+      Importance: "High",
+    },
+  });
+}
+
