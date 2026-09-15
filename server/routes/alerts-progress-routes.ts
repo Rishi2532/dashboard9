@@ -351,13 +351,13 @@ router.get('/offline', async (req, res) => {
           c.flow_meter_connected,
           c.last_seen,
           c.pressure_last_seen,
-          COALESCE(sed.civil_engineer_name, v.employee_name) as civil_engineer_name,
-          COALESCE(sed.civil_engineer_email, v.email) as civil_engineer_email,
-          COALESCE(sed.civil_engineer_mobile, v.phone) as civil_engineer_mobile,
-          sed.mechanical_engineer_name,
-          sed.mechanical_engineer_email,
-          sed.site_supervisor_name,
-          sed.site_supervisor_email,
+          COALESCE(sed.de_ae_civil_name, v.employee_name) as civil_engineer_name,
+          COALESCE(sed.de_ae_civil_email, v.email) as civil_engineer_email,
+          COALESCE(sed.de_ae_civil_mobile, v.phone) as civil_engineer_mobile,
+          sed.de_ae_mech_name as mechanical_engineer_name,
+          sed.de_ae_mech_email as mechanical_engineer_email,
+          sed.de_ae_mech_name as site_supervisor_name,
+          sed.de_ae_mech_email as site_supervisor_email,
           COALESCE(i.remarks, '[]'::json) as remarks,
           COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
         FROM communication_status c
@@ -453,7 +453,7 @@ router.get('/download-14-day-report', async (req, res) => {
           WHERE esr_name IS NOT NULL
         )
         SELECT e.region, e.circle, e.division, e.sub_division, e.block, e.scheme_id, e.scheme_name, e.village_name, e.esr_name,
-               sed.civil_engineer_name, sed.mechanical_engineer_name
+               sed.de_ae_civil_name as civil_engineer_name, sed.de_ae_mech_name as mechanical_engineer_name
         FROM all_esrs e
         LEFT JOIN scheme_engineer_details sed ON e.scheme_id = sed.scheme_id
         ORDER BY e.circle, e.division, e.sub_division, e.block, e.scheme_id, e.village_name, e.esr_name

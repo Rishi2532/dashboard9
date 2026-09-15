@@ -1427,16 +1427,10 @@ export const schemeEngineerDetails = pgTable("scheme_engineer_details", {
   de_ae_civil_name: varchar("de_ae_civil_name", { length: 255 }),
   de_ae_civil_mobile: varchar("de_ae_civil_mobile", { length: 20 }),
   de_ae_civil_email: varchar("de_ae_civil_email", { length: 255 }),
-  civil_engineer_name: varchar("civil_engineer_name", { length: 255 }),
-  civil_engineer_mobile: varchar("civil_engineer_mobile", { length: 20 }),
-  civil_engineer_email: varchar("civil_engineer_email", { length: 255 }),
   // DE/AE (Mech)
   de_ae_mech_name: varchar("de_ae_mech_name", { length: 255 }),
   de_ae_mech_mobile: varchar("de_ae_mech_mobile", { length: 20 }),
   de_ae_mech_email: varchar("de_ae_mech_email", { length: 255 }),
-  mechanical_engineer_name: varchar("mechanical_engineer_name", { length: 255 }),
-  mechanical_engineer_mobile: varchar("mechanical_engineer_mobile", { length: 20 }),
-  mechanical_engineer_email: varchar("mechanical_engineer_email", { length: 255 }),
   // SE (Superintending Engineer)
   se_name: varchar("se_name", { length: 255 }),
   se_mobile: varchar("se_mobile", { length: 20 }),

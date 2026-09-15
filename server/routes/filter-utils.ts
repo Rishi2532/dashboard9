@@ -535,16 +535,26 @@ export async function getEngineerAssignedSchemes(
     let matchedEmail = "";
     let matchedPhone = "";
 
-    if (isMatchingPerson(eng.de_ae_civil_email || eng.civil_engineer_email, eng.de_ae_civil_mobile || eng.civil_engineer_mobile, eng.de_ae_civil_name || eng.civil_engineer_name)) {
+    if (isMatchingPerson(eng.ee_civil_email, eng.ee_civil_mobile, eng.ee_civil_name)) {
+      matchedRole = "EE (Civil)";
+      matchedName = eng.ee_civil_name || "";
+      matchedEmail = eng.ee_civil_email || "";
+      matchedPhone = eng.ee_civil_mobile || "";
+    } else if (isMatchingPerson(eng.ee_mech_email, eng.ee_mech_mobile, eng.ee_mech_name)) {
+      matchedRole = "EE (Mech)";
+      matchedName = eng.ee_mech_name || "";
+      matchedEmail = eng.ee_mech_email || "";
+      matchedPhone = eng.ee_mech_mobile || "";
+    } else if (isMatchingPerson(eng.de_ae_civil_email, eng.de_ae_civil_mobile, eng.de_ae_civil_name)) {
       matchedRole = "DE/AE (Civil)";
-      matchedName = eng.de_ae_civil_name || eng.civil_engineer_name || "";
-      matchedEmail = eng.de_ae_civil_email || eng.civil_engineer_email || "";
-      matchedPhone = eng.de_ae_civil_mobile || eng.civil_engineer_mobile || "";
-    } else if (isMatchingPerson(eng.de_ae_mech_email || eng.site_supervisor_email || eng.mechanical_engineer_email, eng.de_ae_mech_mobile || eng.site_supervisor_mobile || eng.mechanical_engineer_mobile, eng.de_ae_mech_name || eng.site_supervisor_name || eng.mechanical_engineer_name)) {
+      matchedName = eng.de_ae_civil_name || "";
+      matchedEmail = eng.de_ae_civil_email || "";
+      matchedPhone = eng.de_ae_civil_mobile || "";
+    } else if (isMatchingPerson(eng.de_ae_mech_email, eng.de_ae_mech_mobile, eng.de_ae_mech_name)) {
       matchedRole = "DE/AE (Mech)";
-      matchedName = eng.de_ae_mech_name || eng.site_supervisor_name || eng.mechanical_engineer_name || "";
-      matchedEmail = eng.de_ae_mech_email || eng.site_supervisor_email || eng.mechanical_engineer_email || "";
-      matchedPhone = eng.de_ae_mech_mobile || eng.site_supervisor_mobile || eng.mechanical_engineer_mobile || "";
+      matchedName = eng.de_ae_mech_name || "";
+      matchedEmail = eng.de_ae_mech_email || "";
+      matchedPhone = eng.de_ae_mech_mobile || "";
     } else if (isMatchingPerson(eng.se_email, eng.se_mobile, eng.se_name)) {
       matchedRole = "Superintending Engineer (SE)";
       matchedName = eng.se_name || "";

@@ -495,17 +495,27 @@ async function ensureSchemeEngineerDetailsColumns() {
       ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS chief_engineer_mobile VARCHAR(20);
       ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS chief_engineer_email VARCHAR(255);
 
-      UPDATE scheme_engineer_details
-      SET de_ae_mech_name = COALESCE(de_ae_mech_name, site_supervisor_name),
-          de_ae_mech_mobile = COALESCE(de_ae_mech_mobile, site_supervisor_mobile),
-          de_ae_mech_email = COALESCE(de_ae_mech_email, site_supervisor_email)
-      WHERE de_ae_mech_name IS NULL AND site_supervisor_name IS NOT NULL;
+      DO $$
+      BEGIN
+        UPDATE scheme_engineer_details
+        SET de_ae_mech_name = COALESCE(de_ae_mech_name, site_supervisor_name),
+            de_ae_mech_mobile = COALESCE(de_ae_mech_mobile, site_supervisor_mobile),
+            de_ae_mech_email = COALESCE(de_ae_mech_email, site_supervisor_email)
+        WHERE de_ae_mech_name IS NULL AND site_supervisor_name IS NOT NULL;
+      EXCEPTION WHEN undefined_column THEN
+        NULL;
+      END $$;
 
-      UPDATE scheme_engineer_details
-      SET de_ae_civil_name = COALESCE(de_ae_civil_name, civil_engineer_name),
-          de_ae_civil_mobile = COALESCE(de_ae_civil_mobile, civil_engineer_mobile),
-          de_ae_civil_email = COALESCE(de_ae_civil_email, civil_engineer_email)
-      WHERE de_ae_civil_name IS NULL AND civil_engineer_name IS NOT NULL;
+      DO $$
+      BEGIN
+        UPDATE scheme_engineer_details
+        SET de_ae_civil_name = COALESCE(de_ae_civil_name, civil_engineer_name),
+            de_ae_civil_mobile = COALESCE(de_ae_civil_mobile, civil_engineer_mobile),
+            de_ae_civil_email = COALESCE(de_ae_civil_email, civil_engineer_email)
+        WHERE de_ae_civil_name IS NULL AND civil_engineer_name IS NOT NULL;
+      EXCEPTION WHEN undefined_column THEN
+        NULL;
+      END $$;
     `);
     console.log('✅ Verified scheme_engineer_details table and new engineer hierarchy columns');
   } catch (error) {

@@ -49,17 +49,27 @@ router.get("/", async (req: Request, res: Response) => {
       const engName = (eng.name || "").trim().toLowerCase();
 
       const matchedSchemes = allSchemes.filter((s: any) => {
-        const cEmail = (s.civil_engineer_email || "").trim().toLowerCase();
-        const mEmail = (s.mechanical_engineer_email || "").trim().toLowerCase();
-        const sEmail = (s.site_supervisor_email || "").trim().toLowerCase();
+        const emails = [
+          s.ee_civil_email,
+          s.ee_mech_email,
+          s.de_ae_civil_email,
+          s.de_ae_mech_email,
+          s.se_email,
+          s.chief_engineer_email,
+        ].map((e) => (e || "").trim().toLowerCase()).filter(Boolean);
 
-        const cName = (s.civil_engineer_name || "").trim().toLowerCase();
-        const mName = (s.mechanical_engineer_name || "").trim().toLowerCase();
-        const sName = (s.site_supervisor_name || "").trim().toLowerCase();
+        const names = [
+          s.ee_civil_name,
+          s.ee_mech_name,
+          s.de_ae_civil_name,
+          s.de_ae_mech_name,
+          s.se_name,
+          s.chief_engineer_name,
+        ].map((n) => (n || "").trim().toLowerCase()).filter(Boolean);
 
         return (
-          (engEmail && (cEmail === engEmail || mEmail === engEmail || sEmail === engEmail)) ||
-          (engName && (cName === engName || mName === engName || sName === engName))
+          (engEmail && emails.includes(engEmail)) ||
+          (engName && names.includes(engName))
         );
       });
 
@@ -109,87 +119,41 @@ router.get("/directory", async (req: Request, res: Response) => {
     }>();
 
     for (const row of allSchemes) {
-      // Civil Engineer
-      if (row.civil_engineer_name || row.civil_engineer_email) {
-        const email = (row.civil_engineer_email || "").trim().toLowerCase();
-        const name = (row.civil_engineer_name || "").trim();
-        const phone = (row.civil_engineer_mobile || "").trim();
-        const key = email || name.toLowerCase();
+      const rolesConfig = [
+        { name: row.ee_civil_name, email: row.ee_civil_email, phone: row.ee_civil_mobile, title: "EE (Civil)" },
+        { name: row.ee_mech_name, email: row.ee_mech_email, phone: row.ee_mech_mobile, title: "EE (Mech)" },
+        { name: row.de_ae_civil_name, email: row.de_ae_civil_email, phone: row.de_ae_civil_mobile, title: "DE/AE (Civil)" },
+        { name: row.de_ae_mech_name, email: row.de_ae_mech_email, phone: row.de_ae_mech_mobile, title: "DE/AE (Mech)" },
+        { name: row.se_name, email: row.se_email, phone: row.se_mobile, title: "Superintending Engineer (SE)" },
+        { name: row.chief_engineer_name, email: row.chief_engineer_email, phone: row.chief_engineer_mobile, title: "Chief Engineer" },
+      ];
 
-        if (key) {
-          if (!directoryMap.has(key)) {
-            const isReg = Boolean(email && registeredEmails.has(email));
-            const matchedUser = existingUsers.find((u: any) => (u.email || "").trim().toLowerCase() === email);
-            directoryMap.set(key, {
-              name,
-              email,
-              phone,
-              role_title: "Civil Engineer",
-              region: row.region,
-              district: row.district,
-              division: row.division,
-              schemes: [],
-              is_registered: isReg,
-              existing_username: matchedUser?.username,
-            });
+      for (const r of rolesConfig) {
+        if (r.name || r.email) {
+          const email = (r.email || "").trim().toLowerCase();
+          const name = (r.name || "").trim();
+          const phone = (r.phone || "").trim();
+          const key = email || name.toLowerCase();
+
+          if (key) {
+            if (!directoryMap.has(key)) {
+              const isReg = Boolean(email && registeredEmails.has(email));
+              const matchedUser = existingUsers.find((u: any) => (u.email || "").trim().toLowerCase() === email);
+              directoryMap.set(key, {
+                name,
+                email,
+                phone,
+                role_title: r.title,
+                region: row.region,
+                district: row.district,
+                division: row.division,
+                schemes: [],
+                is_registered: isReg,
+                existing_username: matchedUser?.username,
+              });
+            }
+            if (row.scheme) directoryMap.get(key)!.schemes.push(row.scheme);
           }
-          if (row.scheme) directoryMap.get(key)!.schemes.push(row.scheme);
-        }
-      }
-
-      // Mechanical Engineer
-      if (row.mechanical_engineer_name || row.mechanical_engineer_email) {
-        const email = (row.mechanical_engineer_email || "").trim().toLowerCase();
-        const name = (row.mechanical_engineer_name || "").trim();
-        const phone = (row.mechanical_engineer_mobile || "").trim();
-        const key = email || name.toLowerCase();
-
-        if (key) {
-          if (!directoryMap.has(key)) {
-            const isReg = Boolean(email && registeredEmails.has(email));
-            const matchedUser = existingUsers.find((u: any) => (u.email || "").trim().toLowerCase() === email);
-            directoryMap.set(key, {
-              name,
-              email,
-              phone,
-              role_title: "Mechanical Engineer",
-              region: row.region,
-              district: row.district,
-              division: row.division,
-              schemes: [],
-              is_registered: isReg,
-              existing_username: matchedUser?.username,
-            });
-          }
-          if (row.scheme) directoryMap.get(key)!.schemes.push(row.scheme);
-        }
-      }
-
-      // Site Supervisor
-      if (row.site_supervisor_name || row.site_supervisor_email) {
-        const email = (row.site_supervisor_email || "").trim().toLowerCase();
-        const name = (row.site_supervisor_name || "").trim();
-        const phone = (row.site_supervisor_mobile || "").trim();
-        const key = email || name.toLowerCase();
-
-        if (key) {
-          if (!directoryMap.has(key)) {
-            const isReg = Boolean(email && registeredEmails.has(email));
-            const matchedUser = existingUsers.find((u: any) => (u.email || "").trim().toLowerCase() === email);
-            directoryMap.set(key, {
-              name,
-              email,
-              phone,
-              role_title: "Site Supervisor",
-              region: row.region,
-              district: row.district,
-              division: row.division,
-              schemes: [],
-              is_registered: isReg,
-              existing_username: matchedUser?.username,
-            });
-          }
-          if (row.scheme) directoryMap.get(key)!.schemes.push(row.scheme);
         }
       }
     }

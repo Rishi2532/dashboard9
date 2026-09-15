@@ -183,17 +183,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS chief_engineer_mobile VARCHAR(20);
       ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS chief_engineer_email VARCHAR(255);
 
-      UPDATE scheme_engineer_details
-      SET de_ae_mech_name = COALESCE(de_ae_mech_name, site_supervisor_name),
-          de_ae_mech_mobile = COALESCE(de_ae_mech_mobile, site_supervisor_mobile),
-          de_ae_mech_email = COALESCE(de_ae_mech_email, site_supervisor_email)
-      WHERE de_ae_mech_name IS NULL AND site_supervisor_name IS NOT NULL;
+      DO $$
+      BEGIN
+        UPDATE scheme_engineer_details
+        SET de_ae_mech_name = COALESCE(de_ae_mech_name, site_supervisor_name),
+            de_ae_mech_mobile = COALESCE(de_ae_mech_mobile, site_supervisor_mobile),
+            de_ae_mech_email = COALESCE(de_ae_mech_email, site_supervisor_email)
+        WHERE de_ae_mech_name IS NULL AND site_supervisor_name IS NOT NULL;
+      EXCEPTION WHEN undefined_column THEN
+        -- Column does not exist in new schema, ignore safely
+        NULL;
+      END $$;
 
-      UPDATE scheme_engineer_details
-      SET de_ae_civil_name = COALESCE(de_ae_civil_name, civil_engineer_name),
-          de_ae_civil_mobile = COALESCE(de_ae_civil_mobile, civil_engineer_mobile),
-          de_ae_civil_email = COALESCE(de_ae_civil_email, civil_engineer_email)
-      WHERE de_ae_civil_name IS NULL AND civil_engineer_name IS NOT NULL;
+      DO $$
+      BEGIN
+        UPDATE scheme_engineer_details
+        SET de_ae_civil_name = COALESCE(de_ae_civil_name, civil_engineer_name),
+            de_ae_civil_mobile = COALESCE(de_ae_civil_mobile, civil_engineer_mobile),
+            de_ae_civil_email = COALESCE(de_ae_civil_email, civil_engineer_email)
+        WHERE de_ae_civil_name IS NULL AND civil_engineer_name IS NOT NULL;
+      EXCEPTION WHEN undefined_column THEN
+        -- Column does not exist in new schema, ignore safely
+        NULL;
+      END $$;
     `);
   } catch (initErr) {
     console.error("Error ensuring offline_reminder_logs and scheme_engineer_details table:", initErr);
@@ -1784,12 +1796,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ee_mech_name,
           ee_mech_email,
           ee_mech_mobile,
-          COALESCE(de_ae_civil_name, civil_engineer_name) as de_ae_civil_name,
-          COALESCE(de_ae_civil_email, civil_engineer_email) as de_ae_civil_email,
-          COALESCE(de_ae_civil_mobile, civil_engineer_mobile) as de_ae_civil_mobile,
-          COALESCE(de_ae_mech_name, site_supervisor_name, mechanical_engineer_name) as de_ae_mech_name,
-          COALESCE(de_ae_mech_email, site_supervisor_email, mechanical_engineer_email) as de_ae_mech_email,
-          COALESCE(de_ae_mech_mobile, site_supervisor_mobile, mechanical_engineer_mobile) as de_ae_mech_mobile,
+          de_ae_civil_name,
+          de_ae_civil_email,
+          de_ae_civil_mobile,
+          de_ae_mech_name,
+          de_ae_mech_email,
+          de_ae_mech_mobile,
           se_name,
           se_email,
           se_mobile,
@@ -2110,12 +2122,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 ee_mech_name,
                 ee_mech_email,
                 ee_mech_mobile,
-                COALESCE(de_ae_civil_name, civil_engineer_name) as de_ae_civil_name,
-                COALESCE(de_ae_civil_email, civil_engineer_email) as de_ae_civil_email,
-                COALESCE(de_ae_civil_mobile, civil_engineer_mobile) as de_ae_civil_mobile,
-                COALESCE(de_ae_mech_name, site_supervisor_name, mechanical_engineer_name) as de_ae_mech_name,
-                COALESCE(de_ae_mech_email, site_supervisor_email, mechanical_engineer_email) as de_ae_mech_email,
-                COALESCE(de_ae_mech_mobile, site_supervisor_mobile, mechanical_engineer_mobile) as de_ae_mech_mobile,
+                de_ae_civil_name,
+                de_ae_civil_email,
+                de_ae_civil_mobile,
+                de_ae_mech_name,
+                de_ae_mech_email,
+                de_ae_mech_mobile,
                 se_name,
                 se_email,
                 se_mobile,
