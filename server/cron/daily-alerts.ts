@@ -421,6 +421,17 @@ export async function runDailyAlertsJob() {
     const emails = Object.keys(emailsToSend);
     console.log(`📧 Preparing to send ${emails.length} alert emails...`);
 
+    let totalEmailsSent = 0;
+    let totalEmailsFailed = 0;
+    const failedDeliveries: Array<{
+      email: string;
+      name: string;
+      scheme_id: string | null;
+      scheme_name: string | null;
+      error: string;
+      count: number;
+    }> = [];
+
     for (const email of emails) {
       const { name, alerts } = emailsToSend[email];
       // Deduplicate alerts for this person just in case
@@ -466,17 +477,89 @@ export async function runDailyAlertsJob() {
         tokenClient.release();
       }
 
+      let isSuccess = false;
+      let failureError: string | null = null;
+
       try {
         // Pass uniqueAlerts with alert.token attached and masterToken for Acknowledge All
-        await sendDailyAlertEmail(email, name, uniqueAlerts, masterToken);
+        isSuccess = await sendDailyAlertEmail(email, name, uniqueAlerts, masterToken);
+        if (!isSuccess) {
+          failureError = "Mail server rejected message or transporter error (sendEmail returned false)";
+        }
+      } catch (err: any) {
+        isSuccess = false;
+        failureError = err?.message || String(err);
+      }
+
+      if (isSuccess) {
+        totalEmailsSent++;
         console.log(`✅ Sent alert email to ${email} for ${uniqueAlerts.length} issues.`);
-      } catch (err) {
-        console.error(`❌ Failed to send alert email to ${email}:`, err);
+      } else {
+        totalEmailsFailed++;
+        const primarySchemeId = uniqueAlerts[0]?.scheme_id || null;
+        const primarySchemeName = uniqueAlerts[0]?.scheme_name || null;
+        const alertSummary = uniqueAlerts
+          .map(a => `${a.scheme_name || a.scheme_id} (${a.village_name || a.esr_name || 'Main'}): ${a.chlorine_issue ? (a.chlorine_type || 'Chlorine') : a.pressure_issue ? 'Pressure' : a.lpcd_issue ? 'LPCD' : 'Offline'}`)
+          .slice(0, 5)
+          .join('; ');
+
+        failedDeliveries.push({
+          email,
+          name,
+          scheme_id: primarySchemeId,
+          scheme_name: primarySchemeName,
+          error: failureError || 'Unknown delivery failure',
+          count: uniqueAlerts.length,
+        });
+
+        console.error(`❌ Failed to send alert email to ${email}:`, failureError);
+
+        // Record failed attempt into private database audit table
+        try {
+          const failClient = await pool.connect();
+          try {
+            await failClient.query(
+              `INSERT INTO email_delivery_failures (recipient_email, engineer_name, scheme_id, scheme_name, alert_count, alert_summary, error_message, attempted_at)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+              [
+                email,
+                name,
+                primarySchemeId,
+                primarySchemeName,
+                uniqueAlerts.length,
+                alertSummary,
+                failureError,
+              ]
+            );
+          } finally {
+            failClient.release();
+          }
+        } catch (dbErr) {
+          console.error("⚠️ Error saving failure to email_delivery_failures table:", dbErr);
+        }
       }
 
       // Add 1-second delay between outgoing emails to prevent mail server rate-limit blocks
       await new Promise(r => setTimeout(r, 1000));
     }
+
+    // Print clear dispatch audit summary in server console
+    console.log(`\n============================================================`);
+    console.log(`📊 DAILY ALERTS EMAIL DISPATCH AUDIT`);
+    console.log(`   Total Attempted: ${emails.length}`);
+    console.log(`   ✅ Successfully Sent: ${totalEmailsSent}`);
+    console.log(`   ❌ Failed: ${totalEmailsFailed}`);
+    if (failedDeliveries.length > 0) {
+      console.log(`\n❌ Failed Emails (Recorded in 'email_delivery_failures' table):`);
+      failedDeliveries.forEach((f, idx) => {
+        console.log(`   ${idx + 1}. [${f.email}] (${f.name}) - Scheme: ${f.scheme_name || f.scheme_id}`);
+        console.log(`      Error: ${f.error}`);
+      });
+    } else {
+      console.log(`   🎉 All alert emails delivered with 100% success.`);
+    }
+    console.log(`============================================================\n`);
+
 
     // Send the consolidated SMS alerts
     const mobiles = Object.keys(smsToSend);

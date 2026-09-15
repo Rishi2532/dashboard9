@@ -1490,6 +1490,27 @@ export const insertEmailAlertLogSchema = createInsertSchema(emailAlertLogs).omit
 export type InsertEmailAlertLog = z.infer<typeof insertEmailAlertLogSchema>;
 export type EmailAlertLog = typeof emailAlertLogs.$inferSelect;
 
+// Email Delivery Failures audit table (private tracking for failed email alerts)
+export const emailDeliveryFailures = pgTable("email_delivery_failures", {
+  id: serial("id").primaryKey(),
+  recipient_email: varchar("recipient_email", { length: 255 }).notNull(),
+  engineer_name: varchar("engineer_name", { length: 255 }),
+  scheme_id: varchar("scheme_id", { length: 100 }),
+  scheme_name: varchar("scheme_name", { length: 255 }),
+  alert_count: integer("alert_count").default(1),
+  alert_summary: text("alert_summary"),
+  error_message: text("error_message"),
+  attempted_at: timestamp("attempted_at", { withTimezone: true }).defaultNow(),
+});
+
+export const insertEmailDeliveryFailureSchema = createInsertSchema(emailDeliveryFailures).omit({
+  id: true,
+  attempted_at: true,
+});
+
+export type InsertEmailDeliveryFailure = z.infer<typeof insertEmailDeliveryFailureSchema>;
+export type EmailDeliveryFailure = typeof emailDeliveryFailures.$inferSelect;
+
 // Real-time Sensor Data table for instant tracking
 export const realtimeSensorData = pgTable(
   "realtime_sensor_data",

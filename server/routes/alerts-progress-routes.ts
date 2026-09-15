@@ -836,4 +836,35 @@ router.get('/download-14-day-report', async (req, res) => {
   }
 });
 
+// Private admin-only endpoint to check email delivery failure audit logs
+router.get('/email-failures', async (req, res) => {
+  try {
+    const client = await pool.connect();
+    try {
+      const result = await client.query(`
+        SELECT 
+          id,
+          recipient_email,
+          engineer_name,
+          scheme_id,
+          scheme_name,
+          alert_count,
+          alert_summary,
+          error_message,
+          attempted_at
+        FROM email_delivery_failures
+        ORDER BY attempted_at DESC
+        LIMIT 100
+      `);
+      res.json(result.rows);
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error fetching email failures audit:', error);
+    res.status(500).json({ error: 'Failed to fetch email failures audit' });
+  }
+});
+
 export default router;
+
