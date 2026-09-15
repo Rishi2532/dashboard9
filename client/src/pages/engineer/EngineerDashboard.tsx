@@ -1581,14 +1581,14 @@ export default function EngineerDashboard() {
                 <table className="w-full text-xs text-left border-collapse table-auto">
                   <thead className="bg-slate-50/90 dark:bg-slate-800/70 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold uppercase tracking-wider text-[11px]">
                     <tr>
-                      <th className="py-3 px-2 text-center w-10">#</th>
-                      <th className="py-3 px-3 text-left min-w-[180px]">Scheme & Location</th>
-                      <th className="py-3 px-3 text-left min-w-[140px]">ESR Reservoir</th>
-                      <th className="py-3 px-2 text-center w-28 whitespace-nowrap">Alert Type</th>
-                      <th className="py-3 px-3 text-left min-w-[200px]">Recorded Value</th>
-                      <th className="py-3 px-2 text-center w-28 whitespace-nowrap">Date</th>
-                      <th className="py-3 px-2 text-center w-28 whitespace-nowrap">Status</th>
-                      <th className="py-3 px-4 text-right min-w-[160px] whitespace-nowrap">Actions</th>
+                      <th className="py-2.5 px-2 text-center w-8">#</th>
+                      <th className="py-2.5 px-3 text-left">Scheme & Location</th>
+                      <th className="py-2.5 px-3 text-left">ESR Reservoir</th>
+                      <th className="py-2.5 px-2 text-center w-24 whitespace-nowrap">Alert Type</th>
+                      <th className="py-2.5 px-3 text-left">Recorded Value</th>
+                      <th className="py-2.5 px-2 text-center w-24 whitespace-nowrap">Date</th>
+                      <th className="py-2.5 px-2 text-center w-24 whitespace-nowrap">Status</th>
+                      <th className="py-2.5 px-3 text-right w-[195px] whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
@@ -1612,12 +1612,12 @@ export default function EngineerDashboard() {
                           className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors group"
                         >
                           {/* 1. Index */}
-                          <td className="py-3 px-2 text-center font-medium text-slate-400 group-hover:text-slate-600 align-middle">
+                          <td className="py-2.5 px-2 text-center font-medium text-slate-400 group-hover:text-slate-600 align-middle">
                             {idx + 1}
                           </td>
 
                           {/* 2. Scheme & Location */}
-                          <td className="py-3 px-3 align-middle">
+                          <td className="py-2.5 px-3 align-middle">
                             <div className="font-bold text-slate-900 dark:text-white leading-snug break-words">
                               {alert.parentSchemeName || alert.scheme_name || alert.scheme_id}
                             </div>
@@ -1634,7 +1634,7 @@ export default function EngineerDashboard() {
                           </td>
 
                           {/* 3. ESR Reservoir */}
-                          <td className="py-3 px-3 align-middle">
+                          <td className="py-2.5 px-3 align-middle">
                             <div className="font-semibold text-slate-800 dark:text-slate-200 break-words">
                               {alert.esr_name || "-"}
                             </div>
@@ -1646,19 +1646,19 @@ export default function EngineerDashboard() {
                           </td>
 
                           {/* 4. Alert Type Badge */}
-                          <td className="py-3 px-2 text-center align-middle whitespace-nowrap">
-                            <Badge className={`${getAlertBadgeClass(formattedType)} px-2.5 py-1 text-[11px] font-bold shadow-xs whitespace-nowrap`}>
+                          <td className="py-2.5 px-2 text-center align-middle whitespace-nowrap">
+                            <Badge className={`${getAlertBadgeClass(formattedType)} px-2 py-0.5 text-[10px] font-bold shadow-xs whitespace-nowrap`}>
                               {formattedType}
                             </Badge>
                           </td>
 
                           {/* 5. Recorded Value Column */}
-                          <td className="py-3 px-3 align-middle">
-                            <div className="font-bold text-rose-600 dark:text-rose-400 text-xs leading-tight">
+                          <td className="py-2.5 px-3 align-middle">
+                            <div className="font-bold text-rose-600 dark:text-rose-400 text-xs leading-tight break-words">
                               {getAlertValueDisplay(alert, formattedType)}
                             </div>
                             {formattedType === "Offline" && reminderRecord && (
-                              <div className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-[10px] font-medium shadow-xs">
+                              <div className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-[10px] font-medium shadow-xs leading-tight break-words">
                                 <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
                                 <span>Reminder sent: {reminderRecord.vendor_name || reminderRecord.vendor_email}</span>
                                 {reminderRecord.sent_at && (
@@ -1671,7 +1671,7 @@ export default function EngineerDashboard() {
                           </td>
 
                           {/* 6. Date & Ticket */}
-                          <td className="py-3 px-2 text-center align-middle whitespace-nowrap">
+                          <td className="py-2.5 px-2 text-center align-middle whitespace-nowrap">
                             <div className="font-medium text-slate-700 dark:text-slate-300">
                               {alert.sent_date ? String(alert.sent_date).slice(0, 10) : "-"}
                             </div>
@@ -1683,7 +1683,7 @@ export default function EngineerDashboard() {
                           </td>
 
                           {/* 7. Status Badge */}
-                          <td className="py-3 px-2 text-center align-middle whitespace-nowrap">
+                          <td className="py-2.5 px-2 text-center align-middle whitespace-nowrap">
                             {isAcked ? (
                               <Badge className="bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.5 inline-flex items-center gap-1 shadow-xs">
                                 <CheckCircle2 className="w-3 h-3 text-emerald-600" />
@@ -1698,14 +1698,14 @@ export default function EngineerDashboard() {
                           </td>
 
                           {/* 8. Actions */}
-                          <td className="py-3 px-4 text-right align-middle whitespace-nowrap">
-                            <div className="flex items-center justify-end gap-1.5 flex-nowrap">
+                          <td className="py-2.5 px-3 text-right align-middle whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1 flex-nowrap">
                               {formattedType === "Offline" && (
                                 <Button
                                   size="sm"
                                   onClick={() => sendReminderMutation.mutate(alert)}
                                   disabled={sendingReminderKey === alertKey || sendReminderMutation.isPending}
-                                  className={`h-7 px-2.5 text-xs font-semibold shadow-xs flex items-center gap-1 shrink-0 transition-all ${
+                                  className={`h-7 px-2 text-[11px] font-semibold shadow-xs flex items-center gap-1 shrink-0 transition-all ${
                                     reminderRecord
                                       ? "bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800"
                                       : "bg-amber-600 hover:bg-amber-700 text-white"
@@ -1718,13 +1718,13 @@ export default function EngineerDashboard() {
                                 >
                                   {sendingReminderKey === alertKey ? (
                                     <>
-                                      <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                                      <Loader2 className="w-3 h-3 animate-spin mr-1" />
                                       Sending...
                                     </>
                                   ) : (
                                     <>
-                                      <BellRing className="w-3.5 h-3.5 mr-1" />
-                                      {reminderRecord ? "Resend" : "Send Reminder"}
+                                      <BellRing className="w-3 h-3 mr-0.5" />
+                                      {reminderRecord ? "Resend" : "Remind"}
                                     </>
                                   )}
                                 </Button>
@@ -1734,14 +1734,15 @@ export default function EngineerDashboard() {
                                   size="sm"
                                   onClick={() => acknowledgeMutation.mutate(alert)}
                                   disabled={acknowledgeMutation.isPending}
-                                  className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs flex items-center gap-1 shrink-0"
+                                  className="h-7 px-2 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs flex items-center gap-1 shrink-0"
+                                  title="Acknowledge this alert"
                                 >
-                                  <Check className="w-3.5 h-3.5" />
-                                  Acknowledge
+                                  <Check className="w-3 h-3" />
+                                  Ack
                                 </Button>
                               )}
                               <Link href={`/helpdesk/issue-reporting?scheme_id=${alert.scheme_id}`}>
-                                <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs text-slate-700 hover:text-slate-900 border-slate-300 font-medium shrink-0">
+                                <Button size="sm" variant="outline" className="h-7 px-2 text-[11px] text-slate-700 hover:text-slate-900 border-slate-300 font-medium shrink-0">
                                   Remark
                                 </Button>
                               </Link>
