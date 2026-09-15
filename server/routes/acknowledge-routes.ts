@@ -230,6 +230,109 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/acknowledge/batch
+ * Bulk acknowledge multiple alerts for an engineer in one operation.
+ */
+router.post('/batch', async (req: Request, res: Response) => {
+  const { alerts } = req.body;
+  if (!Array.isArray(alerts) || alerts.length === 0) {
+    return res.status(400).json({ error: 'alerts array is required' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const sessionUser = (req as any).session;
+    let acknowledgedCount = 0;
+
+    for (const alert of alerts) {
+      const { scheme_id, alert_type, sent_date, ticket_id, alert_id, esr_name, engineer_email, engineer_name } = alert;
+      if (!scheme_id || !alert_type) continue;
+
+      const email = (engineer_email || sessionUser?.email || 'engineer@swsm.gov.in').trim().toLowerCase();
+      const name = engineer_name || sessionUser?.name || sessionUser?.username || 'Engineer';
+      const date = sent_date ? String(sent_date).slice(0, 10) : new Date().toISOString().split('T')[0];
+      const parsedAlertId = alert_id ? parseInt(String(alert_id), 10) : null;
+      const cleanEsr = (esr_name && esr_name !== '-' && esr_name !== 'null') ? String(esr_name).trim() : null;
+
+      let checkRes;
+      if (parsedAlertId) {
+        checkRes = await client.query(
+          `SELECT id FROM email_acknowledgements WHERE alert_id = $1 AND LOWER(TRIM(engineer_email)) = $2`,
+          [parsedAlertId, email]
+        );
+      }
+      if ((!checkRes || checkRes.rows.length === 0) && ticket_id) {
+        checkRes = await client.query(
+          `SELECT id FROM email_acknowledgements WHERE ticket_id = $1 AND LOWER(TRIM(engineer_email)) = $2`,
+          [ticket_id, email]
+        );
+      }
+      if (!checkRes || checkRes.rows.length === 0) {
+        if (cleanEsr) {
+          checkRes = await client.query(
+            `SELECT id FROM email_acknowledgements 
+             WHERE LOWER(TRIM(engineer_email)) = $1 AND scheme_id = $2 
+               AND (
+                 alert_type = $3 
+                 OR (alert_type IN ('Pressure', 'Low Pressure') AND $3 IN ('Pressure', 'Low Pressure'))
+                 OR (alert_type IN ('LPCD', 'Low LPCD') AND $3 IN ('LPCD', 'Low LPCD'))
+                 OR (alert_type IN ('Chlorine', 'Low Chlorine', 'High Chlorine') AND $3 IN ('Chlorine', 'Low Chlorine', 'High Chlorine'))
+               )
+               AND sent_date = $4 AND TRIM(esr_name) = $5`,
+            [email, scheme_id, alert_type, date, cleanEsr]
+          );
+        } else {
+          checkRes = await client.query(
+            `SELECT id FROM email_acknowledgements 
+             WHERE LOWER(TRIM(engineer_email)) = $1 AND scheme_id = $2 
+               AND (
+                 alert_type = $3 
+                 OR (alert_type IN ('Pressure', 'Low Pressure') AND $3 IN ('Pressure', 'Low Pressure'))
+                 OR (alert_type IN ('LPCD', 'Low LPCD') AND $3 IN ('LPCD', 'Low LPCD'))
+                 OR (alert_type IN ('Chlorine', 'Low Chlorine', 'High Chlorine') AND $3 IN ('Chlorine', 'Low Chlorine', 'High Chlorine'))
+               )
+               AND sent_date = $4 AND (esr_name IS NULL OR TRIM(esr_name) = '' OR TRIM(esr_name) = '-')`,
+            [email, scheme_id, alert_type, date]
+          );
+        }
+      }
+
+      if (checkRes && checkRes.rows.length > 0) {
+        await client.query(
+          `UPDATE email_acknowledgements 
+           SET acknowledged_at = NOW(), 
+               engineer_name = COALESCE($1, engineer_name), 
+               engineer_email = COALESCE($2, engineer_email),
+               alert_id = COALESCE($3, alert_id),
+               ticket_id = COALESCE($4, ticket_id),
+               esr_name = COALESCE($5, esr_name)
+           WHERE id = $6`,
+          [name, email, parsedAlertId, ticket_id || null, cleanEsr, checkRes.rows[0].id]
+        );
+      } else {
+        const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+        await client.query(
+          `INSERT INTO email_acknowledgements (token, scheme_id, alert_type, alert_id, ticket_id, esr_name, engineer_email, engineer_name, sent_date, acknowledged_at, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())`,
+          [token, scheme_id, alert_type, parsedAlertId, ticket_id || null, cleanEsr, email, name, date]
+        );
+      }
+      acknowledgedCount++;
+    }
+
+    await client.query('COMMIT');
+    res.json({ success: true, count: acknowledgedCount, message: `Successfully acknowledged ${acknowledgedCount} alerts` });
+  } catch (error: any) {
+    await client.query('ROLLBACK');
+    console.error('Error batch acknowledging alerts:', error);
+    res.status(500).json({ error: 'Failed to record batch acknowledgements' });
+  } finally {
+    client.release();
+  }
+});
+
+/**
  * GET /api/acknowledge/status
  * Internal API - used by the dashboard to get acknowledgement status.
  */

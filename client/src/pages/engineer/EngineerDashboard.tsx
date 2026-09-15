@@ -51,6 +51,10 @@ import {
   Laptop,
   BellRing,
   Loader2,
+  CheckCheck,
+  X,
+  Send,
+  Filter,
 } from "lucide-react";
 
 interface VillageSummary {
@@ -166,6 +170,7 @@ export default function EngineerDashboard() {
   // Alert filter state
   const [dateFilterMode, setDateFilterMode] = useState<"today" | "all" | "custom">("today");
   const [customSelectedDate, setCustomSelectedDate] = useState<string>("");
+  const [alertSearchTerm, setAlertSearchTerm] = useState("");
 
   // Local state to track acknowledged alert keys for instant optimistic feedback
   const [acknowledgedAlertKeys, setAcknowledgedAlertKeys] = useState<Set<string>>(new Set());
@@ -233,6 +238,29 @@ export default function EngineerDashboard() {
     }
     return true; // 'all'
   });
+
+  // Filter alerts by search term
+  const filteredDisplayedAlerts = displayedAlerts.filter((a) => {
+    if (!alertSearchTerm.trim()) return true;
+    const q = alertSearchTerm.toLowerCase().trim();
+    const sName = (a.parentSchemeName || a.scheme_name || "").toLowerCase();
+    const sId = (a.scheme_id || "").toLowerCase();
+    const esr = (a.esr_name || "").toLowerCase();
+    const vName = (a.village_name || "").toLowerCase();
+    const aType = getFormattedAlertType(a).toLowerCase();
+    const aVal = String(a.alert_value || "").toLowerCase();
+    const reg = String(a.region || "").toLowerCase();
+    return sName.includes(q) || sId.includes(q) || esr.includes(q) || vName.includes(q) || aType.includes(q) || aVal.includes(q) || reg.includes(q);
+  });
+
+  // Pending alerts to acknowledge
+  const pendingAlertsToAck = displayedAlerts.filter((a) => {
+    const alertKey = getAlertKey(a);
+    return !Boolean(a.is_acknowledged) && !Boolean(a.acknowledged) && !Boolean(a.acknowledged_at) && !acknowledgedAlertKeys.has(alertKey);
+  });
+
+  // Offline alerts list
+  const offlineAlertsList = displayedAlerts.filter((a) => getFormattedAlertType(a) === "Offline");
 
   const getFormattedAlertType = (alert: any) => {
     const rawType = (alert.alert_type || "").trim();
@@ -430,6 +458,106 @@ export default function EngineerDashboard() {
       toast({
         title: "Acknowledgement Error",
         description: err.message || "Failed to record acknowledgement.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Batch Acknowledge All Mutation
+  const batchAcknowledgeMutation = useMutation({
+    mutationFn: async (alertsToAck: any[]) => {
+      alertsToAck.forEach((a) => {
+        setAcknowledgedAlertKeys((prev) => new Set(prev).add(getAlertKey(a)));
+      });
+
+      const res = await fetch("/api/acknowledge/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          alerts: alertsToAck.map((alert) => ({
+            alert_id: alert.id,
+            ticket_id: alert.ticket_id,
+            esr_name: alert.esr_name,
+            scheme_id: alert.scheme_id,
+            alert_type: alert.alert_type,
+            sent_date: alert.sent_date,
+            engineer_email: engineerProfile?.email || user?.email,
+            engineer_name: engineerProfile?.name || user?.name || user?.username,
+          })),
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to batch acknowledge alerts");
+      }
+      return res.json();
+    },
+    onSuccess: (resData, variables) => {
+      variables.forEach((a) => {
+        setAcknowledgedAlertKeys((prev) => new Set(prev).add(getAlertKey(a)));
+      });
+      toast({
+        title: "All Alerts Acknowledged",
+        description: `Successfully acknowledged ${variables.length} active alerts.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/engineer/schemes-summary"] });
+      refetch();
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Batch Acknowledgement Error",
+        description: err.message || "Failed to batch acknowledge alerts.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Send All Offline Reminders Mutation (Consolidated 1 mail per vendor)
+  const sendAllRemindersMutation = useMutation({
+    mutationFn: async (offlineAlerts: any[]) => {
+      const res = await fetch("/api/engineer/send-all-offline-reminders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          alerts: offlineAlerts.map((alert) => ({
+            alert_id: alert.id,
+            ticket_id: alert.ticket_id,
+            scheme_id: alert.scheme_id,
+            scheme_name: alert.parentSchemeName || alert.scheme_name,
+            village_name: alert.village_name,
+            esr_name: alert.esr_name,
+            offline_sensors: formatOfflineSensorsValue(alert.alert_value),
+            region: alert.region,
+            alertKey: getAlertKey(alert),
+          })),
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to send batch offline reminders");
+      }
+      return res.json();
+    },
+    onSuccess: (resData) => {
+      if (resData.reminderRecords) {
+        setReminderSentRecords((prev) => ({
+          ...prev,
+          ...resData.reminderRecords,
+        }));
+      }
+      toast({
+        title: "All Reminders Dispatched",
+        description: resData.message || `Consolidated offline reminder emails sent to regional vendors.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/engineer/schemes-summary"] });
+      refetch();
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Batch Reminder Error",
+        description: err.message || "Failed to send batch offline reminders.",
         variant: "destructive",
       });
     },
@@ -1298,25 +1426,104 @@ export default function EngineerDashboard() {
         </div>
 
         {/* Action Center - Active Critical Alerts Table */}
-        <div className="space-y-3 pt-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-rose-600" />
-                Recent Critical Alerts on Your Schemes
-              </h3>
-              <p className="text-xs text-slate-500">
-                Daily alerts generated where telemetry fell below acceptable thresholds
-              </p>
+        <div className="space-y-4 pt-4">
+          {/* Catchy Top Header Bar */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 md:p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-xl border border-indigo-900/40">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 shrink-0">
+                <AlertTriangle className="w-5 h-5 text-rose-400 animate-pulse" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">
+                    Recent Critical Alerts on Your Schemes
+                  </h3>
+                  <Badge className="bg-rose-500/20 text-rose-300 border-rose-400/40 text-[11px] font-bold px-2 py-0.5">
+                    {displayedAlerts.length} Active
+                  </Badge>
+                  {pendingAlertsToAck.length > 0 && (
+                    <Badge className="bg-amber-500/20 text-amber-300 border-amber-400/40 text-[11px] font-bold px-2 py-0.5">
+                      {pendingAlertsToAck.length} Pending Ack
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-slate-300 mt-0.5">
+                  Real-time telemetry incidents requiring field verification and restoration
+                </p>
+              </div>
             </div>
 
-            {/* Date filter pills & Date picker */}
+            {/* Quick Bulk Action Buttons */}
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <Button
+                size="sm"
+                onClick={() => batchAcknowledgeMutation.mutate(pendingAlertsToAck)}
+                disabled={pendingAlertsToAck.length === 0 || batchAcknowledgeMutation.isPending}
+                className="h-9 px-3.5 text-xs bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-semibold shadow-md flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                title={pendingAlertsToAck.length > 0 ? `Acknowledge all ${pendingAlertsToAck.length} unacknowledged alerts` : "All alerts already acknowledged"}
+              >
+                {batchAcknowledgeMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                    Acknowledging...
+                  </>
+                ) : (
+                  <>
+                    <CheckCheck className="w-4 h-4 text-emerald-100" />
+                    Acknowledge All ({pendingAlertsToAck.length})
+                  </>
+                )}
+              </Button>
+
+              <Button
+                size="sm"
+                onClick={() => sendAllRemindersMutation.mutate(offlineAlertsList)}
+                disabled={offlineAlertsList.length === 0 || sendAllRemindersMutation.isPending}
+                className="h-9 px-3.5 text-xs bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 active:scale-95 text-white font-semibold shadow-md flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                title={offlineAlertsList.length > 0 ? `Send consolidated offline reminder email(s) to regional vendors for ${offlineAlertsList.length} locations` : "No offline alerts"}
+              >
+                {sendAllRemindersMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                    Sending All Reminders...
+                  </>
+                ) : (
+                  <>
+                    <BellRing className="w-4 h-4 text-amber-100" />
+                    Send All Reminders ({offlineAlertsList.length})
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* Filter Toolbar: Search + Date pills + Date Picker */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Input
+                placeholder="Search alerts by scheme, ESR, village, type..."
+                value={alertSearchTerm}
+                onChange={(e) => setAlertSearchTerm(e.target.value)}
+                className="h-8 pl-8 pr-7 text-xs bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 rounded-lg focus-visible:ring-1"
+              />
+              {alertSearchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setAlertSearchTerm("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
             <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700 text-xs">
+              <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs">
                 <button
                   type="button"
                   onClick={() => setDateFilterMode("today")}
-                  className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                  className={`px-3 py-1 rounded-md font-semibold text-xs transition-all ${
                     dateFilterMode === "today"
                       ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm"
                       : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
@@ -1327,7 +1534,7 @@ export default function EngineerDashboard() {
                 <button
                   type="button"
                   onClick={() => setDateFilterMode("all")}
-                  className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                  className={`px-3 py-1 rounded-md font-semibold text-xs transition-all ${
                     dateFilterMode === "all"
                       ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm"
                       : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
@@ -1337,8 +1544,8 @@ export default function EngineerDashboard() {
                 </button>
               </div>
 
-              <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-2 py-1 text-xs">
-                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs">
+                <Calendar className="w-3.5 h-3.5 text-slate-500" />
                 <input
                   type="date"
                   value={customSelectedDate}
@@ -1346,43 +1553,46 @@ export default function EngineerDashboard() {
                     setCustomSelectedDate(e.target.value);
                     if (e.target.value) setDateFilterMode("custom");
                   }}
-                  className="bg-transparent border-none text-xs text-slate-700 dark:text-slate-300 focus:outline-none"
+                  className="bg-transparent border-none text-xs text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer font-medium"
                 />
               </div>
             </div>
           </div>
 
-          {displayedAlerts.length === 0 ? (
-            <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
-              <CheckCircle2 className="w-8 h-8 mx-auto text-emerald-500 mb-2" />
+          {filteredDisplayedAlerts.length === 0 ? (
+            <div className="p-10 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+              <CheckCircle2 className="w-9 h-9 mx-auto text-emerald-500 mb-2" />
               <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                {dateFilterMode === "today"
+                {alertSearchTerm
+                  ? `No alerts match "${alertSearchTerm}"`
+                  : dateFilterMode === "today"
                   ? "No critical alerts recorded for today"
                   : dateFilterMode === "custom" && customSelectedDate
                   ? `No critical alerts found for ${customSelectedDate}`
                   : "All schemes are within normal operating parameters"}
               </h4>
               <p className="text-xs text-slate-500 mt-1">
-                Zero telemetry thresholds breached for this selection.
+                {alertSearchTerm ? "Try clearing your search query." : "Zero telemetry thresholds breached for this selection."}
               </p>
             </div>
           ) : (
-            <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+            <Card className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
               <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-semibold">
+                <table className="w-full text-xs text-left border-collapse">
+                  <thead className="bg-slate-50/90 dark:bg-slate-800/70 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold uppercase tracking-wider text-[11px]">
                     <tr>
-                      <th className="p-3">Scheme</th>
-                      <th className="p-3">ESR Reservoir</th>
-                      <th className="p-3">Alert Type</th>
-                      <th className="p-3">Recorded Value</th>
-                      <th className="p-3">Date</th>
-                      <th className="p-3">Status</th>
-                      <th className="p-3 text-right">Actions</th>
+                      <th className="py-3 px-3 text-center w-10">#</th>
+                      <th className="py-3 px-4 text-left min-w-[220px]">Scheme & Location</th>
+                      <th className="py-3 px-4 text-left min-w-[170px]">ESR Reservoir</th>
+                      <th className="py-3 px-3 text-center min-w-[130px]">Alert Type</th>
+                      <th className="py-3 px-4 text-left min-w-[240px]">Recorded Value</th>
+                      <th className="py-3 px-3 text-center min-w-[100px]">Date</th>
+                      <th className="py-3 px-3 text-center min-w-[110px]">Status</th>
+                      <th className="py-3 px-4 text-right min-w-[210px]">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {displayedAlerts.map((alert, idx) => {
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                    {filteredDisplayedAlerts.map((alert, idx) => {
                       const alertKey = getAlertKey(alert);
                       const isAcked =
                         Boolean(alert.is_acknowledged) ||
@@ -1397,52 +1607,101 @@ export default function EngineerDashboard() {
                       } : null);
 
                       return (
-                        <tr key={alert.id || idx} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
-                          <td className="p-3 font-medium text-slate-900 dark:text-white">
-                            {alert.parentSchemeName || alert.scheme_id}
+                        <tr
+                          key={alert.id || idx}
+                          className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors group"
+                        >
+                          {/* 1. Index */}
+                          <td className="py-3.5 px-3 text-center font-medium text-slate-400 group-hover:text-slate-600 align-middle">
+                            {idx + 1}
                           </td>
-                          <td className="p-3 text-slate-700 dark:text-slate-300">
-                            {alert.esr_name || "-"}
+
+                          {/* 2. Scheme & Location */}
+                          <td className="py-3.5 px-4 align-middle">
+                            <div className="font-bold text-slate-900 dark:text-white leading-snug">
+                              {alert.parentSchemeName || alert.scheme_name || alert.scheme_id}
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                              <span className="font-mono text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1.5 py-0.5 rounded font-medium">
+                                ID: {alert.scheme_id}
+                              </span>
+                              {alert.region && (
+                                <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold bg-indigo-50 dark:bg-indigo-950/50 px-1.5 py-0.5 rounded">
+                                  {alert.region}
+                                </span>
+                              )}
+                            </div>
                           </td>
-                          <td className="p-3">
-                            <Badge className={getAlertBadgeClass(formattedType)}>
+
+                          {/* 3. ESR Reservoir */}
+                          <td className="py-3.5 px-4 align-middle">
+                            <div className="font-semibold text-slate-800 dark:text-slate-200">
+                              {alert.esr_name || "-"}
+                            </div>
+                            {alert.village_name && (
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                {alert.village_name}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* 4. Alert Type Badge */}
+                          <td className="py-3.5 px-3 text-center align-middle">
+                            <Badge className={`${getAlertBadgeClass(formattedType)} px-2.5 py-1 text-[11px] font-bold shadow-xs whitespace-nowrap`}>
                               {formattedType}
                             </Badge>
                           </td>
-                          <td className="p-3 font-bold text-rose-600">
-                            <div>{getAlertValueDisplay(alert, formattedType)}</div>
+
+                          {/* 5. Recorded Value Column */}
+                          <td className="py-3.5 px-4 align-middle">
+                            <div className="font-bold text-rose-600 dark:text-rose-400 text-xs leading-tight">
+                              {getAlertValueDisplay(alert, formattedType)}
+                            </div>
                             {formattedType === "Offline" && reminderRecord && (
-                              <div className="text-[10px] text-amber-700 dark:text-amber-400 font-medium mt-0.5 flex items-center gap-1">
+                              <div className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-[10px] font-medium shadow-xs">
                                 <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
                                 <span>Reminder sent: {reminderRecord.vendor_name || reminderRecord.vendor_email}</span>
                               </div>
                             )}
                           </td>
-                          <td className="p-3 text-slate-500">
-                            {alert.sent_date ? String(alert.sent_date).slice(0, 10) : "-"}
+
+                          {/* 6. Date & Ticket */}
+                          <td className="py-3.5 px-3 text-center align-middle">
+                            <div className="font-medium text-slate-700 dark:text-slate-300">
+                              {alert.sent_date ? String(alert.sent_date).slice(0, 10) : "-"}
+                            </div>
+                            {alert.ticket_id && (
+                              <div className="font-mono text-[9px] text-blue-600 dark:text-blue-400 font-semibold mt-0.5">
+                                #{alert.ticket_id}
+                              </div>
+                            )}
                           </td>
-                          <td className="p-3">
+
+                          {/* 7. Status Badge */}
+                          <td className="py-3.5 px-3 text-center align-middle">
                             {isAcked ? (
-                              <Badge className="bg-emerald-50 text-emerald-700 border-emerald-300 text-[10px] font-semibold flex items-center gap-1 w-fit">
+                              <Badge className="bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.5 inline-flex items-center gap-1 shadow-xs">
                                 <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                                 Acknowledged
                               </Badge>
                             ) : (
-                              <Badge className="bg-amber-50 text-amber-700 border-amber-300 text-[10px] font-semibold flex items-center gap-1 w-fit">
+                              <Badge className="bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 text-[10px] font-bold px-2 py-0.5 inline-flex items-center gap-1 shadow-xs">
                                 <Clock className="w-3 h-3 text-amber-600" />
                                 Pending Ack
                               </Badge>
                             )}
                           </td>
-                          <td className="p-3 text-right">
-                            <div className="flex flex-col items-end gap-1">
-                              <div className="flex items-center justify-end gap-1.5">
+
+                          {/* 8. Actions */}
+                          <td className="py-3.5 px-4 text-right align-middle">
+                            <div className="flex flex-col items-end gap-1.5">
+                              <div className="flex items-center justify-end gap-1.5 flex-wrap">
                                 {formattedType === "Offline" && (
                                   <Button
                                     size="sm"
                                     onClick={() => sendReminderMutation.mutate(alert)}
                                     disabled={sendingReminderKey === alertKey || sendReminderMutation.isPending}
-                                    className={`h-7 px-2.5 text-xs font-medium shadow-sm flex items-center gap-1 ${
+                                    className={`h-7 px-2.5 text-xs font-semibold shadow-xs flex items-center gap-1 transition-all ${
                                       reminderRecord
                                         ? "bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800"
                                         : "bg-amber-600 hover:bg-amber-700 text-white"
@@ -1461,7 +1720,7 @@ export default function EngineerDashboard() {
                                     ) : (
                                       <>
                                         <BellRing className="w-3.5 h-3.5 mr-1" />
-                                        {reminderRecord ? "Resend Reminder" : "Send Reminder"}
+                                        {reminderRecord ? "Resend" : "Send Reminder"}
                                       </>
                                     )}
                                   </Button>
@@ -1471,14 +1730,14 @@ export default function EngineerDashboard() {
                                     size="sm"
                                     onClick={() => acknowledgeMutation.mutate(alert)}
                                     disabled={acknowledgeMutation.isPending}
-                                    className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm"
+                                    className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs flex items-center gap-1"
                                   >
-                                    <Check className="w-3.5 h-3.5 mr-1" />
+                                    <Check className="w-3.5 h-3.5" />
                                     Acknowledge
                                   </Button>
                                 )}
                                 <Link href={`/helpdesk/issue-reporting?scheme_id=${alert.scheme_id}`}>
-                                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-slate-600 hover:text-slate-900">
+                                  <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs text-slate-700 hover:text-slate-900 border-slate-300 font-medium">
                                     Remark
                                   </Button>
                                 </Link>

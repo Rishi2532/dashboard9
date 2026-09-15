@@ -60,7 +60,7 @@ import issueReportingRoutes from "./routes/issue-reporting-routes";
 import flowmeterRoutes from "./routes/flowmeter-routes";
 import alertsProgressRoutes from "./routes/alerts-progress-routes";
 import acknowledgeRoutes from "./routes/acknowledge-routes";
-import { sendSingleOfflineReminderEmail } from "./services/email-service";
+import { sendSingleOfflineReminderEmail, sendBatchOfflineReminderEmail } from "./services/email-service";
 // import { mqttService } from "./mqtt-service";
 
 const exec = promisify(cp.exec);
@@ -1801,6 +1801,208 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error in /api/engineer/send-offline-reminder:", error);
       return res.status(500).json({ error: error.message || "Failed to process offline reminder" });
+    }
+  });
+
+  // Send All Offline Sensor Reminders to Regional Vendors (consolidated into 1 email per vendor)
+  app.post("/api/engineer/send-all-offline-reminders", async (req: any, res: Response) => {
+    try {
+      const { alerts } = req.body;
+      if (!Array.isArray(alerts) || alerts.length === 0) {
+        return res.status(400).json({ error: "alerts array is required" });
+      }
+
+      const db = await getDB();
+      const currentUser = req.session?.user || req.session;
+      const engineerName = currentUser?.name || currentUser?.username || req.session?.engineerName || "Assigned Engineer";
+      const engineerEmail = currentUser?.email || req.session?.engineerEmail || "";
+      const currentUserId = req.session?.userId || null;
+
+      // Group alerts by vendor email
+      const vendorGroups: Record<string, {
+        vendorName: string;
+        vendorEmail: string;
+        region: string;
+        items: Array<{
+          alert_id?: number | null;
+          ticket_id?: string | null;
+          scheme_id: string;
+          scheme_name: string;
+          village_name?: string | null;
+          esr_name?: string | null;
+          offline_sensors: string;
+          alertKey?: string;
+        }>;
+      }> = {};
+
+      for (const alert of alerts) {
+        const { scheme_id, scheme_name, village_name, esr_name, alert_id, ticket_id, offline_sensors } = alert;
+        if (!scheme_id) continue;
+
+        // Resolve Region
+        let region = alert.region;
+        if (!region) {
+          const regRes: any = await db.execute(sql`
+            SELECT region FROM scheme_status WHERE scheme_id = ${scheme_id} LIMIT 1
+          `);
+          const regRows = regRes.rows || regRes;
+          if (regRows.length > 0 && regRows[0].region) {
+            region = regRows[0].region;
+          } else {
+            const commRegRes: any = await db.execute(sql`
+              SELECT region FROM communication_status WHERE scheme_id = ${scheme_id} LIMIT 1
+            `);
+            const commRows = commRegRes.rows || commRegRes;
+            if (commRows.length > 0 && commRows[0].region) {
+              region = commRows[0].region;
+            }
+          }
+        }
+        if (!region) region = "Maharashtra";
+
+        // Query vendor table
+        const cleanRegion = String(region).trim();
+        let vendorRows: any[] = [];
+        const vendorRes: any = await db.execute(sql`
+          SELECT id, employee_name, email, phone, agency, region
+          FROM vendor
+          WHERE LOWER(TRIM(region)) = LOWER(TRIM(${cleanRegion}))
+        `);
+        vendorRows = vendorRes.rows || vendorRes || [];
+
+        if (vendorRows.length === 0) {
+          const fuzzyPattern = `%${cleanRegion}%`;
+          const fuzzyRes: any = await db.execute(sql`
+            SELECT id, employee_name, email, phone, agency, region
+            FROM vendor
+            WHERE region ILIKE ${fuzzyPattern} OR ${cleanRegion} ILIKE '%' || region || '%'
+          `);
+          vendorRows = fuzzyRes.rows || fuzzyRes || [];
+        }
+
+        const validVendors = vendorRows.filter((v: any) => v.email && v.email.includes("@"));
+        if (validVendors.length === 0) {
+          console.warn(`No vendor email found for region ${region} (scheme: ${scheme_id})`);
+          continue;
+        }
+
+        const targetVendor = validVendors[0];
+        const vEmail = targetVendor.email.trim().toLowerCase();
+        if (!vendorGroups[vEmail]) {
+          vendorGroups[vEmail] = {
+            vendorName: targetVendor.employee_name || "Vendor",
+            vendorEmail: vEmail,
+            region: targetVendor.region || region,
+            items: [],
+          };
+        }
+
+        const alertKey = alert.id ? `alert-id-${alert.id}` : alert.ticket_id ? `ticket-${alert.ticket_id}` : `alert-${scheme_id}-${alert.esr_name || ''}`;
+
+        vendorGroups[vEmail].items.push({
+          alert_id: alert_id ? parseInt(String(alert_id)) : null,
+          ticket_id: ticket_id || null,
+          scheme_id,
+          scheme_name: scheme_name || scheme_id,
+          village_name: village_name || null,
+          esr_name: esr_name || null,
+          offline_sensors: offline_sensors || "Sensors Offline",
+          alertKey,
+        });
+      }
+
+      const emails = Object.keys(vendorGroups);
+      if (emails.length === 0) {
+        return res.status(404).json({ error: "No regional vendor emails found for the selected offline schemes." });
+      }
+
+      const sentVendors: string[] = [];
+      const sentAlertKeys: string[] = [];
+      const reminderRecordsMap: Record<string, { vendor_name: string; vendor_email: string; sent_at: string }> = {};
+      const nowIso = new Date().toISOString();
+
+      // Dispatch ONE email per vendor
+      for (const email of emails) {
+        const group = vendorGroups[email];
+        try {
+          if (group.items.length === 1) {
+            const single = group.items[0];
+            await sendSingleOfflineReminderEmail({
+              vendorEmail: group.vendorEmail,
+              vendorName: group.vendorName,
+              region: group.region,
+              scheme_id: single.scheme_id,
+              scheme_name: single.scheme_name,
+              village_name: single.village_name,
+              esr_name: single.esr_name,
+              offline_sensors: single.offline_sensors,
+              ticket_id: single.ticket_id,
+              engineerName,
+              engineerEmail,
+            });
+          } else {
+            await sendBatchOfflineReminderEmail({
+              vendorEmail: group.vendorEmail,
+              vendorName: group.vendorName,
+              region: group.region,
+              items: group.items,
+              engineerName,
+              engineerEmail,
+            });
+          }
+
+          sentVendors.push(`${group.vendorName} (${group.vendorEmail})`);
+
+          // Insert records into offline_reminder_logs for all items
+          for (const item of group.items) {
+            await db.execute(sql`
+              INSERT INTO offline_reminder_logs (
+                alert_id, ticket_id, scheme_id, scheme_name, village_name, esr_name,
+                region, offline_sensors, vendor_name, vendor_email,
+                sent_by_user_id, sent_by_name, sent_by_email, sent_at
+              ) VALUES (
+                ${item.alert_id},
+                ${item.ticket_id},
+                ${item.scheme_id},
+                ${item.scheme_name},
+                ${item.village_name},
+                ${item.esr_name},
+                ${group.region},
+                ${item.offline_sensors},
+                ${group.vendorName},
+                ${group.vendorEmail},
+                ${currentUserId},
+                ${engineerName},
+                ${engineerEmail},
+                NOW()
+              )
+            `);
+
+            if (item.alertKey) {
+              sentAlertKeys.push(item.alertKey);
+              reminderRecordsMap[item.alertKey] = {
+                vendor_name: group.vendorName,
+                vendor_email: group.vendorEmail,
+                sent_at: nowIso,
+              };
+            }
+          }
+        } catch (mailErr) {
+          console.error(`Failed to send batch offline reminder to ${email}:`, mailErr);
+        }
+      }
+
+      return res.json({
+        success: true,
+        message: `Consolidated offline reminder email(s) sent to ${sentVendors.join(", ")} for ${sentAlertKeys.length} scheme location(s).`,
+        sentVendors,
+        totalReminders: sentAlertKeys.length,
+        sent_at: nowIso,
+        reminderRecords: reminderRecordsMap,
+      });
+    } catch (error: any) {
+      console.error("Error in /api/engineer/send-all-offline-reminders:", error);
+      return res.status(500).json({ error: error.message || "Failed to send batch offline reminders" });
     }
   });
 

@@ -850,3 +850,120 @@ export async function sendSingleOfflineReminderEmail(
   });
 }
 
+export interface BatchOfflineReminderEmailParams {
+  vendorEmail: string;
+  vendorName: string;
+  region: string;
+  items: Array<{
+    scheme_id: string;
+    scheme_name: string;
+    village_name?: string | null;
+    esr_name?: string | null;
+    offline_sensors: string;
+    ticket_id?: string | null;
+  }>;
+  engineerName?: string | null;
+  engineerEmail?: string | null;
+}
+
+export async function sendBatchOfflineReminderEmail(
+  params: BatchOfflineReminderEmailParams
+): Promise<boolean> {
+  const count = params.items.length;
+  const subject = `🚨 URGENT: Offline Sensors Consolidated Reminder - ${count} Locations (${params.region} Region)`;
+
+  const nowFormatted = new Date().toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+
+  let rowsHtml = "";
+  params.items.forEach((item, idx) => {
+    rowsHtml += `
+      <tr style="border-bottom: 1px solid #e2e8f0; background-color: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+        <td style="padding: 10px 8px; text-align: center; color: #475569; font-weight: 600; border: 1px solid #cbd5e1;">${idx + 1}</td>
+        <td style="padding: 10px 12px; color: #0f172a; border: 1px solid #cbd5e1;">
+          <strong>${item.scheme_name}</strong><br>
+          <span style="font-size: 11px; color: #64748b;">ID: ${item.scheme_id}</span>
+        </td>
+        <td style="padding: 10px 12px; color: #334155; border: 1px solid #cbd5e1;">
+          ${item.village_name || '-'}${item.esr_name ? ` (${item.esr_name})` : ''}
+        </td>
+        <td style="padding: 10px 12px; border: 1px solid #cbd5e1; text-align: center;">
+          <span style="display: inline-block; background-color: #fee2e2; color: #991b1b; padding: 3px 8px; border-radius: 4px; font-weight: 700; font-size: 12px; border: 1px solid #fca5a5;">
+            🚨 ${item.offline_sensors}
+          </span>
+        </td>
+        <td style="padding: 10px 8px; font-family: monospace; font-size: 11px; color: #2563eb; text-align: center; border: 1px solid #cbd5e1;">
+          ${item.ticket_id || '-'}
+        </td>
+      </tr>
+    `;
+  });
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 680px; margin: 0 auto; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden;">
+      <div style="background-color: #dc2626; color: white; padding: 22px 20px; text-align: center;">
+        <h1 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px;">⚠️ JJM SWSM IoT Maharashtra</h1>
+        <p style="margin: 6px 0 0 0; opacity: 0.95; font-size: 14px; font-weight: 500;">CONSOLIDATED OFFLINE SENSORS REMINDER - ${count} LOCATIONS</p>
+      </div>
+
+      <div style="padding: 24px 28px; background-color: #ffffff;">
+        <h2 style="color: #1e293b; margin-top: 0; font-size: 17px;">Dear ${params.vendorName || "Vendor Team"},</h2>
+        <p style="color: #334155; font-size: 14px; line-height: 1.5; margin-bottom: 18px;">
+          This is an official consolidated reminder regarding <strong>${count} offline IoT sensor locations</strong> in your jurisdiction within the <strong>${params.region}</strong> region. Telemetry from these locations is currently inactive and requires urgent physical verification and restoration.
+        </p>
+
+        <table style="width: 100%; border-collapse: collapse; margin: 18px 0; border: 1px solid #cbd5e1; font-size: 12.5px;">
+          <thead>
+            <tr style="background-color: #f1f5f9; border-bottom: 2px solid #cbd5e1;">
+              <th style="padding: 10px 8px; text-align: center; color: #475569; font-weight: 700; width: 35px; border: 1px solid #cbd5e1;">#</th>
+              <th style="padding: 10px 12px; text-align: left; color: #475569; font-weight: 700; border: 1px solid #cbd5e1;">Scheme</th>
+              <th style="padding: 10px 12px; text-align: left; color: #475569; font-weight: 700; border: 1px solid #cbd5e1;">Village / ESR</th>
+              <th style="padding: 10px 12px; text-align: center; color: #475569; font-weight: 700; border: 1px solid #cbd5e1;">Offline Sensors</th>
+              <th style="padding: 10px 8px; text-align: center; color: #475569; font-weight: 700; width: 85px; border: 1px solid #cbd5e1;">Ticket</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+
+        <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px; padding: 14px 16px; margin: 20px 0;">
+          <p style="margin: 0; color: #92400e; font-weight: 700; font-size: 13px;">⚡ Immediate Action Requested:</p>
+          <p style="margin: 5px 0 0 0; color: #92400e; font-size: 13px; line-height: 1.4;">
+            Please instruct your local technical maintenance teams across these schemes to inspect the IoT gateways, power connections, and telemetry sensors immediately to bring them back online.
+          </p>
+        </div>
+
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 14px; margin-top: 15px; font-size: 12px; color: #475569;">
+          <strong>Reported By:</strong> ${params.engineerName || "Assigned Engineer"}${params.engineerEmail ? ` (${params.engineerEmail})` : ""} &nbsp;|&nbsp; <strong>Time:</strong> ${nowFormatted} IST
+        </div>
+
+        <p style="color: #64748b; font-size: 11.5px; margin-top: 22px; border-top: 1px solid #e2e8f0; padding-top: 14px; line-height: 1.4;">
+          This is an automated consolidated reminder from Maharashtra Water Infrastructure Management Platform.
+        </p>
+      </div>
+    </div>
+  `;
+
+  return sendEmail({
+    to: params.vendorEmail,
+    from: "Maharashtra Water Alert",
+    replyTo: params.engineerEmail || "noreply@maharashtrawater.gov.in",
+    subject,
+    html,
+    headers: {
+      "X-Priority": "1",
+      "X-MSMail-Priority": "High",
+      Importance: "High",
+    },
+  });
+}
+
+
