@@ -15,3 +15,13 @@ CREATE TABLE IF NOT EXISTS email_delivery_failures (
 
 CREATE INDEX IF NOT EXISTS idx_email_delivery_failures_email ON email_delivery_failures(recipient_email);
 CREATE INDEX IF NOT EXISTS idx_email_delivery_failures_date ON email_delivery_failures(attempted_at);
+
+-- In case table already existed previously without alert_count or alert_summary
+ALTER TABLE email_delivery_failures ADD COLUMN IF NOT EXISTS engineer_name VARCHAR(255);
+ALTER TABLE email_delivery_failures ADD COLUMN IF NOT EXISTS scheme_id VARCHAR(100);
+ALTER TABLE email_delivery_failures ADD COLUMN IF NOT EXISTS scheme_name VARCHAR(255);
+ALTER TABLE email_delivery_failures ADD COLUMN IF NOT EXISTS alert_count INTEGER DEFAULT 1;
+ALTER TABLE email_delivery_failures ADD COLUMN IF NOT EXISTS alert_summary TEXT;
+ALTER TABLE email_delivery_failures ADD COLUMN IF NOT EXISTS error_message TEXT;
+ALTER TABLE email_delivery_failures ADD COLUMN IF NOT EXISTS attempted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+

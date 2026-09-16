@@ -134,8 +134,17 @@ export const getRowRecipients = (row: AlertData): AlertRecipient[] => {
       if (!a.acknowledged_at) return false;
       const aEmail = a.engineer_email ? a.engineer_email.toLowerCase().trim() : '';
       const aName = a.engineer_name ? a.engineer_name.toLowerCase().trim() : '';
+
+      // If both target and acknowledgement have a name, match strictly by name.
+      // This ensures Case 2 (e.g. shared email ee_nagpur@gov.in) never allows Anil's acknowledgement
+      // to falsely mark Vijay as acknowledged.
+      if (targetName && aName) {
+        return aName === targetName || aName.includes(targetName) || targetName.includes(aName);
+      }
+
+      // Fallback: If one side lacks a name, fall back to matching by email or name
       if (targetEmail && aEmail && aEmail === targetEmail) return true;
-      if (targetName && aName && aName === targetName) return true;
+      if (targetName && aName && (aName === targetName || aName.includes(targetName) || targetName.includes(aName))) return true;
       return false;
     });
 

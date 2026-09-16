@@ -191,6 +191,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       CREATE INDEX IF NOT EXISTS idx_email_delivery_failures_email ON email_delivery_failures(recipient_email);
       CREATE INDEX IF NOT EXISTS idx_email_delivery_failures_date ON email_delivery_failures(attempted_at);
+      ALTER TABLE email_delivery_failures ADD COLUMN IF NOT EXISTS engineer_name VARCHAR(255);
+      ALTER TABLE email_delivery_failures ADD COLUMN IF NOT EXISTS scheme_id VARCHAR(100);
+      ALTER TABLE email_delivery_failures ADD COLUMN IF NOT EXISTS scheme_name VARCHAR(255);
+      ALTER TABLE email_delivery_failures ADD COLUMN IF NOT EXISTS alert_count INTEGER DEFAULT 1;
+      ALTER TABLE email_delivery_failures ADD COLUMN IF NOT EXISTS alert_summary TEXT;
+      ALTER TABLE email_delivery_failures ADD COLUMN IF NOT EXISTS error_message TEXT;
+      ALTER TABLE email_delivery_failures ADD COLUMN IF NOT EXISTS attempted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
 
       -- Ensure columns in scheme_engineer_details
       ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS ee_civil_name VARCHAR(255);

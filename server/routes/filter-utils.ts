@@ -517,16 +517,29 @@ export async function getEngineerAssignedSchemes(
     const eName = (eNameRaw || "").trim().toLowerCase();
     const eNameNorm = normalizeName(eName);
 
-    if (!eName || !eEmail) return false;
+    if (!eName && !eEmail) return false;
 
     // 1. Name Condition: exact name or normalized transliteration
-    const isNameMatch = Boolean(userName && (userName === eName || uNameNorm === eNameNorm));
+    const isNameMatch = Boolean(
+      userName && (userName === eName || uNameNorm === eNameNorm || (uUserNorm && uUserNorm === eNameNorm))
+    );
 
-    // 2. Email Condition: exact email match against user's email in users table
+    // Case 1 & Case 2: If the user's name matches the engineer's name in this scheme, match it!
+    // - Case 1: Same person with different emails across schemes gets all schemes aggregated under their name.
+    // - Case 2: Multiple people sharing the same email (e.g. ee_nagpur@gov.in) are segregated strictly by name,
+    //           so Anil Deshmukh only sees schemes under "Anil Deshmukh" and Vijay's schemes never leak.
+    if (isNameMatch) {
+      return true;
+    }
+
+    // Fallback: If the scheme row has no engineer name recorded (legacy email-only data),
+    // or if the user account has no name populated, fall back to exact email matching.
     const isEmailMatch = Boolean(userEmails.length > 0 && userEmails.includes(eEmail));
+    if ((!eName || !userName) && isEmailMatch) {
+      return true;
+    }
 
-    // BOTH Name and Email must match simultaneously
-    return isNameMatch && isEmailMatch;
+    return false;
   };
 
   for (const eng of allEngineers) {

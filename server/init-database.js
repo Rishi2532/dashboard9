@@ -530,8 +530,30 @@ async function ensureSchemeEngineerDetailsColumns() {
       ALTER TABLE email_alert_logs ADD COLUMN IF NOT EXISTS se_email VARCHAR(255);
       ALTER TABLE email_alert_logs ADD COLUMN IF NOT EXISTS chief_engineer_name VARCHAR(255);
       ALTER TABLE email_alert_logs ADD COLUMN IF NOT EXISTS chief_engineer_email VARCHAR(255);
+
+      -- Ensure email_delivery_failures audit table
+      CREATE TABLE IF NOT EXISTS email_delivery_failures (
+        id SERIAL PRIMARY KEY,
+        recipient_email VARCHAR(255) NOT NULL,
+        engineer_name VARCHAR(255),
+        scheme_id VARCHAR(100),
+        scheme_name VARCHAR(255),
+        alert_count INTEGER DEFAULT 1,
+        alert_summary TEXT,
+        error_message TEXT,
+        attempted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_email_delivery_failures_email ON email_delivery_failures(recipient_email);
+      CREATE INDEX IF NOT EXISTS idx_email_delivery_failures_date ON email_delivery_failures(attempted_at);
+      ALTER TABLE email_delivery_failures ADD COLUMN IF NOT EXISTS engineer_name VARCHAR(255);
+      ALTER TABLE email_delivery_failures ADD COLUMN IF NOT EXISTS scheme_id VARCHAR(100);
+      ALTER TABLE email_delivery_failures ADD COLUMN IF NOT EXISTS scheme_name VARCHAR(255);
+      ALTER TABLE email_delivery_failures ADD COLUMN IF NOT EXISTS alert_count INTEGER DEFAULT 1;
+      ALTER TABLE email_delivery_failures ADD COLUMN IF NOT EXISTS alert_summary TEXT;
+      ALTER TABLE email_delivery_failures ADD COLUMN IF NOT EXISTS error_message TEXT;
+      ALTER TABLE email_delivery_failures ADD COLUMN IF NOT EXISTS attempted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
     `);
-    console.log('✅ Verified scheme_engineer_details table and new engineer hierarchy columns');
+    console.log('✅ Verified scheme_engineer_details table and email_delivery_failures audit table');
   } catch (error) {
     console.error('❌ Error ensuring scheme_engineer_details columns:', error);
   } finally {

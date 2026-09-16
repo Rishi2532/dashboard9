@@ -215,8 +215,8 @@ export async function runDailyAlertsJob() {
     // We will batch insert into emailAlertLogs at the end
     const emailLogsToInsert: any[] = [];
 
-    // Group alerts by Engineer Email
-    const emailsToSend: Record<string, { name: string; alerts: Alert[] }> = {};
+    // Group alerts by Engineer Email (supporting multiple engineer names if an email is shared)
+    const emailsToSend: Record<string, { name: string; names: string[]; alerts: Alert[] }> = {};
 
     // Group alerts by Engineer Mobile
     const smsToSend: Record<string, { name: string; alerts: Alert[] }> = {};
@@ -267,8 +267,15 @@ export async function runDailyAlertsJob() {
             if (!emailsToSend[email]) {
               emailsToSend[email] = {
                 name,
+                names: name ? [name] : [],
                 alerts: [],
               };
+            } else {
+              // If another engineer shares this email (Case 2), keep their name in names list
+              if (name && !emailsToSend[email].names.includes(name)) {
+                emailsToSend[email].names.push(name);
+                emailsToSend[email].name = emailsToSend[email].names.join(" / ");
+              }
             }
             emailsToSend[email].alerts.push(...schemeAlerts);
           });
@@ -459,19 +466,26 @@ export async function runDailyAlertsJob() {
           const itemToken = generateAcknowledgeToken();
           alert.token = itemToken;
 
-          // 1. Insert per-alert token
-          await tokenClient.query(
-            `INSERT INTO email_acknowledgements (token, scheme_id, alert_type, esr_name, engineer_email, engineer_name, sent_date)
-             VALUES ($1, $2, $3, $4, $5, $6, CURRENT_DATE)`,
-            [itemToken, alert.scheme_id, alertType, alert.esr_name || null, email, name]
-          );
+          // Track acknowledgement record for all engineers who share this email
+          const recipientsForEmail = emailsToSend[email]?.names?.length > 0 
+            ? emailsToSend[email].names 
+            : [name];
 
-          // 2. Insert master token for bulk action
-          await tokenClient.query(
-            `INSERT INTO email_acknowledgements (token, scheme_id, alert_type, esr_name, engineer_email, engineer_name, sent_date)
-             VALUES ($1, $2, $3, $4, $5, $6, CURRENT_DATE)`,
-            [masterToken, alert.scheme_id, alertType, alert.esr_name || null, email, name]
-          );
+          for (const engName of recipientsForEmail) {
+            // 1. Insert per-alert token
+            await tokenClient.query(
+              `INSERT INTO email_acknowledgements (token, scheme_id, alert_type, esr_name, engineer_email, engineer_name, sent_date)
+               VALUES ($1, $2, $3, $4, $5, $6, CURRENT_DATE)`,
+              [itemToken, alert.scheme_id, alertType, alert.esr_name || null, email, engName]
+            );
+
+            // 2. Insert master token for bulk action
+            await tokenClient.query(
+              `INSERT INTO email_acknowledgements (token, scheme_id, alert_type, esr_name, engineer_email, engineer_name, sent_date)
+               VALUES ($1, $2, $3, $4, $5, $6, CURRENT_DATE)`,
+              [masterToken, alert.scheme_id, alertType, alert.esr_name || null, email, engName]
+            );
+          }
         }
       } finally {
         tokenClient.release();

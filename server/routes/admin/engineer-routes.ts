@@ -67,10 +67,11 @@ router.get("/", async (req: Request, res: Response) => {
           s.chief_engineer_name,
         ].map((n) => (n || "").trim().toLowerCase()).filter(Boolean);
 
-        return (
-          (engEmail && emails.includes(engEmail)) ||
-          (engName && names.includes(engName))
-        );
+        // Case 1 & 2: Match by name if engineer name exists, otherwise fall back to email
+        if (engName) {
+          return names.includes(engName);
+        }
+        return Boolean(engEmail && emails.includes(engEmail));
       });
 
       return {
@@ -133,12 +134,16 @@ router.get("/directory", async (req: Request, res: Response) => {
           const email = (r.email || "").trim().toLowerCase();
           const name = (r.name || "").trim();
           const phone = (r.phone || "").trim();
-          const key = email || name.toLowerCase();
+          // Unique key by name + email to prevent shared emails from merging different engineers
+          const key = name ? `${name.toLowerCase()}::${email}` : email;
 
           if (key) {
             if (!directoryMap.has(key)) {
-              const isReg = Boolean(email && registeredEmails.has(email));
-              const matchedUser = existingUsers.find((u: any) => (u.email || "").trim().toLowerCase() === email);
+              const matchedUser = existingUsers.find((u: any) => 
+                (name && (u.name || "").trim().toLowerCase() === name.toLowerCase()) ||
+                (!name && email && (u.email || "").trim().toLowerCase() === email)
+              );
+              const isReg = Boolean(matchedUser);
               directoryMap.set(key, {
                 name,
                 email,

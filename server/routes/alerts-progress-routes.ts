@@ -78,7 +78,7 @@ router.get('/lpcd', async (req, res) => {
             FROM email_acknowledgements
             WHERE alert_type IN ('LPCD', 'Low LPCD')
               AND ${dateFilter}
-            GROUP BY scheme_id, LOWER(TRIM(engineer_email))
+            GROUP BY scheme_id, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
           ) sub
           GROUP BY scheme_id
         )
@@ -192,7 +192,7 @@ router.get('/chlorine', async (req, res) => {
             FROM email_acknowledgements
             WHERE alert_type IN ('Chlorine', 'Low Chlorine', 'High Chlorine')
               AND ${dateFilter}
-            GROUP BY scheme_id, LOWER(TRIM(engineer_email))
+            GROUP BY scheme_id, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
           ) sub
           GROUP BY scheme_id
         )
@@ -307,7 +307,7 @@ router.get('/pressure', async (req, res) => {
             FROM email_acknowledgements
             WHERE alert_type IN ('Pressure', 'Low Pressure')
               AND ${dateFilter}
-            GROUP BY scheme_id, LOWER(TRIM(engineer_email))
+            GROUP BY scheme_id, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
           ) sub
           GROUP BY scheme_id
         )
@@ -404,7 +404,7 @@ router.get('/offline', async (req, res) => {
             FROM email_acknowledgements
             WHERE alert_type = 'Offline'
               AND ${dateFilter}
-            GROUP BY scheme_id, LOWER(TRIM(engineer_email))
+            GROUP BY scheme_id, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
           ) sub
           GROUP BY scheme_id
         )
