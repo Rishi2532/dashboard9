@@ -308,6 +308,31 @@ export default function AlertsProgressPage() {
   } | null>(null);
   const [modalSearch, setModalSearch] = useState("");
 
+  // Modal dialog for viewing the full list of notified engineers across all alerts
+  const [engineersModalData, setEngineersModalData] = useState<{
+    title: string;
+    engineers: {
+      name: string;
+      email: string | null;
+      rolesList: string[];
+      schemes: {
+        scheme_id: string;
+        scheme_name: string;
+        village_name: string | null;
+        esr_name?: string | null;
+        isAcknowledged: boolean;
+        acknowledged_at: string | null;
+      }[];
+      totalAlerts: number;
+      ackCount: number;
+      pendingCount: number;
+      isAcknowledged: boolean;
+      isFullyAcknowledged: boolean;
+    }[];
+  } | null>(null);
+  const [engineerModalSearch, setEngineerModalSearch] = useState("");
+  const [engineerFilterTab, setEngineerFilterTab] = useState<"all" | "acknowledged" | "pending">("all");
+
   const handleDownloadReport = async () => {
     setIsDownloading(true);
     try {
@@ -570,15 +595,68 @@ export default function AlertsProgressPage() {
     const totalAcknowledged = acknowledgedRows.length;
     const totalPending = pendingRows.length;
 
-    // Count unique notified engineers
-    const engineersSet = new Set<string>();
+    // Group unique notified engineers and their assigned alert schemes
+    const engineersMap = new Map<string, {
+      name: string;
+      email: string | null;
+      roles: Set<string>;
+      schemes: {
+        scheme_id: string;
+        scheme_name: string;
+        village_name: string | null;
+        esr_name?: string | null;
+        isAcknowledged: boolean;
+        acknowledged_at: string | null;
+      }[];
+    }>();
+
     baseData.forEach(r => {
       const recs = getRowRecipients(r);
       recs.forEach(rec => {
-        if (rec.email) engineersSet.add(rec.email.toLowerCase().trim());
+        const key = rec.name 
+          ? `${rec.name.toLowerCase().trim()}::${(rec.email || '').toLowerCase().trim()}`
+          : (rec.email ? rec.email.toLowerCase().trim() : '');
+        if (!key) return;
+
+        if (!engineersMap.has(key)) {
+          engineersMap.set(key, {
+            name: rec.name || rec.email || "Unknown Personnel",
+            email: rec.email || null,
+            roles: new Set<string>(),
+            schemes: []
+          });
+        }
+        const eng = engineersMap.get(key)!;
+        if (rec.role) eng.roles.add(rec.role);
+
+        const alreadyHasScheme = eng.schemes.some(s => s.scheme_id === r.scheme_id && s.village_name === r.village_name && s.esr_name === r.esr_name);
+        if (!alreadyHasScheme) {
+          eng.schemes.push({
+            scheme_id: r.scheme_id,
+            scheme_name: r.scheme_name || r.scheme_id,
+            village_name: r.village_name,
+            esr_name: r.esr_name,
+            isAcknowledged: rec.isAcknowledged,
+            acknowledged_at: rec.acknowledged_at
+          });
+        }
       });
     });
-    const totalEngineers = engineersSet.size;
+
+    const notifiedEngineersList = Array.from(engineersMap.values()).map(eng => {
+      const ackCount = eng.schemes.filter(s => s.isAcknowledged).length;
+      return {
+        ...eng,
+        rolesList: Array.from(eng.roles),
+        totalAlerts: eng.schemes.length,
+        ackCount,
+        pendingCount: eng.schemes.length - ackCount,
+        isAcknowledged: ackCount > 0,
+        isFullyAcknowledged: eng.schemes.length > 0 && ackCount === eng.schemes.length
+      };
+    });
+
+    const totalEngineers = notifiedEngineersList.length;
 
     // Count remarks added
     const totalRemarks = baseData.filter(r => parseIssues(r.remarks).length > 0).length;
@@ -704,15 +782,31 @@ export default function AlertsProgressPage() {
             </div>
           </div>
 
-          {/* Card 4: Engineers Notified */}
-          <div className="flex items-center gap-3.5 p-3.5 rounded-xl border border-slate-200 bg-white/80 shadow-sm">
-            <div className="h-10 w-10 shrink-0 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center">
+          {/* Card 4: Engineers Notified (Clickable with List Available!) */}
+          <div 
+            onClick={() => {
+              setEngineersModalData({
+                title: `Notified Engineers & Assigned Personnel (${totalEngineers})`,
+                engineers: notifiedEngineersList
+              });
+              setEngineerModalSearch("");
+              setEngineerFilterTab("all");
+            }}
+            className="cursor-pointer group flex items-center gap-3.5 p-3.5 rounded-xl border bg-gradient-to-br from-indigo-50/70 to-white border-indigo-200 hover:border-indigo-300 hover:shadow-md transition-all shadow-sm"
+            title="Click to view all notified engineers and assigned personnel"
+          >
+            <div className="h-10 w-10 shrink-0 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform">
               <Users className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">Engineers</div>
-              <div className="text-xl font-extrabold text-slate-900">{totalEngineers}</div>
-              <div className="text-[10px] text-slate-400 truncate">Assigned personnel</div>
+              <div className="text-[11px] font-bold text-indigo-800 uppercase tracking-wider truncate flex items-center justify-between">
+                <span>Engineers</span>
+                <span className="text-[10px] font-semibold text-indigo-600 underline group-hover:text-indigo-800 flex items-center">
+                  List <ArrowRight className="h-2.5 w-2.5 ml-0.5" />
+                </span>
+              </div>
+              <div className="text-xl font-extrabold text-indigo-700">{totalEngineers}</div>
+              <div className="text-[10px] text-indigo-600 font-medium truncate">Assigned personnel</div>
             </div>
           </div>
 
@@ -1586,6 +1680,247 @@ export default function AlertsProgressPage() {
                     </div>
                   );
                 })()}
+              </DialogContent>
+            </Dialog>
+          )}
+
+          {/* Full Notified Engineers List Dialog (when clicking Card 4: Engineers / Assigned personnel) */}
+          {engineersModalData && (
+            <Dialog
+              open={!!engineersModalData}
+              onOpenChange={(open) => !open && setEngineersModalData(null)}
+            >
+              <DialogContent className="max-w-3xl bg-white border border-slate-200 shadow-2xl p-0 overflow-hidden rounded-2xl">
+                <DialogHeader className="p-5 pb-4 border-b border-slate-100 bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-700 text-white">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <DialogTitle className="text-lg md:text-xl font-bold flex items-center gap-2.5 text-white">
+                        <Users className="h-5 w-5 text-indigo-200 shrink-0" />
+                        <span>{engineersModalData.title}</span>
+                      </DialogTitle>
+                      <DialogDescription className="text-indigo-100 text-xs mt-1">
+                        Engineers & supervisors notified via email alerts for active {activeTab.toUpperCase()} alerts.
+                      </DialogDescription>
+                    </div>
+                  </div>
+
+                  {/* Summary Metric Pills inside Header */}
+                  <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-white/20 text-center">
+                    <div className="bg-white/10 rounded-lg p-2 backdrop-blur-sm">
+                      <div className="text-[10px] font-medium text-indigo-200 uppercase tracking-wider">Total Personnel</div>
+                      <div className="text-base font-extrabold text-white">{engineersModalData.engineers.length}</div>
+                    </div>
+                    <div className="bg-emerald-500/20 border border-emerald-300/30 rounded-lg p-2 backdrop-blur-sm">
+                      <div className="text-[10px] font-medium text-emerald-200 uppercase tracking-wider">Fully Acknowledged</div>
+                      <div className="text-base font-extrabold text-emerald-100">
+                        {engineersModalData.engineers.filter(e => e.isFullyAcknowledged).length}
+                      </div>
+                    </div>
+                    <div className="bg-amber-500/20 border border-amber-300/30 rounded-lg p-2 backdrop-blur-sm">
+                      <div className="text-[10px] font-medium text-amber-200 uppercase tracking-wider">Pending Action</div>
+                      <div className="text-base font-extrabold text-amber-100">
+                        {engineersModalData.engineers.filter(e => !e.isFullyAcknowledged).length}
+                      </div>
+                    </div>
+                  </div>
+                </DialogHeader>
+
+                {/* Filter and Search Bar */}
+                <div className="p-3.5 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Search by name, email, role, or scheme..."
+                      value={engineerModalSearch}
+                      onChange={(e) => setEngineerModalSearch(e.target.value)}
+                      className="w-full pl-9 pr-8 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 placeholder:text-slate-400"
+                    />
+                    {engineerModalSearch && (
+                      <button 
+                        onClick={() => setEngineerModalSearch("")}
+                        className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Filter Pills */}
+                  <div className="flex items-center gap-1 shrink-0 bg-slate-200/70 p-0.5 rounded-lg text-xs font-semibold">
+                    <button
+                      onClick={() => setEngineerFilterTab("all")}
+                      className={`px-2.5 py-1 rounded-md transition-colors ${
+                        engineerFilterTab === "all" ? "bg-white text-slate-900 shadow-xs" : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      All ({engineersModalData.engineers.length})
+                    </button>
+                    <button
+                      onClick={() => setEngineerFilterTab("acknowledged")}
+                      className={`px-2.5 py-1 rounded-md transition-colors ${
+                        engineerFilterTab === "acknowledged" ? "bg-white text-emerald-700 shadow-xs" : "text-slate-600 hover:text-emerald-700"
+                      }`}
+                    >
+                      Ack ({engineersModalData.engineers.filter(e => e.isAcknowledged).length})
+                    </button>
+                    <button
+                      onClick={() => setEngineerFilterTab("pending")}
+                      className={`px-2.5 py-1 rounded-md transition-colors ${
+                        engineerFilterTab === "pending" ? "bg-white text-amber-700 shadow-xs" : "text-slate-600 hover:text-amber-700"
+                      }`}
+                    >
+                      Pending ({engineersModalData.engineers.filter(e => e.pendingCount > 0).length})
+                    </button>
+                  </div>
+                </div>
+
+                {/* Engineers List */}
+                <div className="p-4 overflow-y-auto max-h-[58vh] space-y-2.5 bg-slate-50/50">
+                  {(() => {
+                    const q = engineerModalSearch.toLowerCase().trim();
+                    const filteredEngineers = engineersModalData.engineers.filter(eng => {
+                      if (engineerFilterTab === "acknowledged" && !eng.isAcknowledged) return false;
+                      if (engineerFilterTab === "pending" && eng.pendingCount === 0) return false;
+
+                      if (q) {
+                        const nameMatch = eng.name.toLowerCase().includes(q);
+                        const emailMatch = eng.email ? eng.email.toLowerCase().includes(q) : false;
+                        const roleMatch = eng.rolesList.some(r => r.toLowerCase().includes(q));
+                        const schemeMatch = eng.schemes.some(s => 
+                          s.scheme_name.toLowerCase().includes(q) || s.scheme_id.toLowerCase().includes(q)
+                        );
+                        return nameMatch || emailMatch || roleMatch || schemeMatch;
+                      }
+                      return true;
+                    });
+
+                    if (filteredEngineers.length === 0) {
+                      return (
+                        <div className="p-12 text-center text-slate-400 text-xs bg-white rounded-xl border border-dashed border-slate-200">
+                          {engineerModalSearch 
+                            ? `No personnel found matching "${engineerModalSearch}"`
+                            : "No notified engineers found for this category."}
+                        </div>
+                      );
+                    }
+
+                    const getRoleBadgeStyle = (role: string) => {
+                      if (role.includes("Chief")) return "bg-rose-50 text-rose-700 border-rose-200";
+                      if (role.includes("Superintending") || role.includes("SE")) return "bg-purple-50 text-purple-700 border-purple-200";
+                      if (role.includes("Executive") || role.includes("EE")) return "bg-indigo-50 text-indigo-700 border-indigo-200";
+                      if (role.includes("Civil")) return "bg-sky-50 text-sky-700 border-sky-200";
+                      if (role.includes("Mech")) return "bg-blue-50 text-blue-700 border-blue-200";
+                      return "bg-teal-50 text-teal-700 border-teal-200";
+                    };
+
+                    return filteredEngineers.map((eng, idx) => (
+                      <div 
+                        key={idx}
+                        className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-xs hover:border-indigo-300 transition-all"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3 min-w-0">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-700 text-xs font-bold border border-indigo-100 shadow-inner">
+                              {getInitials(eng.name)}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm font-bold text-slate-900 truncate">
+                                  {eng.name}
+                                </span>
+                                {eng.rolesList.map((role, rIdx) => (
+                                  <span 
+                                    key={rIdx} 
+                                    className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${getRoleBadgeStyle(role)}`}
+                                  >
+                                    {role}
+                                  </span>
+                                ))}
+                              </div>
+
+                              {eng.email ? (
+                                <a 
+                                  href={`mailto:${eng.email}`}
+                                  className="text-xs text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1.5 mt-1"
+                                >
+                                  <Mail className="h-3 w-3 shrink-0" />
+                                  <span className="truncate">{eng.email}</span>
+                                </a>
+                              ) : (
+                                <span className="text-xs text-slate-400 mt-1 italic">No email address recorded</span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Ack Status Badge */}
+                          <div className="flex flex-col items-end shrink-0">
+                            {eng.isFullyAcknowledged ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                                All Acknowledged ({eng.ackCount}/{eng.totalAlerts})
+                              </span>
+                            ) : eng.ackCount > 0 ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200">
+                                <CheckCircle2 className="h-3.5 w-3.5 text-sky-600" />
+                                {eng.ackCount}/{eng.totalAlerts} Acknowledged
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                <Clock className="h-3.5 w-3.5 text-amber-600" />
+                                Pending ({eng.totalAlerts} Alert{eng.totalAlerts > 1 ? 's' : ''})
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Assigned Schemes Pills */}
+                        <div className="mt-3 pt-2.5 border-t border-slate-100">
+                          <div className="text-[11px] font-semibold text-slate-500 mb-1.5">
+                            Assigned Alert Schemes ({eng.schemes.length}):
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {eng.schemes.map((s, sIdx) => (
+                              <div
+                                key={sIdx}
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium border ${
+                                  s.isAcknowledged 
+                                    ? "bg-emerald-50/80 text-emerald-800 border-emerald-200" 
+                                    : "bg-slate-50 text-slate-700 border-slate-200"
+                                }`}
+                              >
+                                {s.isAcknowledged ? (
+                                  <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" />
+                                ) : (
+                                  <Clock className="h-3 w-3 text-amber-500 shrink-0" />
+                                )}
+                                <span className="font-semibold text-slate-900">{s.scheme_name}</span>
+                                <span className="text-[10px] text-slate-400 font-mono">({s.scheme_id})</span>
+                                {s.village_name && (
+                                  <span className="text-[10px] text-slate-500">[{s.village_name}]</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+
+                {/* Footer */}
+                <div className="p-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+                  <div className="text-xs text-slate-500">
+                    Showing <span className="font-semibold text-slate-800">{engineersModalData.engineers.length}</span> assigned personnel
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => setEngineersModalData(null)}
+                    className="bg-slate-800 hover:bg-slate-900 text-white text-xs px-4"
+                  >
+                    Close
+                  </Button>
+                </div>
               </DialogContent>
             </Dialog>
           )}
