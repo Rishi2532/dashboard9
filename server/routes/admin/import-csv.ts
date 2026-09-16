@@ -3,6 +3,7 @@ import { storage } from "../../storage";
 import { parse } from "csv-parse/sync";
 import { updateRegionSummaries, parseCSV, updateDatabaseRecords } from "../../db";
 import { type InsertSchemeStatus, type SchemeStatus, type InsertRegion, type InsertSchemeProgressSummary } from "@shared/schema";
+import { generateDashboardUrl } from "../../auto-generate-dashboard-urls";
 
 /**
  * Handle CSV import with column mapping and advanced configuration options
