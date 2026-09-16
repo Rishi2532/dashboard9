@@ -336,10 +336,14 @@ export default function AlertsProgressPage() {
   const handleDownloadReport = async () => {
     setIsDownloading(true);
     try {
-      window.location.href = "/api/alerts-progress/download-14-day-report";
+      const params = new URLSearchParams();
+      if (activeTab) params.set("tab", activeTab);
+      if (activeSubTab) params.set("subTab", activeSubTab);
+      if (customDate) params.set("date", customDate);
+      window.location.href = `/api/alerts-progress/export-excel?${params.toString()}`;
       setTimeout(() => {
         setIsDownloading(false);
-      }, 2000);
+      }, 2500);
     } catch (error) {
       console.error("Failed to download report", error);
       setIsDownloading(false);
@@ -1239,26 +1243,27 @@ export default function AlertsProgressPage() {
                       className={`h-9 px-3 text-sm font-medium rounded-md border-0 outline-none cursor-pointer transition-colors ${activeSubTab === "custom" ? 'bg-blue-600 text-white shadow-sm' : 'bg-transparent text-slate-600 hover:bg-slate-50'}`}
                     />
                   </div>
-
-                  <Button
-                    onClick={handleDownloadReport}
-                    disabled={isDownloading}
-                    className="h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm border border-emerald-700/50"
-                  >
-                    {isDownloading ? (
-                      <span className="flex items-center gap-2">
-                        <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Generating...
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-2">
-                        <Download className="h-4 w-4" />
-                        Download 14-Day Report
-                      </span>
-                    )}
-                  </Button>
                 </>
               )}
+
+              <Button
+                onClick={handleDownloadReport}
+                disabled={isDownloading}
+                className="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm border border-emerald-700/50 rounded-lg text-xs"
+                title="Download simple Excel report containing all alert data"
+              >
+                {isDownloading ? (
+                  <span className="flex items-center gap-2">
+                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Generating Excel...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <Download className="h-4 w-4" />
+                    Download Alerts Excel
+                  </span>
+                )}
+              </Button>
             </div>
           </div>
 

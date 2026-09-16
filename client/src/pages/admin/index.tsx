@@ -19,6 +19,12 @@ const Admin = () => {
           />
           
           <AdminCard 
+            title="Engineers Hierarchy"
+            description="View CE, SE, EE, DE/AE roster, alerts sent, last 30 logins & actions taken"
+            link="/admin/users"
+          />
+          
+          <AdminCard 
             title="Import Data"
             description="Upload and import data from Excel or CSV files"
             link="/admin/import-data"

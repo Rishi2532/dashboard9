@@ -49,6 +49,7 @@ import SmartReportsPage from "./pages/smart-reports";
 import MonthlyReportsPage from "./pages/monthly-reports";
 import IssueReportingForm from "./pages/helpdesk/IssueReportingForm";
 import AlertsProgressPage from "./pages/alerts-progress";
+import EngineersHierarchyPage from "./pages/admin/EngineersHierarchyPage";
 
 import ProtectedRoute from "./components/auth/protected-route";
 import { AuthProvider } from "./hooks/use-auth";
@@ -373,6 +374,18 @@ function App() {
                     <Route path="/admin/login-logs">
                       <ProtectedRoute requireAdmin={true} redirectTo="/admin">
                         <LoginLogsPage />
+                      </ProtectedRoute>
+                    </Route>
+
+                    <Route path="/admin/users">
+                      <ProtectedRoute requireAdmin={true} redirectTo="/admin">
+                        <EngineersHierarchyPage />
+                      </ProtectedRoute>
+                    </Route>
+
+                    <Route path="/admin/engineers">
+                      <ProtectedRoute requireAdmin={true} redirectTo="/admin">
+                        <EngineersHierarchyPage />
                       </ProtectedRoute>
                     </Route>
 

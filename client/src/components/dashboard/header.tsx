@@ -27,6 +27,7 @@ import {
   MapPinned,
   ChevronDown,
   UserCheck,
+  Users,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import Sidebar from "./sidebar";
@@ -173,6 +174,16 @@ export default function Header() {
 
               {authData?.isAdmin && (
                 <>
+                  <Link href="/admin/users">
+                    <Button
+                      size="sm"
+                      className="hidden sm:flex bg-purple-600 hover:bg-purple-700 text-white h-8 text-xs font-semibold"
+                      title="Engineers Hierarchy & Operational Directory"
+                    >
+                      <Users className="h-3.5 w-3.5 mr-1" />
+                      Engineers
+                    </Button>
+                  </Link>
                   <Link href="/helpdesk/track-tickets">
                     <Button
                       size="sm"
@@ -568,21 +579,38 @@ export default function Header() {
               </Button>
             </Link>
             {authData?.isAdmin && (
-              <Link href="/monthly-reports" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    "w-full justify-start h-10 font-semibold transition-colors",
-                    isActive("/monthly-reports")
-                      ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3"
-                      : "text-gray-700 hover:bg-gray-100"
-                  )}
-                >
-                  <FileText className="h-4 w-4 mr-2" />
-                  Monthly Reports
-                </Button>
-              </Link>
+              <>
+                <Link href="/admin/users" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      "w-full justify-start h-10 font-semibold transition-colors",
+                      isActive("/admin/users")
+                        ? "bg-purple-50 text-purple-700 border-l-4 border-purple-600 rounded-none pl-3"
+                        : "text-purple-700 hover:bg-purple-50"
+                    )}
+                  >
+                    <Users className="h-4 w-4 mr-2" />
+                    Engineers Hierarchy
+                  </Button>
+                </Link>
+                <Link href="/monthly-reports" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      "w-full justify-start h-10 font-semibold transition-colors",
+                      isActive("/monthly-reports")
+                        ? "bg-cyan-50 text-cyan-600 border-l-4 border-cyan-500 rounded-none pl-3"
+                        : "text-gray-700 hover:bg-gray-100"
+                    )}
+                  >
+                    <BarChart2 className="h-4 w-4 mr-2" />
+                    Monthly Reports
+                  </Button>
+                </Link>
+              </>
             )}
             {/* <Link href="/hierarchy" onClick={() => setIsMobileMenuOpen(false)}>
               <Button

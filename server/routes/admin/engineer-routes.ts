@@ -94,6 +94,496 @@ router.get("/", async (req: Request, res: Response) => {
 });
 
 /**
+ * Helper to format session duration nicely
+ */
+function formatDuration(seconds: number | null | undefined): string {
+  if (seconds === null || seconds === undefined) return "Active / In-progress";
+  if (seconds < 60) return `${seconds}s`;
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  if (mins < 60) return `${mins}m ${secs}s`;
+  const hours = Math.floor(mins / 60);
+  const remMins = mins % 60;
+  return `${hours}h ${remMins}m`;
+}
+
+/**
+ * Classify role/title/username into strict 4-tier hierarchy:
+ * 1: Chief Engineer (CE)
+ * 2: Superintending Engineer (SE)
+ * 3: Executive Engineer (EE)
+ * 4: Deputy / Assistant Engineer (DE / AE)
+ * Explicitly excludes admin and site supervisor / section engineer
+ */
+function determineTier(titleOrUsername: string, role?: string): { rank: number; level: "CE" | "SE" | "EE" | "DE/AE"; title: string } | null {
+  const s = (titleOrUsername || "").toLowerCase().trim();
+
+  // Explicitly omit Admin, Site Supervisor, and Section Engineer
+  if (
+    s.includes("admin") ||
+    s.includes("supervisor") ||
+    s.includes("site supervisor") ||
+    s.includes("section engineer")
+  ) {
+    return null;
+  }
+
+  if (s.startsWith("ce_") || s.includes("chief engineer") || s.includes("chief") || s === "ce") {
+    return { rank: 1, level: "CE", title: "Chief Engineer (CE)" };
+  }
+  if (
+    s.startsWith("se_") ||
+    s.includes("superintending") ||
+    s.includes("se circle") ||
+    s.includes("se ur") ||
+    s.includes("se mjp") ||
+    s === "se"
+  ) {
+    return { rank: 2, level: "SE", title: "Superintending Engineer (SE)" };
+  }
+  if (
+    s.startsWith("ee_") ||
+    s.includes("executive") ||
+    s.includes("ex engineer") ||
+    s.includes("ee wm") ||
+    s.includes("ee ur") ||
+    s.includes("ee mjp") ||
+    s === "ee"
+  ) {
+    const isMech = s.includes("mech");
+    return { rank: 3, level: "EE", title: isMech ? "Executive Engineer (EE Mech)" : "Executive Engineer (EE Civil)" };
+  }
+  if (
+    s.startsWith("de_") ||
+    s.startsWith("ae_") ||
+    s.includes("assistant") ||
+    s.includes("deputy") ||
+    s.includes("de/ae") ||
+    s === "ae" ||
+    s === "de"
+  ) {
+    const isMech = s.includes("mech");
+    return { rank: 4, level: "DE/AE", title: isMech ? "Deputy / Assistant Engineer (DE/AE Mech)" : "Deputy / Assistant Engineer (DE/AE Civil)" };
+  }
+
+  if (role === "engineer") {
+    return { rank: 3, level: "EE", title: "Executive Engineer (EE)" };
+  }
+
+  return null;
+}
+
+/**
+ * GET /api/admin/engineers/hierarchy
+ * Comprehensive Admin endpoint returning engineers organized position-wise:
+ * 1. Chief Engineer (CE)
+ * 2. Superintending Engineer (SE)
+ * 3. Executive Engineer (EE)
+ * 4. Deputy / Assistant Engineer (DE / AE)
+ * Includes: Mail, alerts sent, last 30 logins, and actions taken (acknowledgements, issue resolutions)
+ */
+router.get("/hierarchy", async (req: Request, res: Response) => {
+  try {
+    const db = await getDB();
+
+    // 1. Fetch schemes roster
+    const schemesRes = await db.execute(sql`
+      SELECT 
+        id, region, district, division, scheme_id, scheme,
+        chief_engineer_name, chief_engineer_mobile, chief_engineer_email,
+        se_name, se_mobile, se_email,
+        ee_civil_name, ee_civil_mobile, ee_civil_email,
+        ee_mech_name, ee_mech_mobile, ee_mech_email,
+        de_ae_civil_name, de_ae_civil_mobile, de_ae_civil_email,
+        de_ae_mech_name, de_ae_mech_mobile, de_ae_mech_email
+      FROM scheme_engineer_details
+    `);
+
+    // 2. Fetch users (excluding admin)
+    const usersRes = await db.execute(sql`
+      SELECT id, username, name, email, phone, role 
+      FROM users 
+      WHERE role != 'admin'
+    `);
+    const allUsers = usersRes.rows as any[];
+
+    // 3. Fetch login logs
+    const loginsRes = await db.execute(sql`
+      SELECT id, user_id, username, login_time, logout_time, session_duration, ip_address, user_agent, is_active
+      FROM user_login_logs
+      ORDER BY login_time DESC
+    `);
+    const allLogins = loginsRes.rows as any[];
+
+    // 4. Fetch email_acknowledgements
+    let allAcks: any[] = [];
+    try {
+      const acksRes = await db.execute(sql`
+        SELECT id, token, scheme_id, alert_type, alert_id, ticket_id, esr_name, engineer_email, engineer_name, sent_date, acknowledged_at, created_at
+        FROM email_acknowledgements
+        ORDER BY created_at DESC
+      `);
+      allAcks = acksRes.rows as any[];
+    } catch (e: any) {
+      console.warn("Could not query email_acknowledgements:", e.message);
+    }
+
+    // 5. Fetch issue_reports
+    let allIssues: any[] = [];
+    try {
+      const issuesRes = await db.execute(sql`
+        SELECT id, problem_level, region, scheme_id, scheme_name, village_name, esr_name, status_value, reason, sensor_type, status, resolution_remark, resolved_at, created_by, creator_name, created_at
+        FROM issue_reports
+        ORDER BY created_at DESC
+      `);
+      allIssues = issuesRes.rows as any[];
+    } catch (e: any) {
+      console.warn("Could not query issue_reports:", e.message);
+    }
+
+    // 6. Fetch user_activity_logs
+    let allActivities: any[] = [];
+    try {
+      const activitiesRes = await db.execute(sql`
+        SELECT id, user_id, username, activity_type, activity_description, file_name, timestamp
+        FROM user_activity_logs
+        ORDER BY timestamp DESC
+      `);
+      allActivities = activitiesRes.rows as any[];
+    } catch (e: any) {
+      // Table might not exist or be empty
+    }
+
+    // Pre-group logins by user_id and username
+    const loginsByUserId = new Map<number, any[]>();
+    const loginsByUsername = new Map<string, any[]>();
+    for (const log of allLogins) {
+      const formattedLog = {
+        ...log,
+        session_duration_formatted: formatDuration(log.session_duration),
+      };
+      if (log.user_id) {
+        if (!loginsByUserId.has(log.user_id)) loginsByUserId.set(log.user_id, []);
+        if (loginsByUserId.get(log.user_id)!.length < 30) {
+          loginsByUserId.get(log.user_id)!.push(formattedLog);
+        }
+      }
+      if (log.username) {
+        const uKey = log.username.toLowerCase();
+        if (!loginsByUsername.has(uKey)) loginsByUsername.set(uKey, []);
+        if (loginsByUsername.get(uKey)!.length < 30) {
+          loginsByUsername.get(uKey)!.push(formattedLog);
+        }
+      }
+    }
+
+    // Pre-group acks by engineer email and name
+    const acksByEmail = new Map<string, any[]>();
+    const acksByName = new Map<string, any[]>();
+    for (const ack of allAcks) {
+      if (ack.engineer_email) {
+        const eKey = ack.engineer_email.trim().toLowerCase();
+        if (!acksByEmail.has(eKey)) acksByEmail.set(eKey, []);
+        acksByEmail.get(eKey)!.push(ack);
+      }
+      if (ack.engineer_name) {
+        const nKey = ack.engineer_name.trim().toLowerCase();
+        if (!acksByName.has(nKey)) acksByName.set(nKey, []);
+        acksByName.get(nKey)!.push(ack);
+      }
+    }
+
+    // Pre-group issues by created_by and creator_name
+    const issuesByUserId = new Map<number, any[]>();
+    const issuesByCreatorName = new Map<string, any[]>();
+    for (const issue of allIssues) {
+      if (issue.created_by) {
+        if (!issuesByUserId.has(issue.created_by)) issuesByUserId.set(issue.created_by, []);
+        issuesByUserId.get(issue.created_by)!.push(issue);
+      }
+      if (issue.creator_name) {
+        const nKey = issue.creator_name.trim().toLowerCase();
+        if (!issuesByCreatorName.has(nKey)) issuesByCreatorName.set(nKey, []);
+        issuesByCreatorName.get(nKey)!.push(issue);
+      }
+    }
+
+    // Pre-group user activities by user_id and username
+    const activitiesByUserId = new Map<number, any[]>();
+    const activitiesByUsername = new Map<string, any[]>();
+    for (const act of allActivities) {
+      if (act.user_id) {
+        if (!activitiesByUserId.has(act.user_id)) activitiesByUserId.set(act.user_id, []);
+        activitiesByUserId.get(act.user_id)!.push(act);
+      }
+      if (act.username) {
+        const uKey = act.username.toLowerCase();
+        if (!activitiesByUsername.has(uKey)) activitiesByUsername.set(uKey, []);
+        activitiesByUsername.get(uKey)!.push(act);
+      }
+    }
+
+    // Build the directory of engineers from scheme_engineer_details
+    const roleFields = [
+      { rank: 1, level: "CE" as const, title: "Chief Engineer (CE)", n: "chief_engineer_name", e: "chief_engineer_email", p: "chief_engineer_mobile" },
+      { rank: 2, level: "SE" as const, title: "Superintending Engineer (SE)", n: "se_name", e: "se_email", p: "se_mobile" },
+      { rank: 3, level: "EE" as const, title: "Executive Engineer (EE Civil)", n: "ee_civil_name", e: "ee_civil_email", p: "ee_civil_mobile" },
+      { rank: 3, level: "EE" as const, title: "Executive Engineer (EE Mech)", n: "ee_mech_name", e: "ee_mech_email", p: "ee_mech_mobile" },
+      { rank: 4, level: "DE/AE" as const, title: "Deputy / Assistant Engineer (DE/AE Civil)", n: "de_ae_civil_name", e: "de_ae_civil_email", p: "de_ae_civil_mobile" },
+      { rank: 4, level: "DE/AE" as const, title: "Deputy / Assistant Engineer (DE/AE Mech)", n: "de_ae_mech_name", e: "de_ae_mech_email", p: "de_ae_mech_mobile" },
+    ];
+
+    const directoryMap = new Map<string, any>();
+
+    for (const row of schemesRes.rows as any[]) {
+      for (const r of roleFields) {
+        const name = (row[r.n] || "").trim();
+        const email = (row[r.e] || "").trim().toLowerCase();
+        const phone = (row[r.p] || "").trim();
+
+        if (name || email) {
+          const key = name ? `${r.rank}::${name.toLowerCase()}` : `${r.rank}::${email}`;
+          if (!directoryMap.has(key)) {
+            directoryMap.set(key, {
+              key,
+              rank: r.rank,
+              level: r.level,
+              position_title: r.title,
+              name: name || email,
+              email,
+              phone,
+              regions: new Set(),
+              districts: new Set(),
+              divisions: new Set(),
+              schemes: new Set(),
+            });
+          }
+          const item = directoryMap.get(key);
+          if (email && !item.email) item.email = email;
+          if (phone && !item.phone) item.phone = phone;
+          if (row.region) item.regions.add(row.region.trim());
+          if (row.district) item.districts.add(row.district.trim());
+          if (row.division) item.divisions.add(row.division.trim());
+          if (row.scheme) item.schemes.add(row.scheme.trim());
+        }
+      }
+    }
+
+    // Match or incorporate registered users from users table
+    for (const u of allUsers) {
+      const tier = determineTier(u.username + " " + (u.name || ""), u.role);
+      if (!tier) continue;
+
+      const email = (u.email || "").trim().toLowerCase();
+      const name = (u.name || "").trim();
+
+      // Find match in existing directoryMap by name or email
+      let matchedItem: any = null;
+      for (const item of directoryMap.values()) {
+        if (name && item.name && item.name.toLowerCase() === name.toLowerCase()) {
+          matchedItem = item;
+          break;
+        }
+        if (email && item.email && item.email.toLowerCase() === email) {
+          matchedItem = item;
+          break;
+        }
+      }
+
+      if (matchedItem) {
+        matchedItem.user_id = u.id;
+        matchedItem.username = u.username;
+        matchedItem.is_registered = true;
+        if (!matchedItem.email && email) matchedItem.email = email;
+        if (!matchedItem.phone && u.phone) matchedItem.phone = u.phone;
+      } else {
+        const key = name ? `${tier.rank}::${name.toLowerCase()}` : `${tier.rank}::${u.username.toLowerCase()}`;
+        directoryMap.set(key, {
+          key,
+          rank: tier.rank,
+          level: tier.level,
+          position_title: tier.title,
+          name: name || u.username,
+          email,
+          phone: u.phone || "",
+          user_id: u.id,
+          username: u.username,
+          is_registered: true,
+          regions: new Set(),
+          districts: new Set(),
+          divisions: new Set(),
+          schemes: new Set(),
+        });
+      }
+    }
+
+    // Process logins, alerts, and actions taken for each engineer
+    const engineers = Array.from(directoryMap.values()).map((eng: any) => {
+      const emailKey = (eng.email || "").trim().toLowerCase();
+      const nameKey = (eng.name || "").trim().toLowerCase();
+
+      // 1. Logins
+      let logins: any[] = [];
+      if (eng.user_id && loginsByUserId.has(eng.user_id)) {
+        logins = loginsByUserId.get(eng.user_id)!;
+      } else if (eng.username && loginsByUsername.has(eng.username.toLowerCase())) {
+        logins = loginsByUsername.get(eng.username.toLowerCase())!;
+      }
+      const lastLogin = logins.length > 0 ? logins[0].login_time : null;
+
+      // 2. Alerts & Acks
+      const matchedAcks = [
+        ...(emailKey && acksByEmail.has(emailKey) ? acksByEmail.get(emailKey)! : []),
+        ...(nameKey && acksByName.has(nameKey) ? acksByName.get(nameKey)! : []),
+      ];
+      // Deduplicate acks by id
+      const uniqueAcks = Array.from(new Map(matchedAcks.map((a: any) => [a.id, a])).values());
+      const alertsSentCount = uniqueAcks.length;
+      const ackedList = uniqueAcks.filter((a: any) => a.acknowledged_at != null);
+      const alertsAcknowledgedCount = ackedList.length;
+      const ackRate = alertsSentCount > 0 ? Math.round((alertsAcknowledgedCount / alertsSentCount) * 100) : 0;
+
+      // 3. Actions Taken timeline
+      const actions: any[] = [];
+
+      // Alert acknowledgements
+      for (const ack of ackedList) {
+        actions.push({
+          id: `ack-${ack.id}`,
+          type: "alert_acknowledged",
+          category: "Alert Acknowledgement",
+          title: `Acknowledged ${ack.alert_type} Alert`,
+          description: `Alert for Scheme ${ack.scheme_id}${ack.esr_name ? ` (${ack.esr_name})` : ""}. Ticket #${ack.ticket_id || ack.id}`,
+          timestamp: ack.acknowledged_at,
+          meta: {
+            ticket_id: ack.ticket_id,
+            scheme_id: ack.scheme_id,
+            alert_type: ack.alert_type,
+            esr_name: ack.esr_name,
+          },
+        });
+      }
+
+      // Issue resolution / reports
+      const matchedIssues = [
+        ...(eng.user_id && issuesByUserId.has(eng.user_id) ? issuesByUserId.get(eng.user_id)! : []),
+        ...(nameKey && issuesByCreatorName.has(nameKey) ? issuesByCreatorName.get(nameKey)! : []),
+      ];
+      const uniqueIssues = Array.from(new Map(matchedIssues.map((i: any) => [i.id, i])).values());
+      for (const issue of uniqueIssues) {
+        if (issue.status === "Resolved" || issue.resolution_remark) {
+          actions.push({
+            id: `issue-res-${issue.id}`,
+            type: "issue_resolved",
+            category: "Issue Resolution",
+            title: `Resolved ${issue.sensor_type || issue.problem_level} Issue`,
+            description: `Scheme ${issue.scheme_name}: ${issue.resolution_remark || "Marked as resolved"}`,
+            timestamp: issue.resolved_at || issue.created_at,
+            meta: {
+              issue_id: issue.id,
+              scheme_id: issue.scheme_id,
+              scheme_name: issue.scheme_name,
+              remark: issue.resolution_remark,
+            },
+          });
+        } else {
+          actions.push({
+            id: `issue-rep-${issue.id}`,
+            type: "issue_reported",
+            category: "Issue Report",
+            title: `Reported ${issue.sensor_type || issue.problem_level} Issue`,
+            description: `Scheme ${issue.scheme_name} (${issue.village_name || "Scheme level"}): ${issue.reason}`,
+            timestamp: issue.created_at,
+            meta: {
+              issue_id: issue.id,
+              scheme_id: issue.scheme_id,
+              scheme_name: issue.scheme_name,
+            },
+          });
+        }
+      }
+
+      // User activities (downloads, visits)
+      const matchedActivities = [
+        ...(eng.user_id && activitiesByUserId.has(eng.user_id) ? activitiesByUserId.get(eng.user_id)! : []),
+        ...(eng.username && activitiesByUsername.has(eng.username.toLowerCase()) ? activitiesByUsername.get(eng.username.toLowerCase())! : []),
+      ];
+      for (const act of matchedActivities.slice(0, 15)) {
+        actions.push({
+          id: `act-${act.id}`,
+          type: "user_activity",
+          category: "User Activity",
+          title: act.activity_type.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()),
+          description: act.activity_description || (act.file_name ? `Downloaded ${act.file_name}` : "Activity logged"),
+          timestamp: act.timestamp,
+          meta: {
+            activity_type: act.activity_type,
+            file_name: act.file_name,
+          },
+        });
+      }
+
+      // Sort actions chronologically descending
+      actions.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+      return {
+        key: eng.key,
+        rank: eng.rank,
+        level: eng.level,
+        position_title: eng.position_title,
+        name: eng.name,
+        email: eng.email,
+        phone: eng.phone,
+        user_id: eng.user_id || null,
+        username: eng.username || null,
+        is_registered: Boolean(eng.is_registered),
+        regions: Array.from(eng.regions),
+        districts: Array.from(eng.districts),
+        divisions: Array.from(eng.divisions),
+        schemes: Array.from(eng.schemes),
+        schemes_count: eng.schemes.size,
+        alerts_sent_count: alertsSentCount,
+        alerts_acknowledged_count: alertsAcknowledgedCount,
+        acknowledgement_rate: ackRate,
+        total_logins_recorded: logins.length,
+        last_login_at: lastLogin,
+        last_30_logins: logins,
+        actions_taken: actions.slice(0, 30),
+        actions_count: actions.length,
+      };
+    });
+
+    // Sort by rank ascending (1: CE, 2: SE, 3: EE, 4: DE/AE), then name
+    engineers.sort((a, b) => {
+      if (a.rank !== b.rank) return a.rank - b.rank;
+      return a.name.localeCompare(b.name);
+    });
+
+    // Compute KPI counts
+    const kpis = {
+      total_engineers: engineers.length,
+      ce_count: engineers.filter((e) => e.level === "CE").length,
+      se_count: engineers.filter((e) => e.level === "SE").length,
+      ee_count: engineers.filter((e) => e.level === "EE").length,
+      de_ae_count: engineers.filter((e) => e.level === "DE/AE").length,
+      registered_count: engineers.filter((e) => e.is_registered).length,
+      total_alerts_sent: engineers.reduce((acc, e) => acc + e.alerts_sent_count, 0),
+      total_alerts_acknowledged: engineers.reduce((acc, e) => acc + e.alerts_acknowledged_count, 0),
+      total_actions_taken: engineers.reduce((acc, e) => acc + e.actions_count, 0),
+    };
+
+    res.json({
+      success: true,
+      kpis,
+      engineers,
+    });
+  } catch (error: any) {
+    console.error("Error fetching engineer hierarchy:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch engineer hierarchy data" });
+  }
+});
+
+/**
  * GET /api/admin/engineers/directory
  * List distinct engineers found in scheme_engineer_details to allow one-click account creation
  */
