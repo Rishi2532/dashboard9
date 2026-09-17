@@ -37,11 +37,14 @@ interface Alert {
 }
 
 export function startDailyAlertsCron() {
-  // Run every day at 11:13 AM
-  // You can adjust the cron expression as needed: '13 11 * * *'
-  cron.schedule("41 16   * * *", async () => {
+  // Configurable cron schedule (defaults to 16:41 / 4:41 PM, or adjust via DAILY_ALERTS_CRON_SCHEDULE in .env)
+  // Example for 10:00 AM daily: '0 10 * * *'
+  const cronExpression = process.env.DAILY_ALERTS_CRON_SCHEDULE || "41 16   * * *";
+  console.log(`⏰ Daily alerts job scheduled with cron pattern: "${cronExpression}"`);
+
+  cron.schedule(cronExpression, async () => {
     await runDailyAlertsJob();
-    console.log("? Running automatic offline emails to vendors...");
+    console.log("📨 Running automatic offline emails to vendors...");
     await sendAutomaticOfflineEmails();
   });
 }
