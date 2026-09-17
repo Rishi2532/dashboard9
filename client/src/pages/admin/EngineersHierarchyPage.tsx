@@ -313,31 +313,31 @@ export default function EngineersHierarchyPage() {
     setTimeout(() => setCopiedText(null), 2000);
   };
 
-  // Helper for rank styling
-  const getRankBadge = (level: string) => {
+  // Helper for designation styling
+  const getPositionBadge = (level: string) => {
     switch (level) {
       case 'CE':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-sm">
-            <Crown className="w-3.5 h-3.5" /> Rank 1 • Chief Engineer
+            <Crown className="w-3.5 h-3.5" /> Chief Engineer (CE)
           </span>
         );
       case 'SE':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-sm">
-            <Award className="w-3.5 h-3.5" /> Rank 2 • Superintending Eng.
+            <Award className="w-3.5 h-3.5" /> Superintending Engineer (SE)
           </span>
         );
       case 'EE':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-sm">
-            <ShieldCheck className="w-3.5 h-3.5" /> Rank 3 • Executive Eng.
+            <ShieldCheck className="w-3.5 h-3.5" /> Executive Engineer (EE)
           </span>
         );
       case 'DE/AE':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-sm">
-            <Shield className="w-3.5 h-3.5" /> Rank 4 • Deputy / Asst. Eng.
+            <Shield className="w-3.5 h-3.5" /> Deputy / Assistant Engineer (DE/AE)
           </span>
         );
       default:
@@ -560,10 +560,10 @@ export default function EngineersHierarchyPage() {
               </div>
             </div>
 
-            {/* Hierarchy Level Pills */}
+            {/* Position Filter Pills */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-t border-slate-100 dark:border-slate-800 pt-3">
               <span className="text-xs font-semibold text-slate-400 flex items-center gap-1 mr-1 shrink-0">
-                <SlidersHorizontal className="w-3 h-3" /> Filter Rank:
+                <SlidersHorizontal className="w-3 h-3" /> Position:
               </span>
               <Button
                 variant={tierFilter === 'ALL' ? 'default' : 'outline'}
@@ -571,7 +571,7 @@ export default function EngineersHierarchyPage() {
                 onClick={() => setTierFilter('ALL')}
                 className="h-8 text-xs font-semibold shrink-0"
               >
-                All Ranks ({engineers.length})
+                All Positions ({engineers.length})
               </Button>
               <Button
                 variant={tierFilter === 'CE' ? 'default' : 'outline'}
@@ -666,11 +666,11 @@ export default function EngineersHierarchyPage() {
               if (group.items.length === 0) return null;
               return (
                 <div key={group.level} className="space-y-3">
-                  {/* Tier Section Header */}
+                  {/* Position Section Header */}
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-2 border-b border-slate-200 dark:border-slate-800 gap-2">
                     <div className="flex items-center gap-2.5">
                       <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-gradient-to-r ${group.badgeColor}`}>
-                        Tier {group.rank} • {group.level}
+                        {group.level}
                       </span>
                       <div>
                         <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -697,7 +697,7 @@ export default function EngineersHierarchyPage() {
                             <div className="flex items-start justify-between gap-2">
                               <div>
                                 <div className="flex items-center gap-1.5 mb-1">
-                                  {getRankBadge(eng.level)}
+                                  {getPositionBadge(eng.level)}
                                 </div>
                                 <h3 className="font-bold text-base text-slate-900 dark:text-white leading-tight">
                                   {eng.name}
@@ -849,7 +849,7 @@ export default function EngineersHierarchyPage() {
               <Table>
                 <TableHeader className="bg-slate-50 dark:bg-slate-900">
                   <TableRow>
-                    <TableHead className="w-12">Tier</TableHead>
+                    <TableHead className="w-16">Designation</TableHead>
                     <TableHead>Engineer Name & Title</TableHead>
                     <TableHead>Email & Phone</TableHead>
                     <TableHead>Region & Jurisdiction</TableHead>
@@ -969,7 +969,7 @@ export default function EngineersHierarchyPage() {
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <Badge variant="outline" className="text-xs border-purple-300 text-purple-700 bg-purple-50 font-bold">
-                    {selectedLoginsEngineer?.level} • Rank {selectedLoginsEngineer?.rank}
+                    {selectedLoginsEngineer?.position_title || selectedLoginsEngineer?.level}
                   </Badge>
                   {selectedLoginsEngineer?.is_registered ? (
                     <Badge className="bg-emerald-100 text-emerald-800 text-xs">
@@ -1091,7 +1091,7 @@ export default function EngineersHierarchyPage() {
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <Badge variant="outline" className="text-xs border-amber-300 text-amber-700 bg-amber-50 font-bold">
-                    {selectedActionsEngineer?.level} • Rank {selectedActionsEngineer?.rank}
+                    {selectedActionsEngineer?.position_title || selectedActionsEngineer?.level}
                   </Badge>
                   <Badge className="bg-amber-100 text-amber-800 text-xs">
                     {selectedActionsEngineer?.actions_count} Operational Actions
