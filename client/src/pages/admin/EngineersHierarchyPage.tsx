@@ -33,6 +33,8 @@ import {
   SlidersHorizontal,
   Table as TableIcon,
   LayoutGrid,
+  Smartphone,
+  Send,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -195,6 +197,68 @@ export default function EngineersHierarchyPage() {
   const [selectedLoginsEngineer, setSelectedLoginsEngineer] = useState<EngineerHierarchyItem | null>(null);
   const [selectedActionsEngineer, setSelectedActionsEngineer] = useState<EngineerHierarchyItem | null>(null);
   const [actionCategoryFilter, setActionCategoryFilter] = useState<string>('ALL');
+
+  // SMS Gateway Tester Modal States
+  const [testSmsOpen, setTestSmsOpen] = useState(false);
+  const [testSmsMobile, setTestSmsMobile] = useState('');
+  const [testSmsTemplate, setTestSmsTemplate] = useState<'PRESSURE_LOW' | 'CHLORINE_HIGH' | 'CHLORINE_LOW' | 'LPCD_LOW'>('PRESSURE_LOW');
+  const [testSmsScheme, setTestSmsScheme] = useState('7940695');
+  const [testSmsValue, setTestSmsValue] = useState('0.15');
+  const [isTestingSms, setIsTestingSms] = useState(false);
+  const [testSmsResult, setTestSmsResult] = useState<any>(null);
+
+  const handleSendTestSms = async () => {
+    const cleanMobile = testSmsMobile.replace(/\D/g, '');
+    if (cleanMobile.length < 10) {
+      toast({
+        title: 'Invalid Mobile Number',
+        description: 'Please enter a valid 10-digit mobile number.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsTestingSms(true);
+    setTestSmsResult(null);
+
+    try {
+      const res = await fetch('/api/admin/engineers/test-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mobile: cleanMobile,
+          templateType: testSmsTemplate,
+          scheme: testSmsScheme.trim() || '7940695',
+          value: testSmsValue.trim() || (testSmsTemplate === 'PRESSURE_LOW' ? '0.15' : '0.1'),
+        }),
+      });
+
+      const json = await res.json();
+      setTestSmsResult(json);
+
+      if (json.success) {
+        toast({
+          title: 'SMS Sent Successfully',
+          description: `Gateway delivered to ${cleanMobile} (Status: ${json.gatewayStatus ?? 200})`,
+        });
+      } else {
+        toast({
+          title: 'Gateway Response Received',
+          description: json.message || `Gateway returned status ${json.gatewayStatus ?? 'error'}`,
+          variant: 'destructive',
+        });
+      }
+    } catch (err: any) {
+      setTestSmsResult({ success: false, error: err.message });
+      toast({
+        title: 'SMS Dispatch Error',
+        description: err.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsTestingSms(false);
+    }
+  };
 
   // Fetch hierarchy data
   const { data, isLoading, error, refetch, isFetching } = useQuery<HierarchyResponse>({
@@ -373,6 +437,18 @@ export default function EngineersHierarchyPage() {
             </div>
 
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setTestSmsResult(null);
+                  setTestSmsOpen(true);
+                }}
+                className="bg-purple-950/80 border-purple-600/60 text-purple-200 hover:bg-purple-900 hover:text-white text-xs h-8 shadow-sm"
+              >
+                <Smartphone className="w-3.5 h-3.5 mr-1.5 text-purple-300" />
+                Test SMS Gateway
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -755,13 +831,26 @@ export default function EngineersHierarchyPage() {
                                     <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                                     <span>{eng.phone}</span>
                                   </a>
-                                  <button
-                                    onClick={() => copyToClipboard(eng.phone, 'Phone')}
-                                    className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-0.5 rounded ml-1"
-                                    title="Copy phone"
-                                  >
-                                    {copiedText === eng.phone ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                                  </button>
+                                  <div className="flex items-center gap-0.5">
+                                    <button
+                                      onClick={() => {
+                                        setTestSmsMobile(eng.phone);
+                                        setTestSmsResult(null);
+                                        setTestSmsOpen(true);
+                                      }}
+                                      className="text-purple-600 hover:text-purple-800 dark:text-purple-400 p-1 rounded hover:bg-purple-50 dark:hover:bg-purple-950/50"
+                                      title={`Test SMS to ${eng.phone}`}
+                                    >
+                                      <Smartphone className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      onClick={() => copyToClipboard(eng.phone, 'Phone')}
+                                      className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+                                      title="Copy phone"
+                                    >
+                                      {copiedText === eng.phone ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                                    </button>
+                                  </div>
                                 </div>
                               ) : null}
                             </div>
@@ -895,9 +984,22 @@ export default function EngineersHierarchyPage() {
                             <span className="text-slate-400 italic">No email</span>
                           )}
                           {eng.phone && (
-                            <a href={`tel:${eng.phone}`} className="text-slate-600 dark:text-slate-300 hover:underline flex items-center gap-1 mt-0.5">
-                              <Phone className="w-3 h-3 text-slate-400" /> {eng.phone}
-                            </a>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <a href={`tel:${eng.phone}`} className="text-slate-600 dark:text-slate-300 hover:underline flex items-center gap-1">
+                                <Phone className="w-3 h-3 text-slate-400" /> {eng.phone}
+                              </a>
+                              <button
+                                onClick={() => {
+                                  setTestSmsMobile(eng.phone);
+                                  setTestSmsResult(null);
+                                  setTestSmsOpen(true);
+                                }}
+                                className="text-purple-600 hover:text-purple-800 dark:text-purple-400 p-0.5 rounded"
+                                title={`Test SMS to ${eng.phone}`}
+                              >
+                                <Smartphone className="w-3 h-3" />
+                              </button>
+                            </div>
                           )}
                         </div>
                       </TableCell>
@@ -1231,6 +1333,218 @@ export default function EngineersHierarchyPage() {
             >
               Close
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ========================================================================= */}
+      {/* TEST SMS GATEWAY MODAL DIALOG                                             */}
+      {/* ========================================================================= */}
+      <Dialog open={testSmsOpen} onOpenChange={setTestSmsOpen}>
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto p-0 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl">
+          <DialogHeader className="p-5 pb-4 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-purple-950 via-slate-900 to-slate-900 text-white">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-600/30 border border-purple-500/40 flex items-center justify-center text-purple-300 shrink-0">
+                <Smartphone className="w-5 h-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                  Smartping DLT SMS Gateway Tester
+                </DialogTitle>
+                <DialogDescription className="text-xs text-purple-200/80 mt-0.5">
+                  Trigger live Airtel DLT-compliant Marathi SMS messages via server backend.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="p-5 space-y-4 text-xs">
+            {/* Gateway Configuration Audit Card */}
+            <div className="rounded-xl bg-slate-50 dark:bg-slate-900/60 p-3.5 border border-slate-200 dark:border-slate-800 space-y-1.5">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="font-semibold text-slate-700 dark:text-slate-300">Gateway URL:</span>
+                <code className="text-slate-600 dark:text-slate-400 font-mono">https://pgapi.smartping.ai/fe/api/v1/send</code>
+              </div>
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="font-semibold text-slate-700 dark:text-slate-300">Sender ID (Header):</span>
+                <span className="px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-bold font-mono">MJPIOT</span>
+              </div>
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="font-semibold text-slate-700 dark:text-slate-300">PE ID (Principal Entity):</span>
+                <code className="text-slate-600 dark:text-slate-400 font-mono">1001861588684954918</code>
+              </div>
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="font-semibold text-slate-700 dark:text-slate-300">API Username:</span>
+                <code className="text-slate-600 dark:text-slate-400 font-mono">CSTECH.trans</code>
+              </div>
+              <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center gap-1.5 text-[11px] text-purple-700 dark:text-purple-300">
+                <Shield className="w-3.5 h-3.5 shrink-0 text-purple-600" />
+                <span>Backend dispatches from server IP. IP whitelisting configured in Cyfuture Smartping.</span>
+              </div>
+            </div>
+
+            {/* Recipient Mobile */}
+            <div className="space-y-1">
+              <label className="font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                <span>Recipient Mobile Number (10 digits)</span>
+                <span className="text-[10px] text-slate-400">e.g. 9876543210</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-mono font-bold">+91</span>
+                <Input
+                  type="text"
+                  value={testSmsMobile}
+                  onChange={(e) => setTestSmsMobile(e.target.value)}
+                  placeholder="Enter 10-digit mobile number"
+                  className="pl-12 text-xs font-mono h-9"
+                  maxLength={12}
+                />
+              </div>
+            </div>
+
+            {/* DLT Template Selector */}
+            <div className="space-y-1">
+              <label className="font-semibold text-slate-700 dark:text-slate-300">
+                Select DLT Approved Template
+              </label>
+              <Select
+                value={testSmsTemplate}
+                onValueChange={(val: any) => {
+                  setTestSmsTemplate(val);
+                  if (val === 'PRESSURE_LOW') setTestSmsValue('0.15');
+                  if (val === 'CHLORINE_HIGH') setTestSmsValue('0.65');
+                  if (val === 'CHLORINE_LOW') setTestSmsValue('0.10');
+                  if (val === 'LPCD_LOW') setTestSmsValue('38');
+                }}
+              >
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder="Select template" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PRESSURE_LOW">
+                    Pressure Low (&lt; 0.2 bar) — ID: 1077305300036737013
+                  </SelectItem>
+                  <SelectItem value="CHLORINE_HIGH">
+                    Residual Chlorine High (&gt; 0.5 mg/l) — ID: 1077159330036594383
+                  </SelectItem>
+                  <SelectItem value="CHLORINE_LOW">
+                    Residual Chlorine Low (&lt; 0.2 mg/l) — ID: 1077438200031589278
+                  </SelectItem>
+                  <SelectItem value="LPCD_LOW">
+                    LPCD Low (&lt; 55 LPCD) — ID: 1077387830035602945
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Dynamic Template Variables */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700 dark:text-slate-300">
+                  Scheme Name / ID ({'{#var#}'} 1)
+                </label>
+                <Input
+                  type="text"
+                  value={testSmsScheme}
+                  onChange={(e) => setTestSmsScheme(e.target.value)}
+                  placeholder="e.g. 7940695"
+                  className="text-xs h-9"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700 dark:text-slate-300">
+                  Sensor Value ({'{#var#}'} 2)
+                </label>
+                <Input
+                  type="text"
+                  value={testSmsValue}
+                  onChange={(e) => setTestSmsValue(e.target.value)}
+                  placeholder={testSmsTemplate === 'PRESSURE_LOW' ? '0.15' : testSmsTemplate === 'LPCD_LOW' ? '38' : '0.10'}
+                  className="text-xs h-9 font-mono"
+                />
+              </div>
+            </div>
+
+            {/* Live Rendered Template Preview */}
+            <div className="space-y-1">
+              <label className="font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                <span>Exact DLT SMS Text Preview (Marathi)</span>
+                <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" /> Approved DLT Template
+                </span>
+              </label>
+              <div className="p-3 rounded-lg bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 text-xs text-slate-800 dark:text-slate-200 leading-relaxed font-sans">
+                {testSmsTemplate === 'PRESSURE_LOW' && (
+                  <>सूचना: JJM MVS <strong className="text-purple-700 dark:text-purple-300">{testSmsScheme || '{scheme}'}</strong> अंतर्गत ESR-1 च्या वितरण व्यवस्थेतील Pressure Sensor नुसार पाण्याचा दाब 0.2 bar पेक्षा कमी असून सध्याचा दाब <strong className="text-purple-700 dark:text-purple-300">{testSmsValue || '0.15'}</strong> bar इतका आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा</>
+                )}
+                {testSmsTemplate === 'CHLORINE_HIGH' && (
+                  <>सूचना: JJM MVS <strong className="text-purple-700 dark:text-purple-300">{testSmsScheme || '{scheme}'}</strong> अंतर्गत ESR-1 मध्ये Residual Chlorine ची मात्रा 0.5 mg/l पेक्षा जास्त असून सध्याची मात्रा <strong className="text-purple-700 dark:text-purple-300">{testSmsValue || '0.65'}</strong> mg/l इतकी आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा</>
+                )}
+                {testSmsTemplate === 'CHLORINE_LOW' && (
+                  <>सूचना: JJM MVS <strong className="text-purple-700 dark:text-purple-300">{testSmsScheme || '{scheme}'}</strong> अंतर्गत ESR-1 मध्ये Residual Chlorine ची मात्रा 0.2 mg/l पेक्षा कमी असून सध्याची मात्रा <strong className="text-purple-700 dark:text-purple-300">{testSmsValue || '0.10'}</strong> mg/l इतकी आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा</>
+                )}
+                {testSmsTemplate === 'LPCD_LOW' && (
+                  <>सूचना: JJM MVS <strong className="text-purple-700 dark:text-purple-300">{testSmsScheme || '{scheme}'}</strong> अंतर्गत पाणीपुरवठ्याचा दर 55 LPCD पेक्षा कमी असून सध्याचा पाणीपुरवठ्याचा दर <strong className="text-purple-700 dark:text-purple-300">{testSmsValue || '38'}</strong> LPCD आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा</>
+                )}
+              </div>
+            </div>
+
+            {/* Test Result Display */}
+            {testSmsResult && (
+              <div className={`p-3 rounded-xl border text-xs space-y-1.5 ${testSmsResult.success ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-300 text-emerald-900 dark:text-emerald-200' : 'bg-red-50 dark:bg-red-950/30 border-red-300 text-red-900 dark:text-red-200'}`}>
+                <div className="flex items-center gap-2 font-bold">
+                  {testSmsResult.success ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> : <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />}
+                  <span>{testSmsResult.success ? 'Gateway Dispatched Successfully' : 'Gateway Returned Response'}</span>
+                </div>
+                {testSmsResult.gatewayStatus !== undefined && (
+                  <div className="font-medium">
+                    HTTP Gateway Status: <span className="font-mono font-bold px-1.5 py-0.5 rounded bg-white/70 dark:bg-black/40">{testSmsResult.gatewayStatus}</span>
+                  </div>
+                )}
+                {testSmsResult.gatewayResponse && (
+                  <div className="font-mono text-[11px] bg-white/80 dark:bg-black/50 p-2.5 rounded border break-all leading-normal">
+                    {testSmsResult.gatewayResponse}
+                  </div>
+                )}
+                {testSmsResult.error && (
+                  <div className="text-[11px] text-red-700 dark:text-red-300 font-medium">{testSmsResult.error}</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
+            <span className="text-xs text-slate-500">
+              Triggers POST /api/admin/engineers/test-sms
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setTestSmsOpen(false)}
+                className="text-xs"
+              >
+                Close
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSendTestSms}
+                disabled={isTestingSms || !testSmsMobile}
+                className="bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold"
+              >
+                {isTestingSms ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    Sending via Server...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-3.5 h-3.5 mr-1.5" />
+                    Send Test SMS
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

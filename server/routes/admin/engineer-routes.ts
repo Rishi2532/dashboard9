@@ -3,6 +3,7 @@ import { getDB } from "../../db";
 import { users, schemeEngineerDetails } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
+import { DLT_TEMPLATES, sendSmartpingDLTSMS } from "../../services/sms-service";
 
 const router = Router();
 
@@ -580,6 +581,44 @@ router.get("/hierarchy", async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error("Error fetching engineer hierarchy:", error);
     res.status(500).json({ success: false, message: "Failed to fetch engineer hierarchy data" });
+  }
+});
+
+/**
+ * POST /api/admin/engineers/test-sms
+ * Allows admin to trigger a test DLT SMS to verify server gateway connectivity
+ */
+router.post("/test-sms", async (req: Request, res: Response) => {
+  try {
+    const { mobile, templateType = "PRESSURE_LOW", scheme = "7940695", value = "0.15" } = req.body;
+    if (!mobile) {
+      return res.status(400).json({ success: false, message: "Mobile number is required" });
+    }
+
+    const template = DLT_TEMPLATES[templateType as keyof typeof DLT_TEMPLATES] || DLT_TEMPLATES.PRESSURE_LOW;
+    const messageText = template.render(scheme, value);
+
+    const result = await sendSmartpingDLTSMS({
+      mobile,
+      text: messageText,
+      dltContentId: template.contentId,
+    });
+
+    res.json({
+      success: result.success,
+      gatewayStatus: result.status,
+      gatewayResponse: result.response,
+      error: result.error,
+      payload: {
+        mobile,
+        templateName: template.name,
+        templateId: template.contentId,
+        messageText,
+      },
+    });
+  } catch (err: any) {
+    console.error("Error sending test SMS:", err);
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
