@@ -24,6 +24,7 @@ const SMARTPING_CONFIG = {
   username: process.env.SMARTPING_API_USERNAME || "CSTECH.trans",
   password: process.env.SMARTPING_API_PASSWORD || "Cyfuture@12345",
   senderId: process.env.SMARTPING_SENDER_ID || "MJPIOT",
+  headerId: process.env.SMARTPING_HEADER_ID || "1005041138203274315",
   peId: process.env.SMARTPING_PE_ID || "1001861588684954918",
 };
 
@@ -98,6 +99,9 @@ export async function sendSmartpingDLTSMS(params: {
     from: SMARTPING_CONFIG.senderId,
     to: formattedMobile,
     text: params.text,
+    unicode: "1",
+    coding: "3",
+    dltHeaderId: SMARTPING_CONFIG.headerId,
     dltContentId: params.dltContentId,
     dltPrincipalEntityId: params.dltPrincipalEntityId || SMARTPING_CONFIG.peId,
   });
