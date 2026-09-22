@@ -140,9 +140,31 @@ export async function sendSmartpingDLTSMS(params: {
 }
 
 /**
+ * Formats a clean scheme identifier for SMS combining scheme name and village name
+ */
+export function formatSchemeIdentifier(alert: Alert): string {
+  const schemeName =
+    alert.scheme_name && alert.scheme_name !== "N/A"
+      ? alert.scheme_name.trim()
+      : alert.scheme_id && alert.scheme_id !== "N/A"
+      ? alert.scheme_id.trim()
+      : "MVS Scheme";
+
+  const villageName =
+    alert.village_name && alert.village_name !== "N/A"
+      ? alert.village_name.trim()
+      : "";
+
+  if (villageName && !schemeName.toLowerCase().includes(villageName.toLowerCase())) {
+    return `${schemeName} (${villageName})`;
+  }
+
+  return schemeName;
+}
+
+/**
  * Sends a daily summary SMS to engineers detailing issues detected across schemes.
- * Uses DLT-approved templates for pressure and chlorine where applicable,
- * or dispatches formatted summary alert.
+ * Uses DLT-approved templates for pressure, chlorine, and LPCD.
  */
 export async function sendDailyAlertSMS(mobile: string, name: string, alerts: Alert[]): Promise<boolean> {
   if (!mobile || alerts.length === 0) return false;
@@ -156,7 +178,7 @@ export async function sendDailyAlertSMS(mobile: string, name: string, alerts: Al
 
     // If pressure issue present, dispatch DLT Pressure Low template
     if (pressureAlert) {
-      const schemeVal = pressureAlert.scheme_name || pressureAlert.scheme_id || "MVS Scheme";
+      const schemeVal = formatSchemeIdentifier(pressureAlert);
       const pVal = pressureAlert.pressure_value || "0.15";
       const messageText = DLT_TEMPLATES.PRESSURE_LOW.render(schemeVal, pVal);
 
@@ -173,7 +195,7 @@ export async function sendDailyAlertSMS(mobile: string, name: string, alerts: Al
 
     // If chlorine issue present, dispatch DLT Chlorine template
     if (chlorineAlert) {
-      const schemeVal = chlorineAlert.scheme_name || chlorineAlert.scheme_id || "MVS Scheme";
+      const schemeVal = formatSchemeIdentifier(chlorineAlert);
       const cVal = parseFloat(String(chlorineAlert.chlorine_value || "0.1"));
       const isHigh = cVal > 0.5;
       const tmpl = isHigh ? DLT_TEMPLATES.CHLORINE_HIGH : DLT_TEMPLATES.CHLORINE_LOW;
@@ -193,7 +215,7 @@ export async function sendDailyAlertSMS(mobile: string, name: string, alerts: Al
     // If LPCD issue present (< 55 LPCD), dispatch DLT LPCD Low template
     const lpcdAlert = alerts.find((a) => a.lpcd_issue);
     if (lpcdAlert) {
-      const schemeVal = lpcdAlert.scheme_name || lpcdAlert.scheme_id || "MVS Scheme";
+      const schemeVal = formatSchemeIdentifier(lpcdAlert);
       const lVal = lpcdAlert.lpcd_value || "38";
       const messageText = DLT_TEMPLATES.LPCD_LOW.render(schemeVal, lVal);
 
