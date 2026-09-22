@@ -140,7 +140,7 @@ export async function sendSmartpingDLTSMS(params: {
 }
 
 /**
- * Formats a clean scheme identifier for SMS combining scheme name and village name
+ * Formats a clean scheme identifier for SMS combining scheme name, village name, and ESR name
  */
 export function formatSchemeIdentifier(alert: Alert): string {
   const schemeName =
@@ -155,8 +155,25 @@ export function formatSchemeIdentifier(alert: Alert): string {
       ? alert.village_name.trim()
       : "";
 
+  const esrName =
+    alert.esr_name && alert.esr_name !== "N/A"
+      ? alert.esr_name.trim()
+      : "";
+
+  const details: string[] = [];
   if (villageName && !schemeName.toLowerCase().includes(villageName.toLowerCase())) {
-    return `${schemeName} (${villageName})`;
+    details.push(villageName);
+  }
+  if (
+    esrName &&
+    !schemeName.toLowerCase().includes(esrName.toLowerCase()) &&
+    !villageName.toLowerCase().includes(esrName.toLowerCase())
+  ) {
+    details.push(esrName);
+  }
+
+  if (details.length > 0) {
+    return `${schemeName} (${details.join(" - ")})`;
   }
 
   return schemeName;
