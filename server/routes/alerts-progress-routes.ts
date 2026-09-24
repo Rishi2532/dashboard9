@@ -16,6 +16,41 @@ router.use((req: any, res: any, next: any) => {
   next();
 });
 
+/**
+ * GET /api/alerts-progress/total-engineers
+ * Returns the total count of unique engineers assigned in scheme_engineer_details
+ */
+router.get('/total-engineers', async (req, res) => {
+  try {
+    const client = await pool.connect();
+    try {
+      const q = `
+        SELECT COUNT(DISTINCT LOWER(TRIM(name)))::int as total
+        FROM (
+          SELECT chief_engineer_name as name FROM scheme_engineer_details WHERE chief_engineer_name IS NOT NULL AND TRIM(chief_engineer_name) != ''
+          UNION
+          SELECT se_name as name FROM scheme_engineer_details WHERE se_name IS NOT NULL AND TRIM(se_name) != ''
+          UNION
+          SELECT ee_civil_name as name FROM scheme_engineer_details WHERE ee_civil_name IS NOT NULL AND TRIM(ee_civil_name) != ''
+          UNION
+          SELECT ee_mech_name as name FROM scheme_engineer_details WHERE ee_mech_name IS NOT NULL AND TRIM(ee_mech_name) != ''
+          UNION
+          SELECT de_ae_civil_name as name FROM scheme_engineer_details WHERE de_ae_civil_name IS NOT NULL AND TRIM(de_ae_civil_name) != ''
+          UNION
+          SELECT de_ae_mech_name as name FROM scheme_engineer_details WHERE de_ae_mech_name IS NOT NULL AND TRIM(de_ae_mech_name) != ''
+        ) sub
+      `;
+      const result = await client.query(q);
+      res.json({ totalEngineers: result.rows[0]?.total || 0 });
+    } finally {
+      client.release();
+    }
+  } catch (err: any) {
+    console.error('Error fetching total engineers count:', err);
+    res.status(500).json({ error: 'Failed to fetch total engineers' });
+  }
+});
+
 router.get('/lpcd', async (req, res) => {
   try {
     const requestedDate = req.query.date as string;
@@ -762,7 +797,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
             ORDER BY w.region, w.scheme_name, w.village_name
           `;
           const { rows } = await client.query(lpcdQuery, queryParams);
-          const sheet = workbook.addWorksheet('LPCD Alerts');
+          const sheet = workbook.addWorksheet('Village LPCD Alerts');
           const cols = [
             { header: 'Sr No.', key: 'sr_no', width: 8 },
             { header: 'Scheme ID', key: 'scheme_id', width: 14 },
@@ -784,7 +819,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
             { header: 'Superintending Engineer', key: 'se', width: 32 },
             { header: 'Chief Engineer', key: 'ce', width: 32 },
           ];
-          styleSheet(sheet, `LPCD Alerts Summary - ${titleSuffix}`, cols);
+          styleSheet(sheet, `Village LPCD Alerts Summary (Villages < 55 LPCD) - ${titleSuffix}`, cols);
           rows.forEach((row: any, idx: number) => {
             const ack = getAckDetails(row.acknowledgements);
             const remark = getRemarkText(row.remarks);
@@ -908,14 +943,14 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
             ORDER BY c.region, c.scheme_name, c.village_name, c.esr_name
           `;
           const { rows } = await client.query(chlorineQuery, queryParams);
-          const sheet = workbook.addWorksheet('Chlorine Alerts');
+          const sheet = workbook.addWorksheet('Chlorine Sensor Alerts');
           const cols = [
             { header: 'Sr No.', key: 'sr_no', width: 8 },
             { header: 'Scheme ID', key: 'scheme_id', width: 14 },
             { header: 'Scheme Name', key: 'scheme_name', width: 28 },
             { header: 'Region', key: 'region', width: 16 },
             { header: 'Village Name', key: 'village_name', width: 22 },
-            { header: 'ESR Name', key: 'esr_name', width: 22 },
+            { header: 'ESR Name / Sensor Location', key: 'esr_name', width: 24 },
             { header: 'Current Chlorine (mg/L)', key: 'current_value', width: 22 },
             { header: 'Previous Day (mg/L)', key: 'previous_value', width: 20 },
             { header: 'Alert Status', key: 'ack_status', width: 16 },
@@ -931,7 +966,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
             { header: 'Superintending Engineer', key: 'se', width: 32 },
             { header: 'Chief Engineer', key: 'ce', width: 32 },
           ];
-          styleSheet(sheet, `Chlorine Residual Alerts Summary - ${titleSuffix}`, cols);
+          styleSheet(sheet, `Chlorine Sensor Alerts Summary (Sensors outside 0.20-0.50 mg/L) - ${titleSuffix}`, cols);
           rows.forEach((row: any, idx: number) => {
             const ack = getAckDetails(row.acknowledgements);
             const remark = getRemarkText(row.remarks);
@@ -1056,14 +1091,14 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
             ORDER BY p.region, p.scheme_name, p.village_name, p.esr_name
           `;
           const { rows } = await client.query(pressureQuery, queryParams);
-          const sheet = workbook.addWorksheet('Pressure Alerts');
+          const sheet = workbook.addWorksheet('Pressure Sensor Alerts');
           const cols = [
             { header: 'Sr No.', key: 'sr_no', width: 8 },
             { header: 'Scheme ID', key: 'scheme_id', width: 14 },
             { header: 'Scheme Name', key: 'scheme_name', width: 28 },
             { header: 'Region', key: 'region', width: 16 },
             { header: 'Village Name', key: 'village_name', width: 22 },
-            { header: 'ESR Name', key: 'esr_name', width: 22 },
+            { header: 'ESR Name / Sensor Location', key: 'esr_name', width: 24 },
             { header: 'Current Pressure (bar)', key: 'current_value', width: 22 },
             { header: 'Previous Day (bar)', key: 'previous_value', width: 20 },
             { header: 'Alert Status', key: 'ack_status', width: 16 },
@@ -1079,7 +1114,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
             { header: 'Superintending Engineer', key: 'se', width: 32 },
             { header: 'Chief Engineer', key: 'ce', width: 32 },
           ];
-          styleSheet(sheet, `Pressure Alerts Summary - ${titleSuffix}`, cols);
+          styleSheet(sheet, `Pressure Sensor Alerts Summary (Sensors outside 0.20-0.70 Bar) - ${titleSuffix}`, cols);
           rows.forEach((row: any, idx: number) => {
             const ack = getAckDetails(row.acknowledgements);
             const remark = getRemarkText(row.remarks);
@@ -1177,7 +1212,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
             ORDER BY c.region, c.scheme_name, c.village_name;
           `;
           const { rows } = await client.query(offlineQuery);
-          const sheet = workbook.addWorksheet('Offline Sensors');
+          const sheet = workbook.addWorksheet('Offline Sensor Alerts');
           const cols = [
             { header: 'Sr No.', key: 'sr_no', width: 8 },
             { header: 'Scheme ID', key: 'scheme_id', width: 14 },
@@ -1202,7 +1237,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
             { header: 'Chief Engineer', key: 'ce', width: 32 },
             { header: 'Assigned Vendor / Engineer', key: 'vendor', width: 32 },
           ];
-          styleSheet(sheet, `Offline Devices & Communication - ${titleSuffix}`, cols);
+          styleSheet(sheet, `Offline Sensor Alerts Summary (Communication Blackout) - ${titleSuffix}`, cols);
           rows.forEach((row: any, idx: number) => {
             const offlineList: string[] = [];
             if (row.chlorine_status === 'Offline') offlineList.push('Chlorine');
