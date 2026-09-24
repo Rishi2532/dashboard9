@@ -34,6 +34,7 @@ import {
   Layers,
   MapPin,
   Phone,
+  Smartphone,
   Mail,
   ShieldCheck,
   UserCheck,
@@ -158,6 +159,8 @@ interface SchemesSummaryResponse {
   activeAlertsCount: number;
   totalAlertsCount: number;
   recentLogins?: LoginRecord[];
+  smsAlertsCount?: number;
+  recentSmsAlerts?: any[];
 }
 
 // --- Top-Level Pure Helper Functions (outside component to prevent any TDZ or reference order errors) ---
@@ -333,6 +336,9 @@ export default function EngineerDashboard() {
 
   // Login logs modal state
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+
+  // SMS alert logs modal state
+  const [isSmsModalOpen, setIsSmsModalOpen] = useState(false);
 
   // Fetch summary data for assigned schemes
   const { data, isLoading, isRefetching, refetch } = useQuery<SchemesSummaryResponse>({
@@ -697,6 +703,15 @@ export default function EngineerDashboard() {
             </div>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsSmsModalOpen(true)}
+                className="bg-white/10 hover:bg-white/20 text-white border-white/20 shadow-sm"
+              >
+                <Smartphone className="w-4 h-4 mr-2 text-indigo-300" />
+                SMS Alerts ({data?.smsAlertsCount ?? data?.recentSmsAlerts?.length ?? 0})
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -1447,6 +1462,13 @@ export default function EngineerDashboard() {
                       {pendingAlertsToAck.length} Pending Acknowledgment
                     </Badge>
                   )}
+                  <Badge 
+                    onClick={() => setIsSmsModalOpen(true)}
+                    className="bg-indigo-500/30 hover:bg-indigo-500/50 text-indigo-200 border-indigo-400/40 text-[11px] font-bold px-2 py-0.5 cursor-pointer transition-colors flex items-center gap-1"
+                  >
+                    <Smartphone className="w-3 h-3 text-indigo-300" />
+                    {data?.smsAlertsCount ?? data?.recentSmsAlerts?.length ?? 0} SMS Sent
+                  </Badge>
                 </div>
                 <p className="text-xs text-slate-300 mt-0.5">
                   Real-time telemetry incidents requiring field verification and restoration
@@ -1859,6 +1881,87 @@ export default function EngineerDashboard() {
                 <div className="py-8 text-center text-xs text-slate-400">
                   <Clock className="w-6 h-6 mx-auto mb-1 opacity-50" />
                   No prior login records found.
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* SMS Alerts Dispatched to Officer Dialog Modal */}
+        <Dialog open={isSmsModalOpen} onOpenChange={setIsSmsModalOpen}>
+          <DialogContent className="max-w-xl sm:max-w-2xl p-0 overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl">
+            <DialogHeader className="p-4 pb-3 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-between gap-2 pr-6">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900">
+                    <Smartphone className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-base font-bold text-slate-900 dark:text-white">
+                      SMS Alerts Dispatched to Officer
+                    </DialogTitle>
+                    <DialogDescription className="text-xs text-slate-500">
+                      DLT-compliant SMS alerts transmitted to registered mobile: {engineerProfile?.phone || user?.phone || "Registered Mobile"}
+                    </DialogDescription>
+                  </div>
+                </div>
+                <Badge className="bg-indigo-50 text-indigo-700 border-indigo-300 dark:bg-indigo-950 dark:text-indigo-300 text-[10px] font-semibold flex items-center gap-1 px-2 py-0.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600" />
+                  Gateway Active
+                </Badge>
+              </div>
+            </DialogHeader>
+
+            <div className="p-4 space-y-3 max-h-[60vh] overflow-y-auto">
+              {data?.recentSmsAlerts && data.recentSmsAlerts.length > 0 ? (
+                data.recentSmsAlerts.map((sms: any, idx: number) => {
+                  return (
+                    <div
+                      key={sms.id || idx}
+                      className="p-3.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 text-xs space-y-1.5"
+                    >
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900 dark:text-white text-xs">
+                            {sms.template_name || "Daily Alert Dispatch"}
+                          </span>
+                          {sms.scheme_name && (
+                            <Badge variant="outline" className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                              {sms.scheme_name}
+                            </Badge>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-slate-500 font-mono">
+                          {formatLoginTime(sms.created_at || sms.sent_date)}
+                        </span>
+                      </div>
+
+                      <p className="text-slate-700 dark:text-slate-300 text-[11.5px] leading-relaxed bg-white dark:bg-slate-900/60 p-2 rounded border border-slate-100 dark:border-slate-800/60">
+                        {sms.message_text || "SMS alert delivered to registered mobile."}
+                      </p>
+
+                      <div className="flex items-center justify-between gap-2 text-[10px] text-slate-500 pt-1">
+                        <span className="font-mono">
+                          Mobile: {sms.mobile}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          {sms.template_id && (
+                            <span className="font-mono text-[9px] text-slate-400">
+                              DLT ID: {sms.template_id}
+                            </span>
+                          )}
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                            Delivered
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="py-8 text-center text-xs text-slate-400">
+                  <Smartphone className="w-8 h-8 mx-auto mb-2 opacity-40 text-slate-400" />
+                  No SMS alert dispatches recorded for your mobile/schemes yet.
                 </div>
               )}
             </div>

@@ -317,11 +317,12 @@ export async function runDailyAlertsJob() {
             .filter(m => m.length >= 10);
         };
 
-        const addEngineerMobiles = (mobiles: string[], name: string) => {
+        const addEngineerMobiles = (mobiles: string[], name: string, email?: string) => {
           mobiles.forEach(mobile => {
             if (!smsToSend[mobile]) {
               smsToSend[mobile] = {
                 name,
+                email,
                 alerts: [],
               };
             }
@@ -330,28 +331,30 @@ export async function runDailyAlertsJob() {
         };
 
         // EE (Civil) Mobile
-        addEngineerMobiles(sanitizeMobiles(engineer.ee_civil_mobile), engineer.ee_civil_name || "EE (Civil)");
+        addEngineerMobiles(sanitizeMobiles(engineer.ee_civil_mobile), engineer.ee_civil_name || "EE (Civil)", engineer.ee_civil_email);
 
         // EE (Mech) Mobile
-        addEngineerMobiles(sanitizeMobiles(engineer.ee_mech_mobile), engineer.ee_mech_name || "EE (Mech)");
+        addEngineerMobiles(sanitizeMobiles(engineer.ee_mech_mobile), engineer.ee_mech_name || "EE (Mech)", engineer.ee_mech_email);
 
         // DE/AE (Civil) Mobile
         addEngineerMobiles(
           sanitizeMobiles(engineer.de_ae_civil_mobile || engineer.civil_engineer_mobile),
-          engineer.de_ae_civil_name || engineer.civil_engineer_name || "DE/AE (Civil)"
+          engineer.de_ae_civil_name || engineer.civil_engineer_name || "DE/AE (Civil)",
+          engineer.de_ae_civil_email || engineer.civil_engineer_email
         );
 
         // DE/AE (Mech) Mobile
         addEngineerMobiles(
           sanitizeMobiles(engineer.de_ae_mech_mobile || engineer.site_supervisor_mobile || engineer.mechanical_engineer_mobile),
-          engineer.de_ae_mech_name || engineer.site_supervisor_name || engineer.mechanical_engineer_name || "DE/AE (Mech)"
+          engineer.de_ae_mech_name || engineer.site_supervisor_name || engineer.mechanical_engineer_name || "DE/AE (Mech)",
+          engineer.de_ae_mech_email || engineer.site_supervisor_email || engineer.mechanical_engineer_email
         );
 
         // SE Mobile
-        addEngineerMobiles(sanitizeMobiles(engineer.se_mobile), engineer.se_name || "Superintending Engineer (SE)");
+        addEngineerMobiles(sanitizeMobiles(engineer.se_mobile), engineer.se_name || "Superintending Engineer (SE)", engineer.se_email);
 
         // Chief Engineer Mobile
-        addEngineerMobiles(sanitizeMobiles(engineer.chief_engineer_mobile), engineer.chief_engineer_name || "Chief Engineer");
+        addEngineerMobiles(sanitizeMobiles(engineer.chief_engineer_mobile), engineer.chief_engineer_name || "Chief Engineer", engineer.chief_engineer_email);
 
         // Build emailAlertLogs entries for each issue in this scheme
         schemeAlerts.forEach((alert) => {
@@ -583,7 +586,7 @@ export async function runDailyAlertsJob() {
     if (mobiles.length > 0) {
       console.log(`📱 Preparing to send ${mobiles.length} alert SMS messages...`);
       for (const mobile of mobiles) {
-        const { name, alerts } = smsToSend[mobile];
+        const { name, email, alerts } = smsToSend[mobile];
 
         // Deduplicate alerts
         const uniqueAlertsMap = new Map();
@@ -594,7 +597,7 @@ export async function runDailyAlertsJob() {
         const uniqueAlerts = Array.from(uniqueAlertsMap.values());
 
         try {
-          await sendDailyAlertSMS(mobile, name, uniqueAlerts);
+          await sendDailyAlertSMS(mobile, name, uniqueAlerts, email);
         } catch (err) {
           console.error(`❌ Failed to send alert SMS to ${mobile}:`, err);
         }

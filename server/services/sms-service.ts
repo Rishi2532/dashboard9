@@ -1,3 +1,6 @@
+import { getDB } from "../db";
+import { sql } from "drizzle-orm";
+
 /**
  * Service for sending automatic SMS alerts via Smartping (Cyfuture CPaaS) Gateway.
  * Fully configured with Airtel DLT Approved Templates and Headers.
@@ -93,17 +96,19 @@ export async function sendSmartpingDLTSMS(params: {
     return { success: false, error: "Invalid mobile number format" };
   }
 
+  // Detect non-ASCII/Unicode characters (e.g. Marathi/Devanagari script)
+  // Smartping gateway requires unicode=1 for all regional/Unicode messages
+  const isUnicode = /[^\u0000-\u007F]/.test(params.text);
+
   const queryParams = new URLSearchParams({
     username: SMARTPING_CONFIG.username,
     password: SMARTPING_CONFIG.password,
     from: SMARTPING_CONFIG.senderId,
     to: formattedMobile,
     text: params.text,
-    unicode: "1",
-    coding: "3",
-    dltHeaderId: SMARTPING_CONFIG.headerId,
     dltContentId: params.dltContentId,
     dltPrincipalEntityId: params.dltPrincipalEntityId || SMARTPING_CONFIG.peId,
+    unicode: isUnicode ? "1" : "0",
   });
 
   const requestUrl = `${SMARTPING_CONFIG.apiUrl}?${queryParams.toString()}`;
@@ -125,17 +130,82 @@ export async function sendSmartpingDLTSMS(params: {
     const bodyText = await res.text();
 
     if (res.ok) {
-      console.log(`✅ Smartping SMS delivered to ${formattedMobile} (Template: ${params.dltContentId})`);
+      console.log(`✅ Smartping SMS delivered to ${formattedMobile} (Template: ${params.dltContentId}): ${bodyText}`);
       return { success: true, status: res.status, response: bodyText };
     } else {
       console.warn(
-        `⚠️ Smartping SMS gateway returned HTTP ${res.status} for ${formattedMobile}. (Note: Ensure the sending server IP is whitelisted in Smartping Portal at https://pggui.smartping.ai/app)`
+        `⚠️ Smartping SMS gateway returned HTTP ${res.status} for ${formattedMobile}: ${bodyText}`
       );
       return { success: false, status: res.status, response: bodyText };
     }
   } catch (error: any) {
     console.error(`❌ Smartping SMS network error for ${formattedMobile}:`, error.message);
     return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Logs an SMS alert dispatch into the sms_alert_logs database table
+ */
+export async function logSmsAlert(data: {
+  mobile: string;
+  engineer_name?: string;
+  engineer_email?: string;
+  scheme_id?: string;
+  scheme_name?: string;
+  template_id?: string;
+  template_name?: string;
+  message_text?: string;
+  gateway_status?: number;
+  gateway_response?: string;
+  is_success?: boolean;
+}) {
+  try {
+    const db = await getDB();
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS sms_alert_logs (
+        id SERIAL PRIMARY KEY,
+        mobile VARCHAR(30) NOT NULL,
+        engineer_name VARCHAR(255),
+        engineer_email VARCHAR(255),
+        scheme_id VARCHAR(100),
+        scheme_name VARCHAR(255),
+        template_id VARCHAR(50),
+        template_name VARCHAR(100),
+        message_text TEXT,
+        gateway_status INTEGER,
+        gateway_response TEXT,
+        is_success BOOLEAN DEFAULT TRUE,
+        sent_date DATE DEFAULT CURRENT_DATE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_sms_alert_logs_mobile ON sms_alert_logs(mobile);
+      CREATE INDEX IF NOT EXISTS idx_sms_alert_logs_scheme ON sms_alert_logs(scheme_id);
+      CREATE INDEX IF NOT EXISTS idx_sms_alert_logs_created ON sms_alert_logs(created_at);
+    `);
+
+    const cleanMobile = normalizeIndianMobile(data.mobile) || data.mobile;
+    await db.execute(sql`
+      INSERT INTO sms_alert_logs (
+        mobile, engineer_name, engineer_email, scheme_id, scheme_name,
+        template_id, template_name, message_text, gateway_status, gateway_response, is_success, sent_date
+      ) VALUES (
+        ${cleanMobile},
+        ${data.engineer_name || null},
+        ${data.engineer_email || null},
+        ${data.scheme_id || null},
+        ${data.scheme_name || null},
+        ${data.template_id || null},
+        ${data.template_name || null},
+        ${data.message_text || null},
+        ${data.gateway_status || null},
+        ${data.gateway_response || null},
+        ${data.is_success !== undefined ? data.is_success : true},
+        CURRENT_DATE
+      )
+    `);
+  } catch (err: any) {
+    console.warn("Could not log SMS alert to database:", err.message);
   }
 }
 
@@ -183,7 +253,7 @@ export function formatSchemeIdentifier(alert: Alert): string {
  * Sends a daily summary SMS to engineers detailing issues detected across schemes.
  * Uses DLT-approved templates for pressure, chlorine, and LPCD.
  */
-export async function sendDailyAlertSMS(mobile: string, name: string, alerts: Alert[]): Promise<boolean> {
+export async function sendDailyAlertSMS(mobile: string, name: string, alerts: Alert[], email?: string): Promise<boolean> {
   if (!mobile || alerts.length === 0) return false;
 
   try {
@@ -208,6 +278,20 @@ export async function sendDailyAlertSMS(mobile: string, name: string, alerts: Al
       if (res.success) {
         dltDispatched = true;
       }
+
+      await logSmsAlert({
+        mobile,
+        engineer_name: name,
+        engineer_email: email,
+        scheme_id: pressureAlert.scheme_id,
+        scheme_name: pressureAlert.scheme_name,
+        template_id: DLT_TEMPLATES.PRESSURE_LOW.contentId,
+        template_name: DLT_TEMPLATES.PRESSURE_LOW.name,
+        message_text: messageText,
+        gateway_status: res.status,
+        gateway_response: res.response,
+        is_success: res.success,
+      });
     }
 
     // If chlorine issue present, dispatch DLT Chlorine template
@@ -227,6 +311,20 @@ export async function sendDailyAlertSMS(mobile: string, name: string, alerts: Al
       if (res.success) {
         dltDispatched = true;
       }
+
+      await logSmsAlert({
+        mobile,
+        engineer_name: name,
+        engineer_email: email,
+        scheme_id: chlorineAlert.scheme_id,
+        scheme_name: chlorineAlert.scheme_name,
+        template_id: tmpl.contentId,
+        template_name: tmpl.name,
+        message_text: messageText,
+        gateway_status: res.status,
+        gateway_response: res.response,
+        is_success: res.success,
+      });
     }
 
     // If LPCD issue present (< 55 LPCD), dispatch DLT LPCD Low template
@@ -245,6 +343,20 @@ export async function sendDailyAlertSMS(mobile: string, name: string, alerts: Al
       if (res.success) {
         dltDispatched = true;
       }
+
+      await logSmsAlert({
+        mobile,
+        engineer_name: name,
+        engineer_email: email,
+        scheme_id: lpcdAlert.scheme_id,
+        scheme_name: lpcdAlert.scheme_name,
+        template_id: DLT_TEMPLATES.LPCD_LOW.contentId,
+        template_name: DLT_TEMPLATES.LPCD_LOW.name,
+        message_text: messageText,
+        gateway_status: res.status,
+        gateway_response: res.response,
+        is_success: res.success,
+      });
     }
 
     // Console logging audit for monitoring

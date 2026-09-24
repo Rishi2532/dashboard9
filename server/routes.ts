@@ -1287,6 +1287,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const user = await storage.getUser(req.session.userId);
       const userEmail = (user?.email || req.session.engineerProfile?.email || '').trim().toLowerCase();
+      const userPhone = (user?.phone || req.session.engineerProfile?.phone || '').replace(/\D/g, "").slice(-10);
+      const userName = (user?.name || req.session.engineerProfile?.name || '').trim();
 
       const db = await getDB();
 
@@ -1706,6 +1708,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Fetch recent SMS alert dispatches and total count for this engineer
+      let recentSmsAlerts: any[] = [];
+      let smsAlertsCount = 0;
+      try {
+        await db.execute(sql`
+          CREATE TABLE IF NOT EXISTS sms_alert_logs (
+            id SERIAL PRIMARY KEY,
+            mobile VARCHAR(30) NOT NULL,
+            engineer_name VARCHAR(255),
+            engineer_email VARCHAR(255),
+            scheme_id VARCHAR(100),
+            scheme_name VARCHAR(255),
+            template_id VARCHAR(50),
+            template_name VARCHAR(100),
+            message_text TEXT,
+            gateway_status INTEGER,
+            gateway_response TEXT,
+            is_success BOOLEAN DEFAULT TRUE,
+            sent_date DATE DEFAULT CURRENT_DATE,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+          );
+        `);
+
+        const smsRes: any = await db.execute(sql`
+          SELECT id, mobile, engineer_name, engineer_email, scheme_id, scheme_name,
+                 template_id, template_name, message_text, gateway_status, is_success, sent_date, created_at
+          FROM sms_alert_logs
+          WHERE (
+            (${sql.raw(userPhone ? `RIGHT(REGEXP_REPLACE(mobile, '\\D', '', 'g'), 10) = '${userPhone}'` : `false`)})
+            OR (${sql.raw(userEmail ? `LOWER(TRIM(engineer_email)) = '${userEmail}'` : `false`)})
+            OR (${sql.raw(userName ? `LOWER(TRIM(engineer_name)) = '${userName.toLowerCase()}'` : `false`)})
+            OR (scheme_id IN (${sql.raw(idPlaceholders)}))
+          )
+          ORDER BY created_at DESC
+          LIMIT 50
+        `);
+        recentSmsAlerts = smsRes.rows || smsRes || [];
+        smsAlertsCount = recentSmsAlerts.length;
+      } catch (smsErr) {
+        console.warn("Could not fetch engineer SMS alert logs:", smsErr);
+      }
+
       res.json({
         schemes: schemeSummaries,
         totalSchemes: schemeSummaries.length,
@@ -1733,6 +1777,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         activeAlertsCount: totalActiveAlerts,
         totalAlertsCount,
         recentLogins,
+        smsAlertsCount,
+        recentSmsAlerts,
       });
     } catch (error) {
       console.error("Error fetching engineer schemes summary:", error);

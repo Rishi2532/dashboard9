@@ -79,7 +79,7 @@ interface LoginSession {
 
 interface ActionItem {
   id: string;
-  type: 'alert_acknowledged' | 'issue_resolved' | 'issue_reported' | 'user_activity';
+  type: 'alert_acknowledged' | 'issue_resolved' | 'issue_reported' | 'user_activity' | 'sms_sent';
   category: string;
   title: string;
   description: string;
@@ -106,6 +106,7 @@ interface EngineerHierarchyItem {
   alerts_sent_count: number;
   alerts_acknowledged_count: number;
   acknowledgement_rate: number;
+  sms_sent_count: number;
   total_logins_recorded: number;
   last_login_at: string | null;
   last_30_logins: LoginSession[];
@@ -124,6 +125,7 @@ interface HierarchyResponse {
     registered_count: number;
     total_alerts_sent: number;
     total_alerts_acknowledged: number;
+    total_sms_sent: number;
     total_actions_taken: number;
   };
   engineers: EngineerHierarchyItem[];
@@ -484,7 +486,7 @@ export default function EngineersHierarchyPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-4">
         {/* Top KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
           <Card className="shadow-sm border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -556,6 +558,26 @@ export default function EngineersHierarchyPage() {
                     : '0% rate'}
                 </span>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-sm border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">SMS Dispatched</p>
+                  <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">
+                    {kpis?.total_sms_sent ?? '—'}
+                  </p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 flex items-center justify-center font-bold">
+                  <Smartphone className="w-5 h-5" />
+                </div>
+              </div>
+              <p className="mt-3 text-[11px] text-slate-500 flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5 text-indigo-500" />
+                DLT-compliant alert dispatches
+              </p>
             </CardContent>
           </Card>
 
@@ -870,10 +892,14 @@ export default function EngineersHierarchyPage() {
                               </div>
                             </div>
 
-                            {/* Schemes count badge */}
-                            <div className="flex items-center gap-2">
+                            {/* Schemes count and SMS badge */}
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-semibold">
                                 {eng.schemes_count} {eng.schemes_count === 1 ? 'Scheme' : 'Schemes'} Assigned
+                              </span>
+                              <span className="px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[11px] font-semibold flex items-center gap-1 border border-indigo-200 dark:border-indigo-800">
+                                <Smartphone className="w-3 h-3 text-indigo-500" />
+                                {eng.sms_sent_count ?? 0} SMS Dispatched
                               </span>
                             </div>
 
@@ -943,6 +969,7 @@ export default function EngineersHierarchyPage() {
                     <TableHead>Email & Phone</TableHead>
                     <TableHead>Region & Jurisdiction</TableHead>
                     <TableHead className="text-center">Alerts Sent</TableHead>
+                    <TableHead className="text-center">SMS Sent</TableHead>
                     <TableHead className="text-center">Total Logins</TableHead>
                     <TableHead className="text-center">Actions Taken</TableHead>
                     <TableHead className="text-right">Inspection</TableHead>
@@ -1014,6 +1041,12 @@ export default function EngineersHierarchyPage() {
                       <TableCell className="text-center">
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
                           {eng.alerts_sent_count} ({eng.alerts_acknowledged_count} ack)
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                          <Smartphone className="w-3 h-3 text-indigo-500" />
+                          {eng.sms_sent_count ?? 0}
                         </span>
                       </TableCell>
                       <TableCell className="text-center">
@@ -1210,7 +1243,7 @@ export default function EngineersHierarchyPage() {
             </div>
 
             {/* Filter Pills inside Action Modal */}
-            <div className="flex items-center gap-1.5 pt-3">
+            <div className="flex items-center gap-1.5 pt-3 flex-wrap">
               <Button
                 variant={actionCategoryFilter === 'ALL' ? 'default' : 'outline'}
                 size="sm"
@@ -1226,6 +1259,14 @@ export default function EngineersHierarchyPage() {
                 className="h-7 text-[11px] px-2.5 text-blue-700 dark:text-blue-400"
               >
                 Alert Acks ({selectedActionsEngineer?.actions_taken.filter((a) => a.type === 'alert_acknowledged').length || 0})
+              </Button>
+              <Button
+                variant={actionCategoryFilter === 'sms_sent' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActionCategoryFilter('sms_sent')}
+                className="h-7 text-[11px] px-2.5 text-indigo-700 dark:text-indigo-400"
+              >
+                SMS Dispatched ({selectedActionsEngineer?.actions_taken.filter((a) => a.type === 'sms_sent').length || 0})
               </Button>
               <Button
                 variant={actionCategoryFilter === 'issue_resolved' ? 'default' : 'outline'}
@@ -1245,7 +1286,7 @@ export default function EngineersHierarchyPage() {
                 <FileText className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
                 <h4 className="text-base font-bold text-slate-700 dark:text-slate-300">No Actions Recorded</h4>
                 <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-                  No alert acknowledgements or issue resolutions are recorded in the audit log for this engineer yet.
+                  No alert acknowledgements, SMS dispatches, or issue resolutions are recorded in the audit log for this engineer yet.
                 </p>
               </div>
             ) : (
@@ -1260,6 +1301,8 @@ export default function EngineersHierarchyPage() {
                           className={`absolute -left-[17px] top-0 w-8 h-8 rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center text-white ${
                             action.type === 'alert_acknowledged'
                               ? 'bg-blue-600'
+                              : action.type === 'sms_sent'
+                              ? 'bg-indigo-600'
                               : action.type === 'issue_resolved'
                               ? 'bg-emerald-600'
                               : action.type === 'issue_reported'
@@ -1268,6 +1311,7 @@ export default function EngineersHierarchyPage() {
                           }`}
                         >
                           {action.type === 'alert_acknowledged' && <CheckCircle2 className="w-4 h-4" />}
+                          {action.type === 'sms_sent' && <Smartphone className="w-4 h-4" />}
                           {action.type === 'issue_resolved' && <Check className="w-4 h-4" />}
                           {action.type === 'issue_reported' && <AlertTriangle className="w-4 h-4" />}
                           {action.type === 'user_activity' && <Activity className="w-4 h-4" />}
@@ -1291,6 +1335,16 @@ export default function EngineersHierarchyPage() {
                           {/* Meta pill badges */}
                           {action.meta && (
                             <div className="mt-2.5 flex items-center gap-1.5 flex-wrap text-[10px]">
+                              {action.meta.mobile && (
+                                <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-mono font-bold">
+                                  Mobile: {action.meta.mobile}
+                                </span>
+                              )}
+                              {action.meta.template_name && (
+                                <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                  {action.meta.template_name}
+                                </span>
+                              )}
                               {action.meta.ticket_id && (
                                 <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-mono font-bold">
                                   Ticket #{action.meta.ticket_id}

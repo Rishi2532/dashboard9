@@ -1511,6 +1511,32 @@ export const insertEmailDeliveryFailureSchema = createInsertSchema(emailDelivery
 export type InsertEmailDeliveryFailure = z.infer<typeof insertEmailDeliveryFailureSchema>;
 export type EmailDeliveryFailure = typeof emailDeliveryFailures.$inferSelect;
 
+// SMS Alert Logs table
+export const smsAlertLogs = pgTable("sms_alert_logs", {
+  id: serial("id").primaryKey(),
+  mobile: varchar("mobile", { length: 30 }).notNull(),
+  engineer_name: varchar("engineer_name", { length: 255 }),
+  engineer_email: varchar("engineer_email", { length: 255 }),
+  scheme_id: varchar("scheme_id", { length: 100 }),
+  scheme_name: varchar("scheme_name", { length: 255 }),
+  template_id: varchar("template_id", { length: 50 }),
+  template_name: varchar("template_name", { length: 100 }),
+  message_text: text("message_text"),
+  gateway_status: integer("gateway_status"),
+  gateway_response: text("gateway_response"),
+  is_success: boolean("is_success").default(true),
+  sent_date: date("sent_date").defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const insertSmsAlertLogSchema = createInsertSchema(smsAlertLogs).omit({
+  id: true,
+  created_at: true,
+});
+
+export type InsertSmsAlertLog = z.infer<typeof insertSmsAlertLogSchema>;
+export type SmsAlertLog = typeof smsAlertLogs.$inferSelect;
+
 // Real-time Sensor Data table for instant tracking
 export const realtimeSensorData = pgTable(
   "realtime_sensor_data",

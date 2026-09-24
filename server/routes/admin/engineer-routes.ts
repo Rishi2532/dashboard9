@@ -255,6 +255,37 @@ router.get("/hierarchy", async (req: Request, res: Response) => {
       // Table might not exist or be empty
     }
 
+    // 7. Fetch sms_alert_logs
+    let allSmsLogs: any[] = [];
+    try {
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS sms_alert_logs (
+          id SERIAL PRIMARY KEY,
+          mobile VARCHAR(30) NOT NULL,
+          engineer_name VARCHAR(255),
+          engineer_email VARCHAR(255),
+          scheme_id VARCHAR(100),
+          scheme_name VARCHAR(255),
+          template_id VARCHAR(50),
+          template_name VARCHAR(100),
+          message_text TEXT,
+          gateway_status INTEGER,
+          gateway_response TEXT,
+          is_success BOOLEAN DEFAULT TRUE,
+          sent_date DATE DEFAULT CURRENT_DATE,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+      `);
+      const smsRes = await db.execute(sql`
+        SELECT id, mobile, engineer_name, engineer_email, scheme_id, scheme_name, template_id, template_name, message_text, gateway_status, gateway_response, is_success, sent_date, created_at
+        FROM sms_alert_logs
+        ORDER BY created_at DESC
+      `);
+      allSmsLogs = smsRes.rows as any[];
+    } catch (e: any) {
+      console.warn("Could not query sms_alert_logs:", e.message);
+    }
+
     // Pre-group logins by user_id and username
     const loginsByUserId = new Map<number, any[]>();
     const loginsByUsername = new Map<string, any[]>();
@@ -294,6 +325,30 @@ router.get("/hierarchy", async (req: Request, res: Response) => {
       }
     }
 
+    // Pre-group SMS logs by mobile (last 10 digits), email, and name
+    const smsByMobile = new Map<string, any[]>();
+    const smsByEmail = new Map<string, any[]>();
+    const smsByName = new Map<string, any[]>();
+    for (const sms of allSmsLogs) {
+      if (sms.mobile) {
+        const mKey = sms.mobile.replace(/\D/g, "").slice(-10);
+        if (mKey) {
+          if (!smsByMobile.has(mKey)) smsByMobile.set(mKey, []);
+          smsByMobile.get(mKey)!.push(sms);
+        }
+      }
+      if (sms.engineer_email) {
+        const eKey = sms.engineer_email.trim().toLowerCase();
+        if (!smsByEmail.has(eKey)) smsByEmail.set(eKey, []);
+        smsByEmail.get(eKey)!.push(sms);
+      }
+      if (sms.engineer_name) {
+        const nKey = sms.engineer_name.trim().toLowerCase();
+        if (!smsByName.has(nKey)) smsByName.set(nKey, []);
+        smsByName.get(nKey)!.push(sms);
+      }
+    }
+
     // Pre-group issues by created_by and creator_name
     const issuesByUserId = new Map<number, any[]>();
     const issuesByCreatorName = new Map<string, any[]>();
@@ -324,7 +379,7 @@ router.get("/hierarchy", async (req: Request, res: Response) => {
       }
     }
 
-    // Build the directory of engineers from scheme_engineer_details
+    // Build the directory of engineers strictly from scheme_engineer_details
     const roleFields = [
       { rank: 1, level: "CE" as const, title: "Chief Engineer (CE)", n: "chief_engineer_name", e: "chief_engineer_email", p: "chief_engineer_mobile" },
       { rank: 2, level: "SE" as const, title: "Superintending Engineer (SE)", n: "se_name", e: "se_email", p: "se_mobile" },
@@ -334,13 +389,14 @@ router.get("/hierarchy", async (req: Request, res: Response) => {
       { rank: 4, level: "DE/AE" as const, title: "Deputy / Assistant Engineer (DE/AE Mech)", n: "de_ae_mech_name", e: "de_ae_mech_email", p: "de_ae_mech_mobile" },
     ];
 
+    const cleanStr = (s: any) => (s ? String(s).replace(/^\uFEFF/, "").trim() : "");
     const directoryMap = new Map<string, any>();
 
     for (const row of schemesRes.rows as any[]) {
       for (const r of roleFields) {
-        const name = (row[r.n] || "").trim();
-        const email = (row[r.e] || "").trim().toLowerCase();
-        const phone = (row[r.p] || "").trim();
+        const name = cleanStr(row[r.n]);
+        const email = cleanStr(row[r.e]).toLowerCase();
+        const phone = cleanStr(row[r.p]);
 
         if (name || email) {
           const key = name ? `${r.rank}::${name.toLowerCase()}` : `${r.rank}::${email}`;
@@ -362,23 +418,21 @@ router.get("/hierarchy", async (req: Request, res: Response) => {
           const item = directoryMap.get(key);
           if (email && !item.email) item.email = email;
           if (phone && !item.phone) item.phone = phone;
-          if (row.region) item.regions.add(row.region.trim());
-          if (row.district) item.districts.add(row.district.trim());
-          if (row.division) item.divisions.add(row.division.trim());
-          if (row.scheme) item.schemes.add(row.scheme.trim());
+          if (row.region) item.regions.add(cleanStr(row.region));
+          if (row.district) item.districts.add(cleanStr(row.district));
+          if (row.division) item.divisions.add(cleanStr(row.division));
+          if (row.scheme) item.schemes.add(cleanStr(row.scheme));
         }
       }
     }
 
-    // Match or incorporate registered users from users table
+    // Match registered users strictly against engineers existing in directoryMap
+    // Do NOT inject phantom user records that are not in scheme_engineer_details!
     for (const u of allUsers) {
-      const tier = determineTier(u.username + " " + (u.name || ""), u.role);
-      if (!tier) continue;
+      const email = cleanStr(u.email).toLowerCase();
+      const name = cleanStr(u.name);
+      const phone = cleanStr(u.phone).replace(/\D/g, "").slice(-10);
 
-      const email = (u.email || "").trim().toLowerCase();
-      const name = (u.name || "").trim();
-
-      // Find match in existing directoryMap by name or email
       let matchedItem: any = null;
       for (const item of directoryMap.values()) {
         if (name && item.name && item.name.toLowerCase() === name.toLowerCase()) {
@@ -386,6 +440,10 @@ router.get("/hierarchy", async (req: Request, res: Response) => {
           break;
         }
         if (email && item.email && item.email.toLowerCase() === email) {
+          matchedItem = item;
+          break;
+        }
+        if (phone && item.phone && item.phone.replace(/\D/g, "").slice(-10) === phone) {
           matchedItem = item;
           break;
         }
@@ -397,31 +455,14 @@ router.get("/hierarchy", async (req: Request, res: Response) => {
         matchedItem.is_registered = true;
         if (!matchedItem.email && email) matchedItem.email = email;
         if (!matchedItem.phone && u.phone) matchedItem.phone = u.phone;
-      } else {
-        const key = name ? `${tier.rank}::${name.toLowerCase()}` : `${tier.rank}::${u.username.toLowerCase()}`;
-        directoryMap.set(key, {
-          key,
-          rank: tier.rank,
-          level: tier.level,
-          position_title: tier.title,
-          name: name || u.username,
-          email,
-          phone: u.phone || "",
-          user_id: u.id,
-          username: u.username,
-          is_registered: true,
-          regions: new Set(),
-          districts: new Set(),
-          divisions: new Set(),
-          schemes: new Set(),
-        });
       }
     }
 
-    // Process logins, alerts, and actions taken for each engineer
+    // Process logins, alerts, SMS, and actions taken for each engineer
     const engineers = Array.from(directoryMap.values()).map((eng: any) => {
       const emailKey = (eng.email || "").trim().toLowerCase();
       const nameKey = (eng.name || "").trim().toLowerCase();
+      const phoneKey = (eng.phone || "").replace(/\D/g, "").slice(-10);
 
       // 1. Logins
       let logins: any[] = [];
@@ -444,7 +485,16 @@ router.get("/hierarchy", async (req: Request, res: Response) => {
       const alertsAcknowledgedCount = ackedList.length;
       const ackRate = alertsSentCount > 0 ? Math.round((alertsAcknowledgedCount / alertsSentCount) * 100) : 0;
 
-      // 3. Actions Taken timeline
+      // 3. SMS Dispatches
+      const matchedSms = [
+        ...(phoneKey && smsByMobile.has(phoneKey) ? smsByMobile.get(phoneKey)! : []),
+        ...(emailKey && smsByEmail.has(emailKey) ? smsByEmail.get(emailKey)! : []),
+        ...(nameKey && smsByName.has(nameKey) ? smsByName.get(nameKey)! : []),
+      ];
+      const uniqueSms = Array.from(new Map(matchedSms.map((s: any) => [s.id, s])).values());
+      const smsSentCount = uniqueSms.length;
+
+      // 4. Actions Taken timeline
       const actions: any[] = [];
 
       // Alert acknowledgements
@@ -461,6 +511,28 @@ router.get("/hierarchy", async (req: Request, res: Response) => {
             scheme_id: ack.scheme_id,
             alert_type: ack.alert_type,
             esr_name: ack.esr_name,
+          },
+        });
+      }
+
+      // SMS Alerts Dispatched
+      for (const sms of uniqueSms) {
+        actions.push({
+          id: `sms-${sms.id}`,
+          type: "sms_sent",
+          category: "SMS Dispatched",
+          title: `SMS: ${sms.template_name || "Daily Alert Dispatch"}`,
+          description: `Dispatched to ${sms.mobile}${sms.scheme_name ? ` for Scheme: ${sms.scheme_name}` : ""}. Message: ${sms.message_text || ""}`,
+          timestamp: sms.created_at || sms.sent_date,
+          meta: {
+            sms_id: sms.id,
+            mobile: sms.mobile,
+            scheme_id: sms.scheme_id,
+            scheme_name: sms.scheme_name,
+            template_name: sms.template_name,
+            template_id: sms.template_id,
+            status: sms.gateway_status,
+            is_success: sms.is_success,
           },
         });
       }
@@ -546,6 +618,7 @@ router.get("/hierarchy", async (req: Request, res: Response) => {
         alerts_sent_count: alertsSentCount,
         alerts_acknowledged_count: alertsAcknowledgedCount,
         acknowledgement_rate: ackRate,
+        sms_sent_count: smsSentCount,
         total_logins_recorded: logins.length,
         last_login_at: lastLogin,
         last_30_logins: logins,
@@ -570,6 +643,7 @@ router.get("/hierarchy", async (req: Request, res: Response) => {
       registered_count: engineers.filter((e) => e.is_registered).length,
       total_alerts_sent: engineers.reduce((acc, e) => acc + e.alerts_sent_count, 0),
       total_alerts_acknowledged: engineers.reduce((acc, e) => acc + e.alerts_acknowledged_count, 0),
+      total_sms_sent: engineers.reduce((acc, e) => acc + (e.sms_sent_count || 0), 0),
       total_actions_taken: engineers.reduce((acc, e) => acc + e.actions_count, 0),
     };
 
