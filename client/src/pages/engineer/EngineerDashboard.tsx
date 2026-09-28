@@ -340,10 +340,11 @@ export default function EngineerDashboard() {
   // SMS alert logs modal state
   const [isSmsModalOpen, setIsSmsModalOpen] = useState(false);
 
-  // Fetch summary data for assigned schemes
+  // Fetch summary data for assigned schemes (scoped to current user, no stale cache overlap)
   const { data, isLoading, isRefetching, refetch } = useQuery<SchemesSummaryResponse>({
-    queryKey: ["/api/engineer/schemes-summary"],
+    queryKey: ["/api/engineer/schemes-summary", user?.id || user?.username || "current"],
     refetchInterval: 60000, // Auto-refresh every minute
+    staleTime: 0,
   });
 
   const schemes = data?.schemes || [];

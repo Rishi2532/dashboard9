@@ -46,6 +46,7 @@ import {
   AlertCircle,
   RefreshCw,
   Layers,
+  Send,
 } from 'lucide-react';
 
 interface EngineerUser {
@@ -97,6 +98,11 @@ export default function EngineerManager() {
 
   // Delete Modal State
   const [deletingEngineer, setDeletingEngineer] = useState<EngineerUser | null>(null);
+
+  // Credentials Email Sending State
+  const [sendingCredsId, setSendingCredsId] = useState<number | null>(null);
+  const [isBulkSending, setIsBulkSending] = useState(false);
+  const [showBulkSendConfirm, setShowBulkSendConfirm] = useState(false);
 
   // Active view tab inside manager
   const [viewSection, setViewSection] = useState<'registered' | 'roster'>('registered');
@@ -290,6 +296,65 @@ export default function EngineerManager() {
         description: err.message || 'Could not delete engineer',
         variant: 'destructive',
       });
+    },
+  });
+
+  // Send Single Engineer Credentials via Private Email
+  const sendCredentialsMutation = useMutation({
+    mutationFn: async (id: number) => {
+      setSendingCredsId(id);
+      const res = await fetch(`/api/admin/engineers/${id}/send-credentials`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to email credentials');
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: '✅ Credentials Emailed',
+        description: data.message,
+      });
+    },
+    onError: (err: any) => {
+      toast({
+        title: 'Delivery Failed',
+        description: err.message,
+        variant: 'destructive',
+      });
+    },
+    onSettled: () => {
+      setSendingCredsId(null);
+    },
+  });
+
+  // Send Bulk Credentials via Private Email to All Registered Engineers
+  const sendAllCredentialsMutation = useMutation({
+    mutationFn: async () => {
+      setIsBulkSending(true);
+      const res = await fetch('/api/admin/engineers/send-all-credentials', {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to send credentials');
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: '🎉 Batch Dispatch Complete',
+        description: data.message,
+      });
+      setShowBulkSendConfirm(false);
+    },
+    onError: (err: any) => {
+      toast({
+        title: 'Batch Dispatch Failed',
+        description: err.message,
+        variant: 'destructive',
+      });
+    },
+    onSettled: () => {
+      setIsBulkSending(false);
     },
   });
 
@@ -556,6 +621,28 @@ export default function EngineerManager() {
             </div>
 
             <div className="flex items-center gap-2">
+              {viewSection === 'registered' && engineersList.length > 0 && (
+                <Button
+                  size="sm"
+                  onClick={() => setShowBulkSendConfirm(true)}
+                  disabled={isBulkSending}
+                  className="h-8 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm flex items-center gap-1.5"
+                  title="Send individual private credentials email to all registered engineers"
+                >
+                  {isBulkSending ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      Dispatching...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-3.5 h-3.5" />
+                      Email All Credentials ({engineersList.length})
+                    </>
+                  )}
+                </Button>
+              )}
+
               <div className="relative w-64">
                 <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
                 <Input
@@ -655,6 +742,22 @@ export default function EngineerManager() {
 
                         <TableCell className="py-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={sendingCredsId === eng.id}
+                              onClick={() => sendCredentialsMutation.mutate(eng.id)}
+                              className="h-7 px-2 text-xs text-emerald-600 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
+                              title={`Send private login credentials to ${eng.email}`}
+                            >
+                              {sendingCredsId === eng.id ? (
+                                <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                              ) : (
+                                <Send className="w-3 h-3 mr-1" />
+                              )}
+                              Email Login
+                            </Button>
+
                             <Button
                               size="sm"
                               variant="outline"
@@ -950,6 +1053,63 @@ export default function EngineerManager() {
               className="h-8 text-xs bg-rose-600 hover:bg-rose-700 text-white"
             >
               {deleteMutation.isPending ? 'Deleting...' : 'Confirm Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Send Credentials Confirmation Dialog Modal */}
+      <Dialog open={showBulkSendConfirm} onOpenChange={setShowBulkSendConfirm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Send className="w-4 h-4 text-emerald-600" />
+              Email Credentials to All Registered Engineers?
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-600 pt-2 space-y-2">
+              <p>
+                This action will send an <strong>individual, private email</strong> to all{' '}
+                <strong>{engineersList.length} registered field engineers</strong>.
+              </p>
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-md p-2.5 text-[11px] leading-relaxed">
+                🔒 <strong>Zero Cross-Exposure Guarantee:</strong> Each engineer will receive only their own
+                personal Username and Password. Nobody else's credentials will be exposed.
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Emails are dispatched one-by-one with a 1.2-second pause to prevent mail server throttling.
+              </p>
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="pt-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isBulkSending}
+              onClick={() => setShowBulkSendConfirm(false)}
+              className="h-8 text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={isBulkSending}
+              onClick={() => sendAllCredentialsMutation.mutate()}
+              className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+            >
+              {isBulkSending ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                  Dispatching Emails...
+                </>
+              ) : (
+                <>
+                  <Send className="w-3.5 h-3.5 mr-1.5" />
+                  Confirm & Send to All ({engineersList.length})
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

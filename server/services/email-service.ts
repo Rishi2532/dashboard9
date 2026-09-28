@@ -1064,4 +1064,88 @@ export async function sendBatchOfflineReminderEmail(
   });
 }
 
+/**
+ * Send individual, private login credentials to an engineer.
+ * Contains only their own User ID (username) and Password.
+ */
+export async function sendEngineerCredentialsEmail(params: {
+  toEmail: string;
+  engineerName: string;
+  username: string;
+  password?: string;
+  assignedSchemesCount?: number;
+}): Promise<boolean> {
+  const rawBaseUrl = process.env.APP_BASE_URL || "https://dashboard1.mahajaliot.in/";
+  const baseUrl = rawBaseUrl.endsWith("/") ? rawBaseUrl : `${rawBaseUrl}/`;
+  const loginUrl = `${baseUrl}engineer-login`;
+  const subject = `Your MahaJal IoT Portal Login Credentials - ${params.engineerName}`;
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);">
+      <div style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: white; padding: 24px 20px; text-align: center;">
+        <h1 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px;">Jal Jeevan Mission (JJM) Maharashtra</h1>
+        <p style="margin: 5px 0 0 0; opacity: 0.9; font-size: 13.5px;">MahaJal IoT Monitoring Platform — Field Engineer Portal</p>
+      </div>
+
+      <div style="padding: 26px; background-color: #ffffff;">
+        <h2 style="color: #0f172a; margin-top: 0; font-size: 17px;">Dear ${params.engineerName || "Engineer"},</h2>
+        <p style="color: #334155; font-size: 14px; line-height: 1.6; margin-bottom: 18px;">
+          Your official field engineer account has been activated on the Maharashtra Rural Water Supply & Sanitation IoT Monitoring Dashboard.
+        </p>
+
+        <div style="background-color: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 18px 20px; margin: 20px 0;">
+          <h3 style="margin-top: 0; margin-bottom: 12px; color: #1e3a8a; font-size: 15px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+            🔐 Confidential Login Credentials
+          </h3>
+          <table style="width: 100%; border-collapse: collapse; font-size: 13.5px;">
+            <tr>
+              <td style="padding: 8px 0; color: #64748b; width: 140px;"><strong>Portal URL:</strong></td>
+              <td style="padding: 8px 0;"><a href="${loginUrl}" style="color: #2563eb; text-decoration: underline; font-weight: 600;" target="_blank">${loginUrl}</a></td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #64748b;"><strong>Username / Login ID:</strong></td>
+              <td style="padding: 8px 0;"><code style="background-color: #e2e8f0; color: #0f172a; padding: 3px 8px; border-radius: 4px; font-size: 14px; font-weight: 700; font-family: monospace;">${params.username}</code></td>
+            </tr>
+            ${params.password ? `
+            <tr>
+              <td style="padding: 8px 0; color: #64748b;"><strong>Password:</strong></td>
+              <td style="padding: 8px 0;"><code style="background-color: #fef3c7; color: #92400e; padding: 3px 8px; border-radius: 4px; font-size: 14px; font-weight: 700; font-family: monospace;">${params.password}</code></td>
+            </tr>` : ''}
+            ${typeof params.assignedSchemesCount === 'number' && params.assignedSchemesCount > 0 ? `
+            <tr>
+              <td style="padding: 8px 0; color: #64748b;"><strong>Assigned Schemes:</strong></td>
+              <td style="padding: 8px 0; color: #059669; font-weight: 600;">${params.assignedSchemesCount} Scheme(s) in your jurisdiction</td>
+            </tr>` : ''}
+          </table>
+        </div>
+
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${loginUrl}" style="background-color: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 26px; border-radius: 6px; font-size: 14px; font-weight: 700; display: inline-block; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);" target="_blank">
+            👉 Click Here to Log In to Engineer Portal
+          </a>
+        </div>
+
+        <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; border-radius: 4px; padding: 12px 14px; margin: 20px 0; font-size: 12px; color: #991b1b; line-height: 1.5;">
+          <strong>Security Notice:</strong>
+          <br>
+          • Please keep your login credentials strictly confidential and do not forward this email.
+          • Upon logging in, you will have access to real-time telemetry, LPCD compliance, chlorine levels, water pressure, and offline sensor tickets for your assigned schemes.
+        </div>
+
+        <p style="color: #64748b; font-size: 12px; margin-top: 22px; border-top: 1px solid #e2e8f0; padding-top: 14px; line-height: 1.4;">
+          This is an official automated dispatch from the MahaJal IoT Platform, Water Supply and Sanitation Department, Government of Maharashtra.
+        </p>
+      </div>
+    </div>
+  `;
+
+  return sendEmail({
+    to: params.toEmail,
+    from: "Maharashtra Water Portal",
+    subject,
+    html,
+  });
+}
+
+
 

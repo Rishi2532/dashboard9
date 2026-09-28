@@ -136,53 +136,53 @@ router.post('/', async (req: Request, res: Response) => {
 
     const cleanEsr = (esr_name && esr_name !== '-' && esr_name !== 'null') ? String(esr_name).trim() : null;
 
-    // Check if row already exists for THIS specific alert FOR THIS ENGINEER
+    // Check if row already exists for THIS specific alert
     let checkRes;
     if (parsedAlertId) {
       checkRes = await client.query(
-        `SELECT id, acknowledged_at FROM email_acknowledgements WHERE alert_id = $1 AND LOWER(TRIM(engineer_email)) = $2`,
-        [parsedAlertId, email]
+        `SELECT id, acknowledged_at FROM email_acknowledgements WHERE alert_id = $1`,
+        [parsedAlertId]
       );
     }
     if ((!checkRes || checkRes.rows.length === 0) && ticket_id) {
       checkRes = await client.query(
-        `SELECT id, acknowledged_at FROM email_acknowledgements WHERE ticket_id = $1 AND LOWER(TRIM(engineer_email)) = $2`,
-        [ticket_id, email]
+        `SELECT id, acknowledged_at FROM email_acknowledgements WHERE ticket_id = $1`,
+        [ticket_id]
       );
     }
     if (!checkRes || checkRes.rows.length === 0) {
       if (cleanEsr) {
         checkRes = await client.query(
           `SELECT id, acknowledged_at FROM email_acknowledgements 
-           WHERE LOWER(TRIM(engineer_email)) = $1 AND scheme_id = $2 
+           WHERE scheme_id = $1 
              AND (
-               alert_type = $3 
-               OR (alert_type IN ('Pressure', 'Low Pressure') AND $3 IN ('Pressure', 'Low Pressure'))
-               OR (alert_type IN ('LPCD', 'Low LPCD') AND $3 IN ('LPCD', 'Low LPCD'))
-               OR (alert_type IN ('Chlorine', 'Low Chlorine', 'High Chlorine') AND $3 IN ('Chlorine', 'Low Chlorine', 'High Chlorine'))
+               alert_type = $2 
+               OR (alert_type IN ('Pressure', 'Low Pressure') AND $2 IN ('Pressure', 'Low Pressure'))
+               OR (alert_type IN ('LPCD', 'Low LPCD') AND $2 IN ('LPCD', 'Low LPCD'))
+               OR (alert_type IN ('Chlorine', 'Low Chlorine', 'High Chlorine') AND $2 IN ('Chlorine', 'Low Chlorine', 'High Chlorine'))
              )
-             AND sent_date = $4 AND TRIM(esr_name) = $5`,
-          [email, scheme_id, alert_type, date, cleanEsr]
+             AND sent_date = $3 AND TRIM(esr_name) = $4`,
+          [scheme_id, alert_type, date, cleanEsr]
         );
       } else {
         checkRes = await client.query(
           `SELECT id, acknowledged_at FROM email_acknowledgements 
-           WHERE LOWER(TRIM(engineer_email)) = $1 AND scheme_id = $2 
+           WHERE scheme_id = $1 
              AND (
-               alert_type = $3 
-               OR (alert_type IN ('Pressure', 'Low Pressure') AND $3 IN ('Pressure', 'Low Pressure'))
-               OR (alert_type IN ('LPCD', 'Low LPCD') AND $3 IN ('LPCD', 'Low LPCD'))
-               OR (alert_type IN ('Chlorine', 'Low Chlorine', 'High Chlorine') AND $3 IN ('Chlorine', 'Low Chlorine', 'High Chlorine'))
+               alert_type = $2 
+               OR (alert_type IN ('Pressure', 'Low Pressure') AND $2 IN ('Pressure', 'Low Pressure'))
+               OR (alert_type IN ('LPCD', 'Low LPCD') AND $2 IN ('LPCD', 'Low LPCD'))
+               OR (alert_type IN ('Chlorine', 'Low Chlorine', 'High Chlorine') AND $2 IN ('Chlorine', 'Low Chlorine', 'High Chlorine'))
              )
-             AND sent_date = $4 AND (esr_name IS NULL OR TRIM(esr_name) = '' OR TRIM(esr_name) = '-')`,
-          [email, scheme_id, alert_type, date]
+             AND sent_date = $3 AND (esr_name IS NULL OR TRIM(esr_name) = '' OR TRIM(esr_name) = '-')`,
+          [scheme_id, alert_type, date]
         );
       }
     }
 
     let ackTime: Date;
     if (checkRes && checkRes.rows.length > 0) {
-      const ackRowId = checkRes.rows[0].id;
+      const ackRowIds = checkRes.rows.map((r: any) => r.id);
       const updateRes = await client.query(
         `UPDATE email_acknowledgements 
          SET acknowledged_at = NOW(), 
@@ -191,9 +191,9 @@ router.post('/', async (req: Request, res: Response) => {
              alert_id = COALESCE($3, alert_id),
              ticket_id = COALESCE($4, ticket_id),
              esr_name = COALESCE($5, esr_name)
-         WHERE id = $6
+         WHERE id = ANY($6::int[])
          RETURNING acknowledged_at`,
-        [name, email, parsedAlertId, ticket_id || null, cleanEsr, ackRowId]
+        [name, email, parsedAlertId, ticket_id || null, cleanEsr, ackRowIds]
       );
       ackTime = updateRes.rows[0]?.acknowledged_at || new Date();
     } else {
@@ -258,47 +258,48 @@ router.post('/batch', async (req: Request, res: Response) => {
       let checkRes;
       if (parsedAlertId) {
         checkRes = await client.query(
-          `SELECT id FROM email_acknowledgements WHERE alert_id = $1 AND LOWER(TRIM(engineer_email)) = $2`,
-          [parsedAlertId, email]
+          `SELECT id FROM email_acknowledgements WHERE alert_id = $1`,
+          [parsedAlertId]
         );
       }
       if ((!checkRes || checkRes.rows.length === 0) && ticket_id) {
         checkRes = await client.query(
-          `SELECT id FROM email_acknowledgements WHERE ticket_id = $1 AND LOWER(TRIM(engineer_email)) = $2`,
-          [ticket_id, email]
+          `SELECT id FROM email_acknowledgements WHERE ticket_id = $1`,
+          [ticket_id]
         );
       }
       if (!checkRes || checkRes.rows.length === 0) {
         if (cleanEsr) {
           checkRes = await client.query(
             `SELECT id FROM email_acknowledgements 
-             WHERE LOWER(TRIM(engineer_email)) = $1 AND scheme_id = $2 
+             WHERE scheme_id = $1 
                AND (
-                 alert_type = $3 
-                 OR (alert_type IN ('Pressure', 'Low Pressure') AND $3 IN ('Pressure', 'Low Pressure'))
-                 OR (alert_type IN ('LPCD', 'Low LPCD') AND $3 IN ('LPCD', 'Low LPCD'))
-                 OR (alert_type IN ('Chlorine', 'Low Chlorine', 'High Chlorine') AND $3 IN ('Chlorine', 'Low Chlorine', 'High Chlorine'))
+                 alert_type = $2 
+                 OR (alert_type IN ('Pressure', 'Low Pressure') AND $2 IN ('Pressure', 'Low Pressure'))
+                 OR (alert_type IN ('LPCD', 'Low LPCD') AND $2 IN ('LPCD', 'Low LPCD'))
+                 OR (alert_type IN ('Chlorine', 'Low Chlorine', 'High Chlorine') AND $2 IN ('Chlorine', 'Low Chlorine', 'High Chlorine'))
                )
-               AND sent_date = $4 AND TRIM(esr_name) = $5`,
-            [email, scheme_id, alert_type, date, cleanEsr]
+               AND sent_date = $3 AND TRIM(esr_name) = $4`,
+            [scheme_id, alert_type, date, cleanEsr]
           );
         } else {
           checkRes = await client.query(
             `SELECT id FROM email_acknowledgements 
-             WHERE LOWER(TRIM(engineer_email)) = $1 AND scheme_id = $2 
+             WHERE scheme_id = $1 
                AND (
-                 alert_type = $3 
-                 OR (alert_type IN ('Pressure', 'Low Pressure') AND $3 IN ('Pressure', 'Low Pressure'))
-                 OR (alert_type IN ('LPCD', 'Low LPCD') AND $3 IN ('LPCD', 'Low LPCD'))
-                 OR (alert_type IN ('Chlorine', 'Low Chlorine', 'High Chlorine') AND $3 IN ('Chlorine', 'Low Chlorine', 'High Chlorine'))
+                 alert_type = $2 
+                 OR (alert_type IN ('Pressure', 'Low Pressure') AND $2 IN ('Pressure', 'Low Pressure'))
+                 OR (alert_type IN ('LPCD', 'Low LPCD') AND $2 IN ('LPCD', 'Low LPCD'))
+                 OR (alert_type IN ('Chlorine', 'Low Chlorine', 'High Chlorine') AND $2 IN ('Chlorine', 'Low Chlorine', 'High Chlorine'))
                )
-               AND sent_date = $4 AND (esr_name IS NULL OR TRIM(esr_name) = '' OR TRIM(esr_name) = '-')`,
-            [email, scheme_id, alert_type, date]
+               AND sent_date = $3 AND (esr_name IS NULL OR TRIM(esr_name) = '' OR TRIM(esr_name) = '-')`,
+            [scheme_id, alert_type, date]
           );
         }
       }
 
       if (checkRes && checkRes.rows.length > 0) {
+        const ackRowIds = checkRes.rows.map((r: any) => r.id);
         await client.query(
           `UPDATE email_acknowledgements 
            SET acknowledged_at = NOW(), 
@@ -307,8 +308,8 @@ router.post('/batch', async (req: Request, res: Response) => {
                alert_id = COALESCE($3, alert_id),
                ticket_id = COALESCE($4, ticket_id),
                esr_name = COALESCE($5, esr_name)
-           WHERE id = $6`,
-          [name, email, parsedAlertId, ticket_id || null, cleanEsr, checkRes.rows[0].id]
+           WHERE id = ANY($6::int[])`,
+          [name, email, parsedAlertId, ticket_id || null, cleanEsr, ackRowIds]
         );
       } else {
         const token = Math.random().toString(36).substring(2) + Date.now().toString(36);

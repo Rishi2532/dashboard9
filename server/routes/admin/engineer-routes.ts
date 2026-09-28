@@ -4,6 +4,7 @@ import { users, schemeEngineerDetails } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { DLT_TEMPLATES, sendSmartpingDLTSMS } from "../../services/sms-service";
+import { sendEngineerCredentialsEmail } from "../../services/email-service";
 
 const router = Router();
 
@@ -93,6 +94,36 @@ router.get("/", async (req: Request, res: Response) => {
     res.status(500).json({ success: false, message: "Failed to fetch engineer accounts" });
   }
 });
+
+/**
+ * Helper to validate engineer name strictly from scheme_engineer_details.
+ * Excludes blanks, dashes, nulls, and vendors.
+ */
+export const isValidEngineerName = (rawName?: string | null): boolean => {
+  if (!rawName || typeof rawName !== "string") return false;
+  const t = rawName.trim();
+  if (!t) return false;
+  const lower = t.toLowerCase();
+  if (
+    t === "-" ||
+    t === "--" ||
+    t === "---" ||
+    t === "- -" ||
+    lower === "n/a" ||
+    lower === "na" ||
+    lower === "none" ||
+    lower === "null" ||
+    lower === "undefined" ||
+    lower === "unknown" ||
+    lower === "unknown personnel" ||
+    lower.includes("vendor") ||
+    lower.includes("no engineer") ||
+    lower.includes("unassigned")
+  ) {
+    return false;
+  }
+  return true;
+};
 
 /**
  * Helper to format session duration nicely
@@ -398,15 +429,15 @@ router.get("/hierarchy", async (req: Request, res: Response) => {
         const email = cleanStr(row[r.e]).toLowerCase();
         const phone = cleanStr(row[r.p]);
 
-        if (name || email) {
-          const key = name ? `${r.rank}::${name.toLowerCase()}` : `${r.rank}::${email}`;
+        if (isValidEngineerName(name)) {
+          const key = name.toLowerCase();
           if (!directoryMap.has(key)) {
             directoryMap.set(key, {
               key,
               rank: r.rank,
               level: r.level,
               position_title: r.title,
-              name: name || email,
+              name,
               email,
               phone,
               regions: new Set(),
@@ -416,6 +447,12 @@ router.get("/hierarchy", async (req: Request, res: Response) => {
             });
           }
           const item = directoryMap.get(key);
+          // Keep the highest rank if the engineer holds multiple positions
+          if (r.rank < item.rank) {
+            item.rank = r.rank;
+            item.level = r.level;
+            item.position_title = r.title;
+          }
           if (email && !item.email) item.email = email;
           if (phone && !item.phone) item.phone = phone;
           if (row.region) item.regions.add(cleanStr(row.region));
@@ -733,35 +770,31 @@ router.get("/directory", async (req: Request, res: Response) => {
       ];
 
       for (const r of rolesConfig) {
-        if (r.name || r.email) {
+        if (isValidEngineerName(r.name)) {
+          const name = r.name!.trim();
           const email = (r.email || "").trim().toLowerCase();
-          const name = (r.name || "").trim();
           const phone = (r.phone || "").trim();
-          // Unique key by name + email to prevent shared emails from merging different engineers
-          const key = name ? `${name.toLowerCase()}::${email}` : email;
+          const key = name.toLowerCase();
 
-          if (key) {
-            if (!directoryMap.has(key)) {
-              const matchedUser = existingUsers.find((u: any) => 
-                (name && (u.name || "").trim().toLowerCase() === name.toLowerCase()) ||
-                (!name && email && (u.email || "").trim().toLowerCase() === email)
-              );
-              const isReg = Boolean(matchedUser);
-              directoryMap.set(key, {
-                name,
-                email,
-                phone,
-                role_title: r.title,
-                region: row.region,
-                district: row.district,
-                division: row.division,
-                schemes: [],
-                is_registered: isReg,
-                existing_username: matchedUser?.username,
-              });
-            }
-            if (row.scheme) directoryMap.get(key)!.schemes.push(row.scheme);
+          if (!directoryMap.has(key)) {
+            const matchedUser = existingUsers.find((u: any) => 
+              Boolean(u.name && (u.name || "").trim().toLowerCase() === key)
+            );
+            const isReg = Boolean(matchedUser);
+            directoryMap.set(key, {
+              name,
+              email,
+              phone,
+              role_title: r.title,
+              region: row.region,
+              district: row.district,
+              division: row.division,
+              schemes: [],
+              is_registered: isReg,
+              existing_username: matchedUser?.username,
+            });
           }
+          if (row.scheme) directoryMap.get(key)!.schemes.push(row.scheme);
         }
       }
     }
@@ -930,6 +963,158 @@ router.delete("/:id", async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error("Error deleting engineer user:", error);
     res.status(500).json({ success: false, message: "Failed to delete engineer account" });
+  }
+});
+
+/**
+ * POST /api/admin/engineers/:id/send-credentials
+ * Send login credentials to a specific engineer via private email
+ */
+router.post("/:id/send-credentials", async (req: Request, res: Response) => {
+  try {
+    const db = await getDB();
+    const engineerId = parseInt(req.params.id, 10);
+    if (isNaN(engineerId)) {
+      return res.status(400).json({ success: false, message: "Invalid engineer ID" });
+    }
+
+    const [engineer] = await db.select().from(users).where(eq(users.id, engineerId));
+    if (!engineer) {
+      return res.status(404).json({ success: false, message: "Engineer account not found" });
+    }
+
+    if (!engineer.email || !engineer.email.includes("@")) {
+      return res.status(400).json({
+        success: false,
+        message: `Engineer '${engineer.name || engineer.username}' does not have a valid email address configured.`,
+      });
+    }
+
+    // Count schemes
+    const allSchemes = await db.select().from(schemeEngineerDetails);
+    const engEmail = (engineer.email || "").trim().toLowerCase();
+    const engName = (engineer.name || "").trim().toLowerCase();
+    const matchedSchemes = allSchemes.filter((s: any) => {
+      const names = [s.ee_civil_name, s.ee_mech_name, s.de_ae_civil_name, s.de_ae_mech_name, s.se_name, s.chief_engineer_name]
+        .map((n) => (n || "").trim().toLowerCase());
+      const emails = [s.ee_civil_email, s.ee_mech_email, s.de_ae_civil_email, s.de_ae_mech_email, s.se_email, s.chief_engineer_email]
+        .map((e) => (e || "").trim().toLowerCase());
+      if (engName) return names.includes(engName);
+      return emails.includes(engEmail);
+    });
+
+    const sent = await sendEngineerCredentialsEmail({
+      toEmail: engineer.email.trim(),
+      engineerName: engineer.name || engineer.username,
+      username: engineer.username,
+      password: engineer.password,
+      assignedSchemesCount: matchedSchemes.length,
+    });
+
+    if (!sent) {
+      return res.status(500).json({
+        success: false,
+        message: `Failed to send email to ${engineer.email}. Please verify SMTP credentials.`,
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Credentials successfully emailed to ${engineer.email}`,
+    });
+  } catch (error: any) {
+    console.error("Error sending engineer credentials:", error);
+    res.status(500).json({ success: false, message: error.message || "Failed to send credentials" });
+  }
+});
+
+/**
+ * POST /api/admin/engineers/send-all-credentials
+ * Send individual private credentials to all registered engineer users
+ */
+router.post("/send-all-credentials", async (req: Request, res: Response) => {
+  try {
+    const db = await getDB();
+    const engineerUsers = await db
+      .select()
+      .from(users)
+      .where(eq(users.role, "engineer"));
+
+    if (engineerUsers.length === 0) {
+      return res.status(400).json({ success: false, message: "No registered engineer accounts found" });
+    }
+
+    const allSchemes = await db.select().from(schemeEngineerDetails);
+
+    let sentCount = 0;
+    let failedCount = 0;
+    const failures: Array<{ username: string; email: string; error: string }> = [];
+
+    for (const eng of engineerUsers) {
+      const engEmail = (eng.email || "").trim().toLowerCase();
+      if (!engEmail || !engEmail.includes("@")) {
+        failedCount++;
+        failures.push({
+          username: eng.username,
+          email: eng.email || "MISSING",
+          error: "No valid email address configured",
+        });
+        continue;
+      }
+
+      const engName = (eng.name || "").trim().toLowerCase();
+      const matchedSchemes = allSchemes.filter((s: any) => {
+        const names = [s.ee_civil_name, s.ee_mech_name, s.de_ae_civil_name, s.de_ae_mech_name, s.se_name, s.chief_engineer_name]
+          .map((n) => (n || "").trim().toLowerCase());
+        const emails = [s.ee_civil_email, s.ee_mech_email, s.de_ae_civil_email, s.de_ae_mech_email, s.se_email, s.chief_engineer_email]
+          .map((e) => (e || "").trim().toLowerCase());
+        if (engName) return names.includes(engName);
+        return emails.includes(engEmail);
+      });
+
+      try {
+        const ok = await sendEngineerCredentialsEmail({
+          toEmail: engEmail,
+          engineerName: eng.name || eng.username,
+          username: eng.username,
+          password: eng.password,
+          assignedSchemesCount: matchedSchemes.length,
+        });
+
+        if (ok) {
+          sentCount++;
+        } else {
+          failedCount++;
+          failures.push({
+            username: eng.username,
+            email: engEmail,
+            error: "SMTP server rejected the email",
+          });
+        }
+      } catch (err: any) {
+        failedCount++;
+        failures.push({
+          username: eng.username,
+          email: engEmail,
+          error: err?.message || String(err),
+        });
+      }
+
+      // 1.2s delay to prevent mail server throttling
+      await new Promise((r) => setTimeout(r, 1200));
+    }
+
+    res.json({
+      success: true,
+      total: engineerUsers.length,
+      sentCount,
+      failedCount,
+      failures,
+      message: `Dispatched credentials: ${sentCount} successfully sent, ${failedCount} failed.`,
+    });
+  } catch (error: any) {
+    console.error("Error bulk sending credentials:", error);
+    res.status(500).json({ success: false, message: error.message || "Failed to bulk send credentials" });
   }
 });
 

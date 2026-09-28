@@ -124,6 +124,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setEngineerProfile(response.engineerProfile || null);
       setUser(response.user || response);
       
+      // Clear and remove previous user's schemes-summary cache to prevent stale schemes flickering on login
+      queryClient.removeQueries({ queryKey: ['/api/engineer/schemes-summary'] });
+
       queryClient.setQueryData(['/api/auth/status'], {
         isLoggedIn: true,
         isAdmin: !!response.isAdmin,

@@ -27,17 +27,41 @@ router.get('/total-engineers', async (req, res) => {
       const q = `
         SELECT COUNT(DISTINCT LOWER(TRIM(name)))::int as total
         FROM (
-          SELECT chief_engineer_name as name FROM scheme_engineer_details WHERE chief_engineer_name IS NOT NULL AND TRIM(chief_engineer_name) != ''
+          SELECT chief_engineer_name as name FROM scheme_engineer_details 
+          WHERE chief_engineer_name IS NOT NULL 
+            AND TRIM(chief_engineer_name) NOT IN ('', '-', '--', '---', 'N/A', 'NA', 'None', 'null') 
+            AND LOWER(TRIM(chief_engineer_name)) NOT LIKE '%vendor%'
+            AND LOWER(TRIM(chief_engineer_name)) NOT LIKE '%no engineer%'
           UNION
-          SELECT se_name as name FROM scheme_engineer_details WHERE se_name IS NOT NULL AND TRIM(se_name) != ''
+          SELECT se_name as name FROM scheme_engineer_details 
+          WHERE se_name IS NOT NULL 
+            AND TRIM(se_name) NOT IN ('', '-', '--', '---', 'N/A', 'NA', 'None', 'null') 
+            AND LOWER(TRIM(se_name)) NOT LIKE '%vendor%'
+            AND LOWER(TRIM(se_name)) NOT LIKE '%no engineer%'
           UNION
-          SELECT ee_civil_name as name FROM scheme_engineer_details WHERE ee_civil_name IS NOT NULL AND TRIM(ee_civil_name) != ''
+          SELECT ee_civil_name as name FROM scheme_engineer_details 
+          WHERE ee_civil_name IS NOT NULL 
+            AND TRIM(ee_civil_name) NOT IN ('', '-', '--', '---', 'N/A', 'NA', 'None', 'null') 
+            AND LOWER(TRIM(ee_civil_name)) NOT LIKE '%vendor%'
+            AND LOWER(TRIM(ee_civil_name)) NOT LIKE '%no engineer%'
           UNION
-          SELECT ee_mech_name as name FROM scheme_engineer_details WHERE ee_mech_name IS NOT NULL AND TRIM(ee_mech_name) != ''
+          SELECT ee_mech_name as name FROM scheme_engineer_details 
+          WHERE ee_mech_name IS NOT NULL 
+            AND TRIM(ee_mech_name) NOT IN ('', '-', '--', '---', 'N/A', 'NA', 'None', 'null') 
+            AND LOWER(TRIM(ee_mech_name)) NOT LIKE '%vendor%'
+            AND LOWER(TRIM(ee_mech_name)) NOT LIKE '%no engineer%'
           UNION
-          SELECT de_ae_civil_name as name FROM scheme_engineer_details WHERE de_ae_civil_name IS NOT NULL AND TRIM(de_ae_civil_name) != ''
+          SELECT de_ae_civil_name as name FROM scheme_engineer_details 
+          WHERE de_ae_civil_name IS NOT NULL 
+            AND TRIM(de_ae_civil_name) NOT IN ('', '-', '--', '---', 'N/A', 'NA', 'None', 'null') 
+            AND LOWER(TRIM(de_ae_civil_name)) NOT LIKE '%vendor%'
+            AND LOWER(TRIM(de_ae_civil_name)) NOT LIKE '%no engineer%'
           UNION
-          SELECT de_ae_mech_name as name FROM scheme_engineer_details WHERE de_ae_mech_name IS NOT NULL AND TRIM(de_ae_mech_name) != ''
+          SELECT de_ae_mech_name as name FROM scheme_engineer_details 
+          WHERE de_ae_mech_name IS NOT NULL 
+            AND TRIM(de_ae_mech_name) NOT IN ('', '-', '--', '---', 'N/A', 'NA', 'None', 'null') 
+            AND LOWER(TRIM(de_ae_mech_name)) NOT LIKE '%vendor%'
+            AND LOWER(TRIM(de_ae_mech_name)) NOT LIKE '%no engineer%'
         ) sub
       `;
       const result = await client.query(q);

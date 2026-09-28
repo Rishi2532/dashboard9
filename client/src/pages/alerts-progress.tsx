@@ -123,14 +123,42 @@ export interface AlertRecipient {
   acknowledged_at: string | null;
 }
 
-// Helper to gather all recipients for a scheme who received or are assigned the alert email
-export const getRowRecipients = (row: AlertData): AlertRecipient[] => {
-  const recipients: AlertRecipient[] = [];
+
+export const isValidEngineerName = (rawName?: string | null): boolean => {
+  if (!rawName || typeof rawName !== "string") return false;
+  const t = rawName.trim();
+  if (!t) return false;
+  const lower = t.toLowerCase();
+  if (
+    t === "-" ||
+    t === "--" ||
+    t === "---" ||
+    t === "- -" ||
+    lower === "n/a" ||
+    lower === "na" ||
+    lower === "none" ||
+    lower === "null" ||
+    lower === "undefined" ||
+    lower === "unknown" ||
+    lower === "unknown personnel" ||
+    lower.includes("vendor") ||
+    lower.includes("no engineer") ||
+    lower.includes("unassigned")
+  ) {
+    return false;
+  }
+  return true;
+};
+
+// Helper to extract engineer recipients for a given alert row strictly from scheme_engineer_details
+export const getRowRecipients = (row: AlertData) => {
+  const recipients: RecipientInfo[] = [];
 
   const checkAck = (email: string | null, name: string | null) => {
-    if (!row.acknowledgements || !Array.isArray(row.acknowledgements)) {
+    if (!row.acknowledgements || row.acknowledgements.length === 0) {
       return { isAck: false, acknowledged_at: null };
     }
+
     const targetEmail = email ? email.toLowerCase().trim() : '';
     const targetName = name ? name.toLowerCase().trim() : '';
 
@@ -140,8 +168,6 @@ export const getRowRecipients = (row: AlertData): AlertRecipient[] => {
       const aName = a.engineer_name ? a.engineer_name.toLowerCase().trim() : '';
 
       // If both target and acknowledgement have a name, match strictly by name.
-      // This ensures Case 2 (e.g. shared email ee_nagpur@gov.in) never allows Anil's acknowledgement
-      // to falsely mark Vijay as acknowledged.
       if (targetName && aName) {
         return aName === targetName || aName.includes(targetName) || targetName.includes(aName);
       }
@@ -158,12 +184,14 @@ export const getRowRecipients = (row: AlertData): AlertRecipient[] => {
     };
   };
 
+  // Strictly consider available persons from scheme_engineer_details only (no vendors, no blanks/dashes, no dummy fallbacks)
   // 1. Executive Engineer (Civil)
-  if (row.ee_civil_name || row.ee_civil_email) {
-    const { isAck, acknowledged_at } = checkAck(row.ee_civil_email || null, row.ee_civil_name || null);
+  if (isValidEngineerName(row.ee_civil_name)) {
+    const name = row.ee_civil_name!.trim();
+    const { isAck, acknowledged_at } = checkAck(row.ee_civil_email || null, name);
     recipients.push({
       role: "Executive Engineer (Civil)",
-      name: row.ee_civil_name || "EE (Civil)",
+      name,
       email: row.ee_civil_email || null,
       isAcknowledged: isAck,
       acknowledged_at
@@ -171,11 +199,12 @@ export const getRowRecipients = (row: AlertData): AlertRecipient[] => {
   }
 
   // 2. Executive Engineer (Mech)
-  if (row.ee_mech_name || row.ee_mech_email) {
-    const { isAck, acknowledged_at } = checkAck(row.ee_mech_email || null, row.ee_mech_name || null);
+  if (isValidEngineerName(row.ee_mech_name)) {
+    const name = row.ee_mech_name!.trim();
+    const { isAck, acknowledged_at } = checkAck(row.ee_mech_email || null, name);
     recipients.push({
       role: "Executive Engineer (Mech)",
-      name: row.ee_mech_name || "EE (Mech)",
+      name,
       email: row.ee_mech_email || null,
       isAcknowledged: isAck,
       acknowledged_at
@@ -183,40 +212,38 @@ export const getRowRecipients = (row: AlertData): AlertRecipient[] => {
   }
 
   // 3. DE/AE (Civil)
-  const civilName = row.de_ae_civil_name || row.civil_engineer_name;
-  const civilEmail = row.de_ae_civil_email || row.civil_engineer_email;
-  const isVendorCivil = !row.de_ae_civil_name && civilName && (civilName.toLowerCase().includes("vendor") || civilName === "No Engineer/Vendor Assigned");
-  if ((civilName || civilEmail) && !isVendorCivil) {
-    const { isAck, acknowledged_at } = checkAck(civilEmail || null, civilName || null);
+  if (isValidEngineerName(row.de_ae_civil_name)) {
+    const name = row.de_ae_civil_name!.trim();
+    const { isAck, acknowledged_at } = checkAck(row.de_ae_civil_email || null, name);
     recipients.push({
       role: "DE/AE (Civil)",
-      name: civilName || "DE/AE (Civil)",
-      email: civilEmail || null,
+      name,
+      email: row.de_ae_civil_email || null,
       isAcknowledged: isAck,
       acknowledged_at
     });
   }
 
   // 4. DE/AE (Mech)
-  const mechName = row.de_ae_mech_name || row.mechanical_engineer_name || row.site_supervisor_name;
-  const mechEmail = row.de_ae_mech_email || row.mechanical_engineer_email || row.site_supervisor_email;
-  if (mechName || mechEmail) {
-    const { isAck, acknowledged_at } = checkAck(mechEmail || null, mechName || null);
+  if (isValidEngineerName(row.de_ae_mech_name)) {
+    const name = row.de_ae_mech_name!.trim();
+    const { isAck, acknowledged_at } = checkAck(row.de_ae_mech_email || null, name);
     recipients.push({
       role: "DE/AE (Mech)",
-      name: mechName || "DE/AE (Mech)",
-      email: mechEmail || null,
+      name,
+      email: row.de_ae_mech_email || null,
       isAcknowledged: isAck,
       acknowledged_at
     });
   }
 
   // 5. Superintending Engineer (SE)
-  if (row.se_name || row.se_email) {
-    const { isAck, acknowledged_at } = checkAck(row.se_email || null, row.se_name || null);
+  if (isValidEngineerName(row.se_name)) {
+    const name = row.se_name!.trim();
+    const { isAck, acknowledged_at } = checkAck(row.se_email || null, name);
     recipients.push({
       role: "Superintending Engineer (SE)",
-      name: row.se_name || "Superintending Engineer (SE)",
+      name,
       email: row.se_email || null,
       isAcknowledged: isAck,
       acknowledged_at
@@ -224,26 +251,13 @@ export const getRowRecipients = (row: AlertData): AlertRecipient[] => {
   }
 
   // 6. Chief Engineer
-  if (row.chief_engineer_name || row.chief_engineer_email) {
-    const { isAck, acknowledged_at } = checkAck(row.chief_engineer_email || null, row.chief_engineer_name || null);
+  if (isValidEngineerName(row.chief_engineer_name)) {
+    const name = row.chief_engineer_name!.trim();
+    const { isAck, acknowledged_at } = checkAck(row.chief_engineer_email || null, name);
     recipients.push({
       role: "Chief Engineer",
-      name: row.chief_engineer_name || "Chief Engineer",
+      name,
       email: row.chief_engineer_email || null,
-      isAcknowledged: isAck,
-      acknowledged_at
-    });
-  }
-
-  // 7. Assigned Vendor (for offline alerts if vendor is assigned)
-  const vendorName = row.vendor_name || (isVendorCivil ? civilName : null);
-  const vendorEmail = row.vendor_email || (isVendorCivil ? civilEmail : null);
-  if (vendorName && vendorName !== 'No Engineer/Vendor Assigned') {
-    const { isAck, acknowledged_at } = checkAck(vendorEmail || null, vendorName || null);
-    recipients.push({
-      role: "Assigned Vendor",
-      name: vendorName,
-      email: vendorEmail || null,
       isAcknowledged: isAck,
       acknowledged_at
     });
@@ -650,20 +664,19 @@ export default function AlertsProgressPage() {
     baseData.forEach(r => {
       const recs = getRowRecipients(r);
       recs.forEach(rec => {
-        const key = rec.name
-          ? `${rec.name.toLowerCase().trim()}::${(rec.email || '').toLowerCase().trim()}`
-          : (rec.email ? rec.email.toLowerCase().trim() : '');
-        if (!key) return;
+        if (!isValidEngineerName(rec.name)) return;
+        const key = rec.name.toLowerCase().trim();
 
         if (!engineersMap.has(key)) {
           engineersMap.set(key, {
-            name: rec.name || rec.email || "Unknown Personnel",
+            name: rec.name.trim(),
             email: rec.email || null,
             roles: new Set<string>(),
             schemes: []
           });
         }
         const eng = engineersMap.get(key)!;
+        if (!eng.email && rec.email) eng.email = rec.email;
         if (rec.role) eng.roles.add(rec.role);
 
         const alreadyHasScheme = eng.schemes.some(s => s.scheme_id === r.scheme_id && s.village_name === r.village_name && s.esr_name === r.esr_name);

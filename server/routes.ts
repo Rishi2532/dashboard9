@@ -1321,6 +1321,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const allSchemesRes = await db.select({ scheme_id: schemeStatuses.scheme_id }).from(schemeStatuses).limit(50);
           targetSchemeIds = allSchemesRes.map(r => r.scheme_id).filter(Boolean) as string[];
         }
+      } else if (targetSchemeIds.length === 0 && user) {
+        // Fallback: If session hasn't hydrated assigned schemes yet, dynamically resolve from DB
+        const engineerData = await getEngineerAssignedSchemes(db, user);
+        targetSchemeIds = engineerData.assignedSchemeIds || [];
+        req.session.assignedSchemeIds = targetSchemeIds;
+        req.session.assignedSchemes = engineerData.assignedSchemes;
+        req.session.assignedSchemeNames = engineerData.assignedSchemeNames;
+        req.session.engineerProfile = engineerData.engineerProfile;
       }
 
       if (targetSchemeIds.length === 0) {
@@ -1379,7 +1387,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         WHERE scheme_id IN (${sql.raw(idPlaceholders)})
       `);
 
-      // 6. Fetch Recent alerts and total alerts count with acknowledgement status scoped to current engineer
+      // 6. Fetch Recent alerts and total alerts count with acknowledgement status
       const alertsRes: any = await db.execute(sql`
         SELECT a.id, a.scheme_id, a.scheme_name, a.region, a.village_name, a.esr_name, a.alert_type, a.alert_value, a.sent_date, a.sent_time, a.ticket_id,
                ea.acknowledged_at, ea.engineer_name as acknowledged_by,
@@ -1396,10 +1404,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             (ea.alert_id IS NOT NULL AND ea.alert_id = a.id)
             -- 2. Exact match by ticket_id if available
             OR (ea.alert_id IS NULL AND ea.ticket_id IS NOT NULL AND a.ticket_id IS NOT NULL AND ea.ticket_id = a.ticket_id)
-            -- 3. Fallback ONLY for unlinked legacy rows (where both alert_id and ticket_id are NULL)
+            -- 3. Fallback for unlinked rows
             OR (
-              ea.alert_id IS NULL AND ea.ticket_id IS NULL
-              AND ea.scheme_id = a.scheme_id 
+              ea.scheme_id = a.scheme_id 
               AND (
                 ea.alert_type = a.alert_type 
                 OR (ea.alert_type IN ('Pressure', 'Low Pressure') AND a.alert_type IN ('Pressure', 'Low Pressure'))
@@ -1411,7 +1418,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             )
           )
           AND ea.acknowledged_at IS NOT NULL
-          AND (${sql.raw(userEmail && !isAdmin ? `LOWER(TRIM(ea.engineer_email)) = '${userEmail}'` : `true`)})
           ORDER BY ea.acknowledged_at DESC
           LIMIT 1
         ) ea ON true

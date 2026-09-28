@@ -42,11 +42,22 @@ export function startDailyAlertsCron() {
   const cronExpression = process.env.DAILY_ALERTS_CRON_SCHEDULE || "41 16   * * *";
   console.log(`⏰ Daily alerts job scheduled with cron pattern: "${cronExpression}"`);
 
-  cron.schedule(cronExpression, async () => {
-    await runDailyAlertsJob();
-    console.log("📨 Running automatic offline emails to vendors...");
-    await sendAutomaticOfflineEmails();
-  });
+  cron.schedule(
+    cronExpression,
+    async () => {
+      try {
+        console.log(`⏰ [Cron Triggered] Starting daily alerts job at ${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} IST`);
+        await runDailyAlertsJob();
+        console.log("📨 Running automatic offline emails to vendors...");
+        await sendAutomaticOfflineEmails();
+      } catch (cronErr) {
+        console.error("❌ Error executing daily alerts cron schedule:", cronErr);
+      }
+    },
+    {
+      timezone: "Asia/Kolkata",
+    }
+  );
 }
 
 export async function runDailyAlertsJob() {
