@@ -71,6 +71,8 @@ import {
 } from "lucide-react";
 import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
 import AgencyTypeFilter from "@/components/dashboard/AgencyTypeFilter";
+import VillageFilter from "@/components/dashboard/VillageFilter";
+import { useVillageCompletion } from "@/hooks/useVillageCompletion";
 import ExcelJS from "exceljs";
 
 // Define types for Chlorine Data
@@ -214,6 +216,8 @@ const ChlorineDashboard: React.FC = () => {
   const [schemeStatusFilter, setSchemeStatusFilter] = useState<string>("all");
   const [uiSchemeFilter, setUiSchemeFilter] = useState<string>("commissioned");
   const [waterSupplyStatus, setWaterSupplyStatus] = useState<string>("All");
+  const [villageFilter, setVillageFilter] = useState<"all" | "completed">("all");
+  const { isVillageCompleted } = useVillageCompletion();
 
   const schemeFilter = uiSchemeFilter === "commissioned" && waterSupplyStatus !== "All"
     ? `commissioned_${waterSupplyStatus.toLowerCase()}`
@@ -818,6 +822,13 @@ const ChlorineDashboard: React.FC = () => {
       });
     }
 
+    // Apply Village completion filter (based on village table where fully_completion_village_status = 'Completed')
+    if (villageFilter === "completed") {
+      filtered = filtered.filter((item) =>
+        isVillageCompleted(item.village_name, item.scheme_id),
+      );
+    }
+
     return filtered;
   }, [
     allChlorineData,
@@ -828,6 +839,8 @@ const ChlorineDashboard: React.FC = () => {
     waterSupplyStatus,
     schemeStatusFilter,
     schemeStatusMap,
+    villageFilter,
+    isVillageCompleted,
   ]);
 
   // Calculate sensor status counts for chlorine sensors using globally filtered data
@@ -1898,6 +1911,16 @@ const ChlorineDashboard: React.FC = () => {
                   <SelectItem value="mjp_commissioned_yes">MJP Commissioned</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="min-w-[190px]">
+              <VillageFilter
+                value={villageFilter}
+                onChange={(val) => {
+                  setVillageFilter(val);
+                  setPage(1);
+                }}
+              />
             </div>
 
             {/* Action Buttons */}

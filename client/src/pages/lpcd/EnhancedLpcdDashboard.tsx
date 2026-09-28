@@ -32,6 +32,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
 import AgencyTypeFilter from "@/components/dashboard/AgencyTypeFilter";
+import VillageFilter from "@/components/dashboard/VillageFilter";
+import { useVillageCompletion } from "@/hooks/useVillageCompletion";
 import { useAuth } from "@/hooks/use-auth";
 import { useComprehensiveActivityTracker } from "@/hooks/use-comprehensive-activity-tracker";
 import { Separator } from "@/components/ui/separator";
@@ -187,6 +189,8 @@ const EnhancedLpcdDashboard = () => {
   const [schemeStatusFilter, setSchemeStatusFilter] = useState("all");
   const [uiSchemeFilter, setUiSchemeFilter] = useState<string>("commissioned");
   const [waterSupplyStatus, setWaterSupplyStatus] = useState<string>("All");
+  const [villageFilter, setVillageFilter] = useState<"all" | "completed">("all");
+  const { isVillageCompleted } = useVillageCompletion();
 
   const schemeFilter = uiSchemeFilter === "commissioned" && waterSupplyStatus !== "All"
     ? `commissioned_${waterSupplyStatus.toLowerCase()}`
@@ -862,6 +866,13 @@ const EnhancedLpcdDashboard = () => {
         }
         return status.fully_completion_scheme_status === schemeStatusFilter;
       });
+    }
+
+    // Apply village filter
+    if (villageFilter === "completed") {
+      filtered = filtered.filter((scheme: any) =>
+        isVillageCompleted(scheme.village_name, scheme.scheme_id)
+      );
     }
 
     return filtered;
@@ -2050,6 +2061,16 @@ const EnhancedLpcdDashboard = () => {
               </SelectContent>
             </Select>
           </div>
+          <div className="min-w-[170px]">
+            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1.5">Village Filter</p>
+            <VillageFilter
+              value={villageFilter}
+              onChange={(val) => {
+                setVillageFilter(val);
+                setPage(1);
+              }}
+            />
+          </div>
           <div className="flex items-end">
             <Button
               variant="ghost"
@@ -2066,6 +2087,7 @@ const EnhancedLpcdDashboard = () => {
                 setUiSchemeFilter("all");
                 setWaterSupplyStatus("All");
                 setSchemeStatusFilter("all");
+                setVillageFilter("all");
               }}
               className="h-9 w-9 p-0 text-slate-400 hover:text-red-500 hover:bg-red-50"
               title="Clear all filters"

@@ -60,6 +60,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import FilterBar from "@/components/dashboard/FilterBar";
+import VillageFilter from "@/components/dashboard/VillageFilter";
+import { useVillageCompletion } from "@/hooks/useVillageCompletion";
 interface CommunicationOverview {
   total_esrs: number;
   total_schemes: number;
@@ -140,6 +142,8 @@ export default function CommunicationStatusPage() {
   const [uiSchemeFilter, setUiSchemeFilter] = useState<string>("commissioned");
   const [waterSupplyStatus, setWaterSupplyStatus] = useState<string>("All");
   const [selectedWaterSupply, setSelectedWaterSupply] = useState<string>("all");
+  const [villageFilter, setVillageFilter] = useState<"all" | "completed">("all");
+  const { isVillageCompleted } = useVillageCompletion();
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [activeListTab, setActiveListTab] = useState<"esr" | "scheme">("esr");
@@ -160,6 +164,7 @@ export default function CommunicationStatusPage() {
       selectedAgencyType,
       selectedWaterSupply,
       schemeFilter,
+      villageFilter,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -171,6 +176,7 @@ export default function CommunicationStatusPage() {
       if (selectedBlock !== "all") params.set("block", selectedBlock);
       if (selectedAgencyType !== 'ALL') params.set("agencyType", selectedAgencyType);
       if (selectedWaterSupply !== "all") params.set("waterSupply", selectedWaterSupply);
+      if (villageFilter !== "all") params.set("villageFilter", villageFilter);
 
       if (schemeFilter !== 'all') {
         params.set("filterType", schemeFilter);
@@ -187,7 +193,15 @@ export default function CommunicationStatusPage() {
   });
 
   const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ["/api/communication-status/stats"],
+    queryKey: ["/api/communication-status/stats", villageFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (villageFilter !== "all") params.set("villageFilter", villageFilter);
+      const response = await fetch(
+        `/api/communication-status/stats?${params.toString()}`,
+      );
+      return response.json();
+    },
   });
 
   const {
@@ -205,6 +219,7 @@ export default function CommunicationStatusPage() {
       selectedAgencyType,
       selectedWaterSupply,
       schemeFilter,
+      villageFilter,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -216,6 +231,7 @@ export default function CommunicationStatusPage() {
       if (selectedBlock !== "all") params.set("block", selectedBlock);
       if (selectedAgencyType !== 'ALL') params.set("agencyType", selectedAgencyType);
       if (selectedWaterSupply !== "all") params.set("waterSupply", selectedWaterSupply);
+      if (villageFilter !== "all") params.set("villageFilter", villageFilter);
 
       if (schemeFilter !== 'all') {
         params.set("filterType", schemeFilter);
@@ -342,12 +358,20 @@ export default function CommunicationStatusPage() {
     };
   }, [refetchSchemes]);
 
-  // Filter schemes based on search term
+  // Filter schemes based on search term and villageFilter
   const filteredSchemes = useMemo(() => {
-    if (!schemes || !searchTerm.trim()) return schemes || [];
+    let result = schemes || [];
+
+    if (villageFilter === "completed") {
+      result = result.filter((scheme: CommunicationScheme) =>
+        isVillageCompleted(scheme.village_name, scheme.scheme_id)
+      );
+    }
+
+    if (!searchTerm.trim()) return result;
 
     const searchLower = searchTerm.toLowerCase().trim();
-    return schemes.filter(
+    return result.filter(
       (scheme: CommunicationScheme) =>
         scheme.scheme_name?.toLowerCase().includes(searchLower) ||
         scheme.village_name?.toLowerCase().includes(searchLower) ||
@@ -357,7 +381,7 @@ export default function CommunicationStatusPage() {
         scheme.circle?.toLowerCase().includes(searchLower) ||
         scheme.division?.toLowerCase().includes(searchLower),
     );
-  }, [schemes, searchTerm]);
+  }, [schemes, searchTerm, villageFilter, isVillageCompleted]);
 
   // Excel download functionality - optimized for speed
   const handleExcelDownload = async () => {
@@ -833,12 +857,20 @@ export default function CommunicationStatusPage() {
     )
     : [];
 
-  // Apply search filter to unique schemes
+  // Apply search filter and villageFilter to unique schemes
   const searchFilteredSchemes = useMemo(() => {
-    if (!searchTerm.trim()) return uniqueSchemes;
+    let result = uniqueSchemes;
+
+    if (villageFilter === "completed") {
+      result = result.filter((scheme: CommunicationScheme) =>
+        isVillageCompleted(scheme.village_name, scheme.scheme_id)
+      );
+    }
+
+    if (!searchTerm.trim()) return result;
 
     const searchLower = searchTerm.toLowerCase().trim();
-    return uniqueSchemes.filter(
+    return result.filter(
       (scheme: CommunicationScheme) =>
         scheme.scheme_name?.toLowerCase().includes(searchLower) ||
         scheme.village_name?.toLowerCase().includes(searchLower) ||
@@ -848,7 +880,7 @@ export default function CommunicationStatusPage() {
         scheme.circle?.toLowerCase().includes(searchLower) ||
         scheme.division?.toLowerCase().includes(searchLower),
     );
-  }, [uniqueSchemes, searchTerm]);
+  }, [uniqueSchemes, searchTerm, villageFilter, isVillageCompleted]);
 
   // Aggregated scheme communication data
   const aggregatedSchemes = useMemo(() => {
@@ -1104,6 +1136,17 @@ export default function CommunicationStatusPage() {
                   </Tabs>
                 </div>
               )}
+              <div className="w-[180px]">
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Village Filter</label>
+                <VillageFilter
+                  value={villageFilter}
+                  onChange={(val) => {
+                    setVillageFilter(val);
+                    resetPage();
+                  }}
+                  showLabel={false}
+                />
+              </div>
             </div>
           }
           onClearAll={() => {
@@ -1117,6 +1160,7 @@ export default function CommunicationStatusPage() {
             setSelectedWaterSupply("all");
             setUiSchemeFilter("commissioned");
             setWaterSupplyStatus("All");
+            setVillageFilter("all");
             resetPage();
           }}
         />

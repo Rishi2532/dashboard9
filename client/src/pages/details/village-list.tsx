@@ -14,6 +14,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import VillageFilter from "@/components/dashboard/VillageFilter";
+import { useVillageCompletion } from "@/hooks/useVillageCompletion";
 
 interface VillageDetailProps {
   village_name: string;
@@ -51,6 +53,8 @@ export default function VillageListPage() {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(50);
+  const [villageFilter, setVillageFilter] = useState<"all" | "completed">("all");
+  const { isVillageCompleted } = useVillageCompletion();
 
   // Fetch filtered water scheme data directly from server
   const { data: waterData, isLoading } = useQuery({
@@ -131,7 +135,7 @@ export default function VillageListPage() {
     console.log('First few items:', actualData.slice(0, 3).map(item => ({ village: item.village_name, region: item.region })));
     
     // Server has already applied all filtering, just transform the data for display
-    return actualData.map((item: any) => ({
+    let result = actualData.map((item: any) => ({
       village_name: item.village_name || 'Unknown Village',
       region: item.region || 'Unknown Region',
       circle: item.circle || 'Unknown Circle',
@@ -144,7 +148,13 @@ export default function VillageListPage() {
       water_status: item.water_status || (parseFloat(item.water_value_day7 || 0) > 0 ? `${parseFloat(item.water_value_day7 || 0).toFixed(2)} LL` : '0.00 LL'),
       consistent_days: item.consistent_water_days || 0,
     }));
-  }, [waterData, region, category]);
+
+    if (villageFilter === "completed") {
+      result = result.filter((item: any) => isVillageCompleted(item.village_name));
+    }
+
+    return result;
+  }, [waterData, region, category, villageFilter, isVillageCompleted]);
   
   // Pagination logic
   const totalPages = Math.ceil(filteredVillages.length / itemsPerPage);
@@ -155,7 +165,7 @@ export default function VillageListPage() {
   // Reset to page 1 when filters change
   useMemo(() => {
     setCurrentPage(1);
-  }, [region, category]);
+  }, [region, category, villageFilter]);
 
   const getCategoryTitle = () => {
     switch (category) {
@@ -293,7 +303,17 @@ export default function VillageListPage() {
                 </p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-3">
+              <div className="w-[180px]">
+                <VillageFilter
+                  value={villageFilter}
+                  onChange={(val) => {
+                    setVillageFilter(val);
+                    setCurrentPage(1);
+                  }}
+                  showLabel={false}
+                />
+              </div>
               <Button
                 onClick={handleExportCSV}
                 variant="outline"

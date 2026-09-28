@@ -25,6 +25,7 @@ router.get("/overview", async (req, res) => {
     const agencyType = req.query.agencyType as string;
     const filterType = req.query.filterType as string;
     const fullyCompleted = req.query.fullyCompleted as string;
+    const villageFilter = req.query.villageFilter as string;
 
     const scope = getEngineerSchemeScope(req);
 
@@ -48,6 +49,14 @@ router.get("/overview", async (req, res) => {
       conditions.push(eq(communicationStatus.sub_division, subdivision));
     if (block && block !== "all")
       conditions.push(eq(communicationStatus.block, block));
+
+    if (villageFilter === "completed") {
+      conditions.push(sql`EXISTS (
+        SELECT 1 FROM village v 
+        WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
+        AND LOWER(TRIM(v.village_name)) = LOWER(TRIM(${communicationStatus.village_name}))
+      )`);
+    }
 
     // Handle standard filter types (like on schemes page)
     if (filterType || fullyCompleted) {
@@ -146,6 +155,16 @@ router.get("/overview", async (req, res) => {
 router.get("/stats", async (req, res) => {
   try {
     const db = await getDB();
+    const villageFilter = req.query.villageFilter as string;
+    const conditions = [];
+
+    if (villageFilter === "completed") {
+      conditions.push(sql`EXISTS (
+        SELECT 1 FROM village v 
+        WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
+        AND LOWER(TRIM(v.village_name)) = LOWER(TRIM(${communicationStatus.village_name}))
+      )`);
+    }
 
     const stats = await db
       .select({
@@ -158,6 +177,7 @@ router.get("/stats", async (req, res) => {
         online_flow_meter: sql<number>`sum(case when ${communicationStatus.flow_meter_status} = 'Online' then 1 else 0 end)`,
       })
       .from(communicationStatus)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
       .groupBy(communicationStatus.region)
       .orderBy(asc(communicationStatus.region));
 
@@ -183,6 +203,7 @@ router.get("/schemes", async (req, res) => {
     const agencyType = req.query.agencyType as string;
     const filterType = req.query.filterType as string;
     const fullyCompleted = req.query.fullyCompleted as string;
+    const villageFilter = req.query.villageFilter as string;
 
     const scope = getEngineerSchemeScope(req);
 
@@ -206,6 +227,14 @@ router.get("/schemes", async (req, res) => {
       conditions.push(eq(communicationStatus.sub_division, subdivision));
     if (block && block !== "all")
       conditions.push(eq(communicationStatus.block, block));
+
+    if (villageFilter === "completed") {
+      conditions.push(sql`EXISTS (
+        SELECT 1 FROM village v 
+        WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
+        AND LOWER(TRIM(v.village_name)) = LOWER(TRIM(${communicationStatus.village_name}))
+      )`);
+    }
 
     // Handle standard filter types (like on schemes page)
     if (filterType || fullyCompleted) {

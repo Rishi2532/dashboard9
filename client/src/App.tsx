@@ -49,6 +49,7 @@ import SmartReportsPage from "./pages/smart-reports";
 import MonthlyReportsPage from "./pages/monthly-reports";
 import IssueReportingForm from "./pages/helpdesk/IssueReportingForm";
 import AlertsProgressPage from "./pages/alerts-progress";
+import ESRDashboard from "./pages/ESRDashboard";
 import EngineersHierarchyPage from "./pages/admin/EngineersHierarchyPage";
 
 import ProtectedRoute from "./components/auth/protected-route";
@@ -245,6 +246,24 @@ function App() {
                     <Route path="/communication-status">
                       <ProtectedRoute>
                         <CommunicationStatusPage />
+                      </ProtectedRoute>
+                    </Route>
+
+                    <Route path="/esr">
+                      <ProtectedRoute>
+                        <ESRDashboard />
+                      </ProtectedRoute>
+                    </Route>
+
+                    <Route path="/esr-dashboard">
+                      <ProtectedRoute>
+                        <ESRDashboard />
+                      </ProtectedRoute>
+                    </Route>
+
+                    <Route path="/esrdashboard">
+                      <ProtectedRoute>
+                        <ESRDashboard />
                       </ProtectedRoute>
                     </Route>
 

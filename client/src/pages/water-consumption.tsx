@@ -78,6 +78,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/dashboard/dashboard-layout";
 import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
 import AgencyTypeFilter from "@/components/dashboard/AgencyTypeFilter";
+import VillageFilter from "@/components/dashboard/VillageFilter";
+import { useVillageCompletion } from "@/hooks/useVillageCompletion";
 
 // Define interface for water consumption data
 interface WaterConsumptionRecord {
@@ -187,6 +189,8 @@ const WaterConsumptionPage: React.FC = () => {
   const [uiSchemeFilter, setUiSchemeFilter] = useState<string>("commissioned");
   const [waterSupplyStatus, setWaterSupplyStatus] = useState<string>("All");
   const [iotStatus, setIotStatus] = useState<string>("all");
+  const [villageFilter, setVillageFilter] = useState<"all" | "completed">("all");
+  const { isVillageCompleted } = useVillageCompletion();
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -707,6 +711,13 @@ const WaterConsumptionPage: React.FC = () => {
       });
     }
 
+    // Apply Village completion filter (based on village table where fully_completion_village_status = 'Completed')
+    if (villageFilter === "completed") {
+      filtered = filtered.filter((record) =>
+        isVillageCompleted(record.village_name, record.scheme_id),
+      );
+    }
+
     return filtered;
   }, [
     allWaterConsumptionData,
@@ -719,7 +730,9 @@ const WaterConsumptionPage: React.FC = () => {
     uiSchemeFilter,
     waterSupplyStatus,
     iotStatus,
+    villageFilter,
     schemeStatusData,
+    isVillageCompleted,
   ]);
 
   // Count schemes where civil work is done (water_supply=Yes) AND IoT is active/in-progress
@@ -1879,6 +1892,16 @@ const WaterConsumptionPage: React.FC = () => {
                   </Select>
                 </div>
 
+                <div className="min-w-[190px]">
+                  <VillageFilter
+                    value={villageFilter}
+                    onChange={(val) => {
+                      setVillageFilter(val);
+                      setPage(1);
+                    }}
+                  />
+                </div>
+
                 <div className="w-full sm:w-auto">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Consumption Filter</p>
                   <DropdownMenu>
@@ -2019,6 +2042,7 @@ const WaterConsumptionPage: React.FC = () => {
                     setSearchTerm("");
                     setSelectedAgencyType("ALL");
                     setIotStatus("all");
+                    setVillageFilter("all");
                     handleWaterSupplyStatusChange("All");
                     handleFilterChange("all");
                     setPage(1);

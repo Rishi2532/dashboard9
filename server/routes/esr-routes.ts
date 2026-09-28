@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { eq, sql, and, desc, asc } from "drizzle-orm";
 import { getDB } from "../db";
-import { esrMonitoring, insertESRMonitoringSchema } from "../../shared/schema";
+import { esrMonitoring, communicationStatus, insertESRMonitoringSchema } from "../../shared/schema";
 import XLSX from "xlsx";
 import multer from "multer";
 import path from "path";
@@ -19,34 +19,118 @@ router.get("/", async (req, res) => {
     const limit = parseInt(req.query.limit as string) || 50;
     const region = req.query.region as string;
     const status = req.query.status as string;
-    
+    const villageFilter = req.query.villageFilter as string;
+
+    const [hasEsr] = await db.select({ count: sql<number>`count(*)` }).from(esrMonitoring);
+    const useEsrMonitoring = (Number(hasEsr?.count) || 0) > 0;
+
+    if (!useEsrMonitoring) {
+      const conditions = [];
+      if (region && region !== "all") {
+        conditions.push(eq(communicationStatus.region, region));
+      }
+      if (status && status !== "all") {
+        if (status === "Online") {
+          conditions.push(sql`(${communicationStatus.chlorine_status} = 'Online' OR ${communicationStatus.pressure_status} = 'Online' OR ${communicationStatus.flow_meter_status} = 'Online')`);
+        } else if (status === "Offline") {
+          conditions.push(sql`(${communicationStatus.chlorine_status} = 'Offline' OR ${communicationStatus.pressure_status} = 'Offline' OR ${communicationStatus.flow_meter_status} = 'Offline')`);
+        } else {
+          conditions.push(sql`LOWER(COALESCE(${communicationStatus.overall_status}, '')) = LOWER(${status})`);
+        }
+      }
+      if (villageFilter === "completed") {
+        conditions.push(sql`EXISTS (
+          SELECT 1 FROM village v 
+          WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
+          AND LOWER(TRIM(v.village_name)) = LOWER(TRIM(${communicationStatus.village_name}))
+        )`);
+      }
+
+      const esrData = await db
+        .select({
+          id: communicationStatus.id,
+          region_name: communicationStatus.region,
+          circle: communicationStatus.circle,
+          division: communicationStatus.division,
+          sub_division: communicationStatus.sub_division,
+          block: communicationStatus.block,
+          scheme_id: communicationStatus.scheme_id,
+          scheme_name: communicationStatus.scheme_name,
+          village_name: communicationStatus.village_name,
+          esr_name: communicationStatus.esr_name,
+          chlorine_connected: sql<number>`case when ${communicationStatus.chlorine_connected} = 'Connected' then 1 else 0 end`,
+          pressure_connected: sql<number>`case when ${communicationStatus.pressure_connected} = 'Connected' then 1 else 0 end`,
+          flow_meter_connected: sql<number>`case when ${communicationStatus.flow_meter_connected} = 'Connected' then 1 else 0 end`,
+          chlorine_status: communicationStatus.chlorine_status,
+          pressure_status: communicationStatus.pressure_status,
+          flow_meter_status: communicationStatus.flow_meter_status,
+          overall_status: communicationStatus.overall_status,
+          last_updated: sql<string>`coalesce(to_char(${communicationStatus.updated_at}, 'YYYY-MM-DD HH24:MI:SS'), '')`,
+        })
+        .from(communicationStatus)
+        .where(conditions.length > 0 ? and(...conditions) : undefined)
+        .orderBy(asc(communicationStatus.region), asc(communicationStatus.village_name))
+        .limit(limit)
+        .offset((page - 1) * limit);
+
+      const totalResult = await db
+        .select({ count: sql<number>`cast(count(*) as int)` })
+        .from(communicationStatus)
+        .where(conditions.length > 0 ? and(...conditions) : undefined);
+
+      const total = totalResult[0]?.count || 0;
+
+      return res.json({
+        data: esrData,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+    }
+
     let query = db.select().from(esrMonitoring);
-    
+
     const conditions = [];
-    if (region) {
+    if (region && region !== "all") {
       conditions.push(eq(esrMonitoring.region_name, region));
     }
-    if (status) {
-      conditions.push(eq(esrMonitoring.overall_status, status));
+    if (status && status !== "all") {
+      if (status === "Online") {
+        conditions.push(sql`(${esrMonitoring.chlorine_status} = 'Online' OR ${esrMonitoring.pressure_status} = 'Online' OR ${esrMonitoring.flow_meter_status} = 'Online' OR ${esrMonitoring.overall_status} = 'Online')`);
+      } else if (status === "Offline") {
+        conditions.push(sql`(${esrMonitoring.chlorine_status} = 'Offline' OR ${esrMonitoring.pressure_status} = 'Offline' OR ${esrMonitoring.flow_meter_status} = 'Offline' OR ${esrMonitoring.overall_status} = 'Offline')`);
+      } else {
+        conditions.push(eq(esrMonitoring.overall_status, status));
+      }
     }
-    
+    if (villageFilter === "completed") {
+      conditions.push(sql`EXISTS (
+        SELECT 1 FROM village v 
+        WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
+        AND LOWER(TRIM(v.village_name)) = LOWER(TRIM(${esrMonitoring.village_name}))
+      )`);
+    }
+
     if (conditions.length > 0) {
       query = query.where(and(...conditions));
     }
-    
+
     const esrData = await query
       .orderBy(asc(esrMonitoring.region_name), asc(esrMonitoring.village_name))
       .limit(limit)
       .offset((page - 1) * limit);
-    
+
     // Get total count
     const totalResult = await db
       .select({ count: sql<number>`count(*)` })
       .from(esrMonitoring)
       .where(conditions.length > 0 ? and(...conditions) : undefined);
-    
+
     const total = totalResult[0]?.count || 0;
-    
+
     res.json({
       data: esrData,
       pagination: {
@@ -66,22 +150,91 @@ router.get("/", async (req, res) => {
 router.get("/stats", async (req, res) => {
   try {
     const db = await getDB();
-    
+    const region = req.query.region as string;
+    const status = req.query.status as string;
+    const villageFilter = req.query.villageFilter as string;
+
+    const [hasEsr] = await db.select({ count: sql<number>`count(*)` }).from(esrMonitoring);
+    const useEsrMonitoring = (Number(hasEsr?.count) || 0) > 0;
+
+    if (!useEsrMonitoring) {
+      const conditions = [];
+      if (region && region !== "all") {
+        conditions.push(eq(communicationStatus.region, region));
+      }
+      if (status && status !== "all") {
+        if (status === "Online") {
+          conditions.push(sql`(${communicationStatus.chlorine_status} = 'Online' OR ${communicationStatus.pressure_status} = 'Online' OR ${communicationStatus.flow_meter_status} = 'Online')`);
+        } else if (status === "Offline") {
+          conditions.push(sql`(${communicationStatus.chlorine_status} = 'Offline' OR ${communicationStatus.pressure_status} = 'Offline' OR ${communicationStatus.flow_meter_status} = 'Offline')`);
+        } else {
+          conditions.push(sql`LOWER(COALESCE(${communicationStatus.overall_status}, '')) = LOWER(${status})`);
+        }
+      }
+      if (villageFilter === "completed") {
+        conditions.push(sql`EXISTS (
+          SELECT 1 FROM village v 
+          WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
+          AND LOWER(TRIM(v.village_name)) = LOWER(TRIM(${communicationStatus.village_name}))
+        )`);
+      }
+
+      const stats = await db
+        .select({
+          region_name: communicationStatus.region,
+          total_esr: sql<number>`cast(count(*) as int)`,
+          online_chlorine: sql<number>`cast(sum(case when ${communicationStatus.chlorine_status} = 'Online' then 1 else 0 end) as int)`,
+          online_pressure: sql<number>`cast(sum(case when ${communicationStatus.pressure_status} = 'Online' then 1 else 0 end) as int)`,
+          online_flow_meter: sql<number>`cast(sum(case when ${communicationStatus.flow_meter_status} = 'Online' then 1 else 0 end) as int)`,
+          connected_chlorine: sql<number>`cast(sum(case when ${communicationStatus.chlorine_connected} = 'Connected' then 1 else 0 end) as int)`,
+          connected_pressure: sql<number>`cast(sum(case when ${communicationStatus.pressure_connected} = 'Connected' then 1 else 0 end) as int)`,
+          connected_flow_meter: sql<number>`cast(sum(case when ${communicationStatus.flow_meter_connected} = 'Connected' then 1 else 0 end) as int)`,
+        })
+        .from(communicationStatus)
+        .where(conditions.length > 0 ? and(...conditions) : undefined)
+        .groupBy(communicationStatus.region)
+        .orderBy(asc(communicationStatus.region));
+
+      return res.json(stats);
+    }
+
+    const conditions = [];
+    if (region && region !== "all") {
+      conditions.push(eq(esrMonitoring.region_name, region));
+    }
+    if (status && status !== "all") {
+      if (status === "Online") {
+        conditions.push(sql`(${esrMonitoring.chlorine_status} = 'Online' OR ${esrMonitoring.pressure_status} = 'Online' OR ${esrMonitoring.flow_meter_status} = 'Online' OR ${esrMonitoring.overall_status} = 'Online')`);
+      } else if (status === "Offline") {
+        conditions.push(sql`(${esrMonitoring.chlorine_status} = 'Offline' OR ${esrMonitoring.pressure_status} = 'Offline' OR ${esrMonitoring.flow_meter_status} = 'Offline' OR ${esrMonitoring.overall_status} = 'Offline')`);
+      } else {
+        conditions.push(eq(esrMonitoring.overall_status, status));
+      }
+    }
+    if (villageFilter === "completed") {
+      conditions.push(sql`EXISTS (
+        SELECT 1 FROM village v 
+        WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
+        AND LOWER(TRIM(v.village_name)) = LOWER(TRIM(${esrMonitoring.village_name}))
+      )`);
+    }
+
     const stats = await db
       .select({
         region_name: esrMonitoring.region_name,
-        total_esr: sql<number>`count(*)`,
-        online_chlorine: sql<number>`sum(case when ${esrMonitoring.chlorine_status} = 'Online' then 1 else 0 end)`,
-        online_pressure: sql<number>`sum(case when ${esrMonitoring.pressure_status} = 'Online' then 1 else 0 end)`,
-        online_flow_meter: sql<number>`sum(case when ${esrMonitoring.flow_meter_status} = 'Online' then 1 else 0 end)`,
-        connected_chlorine: sql<number>`sum(${esrMonitoring.chlorine_connected})`,
-        connected_pressure: sql<number>`sum(${esrMonitoring.pressure_connected})`,
-        connected_flow_meter: sql<number>`sum(${esrMonitoring.flow_meter_connected})`,
+        total_esr: sql<number>`cast(count(*) as int)`,
+        online_chlorine: sql<number>`cast(sum(case when ${esrMonitoring.chlorine_status} = 'Online' then 1 else 0 end) as int)`,
+        online_pressure: sql<number>`cast(sum(case when ${esrMonitoring.pressure_status} = 'Online' then 1 else 0 end) as int)`,
+        online_flow_meter: sql<number>`cast(sum(case when ${esrMonitoring.flow_meter_status} = 'Online' then 1 else 0 end) as int)`,
+        connected_chlorine: sql<number>`cast(sum(${esrMonitoring.chlorine_connected}) as int)`,
+        connected_pressure: sql<number>`cast(sum(${esrMonitoring.pressure_connected}) as int)`,
+        connected_flow_meter: sql<number>`cast(sum(${esrMonitoring.flow_meter_connected}) as int)`,
       })
       .from(esrMonitoring)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
       .groupBy(esrMonitoring.region_name)
       .orderBy(asc(esrMonitoring.region_name));
-    
+
     res.json(stats);
   } catch (error) {
     console.error("Error fetching ESR stats:", error);

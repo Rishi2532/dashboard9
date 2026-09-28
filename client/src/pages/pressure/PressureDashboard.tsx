@@ -53,6 +53,8 @@ import { TranslatedText } from "@/components/ui/translated-text";
 import { useAuth } from "@/hooks/use-auth";
 import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
 import AgencyTypeFilter from "@/components/dashboard/AgencyTypeFilter";
+import VillageFilter from "@/components/dashboard/VillageFilter";
+import { useVillageCompletion } from "@/hooks/useVillageCompletion";
 import {
   Search,
   AlertTriangle,
@@ -420,6 +422,8 @@ const PressureDashboard: React.FC = () => {
   const [waterSupplyStatus, setWaterSupplyStatus] = useState<string>("All");
   const [schemeStatusFilter, setSchemeStatusFilter] = useState<string>("all");
   const [selectedAgencyType, setSelectedAgencyType] = useState<string>("ALL");
+  const [villageFilter, setVillageFilter] = useState<"all" | "completed">("all");
+  const { isVillageCompleted } = useVillageCompletion();
 
   // Card-specific filter state (only affects table data, not card counts)
   const [selectedCardFilter, setSelectedCardFilter] =
@@ -1270,6 +1274,13 @@ const PressureDashboard: React.FC = () => {
       });
     }
 
+    // Apply Village completion filter (based on village table where fully_completion_village_status = 'Completed')
+    if (villageFilter === "completed") {
+      filtered = filtered.filter((item) =>
+        isVillageCompleted(item.village_name, item.scheme_id),
+      );
+    }
+
     return filtered;
   }, [
     allPressureData,
@@ -1281,6 +1292,8 @@ const PressureDashboard: React.FC = () => {
     uiSchemeFilter,
     waterSupplyStatus,
     schemeStatusFilter,
+    villageFilter,
+    isVillageCompleted,
   ]);
 
   // Calculate data for summary cards (excludes sensor status and range filters)
@@ -1355,6 +1368,13 @@ const PressureDashboard: React.FC = () => {
       });
     }
 
+    // Apply Village completion filter (based on village table where fully_completion_village_status = 'Completed')
+    if (villageFilter === "completed") {
+      filtered = filtered.filter((item) =>
+        isVillageCompleted(item.village_name, item.scheme_id),
+      );
+    }
+
     // NOTE: Do NOT apply sensor status filter here - this data is for summary cards only
 
     return filtered;
@@ -1366,6 +1386,8 @@ const PressureDashboard: React.FC = () => {
     waterSupplyStatus,
     schemeStatusFilter,
     schemeStatusMap,
+    villageFilter,
+    isVillageCompleted,
   ]);
 
   // Calculate sensor status counts for pressure sensors using summary stats data (excludes range/sensor filters)
@@ -2280,6 +2302,17 @@ const PressureDashboard: React.FC = () => {
                   <SelectItem value="mjp_commissioned_yes">MJP Commissioned</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="min-w-[190px]">
+              <VillageFilter
+                value={villageFilter}
+                onChange={(val) => {
+                  setVillageFilter(val);
+                  setPage(1);
+                }}
+                triggerClassName="h-11"
+              />
             </div>
 
             {/* Action Buttons */}

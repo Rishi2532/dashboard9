@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   FileText,
@@ -30,6 +30,8 @@ import { generateMonthlyReportPDF } from "@/lib/pdf-generator-monthly";
 import { generateMonthlyChlorineReportPDF } from "@/lib/pdf-generator-monthly-chlorine";
 import { generateMonthlyPressureReportPDF } from "@/lib/pdf-generator-monthly-pressure";
 import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
+import VillageFilter from "@/components/dashboard/VillageFilter";
+import { useVillageCompletion } from "@/hooks/useVillageCompletion";
 
 export default function MonthlyReportsPage() {
   const [selectedRegion, setSelectedRegion] = useState<string>("all");
@@ -38,6 +40,8 @@ export default function MonthlyReportsPage() {
   const [selectedSubdivision, setSelectedSubdivision] = useState<string>("all");
   const [selectedBlock, setSelectedBlock] = useState<string>("all");
   const [selectedSchemeId, setSelectedSchemeId] = useState<string>("all");
+  const [villageFilter, setVillageFilter] = useState<"all" | "completed">("all");
+  const { isVillageCompleted } = useVillageCompletion();
 
   // Default to current month YYYY-MM
   const [reportMonth, setReportMonth] = useState<string>(
@@ -93,6 +97,16 @@ export default function MonthlyReportsPage() {
     enabled: selectedRegion !== "all",
   });
 
+  const filteredSchemesList = useMemo(() => {
+    if (!schemes || !Array.isArray(schemes)) return [];
+    if (villageFilter === "completed") {
+      return schemes.filter((scheme: any) =>
+        isVillageCompleted(scheme.village_name, scheme.scheme_id)
+      );
+    }
+    return schemes;
+  }, [schemes, villageFilter, isVillageCompleted]);
+
   const handleRegionChange = (val: string) => {
     setSelectedRegion(val);
     setSelectedCircle("all");
@@ -100,6 +114,7 @@ export default function MonthlyReportsPage() {
     setSelectedSubdivision("all");
     setSelectedBlock("all");
     setSelectedSchemeId("all");
+    setVillageFilter("all");
   };
 
   const handleCircleChange = (val: string) => {
@@ -220,7 +235,7 @@ export default function MonthlyReportsPage() {
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* Report Type Filter */}
               <div className="space-y-2">
                 <Label htmlFor="report-type" className="text-sm font-medium">
@@ -241,6 +256,21 @@ export default function MonthlyReportsPage() {
                 </Select>
               </div>
 
+              {/* Village Filter */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  Village Filter
+                </Label>
+                <VillageFilter
+                  value={villageFilter}
+                  onChange={(val) => {
+                    setVillageFilter(val);
+                    setSelectedSchemeId("all");
+                  }}
+                  showLabel={false}
+                />
+              </div>
+
               {/* Scheme Filter */}
               <div className="space-y-2">
                 <Label htmlFor="scheme" className="text-sm font-medium">
@@ -256,7 +286,7 @@ export default function MonthlyReportsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Schemes</SelectItem>
-                    {schemes?.map((scheme) => (
+                    {filteredSchemesList?.map((scheme) => (
                       <SelectItem key={scheme.scheme_id} value={scheme.scheme_id}>
                         {scheme.scheme_name} ({scheme.scheme_id})
                       </SelectItem>

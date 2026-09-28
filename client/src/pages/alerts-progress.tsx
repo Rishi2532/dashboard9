@@ -38,6 +38,8 @@ import {
   DialogHeader
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/use-auth";
+import VillageFilter from "@/components/dashboard/VillageFilter";
+import { useVillageCompletion } from "@/hooks/useVillageCompletion";
 
 // Define TypeScript interfaces for our data
 interface IssueRemark {
@@ -288,6 +290,8 @@ export default function AlertsProgressPage() {
   const [customDate, setCustomDate] = useState<string>("");
   const [schemeSearch, setSchemeSearch] = useState<string>("");
   const [ackStatusFilter, setAckStatusFilter] = useState<"all" | "acknowledged" | "pending">("all");
+  const [villageFilter, setVillageFilter] = useState<"all" | "completed">("all");
+  const { isVillageCompleted } = useVillageCompletion();
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -712,6 +716,9 @@ export default function AlertsProgressPage() {
       if (ackStatusFilter === "pending") {
         return !getRowAckInfo(row).isAcknowledged;
       }
+      if (villageFilter === "completed") {
+        return isVillageCompleted(row.village_name, row.scheme_id);
+      }
       return true;
     });
 
@@ -935,7 +942,7 @@ export default function AlertsProgressPage() {
         </div>
 
         {/* Active Filters Bar */}
-        {(ackStatusFilter !== "all" || schemeSearch) && (
+        {(ackStatusFilter !== "all" || schemeSearch || villageFilter !== "all") && (
           <div className="px-6 py-2.5 bg-slate-100/90 border-b border-slate-200 flex items-center justify-between text-xs flex-wrap gap-2">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-slate-500 font-medium">Active Filter:</span>
@@ -946,6 +953,12 @@ export default function AlertsProgressPage() {
                   }`}>
                   Status: {ackStatusFilter === "acknowledged" ? "Acknowledged Only" : "Pending Ack Only"}
                   <button onClick={() => setAckStatusFilter("all")} className="hover:opacity-75 ml-1">✕</button>
+                </span>
+              )}
+              {villageFilter !== "all" && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-semibold text-xs bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  Village: Fully Completed Only
+                  <button onClick={() => setVillageFilter("all")} className="hover:opacity-75 ml-1">✕</button>
                 </span>
               )}
               {schemeSearch && (
@@ -959,6 +972,7 @@ export default function AlertsProgressPage() {
             <button
               onClick={() => {
                 setAckStatusFilter("all");
+                setVillageFilter("all");
                 setSchemeSearch("");
               }}
               className="text-indigo-600 hover:text-indigo-800 font-semibold underline text-xs"
@@ -1444,6 +1458,19 @@ export default function AlertsProgressPage() {
                   <X className="h-3.5 w-3.5" />
                 </button>
               )}
+            </div>
+
+            {/* Village Filter */}
+            <div className="w-full sm:w-auto">
+              <VillageFilter
+                value={villageFilter}
+                onChange={(val) => {
+                  setVillageFilter(val);
+                  setPage(1);
+                }}
+                showLabel={false}
+                triggerClassName="h-8 text-xs bg-slate-50/70 border-slate-200"
+              />
             </div>
 
             {/* Date Filters & Download */}

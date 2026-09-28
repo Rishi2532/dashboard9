@@ -337,6 +337,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Mount communication status routes
   app.use("/api/communication-status", communicationStatusRoutes);
 
+  // Public endpoint for village completion statuses from village table
+  app.get("/api/village-completion-status", async (req, res) => {
+    try {
+      const db = await getDB();
+      const result: any = await db.execute(sql`
+        SELECT village_name, scheme_id, fully_completion_village_status 
+        FROM village 
+        WHERE LOWER(TRIM(COALESCE(fully_completion_village_status, ''))) = 'completed'
+      `);
+      const rows = result.rows || result || [];
+      const villageNames = Array.from(new Set(rows.map((r: any) => r.village_name).filter(Boolean)));
+      res.json({
+        completedVillages: villageNames,
+        records: rows
+      });
+    } catch (error) {
+      console.error("Error fetching village completion status:", error);
+      res.status(500).json({ error: "Failed to fetch village completion status" });
+    }
+  });
+
   // Mount village data routes (admin only)
   app.use("/api/villages", requireAdmin, villageRoutes);
 

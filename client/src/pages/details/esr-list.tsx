@@ -14,6 +14,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import VillageFilter from "@/components/dashboard/VillageFilter";
+import { useVillageCompletion } from "@/hooks/useVillageCompletion";
 
 interface ESRDetailProps {
   village_name: string;
@@ -59,6 +61,8 @@ export default function ESRListPage() {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(50);
+  const [villageFilter, setVillageFilter] = useState<"all" | "completed">("all");
+  const { isVillageCompleted } = useVillageCompletion();
 
   // Fetch sensor data based on type
   const { data: sensorData, isLoading } = useQuery({
@@ -96,7 +100,7 @@ export default function ESRListPage() {
     console.log('ESR List: Filtering params:', { region, category, dataType });
     console.log('ESR List: Sample withWaterSensorIds:', Array.from(withWaterSensorIds).slice(0, 5));
     
-    const finalResults = sensorData
+    let finalResults = sensorData
       .filter((item: any) => {
         // Filter by region first (same as chlorine/pressure page approach)
         if (region && region !== 'TOTAL' && item.region !== region) return false;
@@ -215,8 +219,14 @@ export default function ESRListPage() {
       console.log('ESR List: Sample results:', finalResults.slice(0, 2));
     }
     
+    if (villageFilter === "completed") {
+      finalResults = finalResults.filter((item: any) =>
+        isVillageCompleted(item.village_name)
+      );
+    }
+
     return finalResults;
-  }, [sensorData, sensorsWithWaterData, region, category, dataType]);
+  }, [sensorData, sensorsWithWaterData, region, category, dataType, villageFilter, isVillageCompleted]);
   
   // Pagination logic
   const totalPages = Math.ceil(filteredESRs.length / itemsPerPage);
@@ -227,7 +237,7 @@ export default function ESRListPage() {
   // Reset to page 1 when filters change
   useMemo(() => {
     setCurrentPage(1);
-  }, [region, category, dataType]);
+  }, [region, category, dataType, villageFilter]);
 
   const getCategoryTitle = () => {
     const sensorType = dataType === 'chlorine' ? 'Chlorine' : 'Pressure';
@@ -371,7 +381,17 @@ export default function ESRListPage() {
                 </p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-3">
+              <div className="w-[180px]">
+                <VillageFilter
+                  value={villageFilter}
+                  onChange={(val) => {
+                    setVillageFilter(val);
+                    setCurrentPage(1);
+                  }}
+                  showLabel={false}
+                />
+              </div>
               <Button
                 onClick={handleExportCSV}
                 variant="outline"

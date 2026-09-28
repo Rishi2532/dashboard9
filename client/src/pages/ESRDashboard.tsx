@@ -4,8 +4,10 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Activity, Zap, Droplets, BarChart3, Wifi, WifiOff } from "lucide-react";
+import VillageFilter from "@/components/dashboard/VillageFilter";
+import { useVillageCompletion } from "@/hooks/useVillageCompletion";
 
 interface ESRMonitoring {
   id: number;
@@ -39,16 +41,56 @@ interface ESRStats {
   connected_flow_meter: number;
 }
 
+const ALL_REGIONS = [
+  "Amravati",
+  "Chhatrapati Sambhajinagar",
+  "Konkan",
+  "Nagpur",
+  "Nashik",
+  "Pune",
+];
+
 export default function ESRDashboard() {
   const [selectedRegion, setSelectedRegion] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [villageFilter, setVillageFilter] = useState<"all" | "completed">("all");
+  const { isVillageCompleted } = useVillageCompletion();
 
-  const { data: esrData, isLoading: esrLoading } = useQuery({
-    queryKey: ["/api/esr", { region: selectedRegion, status: selectedStatus }],
+  const { data: esrData, isLoading: esrLoading, refetch: refetchEsr } = useQuery({
+    queryKey: ["/api/esr", selectedRegion, selectedStatus, villageFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedRegion !== "all") params.set("region", selectedRegion);
+      if (selectedStatus !== "all") params.set("status", selectedStatus);
+      if (villageFilter !== "all") params.set("villageFilter", villageFilter);
+      params.set("limit", "100");
+      const res = await fetch(`/api/esr?${params.toString()}`);
+      if (!res.ok) throw new Error("Failed to fetch ESR data");
+      return res.json();
+    },
   });
 
-  const { data: esrStats, isLoading: statsLoading } = useQuery({
-    queryKey: ["/api/esr/stats"],
+  const filteredEsrList = useMemo(() => {
+    const list = Array.isArray(esrData?.data) ? esrData.data : (Array.isArray(esrData) ? esrData : []);
+    if (villageFilter === "completed") {
+      return list.filter((esr: ESRMonitoring) =>
+        isVillageCompleted(esr.village_name, esr.scheme_id)
+      );
+    }
+    return list;
+  }, [esrData, villageFilter, isVillageCompleted]);
+
+  const { data: esrStats, isLoading: statsLoading, refetch: refetchStats } = useQuery<ESRStats[]>({
+    queryKey: ["/api/esr/stats", selectedRegion, selectedStatus, villageFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedRegion !== "all") params.set("region", selectedRegion);
+      if (selectedStatus !== "all") params.set("status", selectedStatus);
+      if (villageFilter !== "all") params.set("villageFilter", villageFilter);
+      const res = await fetch(`/api/esr/stats?${params.toString()}`);
+      if (!res.ok) throw new Error("Failed to fetch ESR stats");
+      return res.json();
+    },
   });
 
   const getStatusBadge = (status: string) => {
@@ -68,7 +110,7 @@ export default function ESRDashboard() {
       <div className="w-4 h-4 rounded-full bg-gray-300"></div>;
   };
 
-  const regions = esrStats?.map((stat: ESRStats) => stat.region_name) || [];
+  const regions = ALL_REGIONS;
 
   return (
     <div className="container mx-auto p-6">
@@ -174,8 +216,21 @@ export default function ESRDashboard() {
               </Select>
             </div>
 
+            <div className="flex-1 max-w-sm">
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">Village Filter</label>
+              <VillageFilter
+                value={villageFilter}
+                onChange={setVillageFilter}
+                showLabel={false}
+              />
+            </div>
+
             <div className="flex gap-3">
-               <Button variant="outline" className="h-11 border-gray-200 text-blue-700 bg-blue-50 hover:bg-blue-100 flex items-center gap-2 px-5 shadow-sm">
+               <Button 
+                 variant="outline" 
+                 onClick={() => { refetchStats(); refetchEsr(); }}
+                 className="h-11 border-gray-200 text-blue-700 bg-blue-50 hover:bg-blue-100 flex items-center gap-2 px-5 shadow-sm"
+               >
                   <Activity className="h-4 w-4" />
                   Refresh Data
                </Button>
@@ -209,7 +264,7 @@ export default function ESRDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {esrData?.data?.map((esr: ESRMonitoring) => (
+                  {filteredEsrList.map((esr: ESRMonitoring) => (
                     <TableRow key={esr.id}>
                       <TableCell className="font-medium">{esr.region_name}</TableCell>
                       <TableCell>{esr.village_name}</TableCell>
