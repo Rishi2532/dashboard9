@@ -113,7 +113,13 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
     if (smtpUser && smtpPassword) {
       const transporter = getSmtpTransporter();
 
-      const fromAddress = `"MahaJal IoT Alerts" <${smtpUser}>`;
+      const senderName = typeof params.from === "string" && params.from.trim()
+        ? params.from.trim()
+        : typeof params.from === "object" && (params.from as any)?.name
+          ? (params.from as any).name.trim()
+          : "MahaJal IoT Alerts";
+
+      const fromAddress = `"${senderName}" <${smtpUser}>`;
 
       const mailOptions: any = {
         from: fromAddress,
@@ -1084,13 +1090,13 @@ export async function sendEngineerCredentialsEmail(params: {
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);">
       <div style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: white; padding: 24px 20px; text-align: center;">
         <h1 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px;">Jal Jeevan Mission (JJM) Maharashtra</h1>
-        <p style="margin: 5px 0 0 0; opacity: 0.9; font-size: 13.5px;">MahaJal IoT Monitoring Platform — Field Engineer Portal</p>
+        <p style="margin: 5px 0 0 0; opacity: 0.9; font-size: 13.5px;">MahaJal IoT Monitoring Platform — Engineer Portal</p>
       </div>
 
       <div style="padding: 26px; background-color: #ffffff;">
         <h2 style="color: #0f172a; margin-top: 0; font-size: 17px;">Dear ${params.engineerName || "Engineer"},</h2>
         <p style="color: #334155; font-size: 14px; line-height: 1.6; margin-bottom: 18px;">
-          Your official field engineer account has been activated on the Maharashtra Rural Water Supply & Sanitation IoT Monitoring Dashboard.
+          Your official engineer account has been activated on the Maharashtra Rural Water Supply & Sanitation IoT Monitoring Dashboard.
         </p>
 
         <div style="background-color: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 18px 20px; margin: 20px 0;">
@@ -1141,7 +1147,8 @@ export async function sendEngineerCredentialsEmail(params: {
 
   return sendEmail({
     to: params.toEmail,
-    from: "Maharashtra Water Portal",
+    from: "MahaJal IoT Login Credentials",
+    cc: "semmjpbelapur@gmail.com",
     subject,
     html,
   });

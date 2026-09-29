@@ -28,6 +28,7 @@ import {
   ChevronDown,
   UserCheck,
   Users,
+  BellRing,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import Sidebar from "./sidebar";
@@ -174,6 +175,21 @@ export default function Header() {
 
               {authData?.isAdmin && (
                 <>
+                  <Link href="/alerts-progress">
+                    <Button
+                      size="sm"
+                      className={cn(
+                        "hidden sm:flex text-white h-8 text-xs font-semibold shadow-sm transition-all",
+                        isActive("/alerts-progress")
+                          ? "bg-rose-800 text-white ring-2 ring-rose-300"
+                          : "bg-rose-600 hover:bg-rose-700 text-white"
+                      )}
+                      title="Alerts Progress & Dispatch Monitoring"
+                    >
+                      <BellRing className="h-3.5 w-3.5 mr-1" />
+                      Alerts Progress
+                    </Button>
+                  </Link>
                   <Link href="/admin/users">
                     <Button
                       size="sm"
@@ -454,6 +470,23 @@ export default function Header() {
                 ESR-Wise Data
               </Button>
             </Link>
+            {authData?.isAdmin && (
+              <Link href="/alerts-progress">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "text-white h-8 px-3 text-xs font-medium transition-all duration-200",
+                    isActive("/alerts-progress")
+                      ? "bg-white/30 shadow-inner font-bold"
+                      : "hover:bg-black hover:bg-opacity-20"
+                  )}
+                >
+                  <BellRing className="h-3.5 w-3.5 mr-1.5" />
+                  Alerts Progress
+                </Button>
+              </Link>
+            )}
             <Button
               size="sm"
               onClick={openChatbot}
@@ -608,6 +641,21 @@ export default function Header() {
                   >
                     <BarChart2 className="h-4 w-4 mr-2" />
                     Monthly Reports
+                  </Button>
+                </Link>
+                <Link href="/alerts-progress" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      "w-full justify-start h-10 font-semibold transition-colors",
+                      isActive("/alerts-progress")
+                        ? "bg-rose-50 text-rose-700 border-l-4 border-rose-600 rounded-none pl-3"
+                        : "text-rose-700 hover:bg-rose-50"
+                    )}
+                  >
+                    <BellRing className="h-4 w-4 mr-2" />
+                    Alerts Progress
                   </Button>
                 </Link>
               </>

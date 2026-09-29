@@ -121,7 +121,7 @@ export default function EngineerManager() {
     },
   });
 
-  // Fetch field engineer directory roster
+  // Fetch engineer directory roster
   const {
     data: directoryData,
     isLoading: isLoadingDirectory,
@@ -130,7 +130,7 @@ export default function EngineerManager() {
     queryKey: ['/api/admin/engineers/directory'],
     queryFn: async () => {
       const res = await fetch('/api/admin/engineers/directory');
-      if (!res.ok) throw new Error('Failed to fetch field engineer roster');
+      if (!res.ok) throw new Error('Failed to fetch engineer roster');
       return res.json();
     },
   });
@@ -809,7 +809,7 @@ export default function EngineerManager() {
                     <TableRow>
                       <TableCell colSpan={6} className="py-8 text-center text-xs text-slate-400">
                         <RefreshCw className="w-5 h-5 mx-auto animate-spin mb-2 text-emerald-500" />
-                        Scanning field engineer directory...
+                        Scanning engineer directory...
                       </TableCell>
                     </TableRow>
                   ) : directoryList.length === 0 ? (
@@ -1069,7 +1069,7 @@ export default function EngineerManager() {
             <DialogDescription className="text-xs text-slate-600 pt-2 space-y-2">
               <p>
                 This action will send an <strong>individual, private email</strong> to all{' '}
-                <strong>{engineersList.length} registered field engineers</strong>.
+                <strong>{engineersList.length} registered engineers</strong>.
               </p>
               <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-md p-2.5 text-[11px] leading-relaxed">
                 🔒 <strong>Zero Cross-Exposure Guarantee:</strong> Each engineer will receive only their own

@@ -124,25 +124,29 @@ router.get('/lpcd', async (req, res) => {
         ),
         ack_status AS (
           SELECT scheme_id,
+                 sent_date,
                  json_agg(json_build_object(
                    'engineer_email', engineer_email,
                    'engineer_name', engineer_name,
+                   'sent_date', sent_date::text,
                    'acknowledged_at', max_ack
                  )) as acknowledgements
           FROM (
             SELECT scheme_id, 
+                   sent_date,
                    LOWER(TRIM(engineer_email)) as engineer_email, 
                    MAX(engineer_name) as engineer_name, 
                    MAX(acknowledged_at) as max_ack
             FROM email_acknowledgements
             WHERE alert_type IN ('LPCD', 'Low LPCD')
               AND ${dateFilter}
-            GROUP BY scheme_id, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
+            GROUP BY scheme_id, sent_date, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
           ) sub
-          GROUP BY scheme_id
+          GROUP BY scheme_id, sent_date
         ),
         sms_status AS (
           SELECT scheme_id,
+                 sent_date,
                  json_agg(json_build_object(
                    'id', id,
                    'mobile', mobile,
@@ -153,13 +157,13 @@ router.get('/lpcd', async (req, res) => {
                    'message_text', message_text,
                    'gateway_status', gateway_status,
                    'is_success', is_success,
-                   'sent_date', sent_date,
+                   'sent_date', sent_date::text,
                    'created_at', created_at
                  ) ORDER BY created_at DESC) as sms_dispatches
           FROM sms_alert_logs
           WHERE (template_name ILIKE '%LPCD%' OR template_name IS NULL)
             AND ${dateFilter}
-          GROUP BY scheme_id
+          GROUP BY scheme_id, sent_date
         )
         SELECT 
           w.scheme_id, 
@@ -195,7 +199,7 @@ router.get('/lpcd', async (req, res) => {
           sed.de_ae_mech_mobile as mechanical_engineer_mobile,
           COALESCE(e.de_ae_mech_name, sed.de_ae_mech_name, e.site_supervisor_name) as site_supervisor_name,
           COALESCE(e.de_ae_mech_email, sed.de_ae_mech_email, e.site_supervisor_email) as site_supervisor_email,
-          e.created_at, e.sent_date, e.ticket_id,
+          e.created_at, TO_CHAR(e.sent_date, 'YYYY-MM-DD') as sent_date, e.ticket_id,
           COALESCE(i.remarks, '[]'::json) as remarks,
           COALESCE(a.acknowledgements, '[]'::json) as acknowledgements,
           COALESCE(sms.sms_dispatches, '[]'::json) as sms_dispatches
@@ -204,8 +208,8 @@ router.get('/lpcd', async (req, res) => {
         JOIN scheme_status s ON w.scheme_id = s.scheme_id
         LEFT JOIN scheme_engineer_details sed ON (w.scheme_id = sed.scheme_id OR w.scheme_name ILIKE sed.scheme)
         LEFT JOIN issues i ON w.scheme_id = i.scheme_id
-        LEFT JOIN ack_status a ON w.scheme_id = a.scheme_id
-        LEFT JOIN sms_status sms ON w.scheme_id = sms.scheme_id
+        LEFT JOIN ack_status a ON (w.scheme_id = a.scheme_id AND e.sent_date::date = a.sent_date::date)
+        LEFT JOIN sms_status sms ON (w.scheme_id = sms.scheme_id AND e.sent_date::date = sms.sent_date::date)
         WHERE s.water_supply = 'Yes'
       `;
       const result = await client.query(query, queryParams);
@@ -268,25 +272,29 @@ router.get('/chlorine', async (req, res) => {
         ),
         ack_status AS (
           SELECT scheme_id,
+                 sent_date,
                  json_agg(json_build_object(
                    'engineer_email', engineer_email,
                    'engineer_name', engineer_name,
+                   'sent_date', sent_date::text,
                    'acknowledged_at', max_ack
                  )) as acknowledgements
           FROM (
             SELECT scheme_id, 
+                   sent_date,
                    LOWER(TRIM(engineer_email)) as engineer_email, 
                    MAX(engineer_name) as engineer_name, 
                    MAX(acknowledged_at) as max_ack
             FROM email_acknowledgements
             WHERE alert_type IN ('Chlorine', 'Low Chlorine', 'High Chlorine')
               AND ${dateFilter}
-            GROUP BY scheme_id, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
+            GROUP BY scheme_id, sent_date, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
           ) sub
-          GROUP BY scheme_id
+          GROUP BY scheme_id, sent_date
         ),
         sms_status AS (
           SELECT scheme_id,
+                 sent_date,
                  json_agg(json_build_object(
                    'id', id,
                    'mobile', mobile,
@@ -297,13 +305,13 @@ router.get('/chlorine', async (req, res) => {
                    'message_text', message_text,
                    'gateway_status', gateway_status,
                    'is_success', is_success,
-                   'sent_date', sent_date,
+                   'sent_date', sent_date::text,
                    'created_at', created_at
                  ) ORDER BY created_at DESC) as sms_dispatches
           FROM sms_alert_logs
           WHERE (template_name ILIKE '%Chlorine%' OR template_name IS NULL)
             AND ${dateFilter}
-          GROUP BY scheme_id
+          GROUP BY scheme_id, sent_date
         )
         SELECT 
           c.scheme_id, 
@@ -340,7 +348,7 @@ router.get('/chlorine', async (req, res) => {
           sed.de_ae_mech_mobile as mechanical_engineer_mobile,
           COALESCE(e.de_ae_mech_name, sed.de_ae_mech_name, e.site_supervisor_name) as site_supervisor_name,
           COALESCE(e.de_ae_mech_email, sed.de_ae_mech_email, e.site_supervisor_email) as site_supervisor_email,
-          e.created_at, e.sent_date, e.ticket_id,
+          e.created_at, TO_CHAR(e.sent_date, 'YYYY-MM-DD') as sent_date, e.ticket_id,
           COALESCE(i.remarks, '[]'::json) as remarks,
           COALESCE(a.acknowledgements, '[]'::json) as acknowledgements,
           COALESCE(sms.sms_dispatches, '[]'::json) as sms_dispatches
@@ -349,8 +357,8 @@ router.get('/chlorine', async (req, res) => {
         JOIN scheme_status s ON c.scheme_id = s.scheme_id
         LEFT JOIN scheme_engineer_details sed ON (c.scheme_id = sed.scheme_id OR c.scheme_name ILIKE sed.scheme)
         LEFT JOIN issues i ON c.scheme_id = i.scheme_id
-        LEFT JOIN ack_status a ON c.scheme_id = a.scheme_id
-        LEFT JOIN sms_status sms ON c.scheme_id = sms.scheme_id
+        LEFT JOIN ack_status a ON (c.scheme_id = a.scheme_id AND e.sent_date::date = a.sent_date::date)
+        LEFT JOIN sms_status sms ON (c.scheme_id = sms.scheme_id AND e.sent_date::date = sms.sent_date::date)
         WHERE s.water_supply = 'Yes'
       `;
       const result = await client.query(query, queryParams);
@@ -413,25 +421,29 @@ router.get('/pressure', async (req, res) => {
         ),
         ack_status AS (
           SELECT scheme_id,
+                 sent_date,
                  json_agg(json_build_object(
                    'engineer_email', engineer_email,
                    'engineer_name', engineer_name,
+                   'sent_date', sent_date::text,
                    'acknowledged_at', max_ack
                  )) as acknowledgements
           FROM (
             SELECT scheme_id, 
+                   sent_date,
                    LOWER(TRIM(engineer_email)) as engineer_email, 
                    MAX(engineer_name) as engineer_name, 
                    MAX(acknowledged_at) as max_ack
             FROM email_acknowledgements
             WHERE alert_type IN ('Pressure', 'Low Pressure')
               AND ${dateFilter}
-            GROUP BY scheme_id, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
+            GROUP BY scheme_id, sent_date, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
           ) sub
-          GROUP BY scheme_id
+          GROUP BY scheme_id, sent_date
         ),
         sms_status AS (
           SELECT scheme_id,
+                 sent_date,
                  json_agg(json_build_object(
                    'id', id,
                    'mobile', mobile,
@@ -442,13 +454,13 @@ router.get('/pressure', async (req, res) => {
                    'message_text', message_text,
                    'gateway_status', gateway_status,
                    'is_success', is_success,
-                   'sent_date', sent_date,
+                   'sent_date', sent_date::text,
                    'created_at', created_at
                  ) ORDER BY created_at DESC) as sms_dispatches
           FROM sms_alert_logs
           WHERE (template_name ILIKE '%Pressure%' OR template_name IS NULL)
             AND ${dateFilter}
-          GROUP BY scheme_id
+          GROUP BY scheme_id, sent_date
         )
         SELECT 
           p.scheme_id, 
@@ -485,7 +497,7 @@ router.get('/pressure', async (req, res) => {
           sed.de_ae_mech_mobile as mechanical_engineer_mobile,
           COALESCE(e.de_ae_mech_name, sed.de_ae_mech_name, e.site_supervisor_name) as site_supervisor_name,
           COALESCE(e.de_ae_mech_email, sed.de_ae_mech_email, e.site_supervisor_email) as site_supervisor_email,
-          e.created_at, e.sent_date, e.ticket_id,
+          e.created_at, TO_CHAR(e.sent_date, 'YYYY-MM-DD') as sent_date, e.ticket_id,
           COALESCE(i.remarks, '[]'::json) as remarks,
           COALESCE(a.acknowledgements, '[]'::json) as acknowledgements,
           COALESCE(sms.sms_dispatches, '[]'::json) as sms_dispatches
@@ -494,8 +506,8 @@ router.get('/pressure', async (req, res) => {
         JOIN scheme_status s ON p.scheme_id = s.scheme_id
         LEFT JOIN scheme_engineer_details sed ON (p.scheme_id = sed.scheme_id OR p.scheme_name ILIKE sed.scheme)
         LEFT JOIN issues i ON p.scheme_id = i.scheme_id
-        LEFT JOIN ack_status a ON p.scheme_id = a.scheme_id
-        LEFT JOIN sms_status sms ON p.scheme_id = sms.scheme_id
+        LEFT JOIN ack_status a ON (p.scheme_id = a.scheme_id AND e.sent_date::date = a.sent_date::date)
+        LEFT JOIN sms_status sms ON (p.scheme_id = sms.scheme_id AND e.sent_date::date = sms.sent_date::date)
         WHERE s.water_supply = 'Yes'
       `;
       const result = await client.query(query, queryParams);
@@ -540,22 +552,25 @@ router.get('/offline', async (req, res) => {
         ),
         ack_status AS (
           SELECT scheme_id,
+                 sent_date,
                  json_agg(json_build_object(
                    'engineer_email', engineer_email,
                    'engineer_name', engineer_name,
+                   'sent_date', sent_date::text,
                    'acknowledged_at', max_ack
                  )) as acknowledgements
           FROM (
             SELECT scheme_id, 
+                   sent_date,
                    LOWER(TRIM(engineer_email)) as engineer_email, 
                    MAX(engineer_name) as engineer_name, 
                    MAX(acknowledged_at) as max_ack
             FROM email_acknowledgements
             WHERE alert_type = 'Offline'
               AND ${dateFilter}
-            GROUP BY scheme_id, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
+            GROUP BY scheme_id, sent_date, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
           ) sub
-          GROUP BY scheme_id
+          GROUP BY scheme_id, sent_date
         ),
         recent_logs AS (
           SELECT DISTINCT ON (scheme_id, sent_date)
@@ -567,6 +582,7 @@ router.get('/offline', async (req, res) => {
         ),
         sms_status AS (
           SELECT scheme_id,
+                 sent_date,
                  json_agg(json_build_object(
                    'id', id,
                    'mobile', mobile,
@@ -577,13 +593,13 @@ router.get('/offline', async (req, res) => {
                    'message_text', message_text,
                    'gateway_status', gateway_status,
                    'is_success', is_success,
-                   'sent_date', sent_date,
+                   'sent_date', sent_date::text,
                    'created_at', created_at
                  ) ORDER BY created_at DESC) as sms_dispatches
           FROM sms_alert_logs
           WHERE (template_name ILIKE '%Offline%' OR template_name IS NULL)
             AND ${dateFilter}
-          GROUP BY scheme_id
+          GROUP BY scheme_id, sent_date
         )
         SELECT 
           c.id,
@@ -629,9 +645,7 @@ router.get('/offline', async (req, res) => {
           sed.de_ae_mech_mobile as mechanical_engineer_mobile,
           sed.de_ae_mech_name as site_supervisor_name,
           sed.de_ae_mech_email as site_supervisor_email,
-          e.created_at,
-          e.sent_date,
-          e.ticket_id,
+          e.created_at, TO_CHAR(e.sent_date, 'YYYY-MM-DD') as sent_date, e.ticket_id,
           COALESCE(i.remarks, '[]'::json) as remarks,
           COALESCE(a.acknowledgements, '[]'::json) as acknowledgements,
           COALESCE(sms.sms_dispatches, '[]'::json) as sms_dispatches
@@ -644,9 +658,9 @@ router.get('/offline', async (req, res) => {
           ORDER BY region, id
         ) v ON c.region = v.region
         LEFT JOIN issues i ON c.scheme_id = i.scheme_id
-        LEFT JOIN ack_status a ON c.scheme_id = a.scheme_id
         LEFT JOIN recent_logs e ON c.scheme_id = e.scheme_id
-        LEFT JOIN sms_status sms ON c.scheme_id = sms.scheme_id
+        LEFT JOIN ack_status a ON (c.scheme_id = a.scheme_id AND e.sent_date::date = a.sent_date::date)
+        LEFT JOIN sms_status sms ON (c.scheme_id = sms.scheme_id AND e.sent_date::date = sms.sent_date::date)
         WHERE (c.chlorine_status = 'Offline' 
            OR c.pressure_status = 'Offline' 
            OR c.flow_meter_status = 'Offline')
@@ -980,25 +994,29 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
             ),
             ack_status AS (
               SELECT scheme_id,
+                     sent_date,
                      json_agg(json_build_object(
                        'engineer_email', engineer_email,
                        'engineer_name', engineer_name,
+                       'sent_date', sent_date::text,
                        'acknowledged_at', max_ack
                      )) as acknowledgements
               FROM (
                 SELECT scheme_id, 
+                       sent_date,
                        LOWER(TRIM(engineer_email)) as engineer_email, 
                        MAX(engineer_name) as engineer_name, 
                        MAX(acknowledged_at) as max_ack
                 FROM email_acknowledgements
                 WHERE alert_type IN ('LPCD', 'Low LPCD')
                   AND ${dateFilter}
-                GROUP BY scheme_id, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
+                GROUP BY scheme_id, sent_date, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
               ) sub
-              GROUP BY scheme_id
+              GROUP BY scheme_id, sent_date
             ),
             sms_status AS (
               SELECT scheme_id,
+                     sent_date,
                      json_agg(json_build_object(
                        'id', id,
                        'mobile', mobile,
@@ -1009,13 +1027,13 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
                        'message_text', message_text,
                        'gateway_status', gateway_status,
                        'is_success', is_success,
-                       'sent_date', sent_date,
+                       'sent_date', sent_date::text,
                        'created_at', created_at
                      ) ORDER BY created_at DESC) as sms_dispatches
               FROM sms_alert_logs
               WHERE (template_name ILIKE '%LPCD%' OR template_name IS NULL)
                 AND ${dateFilter}
-              GROUP BY scheme_id
+              GROUP BY scheme_id, sent_date
             )
             SELECT 
               w.scheme_id, 
@@ -1043,7 +1061,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               COALESCE(e.chief_engineer_name, sed.chief_engineer_name) as chief_engineer_name,
               COALESCE(e.chief_engineer_email, sed.chief_engineer_email) as chief_engineer_email,
               sed.chief_engineer_mobile,
-              e.created_at, e.sent_date, e.ticket_id,
+              e.created_at, TO_CHAR(e.sent_date, 'YYYY-MM-DD') as sent_date, e.ticket_id,
               COALESCE(i.remarks, '[]'::json) as remarks,
               COALESCE(a.acknowledgements, '[]'::json) as acknowledgements,
               COALESCE(sms.sms_dispatches, '[]'::json) as sms_dispatches
@@ -1052,8 +1070,8 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
             JOIN scheme_status s ON w.scheme_id = s.scheme_id
             LEFT JOIN scheme_engineer_details sed ON (w.scheme_id = sed.scheme_id OR w.scheme_name ILIKE sed.scheme)
             LEFT JOIN issues i ON w.scheme_id = i.scheme_id
-            LEFT JOIN ack_status a ON w.scheme_id = a.scheme_id
-            LEFT JOIN sms_status sms ON w.scheme_id = sms.scheme_id
+            LEFT JOIN ack_status a ON (w.scheme_id = a.scheme_id AND e.sent_date::date = a.sent_date::date)
+            LEFT JOIN sms_status sms ON (w.scheme_id = sms.scheme_id AND e.sent_date::date = sms.sent_date::date)
             WHERE s.water_supply = 'Yes'
             ORDER BY w.region, w.scheme_name, w.village_name
           `;
@@ -1162,25 +1180,29 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
             ),
             ack_status AS (
               SELECT scheme_id,
+                     sent_date,
                      json_agg(json_build_object(
                        'engineer_email', engineer_email,
                        'engineer_name', engineer_name,
+                       'sent_date', sent_date::text,
                        'acknowledged_at', max_ack
                      )) as acknowledgements
               FROM (
                 SELECT scheme_id, 
+                       sent_date,
                        LOWER(TRIM(engineer_email)) as engineer_email, 
                        MAX(engineer_name) as engineer_name, 
                        MAX(acknowledged_at) as max_ack
                 FROM email_acknowledgements
                 WHERE alert_type IN ('Chlorine', 'Low Chlorine', 'RCA')
                   AND ${dateFilter}
-                GROUP BY scheme_id, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
+                GROUP BY scheme_id, sent_date, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
               ) sub
-              GROUP BY scheme_id
+              GROUP BY scheme_id, sent_date
             ),
             sms_status AS (
               SELECT scheme_id,
+                     sent_date,
                      json_agg(json_build_object(
                        'id', id,
                        'mobile', mobile,
@@ -1191,13 +1213,13 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
                        'message_text', message_text,
                        'gateway_status', gateway_status,
                        'is_success', is_success,
-                       'sent_date', sent_date,
+                       'sent_date', sent_date::text,
                        'created_at', created_at
                      ) ORDER BY created_at DESC) as sms_dispatches
               FROM sms_alert_logs
               WHERE (template_name ILIKE '%Chlorine%' OR template_name IS NULL)
                 AND ${dateFilter}
-              GROUP BY scheme_id
+              GROUP BY scheme_id, sent_date
             )
             SELECT 
               c.scheme_id, 
@@ -1226,7 +1248,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               COALESCE(e.chief_engineer_name, sed.chief_engineer_name) as chief_engineer_name,
               COALESCE(e.chief_engineer_email, sed.chief_engineer_email) as chief_engineer_email,
               sed.chief_engineer_mobile,
-              e.created_at, e.sent_date, e.ticket_id,
+              e.created_at, TO_CHAR(e.sent_date, 'YYYY-MM-DD') as sent_date, e.ticket_id,
               COALESCE(i.remarks, '[]'::json) as remarks,
               COALESCE(a.acknowledgements, '[]'::json) as acknowledgements,
               COALESCE(sms.sms_dispatches, '[]'::json) as sms_dispatches
@@ -1235,8 +1257,8 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
             JOIN scheme_status s ON c.scheme_id = s.scheme_id
             LEFT JOIN scheme_engineer_details sed ON (c.scheme_id = sed.scheme_id OR c.scheme_name ILIKE sed.scheme)
             LEFT JOIN issues i ON c.scheme_id = i.scheme_id
-            LEFT JOIN ack_status a ON c.scheme_id = a.scheme_id
-            LEFT JOIN sms_status sms ON c.scheme_id = sms.scheme_id
+            LEFT JOIN ack_status a ON (c.scheme_id = a.scheme_id AND e.sent_date::date = a.sent_date::date)
+            LEFT JOIN sms_status sms ON (c.scheme_id = sms.scheme_id AND e.sent_date::date = sms.sent_date::date)
             WHERE s.water_supply = 'Yes'
             ORDER BY c.region, c.scheme_name, c.village_name, c.esr_name
           `;
@@ -1347,25 +1369,29 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
             ),
             ack_status AS (
               SELECT scheme_id,
+                     sent_date,
                      json_agg(json_build_object(
                        'engineer_email', engineer_email,
                        'engineer_name', engineer_name,
+                       'sent_date', sent_date::text,
                        'acknowledged_at', max_ack
                      )) as acknowledgements
               FROM (
                 SELECT scheme_id, 
+                       sent_date,
                        LOWER(TRIM(engineer_email)) as engineer_email, 
                        MAX(engineer_name) as engineer_name, 
                        MAX(acknowledged_at) as max_ack
                 FROM email_acknowledgements
                 WHERE alert_type IN ('Pressure', 'Low Pressure')
                   AND ${dateFilter}
-                GROUP BY scheme_id, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
+                GROUP BY scheme_id, sent_date, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
               ) sub
-              GROUP BY scheme_id
+              GROUP BY scheme_id, sent_date
             ),
             sms_status AS (
               SELECT scheme_id,
+                     sent_date,
                      json_agg(json_build_object(
                        'id', id,
                        'mobile', mobile,
@@ -1376,13 +1402,13 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
                        'message_text', message_text,
                        'gateway_status', gateway_status,
                        'is_success', is_success,
-                       'sent_date', sent_date,
+                       'sent_date', sent_date::text,
                        'created_at', created_at
                      ) ORDER BY created_at DESC) as sms_dispatches
               FROM sms_alert_logs
               WHERE (template_name ILIKE '%Pressure%' OR template_name IS NULL)
                 AND ${dateFilter}
-              GROUP BY scheme_id
+              GROUP BY scheme_id, sent_date
             )
             SELECT 
               p.scheme_id, 
@@ -1411,7 +1437,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               COALESCE(e.chief_engineer_name, sed.chief_engineer_name) as chief_engineer_name,
               COALESCE(e.chief_engineer_email, sed.chief_engineer_email) as chief_engineer_email,
               sed.chief_engineer_mobile,
-              e.created_at, e.sent_date, e.ticket_id,
+              e.created_at, TO_CHAR(e.sent_date, 'YYYY-MM-DD') as sent_date, e.ticket_id,
               COALESCE(i.remarks, '[]'::json) as remarks,
               COALESCE(a.acknowledgements, '[]'::json) as acknowledgements,
               COALESCE(sms.sms_dispatches, '[]'::json) as sms_dispatches
@@ -1420,8 +1446,8 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
             JOIN scheme_status s ON p.scheme_id = s.scheme_id
             LEFT JOIN scheme_engineer_details sed ON (p.scheme_id = sed.scheme_id OR p.scheme_name ILIKE sed.scheme)
             LEFT JOIN issues i ON p.scheme_id = i.scheme_id
-            LEFT JOIN ack_status a ON p.scheme_id = a.scheme_id
-            LEFT JOIN sms_status sms ON p.scheme_id = sms.scheme_id
+            LEFT JOIN ack_status a ON (p.scheme_id = a.scheme_id AND e.sent_date::date = a.sent_date::date)
+            LEFT JOIN sms_status sms ON (p.scheme_id = sms.scheme_id AND e.sent_date::date = sms.sent_date::date)
             WHERE s.water_supply = 'Yes'
             ORDER BY p.region, p.scheme_name, p.village_name, p.esr_name
           `;
@@ -1496,21 +1522,24 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
           const offlineQuery = `
             WITH ack_status AS (
               SELECT scheme_id,
+                     sent_date,
                      json_agg(json_build_object(
                        'engineer_email', engineer_email,
                        'engineer_name', engineer_name,
+                       'sent_date', sent_date::text,
                        'acknowledged_at', max_ack
                      )) as acknowledgements
               FROM (
                 SELECT scheme_id, 
+                       sent_date,
                        LOWER(TRIM(engineer_email)) as engineer_email, 
                        MAX(engineer_name) as engineer_name, 
                        MAX(acknowledged_at) as max_ack
                 FROM email_acknowledgements
                 WHERE alert_type = 'Offline'
-                GROUP BY scheme_id, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
+                GROUP BY scheme_id, sent_date, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
               ) sub
-              GROUP BY scheme_id
+              GROUP BY scheme_id, sent_date
             ),
             recent_logs AS (
               SELECT DISTINCT ON (scheme_id, sent_date)
@@ -1522,6 +1551,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
             ),
             sms_status AS (
               SELECT scheme_id,
+                     sent_date,
                      json_agg(json_build_object(
                        'id', id,
                        'mobile', mobile,
@@ -1532,13 +1562,13 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
                        'message_text', message_text,
                        'gateway_status', gateway_status,
                        'is_success', is_success,
-                       'sent_date', sent_date,
+                       'sent_date', sent_date::text,
                        'created_at', created_at
                      ) ORDER BY created_at DESC) as sms_dispatches
               FROM sms_alert_logs
               WHERE (template_name ILIKE '%Offline%' OR template_name IS NULL)
                 AND ${dateFilter}
-              GROUP BY scheme_id
+              GROUP BY scheme_id, sent_date
             )
             SELECT 
               c.scheme_id,
@@ -1571,9 +1601,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               v.employee_name as vendor_name,
               v.email as vendor_email,
               v.phone as vendor_phone,
-              e.created_at,
-              e.sent_date,
-              e.ticket_id,
+              e.created_at, TO_CHAR(e.sent_date, 'YYYY-MM-DD') as sent_date, e.ticket_id,
               COALESCE(i.remarks, '[]'::json) as remarks,
               COALESCE(a.acknowledgements, '[]'::json) as acknowledgements,
               COALESCE(sms.sms_dispatches, '[]'::json) as sms_dispatches
@@ -1586,9 +1614,9 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               ORDER BY region, id
             ) v ON c.region = v.region
             LEFT JOIN issues i ON c.scheme_id = i.scheme_id
-            LEFT JOIN ack_status a ON c.scheme_id = a.scheme_id
             LEFT JOIN recent_logs e ON c.scheme_id = e.scheme_id
-            LEFT JOIN sms_status sms ON c.scheme_id = sms.scheme_id
+            LEFT JOIN ack_status a ON (c.scheme_id = a.scheme_id AND e.sent_date::date = a.sent_date::date)
+            LEFT JOIN sms_status sms ON (c.scheme_id = sms.scheme_id AND e.sent_date::date = sms.sent_date::date)
             WHERE (c.chlorine_status = 'Offline' 
                OR c.pressure_status = 'Offline' 
                OR c.flow_meter_status = 'Offline')

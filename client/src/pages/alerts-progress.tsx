@@ -178,7 +178,7 @@ export const isValidEngineerName = (rawName?: string | null): boolean => {
   return true;
 };
 
-// Helper to determine the primary Scheme Owner from scheme_engineer_details
+// Helper to determine the primary Scheme Owner from Engineers Directory
 export const getSchemeOwner = (row: AlertData) => {
   // EE (Civil) is the primary Scheme Owner in JJM/MJP, followed by EE (Mech), DE/AE (Civil), DE/AE (Mech), SE, CE
   if (isValidEngineerName(row.ee_civil_name)) {
@@ -262,7 +262,32 @@ export const getAllSchemeContacts = (row: AlertData) => {
   return contacts;
 };
 
-// Helper to extract engineer recipients for a given alert row strictly from scheme_engineer_details
+// Safe date formatter for alert records that prevents timezone shifting
+export const formatAlertDate = (row: AlertData) => {
+  if (row.sent_date) {
+    const s = String(row.sent_date).split('T')[0];
+    const parts = s.split('-');
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const monthIdx = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      if (!isNaN(day) && monthIdx >= 0 && monthIdx < 12 && !isNaN(year)) {
+        return `${String(day).padStart(2, '0')} ${months[monthIdx]} ${year}`;
+      }
+    }
+    return s;
+  }
+  if (row.created_at) {
+    const d = new Date(row.created_at);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+  }
+  return 'Today';
+};
+
+// Helper to extract engineer recipients for a given alert row strictly from Engineers Directory
 export const getRowRecipients = (row: AlertData) => {
   const recipients: RecipientInfo[] = [];
 
@@ -276,17 +301,26 @@ export const getRowRecipients = (row: AlertData) => {
 
     const match = row.acknowledgements.find((a: any) => {
       if (!a.acknowledged_at) return false;
+
+      // PostgreSQL SQL join already guarantees row.acknowledgements belongs strictly to this alert's date.
+      // Extra safety check if both records have explicit sent_date strings:
+      if (a.sent_date && row.sent_date) {
+        const aDate = String(a.sent_date).split('T')[0];
+        const rDate = String(row.sent_date).split('T')[0];
+        if (aDate !== rDate) return false;
+      }
+
       const aEmail = a.engineer_email ? a.engineer_email.toLowerCase().trim() : '';
       const aName = a.engineer_name ? a.engineer_name.toLowerCase().trim() : '';
 
-      // If both target and acknowledgement have a name, match strictly by name.
-      if (targetName && aName) {
-        return aName === targetName || aName.includes(targetName) || targetName.includes(aName);
+      // 1. Direct match by exact email address
+      if (targetEmail && aEmail && targetEmail === aEmail) return true;
+
+      // 2. Match by engineer name
+      if (targetName && aName && (targetName === aName || targetName.includes(aName) || aName.includes(targetName))) {
+        return true;
       }
 
-      // Fallback: If one side lacks a name, fall back to matching by email or name
-      if (targetEmail && aEmail && aEmail === targetEmail) return true;
-      if (targetName && aName && (aName === targetName || aName.includes(targetName) || targetName.includes(aName))) return true;
       return false;
     });
 
@@ -296,7 +330,7 @@ export const getRowRecipients = (row: AlertData) => {
     };
   };
 
-  // Strictly consider available persons from scheme_engineer_details only (no vendors, no blanks/dashes, no dummy fallbacks)
+  // Strictly consider available persons from Engineers Directory only (no vendors, no blanks/dashes, no dummy fallbacks)
   // 1. Executive Engineer (Civil)
   if (isValidEngineerName(row.ee_civil_name)) {
     const name = row.ee_civil_name!.trim();
@@ -393,8 +427,20 @@ export const getRowAckInfo = (row: AlertData) => {
 
   const ackCount = activeRecipients.filter(r => r.isAcknowledged).length;
   const totalRequired = activeRecipients.length;
-  const isAcknowledged = ackCount > 0;
-  const isFullyAcknowledged = totalRequired > 0 && ackCount === totalRequired;
+
+  // Confirmed acks for this specific alert
+  const validAcks = (row.acknowledgements || []).filter((a: any) => {
+    if (!a.acknowledged_at) return false;
+    if (a.sent_date && row.sent_date) {
+      const aDate = String(a.sent_date).split('T')[0];
+      const rDate = String(row.sent_date).split('T')[0];
+      if (aDate !== rDate) return false;
+    }
+    return true;
+  });
+
+  const isAcknowledged = ackCount > 0 || validAcks.length > 0;
+  const isFullyAcknowledged = totalRequired > 0 && ackCount >= totalRequired;
 
   const acksList = activeRecipients
     .filter(r => r.isAcknowledged)
@@ -404,10 +450,20 @@ export const getRowAckInfo = (row: AlertData) => {
       acknowledged_at: r.acknowledged_at || ""
     }));
 
+  if (acksList.length === 0 && validAcks.length > 0) {
+    validAcks.forEach((a: any) => {
+      acksList.push({
+        name: a.engineer_name || "Assigned Engineer",
+        email: a.engineer_email || "",
+        acknowledged_at: a.acknowledged_at || ""
+      });
+    });
+  }
+
   return {
     isAcknowledged,
     isFullyAcknowledged,
-    ackCount,
+    ackCount: Math.max(ackCount, validAcks.length),
     totalRequired,
     acksList,
     recipients
@@ -547,7 +603,7 @@ export default function AlertsProgressPage() {
     enabled: !!isAdmin,
   });
 
-  // Query total unique engineers in scheme_engineer_details
+  // Query total unique engineers in Engineers Directory
   const { data: rosterData } = useQuery<{ totalEngineers: number }>({
     queryKey: ["/api/alerts-progress/total-engineers"],
     queryFn: async () => {
@@ -591,33 +647,42 @@ export default function AlertsProgressPage() {
 
     const todayStr = new Date().toDateString();
 
-    // Yesterday
     const yesterdayDate = new Date();
     yesterdayDate.setDate(yesterdayDate.getDate() - 1);
     const yesterdayStr = yesterdayDate.toDateString();
+
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const todayYmd = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const yesterdayYmd = `${yesterdayDate.getFullYear()}-${pad(yesterdayDate.getMonth() + 1)}-${pad(yesterdayDate.getDate())}`;
 
     if (activeSubTab === "custom") {
       return data; // Backend already filters by the exact date
     }
 
     if (activeSubTab === "current") {
-      // Current day = Emails sent exactly TODAY (calendar date matches)
+      // Current day = Alert sent date matches today or created today
       return data.filter((row) => {
-        if (!row.created_at) return false;
-        return new Date(row.created_at).toDateString() === todayStr;
+        if (row.sent_date) {
+          const s = String(row.sent_date).split('T')[0];
+          if (s === todayYmd) return true;
+        }
+        if (row.created_at) {
+          return new Date(row.created_at).toDateString() === todayStr;
+        }
+        return false;
       });
     } else {
-      // Previous day = Emails sent exactly YESTERDAY
-      const previousData = data.filter((row) => {
-        if (!row.created_at) return false;
-        return new Date(row.created_at).toDateString() === yesterdayStr;
-      });
-
-      // Apply the original health filter to previous day data
-      return previousData.filter((row) => {
-        const prevVal = Number(row.previous_value);
-        if (type === "lpcd") return prevVal < 55 || prevVal === 0;
-        return prevVal < 0.2;
+      // Previous day = Alert sent date matches yesterday or created yesterday
+      return data.filter((row) => {
+        if (row.sent_date) {
+          const s = String(row.sent_date).split('T')[0];
+          if (s === yesterdayYmd) return true;
+        }
+        if (row.created_at) {
+          return new Date(row.created_at).toDateString() === yesterdayStr;
+        }
+        return false;
       });
     }
   };
@@ -877,56 +942,50 @@ export default function AlertsProgressPage() {
     const endItem = Math.min(endIdx, displayData.length);
 
     return (
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-8">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden mb-6">
 
-        {/* KPI Cards Row - 5 Catchy & Professional Cards with Explicit Unit Badges & Roster Ratio */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 p-5 border-b border-slate-100 bg-slate-50/60">
+        {/* Official Summary KPI Cards - Clean Government of India Portal Style */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 p-4 border-b border-slate-200 bg-slate-50/50">
 
-          {/* Card 1: Total Alerts / Non-Compliant Units */}
+          {/* Card 1: Total Active Alerts */}
           <div
             onClick={() => setAckStatusFilter("all")}
-            className={`cursor-pointer group flex flex-col justify-between p-4 rounded-xl border transition-all duration-200 border-t-4 border-t-rose-500 ${ackStatusFilter === "all"
-              ? "bg-white border-rose-300 ring-2 ring-rose-200/80 shadow-md"
-              : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-md"
+            className={`cursor-pointer flex flex-col justify-between p-3.5 rounded-lg border bg-white transition-all border-t-4 border-t-rose-600 ${ackStatusFilter === "all"
+              ? "ring-2 ring-rose-300 border-rose-300 shadow-sm"
+              : "border-slate-200 hover:border-slate-300 hover:shadow-xs"
               }`}
             title={`Click to view all ${unitNoun}`}
           >
             <div className="flex items-center justify-between">
-              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">
+              <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">
                 {type === "lpcd"
-                  ? "Non-achieving Villages"
+                  ? "Villages < 55 LPCD"
                   : type === "chlorine"
-                    ? "Chlorine Sensor Alerts"
+                    ? "Chlorine Alerts"
                     : type === "pressure"
-                      ? "Pressure Sensor Alerts"
-                      : "Offline Sensor Alerts"}
-              </div>
-              <div className="h-8 w-8 shrink-0 bg-rose-100 text-rose-600 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform">
+                      ? "Pressure Alerts"
+                      : "Offline Sensors"}
+              </span>
+              <div className="h-7 w-7 rounded bg-rose-50 text-rose-600 flex items-center justify-center">
                 <AlertTriangle className="h-4 w-4" />
               </div>
             </div>
             <div className="mt-2">
               <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-slate-900">{firstKpiValue}</span>
-                <span className="text-xs font-bold text-rose-600 uppercase tracking-wider">{unitNoun}</span>
+                <span className="text-2xl font-black text-slate-900 font-mono">{firstKpiValue}</span>
+                <span className="text-xs font-bold text-rose-700">{unitNoun}</span>
               </div>
-              <div className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
-                {type === "lpcd"
-                  ? `Across ${baseData.length} Schemes (< 55 LPCD)`
-                  : `Across ${baseData.length} Schemes`}
+              <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+                Across {baseData.length} Schemes
               </div>
             </div>
-            <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                Indication: {unitNoun}
-              </span>
-              <span className="text-[10px] font-semibold text-slate-400 group-hover:text-slate-600">
-                {baseData.length} alerts
-              </span>
+            <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+              <span className="font-semibold text-rose-700">Total Triggered</span>
+              <span className="text-slate-400 font-medium">Click for All</span>
             </div>
           </div>
 
-          {/* Card 2: Acknowledged (Clickable with List Available!) */}
+          {/* Card 2: Acknowledged Alerts */}
           <div
             onClick={() => {
               setAckModalData({
@@ -936,40 +995,38 @@ export default function AlertsProgressPage() {
               });
               setModalSearch("");
             }}
-            className={`cursor-pointer group flex flex-col justify-between p-4 rounded-xl border transition-all duration-200 border-t-4 border-t-emerald-500 ${ackStatusFilter === "acknowledged"
-              ? "bg-emerald-50/70 border-emerald-300 ring-2 ring-emerald-200/80 shadow-md"
-              : "bg-white border-slate-200 hover:border-emerald-300 hover:shadow-md"
+            className={`cursor-pointer flex flex-col justify-between p-3.5 rounded-lg border bg-white transition-all border-t-4 border-t-emerald-600 ${ackStatusFilter === "acknowledged"
+              ? "ring-2 ring-emerald-300 border-emerald-300 shadow-sm"
+              : "border-slate-200 hover:border-emerald-300 hover:shadow-xs"
               }`}
             title={`Click to view list of acknowledged ${unitNoun}`}
           >
             <div className="flex items-center justify-between">
-              <div className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider truncate">
-                Email Acknowledged
-              </div>
-              <div className="h-8 w-8 shrink-0 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform">
+              <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                Acknowledged
+              </span>
+              <div className="h-7 w-7 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center">
                 <CheckCircle2 className="h-4 w-4" />
               </div>
             </div>
             <div className="mt-2">
               <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-emerald-700">{totalAcknowledged}</span>
-                <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">{unitNoun}</span>
+                <span className="text-2xl font-black text-emerald-700 font-mono">{totalAcknowledged}</span>
+                <span className="text-xs font-bold text-emerald-700">{unitNoun}</span>
               </div>
-              <div className="text-[11px] text-emerald-600 font-medium truncate mt-0.5">
+              <div className="text-[11px] text-emerald-700 font-medium mt-0.5">
                 {Math.round((totalAcknowledged / (baseData.length || 1)) * 100)}% of alerts confirmed
               </div>
             </div>
-            <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                Unit: {unitNoun}
-              </span>
-              <span className="text-[10px] font-semibold text-emerald-600 underline group-hover:text-emerald-800 flex items-center">
-                List <ArrowRight className="h-2.5 w-2.5 ml-0.5" />
+            <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+              <span className="font-semibold text-emerald-700">Engineer Confirmed</span>
+              <span className="text-emerald-700 font-bold underline flex items-center">
+                View List <ArrowRight className="h-2.5 w-2.5 ml-0.5" />
               </span>
             </div>
           </div>
 
-          {/* Card 3: Pending Ack (Clickable with List Available!) */}
+          {/* Card 3: Pending Acknowledgements */}
           <div
             onClick={() => {
               setAckModalData({
@@ -979,40 +1036,38 @@ export default function AlertsProgressPage() {
               });
               setModalSearch("");
             }}
-            className={`cursor-pointer group flex flex-col justify-between p-4 rounded-xl border transition-all duration-200 border-t-4 border-t-amber-500 ${ackStatusFilter === "pending"
-              ? "bg-amber-50/70 border-amber-300 ring-2 ring-amber-200/80 shadow-md"
-              : "bg-white border-slate-200 hover:border-amber-300 hover:shadow-md"
+            className={`cursor-pointer flex flex-col justify-between p-3.5 rounded-lg border bg-white transition-all border-t-4 border-t-amber-500 ${ackStatusFilter === "pending"
+              ? "ring-2 ring-amber-300 border-amber-300 shadow-sm"
+              : "border-slate-200 hover:border-amber-300 hover:shadow-xs"
               }`}
             title={`Click to view list of pending acknowledgement ${unitNoun}`}
           >
             <div className="flex items-center justify-between">
-              <div className="text-[11px] font-bold text-amber-800 uppercase tracking-wider truncate">
-                Pending Acknowledgements
-              </div>
-              <div className="h-8 w-8 shrink-0 bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform">
+              <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                Pending Action
+              </span>
+              <div className="h-7 w-7 rounded bg-amber-50 text-amber-600 flex items-center justify-center">
                 <Clock className="h-4 w-4" />
               </div>
             </div>
             <div className="mt-2">
               <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-amber-700">{totalPending}</span>
-                <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">{unitNoun}</span>
+                <span className="text-2xl font-black text-amber-700 font-mono">{totalPending}</span>
+                <span className="text-xs font-bold text-amber-700">{unitNoun}</span>
               </div>
-              <div className="text-[11px] text-amber-600 font-medium truncate mt-0.5">
-                Awaiting engineer response
+              <div className="text-[11px] text-amber-700 font-medium mt-0.5">
+                Awaiting field response
               </div>
             </div>
-            <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                Unit: {unitNoun}
-              </span>
-              <span className="text-[10px] font-semibold text-amber-600 underline group-hover:text-amber-800 flex items-center">
-                List <ArrowRight className="h-2.5 w-2.5 ml-0.5" />
+            <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+              <span className="font-semibold text-amber-700">Action Required</span>
+              <span className="text-amber-700 font-bold underline flex items-center">
+                View List <ArrowRight className="h-2.5 w-2.5 ml-0.5" />
               </span>
             </div>
           </div>
 
-          {/* Card 4: Engineers Notified - Displays notified engineers / total as per scheme_engineer_details */}
+          {/* Card 4: Engineers Notified / Total Roster */}
           <div
             onClick={() => {
               setEngineersModalData({
@@ -1022,66 +1077,62 @@ export default function AlertsProgressPage() {
               setEngineerModalSearch("");
               setEngineerFilterTab("all");
             }}
-            className="cursor-pointer group flex flex-col justify-between p-4 rounded-xl border bg-white border-slate-200 hover:border-indigo-300 hover:shadow-md transition-all duration-200 border-t-4 border-t-indigo-500"
+            className="cursor-pointer flex flex-col justify-between p-3.5 rounded-lg border bg-white border-slate-200 hover:border-indigo-300 hover:shadow-xs transition-all border-t-4 border-t-indigo-600"
             title="Click to view notified engineers and roster details"
           >
             <div className="flex items-center justify-between">
-              <div className="text-[11px] font-bold text-indigo-800 uppercase tracking-wider truncate">
+              <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">
                 Engineers Notified
-              </div>
-              <div className="h-8 w-8 shrink-0 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform">
+              </span>
+              <div className="h-7 w-7 rounded bg-indigo-50 text-indigo-600 flex items-center justify-center">
                 <Users className="h-4 w-4" />
               </div>
             </div>
             <div className="mt-2">
               <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-black text-indigo-700">{totalEngineers}</span>
+                <span className="text-2xl font-black text-indigo-700 font-mono">{totalEngineers}</span>
                 <span className="text-sm font-bold text-slate-400">/</span>
-                <span className="text-base font-extrabold text-slate-700" title="Total registered engineers in scheme_engineer_details">
+                <span className="text-base font-extrabold text-slate-700 font-mono" title="Total registered engineers in Engineers Directory">
                   {totalRosterEngineers > 0 ? totalRosterEngineers : '—'}
                 </span>
-                <span className="text-[10px] font-bold text-indigo-600 uppercase ml-1">Notified</span>
+                <span className="text-[11px] font-bold text-indigo-600 ml-1">Engineers</span>
               </div>
-              <div className="text-[10px] text-slate-500 font-medium truncate mt-0.5" title="Notified / Total as per scheme_engineer_details">
-                Notified / Total as per <span className="font-semibold text-slate-700">scheme_engineer_details</span>
+              <div className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
+                Engineers Directory
               </div>
             </div>
-            <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                {totalRosterEngineers > 0 ? `${Math.round((totalEngineers / totalRosterEngineers) * 100)}% Active Duty` : 'Roster Active'}
+            <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+              <span className="font-semibold text-indigo-700">
+                {totalRosterEngineers > 0 ? `${Math.round((totalEngineers / totalRosterEngineers) * 100)}% Active` : 'Roster Active'}
               </span>
-              <span className="text-[10px] font-semibold text-indigo-600 underline group-hover:text-indigo-800 flex items-center">
+              <span className="text-indigo-700 font-bold underline flex items-center">
                 Roster <ArrowRight className="h-2.5 w-2.5 ml-0.5" />
               </span>
             </div>
           </div>
 
-          {/* Card 5: Remarks Added */}
-          <div className="flex flex-col justify-between p-4 rounded-xl border border-slate-200 bg-white border-t-4 border-t-blue-500 shadow-xs">
+          {/* Card 5: Field Remarks Logged */}
+          <div className="flex flex-col justify-between p-3.5 rounded-lg border border-slate-200 bg-white border-t-4 border-t-blue-600 shadow-xs">
             <div className="flex items-center justify-between">
-              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">
-                Field Remarks Logged
-              </div>
-              <div className="h-8 w-8 shrink-0 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center">
+              <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                Action Reports
+              </span>
+              <div className="h-7 w-7 rounded bg-blue-50 text-blue-600 flex items-center justify-center">
                 <MessageSquare className="h-4 w-4" />
               </div>
             </div>
             <div className="mt-2">
               <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-slate-900">{totalRemarks}</span>
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Logged</span>
+                <span className="text-2xl font-black text-slate-900 font-mono">{totalRemarks}</span>
+                <span className="text-xs font-bold text-slate-600">Logged</span>
               </div>
-              <div className="text-[11px] text-slate-400 font-medium truncate mt-0.5">
-                Field engineer feedback registered
+              <div className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
+                Field inspections recorded
               </div>
             </div>
-            <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
-                Action Log
-              </span>
-              <span className="text-[10px] font-medium text-slate-400">
-                Feedback
-              </span>
+            <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+              <span className="font-semibold text-blue-700">Remarks Log</span>
+              <span className="text-slate-400 font-medium">Issue Feedback</span>
             </div>
           </div>
 
@@ -1145,22 +1196,16 @@ export default function AlertsProgressPage() {
                       Scheme name, ID & Region
                     </div>
                   </th>
-                  <th className="py-4 px-4 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200 min-w-[150px]">
-                    {type === "offline"
-                      ? "Offline Sensor Dropout"
-                      : type === "lpcd"
-                        ? "Village LPCD Alert Value"
-                        : type === "chlorine"
-                          ? "Chlorine Sensor Reading"
-                          : "Pressure Sensor Reading"}
-                    <div className="text-[10px] font-semibold text-rose-600 normal-case mt-0.5">
-                      Indication: {unitNoun}
+                  <th className="py-3 px-4 text-xs font-bold text-slate-800 uppercase tracking-wider text-center border-x border-slate-200 min-w-[150px]">
+                    Alert Value & Date
+                    <div className="text-[10px] font-semibold text-rose-700 normal-case mt-0.5">
+                      {type === "offline" ? "Sensors & Date" : `${unitNoun} (${type === "lpcd" ? "LPCD" : type === "chlorine" ? "mg/L" : "Bar"})`}
                     </div>
                   </th>
                   <th className="py-4 px-4 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200 min-w-[190px]">
                     Scheme Owner & Contact
                     <div className="text-[10px] font-semibold text-indigo-600 normal-case mt-0.5">
-                      scheme_engineer_details
+                      Assigned Engineers
                     </div>
                   </th>
                   <th className="py-4 px-4 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200 min-w-[180px]">
@@ -1170,10 +1215,8 @@ export default function AlertsProgressPage() {
                     </div>
                   </th>
                   <th className="py-4 px-4 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200 min-w-[180px]">
-                    SMS Dispatched
-                    <div className="text-[10px] font-semibold text-emerald-600 normal-case mt-0.5">
-                      DLT Gateway & Delivery
-                    </div>
+                    SMS Sent
+
                   </th>
                   <th className="py-4 px-5 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200 min-w-[180px]">
                     Alert & Ack Status
@@ -1246,42 +1289,41 @@ export default function AlertsProgressPage() {
                         )}
                       </td>
 
-                      <td className="py-4 px-6 align-middle text-center border-x border-slate-200">
+                      {/* Alert Value & Date - Shown ONCE with exact date */}
+                      <td className="py-4 px-4 align-middle text-center border-x border-slate-200">
                         {type === "offline" ? (
                           <div className="flex flex-col items-center gap-1.5">
-                            <div className="flex flex-wrap justify-center gap-1.5">
-                              {String(row.current_value).split(', ').map((sensor) => (
-                                <span key={sensor} className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-rose-50 text-rose-600 border border-rose-100 shadow-2xs">
+                            <div className="flex flex-wrap justify-center gap-1 max-w-[210px]">
+                              {String(row.current_value || 'Telemetry Node').split(', ').map((sensor) => (
+                                <span key={sensor} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
                                   📡 {sensor}
                                 </span>
                               ))}
                             </div>
-                            <span className="text-[10px] font-semibold text-rose-600 uppercase tracking-wider">
-                              Indication: Offline Sensors
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold text-slate-600 bg-slate-100 border border-slate-200 mt-1">
+                              <Calendar className="w-3 h-3 text-slate-400" />
+                              {formatAlertDate(row)}
                             </span>
                           </div>
                         ) : (
-                          <div className="flex flex-col gap-1.5 w-full max-w-[150px] mx-auto">
-                            <div className="flex items-center justify-between text-xs bg-slate-50 px-2 py-1.5 rounded-md border border-slate-100">
-                              <span className="text-slate-500 font-medium">
-                                {activeSubTab === "current" ? "Alert Value" : rowTodayStr}
+                          <div className="flex flex-col items-center justify-center">
+                            <div className="inline-flex items-baseline gap-1 bg-rose-50 border border-rose-200 px-3 py-1 rounded-md shadow-2xs">
+                              <span className="text-base font-black text-rose-700 font-mono tracking-tight">
+                                {row.current_value ?? row.alert_value ?? row.historical_value ?? row.previous_value ?? "N/A"}
                               </span>
-                              <span className="font-semibold text-slate-700">{row.historical_value ?? row.previous_value ?? "N/A"}</span>
-                            </div>
-                            <div className="flex items-center justify-between text-xs bg-indigo-50/50 px-2 py-1.5 rounded-md border border-indigo-100">
-                              <span className="text-slate-500 font-medium">
-                                {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                              <span className="text-xs font-bold text-slate-700">
+                                {type === "lpcd" ? "LPCD" : type === "chlorine" ? "mg/L" : "Bar"}
                               </span>
-                              <span className={`font-bold ${failing ? 'text-rose-600' : 'text-emerald-600'}`}>{row.current_value ?? "N/A"}</span>
                             </div>
-                            <div className="text-[10px] text-center font-medium text-slate-400">
-                              {type === "lpcd" ? "Unit: Village LPCD" : type === "chlorine" ? "Unit: Sensor (mg/L)" : "Unit: Sensor (Bar)"}
+                            <div className="inline-flex items-center gap-1 text-[11px] text-slate-600 font-medium mt-1.5 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                              <Calendar className="w-3 h-3 text-slate-400" />
+                              <span>{formatAlertDate(row)}</span>
                             </div>
                           </div>
                         )}
                       </td>
 
-                      {/* Scheme Owner & Contact from scheme_engineer_details */}
+                      {/* Scheme Owner & Contact from Engineers Directory */}
                       <td className="py-4 px-4 align-top text-center border-x border-slate-200">
                         {owner ? (
                           <div className="flex flex-col items-center text-center gap-1.5">
@@ -1341,7 +1383,7 @@ export default function AlertsProgressPage() {
                           </div>
                         ) : (
                           <div className="text-center text-xs text-slate-400 italic py-2">
-                            Unassigned in scheme_engineer_details
+                            Unassigned in Directory
                           </div>
                         )}
                       </td>
@@ -1350,8 +1392,8 @@ export default function AlertsProgressPage() {
                       <td className="py-4 px-4 align-top text-center border-x border-slate-200">
                         {(() => {
                           const isSent = Boolean(row.created_at || row.sent_date || row.ticket_id);
-                          const emailDate = row.created_at 
-                            ? new Date(row.created_at) 
+                          const emailDate = row.created_at
+                            ? new Date(row.created_at)
                             : (row.sent_date ? new Date(row.sent_date) : null);
                           const timeStr = emailDate && !isNaN(emailDate.getTime())
                             ? emailDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
@@ -1422,13 +1464,12 @@ export default function AlertsProgressPage() {
 
                             return (
                               <div className="flex flex-col items-center gap-1.5">
-                                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold border shadow-2xs ${
-                                  isFullSuccess
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                    : successCount > 0
-                                      ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                      : 'bg-rose-50 text-rose-700 border-rose-200'
-                                }`}>
+                                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold border shadow-2xs ${isFullSuccess
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : successCount > 0
+                                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                    : 'bg-rose-50 text-rose-700 border-rose-200'
+                                  }`}>
                                   <MessageSquare className="w-3.5 h-3.5 text-current" />
                                   {isFullSuccess
                                     ? `Dispatched (${successCount}/${smsList.length})`
@@ -1654,7 +1695,57 @@ export default function AlertsProgressPage() {
       <div className="min-h-screen bg-slate-50/30">
         <div className="container mx-auto p-6 space-y-6">
 
-          {/* Executive Top Navigation Tabs with Category Badges & Live Counts */}
+          {/* Official Government of Maharashtra / Jal Jeevan Mission Portal Header */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+            <div className="h-1.5 bg-gradient-to-r from-amber-500 via-slate-100 to-emerald-600 w-full" />
+            <div className="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-start sm:items-center gap-3.5">
+                <div className="h-12 w-12 rounded-lg bg-white border border-slate-200 flex items-center justify-center p-1 shrink-0 shadow-2xs">
+                  <img
+                    src="/images/jal-jeevan-mission-logo.png"
+                    alt="Jal Jeevan Mission"
+                    className="h-10 w-10 object-contain"
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
+                      Govt. of Maharashtra
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-200">
+                      Water Supply & Sanitation Department
+                    </span>
+                  </div>
+                  <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight mt-1">
+                    Jal Jeevan Mission — Alert Dispatch & Escalation Portal
+                  </h1>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5 max-w-3xl">
+                    Official monitoring of village LPCD deficits, water potability (residual chlorine), terminal pipeline pressure, and IoT sensor communication status with automated Email and DLT SMS dispatch logs.
+                  </p>
+                </div>
+              </div>
+
+              {/* Official Status Badges */}
+              <div className="flex items-center gap-2 flex-wrap shrink-0">
+                <div className="px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-left">
+                  <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Engineers Roster</div>
+                  <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5 mt-0.5">
+                    <Users className="h-3.5 w-3.5 text-indigo-600" />
+                    <span>{totalRosterEngineers > 0 ? `${totalRosterEngineers} Total Engineers` : 'Engineers Directory'}</span>
+                  </div>
+                </div>
+                <div className="px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-left">
+                  <div className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider">DLT SMS Gateway</div>
+                  <div className="text-xs font-bold text-emerald-800 flex items-center gap-1 mt-0.5">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Active Gateway</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Navigation Tabs with Official GoI Styling */}
           <div className="w-full">
             <Tabs
               value={activeTab}
@@ -1664,15 +1755,15 @@ export default function AlertsProgressPage() {
               }}
               className="w-full"
             >
-              <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 gap-2 mb-4 p-1.5 bg-slate-100/90 border border-slate-200/90 rounded-2xl shadow-inner max-w-4xl h-auto">
+              <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 gap-2 mb-4 p-1.5 bg-slate-100 border border-slate-200 rounded-xl h-auto">
                 <TabsTrigger
                   value="lpcd"
-                  className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-bold text-xs md:text-sm transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-md data-[state=active]:ring-1 data-[state=active]:ring-blue-100 text-slate-600 hover:text-slate-900"
+                  className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-blue-900 data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-b-blue-600 text-slate-700 hover:text-slate-900 transition-all"
                 >
-                  <Waves className="h-4 w-4 text-blue-500 shrink-0" />
+                  <Waves className="h-4 w-4 text-blue-600 shrink-0" />
                   <span className="truncate">Village LPCD Alerts</span>
                   {lpcdData.length > 0 && (
-                    <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-800">
+                    <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-800">
                       {lpcdData.length}
                     </span>
                   )}
@@ -1680,12 +1771,12 @@ export default function AlertsProgressPage() {
 
                 <TabsTrigger
                   value="chlorine"
-                  className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-bold text-xs md:text-sm transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-md data-[state=active]:ring-1 data-[state=active]:ring-emerald-100 text-slate-600 hover:text-slate-900"
+                  className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-emerald-900 data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-b-emerald-600 text-slate-700 hover:text-slate-900 transition-all"
                 >
-                  <Droplets className="h-4 w-4 text-emerald-500 shrink-0" />
+                  <Droplets className="h-4 w-4 text-emerald-600 shrink-0" />
                   <span className="truncate">Chlorine Sensor Alerts</span>
                   {chlorineData.length > 0 && (
-                    <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
+                    <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
                       {chlorineData.length}
                     </span>
                   )}
@@ -1693,12 +1784,12 @@ export default function AlertsProgressPage() {
 
                 <TabsTrigger
                   value="pressure"
-                  className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-bold text-xs md:text-sm transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-amber-700 data-[state=active]:shadow-md data-[state=active]:ring-1 data-[state=active]:ring-amber-100 text-slate-600 hover:text-slate-900"
+                  className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-amber-900 data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-b-amber-600 text-slate-700 hover:text-slate-900 transition-all"
                 >
-                  <GaugeCircle className="h-4 w-4 text-amber-500 shrink-0" />
+                  <GaugeCircle className="h-4 w-4 text-amber-600 shrink-0" />
                   <span className="truncate">Pressure Sensor Alerts</span>
                   {pressureData.length > 0 && (
-                    <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800">
+                    <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800">
                       {pressureData.length}
                     </span>
                   )}
@@ -1706,12 +1797,12 @@ export default function AlertsProgressPage() {
 
                 <TabsTrigger
                   value="offline"
-                  className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-bold text-xs md:text-sm transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-rose-700 data-[state=active]:shadow-md data-[state=active]:ring-1 data-[state=active]:ring-rose-100 text-slate-600 hover:text-slate-900"
+                  className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-rose-900 data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-b-rose-600 text-slate-700 hover:text-slate-900 transition-all"
                 >
-                  <AlertTriangle className="h-4 w-4 text-rose-500 shrink-0" />
+                  <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
                   <span className="truncate">Offline Sensor Alerts</span>
                   {offlineData.length > 0 && (
-                    <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-800">
+                    <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-800">
                       {offlineData.length}
                     </span>
                   )}
@@ -1721,73 +1812,51 @@ export default function AlertsProgressPage() {
           </div>
 
           {/* Metric Context & Indication Banner */}
-          <div className="rounded-2xl p-5 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-lg border border-indigo-900/40 relative overflow-hidden">
-            <div className="absolute right-0 top-0 bottom-0 w-96 bg-gradient-to-l from-indigo-500/10 to-transparent pointer-events-none" />
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-10">
-              <div className="flex items-start md:items-center gap-3.5">
-                <div className="h-12 w-12 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white shrink-0 shadow-inner">
-                  {activeTab === "lpcd" ? (
-                    <Waves className="h-6 w-6 text-blue-300" />
-                  ) : activeTab === "chlorine" ? (
-                    <Droplets className="h-6 w-6 text-emerald-300" />
-                  ) : activeTab === "pressure" ? (
-                    <GaugeCircle className="h-6 w-6 text-amber-300" />
-                  ) : (
-                    <AlertTriangle className="h-6 w-6 text-rose-300" />
-                  )}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2.5 flex-wrap">
-                    <h2 className="text-xl md:text-2xl font-black text-white tracking-tight">
-                      {activeTab === "lpcd"
-                        ? "Village LPCD Alerts Tracking"
-                        : activeTab === "chlorine"
-                          ? "Chlorine Sensor Alerts Tracking"
-                          : activeTab === "pressure"
-                            ? "Pressure Sensor Alerts Tracking"
-                            : "Offline Sensor Alerts Tracking"}
-                    </h2>
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold uppercase tracking-wider bg-indigo-500/30 text-indigo-200 border border-indigo-400/40">
-                      Indication: {activeTab === "lpcd" ? "Villages" : activeTab === "chlorine" ? "Chlorine Sensors" : activeTab === "pressure" ? "Pressure Sensors" : "Offline Sensors"}
-                    </span>
-                  </div>
-                  <p className="text-xs md:text-sm text-slate-300 font-medium mt-1">
+          <div className="rounded-xl p-4 bg-white border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 shrink-0 shadow-2xs">
+                {activeTab === "lpcd" ? (
+                  <Waves className="h-5 w-5 text-blue-600" />
+                ) : activeTab === "chlorine" ? (
+                  <Droplets className="h-5 w-5 text-emerald-600" />
+                ) : activeTab === "pressure" ? (
+                  <GaugeCircle className="h-5 w-5 text-amber-600" />
+                ) : (
+                  <AlertTriangle className="h-5 w-5 text-rose-600" />
+                )}
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-base md:text-lg font-bold text-slate-900">
                     {activeTab === "lpcd"
-                      ? "Shown numbers represent individual Villages receiving water supply below the mandatory 55 LPCD threshold. Alerts are dispatched to regional engineers."
+                      ? "Village LPCD Alerts Tracking"
                       : activeTab === "chlorine"
-                        ? "Shown numbers represent Chlorine Sensors reporting residual chlorine outside the safe potability threshold (0.20 – 0.50 mg/L)."
+                        ? "Chlorine Sensor Alerts Tracking"
                         : activeTab === "pressure"
-                          ? "Shown numbers represent Pressure Sensors reporting terminal supply head pressure outside the required bracket (0.20 – 0.70 Bar)."
-                          : "Shown numbers represent field IoT Transmitter Sensors currently experiencing communication dropout / no heartbeat."}
-                  </p>
+                          ? "Pressure Sensor Alerts Tracking"
+                          : "Offline Sensor Alerts Tracking"}
+                  </h2>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
+                    Indication: {activeTab === "lpcd" ? "Villages" : activeTab === "chlorine" ? "Chlorine Sensors" : activeTab === "pressure" ? "Pressure Sensors" : "Offline Sensors"}
+                  </span>
                 </div>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  {activeTab === "lpcd"
+                    ? "Shows villages receiving water supply below 55 LPCD. Daily alerts dispatched to assigned Executive and Section Engineers."
+                    : activeTab === "chlorine"
+                      ? "Shows chlorine sensors reporting residual chlorine outside safe potability standard (0.20 – 0.50 mg/L)."
+                      : activeTab === "pressure"
+                        ? "Shows terminal pressure sensors outside required head range (0.20 – 0.70 Bar)."
+                        : "Shows IoT sensors currently experiencing telemetry dropout / communication failure."}
+                </p>
               </div>
+            </div>
 
-              {/* Metric Unit and Roster Meta Badges */}
-              <div className="flex items-center gap-2.5 flex-wrap shrink-0">
-                <div className="px-3.5 py-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/15 text-left">
-                  <div className="text-[10px] font-semibold text-slate-300 uppercase tracking-wider">Active Unit</div>
-                  <div className="text-xs font-bold text-white flex items-center gap-1.5 mt-0.5">
-                    {activeTab === "lpcd" ? (
-                      <>🏘️ Villages (&lt;55 LPCD)</>
-                    ) : activeTab === "chlorine" ? (
-                      <>🧪 Chlorine Sensors</>
-                    ) : activeTab === "pressure" ? (
-                      <>⏱️ Pressure Sensors</>
-                    ) : (
-                      <>📡 Offline Sensors</>
-                    )}
-                  </div>
-                </div>
-
-                <div className="px-3.5 py-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/15 text-left">
-                  <div className="text-[10px] font-semibold text-slate-300 uppercase tracking-wider">Engineers Roster</div>
-                  <div className="text-xs font-bold text-indigo-200 flex items-center gap-1 mt-0.5" title="Total engineers registered in scheme_engineer_details">
-                    <Users className="h-3.5 w-3.5 text-indigo-300" />
-                    <span>{totalRosterEngineers > 0 ? `${totalRosterEngineers} in scheme_engineer_details` : "scheme_engineer_details"}</span>
-                  </div>
-                </div>
-              </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs font-semibold text-slate-500">Unit:</span>
+              <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-slate-100 text-slate-800 border border-slate-200">
+                {activeTab === "lpcd" ? "🏘️ Villages (<55 LPCD)" : activeTab === "chlorine" ? "🧪 Chlorine Sensors" : activeTab === "pressure" ? "⏱️ Pressure Sensors" : "📡 Offline Sensors"}
+              </span>
             </div>
           </div>
 
@@ -1929,7 +1998,7 @@ export default function AlertsProgressPage() {
                     </DialogTitle>
                     <DialogDescription className="text-white/90 text-xs mt-1">
                       {ackModalData.type === "acknowledged"
-                        ? "Schemes where alert notifications have been confirmed and acknowledged by field engineers."
+                        ? "Schemes where alert notifications have been confirmed and acknowledged by engineers."
                         : "Schemes awaiting confirmation and acknowledgement from assigned engineers."}
                     </DialogDescription>
                   </div>
@@ -1971,7 +2040,7 @@ export default function AlertsProgressPage() {
                             {activeTab === "lpcd" ? "Alert LPCD (<55)" : activeTab === "chlorine" ? "Chlorine (mg/L)" : activeTab === "pressure" ? "Pressure (Bar)" : "Offline Sensor"}
                           </th>
                           <th className="p-2.5">
-                            {ackModalData.type === "acknowledged" ? "Acknowledged By" : "Assigned Engineers (scheme_engineer_details)"}
+                            {ackModalData.type === "acknowledged" ? "Acknowledged By" : "Assigned Engineers"}
                           </th>
                           <th className="p-2.5 text-right">
                             {ackModalData.type === "acknowledged" ? "Acknowledged At" : "Status"}
@@ -2445,11 +2514,10 @@ export default function AlertsProgressPage() {
                           </div>
 
                           <div className="flex flex-col items-end shrink-0">
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold border ${
-                              sms.is_success
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                : 'bg-rose-50 text-rose-700 border-rose-200'
-                            }`}>
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold border ${sms.is_success
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : 'bg-rose-50 text-rose-700 border-rose-200'
+                              }`}>
                               {sms.is_success ? (
                                 <>
                                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
@@ -2582,7 +2650,7 @@ export default function AlertsProgressPage() {
                         <span>{engineersModalData.title}</span>
                       </DialogTitle>
                       <DialogDescription className="text-indigo-100 text-xs mt-1">
-                        Engineers & supervisors notified via email alerts for active {activeTab === "lpcd" ? "Village LPCD" : activeTab === "chlorine" ? "Chlorine Sensor" : activeTab === "pressure" ? "Pressure Sensor" : "Offline Sensor"} alerts ({engineersModalData.engineers.length} notified / {totalRosterEngineers > 0 ? totalRosterEngineers : 'all'} total in scheme_engineer_details).
+                        Engineers & supervisors notified via email alerts for active {activeTab === "lpcd" ? "Village LPCD" : activeTab === "chlorine" ? "Chlorine Sensor" : activeTab === "pressure" ? "Pressure Sensor" : "Offline Sensor"} alerts ({engineersModalData.engineers.length} notified / {totalRosterEngineers > 0 ? totalRosterEngineers : 'all'} total in Engineers Directory).
                       </DialogDescription>
                     </div>
                   </div>
@@ -2598,7 +2666,7 @@ export default function AlertsProgressPage() {
                       <div className="text-base font-extrabold text-indigo-100">
                         {totalRosterEngineers > 0 ? totalRosterEngineers : '—'}
                       </div>
-                      <div className="text-[9px] text-indigo-200/80 truncate">scheme_engineer_details</div>
+                      <div className="text-[9px] text-indigo-200/80 truncate">Registered Personnel</div>
                     </div>
                     <div className="bg-emerald-500/20 border border-emerald-300/30 rounded-lg p-2 backdrop-blur-sm">
                       <div className="text-[10px] font-medium text-emerald-200 uppercase tracking-wider">Fully Acknowledged</div>
