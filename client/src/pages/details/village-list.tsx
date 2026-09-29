@@ -24,6 +24,7 @@ interface VillageDetailProps {
   division: string;
   sub_division: string;
   block: string;
+  scheme_id?: string;
   scheme_name: string;
   esr_name: string;
   current_lpcd?: number;
@@ -142,6 +143,7 @@ export default function VillageListPage() {
       division: item.division || 'Unknown Division',
       sub_division: item.sub_division || 'Unknown Sub Division',
       block: item.block || 'Unknown Block',
+      scheme_id: item.scheme_id || '',
       scheme_name: item.scheme_name || 'Unknown Scheme',
       esr_name: item.esr_name || 'Unknown ESR',
       current_lpcd: getLatestLpcdValue(item) || 0,
@@ -150,7 +152,9 @@ export default function VillageListPage() {
     }));
 
     if (villageFilter === "completed") {
-      result = result.filter((item: any) => isVillageCompleted(item.village_name));
+      result = result.filter((item: any) =>
+        isVillageCompleted(item.village_name, item.scheme_id, item.scheme_name)
+      );
     }
 
     return result;

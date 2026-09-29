@@ -337,14 +337,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Mount communication status routes
   app.use("/api/communication-status", communicationStatusRoutes);
 
-  // Public endpoint for village completion statuses from village table
+  // Public endpoint for village completion statuses from village and scheme_status tables
   app.get("/api/village-completion-status", async (req, res) => {
     try {
       const db = await getDB();
       const result: any = await db.execute(sql`
-        SELECT village_name, scheme_id, fully_completion_village_status 
-        FROM village 
-        WHERE LOWER(TRIM(COALESCE(fully_completion_village_status, ''))) = 'completed'
+        SELECT DISTINCT
+          v.village_name, 
+          v.scheme_id, 
+          v.scheme_name, 
+          v.fully_completion_village_status
+        FROM village v
+        WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
       `);
       const rows = result.rows || result || [];
       const villageNames = Array.from(new Set(rows.map((r: any) => r.village_name).filter(Boolean)));

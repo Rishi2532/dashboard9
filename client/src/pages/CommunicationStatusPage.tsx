@@ -364,7 +364,7 @@ export default function CommunicationStatusPage() {
 
     if (villageFilter === "completed") {
       result = result.filter((scheme: CommunicationScheme) =>
-        isVillageCompleted(scheme.village_name, scheme.scheme_id)
+        isVillageCompleted(scheme.village_name, scheme.scheme_id, scheme.scheme_name)
       );
     }
 
@@ -863,7 +863,7 @@ export default function CommunicationStatusPage() {
 
     if (villageFilter === "completed") {
       result = result.filter((scheme: CommunicationScheme) =>
-        isVillageCompleted(scheme.village_name, scheme.scheme_id)
+        isVillageCompleted(scheme.village_name, scheme.scheme_id, scheme.scheme_name)
       );
     }
 

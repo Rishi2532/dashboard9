@@ -871,8 +871,17 @@ const EnhancedLpcdDashboard = () => {
     // Apply village filter
     if (villageFilter === "completed") {
       filtered = filtered.filter((scheme: any) =>
-        isVillageCompleted(scheme.village_name, scheme.scheme_id)
+        isVillageCompleted(scheme.village_name, scheme.scheme_id, scheme.scheme_name)
       );
+
+      // Deduplicate records by (scheme_id, village_name) (case-insensitive)
+      const seen = new Set<string>();
+      filtered = filtered.filter((scheme: any) => {
+        const key = `${(scheme.scheme_id || "").trim().toLowerCase()}|${(scheme.village_name || "").trim().toLowerCase()}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
     }
 
     return filtered;

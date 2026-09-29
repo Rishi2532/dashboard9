@@ -4,13 +4,21 @@ import { useMemo } from "react";
 export interface VillageCompletionRecord {
   village_name: string;
   scheme_id: string;
-  fully_completion_village_status: string;
+  scheme_name: string;
+  fully_completion_village_status?: string;
+  fully_completion_scheme_status?: string;
 }
 
 export interface VillageCompletionResponse {
   completedVillages: string[];
   records: VillageCompletionRecord[];
 }
+
+const normalize = (val?: string | null) =>
+  (val || "")
+    .replace(/[\u00A0\uFFFD\s]+/g, " ")
+    .trim()
+    .toLowerCase();
 
 export function useVillageCompletion() {
   const { data, isLoading } = useQuery<VillageCompletionResponse>({
@@ -24,48 +32,61 @@ export function useVillageCompletion() {
     refetchOnWindowFocus: false,
   });
 
-  const completedVillageNamesSet = useMemo(() => {
-    const set = new Set<string>();
-    if (data?.completedVillages) {
-      data.completedVillages.forEach((name) => {
-        if (name) set.add(name.trim().toLowerCase());
-      });
-    }
-    return set;
-  }, [data?.completedVillages]);
-
-  const completedSchemeVillagesSet = useMemo(() => {
+  // Set of 3-part keys: "scheme_id|scheme_name|village_name"
+  const completedTripletsSet = useMemo(() => {
     const set = new Set<string>();
     if (data?.records) {
       data.records.forEach((r) => {
-        if (r.village_name) {
-          const v = r.village_name.trim().toLowerCase();
-          const s = (r.scheme_id || "").trim().toLowerCase();
-          if (s) set.add(`${s}|${v}`);
-          set.add(v);
+        if (r.village_name && r.scheme_id) {
+          const v = normalize(r.village_name);
+          const s = normalize(r.scheme_id);
+          const sn = normalize(r.scheme_name);
+          if (s && sn && v) {
+            set.add(`${s}|${sn}|${v}`);
+          }
         }
       });
     }
     return set;
   }, [data?.records]);
 
-  // Checks whether a village (and optional scheme) has fully_completion_village_status = 'Completed' in village table
+  // Set of 2-part keys: "scheme_id|village_name" (for fallback if scheme_name is omitted)
+  const completedSchemeVillagesSet = useMemo(() => {
+    const set = new Set<string>();
+    if (data?.records) {
+      data.records.forEach((r) => {
+        if (r.village_name && r.scheme_id) {
+          const v = normalize(r.village_name);
+          const s = normalize(r.scheme_id);
+          if (s && v) {
+            set.add(`${s}|${v}`);
+          }
+        }
+      });
+    }
+    return set;
+  }, [data?.records]);
+
+  // Strictly matches all three: scheme_id, scheme_name, and village_name
+  // from the village table where fully_completion_village_status = 'Completed'
   const isVillageCompleted = (
     villageName?: string | null,
     schemeId?: string | null,
+    schemeName?: string | null,
   ): boolean => {
-    if (!villageName) return false;
+    if (!villageName || !schemeId || !schemeName) return false;
+
+    const normSid = normalize(schemeId);
+    const normSname = normalize(schemeName);
 
     // Handle comma-separated list of villages (e.g. in alerts progress)
-    const subVillages = villageName.split(",").map((s) => s.trim().toLowerCase());
-    const sid = (schemeId || "").trim().toLowerCase();
+    const subVillages = villageName.split(",").map((s) => normalize(s));
 
     for (const v of subVillages) {
       if (!v) continue;
-      if (sid && completedSchemeVillagesSet.has(`${sid}|${v}`)) {
-        return true;
-      }
-      if (completedVillageNamesSet.has(v)) {
+
+      // Strict 3-part matching: scheme_id, scheme_name, and village_name
+      if (completedTripletsSet.has(`${normSid}|${normSname}|${v}`)) {
         return true;
       }
     }
@@ -73,11 +94,45 @@ export function useVillageCompletion() {
     return false;
   };
 
+  // Deduplicated records by (scheme_id, village_name) (case-insensitive)
+  const deduplicatedRecords = useMemo(() => {
+    const seen = new Set<string>();
+    const list: VillageCompletionRecord[] = [];
+    if (data?.records) {
+      data.records.forEach((r) => {
+        if (r.village_name && r.scheme_id) {
+          const key = `${normalize(r.scheme_id)}|${normalize(r.village_name)}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            list.push(r);
+          }
+        }
+      });
+    }
+    return list;
+  }, [data?.records]);
+
+  // Helper to deduplicate any array by (scheme_id, village_name) case-insensitively
+  const deduplicateBySchemeVillage = <T extends { scheme_id?: string | null; village_name?: string | null }>(
+    items: T[]
+  ): T[] => {
+    const seen = new Set<string>();
+    return items.filter((item) => {
+      const key = `${normalize(item.scheme_id)}|${normalize(item.village_name)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+
   return {
     isVillageCompleted,
-    completedVillageNamesSet,
+    completedTripletsSet,
     completedSchemeVillagesSet,
     completedVillages: data?.completedVillages || [],
+    records: deduplicatedRecords,
+    allRecords: data?.records || [],
+    deduplicateBySchemeVillage,
     isLoading,
   };
 }

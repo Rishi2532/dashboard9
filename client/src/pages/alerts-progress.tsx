@@ -730,7 +730,7 @@ export default function AlertsProgressPage() {
         return !getRowAckInfo(row).isAcknowledged;
       }
       if (villageFilter === "completed") {
-        return isVillageCompleted(row.village_name, row.scheme_id);
+        return isVillageCompleted(row.village_name, row.scheme_id, row.scheme_name);
       }
       return true;
     });

@@ -101,7 +101,7 @@ export default function MonthlyReportsPage() {
     if (!schemes || !Array.isArray(schemes)) return [];
     if (villageFilter === "completed") {
       return schemes.filter((scheme: any) =>
-        isVillageCompleted(scheme.village_name, scheme.scheme_id)
+        isVillageCompleted(scheme.village_name, scheme.scheme_id, scheme.scheme_name)
       );
     }
     return schemes;

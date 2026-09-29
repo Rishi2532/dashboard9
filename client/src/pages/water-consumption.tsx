@@ -714,7 +714,7 @@ const WaterConsumptionPage: React.FC = () => {
     // Apply Village completion filter (based on village table where fully_completion_village_status = 'Completed')
     if (villageFilter === "completed") {
       filtered = filtered.filter((record) =>
-        isVillageCompleted(record.village_name, record.scheme_id),
+        isVillageCompleted(record.village_name, record.scheme_id, record.scheme_name),
       );
     }
 

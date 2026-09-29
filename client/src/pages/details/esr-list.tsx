@@ -25,6 +25,7 @@ interface ESRDetailProps {
   division: string;
   sub_division: string;
   block: string;
+  scheme_id?: string;
   scheme_name: string;
   current_value?: number;
   sensor_status?: string;
@@ -207,6 +208,7 @@ export default function ESRListPage() {
         division: item.division || 'Unknown Division',
         sub_division: item.sub_division || 'Unknown Sub Division',
         block: item.block || 'Unknown Block',
+        scheme_id: item.scheme_id || '',
         scheme_name: item.scheme_name || 'Unknown Scheme',
         current_value: dataType === 'chlorine' ? item.chlorine_value_7 : item.pressure_value_7,
         sensor_status: dataType === 'chlorine' ? item.chlorine_status : item.pressure_status,
@@ -221,7 +223,7 @@ export default function ESRListPage() {
     
     if (villageFilter === "completed") {
       finalResults = finalResults.filter((item: any) =>
-        isVillageCompleted(item.village_name)
+        isVillageCompleted(item.village_name, item.scheme_id, item.scheme_name)
       );
     }
 

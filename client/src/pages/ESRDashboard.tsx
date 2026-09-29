@@ -74,7 +74,7 @@ export default function ESRDashboard() {
     const list = Array.isArray(esrData?.data) ? esrData.data : (Array.isArray(esrData) ? esrData : []);
     if (villageFilter === "completed") {
       return list.filter((esr: ESRMonitoring) =>
-        isVillageCompleted(esr.village_name, esr.scheme_id)
+        isVillageCompleted(esr.village_name, esr.scheme_id, esr.scheme_name)
       );
     }
     return list;

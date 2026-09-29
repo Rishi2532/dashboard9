@@ -1277,7 +1277,7 @@ const PressureDashboard: React.FC = () => {
     // Apply Village completion filter (based on village table where fully_completion_village_status = 'Completed')
     if (villageFilter === "completed") {
       filtered = filtered.filter((item) =>
-        isVillageCompleted(item.village_name, item.scheme_id),
+        isVillageCompleted(item.village_name, item.scheme_id, item.scheme_name),
       );
     }
 
@@ -1371,7 +1371,7 @@ const PressureDashboard: React.FC = () => {
     // Apply Village completion filter (based on village table where fully_completion_village_status = 'Completed')
     if (villageFilter === "completed") {
       filtered = filtered.filter((item) =>
-        isVillageCompleted(item.village_name, item.scheme_id),
+        isVillageCompleted(item.village_name, item.scheme_id, item.scheme_name),
       );
     }
 

@@ -55,6 +55,8 @@ router.get("/overview", async (req, res) => {
         SELECT 1 FROM village v 
         WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
         AND LOWER(TRIM(v.village_name)) = LOWER(TRIM(${communicationStatus.village_name}))
+        AND LOWER(TRIM(v.scheme_id)) = LOWER(TRIM(${communicationStatus.scheme_id}))
+        AND LOWER(TRIM(v.scheme_name)) = LOWER(TRIM(${communicationStatus.scheme_name}))
       )`);
     }
 
@@ -163,6 +165,8 @@ router.get("/stats", async (req, res) => {
         SELECT 1 FROM village v 
         WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
         AND LOWER(TRIM(v.village_name)) = LOWER(TRIM(${communicationStatus.village_name}))
+        AND LOWER(TRIM(v.scheme_id)) = LOWER(TRIM(${communicationStatus.scheme_id}))
+        AND LOWER(TRIM(v.scheme_name)) = LOWER(TRIM(${communicationStatus.scheme_name}))
       )`);
     }
 
@@ -233,6 +237,8 @@ router.get("/schemes", async (req, res) => {
         SELECT 1 FROM village v 
         WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
         AND LOWER(TRIM(v.village_name)) = LOWER(TRIM(${communicationStatus.village_name}))
+        AND LOWER(TRIM(v.scheme_id)) = LOWER(TRIM(${communicationStatus.scheme_id}))
+        AND LOWER(TRIM(v.scheme_name)) = LOWER(TRIM(${communicationStatus.scheme_name}))
       )`);
     }
 
