@@ -1148,7 +1148,13 @@ export async function sendEngineerCredentialsEmail(params: {
   return sendEmail({
     to: params.toEmail,
     from: "MahaJal IoT Login Credentials",
-    cc: "semmjpbelapur@gmail.com",
+    cc: [
+      "semmjpbelapur@gmail.com",
+      "rishikesh.salunkhe@cstech.ai",
+      "umesh.shelake@cstech.ai",
+      "naganath.patil@cstech.ai",
+      "aniruddha.dhumale@cstech.ai",
+    ],
     subject,
     html,
   });
