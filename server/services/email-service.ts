@@ -592,7 +592,7 @@ export async function sendOfflineSensorsEmail(
   sensors: any[]
 ): Promise<boolean> {
   const subject = `🚨 Offline Sensors Alert - ${region} Region - JJM SWSM Maharashtra`;
-  
+
   let sensorsHtml = '';
   sensors.forEach((sensor, index) => {
     sensorsHtml += `
@@ -663,7 +663,7 @@ export async function sendOfflineSensorsEmail(
 export async function sendAutomaticOfflineEmails(): Promise<void> {
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
   const client = await pool.connect();
-  
+
   try {
     // Fetch all offline sensors and their single assigned vendor per region
     const query = `
@@ -694,19 +694,19 @@ export async function sendAutomaticOfflineEmails(): Promise<void> {
     `;
     const res = await client.query(query);
     const rows = res.rows;
-    
+
     if (rows.length === 0) {
       console.log("No offline sensors found to notify vendors.");
       return;
     }
-    
+
     // Group the offline sensors by vendor email
     const vendorGroups: Record<string, { vendorName: string; region: string; phone: string; sensors: any[] }> = {};
-    
+
     rows.forEach((row: any) => {
       const email = row.vendor_email;
       if (!email || !email.includes('@')) return;
-      
+
       if (!vendorGroups[email]) {
         vendorGroups[email] = {
           vendorName: row.vendor_name,
@@ -715,12 +715,12 @@ export async function sendAutomaticOfflineEmails(): Promise<void> {
           sensors: []
         };
       }
-      
+
       const offlineSensorsList: string[] = [];
       if (row.chlorine_status === 'Offline') offlineSensorsList.push('Chlorine');
       if (row.pressure_status === 'Offline') offlineSensorsList.push('Pressure');
       if (row.flow_meter_status === 'Offline') offlineSensorsList.push('Flow Meter');
-      
+
       vendorGroups[email].sensors.push({
         scheme_id: row.scheme_id,
         scheme_name: row.scheme_name,
@@ -729,19 +729,19 @@ export async function sendAutomaticOfflineEmails(): Promise<void> {
         offline_sensors: offlineSensorsList.join(', ')
       });
     });
-    
+
     // Send email to each vendor with their consolidated list
     for (const email of Object.keys(vendorGroups)) {
       const { vendorName, region, phone, sensors } = vendorGroups[email];
-      
+
       console.log(`Sending offline sensors report to vendor ${vendorName} (${email}) for region ${region}...`);
       await sendOfflineSensorsEmail(email, vendorName, region, sensors);
-      
+
       if (phone && phone.length >= 10) {
         await sendOfflineSensorsSMS(phone, vendorName, region, sensors.length);
       }
     }
-    
+
   } catch (error) {
     console.error("Error in sendAutomaticOfflineEmails:", error);
   } finally {
@@ -1096,7 +1096,7 @@ export async function sendEngineerCredentialsEmail(params: {
       <div style="padding: 26px; background-color: #ffffff;">
         <h2 style="color: #0f172a; margin-top: 0; font-size: 17px;">Dear ${params.engineerName || "Engineer"},</h2>
         <p style="color: #334155; font-size: 14px; line-height: 1.6; margin-bottom: 18px;">
-          Your official engineer account has been activated on the Maharashtra Rural Water Supply & Sanitation IoT Monitoring Dashboard.
+          Your official engineer account has been activated on the Maharashtra  Water Supply & Sanitation IoT Monitoring Dashboard.
         </p>
 
         <div style="background-color: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 18px 20px; margin: 20px 0;">
@@ -1135,7 +1135,7 @@ export async function sendEngineerCredentialsEmail(params: {
           <strong>Security Notice:</strong>
           <br>
           • Please keep your login credentials strictly confidential and do not forward this email.
-          • Upon logging in, you will have access to real-time telemetry, LPCD compliance, chlorine levels, water pressure, and offline sensor tickets for your assigned schemes.
+          • Upon logging in, you will have access to IoT Progress, LPCD compliance, chlorine levels, water pressure, and offline sensors for your assigned schemes.
         </div>
 
         <p style="color: #64748b; font-size: 12px; margin-top: 22px; border-top: 1px solid #e2e8f0; padding-top: 14px; line-height: 1.4;">

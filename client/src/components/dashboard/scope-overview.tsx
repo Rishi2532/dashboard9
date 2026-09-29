@@ -179,20 +179,17 @@ export default function ScopeOverview({
             <span className="mr-2 h-6 w-1.5 rounded-sm bg-blue-500" />
             Project Scope Overview
           </h2>
-          <p className="ml-3.5 mt-0.5 text-[11px] text-gray-500">
-            What's planned, where it's deployed, and how much is integrated.
-          </p>
+
         </div>
         <div className="flex flex-col items-end gap-1">
           <span className="rounded-full bg-blue-600 px-2.5 py-0.5 text-[10px] font-semibold text-white shadow-sm">
             {isAll ? "All Regions" : selectedRegion}
           </span>
           <span
-            className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${
-              isInstrumented
-                ? "bg-emerald-100 text-emerald-700"
-                : "bg-gray-100 text-gray-600"
-            }`}          >
+            className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${isInstrumented
+              ? "bg-emerald-100 text-emerald-700"
+              : "bg-gray-100 text-gray-600"
+              }`}          >
             {isInstrumented ? "100% Civil Completed" : "All Schemes"}
           </span>
         </div>
