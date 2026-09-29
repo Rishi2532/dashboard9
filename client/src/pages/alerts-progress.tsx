@@ -742,16 +742,17 @@ export default function AlertsProgressPage() {
 
     if (!issues || issues.length === 0) {
       return (
-        <Button
-          variant="outline"
-          className="h-8 px-4 text-xs font-medium text-slate-500 border-slate-200 hover:bg-slate-50 rounded-full w-28 whitespace-nowrap"
+        <button
+          type="button"
+          className="h-6 px-2.5 text-[11px] font-medium text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded transition-colors whitespace-nowrap cursor-pointer"
           onClick={(e) => {
             e.stopPropagation();
             setSelectedRemarkDetails({ issues: [], title });
           }}
+          title="Click to view remarks"
         >
           No Remarks
-        </Button>
+        </button>
       );
     }
 
@@ -759,21 +760,20 @@ export default function AlertsProgressPage() {
     const isResolved = !activeIssue;
 
     return (
-      <Button
-        variant="outline"
-        className={`h-8 px-4 text-xs font-medium rounded-full border w-28 whitespace-nowrap overflow-hidden ${isResolved
-          ? 'text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100'
-          : 'text-amber-600 border-amber-200 bg-amber-50 hover:bg-amber-100'
+      <button
+        type="button"
+        className={`h-6 px-2.5 text-[11px] font-bold rounded border whitespace-nowrap transition-colors cursor-pointer ${isResolved
+          ? 'text-emerald-700 border-emerald-200 bg-emerald-50 hover:bg-emerald-100'
+          : 'text-amber-700 border-amber-200 bg-amber-50 hover:bg-amber-100'
           }`}
         onClick={(e) => {
           e.stopPropagation();
           setSelectedRemarkDetails({ issues, title });
         }}
+        title={activeIssue ? "Click to view active issue remarks" : "Click to view resolved issue remarks"}
       >
-        <span className="truncate">
-          {activeIssue ? "View Issue" : 'View Resolved'}
-        </span>
-      </Button>
+        {activeIssue ? "View Issue" : 'Resolved'}
+      </button>
     );
   };
 
@@ -1179,52 +1179,38 @@ export default function AlertsProgressPage() {
           </div>
         )}
 
-        {/* Data Table */}
+        {/* Data Table - Official Government of India Portal Style */}
         <div className="overflow-x-auto">
           {displayData.length === 0 ? (
-            <div className="p-12 text-center text-slate-500 text-sm font-medium">
+            <div className="p-12 text-center text-slate-500 text-xs font-medium">
               No schemes match your current search or status filter.
             </div>
           ) : (
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-100/80 border-b border-slate-200">
-                  <th className="py-4 px-3 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200 w-12">#</th>
-                  <th className="py-4 px-5 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200 min-w-[210px]">
+                <tr className="bg-slate-100 border-b-2 border-slate-300">
+                  <th className="py-2.5 px-2 text-[11px] font-bold text-slate-700 uppercase tracking-wider text-center border-r border-slate-200 w-12">
+                    #
+                  </th>
+                  <th className="py-2.5 px-3 text-[11px] font-bold text-slate-700 uppercase tracking-wider text-left border-r border-slate-200 min-w-[240px]">
                     Scheme & Location Details
-                    <div className="text-[10px] font-normal text-slate-500 normal-case mt-0.5">
-                      Scheme name, ID & Region
-                    </div>
                   </th>
-                  <th className="py-3 px-4 text-xs font-bold text-slate-800 uppercase tracking-wider text-center border-x border-slate-200 min-w-[150px]">
+                  <th className="py-2.5 px-3 text-[11px] font-bold text-slate-700 uppercase tracking-wider text-center border-r border-slate-200 min-w-[130px]">
                     Alert Value & Date
-                    <div className="text-[10px] font-semibold text-rose-700 normal-case mt-0.5">
-                      {type === "offline" ? "Sensors & Date" : `${unitNoun} (${type === "lpcd" ? "LPCD" : type === "chlorine" ? "mg/L" : "Bar"})`}
-                    </div>
                   </th>
-                  <th className="py-4 px-4 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200 min-w-[190px]">
-                    Scheme Owner & Contact
-                    <div className="text-[10px] font-semibold text-indigo-600 normal-case mt-0.5">
-                      Assigned Engineers
-                    </div>
+                  <th className="py-2.5 px-3 text-[11px] font-bold text-slate-700 uppercase tracking-wider text-left border-r border-slate-200 min-w-[200px]">
+                    Assigned Engineer & Contact
                   </th>
-                  <th className="py-4 px-4 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200 min-w-[180px]">
-                    Email Sent
-                    <div className="text-[10px] font-semibold text-blue-600 normal-case mt-0.5">
-                      Email Dispatch & Logs
-                    </div>
+                  <th className="py-2.5 px-3 text-[11px] font-bold text-slate-700 uppercase tracking-wider text-center border-r border-slate-200 min-w-[150px]">
+                    Email Dispatch
                   </th>
-                  <th className="py-4 px-4 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200 min-w-[180px]">
-                    SMS Sent
-
+                  <th className="py-2.5 px-3 text-[11px] font-bold text-slate-700 uppercase tracking-wider text-center border-r border-slate-200 min-w-[150px]">
+                    SMS Gateway
                   </th>
-                  <th className="py-4 px-5 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200 min-w-[180px]">
+                  <th className="py-2.5 px-3 text-[11px] font-bold text-slate-700 uppercase tracking-wider text-center border-r border-slate-200 min-w-[140px]">
                     Alert & Ack Status
-                    <div className="text-[10px] font-semibold text-indigo-600 normal-case mt-0.5">
-                      Acknowledge Status
-                    </div>
                   </th>
-                  <th className="py-4 px-4 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200 min-w-[120px]">
+                  <th className="py-2.5 px-3 text-[11px] font-bold text-slate-700 uppercase tracking-wider text-center min-w-[100px]">
                     Remarks
                   </th>
                 </tr>
@@ -1234,9 +1220,6 @@ export default function AlertsProgressPage() {
                   const actualIndex = startIdx + idx + 1;
                   const failing = isStillFailing(row, type);
 
-                  const rowDate = row.created_at ? new Date(row.created_at) : new Date();
-                  const rowTodayStr = rowDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-
                   const ackInfo = getRowAckInfo(row);
                   const hasEngineers = ackInfo.recipients.length > 0;
                   const owner = getSchemeOwner(row);
@@ -1244,152 +1227,165 @@ export default function AlertsProgressPage() {
                   const otherContactsCount = Math.max(0, allContacts.length - 1);
 
                   return (
-                    <tr key={`${row.scheme_id}-${idx}`} className="border-b border-slate-100 hover:bg-slate-50/80 transition-colors">
-                      <td className="py-4 px-4 align-top text-center border-x border-slate-200">
-                        <span className="text-sm font-medium text-slate-500">{actualIndex}</span>
+                    <tr
+                      key={`${row.scheme_id}-${idx}`}
+                      className="border-b border-slate-200 even:bg-slate-50/50 hover:bg-amber-50/25 transition-colors"
+                    >
+                      {/* 1. Sr. No. */}
+                      <td className="py-2 px-2 text-center border-r border-slate-200 align-middle">
+                        <span className="text-xs font-semibold text-slate-600">{actualIndex}</span>
                       </td>
 
-                      <td className="py-4 px-6 align-top text-center border-x border-slate-200">
-                        <div className="font-bold text-slate-900 text-sm">{row.scheme_name}</div>
-                        <div className="flex items-center justify-center gap-2 mt-1.5 text-xs text-slate-500">
-                          <span>ID: {row.scheme_id}</span>
-                          <MapPin className="h-3 w-3 text-slate-400 ml-1" />
-                          <span>{row.region}</span>
-                        </div>
-                        {row.ticket_id && (
-                          <div className="mt-2">
-                            <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
-                              Ticket: {row.ticket_id}
+                      {/* 2. Scheme & Location Details */}
+                      <td className="py-2 px-3 border-r border-slate-200 align-middle">
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-xs text-slate-900 leading-tight">
+                              {row.scheme_name}
                             </span>
+                            <span className="text-[11px] font-mono font-medium text-slate-500">
+                              #{row.scheme_id}
+                            </span>
+                            {row.region && (
+                              <span className="inline-flex items-center text-[10px] text-slate-600 font-medium bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200">
+                                <MapPin className="h-2.5 w-2.5 text-slate-400 mr-0.5" />
+                                {row.region}
+                              </span>
+                            )}
                           </div>
-                        )}
-                        {(row.village_name || row.esr_name) && (
-                          <div className="mt-2.5 flex flex-wrap justify-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             {type === "lpcd" && row.village_name && (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
                                 🏘️ Village: {row.village_name}
                               </span>
                             )}
                             {type === "chlorine" && (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
-                                🧪 Chlorine Sensor: {row.esr_name || row.village_name || 'Main Line Sensor'}
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                🧪 Sensor: {row.esr_name || row.village_name || 'Main Line Sensor'}
                               </span>
                             )}
                             {type === "pressure" && (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shadow-2xs">
-                                ⏱️ Pressure Sensor: {row.esr_name || row.village_name || 'Terminal Point'}
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                ⏱️ Sensor: {row.esr_name || row.village_name || 'Terminal Point'}
                               </span>
                             )}
                             {type === "offline" && (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200 shadow-2xs">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
                                 📡 Sensor: {row.esr_name || row.village_name || 'Telemetry Node'}
                               </span>
                             )}
+                            {row.ticket_id && (
+                              <span className="inline-flex items-center rounded bg-slate-100 px-1.5 py-0.2 text-[10px] font-mono font-bold text-slate-700 border border-slate-200">
+                                Ticket: {row.ticket_id}
+                              </span>
+                            )}
                           </div>
-                        )}
+                        </div>
                       </td>
 
-                      {/* Alert Value & Date - Shown ONCE with exact date */}
-                      <td className="py-4 px-4 align-middle text-center border-x border-slate-200">
+                      {/* 3. Alert Value & Date */}
+                      <td className="py-2 px-3 text-center border-r border-slate-200 align-middle whitespace-nowrap">
                         {type === "offline" ? (
-                          <div className="flex flex-col items-center gap-1.5">
-                            <div className="flex flex-wrap justify-center gap-1 max-w-[210px]">
+                          <div className="flex flex-col items-center gap-0.5">
+                            <div className="flex flex-wrap justify-center gap-1 max-w-[200px]">
                               {String(row.current_value || 'Telemetry Node').split(', ').map((sensor) => (
-                                <span key={sensor} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                <span key={sensor} className="inline-flex items-center px-1.5 py-0.2 rounded text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
                                   📡 {sensor}
                                 </span>
                               ))}
                             </div>
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold text-slate-600 bg-slate-100 border border-slate-200 mt-1">
-                              <Calendar className="w-3 h-3 text-slate-400" />
+                            <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 font-medium">
+                              <Calendar className="w-2.5 h-2.5 text-slate-400" />
                               {formatAlertDate(row)}
                             </span>
                           </div>
                         ) : (
-                          <div className="flex flex-col items-center justify-center">
-                            <div className="inline-flex items-baseline gap-1 bg-rose-50 border border-rose-200 px-3 py-1 rounded-md shadow-2xs">
-                              <span className="text-base font-black text-rose-700 font-mono tracking-tight">
+                          <div className="flex flex-col items-center justify-center gap-0.5">
+                            <div className="inline-flex items-baseline gap-1 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded">
+                              <span className="text-xs font-bold text-rose-700 font-mono">
                                 {row.current_value ?? row.alert_value ?? row.historical_value ?? row.previous_value ?? "N/A"}
                               </span>
-                              <span className="text-xs font-bold text-slate-700">
+                              <span className="text-[10px] font-semibold text-rose-900">
                                 {type === "lpcd" ? "LPCD" : type === "chlorine" ? "mg/L" : "Bar"}
                               </span>
                             </div>
-                            <div className="inline-flex items-center gap-1 text-[11px] text-slate-600 font-medium mt-1.5 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                              <Calendar className="w-3 h-3 text-slate-400" />
-                              <span>{formatAlertDate(row)}</span>
-                            </div>
+                            <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 font-medium">
+                              <Calendar className="w-2.5 h-2.5 text-slate-400" />
+                              {formatAlertDate(row)}
+                            </span>
                           </div>
                         )}
                       </td>
 
-                      {/* Scheme Owner & Contact from Engineers Directory */}
-                      <td className="py-4 px-4 align-top text-center border-x border-slate-200">
+                      {/* 4. Scheme Owner & Contact from Engineers Directory */}
+                      <td className="py-2 px-3 border-r border-slate-200 align-middle">
                         {owner ? (
-                          <div className="flex flex-col items-center text-center gap-1.5">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 uppercase tracking-wider">
-                              {owner.shortRole}
-                            </span>
-                            <div className="text-xs font-bold text-slate-900 leading-snug">
-                              {owner.name}
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 uppercase tracking-wider">
+                                {owner.shortRole}
+                              </span>
+                              <span className="text-xs font-semibold text-slate-900 leading-tight">
+                                {owner.name}
+                              </span>
                             </div>
-                            {owner.mobile ? (
-                              <div className="flex items-center justify-center gap-1 mt-0.5">
-                                <a
-                                  href={`tel:${owner.mobile}`}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition-colors shadow-2xs"
-                                  title="Call Scheme Owner"
-                                >
-                                  <Phone className="h-3 w-3 text-indigo-600" />
-                                  <span>{owner.mobile}</span>
-                                </a>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {owner.mobile ? (
+                                <div className="flex items-center gap-1">
+                                  <a
+                                    href={`tel:${owner.mobile}`}
+                                    className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-700 hover:text-indigo-900 font-mono hover:underline"
+                                    title="Call Engineer"
+                                  >
+                                    <Phone className="h-2.5 w-2.5 text-indigo-600" />
+                                    <span>{owner.mobile}</span>
+                                  </a>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigator.clipboard.writeText(owner.mobile!);
+                                      setCopiedMobile(owner.mobile!);
+                                      setTimeout(() => setCopiedMobile(null), 2000);
+                                    }}
+                                    className="p-0.5 text-slate-400 hover:text-slate-600 rounded transition-colors"
+                                    title="Copy Mobile Number"
+                                  >
+                                    {copiedMobile === owner.mobile ? (
+                                      <Check className="h-3 w-3 text-emerald-600" />
+                                    ) : (
+                                      <Copy className="h-3 w-3" />
+                                    )}
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-[10px] text-slate-400 italic">No mobile</span>
+                              )}
+                              {otherContactsCount > 0 && (
                                 <button
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    navigator.clipboard.writeText(owner.mobile!);
-                                    setCopiedMobile(owner.mobile!);
-                                    setTimeout(() => setCopiedMobile(null), 2000);
+                                    setSelectedContactsModal({
+                                      schemeName: row.scheme_name,
+                                      schemeId: row.scheme_id,
+                                      contacts: allContacts
+                                    });
                                   }}
-                                  className="p-1 text-slate-400 hover:text-slate-600 rounded hover:bg-slate-100 transition-colors"
-                                  title="Copy Mobile Number"
+                                  className="text-[10px] text-indigo-600 hover:text-indigo-800 font-semibold underline cursor-pointer"
                                 >
-                                  {copiedMobile === owner.mobile ? (
-                                    <Check className="h-3.5 w-3.5 text-emerald-600" />
-                                  ) : (
-                                    <Copy className="h-3.5 w-3.5" />
-                                  )}
+                                  +{otherContactsCount} other{otherContactsCount > 1 ? 's' : ''}
                                 </button>
-                              </div>
-                            ) : (
-                              <span className="text-[11px] text-slate-400 italic">No mobile registered</span>
-                            )}
-                            {otherContactsCount > 0 && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedContactsModal({
-                                    schemeName: row.scheme_name,
-                                    schemeId: row.scheme_id,
-                                    contacts: allContacts
-                                  });
-                                }}
-                                className="text-[10px] text-indigo-600 hover:text-indigo-800 font-semibold underline mt-0.5 cursor-pointer"
-                              >
-                                +{otherContactsCount} other assigned engineer{otherContactsCount > 1 ? 's' : ''}
-                              </button>
-                            )}
+                              )}
+                            </div>
                           </div>
                         ) : (
-                          <div className="text-center text-xs text-slate-400 italic py-2">
-                            Unassigned in Directory
-                          </div>
+                          <span className="text-[11px] text-slate-400 italic">Unassigned in Directory</span>
                         )}
                       </td>
 
-                      {/* Email Sent Status & Log Details */}
-                      <td className="py-4 px-4 align-top text-center border-x border-slate-200">
+                      {/* 5. Email Sent Status & Log Details */}
+                      <td className="py-2 px-3 text-center border-r border-slate-200 align-middle whitespace-nowrap">
                         {(() => {
                           const isSent = Boolean(row.created_at || row.sent_date || row.ticket_id);
                           const emailDate = row.created_at
@@ -1402,55 +1398,41 @@ export default function AlertsProgressPage() {
 
                           if (isSent) {
                             return (
-                              <div className="flex flex-col items-center gap-1.5">
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
-                                  <Mail className="w-3.5 h-3.5 text-blue-600" />
-                                  Sent {emailRecipientsCount > 0 ? `(${emailRecipientsCount} recipients)` : ''}
-                                </span>
-
-                                {timeStr && (
-                                  <div className="flex items-center justify-center gap-1 text-[10px] text-slate-500 font-medium">
-                                    <Clock className="w-3 h-3 text-slate-400" />
-                                    <span>{timeStr}</span>
-                                  </div>
-                                )}
-
-                                {row.ticket_id && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                                    {row.ticket_id}
+                              <div className="flex flex-col items-center gap-0.5">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                                    <Mail className="w-2.5 h-2.5 text-blue-600" />
+                                    Sent {emailRecipientsCount > 0 ? `(${emailRecipientsCount})` : ''}
                                   </span>
-                                )}
-
-                                <Button
+                                  {timeStr && (
+                                    <span className="text-[10px] text-slate-500 font-medium">
+                                      {timeStr}
+                                    </span>
+                                  )}
+                                </div>
+                                <button
                                   type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-6 text-[11px] px-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 font-semibold flex items-center gap-1 mt-0.5 border border-blue-100/60"
+                                  className="text-[10px] font-semibold text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-0.5 cursor-pointer"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setSelectedEngineers({ title: row.scheme_name, row });
                                   }}
                                   title="View Dispatched Email Recipients & Delivery Logs"
                                 >
-                                  <Eye className="w-3 h-3" /> View Email Log
-                                </Button>
+                                  <Eye className="w-2.5 h-2.5" /> View Log
+                                </button>
                               </div>
                             );
                           }
 
                           return (
-                            <div className="flex flex-col items-center justify-center py-2">
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-slate-50 text-slate-500 border border-slate-200">
-                                <Clock className="w-3 h-3 text-slate-400" />
-                                Not Sent
-                              </span>
-                            </div>
+                            <span className="text-[11px] text-slate-400 italic">Not Sent</span>
                           );
                         })()}
                       </td>
 
-                      {/* SMS Dispatched Status & Log Details */}
-                      <td className="py-4 px-4 align-top text-center border-x border-slate-200">
+                      {/* 6. SMS Dispatched Status & Log Details */}
+                      <td className="py-2 px-3 text-center border-r border-slate-200 align-middle whitespace-nowrap">
                         {row.sms_dispatches && row.sms_dispatches.length > 0 ? (
                           (() => {
                             const smsList = row.sms_dispatches!;
@@ -1463,33 +1445,30 @@ export default function AlertsProgressPage() {
                               : null;
 
                             return (
-                              <div className="flex flex-col items-center gap-1.5">
-                                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold border shadow-2xs ${isFullSuccess
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                  : successCount > 0
-                                    ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                    : 'bg-rose-50 text-rose-700 border-rose-200'
-                                  }`}>
-                                  <MessageSquare className="w-3.5 h-3.5 text-current" />
-                                  {isFullSuccess
-                                    ? `Dispatched (${successCount}/${smsList.length})`
+                              <div className="flex flex-col items-center gap-0.5">
+                                <div className="flex items-center gap-1.5">
+                                  <span className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[11px] font-semibold border ${isFullSuccess
+                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                                     : successCount > 0
-                                      ? `Partial (${successCount}/${smsList.length})`
-                                      : `Failed (${smsList.length})`}
-                                </span>
-
-                                {timeStr && (
-                                  <div className="flex items-center justify-center gap-1 text-[10px] text-slate-500 font-medium">
-                                    <Clock className="w-3 h-3 text-slate-400" />
-                                    <span>{timeStr}</span>
-                                  </div>
-                                )}
-
-                                <Button
+                                      ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                      : 'bg-rose-50 text-rose-800 border-rose-200'
+                                    }`}>
+                                    <MessageSquare className="w-2.5 h-2.5 text-current" />
+                                    {isFullSuccess
+                                      ? `Delivered (${successCount}/${smsList.length})`
+                                      : successCount > 0
+                                        ? `Partial (${successCount}/${smsList.length})`
+                                        : `Failed (${smsList.length})`}
+                                  </span>
+                                  {timeStr && (
+                                    <span className="text-[10px] text-slate-500 font-medium">
+                                      {timeStr}
+                                    </span>
+                                  )}
+                                </div>
+                                <button
                                   type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-6 text-[11px] px-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 font-semibold flex items-center gap-1 mt-0.5 border border-indigo-100/60"
+                                  className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 hover:underline inline-flex items-center gap-0.5 cursor-pointer"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setSelectedSmsModal({
@@ -1500,90 +1479,76 @@ export default function AlertsProgressPage() {
                                     });
                                   }}
                                 >
-                                  <Eye className="w-3 h-3" /> View SMS Log
-                                </Button>
+                                  <Eye className="w-2.5 h-2.5" /> View Log
+                                </button>
                               </div>
                             );
                           })()
                         ) : (
-                          <div className="flex flex-col items-center justify-center py-2">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-slate-50 text-slate-500 border border-slate-200">
-                              <Clock className="w-3 h-3 text-slate-400" />
-                              Not Dispatched
-                            </span>
-                          </div>
+                          <span className="text-[11px] text-slate-400 italic">Not Dispatched</span>
                         )}
                       </td>
 
-                      <td className="py-4 px-6 align-top text-center border-x border-slate-200">
-                        {type === "offline" ? (
-                          <div className="flex flex-col items-center">
-                            <div className="flex items-center justify-center gap-1.5 text-sm font-bold text-slate-900">
-                              <div className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
-                              Offline
-                            </div>
-                            <div className="text-xs text-slate-500 mt-1 font-semibold">Sensor Dropout</div>
+                      {/* 7. Alert & Ack Status */}
+                      <td className="py-2 px-3 text-center border-r border-slate-200 align-middle whitespace-nowrap">
+                        <div className="flex flex-col items-center gap-0.5">
+                          <div>
+                            {type === "offline" ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700">
+                                <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse" />
+                                Offline
+                              </span>
+                            ) : failing ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700">
+                                <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse" />
+                                Violated
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                Resolved
+                              </span>
+                            )}
                           </div>
-                        ) : failing ? (
-                          <div className="flex flex-col items-center">
-                            <div className="flex items-center justify-center gap-1.5 text-sm font-bold text-slate-900">
-                              <div className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
-                              Threshold Violated
-                            </div>
-                            <div className="text-xs text-slate-500 mt-1">Action Required</div>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center">
-                            <div className="flex items-center justify-center gap-1.5 text-sm font-bold text-slate-900">
-                              <div className="h-2 w-2 rounded-full bg-emerald-500" />
-                              Resolved
-                            </div>
-                          </div>
-                        )}
 
-                        <div className="flex items-center justify-center gap-2 mt-2">
                           {hasEngineers ? (
-                            <>
-                              <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-md text-xs font-bold border ${ackInfo.isFullyAcknowledged
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            <div className="inline-flex items-center gap-1">
+                              <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold border ${ackInfo.isFullyAcknowledged
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                                 : ackInfo.isAcknowledged
-                                  ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                  : 'bg-amber-50 text-amber-700 border-amber-200'
+                                  ? 'bg-blue-50 text-blue-800 border-blue-200'
+                                  : 'bg-amber-50 text-amber-800 border-amber-200'
                                 }`}>
                                 {ackInfo.ackCount > 0 ? (
-                                  <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+                                  <CheckCircle2 className="w-2.5 h-2.5 mr-0.5 text-emerald-600" />
                                 ) : (
-                                  <Clock className="w-3.5 h-3.5 mr-1 text-amber-600" />
+                                  <Clock className="w-2.5 h-2.5 mr-0.5 text-amber-600" />
                                 )}
                                 {ackInfo.totalRequired > 0
-                                  ? `${ackInfo.ackCount}/${ackInfo.totalRequired} Acknowledged`
-                                  : ackInfo.isAcknowledged ? 'Acknowledged' : 'Pending'}
+                                  ? `${ackInfo.ackCount}/${ackInfo.totalRequired} Ack`
+                                  : ackInfo.isAcknowledged ? 'Ack' : 'Pending'}
                               </span>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 shrink-0 border border-indigo-100"
+                              <button
+                                type="button"
+                                className="p-0.5 text-slate-400 hover:text-indigo-600 cursor-pointer rounded transition-colors"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setSelectedEngineers({ title: row.scheme_name, row });
                                 }}
                                 title="View Assigned Personnel & Status"
                               >
-                                <Eye className="h-3.5 w-3.5" />
-                              </Button>
-                            </>
+                                <Eye className="h-3 w-3" />
+                              </button>
+                            </div>
                           ) : (
-                            <span className="text-xs font-medium text-slate-400 border border-slate-100 px-2.5 py-1 rounded-md bg-slate-50">
-                              None Assigned
-                            </span>
+                            <span className="text-[10px] text-slate-400">None Assigned</span>
                           )}
                         </div>
                       </td>
 
-                      <td className="py-4 px-6 align-top text-center border-x border-slate-200">
-                        <div className="flex justify-center">
-                          {renderRemarkCell(row.remarks, `Remarks for ${row.esr_name || row.village_name || row.scheme_name}`)}
-                        </div>
+                      {/* 8. Remarks */}
+                      <td className="py-2 px-3 text-center align-middle whitespace-nowrap">
+                        {renderRemarkCell(row.remarks, `Remarks for ${row.esr_name || row.village_name || row.scheme_name}`)}
                       </td>
                     </tr>
                   );
@@ -1593,27 +1558,27 @@ export default function AlertsProgressPage() {
           )}
         </div>
 
-        {/* Pagination Controls */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-white">
-          <div className="text-sm text-slate-500 font-medium">
-            Showing {startItem} to {endItem} of {displayData.length} entries
+        {/* Pagination Controls - Clean Government Style */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-2.5 border-t border-slate-200 bg-slate-50/70 text-xs text-slate-600">
+          <div className="font-medium">
+            Showing <span className="font-bold text-slate-900">{startItem}</span> to <span className="font-bold text-slate-900">{endItem}</span> of <span className="font-bold text-slate-900">{displayData.length}</span> schemes
           </div>
 
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-slate-500">Rows per page:</span>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-500 font-medium">Rows:</span>
               <select
-                className="text-sm border-slate-200 rounded-md py-1 pl-2 pr-6 outline-none focus:ring-2 focus:ring-indigo-500 border bg-white cursor-pointer"
+                className="text-xs border-slate-200 rounded py-1 px-2 outline-none focus:ring-1 focus:ring-indigo-500 border bg-white cursor-pointer font-medium"
                 value={rowsPerPage}
                 onChange={(e) => {
                   setRowsPerPage(Number(e.target.value));
                   setPage(1);
                 }}
               >
-                <option value={5}>5</option>
                 <option value={10}>10</option>
                 <option value={25}>25</option>
                 <option value={50}>50</option>
+                <option value={100}>100</option>
               </select>
             </div>
 
@@ -1621,11 +1586,11 @@ export default function AlertsProgressPage() {
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8 text-slate-500 border-slate-200"
+                className="h-7 w-7 text-slate-500 border-slate-200"
                 disabled={page === 1}
                 onClick={() => setPage(p => Math.max(1, p - 1))}
               >
-                <ChevronLeft className="h-4 w-4" />
+                <ChevronLeft className="h-3.5 w-3.5" />
               </Button>
 
               {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
@@ -1639,7 +1604,7 @@ export default function AlertsProgressPage() {
                   <Button
                     key={p}
                     variant={page === p ? "default" : "outline"}
-                    className={`h-8 w-8 text-sm ${page === p ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'text-slate-600 border-slate-200'}`}
+                    className={`h-7 w-7 text-xs font-semibold ${page === p ? 'bg-indigo-700 hover:bg-indigo-800 text-white' : 'text-slate-600 border-slate-200 bg-white hover:bg-slate-50'}`}
                     onClick={() => setPage(p)}
                   >
                     {p}
@@ -1649,10 +1614,10 @@ export default function AlertsProgressPage() {
 
               {totalPages > 5 && page < totalPages - 2 && (
                 <>
-                  <span className="px-2 text-slate-400">...</span>
+                  <span className="px-1 text-slate-400">...</span>
                   <Button
                     variant="outline"
-                    className="h-8 w-8 text-sm text-slate-600 border-slate-200"
+                    className="h-7 w-7 text-xs text-slate-600 border-slate-200 bg-white"
                     onClick={() => setPage(totalPages)}
                   >
                     {totalPages}
@@ -1663,11 +1628,11 @@ export default function AlertsProgressPage() {
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8 text-slate-500 border-slate-200"
+                className="h-7 w-7 text-slate-500 border-slate-200"
                 disabled={page === totalPages || totalPages === 0}
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               >
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className="h-3.5 w-3.5" />
               </Button>
             </div>
           </div>
