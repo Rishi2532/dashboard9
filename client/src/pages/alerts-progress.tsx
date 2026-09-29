@@ -25,7 +25,10 @@ import {
   ShieldAlert,
   ArrowRight,
   Sparkles,
-  Activity
+  Activity,
+  Phone,
+  Copy,
+  Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -59,6 +62,20 @@ interface IssueRemark {
   category?: string;
 }
 
+export interface SmsDispatchItem {
+  id: number;
+  mobile: string;
+  engineer_name?: string | null;
+  engineer_email?: string | null;
+  template_name?: string | null;
+  template_id?: string | null;
+  message_text?: string | null;
+  gateway_status?: number | null;
+  is_success: boolean;
+  sent_date?: string;
+  created_at?: string;
+}
+
 interface AlertData {
   scheme_id: string;
   scheme_name: string;
@@ -71,28 +88,37 @@ interface AlertData {
   ticket_id?: string;
   ee_civil_name?: string | null;
   ee_civil_email?: string | null;
+  ee_civil_mobile?: string | null;
   ee_mech_name?: string | null;
   ee_mech_email?: string | null;
+  ee_mech_mobile?: string | null;
   de_ae_civil_name?: string | null;
   de_ae_civil_email?: string | null;
+  de_ae_civil_mobile?: string | null;
   de_ae_mech_name?: string | null;
   de_ae_mech_email?: string | null;
+  de_ae_mech_mobile?: string | null;
   se_name?: string | null;
   se_email?: string | null;
+  se_mobile?: string | null;
   chief_engineer_name?: string | null;
   chief_engineer_email?: string | null;
+  chief_engineer_mobile?: string | null;
   vendor_name?: string | null;
   vendor_email?: string | null;
   civil_engineer_name: string | null;
   civil_engineer_email: string | null;
+  civil_engineer_mobile?: string | null;
   mechanical_engineer_name: string | null;
   mechanical_engineer_email: string | null;
+  mechanical_engineer_mobile?: string | null;
   site_supervisor_name: string | null;
   site_supervisor_email: string | null;
   created_at?: string;
   sent_date?: string;
   remarks: IssueRemark[];
   acknowledgements?: { engineer_email: string; engineer_name: string; acknowledged_at: string | null }[];
+  sms_dispatches?: SmsDispatchItem[];
 }
 
 // Helpers
@@ -119,10 +145,12 @@ export interface AlertRecipient {
   role: string;
   name: string;
   email: string | null;
+  mobile: string | null;
   isAcknowledged: boolean;
   acknowledged_at: string | null;
 }
 
+export type RecipientInfo = AlertRecipient;
 
 export const isValidEngineerName = (rawName?: string | null): boolean => {
   if (!rawName || typeof rawName !== "string") return false;
@@ -148,6 +176,90 @@ export const isValidEngineerName = (rawName?: string | null): boolean => {
     return false;
   }
   return true;
+};
+
+// Helper to determine the primary Scheme Owner from scheme_engineer_details
+export const getSchemeOwner = (row: AlertData) => {
+  // EE (Civil) is the primary Scheme Owner in JJM/MJP, followed by EE (Mech), DE/AE (Civil), DE/AE (Mech), SE, CE
+  if (isValidEngineerName(row.ee_civil_name)) {
+    return {
+      role: "Executive Engineer (Civil)",
+      shortRole: "EE (Civil)",
+      name: row.ee_civil_name!.trim(),
+      mobile: row.ee_civil_mobile?.trim() || null,
+      email: row.ee_civil_email?.trim() || null,
+    };
+  }
+  if (isValidEngineerName(row.ee_mech_name)) {
+    return {
+      role: "Executive Engineer (Mech)",
+      shortRole: "EE (Mech)",
+      name: row.ee_mech_name!.trim(),
+      mobile: row.ee_mech_mobile?.trim() || null,
+      email: row.ee_mech_email?.trim() || null,
+    };
+  }
+  if (isValidEngineerName(row.de_ae_civil_name)) {
+    return {
+      role: "DE / AE (Civil)",
+      shortRole: "DE/AE (Civil)",
+      name: row.de_ae_civil_name!.trim(),
+      mobile: row.de_ae_civil_mobile?.trim() || null,
+      email: row.de_ae_civil_email?.trim() || null,
+    };
+  }
+  if (isValidEngineerName(row.de_ae_mech_name)) {
+    return {
+      role: "DE / AE (Mech)",
+      shortRole: "DE/AE (Mech)",
+      name: row.de_ae_mech_name!.trim(),
+      mobile: row.de_ae_mech_mobile?.trim() || null,
+      email: row.de_ae_mech_email?.trim() || null,
+    };
+  }
+  if (isValidEngineerName(row.se_name)) {
+    return {
+      role: "Superintending Engineer",
+      shortRole: "SE",
+      name: row.se_name!.trim(),
+      mobile: row.se_mobile?.trim() || null,
+      email: row.se_email?.trim() || null,
+    };
+  }
+  if (isValidEngineerName(row.chief_engineer_name)) {
+    return {
+      role: "Chief Engineer",
+      shortRole: "CE",
+      name: row.chief_engineer_name!.trim(),
+      mobile: row.chief_engineer_mobile?.trim() || null,
+      email: row.chief_engineer_email?.trim() || null,
+    };
+  }
+  return null;
+};
+
+// Helper to get all assigned contacts with mobile numbers for a scheme
+export const getAllSchemeContacts = (row: AlertData) => {
+  const contacts: { role: string; name: string; mobile: string | null; email: string | null }[] = [];
+  if (isValidEngineerName(row.ee_civil_name)) {
+    contacts.push({ role: "Executive Engineer (Civil)", name: row.ee_civil_name!.trim(), mobile: row.ee_civil_mobile?.trim() || null, email: row.ee_civil_email?.trim() || null });
+  }
+  if (isValidEngineerName(row.ee_mech_name)) {
+    contacts.push({ role: "Executive Engineer (Mech)", name: row.ee_mech_name!.trim(), mobile: row.ee_mech_mobile?.trim() || null, email: row.ee_mech_email?.trim() || null });
+  }
+  if (isValidEngineerName(row.de_ae_civil_name)) {
+    contacts.push({ role: "DE / AE (Civil)", name: row.de_ae_civil_name!.trim(), mobile: row.de_ae_civil_mobile?.trim() || null, email: row.de_ae_civil_email?.trim() || null });
+  }
+  if (isValidEngineerName(row.de_ae_mech_name)) {
+    contacts.push({ role: "DE / AE (Mech)", name: row.de_ae_mech_name!.trim(), mobile: row.de_ae_mech_mobile?.trim() || null, email: row.de_ae_mech_email?.trim() || null });
+  }
+  if (isValidEngineerName(row.se_name)) {
+    contacts.push({ role: "Superintending Engineer", name: row.se_name!.trim(), mobile: row.se_mobile?.trim() || null, email: row.se_email?.trim() || null });
+  }
+  if (isValidEngineerName(row.chief_engineer_name)) {
+    contacts.push({ role: "Chief Engineer", name: row.chief_engineer_name!.trim(), mobile: row.chief_engineer_mobile?.trim() || null, email: row.chief_engineer_email?.trim() || null });
+  }
+  return contacts;
 };
 
 // Helper to extract engineer recipients for a given alert row strictly from scheme_engineer_details
@@ -193,6 +305,7 @@ export const getRowRecipients = (row: AlertData) => {
       role: "Executive Engineer (Civil)",
       name,
       email: row.ee_civil_email || null,
+      mobile: row.ee_civil_mobile?.trim() || null,
       isAcknowledged: isAck,
       acknowledged_at
     });
@@ -206,6 +319,7 @@ export const getRowRecipients = (row: AlertData) => {
       role: "Executive Engineer (Mech)",
       name,
       email: row.ee_mech_email || null,
+      mobile: row.ee_mech_mobile?.trim() || null,
       isAcknowledged: isAck,
       acknowledged_at
     });
@@ -219,6 +333,7 @@ export const getRowRecipients = (row: AlertData) => {
       role: "DE/AE (Civil)",
       name,
       email: row.de_ae_civil_email || null,
+      mobile: row.de_ae_civil_mobile?.trim() || null,
       isAcknowledged: isAck,
       acknowledged_at
     });
@@ -232,6 +347,7 @@ export const getRowRecipients = (row: AlertData) => {
       role: "DE/AE (Mech)",
       name,
       email: row.de_ae_mech_email || null,
+      mobile: row.de_ae_mech_mobile?.trim() || null,
       isAcknowledged: isAck,
       acknowledged_at
     });
@@ -245,6 +361,7 @@ export const getRowRecipients = (row: AlertData) => {
       role: "Superintending Engineer (SE)",
       name,
       email: row.se_email || null,
+      mobile: row.se_mobile?.trim() || null,
       isAcknowledged: isAck,
       acknowledged_at
     });
@@ -258,6 +375,7 @@ export const getRowRecipients = (row: AlertData) => {
       role: "Chief Engineer",
       name,
       email: row.chief_engineer_email || null,
+      mobile: row.chief_engineer_mobile?.trim() || null,
       isAcknowledged: isAck,
       acknowledged_at
     });
@@ -319,6 +437,21 @@ export default function AlertsProgressPage() {
     title: string;
     row: AlertData;
   } | null>(null);
+
+  const [selectedSmsModal, setSelectedSmsModal] = useState<{
+    schemeName: string;
+    schemeId: string;
+    dispatches: SmsDispatchItem[];
+    alertType: string;
+  } | null>(null);
+
+  const [selectedContactsModal, setSelectedContactsModal] = useState<{
+    schemeName: string;
+    schemeId: string;
+    contacts: { role: string; name: string; mobile: string | null; email: string | null }[];
+  } | null>(null);
+
+  const [copiedMobile, setCopiedMobile] = useState<string | null>(null);
 
   // Modal dialog for viewing the full list of acknowledged or pending schemes
   const [ackModalData, setAckModalData] = useState<{
@@ -1005,14 +1138,14 @@ export default function AlertsProgressPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-100/80 border-b border-slate-200">
-                  <th className="py-4 px-4 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200 w-12">#</th>
-                  <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200">
+                  <th className="py-4 px-3 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200 w-12">#</th>
+                  <th className="py-4 px-5 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200 min-w-[210px]">
                     Scheme & Location Details
                     <div className="text-[10px] font-normal text-slate-500 normal-case mt-0.5">
                       Scheme name, ID & Region
                     </div>
                   </th>
-                  <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200">
+                  <th className="py-4 px-4 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200 min-w-[150px]">
                     {type === "offline"
                       ? "Offline Sensor Dropout"
                       : type === "lpcd"
@@ -1024,13 +1157,31 @@ export default function AlertsProgressPage() {
                       Indication: {unitNoun}
                     </div>
                   </th>
-                  <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200">
-                    {type === "offline" ? "Notified Personnel" : "Notified Engineers"}
+                  <th className="py-4 px-4 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200 min-w-[190px]">
+                    Scheme Owner & Contact
                     <div className="text-[10px] font-semibold text-indigo-600 normal-case mt-0.5">
                       scheme_engineer_details
                     </div>
                   </th>
-                  <th className="py-4 px-6 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200">
+                  <th className="py-4 px-4 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200 min-w-[180px]">
+                    Email Sent
+                    <div className="text-[10px] font-semibold text-blue-600 normal-case mt-0.5">
+                      Email Dispatch & Logs
+                    </div>
+                  </th>
+                  <th className="py-4 px-4 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200 min-w-[180px]">
+                    SMS Dispatched
+                    <div className="text-[10px] font-semibold text-emerald-600 normal-case mt-0.5">
+                      DLT Gateway & Delivery
+                    </div>
+                  </th>
+                  <th className="py-4 px-5 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200 min-w-[180px]">
+                    Alert & Ack Status
+                    <div className="text-[10px] font-semibold text-indigo-600 normal-case mt-0.5">
+                      Acknowledge Status
+                    </div>
+                  </th>
+                  <th className="py-4 px-4 text-xs font-bold text-slate-700 uppercase tracking-wider text-center border-x border-slate-200 min-w-[120px]">
                     Remarks
                   </th>
                 </tr>
@@ -1045,6 +1196,9 @@ export default function AlertsProgressPage() {
 
                   const ackInfo = getRowAckInfo(row);
                   const hasEngineers = ackInfo.recipients.length > 0;
+                  const owner = getSchemeOwner(row);
+                  const allContacts = getAllSchemeContacts(row);
+                  const otherContactsCount = Math.max(0, allContacts.length - 1);
 
                   return (
                     <tr key={`${row.scheme_id}-${idx}`} className="border-b border-slate-100 hover:bg-slate-50/80 transition-colors">
@@ -1123,6 +1277,199 @@ export default function AlertsProgressPage() {
                             <div className="text-[10px] text-center font-medium text-slate-400">
                               {type === "lpcd" ? "Unit: Village LPCD" : type === "chlorine" ? "Unit: Sensor (mg/L)" : "Unit: Sensor (Bar)"}
                             </div>
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Scheme Owner & Contact from scheme_engineer_details */}
+                      <td className="py-4 px-4 align-top text-center border-x border-slate-200">
+                        {owner ? (
+                          <div className="flex flex-col items-center text-center gap-1.5">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 uppercase tracking-wider">
+                              {owner.shortRole}
+                            </span>
+                            <div className="text-xs font-bold text-slate-900 leading-snug">
+                              {owner.name}
+                            </div>
+                            {owner.mobile ? (
+                              <div className="flex items-center justify-center gap-1 mt-0.5">
+                                <a
+                                  href={`tel:${owner.mobile}`}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition-colors shadow-2xs"
+                                  title="Call Scheme Owner"
+                                >
+                                  <Phone className="h-3 w-3 text-indigo-600" />
+                                  <span>{owner.mobile}</span>
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigator.clipboard.writeText(owner.mobile!);
+                                    setCopiedMobile(owner.mobile!);
+                                    setTimeout(() => setCopiedMobile(null), 2000);
+                                  }}
+                                  className="p-1 text-slate-400 hover:text-slate-600 rounded hover:bg-slate-100 transition-colors"
+                                  title="Copy Mobile Number"
+                                >
+                                  {copiedMobile === owner.mobile ? (
+                                    <Check className="h-3.5 w-3.5 text-emerald-600" />
+                                  ) : (
+                                    <Copy className="h-3.5 w-3.5" />
+                                  )}
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-[11px] text-slate-400 italic">No mobile registered</span>
+                            )}
+                            {otherContactsCount > 0 && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedContactsModal({
+                                    schemeName: row.scheme_name,
+                                    schemeId: row.scheme_id,
+                                    contacts: allContacts
+                                  });
+                                }}
+                                className="text-[10px] text-indigo-600 hover:text-indigo-800 font-semibold underline mt-0.5 cursor-pointer"
+                              >
+                                +{otherContactsCount} other assigned engineer{otherContactsCount > 1 ? 's' : ''}
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-center text-xs text-slate-400 italic py-2">
+                            Unassigned in scheme_engineer_details
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Email Sent Status & Log Details */}
+                      <td className="py-4 px-4 align-top text-center border-x border-slate-200">
+                        {(() => {
+                          const isSent = Boolean(row.created_at || row.sent_date || row.ticket_id);
+                          const emailDate = row.created_at 
+                            ? new Date(row.created_at) 
+                            : (row.sent_date ? new Date(row.sent_date) : null);
+                          const timeStr = emailDate && !isNaN(emailDate.getTime())
+                            ? emailDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+                            : null;
+                          const emailRecipientsCount = ackInfo.recipients.filter(r => !!r.email).length || ackInfo.recipients.length;
+
+                          if (isSent) {
+                            return (
+                              <div className="flex flex-col items-center gap-1.5">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
+                                  <Mail className="w-3.5 h-3.5 text-blue-600" />
+                                  Sent {emailRecipientsCount > 0 ? `(${emailRecipientsCount} recipients)` : ''}
+                                </span>
+
+                                {timeStr && (
+                                  <div className="flex items-center justify-center gap-1 text-[10px] text-slate-500 font-medium">
+                                    <Clock className="w-3 h-3 text-slate-400" />
+                                    <span>{timeStr}</span>
+                                  </div>
+                                )}
+
+                                {row.ticket_id && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                    {row.ticket_id}
+                                  </span>
+                                )}
+
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 text-[11px] px-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 font-semibold flex items-center gap-1 mt-0.5 border border-blue-100/60"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedEngineers({ title: row.scheme_name, row });
+                                  }}
+                                  title="View Dispatched Email Recipients & Delivery Logs"
+                                >
+                                  <Eye className="w-3 h-3" /> View Email Log
+                                </Button>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div className="flex flex-col items-center justify-center py-2">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-slate-50 text-slate-500 border border-slate-200">
+                                <Clock className="w-3 h-3 text-slate-400" />
+                                Not Sent
+                              </span>
+                            </div>
+                          );
+                        })()}
+                      </td>
+
+                      {/* SMS Dispatched Status & Log Details */}
+                      <td className="py-4 px-4 align-top text-center border-x border-slate-200">
+                        {row.sms_dispatches && row.sms_dispatches.length > 0 ? (
+                          (() => {
+                            const smsList = row.sms_dispatches!;
+                            const successCount = smsList.filter(s => s.is_success).length;
+                            const isFullSuccess = successCount === smsList.length;
+                            const latestSms = smsList[0];
+                            const smsDate = latestSms?.created_at ? new Date(latestSms.created_at) : null;
+                            const timeStr = smsDate && !isNaN(smsDate.getTime())
+                              ? smsDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+                              : null;
+
+                            return (
+                              <div className="flex flex-col items-center gap-1.5">
+                                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold border shadow-2xs ${
+                                  isFullSuccess
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : successCount > 0
+                                      ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                      : 'bg-rose-50 text-rose-700 border-rose-200'
+                                }`}>
+                                  <MessageSquare className="w-3.5 h-3.5 text-current" />
+                                  {isFullSuccess
+                                    ? `Dispatched (${successCount}/${smsList.length})`
+                                    : successCount > 0
+                                      ? `Partial (${successCount}/${smsList.length})`
+                                      : `Failed (${smsList.length})`}
+                                </span>
+
+                                {timeStr && (
+                                  <div className="flex items-center justify-center gap-1 text-[10px] text-slate-500 font-medium">
+                                    <Clock className="w-3 h-3 text-slate-400" />
+                                    <span>{timeStr}</span>
+                                  </div>
+                                )}
+
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 text-[11px] px-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 font-semibold flex items-center gap-1 mt-0.5 border border-indigo-100/60"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedSmsModal({
+                                      schemeName: row.scheme_name,
+                                      schemeId: row.scheme_id,
+                                      dispatches: smsList,
+                                      alertType: type.toUpperCase()
+                                    });
+                                  }}
+                                >
+                                  <Eye className="w-3 h-3" /> View SMS Log
+                                </Button>
+                              </div>
+                            );
+                          })()
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-2">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-slate-50 text-slate-500 border border-slate-200">
+                              <Clock className="w-3 h-3 text-slate-400" />
+                              Not Dispatched
+                            </span>
                           </div>
                         )}
                       </td>
@@ -1869,8 +2216,8 @@ export default function AlertsProgressPage() {
                 <DialogHeader className="border-b border-slate-100 pb-4">
                   <div className="flex items-center justify-between gap-2">
                     <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                      <Users className="h-5 w-5 text-indigo-600" />
-                      Email Alert Recipients & Acknowledgement
+                      <Mail className="h-5 w-5 text-blue-600" />
+                      Email Alert Dispatch Logs & Acknowledgement
                     </DialogTitle>
                   </div>
                   <DialogDescription className="text-slate-600 font-medium text-xs mt-1">
@@ -1879,11 +2226,30 @@ export default function AlertsProgressPage() {
                       <span className="text-slate-400 ml-1.5">• Village: {selectedEngineers.row.village_name}</span>
                     )}
                     {selectedEngineers.row.ticket_id && (
-                      <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 text-[10px] font-mono font-bold text-slate-600">
-                        {selectedEngineers.row.ticket_id}
+                      <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded bg-blue-50 text-[10px] font-mono font-bold text-blue-700 border border-blue-200">
+                        Ticket: {selectedEngineers.row.ticket_id}
                       </span>
                     )}
                   </DialogDescription>
+                  {(selectedEngineers.row.created_at || selectedEngineers.row.sent_date) && (
+                    <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                        <Mail className="h-3 w-3 text-blue-600" />
+                        Dispatched
+                      </span>
+                      <span className="text-[11px] text-slate-500 font-medium flex items-center gap-1">
+                        <Clock className="h-3 w-3 text-slate-400" />
+                        {new Date(selectedEngineers.row.created_at || selectedEngineers.row.sent_date!).toLocaleString('en-IN', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: true
+                        })}
+                      </span>
+                    </div>
+                  )}
                 </DialogHeader>
 
                 {(() => {
@@ -1953,6 +2319,17 @@ export default function AlertsProgressPage() {
                                   ) : (
                                     <span className="text-xs text-slate-400 mt-1 italic">No email address on record</span>
                                   )}
+                                  {rec.mobile && (
+                                    <div className="flex items-center gap-1.5 mt-1">
+                                      <a
+                                        href={`tel:${rec.mobile}`}
+                                        className="text-xs font-bold text-slate-700 hover:text-indigo-600 hover:underline flex items-center gap-1"
+                                      >
+                                        <Phone className="h-3 w-3 text-indigo-600 shrink-0" />
+                                        <span>{rec.mobile}</span>
+                                      </a>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
 
@@ -1988,6 +2365,204 @@ export default function AlertsProgressPage() {
                     </div>
                   );
                 })()}
+              </DialogContent>
+            </Dialog>
+          )}
+
+          {/* SMS Dispatch Details Dialog */}
+          {selectedSmsModal && (
+            <Dialog open={!!selectedSmsModal} onOpenChange={(open) => !open && setSelectedSmsModal(null)}>
+              <DialogContent className="max-w-2xl bg-white border border-slate-200 shadow-2xl rounded-2xl p-0 overflow-hidden">
+                <div className="p-5 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white flex items-center justify-between">
+                  <div>
+                    <DialogTitle className="text-lg font-bold flex items-center gap-2 text-white">
+                      <MessageSquare className="h-5 w-5 text-white" />
+                      SMS Dispatch Logs & Delivery Status
+                    </DialogTitle>
+                    <DialogDescription className="text-emerald-100 text-xs mt-1">
+                      Scheme: <span className="font-semibold text-white">{selectedSmsModal.schemeName}</span> (ID: {selectedSmsModal.schemeId}) • {selectedSmsModal.alertType} Alert
+                    </DialogDescription>
+                  </div>
+                </div>
+
+                <div className="p-5 max-h-[70vh] overflow-y-auto space-y-4 bg-slate-50/50">
+                  {/* Dispatched DLT Message Content Card */}
+                  {selectedSmsModal.dispatches.length > 0 && selectedSmsModal.dispatches[0].message_text && (
+                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                          DLT Approved SMS Content
+                        </span>
+                        {selectedSmsModal.dispatches[0].template_name && (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            {selectedSmsModal.dispatches[0].template_name}
+                          </span>
+                        )}
+                      </div>
+                      <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 text-xs font-medium text-slate-800 leading-relaxed font-sans">
+                        {selectedSmsModal.dispatches[0].message_text}
+                      </div>
+                      {selectedSmsModal.dispatches[0].template_id && (
+                        <div className="mt-2 text-[10px] text-slate-400 font-mono">
+                          DLT Template ID: {selectedSmsModal.dispatches[0].template_id}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Recipients Table */}
+                  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+                    <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                        Dispatched Recipients ({selectedSmsModal.dispatches.length})
+                      </span>
+                      <span className="text-xs font-semibold text-emerald-700">
+                        {selectedSmsModal.dispatches.filter(s => s.is_success).length} Delivered
+                      </span>
+                    </div>
+
+                    <div className="divide-y divide-slate-100">
+                      {selectedSmsModal.dispatches.map((sms, sIdx) => (
+                        <div key={sms.id || sIdx} className="p-3.5 flex items-center justify-between gap-3 hover:bg-slate-50/60 transition-colors">
+                          <div className="min-w-0">
+                            <div className="text-xs font-bold text-slate-900 truncate">
+                              {sms.engineer_name || "Assigned Engineer"}
+                            </div>
+                            {sms.engineer_email && (
+                              <div className="text-[11px] text-slate-500 truncate mt-0.5">
+                                {sms.engineer_email}
+                              </div>
+                            )}
+                            <div className="flex items-center gap-2 mt-1">
+                              <a
+                                href={`tel:${sms.mobile}`}
+                                className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
+                              >
+                                <Phone className="h-3 w-3" />
+                                <span>{sms.mobile}</span>
+                              </a>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col items-end shrink-0">
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold border ${
+                              sms.is_success
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : 'bg-rose-50 text-rose-700 border-rose-200'
+                            }`}>
+                              {sms.is_success ? (
+                                <>
+                                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                                  Delivered
+                                </>
+                              ) : (
+                                <>
+                                  <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
+                                  Failed {sms.gateway_status ? `(${sms.gateway_status})` : ''}
+                                </>
+                              )}
+                            </span>
+                            {sms.created_at && (
+                              <span className="text-[10px] text-slate-400 font-medium mt-1">
+                                {new Date(sms.created_at).toLocaleString('en-IN', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  hour12: true
+                                })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3.5 border-t border-slate-100 bg-slate-50 flex justify-end">
+                  <Button
+                    size="sm"
+                    onClick={() => setSelectedSmsModal(null)}
+                    className="bg-slate-800 hover:bg-slate-900 text-white text-xs px-4"
+                  >
+                    Close
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+
+          {/* Scheme All Assigned Contacts Modal */}
+          {selectedContactsModal && (
+            <Dialog open={!!selectedContactsModal} onOpenChange={(open) => !open && setSelectedContactsModal(null)}>
+              <DialogContent className="max-w-md bg-white border border-slate-200 shadow-2xl rounded-2xl p-0 overflow-hidden">
+                <div className="p-5 bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-700 text-white">
+                  <DialogTitle className="text-base font-bold flex items-center gap-2 text-white">
+                    <Phone className="h-4 w-4 text-white" />
+                    Scheme Engineers & Phone Numbers
+                  </DialogTitle>
+                  <DialogDescription className="text-indigo-100 text-xs mt-1">
+                    {selectedContactsModal.schemeName} ({selectedContactsModal.schemeId})
+                  </DialogDescription>
+                </div>
+
+                <div className="p-4 max-h-[60vh] overflow-y-auto divide-y divide-slate-100">
+                  {selectedContactsModal.contacts.map((c, cIdx) => (
+                    <div key={cIdx} className="py-3 first:pt-0 last:pb-0 flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 uppercase tracking-wider">
+                          {c.role}
+                        </span>
+                        <div className="text-xs font-bold text-slate-900 mt-1">{c.name}</div>
+                        {c.email && <div className="text-[11px] text-slate-500 truncate">{c.email}</div>}
+                      </div>
+
+                      <div className="shrink-0 flex items-center gap-1.5 pt-1">
+                        {c.mobile ? (
+                          <>
+                            <a
+                              href={`tel:${c.mobile}`}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200"
+                            >
+                              <Phone className="h-3 w-3 text-indigo-600" />
+                              <span>{c.mobile}</span>
+                            </a>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigator.clipboard.writeText(c.mobile!);
+                                setCopiedMobile(c.mobile!);
+                                setTimeout(() => setCopiedMobile(null), 2000);
+                              }}
+                              className="p-1 text-slate-400 hover:text-slate-600 rounded hover:bg-slate-100"
+                              title="Copy phone number"
+                            >
+                              {copiedMobile === c.mobile ? (
+                                <Check className="h-3.5 w-3.5 text-emerald-600" />
+                              ) : (
+                                <Copy className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-[11px] text-slate-400 italic">No mobile</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="p-3 border-t border-slate-100 bg-slate-50 flex justify-end">
+                  <Button
+                    size="sm"
+                    onClick={() => setSelectedContactsModal(null)}
+                    className="bg-slate-800 hover:bg-slate-900 text-white text-xs px-4"
+                  >
+                    Close
+                  </Button>
+                </div>
               </DialogContent>
             </Dialog>
           )}

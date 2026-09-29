@@ -140,6 +140,26 @@ router.get('/lpcd', async (req, res) => {
             GROUP BY scheme_id, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
           ) sub
           GROUP BY scheme_id
+        ),
+        sms_status AS (
+          SELECT scheme_id,
+                 json_agg(json_build_object(
+                   'id', id,
+                   'mobile', mobile,
+                   'engineer_name', engineer_name,
+                   'engineer_email', engineer_email,
+                   'template_name', template_name,
+                   'template_id', template_id,
+                   'message_text', message_text,
+                   'gateway_status', gateway_status,
+                   'is_success', is_success,
+                   'sent_date', sent_date,
+                   'created_at', created_at
+                 ) ORDER BY created_at DESC) as sms_dispatches
+          FROM sms_alert_logs
+          WHERE (template_name ILIKE '%LPCD%' OR template_name IS NULL)
+            AND ${dateFilter}
+          GROUP BY scheme_id
         )
         SELECT 
           w.scheme_id, 
@@ -151,31 +171,41 @@ router.get('/lpcd', async (req, res) => {
           e.alert_value as historical_value,
           COALESCE(e.ee_civil_name, sed.ee_civil_name) as ee_civil_name,
           COALESCE(e.ee_civil_email, sed.ee_civil_email) as ee_civil_email,
+          sed.ee_civil_mobile,
           COALESCE(e.ee_mech_name, sed.ee_mech_name) as ee_mech_name,
           COALESCE(e.ee_mech_email, sed.ee_mech_email) as ee_mech_email,
+          sed.ee_mech_mobile,
           COALESCE(e.de_ae_civil_name, sed.de_ae_civil_name, e.civil_engineer_name) as de_ae_civil_name,
           COALESCE(e.de_ae_civil_email, sed.de_ae_civil_email, e.civil_engineer_email) as de_ae_civil_email,
+          sed.de_ae_civil_mobile,
           COALESCE(e.de_ae_mech_name, sed.de_ae_mech_name, e.mechanical_engineer_name, e.site_supervisor_name) as de_ae_mech_name,
           COALESCE(e.de_ae_mech_email, sed.de_ae_mech_email, e.mechanical_engineer_email, e.site_supervisor_email) as de_ae_mech_email,
+          sed.de_ae_mech_mobile,
           COALESCE(e.se_name, sed.se_name) as se_name,
           COALESCE(e.se_email, sed.se_email) as se_email,
+          sed.se_mobile,
           COALESCE(e.chief_engineer_name, sed.chief_engineer_name) as chief_engineer_name,
           COALESCE(e.chief_engineer_email, sed.chief_engineer_email) as chief_engineer_email,
+          sed.chief_engineer_mobile,
           COALESCE(e.de_ae_civil_name, sed.de_ae_civil_name, e.civil_engineer_name) as civil_engineer_name,
           COALESCE(e.de_ae_civil_email, sed.de_ae_civil_email, e.civil_engineer_email) as civil_engineer_email,
+          sed.de_ae_civil_mobile as civil_engineer_mobile,
           COALESCE(e.de_ae_mech_name, sed.de_ae_mech_name, e.mechanical_engineer_name) as mechanical_engineer_name,
           COALESCE(e.de_ae_mech_email, sed.de_ae_mech_email, e.mechanical_engineer_email) as mechanical_engineer_email,
+          sed.de_ae_mech_mobile as mechanical_engineer_mobile,
           COALESCE(e.de_ae_mech_name, sed.de_ae_mech_name, e.site_supervisor_name) as site_supervisor_name,
           COALESCE(e.de_ae_mech_email, sed.de_ae_mech_email, e.site_supervisor_email) as site_supervisor_email,
           e.created_at, e.sent_date, e.ticket_id,
           COALESCE(i.remarks, '[]'::json) as remarks,
-          COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
+          COALESCE(a.acknowledgements, '[]'::json) as acknowledgements,
+          COALESCE(sms.sms_dispatches, '[]'::json) as sms_dispatches
         FROM water_scheme_data w
         JOIN recent_logs e ON w.scheme_id = e.scheme_id AND w.village_name IS NOT DISTINCT FROM e.village_name
         JOIN scheme_status s ON w.scheme_id = s.scheme_id
         LEFT JOIN scheme_engineer_details sed ON (w.scheme_id = sed.scheme_id OR w.scheme_name ILIKE sed.scheme)
         LEFT JOIN issues i ON w.scheme_id = i.scheme_id
         LEFT JOIN ack_status a ON w.scheme_id = a.scheme_id
+        LEFT JOIN sms_status sms ON w.scheme_id = sms.scheme_id
         WHERE s.water_supply = 'Yes'
       `;
       const result = await client.query(query, queryParams);
@@ -254,6 +284,26 @@ router.get('/chlorine', async (req, res) => {
             GROUP BY scheme_id, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
           ) sub
           GROUP BY scheme_id
+        ),
+        sms_status AS (
+          SELECT scheme_id,
+                 json_agg(json_build_object(
+                   'id', id,
+                   'mobile', mobile,
+                   'engineer_name', engineer_name,
+                   'engineer_email', engineer_email,
+                   'template_name', template_name,
+                   'template_id', template_id,
+                   'message_text', message_text,
+                   'gateway_status', gateway_status,
+                   'is_success', is_success,
+                   'sent_date', sent_date,
+                   'created_at', created_at
+                 ) ORDER BY created_at DESC) as sms_dispatches
+          FROM sms_alert_logs
+          WHERE (template_name ILIKE '%Chlorine%' OR template_name IS NULL)
+            AND ${dateFilter}
+          GROUP BY scheme_id
         )
         SELECT 
           c.scheme_id, 
@@ -266,31 +316,41 @@ router.get('/chlorine', async (req, res) => {
           e.alert_value as historical_value,
           COALESCE(e.ee_civil_name, sed.ee_civil_name) as ee_civil_name,
           COALESCE(e.ee_civil_email, sed.ee_civil_email) as ee_civil_email,
+          sed.ee_civil_mobile,
           COALESCE(e.ee_mech_name, sed.ee_mech_name) as ee_mech_name,
           COALESCE(e.ee_mech_email, sed.ee_mech_email) as ee_mech_email,
+          sed.ee_mech_mobile,
           COALESCE(e.de_ae_civil_name, sed.de_ae_civil_name, e.civil_engineer_name) as de_ae_civil_name,
           COALESCE(e.de_ae_civil_email, sed.de_ae_civil_email, e.civil_engineer_email) as de_ae_civil_email,
+          sed.de_ae_civil_mobile,
           COALESCE(e.de_ae_mech_name, sed.de_ae_mech_name, e.mechanical_engineer_name, e.site_supervisor_name) as de_ae_mech_name,
           COALESCE(e.de_ae_mech_email, sed.de_ae_mech_email, e.mechanical_engineer_email, e.site_supervisor_email) as de_ae_mech_email,
+          sed.de_ae_mech_mobile,
           COALESCE(e.se_name, sed.se_name) as se_name,
           COALESCE(e.se_email, sed.se_email) as se_email,
+          sed.se_mobile,
           COALESCE(e.chief_engineer_name, sed.chief_engineer_name) as chief_engineer_name,
           COALESCE(e.chief_engineer_email, sed.chief_engineer_email) as chief_engineer_email,
+          sed.chief_engineer_mobile,
           COALESCE(e.de_ae_civil_name, sed.de_ae_civil_name, e.civil_engineer_name) as civil_engineer_name,
           COALESCE(e.de_ae_civil_email, sed.de_ae_civil_email, e.civil_engineer_email) as civil_engineer_email,
+          sed.de_ae_civil_mobile as civil_engineer_mobile,
           COALESCE(e.de_ae_mech_name, sed.de_ae_mech_name, e.mechanical_engineer_name) as mechanical_engineer_name,
           COALESCE(e.de_ae_mech_email, sed.de_ae_mech_email, e.mechanical_engineer_email) as mechanical_engineer_email,
+          sed.de_ae_mech_mobile as mechanical_engineer_mobile,
           COALESCE(e.de_ae_mech_name, sed.de_ae_mech_name, e.site_supervisor_name) as site_supervisor_name,
           COALESCE(e.de_ae_mech_email, sed.de_ae_mech_email, e.site_supervisor_email) as site_supervisor_email,
           e.created_at, e.sent_date, e.ticket_id,
           COALESCE(i.remarks, '[]'::json) as remarks,
-          COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
+          COALESCE(a.acknowledgements, '[]'::json) as acknowledgements,
+          COALESCE(sms.sms_dispatches, '[]'::json) as sms_dispatches
         FROM chlorine_data c
         JOIN recent_logs e ON c.scheme_id = e.scheme_id AND c.esr_name IS NOT DISTINCT FROM e.esr_name
         JOIN scheme_status s ON c.scheme_id = s.scheme_id
         LEFT JOIN scheme_engineer_details sed ON (c.scheme_id = sed.scheme_id OR c.scheme_name ILIKE sed.scheme)
         LEFT JOIN issues i ON c.scheme_id = i.scheme_id
         LEFT JOIN ack_status a ON c.scheme_id = a.scheme_id
+        LEFT JOIN sms_status sms ON c.scheme_id = sms.scheme_id
         WHERE s.water_supply = 'Yes'
       `;
       const result = await client.query(query, queryParams);
@@ -369,6 +429,26 @@ router.get('/pressure', async (req, res) => {
             GROUP BY scheme_id, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
           ) sub
           GROUP BY scheme_id
+        ),
+        sms_status AS (
+          SELECT scheme_id,
+                 json_agg(json_build_object(
+                   'id', id,
+                   'mobile', mobile,
+                   'engineer_name', engineer_name,
+                   'engineer_email', engineer_email,
+                   'template_name', template_name,
+                   'template_id', template_id,
+                   'message_text', message_text,
+                   'gateway_status', gateway_status,
+                   'is_success', is_success,
+                   'sent_date', sent_date,
+                   'created_at', created_at
+                 ) ORDER BY created_at DESC) as sms_dispatches
+          FROM sms_alert_logs
+          WHERE (template_name ILIKE '%Pressure%' OR template_name IS NULL)
+            AND ${dateFilter}
+          GROUP BY scheme_id
         )
         SELECT 
           p.scheme_id, 
@@ -381,31 +461,41 @@ router.get('/pressure', async (req, res) => {
           e.alert_value as historical_value,
           COALESCE(e.ee_civil_name, sed.ee_civil_name) as ee_civil_name,
           COALESCE(e.ee_civil_email, sed.ee_civil_email) as ee_civil_email,
+          sed.ee_civil_mobile,
           COALESCE(e.ee_mech_name, sed.ee_mech_name) as ee_mech_name,
           COALESCE(e.ee_mech_email, sed.ee_mech_email) as ee_mech_email,
+          sed.ee_mech_mobile,
           COALESCE(e.de_ae_civil_name, sed.de_ae_civil_name, e.civil_engineer_name) as de_ae_civil_name,
           COALESCE(e.de_ae_civil_email, sed.de_ae_civil_email, e.civil_engineer_email) as de_ae_civil_email,
+          sed.de_ae_civil_mobile,
           COALESCE(e.de_ae_mech_name, sed.de_ae_mech_name, e.mechanical_engineer_name, e.site_supervisor_name) as de_ae_mech_name,
           COALESCE(e.de_ae_mech_email, sed.de_ae_mech_email, e.mechanical_engineer_email, e.site_supervisor_email) as de_ae_mech_email,
+          sed.de_ae_mech_mobile,
           COALESCE(e.se_name, sed.se_name) as se_name,
           COALESCE(e.se_email, sed.se_email) as se_email,
+          sed.se_mobile,
           COALESCE(e.chief_engineer_name, sed.chief_engineer_name) as chief_engineer_name,
           COALESCE(e.chief_engineer_email, sed.chief_engineer_email) as chief_engineer_email,
+          sed.chief_engineer_mobile,
           COALESCE(e.de_ae_civil_name, sed.de_ae_civil_name, e.civil_engineer_name) as civil_engineer_name,
           COALESCE(e.de_ae_civil_email, sed.de_ae_civil_email, e.civil_engineer_email) as civil_engineer_email,
+          sed.de_ae_civil_mobile as civil_engineer_mobile,
           COALESCE(e.de_ae_mech_name, sed.de_ae_mech_name, e.mechanical_engineer_name) as mechanical_engineer_name,
           COALESCE(e.de_ae_mech_email, sed.de_ae_mech_email, e.mechanical_engineer_email) as mechanical_engineer_email,
+          sed.de_ae_mech_mobile as mechanical_engineer_mobile,
           COALESCE(e.de_ae_mech_name, sed.de_ae_mech_name, e.site_supervisor_name) as site_supervisor_name,
           COALESCE(e.de_ae_mech_email, sed.de_ae_mech_email, e.site_supervisor_email) as site_supervisor_email,
           e.created_at, e.sent_date, e.ticket_id,
           COALESCE(i.remarks, '[]'::json) as remarks,
-          COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
+          COALESCE(a.acknowledgements, '[]'::json) as acknowledgements,
+          COALESCE(sms.sms_dispatches, '[]'::json) as sms_dispatches
         FROM pressure_data p
         JOIN recent_logs e ON p.scheme_id = e.scheme_id AND p.esr_name IS NOT DISTINCT FROM e.esr_name
         JOIN scheme_status s ON p.scheme_id = s.scheme_id
         LEFT JOIN scheme_engineer_details sed ON (p.scheme_id = sed.scheme_id OR p.scheme_name ILIKE sed.scheme)
         LEFT JOIN issues i ON p.scheme_id = i.scheme_id
         LEFT JOIN ack_status a ON p.scheme_id = a.scheme_id
+        LEFT JOIN sms_status sms ON p.scheme_id = sms.scheme_id
         WHERE s.water_supply = 'Yes'
       `;
       const result = await client.query(query, queryParams);
@@ -466,6 +556,34 @@ router.get('/offline', async (req, res) => {
             GROUP BY scheme_id, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
           ) sub
           GROUP BY scheme_id
+        ),
+        recent_logs AS (
+          SELECT DISTINCT ON (scheme_id, sent_date)
+                 scheme_id, ticket_id, alert_value, created_at, sent_date
+          FROM email_alert_logs
+          WHERE alert_type = 'Offline'
+            AND ${dateFilter}
+          ORDER BY scheme_id, sent_date, created_at DESC
+        ),
+        sms_status AS (
+          SELECT scheme_id,
+                 json_agg(json_build_object(
+                   'id', id,
+                   'mobile', mobile,
+                   'engineer_name', engineer_name,
+                   'engineer_email', engineer_email,
+                   'template_name', template_name,
+                   'template_id', template_id,
+                   'message_text', message_text,
+                   'gateway_status', gateway_status,
+                   'is_success', is_success,
+                   'sent_date', sent_date,
+                   'created_at', created_at
+                 ) ORDER BY created_at DESC) as sms_dispatches
+          FROM sms_alert_logs
+          WHERE (template_name ILIKE '%Offline%' OR template_name IS NULL)
+            AND ${dateFilter}
+          GROUP BY scheme_id
         )
         SELECT 
           c.id,
@@ -508,10 +626,15 @@ router.get('/offline', async (req, res) => {
           COALESCE(sed.de_ae_civil_mobile, v.phone) as civil_engineer_mobile,
           sed.de_ae_mech_name as mechanical_engineer_name,
           sed.de_ae_mech_email as mechanical_engineer_email,
+          sed.de_ae_mech_mobile as mechanical_engineer_mobile,
           sed.de_ae_mech_name as site_supervisor_name,
           sed.de_ae_mech_email as site_supervisor_email,
+          e.created_at,
+          e.sent_date,
+          e.ticket_id,
           COALESCE(i.remarks, '[]'::json) as remarks,
-          COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
+          COALESCE(a.acknowledgements, '[]'::json) as acknowledgements,
+          COALESCE(sms.sms_dispatches, '[]'::json) as sms_dispatches
         FROM communication_status c
         INNER JOIN scheme_status s ON c.scheme_id = s.scheme_id
         LEFT JOIN scheme_engineer_details sed ON (c.scheme_id = sed.scheme_id OR c.scheme_name ILIKE sed.scheme)
@@ -522,6 +645,8 @@ router.get('/offline', async (req, res) => {
         ) v ON c.region = v.region
         LEFT JOIN issues i ON c.scheme_id = i.scheme_id
         LEFT JOIN ack_status a ON c.scheme_id = a.scheme_id
+        LEFT JOIN recent_logs e ON c.scheme_id = e.scheme_id
+        LEFT JOIN sms_status sms ON c.scheme_id = sms.scheme_id
         WHERE (c.chlorine_status = 'Offline' 
            OR c.pressure_status = 'Offline' 
            OR c.flow_meter_status = 'Offline')
@@ -545,18 +670,25 @@ router.get('/offline', async (req, res) => {
           current_value: offlineList.join(', '),
           previous_value: null,
           historical_value: null,
+          ticket_id: row.ticket_id || null,
           ee_civil_name: row.ee_civil_name || null,
           ee_civil_email: row.ee_civil_email || null,
+          ee_civil_mobile: row.ee_civil_mobile || null,
           ee_mech_name: row.ee_mech_name || null,
           ee_mech_email: row.ee_mech_email || null,
+          ee_mech_mobile: row.ee_mech_mobile || null,
           de_ae_civil_name: row.de_ae_civil_name || null,
           de_ae_civil_email: row.de_ae_civil_email || null,
+          de_ae_civil_mobile: row.de_ae_civil_mobile || null,
           de_ae_mech_name: row.de_ae_mech_name || null,
           de_ae_mech_email: row.de_ae_mech_email || null,
+          de_ae_mech_mobile: row.de_ae_mech_mobile || null,
           se_name: row.se_name || null,
           se_email: row.se_email || null,
+          se_mobile: row.se_mobile || null,
           chief_engineer_name: row.chief_engineer_name || null,
           chief_engineer_email: row.chief_engineer_email || null,
+          chief_engineer_mobile: row.chief_engineer_mobile || null,
           vendor_name: row.vendor_name || null,
           vendor_email: row.vendor_email || null,
           civil_engineer_name: row.civil_engineer_name || 'No Engineer/Vendor Assigned',
@@ -566,9 +698,11 @@ router.get('/offline', async (req, res) => {
           mechanical_engineer_email: row.mechanical_engineer_email || null,
           site_supervisor_name: row.site_supervisor_name || null,
           site_supervisor_email: row.site_supervisor_email || null,
-          created_at: new Date().toISOString(),
+          created_at: row.created_at || null,
+          sent_date: row.sent_date ? String(row.sent_date).slice(0, 10) : null,
           remarks: row.remarks || [],
-          acknowledgements: row.acknowledgements || []
+          acknowledgements: row.acknowledgements || [],
+          sms_dispatches: row.sms_dispatches || []
         };
       });
       
@@ -623,6 +757,87 @@ function formatContact(name?: string | null, email?: string | null, mobile?: str
   if (email && email.trim()) parts.push(`<${email.trim()}>`);
   if (mobile && mobile.trim()) parts.push(`(${mobile.trim()})`);
   return parts.length > 0 ? parts.join(' ') : '-';
+}
+
+function isValidEng(name?: string | null): boolean {
+  if (!name || typeof name !== 'string') return false;
+  const t = name.trim();
+  if (!t) return false;
+  const lower = t.toLowerCase();
+  return !(
+    t === '-' || t === '--' || t === '---' ||
+    lower === 'n/a' || lower === 'na' || lower === 'none' || lower === 'null' ||
+    lower.includes('vendor') || lower.includes('no engineer') || lower.includes('unassigned')
+  );
+}
+
+function getSchemeOwnerDetails(row: any) {
+  if (isValidEng(row.ee_civil_name)) {
+    return { role: 'EE (Civil)', name: row.ee_civil_name.trim(), mobile: row.ee_civil_mobile?.trim() || '-' };
+  }
+  if (isValidEng(row.ee_mech_name)) {
+    return { role: 'EE (Mech)', name: row.ee_mech_name.trim(), mobile: row.ee_mech_mobile?.trim() || '-' };
+  }
+  if (isValidEng(row.de_ae_civil_name)) {
+    return { role: 'DE/AE (Civil)', name: row.de_ae_civil_name.trim(), mobile: row.de_ae_civil_mobile?.trim() || '-' };
+  }
+  if (isValidEng(row.de_ae_mech_name)) {
+    return { role: 'DE/AE (Mech)', name: row.de_ae_mech_name.trim(), mobile: row.de_ae_mech_mobile?.trim() || '-' };
+  }
+  if (isValidEng(row.se_name)) {
+    return { role: 'SE', name: row.se_name.trim(), mobile: row.se_mobile?.trim() || '-' };
+  }
+  if (isValidEng(row.chief_engineer_name)) {
+    return { role: 'CE', name: row.chief_engineer_name.trim(), mobile: row.chief_engineer_mobile?.trim() || '-' };
+  }
+  return { role: 'Unassigned', name: '-', mobile: '-' };
+}
+
+function getSmsDetails(smsDispatches: any) {
+  if (!Array.isArray(smsDispatches) || smsDispatches.length === 0) {
+    return { status: 'Not Dispatched', time: '-' };
+  }
+  const total = smsDispatches.length;
+  const successCount = smsDispatches.filter((s: any) => s.is_success).length;
+  const latest = smsDispatches[0];
+  const d = latest.created_at ? new Date(latest.created_at) : null;
+  const timeStr = d && !isNaN(d.getTime())
+    ? d.toLocaleString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      })
+    : latest.sent_date || '-';
+
+  const statusStr = successCount === total
+    ? `Dispatched (${successCount}/${total})`
+    : successCount > 0
+      ? `Partial (${successCount}/${total})`
+      : `Failed (${total})`;
+
+  return { status: statusStr, time: timeStr };
+}
+
+function getEmailDetails(row: any) {
+  if (!row.created_at && !row.sent_date) {
+    return { status: 'Not Sent', time: '-' };
+  }
+  const d = row.created_at ? new Date(row.created_at) : null;
+  const timeStr = d && !isNaN(d.getTime())
+    ? d.toLocaleString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      })
+    : row.sent_date ? String(row.sent_date).slice(0, 10) : '-';
+
+  return { status: 'Sent', time: timeStr };
 }
 
 function styleSheet(sheet: any, titleText: string, columns: { header: string; key: string; width: number }[]) {
@@ -781,6 +996,26 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
                 GROUP BY scheme_id, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
               ) sub
               GROUP BY scheme_id
+            ),
+            sms_status AS (
+              SELECT scheme_id,
+                     json_agg(json_build_object(
+                       'id', id,
+                       'mobile', mobile,
+                       'engineer_name', engineer_name,
+                       'engineer_email', engineer_email,
+                       'template_name', template_name,
+                       'template_id', template_id,
+                       'message_text', message_text,
+                       'gateway_status', gateway_status,
+                       'is_success', is_success,
+                       'sent_date', sent_date,
+                       'created_at', created_at
+                     ) ORDER BY created_at DESC) as sms_dispatches
+              FROM sms_alert_logs
+              WHERE (template_name ILIKE '%LPCD%' OR template_name IS NULL)
+                AND ${dateFilter}
+              GROUP BY scheme_id
             )
             SELECT 
               w.scheme_id, 
@@ -810,13 +1045,15 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               sed.chief_engineer_mobile,
               e.created_at, e.sent_date, e.ticket_id,
               COALESCE(i.remarks, '[]'::json) as remarks,
-              COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
+              COALESCE(a.acknowledgements, '[]'::json) as acknowledgements,
+              COALESCE(sms.sms_dispatches, '[]'::json) as sms_dispatches
             FROM water_scheme_data w
             JOIN recent_logs e ON w.scheme_id = e.scheme_id AND w.village_name IS NOT DISTINCT FROM e.village_name
             JOIN scheme_status s ON w.scheme_id = s.scheme_id
             LEFT JOIN scheme_engineer_details sed ON (w.scheme_id = sed.scheme_id OR w.scheme_name ILIKE sed.scheme)
             LEFT JOIN issues i ON w.scheme_id = i.scheme_id
             LEFT JOIN ack_status a ON w.scheme_id = a.scheme_id
+            LEFT JOIN sms_status sms ON w.scheme_id = sms.scheme_id
             WHERE s.water_supply = 'Yes'
             ORDER BY w.region, w.scheme_name, w.village_name
           `;
@@ -830,6 +1067,12 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
             { header: 'Village Name', key: 'village_name', width: 22 },
             { header: 'Current LPCD', key: 'current_value', width: 16 },
             { header: 'Previous Day LPCD', key: 'previous_value', width: 18 },
+            { header: 'Scheme Owner', key: 'scheme_owner', width: 26 },
+            { header: 'Owner Mobile', key: 'owner_mobile', width: 18 },
+            { header: 'Email Sent', key: 'email_status', width: 18 },
+            { header: 'Email Sent Time', key: 'email_time', width: 22 },
+            { header: 'SMS Dispatched', key: 'sms_status', width: 22 },
+            { header: 'SMS Sent Time', key: 'sms_time', width: 20 },
             { header: 'Alert Status', key: 'ack_status', width: 16 },
             { header: 'Acknowledged By', key: 'ack_by', width: 22 },
             { header: 'Acknowledged At', key: 'ack_at', width: 22 },
@@ -847,6 +1090,9 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
           rows.forEach((row: any, idx: number) => {
             const ack = getAckDetails(row.acknowledgements);
             const remark = getRemarkText(row.remarks);
+            const owner = getSchemeOwnerDetails(row);
+            const email = getEmailDetails(row);
+            const sms = getSmsDetails(row.sms_dispatches);
             const values = [
               idx + 1,
               row.scheme_id || '-',
@@ -855,6 +1101,12 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               row.village_name || '-',
               row.current_value !== null ? row.current_value : '-',
               row.previous_value !== null ? row.previous_value : '-',
+              owner.name !== '-' ? `${owner.name} (${owner.role})` : '-',
+              owner.mobile || '-',
+              email.status,
+              email.time,
+              sms.status,
+              sms.time,
               ack.ackStatus,
               ack.ackBy,
               ack.ackAt,
@@ -868,7 +1120,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               formatContact(row.se_name, row.se_email, row.se_mobile),
               formatContact(row.chief_engineer_name, row.chief_engineer_email, row.chief_engineer_mobile),
             ];
-            addSheetRow(sheet, values, ack.ackStatus, idx, 8);
+            addSheetRow(sheet, values, ack.ackStatus, idx, 14);
           });
         } else if (tabKey === 'chlorine') {
           const chlorineQuery = `
@@ -926,6 +1178,26 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
                 GROUP BY scheme_id, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
               ) sub
               GROUP BY scheme_id
+            ),
+            sms_status AS (
+              SELECT scheme_id,
+                     json_agg(json_build_object(
+                       'id', id,
+                       'mobile', mobile,
+                       'engineer_name', engineer_name,
+                       'engineer_email', engineer_email,
+                       'template_name', template_name,
+                       'template_id', template_id,
+                       'message_text', message_text,
+                       'gateway_status', gateway_status,
+                       'is_success', is_success,
+                       'sent_date', sent_date,
+                       'created_at', created_at
+                     ) ORDER BY created_at DESC) as sms_dispatches
+              FROM sms_alert_logs
+              WHERE (template_name ILIKE '%Chlorine%' OR template_name IS NULL)
+                AND ${dateFilter}
+              GROUP BY scheme_id
             )
             SELECT 
               c.scheme_id, 
@@ -956,13 +1228,15 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               sed.chief_engineer_mobile,
               e.created_at, e.sent_date, e.ticket_id,
               COALESCE(i.remarks, '[]'::json) as remarks,
-              COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
+              COALESCE(a.acknowledgements, '[]'::json) as acknowledgements,
+              COALESCE(sms.sms_dispatches, '[]'::json) as sms_dispatches
             FROM chlorine_data c
             JOIN recent_logs e ON c.scheme_id = e.scheme_id AND c.esr_name IS NOT DISTINCT FROM e.esr_name
             JOIN scheme_status s ON c.scheme_id = s.scheme_id
             LEFT JOIN scheme_engineer_details sed ON (c.scheme_id = sed.scheme_id OR c.scheme_name ILIKE sed.scheme)
             LEFT JOIN issues i ON c.scheme_id = i.scheme_id
             LEFT JOIN ack_status a ON c.scheme_id = a.scheme_id
+            LEFT JOIN sms_status sms ON c.scheme_id = sms.scheme_id
             WHERE s.water_supply = 'Yes'
             ORDER BY c.region, c.scheme_name, c.village_name, c.esr_name
           `;
@@ -977,6 +1251,12 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
             { header: 'ESR Name / Sensor Location', key: 'esr_name', width: 24 },
             { header: 'Current Chlorine (mg/L)', key: 'current_value', width: 22 },
             { header: 'Previous Day (mg/L)', key: 'previous_value', width: 20 },
+            { header: 'Scheme Owner', key: 'scheme_owner', width: 26 },
+            { header: 'Owner Mobile', key: 'owner_mobile', width: 18 },
+            { header: 'Email Sent', key: 'email_status', width: 18 },
+            { header: 'Email Sent Time', key: 'email_time', width: 22 },
+            { header: 'SMS Dispatched', key: 'sms_status', width: 22 },
+            { header: 'SMS Sent Time', key: 'sms_time', width: 20 },
             { header: 'Alert Status', key: 'ack_status', width: 16 },
             { header: 'Acknowledged By', key: 'ack_by', width: 22 },
             { header: 'Acknowledged At', key: 'ack_at', width: 22 },
@@ -994,6 +1274,9 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
           rows.forEach((row: any, idx: number) => {
             const ack = getAckDetails(row.acknowledgements);
             const remark = getRemarkText(row.remarks);
+            const owner = getSchemeOwnerDetails(row);
+            const email = getEmailDetails(row);
+            const sms = getSmsDetails(row.sms_dispatches);
             const values = [
               idx + 1,
               row.scheme_id || '-',
@@ -1003,6 +1286,12 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               row.esr_name || '-',
               row.current_value !== null ? row.current_value : '-',
               row.previous_value !== null ? row.previous_value : '-',
+              owner.name !== '-' ? `${owner.name} (${owner.role})` : '-',
+              owner.mobile || '-',
+              email.status,
+              email.time,
+              sms.status,
+              sms.time,
               ack.ackStatus,
               ack.ackBy,
               ack.ackAt,
@@ -1016,7 +1305,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               formatContact(row.se_name, row.se_email, row.se_mobile),
               formatContact(row.chief_engineer_name, row.chief_engineer_email, row.chief_engineer_mobile),
             ];
-            addSheetRow(sheet, values, ack.ackStatus, idx, 9);
+            addSheetRow(sheet, values, ack.ackStatus, idx, 15);
           });
         } else if (tabKey === 'pressure') {
           const pressureQuery = `
@@ -1074,6 +1363,26 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
                 GROUP BY scheme_id, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
               ) sub
               GROUP BY scheme_id
+            ),
+            sms_status AS (
+              SELECT scheme_id,
+                     json_agg(json_build_object(
+                       'id', id,
+                       'mobile', mobile,
+                       'engineer_name', engineer_name,
+                       'engineer_email', engineer_email,
+                       'template_name', template_name,
+                       'template_id', template_id,
+                       'message_text', message_text,
+                       'gateway_status', gateway_status,
+                       'is_success', is_success,
+                       'sent_date', sent_date,
+                       'created_at', created_at
+                     ) ORDER BY created_at DESC) as sms_dispatches
+              FROM sms_alert_logs
+              WHERE (template_name ILIKE '%Pressure%' OR template_name IS NULL)
+                AND ${dateFilter}
+              GROUP BY scheme_id
             )
             SELECT 
               p.scheme_id, 
@@ -1104,13 +1413,15 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               sed.chief_engineer_mobile,
               e.created_at, e.sent_date, e.ticket_id,
               COALESCE(i.remarks, '[]'::json) as remarks,
-              COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
+              COALESCE(a.acknowledgements, '[]'::json) as acknowledgements,
+              COALESCE(sms.sms_dispatches, '[]'::json) as sms_dispatches
             FROM pressure_data p
             JOIN recent_logs e ON p.scheme_id = e.scheme_id AND p.esr_name IS NOT DISTINCT FROM e.esr_name
             JOIN scheme_status s ON p.scheme_id = s.scheme_id
             LEFT JOIN scheme_engineer_details sed ON (p.scheme_id = sed.scheme_id OR p.scheme_name ILIKE sed.scheme)
             LEFT JOIN issues i ON p.scheme_id = i.scheme_id
             LEFT JOIN ack_status a ON p.scheme_id = a.scheme_id
+            LEFT JOIN sms_status sms ON p.scheme_id = sms.scheme_id
             WHERE s.water_supply = 'Yes'
             ORDER BY p.region, p.scheme_name, p.village_name, p.esr_name
           `;
@@ -1125,6 +1436,12 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
             { header: 'ESR Name / Sensor Location', key: 'esr_name', width: 24 },
             { header: 'Current Pressure (bar)', key: 'current_value', width: 22 },
             { header: 'Previous Day (bar)', key: 'previous_value', width: 20 },
+            { header: 'Scheme Owner', key: 'scheme_owner', width: 26 },
+            { header: 'Owner Mobile', key: 'owner_mobile', width: 18 },
+            { header: 'Email Sent', key: 'email_status', width: 18 },
+            { header: 'Email Sent Time', key: 'email_time', width: 22 },
+            { header: 'SMS Dispatched', key: 'sms_status', width: 22 },
+            { header: 'SMS Sent Time', key: 'sms_time', width: 20 },
             { header: 'Alert Status', key: 'ack_status', width: 16 },
             { header: 'Acknowledged By', key: 'ack_by', width: 22 },
             { header: 'Acknowledged At', key: 'ack_at', width: 22 },
@@ -1142,6 +1459,9 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
           rows.forEach((row: any, idx: number) => {
             const ack = getAckDetails(row.acknowledgements);
             const remark = getRemarkText(row.remarks);
+            const owner = getSchemeOwnerDetails(row);
+            const email = getEmailDetails(row);
+            const sms = getSmsDetails(row.sms_dispatches);
             const values = [
               idx + 1,
               row.scheme_id || '-',
@@ -1151,6 +1471,12 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               row.esr_name || '-',
               row.current_value !== null ? row.current_value : '-',
               row.previous_value !== null ? row.previous_value : '-',
+              owner.name !== '-' ? `${owner.name} (${owner.role})` : '-',
+              owner.mobile || '-',
+              email.status,
+              email.time,
+              sms.status,
+              sms.time,
               ack.ackStatus,
               ack.ackBy,
               ack.ackAt,
@@ -1164,7 +1490,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               formatContact(row.se_name, row.se_email, row.se_mobile),
               formatContact(row.chief_engineer_name, row.chief_engineer_email, row.chief_engineer_mobile),
             ];
-            addSheetRow(sheet, values, ack.ackStatus, idx, 9);
+            addSheetRow(sheet, values, ack.ackStatus, idx, 15);
           });
         } else if (tabKey === 'offline') {
           const offlineQuery = `
@@ -1184,6 +1510,34 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
                 WHERE alert_type = 'Offline'
                 GROUP BY scheme_id, LOWER(TRIM(engineer_email)), LOWER(TRIM(COALESCE(engineer_name, '')))
               ) sub
+              GROUP BY scheme_id
+            ),
+            recent_logs AS (
+              SELECT DISTINCT ON (scheme_id, sent_date)
+                     scheme_id, ticket_id, alert_value, created_at, sent_date
+              FROM email_alert_logs
+              WHERE alert_type = 'Offline'
+                AND ${dateFilter}
+              ORDER BY scheme_id, sent_date, created_at DESC
+            ),
+            sms_status AS (
+              SELECT scheme_id,
+                     json_agg(json_build_object(
+                       'id', id,
+                       'mobile', mobile,
+                       'engineer_name', engineer_name,
+                       'engineer_email', engineer_email,
+                       'template_name', template_name,
+                       'template_id', template_id,
+                       'message_text', message_text,
+                       'gateway_status', gateway_status,
+                       'is_success', is_success,
+                       'sent_date', sent_date,
+                       'created_at', created_at
+                     ) ORDER BY created_at DESC) as sms_dispatches
+              FROM sms_alert_logs
+              WHERE (template_name ILIKE '%Offline%' OR template_name IS NULL)
+                AND ${dateFilter}
               GROUP BY scheme_id
             )
             SELECT 
@@ -1217,8 +1571,12 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               v.employee_name as vendor_name,
               v.email as vendor_email,
               v.phone as vendor_phone,
+              e.created_at,
+              e.sent_date,
+              e.ticket_id,
               COALESCE(i.remarks, '[]'::json) as remarks,
-              COALESCE(a.acknowledgements, '[]'::json) as acknowledgements
+              COALESCE(a.acknowledgements, '[]'::json) as acknowledgements,
+              COALESCE(sms.sms_dispatches, '[]'::json) as sms_dispatches
             FROM communication_status c
             INNER JOIN scheme_status s ON c.scheme_id = s.scheme_id
             LEFT JOIN scheme_engineer_details sed ON (c.scheme_id = sed.scheme_id OR c.scheme_name ILIKE sed.scheme)
@@ -1229,13 +1587,15 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
             ) v ON c.region = v.region
             LEFT JOIN issues i ON c.scheme_id = i.scheme_id
             LEFT JOIN ack_status a ON c.scheme_id = a.scheme_id
+            LEFT JOIN recent_logs e ON c.scheme_id = e.scheme_id
+            LEFT JOIN sms_status sms ON c.scheme_id = sms.scheme_id
             WHERE (c.chlorine_status = 'Offline' 
                OR c.pressure_status = 'Offline' 
                OR c.flow_meter_status = 'Offline')
               AND s.water_supply = 'Yes'
             ORDER BY c.region, c.scheme_name, c.village_name;
           `;
-          const { rows } = await client.query(offlineQuery);
+          const { rows } = await client.query(offlineQuery, queryParams);
           const sheet = workbook.addWorksheet('Offline Sensor Alerts');
           const cols = [
             { header: 'Sr No.', key: 'sr_no', width: 8 },
@@ -1249,10 +1609,18 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
             { header: 'Pressure Status', key: 'pressure_status', width: 16 },
             { header: 'Flow Meter Status', key: 'flow_status', width: 16 },
             { header: 'Last Seen', key: 'last_seen', width: 22 },
+            { header: 'Scheme Owner', key: 'scheme_owner', width: 26 },
+            { header: 'Owner Mobile', key: 'owner_mobile', width: 18 },
+            { header: 'Email Sent', key: 'email_status', width: 18 },
+            { header: 'Email Sent Time', key: 'email_time', width: 22 },
+            { header: 'SMS Dispatched', key: 'sms_status', width: 22 },
+            { header: 'SMS Sent Time', key: 'sms_time', width: 20 },
             { header: 'Alert Status', key: 'ack_status', width: 16 },
             { header: 'Acknowledged By', key: 'ack_by', width: 22 },
             { header: 'Acknowledged At', key: 'ack_at', width: 22 },
             { header: 'Latest Remark / Action', key: 'remark', width: 32 },
+            { header: 'Ticket ID', key: 'ticket_id', width: 16 },
+            { header: 'Alert Date', key: 'sent_date', width: 14 },
             { header: 'EE Civil', key: 'ee_civil', width: 32 },
             { header: 'EE Mech', key: 'ee_mech', width: 32 },
             { header: 'DE / AE Civil', key: 'de_civil', width: 32 },
@@ -1270,6 +1638,9 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
 
             const ack = getAckDetails(row.acknowledgements);
             const remark = getRemarkText(row.remarks);
+            const owner = getSchemeOwnerDetails(row);
+            const email = getEmailDetails(row);
+            const sms = getSmsDetails(row.sms_dispatches);
 
             const values = [
               idx + 1,
@@ -1283,10 +1654,18 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               row.pressure_status || 'Online',
               row.flow_meter_status || 'Online',
               row.last_seen ? new Date(row.last_seen).toLocaleString('en-IN') : '-',
+              owner.name !== '-' ? `${owner.name} (${owner.role})` : '-',
+              owner.mobile || '-',
+              email.status,
+              email.time,
+              sms.status,
+              sms.time,
               ack.ackStatus,
               ack.ackBy,
               ack.ackAt,
               remark,
+              row.ticket_id || '-',
+              row.sent_date ? String(row.sent_date).slice(0, 10) : '-',
               formatContact(row.ee_civil_name, row.ee_civil_email, row.ee_civil_mobile),
               formatContact(row.ee_mech_name, row.ee_mech_email, row.ee_mech_mobile),
               formatContact(row.de_ae_civil_name, row.de_ae_civil_email, row.de_ae_civil_mobile),
@@ -1295,7 +1674,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               formatContact(row.chief_engineer_name, row.chief_engineer_email, row.chief_engineer_mobile),
               formatContact(row.vendor_name, row.vendor_email, row.vendor_phone),
             ];
-            addSheetRow(sheet, values, ack.ackStatus, idx, 12);
+            addSheetRow(sheet, values, ack.ackStatus, idx, 18);
           });
         }
       }
