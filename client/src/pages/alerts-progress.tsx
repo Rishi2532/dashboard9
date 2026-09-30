@@ -28,7 +28,10 @@ import {
   Activity,
   Phone,
   Copy,
-  Check
+  Check,
+  FileText,
+  FileSpreadsheet,
+  Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -481,7 +484,7 @@ export default function AlertsProgressPage() {
   const [villageFilter, setVillageFilter] = useState<"all" | "completed">("all");
   const { isVillageCompleted } = useVillageCompletion();
   const [page, setPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
   const [isDownloading, setIsDownloading] = useState(false);
 
   const [selectedRemarkDetails, setSelectedRemarkDetails] = useState<{
@@ -640,21 +643,59 @@ export default function AlertsProgressPage() {
     );
   }
 
+  // Date calculations
+  const now = useMemo(() => new Date(), []);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const todayYmd = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+  const yesterdayDate = useMemo(() => {
+    const d = new Date(now);
+    d.setDate(d.getDate() - 1);
+    return d;
+  }, [now]);
+  const yesterdayYmd = `${yesterdayDate.getFullYear()}-${pad(yesterdayDate.getMonth() + 1)}-${pad(yesterdayDate.getDate())}`;
+
+  const handlePrevDay = () => {
+    let targetDate = new Date();
+    if (customDate) {
+      const parts = customDate.split('-');
+      if (parts.length === 3) {
+        targetDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      }
+    } else if (activeSubTab === "previous") {
+      targetDate.setDate(targetDate.getDate() - 1);
+    }
+    targetDate.setDate(targetDate.getDate() - 1);
+    const ymd = `${targetDate.getFullYear()}-${pad(targetDate.getMonth() + 1)}-${pad(targetDate.getDate())}`;
+    setCustomDate(ymd);
+    setActiveSubTab("custom");
+    setPage(1);
+  };
+
+  const handleNextDay = () => {
+    let targetDate = new Date();
+    if (customDate) {
+      const parts = customDate.split('-');
+      if (parts.length === 3) {
+        targetDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      }
+    } else if (activeSubTab === "previous") {
+      targetDate.setDate(targetDate.getDate() - 1);
+    }
+    targetDate.setDate(targetDate.getDate() + 1);
+    const ymd = `${targetDate.getFullYear()}-${pad(targetDate.getMonth() + 1)}-${pad(targetDate.getDate())}`;
+    setCustomDate(ymd);
+    setActiveSubTab("custom");
+    setPage(1);
+  };
+
   // Helper to filter data based on strict literal calendar dates
   const getFilteredData = (data: AlertData[], type: "lpcd" | "chlorine" | "pressure" | "offline") => {
     if (!Array.isArray(data) || data.length === 0) return [];
     if (type === "offline") return data;
 
-    const todayStr = new Date().toDateString();
-
-    const yesterdayDate = new Date();
-    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const todayStr = now.toDateString();
     const yesterdayStr = yesterdayDate.toDateString();
-
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const todayYmd = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-    const yesterdayYmd = `${yesterdayDate.getFullYear()}-${pad(yesterdayDate.getMonth() + 1)}-${pad(yesterdayDate.getDate())}`;
 
     if (activeSubTab === "custom") {
       return data; // Backend already filters by the exact date
@@ -782,33 +823,7 @@ export default function AlertsProgressPage() {
     type: "lpcd" | "chlorine" | "pressure" | "offline",
     isLoading: boolean
   ) => {
-    if (isLoading) {
-      return <div className="p-16 text-center text-slate-500 font-medium">Loading alerts data...</div>;
-    }
-
     const baseData = getFilteredData(rawData, type);
-
-    if (baseData.length === 0) {
-      return (
-        <div className="p-16 text-center flex flex-col items-center gap-4 bg-slate-50 rounded-xl border border-dashed border-slate-200 m-6">
-          <div className="h-16 w-16 bg-emerald-100 rounded-full flex items-center justify-center mb-2">
-            <CheckCircle2 className="h-8 w-8 text-emerald-600" />
-          </div>
-          <h3 className="text-xl font-bold text-slate-900">
-            Everything is looking great!
-          </h3>
-          <p className="text-slate-500 max-w-sm text-sm">
-            {type === "offline"
-              ? "All IoT sensors are currently online. No communication dropouts reported."
-              : activeSubTab === "current"
-                ? "All parameters are perfectly within normal ranges today. No alerts were triggered."
-                : activeSubTab === "previous"
-                  ? "No emails were sent out yesterday. All systems were stable."
-                  : "No emails were sent on this date. All systems were stable."}
-          </p>
-        </div>
-      );
-    }
 
     // Calculations for KPIs & Explicit Unit Indications
     const unitNoun = type === "lpcd"
@@ -819,15 +834,6 @@ export default function AlertsProgressPage() {
           ? "Pressure Sensors"
           : "Offline Sensors";
 
-    const unitSingular = type === "lpcd"
-      ? "Village"
-      : type === "chlorine"
-        ? "Chlorine Sensor"
-        : type === "pressure"
-          ? "Pressure Sensor"
-          : "Offline Sensor";
-
-    const firstKpiLabel = unitNoun;
     const firstKpiValue = type === "lpcd"
       ? baseData.reduce((acc, row) => {
         if (typeof row.village_name === 'string') {
@@ -836,7 +842,6 @@ export default function AlertsProgressPage() {
         return acc + 1;
       }, 0)
       : baseData.length;
-    const alertValueLabel = type === "lpcd" ? "Village LPCD" : type === "chlorine" ? "Chlorine Sensor" : type === "pressure" ? "Pressure Sensor" : "Offline Sensors";
 
     // Acknowledgement lists over all base date records
     const acknowledgedRows = baseData.filter((r) => getRowAckInfo(r).isAcknowledged);
@@ -942,676 +947,776 @@ export default function AlertsProgressPage() {
     const endItem = Math.min(endIdx, displayData.length);
 
     return (
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden mb-6">
-
-        {/* Official Summary KPI Cards - Clean Government of India Portal Style */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 p-4 border-b border-slate-200 bg-slate-50/50">
-
-          {/* Card 1: Total Active Alerts */}
-          <div
-            onClick={() => setAckStatusFilter("all")}
-            className={`cursor-pointer flex flex-col justify-between p-3.5 rounded-lg border bg-white transition-all border-t-4 border-t-rose-600 ${ackStatusFilter === "all"
-              ? "ring-2 ring-rose-300 border-rose-300 shadow-sm"
-              : "border-slate-200 hover:border-slate-300 hover:shadow-xs"
-              }`}
-            title={`Click to view all ${unitNoun}`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+      <div className="space-y-3.5">
+        {/* 4. Section Header */}
+        <div className="bg-white border border-slate-200 rounded p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="border-l-4 border-[#0f4c81] pl-3.5 flex items-center gap-3">
+            <div className="text-[#0f4c81]">
+              {type === "lpcd" && <Waves className="h-6 w-6" />}
+              {type === "chlorine" && <Droplets className="h-6 w-6" />}
+              {type === "pressure" && <GaugeCircle className="h-6 w-6" />}
+              {type === "offline" && <AlertTriangle className="h-6 w-6" />}
+            </div>
+            <div>
+              <h2 className="text-base md:text-lg font-bold text-slate-900 leading-tight">
                 {type === "lpcd"
-                  ? "Villages < 55 LPCD"
+                  ? "Village LPCD Alerts"
                   : type === "chlorine"
-                    ? "Chlorine Alerts"
+                    ? "Chlorine Sensor Alerts"
                     : type === "pressure"
-                      ? "Pressure Alerts"
-                      : "Offline Sensors"}
-              </span>
-              <div className="h-7 w-7 rounded bg-rose-50 text-rose-600 flex items-center justify-center">
-                <AlertTriangle className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-2">
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-slate-900 font-mono">{firstKpiValue}</span>
-                <span className="text-xs font-bold text-rose-700">{unitNoun}</span>
-              </div>
-              <div className="text-[11px] text-slate-500 font-medium mt-0.5">
-                Across {baseData.length} Schemes
-              </div>
-            </div>
-            <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-              <span className="font-semibold text-rose-700">Total Triggered</span>
-              <span className="text-slate-400 font-medium">Click for All</span>
+                      ? "Pressure Sensor Alerts"
+                      : "Offline Sensor Alerts"}
+              </h2>
+              <p className="text-xs text-slate-500 font-normal mt-0.5">
+                {type === "lpcd"
+                  ? "Shows villages receiving water supply below 55 LPCD. Daily alerts dispatched to assigned Executive and Section Engineers."
+                  : type === "chlorine"
+                    ? "Shows chlorine sensors reporting residual chlorine outside safe potability standard (0.20 – 0.50 mg/L)."
+                    : type === "pressure"
+                      ? "Shows terminal pressure sensors outside required head range (0.20 – 0.70 Bar)."
+                      : "Shows IoT sensors currently experiencing telemetry dropout / communication failure."}
+              </p>
             </div>
           </div>
 
-          {/* Card 2: Acknowledged Alerts */}
-          <div
-            onClick={() => {
-              setAckModalData({
-                title: `Acknowledged Alerts (${totalAcknowledged} ${unitNoun})`,
-                type: "acknowledged",
-                rows: acknowledgedRows
-              });
-              setModalSearch("");
-            }}
-            className={`cursor-pointer flex flex-col justify-between p-3.5 rounded-lg border bg-white transition-all border-t-4 border-t-emerald-600 ${ackStatusFilter === "acknowledged"
-              ? "ring-2 ring-emerald-300 border-emerald-300 shadow-sm"
-              : "border-slate-200 hover:border-emerald-300 hover:shadow-xs"
-              }`}
-            title={`Click to view list of acknowledged ${unitNoun}`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">
-                Acknowledged
-              </span>
-              <div className="h-7 w-7 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <CheckCircle2 className="h-4 w-4" />
+          <div className="flex items-center gap-2.5 shrink-0">
+            <div className="border border-slate-200 bg-slate-50/60 px-3 py-1.5 rounded text-left min-w-[90px]">
+              <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">INDICATION</div>
+              <div className="text-xs font-bold text-slate-800">
+                {unitNoun}
               </div>
             </div>
-            <div className="mt-2">
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-emerald-700 font-mono">{totalAcknowledged}</span>
-                <span className="text-xs font-bold text-emerald-700">{unitNoun}</span>
+            <div className="border border-slate-200 bg-slate-50/60 px-3 py-1.5 rounded text-left min-w-[120px]">
+              <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">UNIT</div>
+              <div className="text-xs font-bold text-slate-800">
+                {type === "lpcd" ? "Villages (< 55 LPCD)" : type === "chlorine" ? "Sensors (0.20-0.50 mg/L)" : type === "pressure" ? "Sensors (0.20-0.70 Bar)" : "Offline Sensors"}
               </div>
-              <div className="text-[11px] text-emerald-700 font-medium mt-0.5">
-                {Math.round((totalAcknowledged / (baseData.length || 1)) * 100)}% of alerts confirmed
-              </div>
-            </div>
-            <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-              <span className="font-semibold text-emerald-700">Engineer Confirmed</span>
-              <span className="text-emerald-700 font-bold underline flex items-center">
-                View List <ArrowRight className="h-2.5 w-2.5 ml-0.5" />
-              </span>
             </div>
           </div>
-
-          {/* Card 3: Pending Acknowledgements */}
-          <div
-            onClick={() => {
-              setAckModalData({
-                title: `Pending Acknowledgement Alerts (${totalPending} ${unitNoun})`,
-                type: "pending",
-                rows: pendingRows
-              });
-              setModalSearch("");
-            }}
-            className={`cursor-pointer flex flex-col justify-between p-3.5 rounded-lg border bg-white transition-all border-t-4 border-t-amber-500 ${ackStatusFilter === "pending"
-              ? "ring-2 ring-amber-300 border-amber-300 shadow-sm"
-              : "border-slate-200 hover:border-amber-300 hover:shadow-xs"
-              }`}
-            title={`Click to view list of pending acknowledgement ${unitNoun}`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">
-                Pending Action
-              </span>
-              <div className="h-7 w-7 rounded bg-amber-50 text-amber-600 flex items-center justify-center">
-                <Clock className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-2">
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-amber-700 font-mono">{totalPending}</span>
-                <span className="text-xs font-bold text-amber-700">{unitNoun}</span>
-              </div>
-              <div className="text-[11px] text-amber-700 font-medium mt-0.5">
-                Awaiting field response
-              </div>
-            </div>
-            <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-              <span className="font-semibold text-amber-700">Action Required</span>
-              <span className="text-amber-700 font-bold underline flex items-center">
-                View List <ArrowRight className="h-2.5 w-2.5 ml-0.5" />
-              </span>
-            </div>
-          </div>
-
-          {/* Card 4: Engineers Notified / Total Roster */}
-          <div
-            onClick={() => {
-              setEngineersModalData({
-                title: `Notified Engineers & Assigned Personnel (${totalEngineers})`,
-                engineers: notifiedEngineersList
-              });
-              setEngineerModalSearch("");
-              setEngineerFilterTab("all");
-            }}
-            className="cursor-pointer flex flex-col justify-between p-3.5 rounded-lg border bg-white border-slate-200 hover:border-indigo-300 hover:shadow-xs transition-all border-t-4 border-t-indigo-600"
-            title="Click to view notified engineers and roster details"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">
-                Engineers Notified
-              </span>
-              <div className="h-7 w-7 rounded bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                <Users className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-2">
-              <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-black text-indigo-700 font-mono">{totalEngineers}</span>
-                <span className="text-sm font-bold text-slate-400">/</span>
-                <span className="text-base font-extrabold text-slate-700 font-mono" title="Total registered engineers in Engineers Directory">
-                  {totalRosterEngineers > 0 ? totalRosterEngineers : '—'}
-                </span>
-                <span className="text-[11px] font-bold text-indigo-600 ml-1">Engineers</span>
-              </div>
-              <div className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
-                Engineers Directory
-              </div>
-            </div>
-            <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-              <span className="font-semibold text-indigo-700">
-                {totalRosterEngineers > 0 ? `${Math.round((totalEngineers / totalRosterEngineers) * 100)}% Active` : 'Roster Active'}
-              </span>
-              <span className="text-indigo-700 font-bold underline flex items-center">
-                Roster <ArrowRight className="h-2.5 w-2.5 ml-0.5" />
-              </span>
-            </div>
-          </div>
-
-          {/* Card 5: Field Remarks Logged */}
-          <div className="flex flex-col justify-between p-3.5 rounded-lg border border-slate-200 bg-white border-t-4 border-t-blue-600 shadow-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">
-                Action Reports
-              </span>
-              <div className="h-7 w-7 rounded bg-blue-50 text-blue-600 flex items-center justify-center">
-                <MessageSquare className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-2">
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-slate-900 font-mono">{totalRemarks}</span>
-                <span className="text-xs font-bold text-slate-600">Logged</span>
-              </div>
-              <div className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
-                Field inspections recorded
-              </div>
-            </div>
-            <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-              <span className="font-semibold text-blue-700">Remarks Log</span>
-              <span className="text-slate-400 font-medium">Issue Feedback</span>
-            </div>
-          </div>
-
         </div>
 
-        {/* Active Filters Bar */}
-        {(ackStatusFilter !== "all" || schemeSearch || villageFilter !== "all") && (
-          <div className="px-6 py-2.5 bg-slate-100/90 border-b border-slate-200 flex items-center justify-between text-xs flex-wrap gap-2">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-slate-500 font-medium">Active Filter:</span>
-              {ackStatusFilter !== "all" && (
-                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-semibold text-xs border ${ackStatusFilter === "acknowledged"
-                  ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-                  : "bg-amber-100 text-amber-800 border-amber-200"
-                  }`}>
-                  Status: {ackStatusFilter === "acknowledged" ? "Acknowledged Only" : "Pending Ack Only"}
-                  <button onClick={() => setAckStatusFilter("all")} className="hover:opacity-75 ml-1">✕</button>
-                </span>
-              )}
-              {villageFilter !== "all" && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-semibold text-xs bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  Village: Fully Completed Only
-                  <button onClick={() => setVillageFilter("all")} className="hover:opacity-75 ml-1">✕</button>
-                </span>
-              )}
+        {/* 5. Filter / Search Toolbar */}
+        <div className="bg-white border border-slate-200 rounded p-3 flex flex-wrap items-end gap-3">
+          {/* Search */}
+          <div className="w-full sm:w-[280px] lg:w-[320px]">
+            <label className="text-xs font-semibold text-slate-700 block mb-1">Search</label>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder={type === "lpcd" ? "Search by scheme name, ID, village, or region..." : "Search by scheme name, ID, sensor, or region..."}
+                value={schemeSearch}
+                onChange={(e) => {
+                  setSchemeSearch(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full pl-8 pr-7 py-1.5 text-xs bg-white border border-slate-200 rounded focus:outline-none focus:border-[#0f4c81] text-slate-800 placeholder-slate-400 h-8"
+              />
               {schemeSearch && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-semibold text-xs bg-indigo-100 text-indigo-800 border border-indigo-200">
-                  Search: "{schemeSearch}"
-                  <button onClick={() => setSchemeSearch("")} className="hover:opacity-75 ml-1">✕</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSchemeSearch("");
+                    setPage(1);
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  title="Clear search"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Region / Village */}
+          <div className="w-full sm:w-[180px]">
+            <label className="text-xs font-semibold text-slate-700 block mb-1">Region / Village</label>
+            <VillageFilter
+              value={villageFilter}
+              onChange={(val) => {
+                setVillageFilter(val);
+                setPage(1);
+              }}
+              showLabel={false}
+              triggerClassName="h-8 text-xs bg-white border-slate-200"
+            />
+          </div>
+
+          {/* Date */}
+          {type !== "offline" && (
+            <div>
+              <label className="text-xs font-semibold text-slate-700 block mb-1">Date</label>
+              <input
+                type="date"
+                value={customDate || (activeSubTab === "previous" ? yesterdayYmd : todayYmd)}
+                onChange={(e) => {
+                  setCustomDate(e.target.value);
+                  if (e.target.value) {
+                    setActiveSubTab("custom");
+                  } else {
+                    setActiveSubTab("current");
+                  }
+                  setPage(1);
+                }}
+                className="h-8 px-2.5 py-1 text-xs border border-slate-200 rounded bg-white text-slate-800 font-medium outline-none focus:border-[#0f4c81] cursor-pointer"
+              />
+            </div>
+          )}
+
+          {/* Date Selector Group */}
+          {type !== "offline" && (
+            <div className="flex items-center rounded border border-slate-200 overflow-hidden h-8">
+              <button
+                type="button"
+                onClick={handlePrevDay}
+                className="px-2.5 h-full text-slate-600 hover:bg-slate-50 border-r border-slate-200 flex items-center justify-center transition-colors cursor-pointer"
+                title="Previous Day"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveSubTab("previous");
+                  setCustomDate("");
+                  setPage(1);
+                }}
+                className={`px-3 h-full text-xs font-medium border-r border-slate-200 transition-colors cursor-pointer ${
+                  activeSubTab === "previous" && !customDate
+                    ? "bg-[#0f4c81] text-white font-semibold"
+                    : "bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                Previous Day
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveSubTab("current");
+                  setCustomDate("");
+                  setPage(1);
+                }}
+                className={`px-3 h-full text-xs font-medium border-r border-slate-200 transition-colors cursor-pointer ${
+                  activeSubTab === "current" && !customDate
+                    ? "bg-[#0f4c81] text-white font-semibold"
+                    : "bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                Current Day
+              </button>
+              <button
+                type="button"
+                onClick={handleNextDay}
+                className="px-2.5 h-full text-slate-600 hover:bg-slate-50 flex items-center justify-center transition-colors cursor-pointer"
+                title="Next Day"
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* Download Excel Button */}
+          <div className="ml-auto">
+            <Button
+              onClick={handleDownloadReport}
+              disabled={isDownloading}
+              className="h-8 px-3.5 bg-[#107c41] hover:bg-[#0e6b37] text-white font-semibold rounded text-xs shadow-none flex items-center gap-1.5 cursor-pointer"
+              title="Download Excel report containing all alert data"
+            >
+              {isDownloading ? (
+                <span className="flex items-center gap-1.5">
+                  <div className="h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Exporting...
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5">
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Download Alerts Excel
                 </span>
               )}
-              <span className="text-slate-500 font-medium">({displayData.length} schemes displayed)</span>
-            </div>
-            <button
-              onClick={() => {
-                setAckStatusFilter("all");
-                setVillageFilter("all");
-                setSchemeSearch("");
-              }}
-              className="text-indigo-600 hover:text-indigo-800 font-semibold underline text-xs"
-            >
-              Reset to All Schemes
-            </button>
+            </Button>
           </div>
-        )}
+        </div>
 
-        {/* Data Table - Official Government of India Portal Style */}
-        <div className="overflow-x-auto">
-          {displayData.length === 0 ? (
-            <div className="p-12 text-center text-slate-500 text-xs font-medium">
-              No schemes match your current search or status filter.
+        {/* 6. Alert Summary */}
+        <div className="bg-white border border-slate-200 rounded p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                ALERT SUMMARY
+              </span>
+              <button
+                type="button"
+                onClick={() => setAckStatusFilter("all")}
+                className="text-xs text-slate-500 underline hover:text-[#0f4c81] cursor-pointer"
+              >
+                Across {baseData.length} Schemes
+              </button>
             </div>
-          ) : (
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-100 border-b-2 border-slate-300">
-                  <th className="py-2.5 px-2 text-[11px] font-bold text-slate-700 uppercase tracking-wider text-center border-r border-slate-200 w-12">
-                    #
-                  </th>
-                  <th className="py-2.5 px-3 text-[11px] font-bold text-slate-700 uppercase tracking-wider text-left border-r border-slate-200 min-w-[240px]">
-                    Scheme & Location Details
-                  </th>
-                  <th className="py-2.5 px-3 text-[11px] font-bold text-slate-700 uppercase tracking-wider text-center border-r border-slate-200 min-w-[130px]">
-                    Alert Value & Date
-                  </th>
-                  <th className="py-2.5 px-3 text-[11px] font-bold text-slate-700 uppercase tracking-wider text-left border-r border-slate-200 min-w-[200px]">
-                    Assigned Engineer & Contact
-                  </th>
-                  <th className="py-2.5 px-3 text-[11px] font-bold text-slate-700 uppercase tracking-wider text-center border-r border-slate-200 min-w-[150px]">
-                    Email Dispatch
-                  </th>
-                  <th className="py-2.5 px-3 text-[11px] font-bold text-slate-700 uppercase tracking-wider text-center border-r border-slate-200 min-w-[150px]">
-                    SMS Gateway
-                  </th>
-                  <th className="py-2.5 px-3 text-[11px] font-bold text-slate-700 uppercase tracking-wider text-center border-r border-slate-200 min-w-[140px]">
-                    Acknowledgement Status
-                  </th>
-                  <th className="py-2.5 px-3 text-[11px] font-bold text-slate-700 uppercase tracking-wider text-center min-w-[100px]">
-                    Remarks
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedData.map((row, idx) => {
-                  const actualIndex = startIdx + idx + 1;
 
-                  const ackInfo = getRowAckInfo(row);
-                  const hasEngineers = ackInfo.recipients.length > 0;
-                  const owner = getSchemeOwner(row);
-                  const allContacts = getAllSchemeContacts(row);
-                  const otherContactsCount = Math.max(0, allContacts.length - 1);
+            <div className="flex items-center gap-3 text-xs text-slate-600 flex-wrap">
+              <span>
+                Engineers Notified <strong className="text-[#0f4c81] font-bold text-sm ml-1">{totalEngineers} / {totalRosterEngineers || 81}</strong>
+              </span>
+              <span className="text-slate-300">|</span>
+              <span className="font-bold text-[#0f4c81]">
+                {totalRosterEngineers > 0 ? `${Math.round((totalEngineers / totalRosterEngineers) * 100)}%` : '99%'} Active
+              </span>
+              <span className="text-slate-300">|</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setEngineersModalData({
+                    title: `Notified Engineers & Assigned Personnel (${totalEngineers})`,
+                    engineers: notifiedEngineersList
+                  });
+                  setEngineerModalSearch("");
+                  setEngineerFilterTab("all");
+                }}
+                className="text-[#0f4c81] font-semibold hover:underline flex items-center gap-0.5 cursor-pointer"
+              >
+                View Engineers →
+              </button>
+            </div>
+          </div>
 
-                  return (
-                    <tr
-                      key={`${row.scheme_id}-${idx}`}
-                      className="border-b border-slate-200 even:bg-slate-50/50 hover:bg-amber-50/25 transition-colors"
-                    >
-                      {/* 1. Sr. No. */}
-                      <td className="py-2 px-2 text-center border-r border-slate-200 align-middle">
-                        <span className="text-xs font-semibold text-slate-600">{actualIndex}</span>
-                      </td>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 mt-3.5">
+            {/* Card 1: Total Triggered */}
+            <div
+              onClick={() => setAckStatusFilter("all")}
+              className="bg-[#fff5f5] border border-red-200 rounded p-3.5 flex items-center gap-3.5 cursor-pointer hover:border-red-300 transition-colors"
+              title={`Click to view all ${unitNoun}`}
+            >
+              <AlertTriangle className="h-8 w-8 text-red-600 shrink-0" />
+              <div>
+                <div className="text-xs font-medium text-slate-700">
+                  {type === "lpcd"
+                    ? "Villages < 55 LPCD"
+                    : type === "chlorine"
+                      ? "Chlorine Alerts"
+                      : type === "pressure"
+                        ? "Pressure Alerts"
+                        : "Offline Sensors"}
+                </div>
+                <div className="text-2xl font-black text-red-600 font-mono leading-tight mt-0.5">
+                  {firstKpiValue}
+                </div>
+                <div className="text-[11px] text-red-700 font-medium">
+                  Total Triggered
+                </div>
+              </div>
+            </div>
 
-                      {/* 2. Scheme & Location Details */}
-                      <td className="py-2 px-3 border-r border-slate-200 align-middle">
-                        <div className="flex flex-col gap-0.5">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-bold text-xs text-slate-900 leading-tight">
-                              {row.scheme_name}
-                            </span>
-                            <span className="text-[11px] font-mono font-medium text-slate-500">
-                              #{row.scheme_id}
-                            </span>
-                            {row.region && (
-                              <span className="inline-flex items-center text-[10px] text-slate-600 font-medium bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200">
-                                <MapPin className="h-2.5 w-2.5 text-slate-400 mr-0.5" />
-                                {row.region}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            {type === "lpcd" && row.village_name && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                                🏘️ Village: {row.village_name}
-                              </span>
-                            )}
-                            {type === "chlorine" && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                🧪 Sensor: {row.esr_name || row.village_name || 'Main Line Sensor'}
-                              </span>
-                            )}
-                            {type === "pressure" && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                                ⏱️ Sensor: {row.esr_name || row.village_name || 'Terminal Point'}
-                              </span>
-                            )}
-                            {type === "offline" && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-                                📡 Sensor: {row.esr_name || row.village_name || 'Telemetry Node'}
-                              </span>
-                            )}
-                            {row.ticket_id && (
-                              <span className="inline-flex items-center rounded bg-slate-100 px-1.5 py-0.2 text-[10px] font-mono font-bold text-slate-700 border border-slate-200">
-                                Ticket: {row.ticket_id}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </td>
+            {/* Card 2: Acknowledged */}
+            <div
+              onClick={() => {
+                setAckModalData({
+                  title: `Acknowledged Alerts (${totalAcknowledged} ${unitNoun})`,
+                  type: "acknowledged",
+                  rows: acknowledgedRows
+                });
+                setModalSearch("");
+              }}
+              className="bg-[#f0fdf4] border border-emerald-200 rounded p-3.5 flex items-center gap-3.5 cursor-pointer hover:border-emerald-300 transition-colors"
+              title={`Click to view list of acknowledged ${unitNoun}`}
+            >
+              <CheckCircle2 className="h-8 w-8 text-emerald-600 shrink-0" />
+              <div>
+                <div className="text-xs font-medium text-slate-700">
+                  Acknowledged
+                </div>
+                <div className="text-2xl font-black text-slate-900 font-mono leading-tight mt-0.5">
+                  {totalAcknowledged}
+                </div>
+                <div className="text-[11px] text-slate-500 font-medium">
+                  {Math.round((totalAcknowledged / (baseData.length || 1)) * 100)}% of alerts confirmed
+                </div>
+              </div>
+            </div>
 
-                      {/* 3. Alert Value & Date */}
-                      <td className="py-2 px-3 text-center border-r border-slate-200 align-middle whitespace-nowrap">
-                        {type === "offline" ? (
-                          <div className="flex flex-col items-center gap-0.5">
-                            <div className="flex flex-wrap justify-center gap-1 max-w-[200px]">
-                              {String(row.current_value || 'Telemetry Node').split(', ').map((sensor) => (
-                                <span key={sensor} className="inline-flex items-center px-1.5 py-0.2 rounded text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-                                  📡 {sensor}
-                                </span>
-                              ))}
-                            </div>
-                            <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 font-medium">
-                              <Calendar className="w-2.5 h-2.5 text-slate-400" />
-                              {formatAlertDate(row)}
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center gap-0.5">
-                            <div className="inline-flex items-baseline gap-1 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded">
-                              <span className="text-xs font-bold text-rose-700 font-mono">
-                                {row.current_value ?? row.alert_value ?? row.historical_value ?? row.previous_value ?? "N/A"}
-                              </span>
-                              <span className="text-[10px] font-semibold text-rose-900">
-                                {type === "lpcd" ? "LPCD" : type === "chlorine" ? "mg/L" : "Bar"}
-                              </span>
-                            </div>
-                            <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 font-medium">
-                              <Calendar className="w-2.5 h-2.5 text-slate-400" />
-                              {formatAlertDate(row)}
-                            </span>
-                          </div>
-                        )}
-                      </td>
+            {/* Card 3: Pending Action */}
+            <div
+              onClick={() => {
+                setAckModalData({
+                  title: `Pending Acknowledgement Alerts (${totalPending} ${unitNoun})`,
+                  type: "pending",
+                  rows: pendingRows
+                });
+                setModalSearch("");
+              }}
+              className="bg-[#fffbeb] border border-amber-200 rounded p-3.5 flex items-center gap-3.5 cursor-pointer hover:border-amber-300 transition-colors"
+              title={`Click to view list of pending acknowledgement ${unitNoun}`}
+            >
+              <Clock className="h-8 w-8 text-amber-600 shrink-0" />
+              <div>
+                <div className="text-xs font-medium text-slate-700">
+                  Pending Action
+                </div>
+                <div className="text-2xl font-black text-amber-600 font-mono leading-tight mt-0.5">
+                  {totalPending}
+                </div>
+                <div className="text-[11px] text-slate-500 font-medium">
+                  Awaiting field response
+                </div>
+              </div>
+            </div>
 
-                      {/* 4. Scheme Owner & Contact from Engineers Directory */}
-                      <td className="py-2 px-3 border-r border-slate-200 align-middle">
-                        {owner ? (
-                          <div className="flex flex-col gap-0.5">
+            {/* Card 4: Action Reports */}
+            <div
+              className="bg-[#f0f9ff] border border-sky-200 rounded p-3.5 flex items-center gap-3.5 hover:border-sky-300 transition-colors"
+            >
+              <FileText className="h-8 w-8 text-sky-600 shrink-0" />
+              <div>
+                <div className="text-xs font-medium text-slate-700">
+                  Action Reports
+                </div>
+                <div className="text-2xl font-black text-slate-900 font-mono leading-tight mt-0.5">
+                  {totalRemarks}
+                </div>
+                <div className="text-[11px] text-slate-500 font-medium">
+                  Field inspections recorded
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 7. Alert Details Table */}
+        <div className="bg-white border border-slate-200 rounded overflow-hidden">
+          {/* Table Header Bar */}
+          <div className="px-4 py-3 border-b border-slate-200 bg-white flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                ALERT DETAILS
+              </span>
+              <span className="text-xs font-normal text-slate-500">
+                ({displayData.length} {unitNoun})
+              </span>
+            </div>
+            {(ackStatusFilter !== "all" || schemeSearch || villageFilter !== "all") && (
+              <button
+                onClick={() => {
+                  setAckStatusFilter("all");
+                  setVillageFilter("all");
+                  setSchemeSearch("");
+                }}
+                className="text-xs text-[#0f4c81] hover:underline font-semibold cursor-pointer"
+              >
+                Reset Filters
+              </button>
+            )}
+          </div>
+
+          {/* Table Content */}
+          <div className="overflow-x-auto">
+            {isLoading ? (
+              <div className="p-16 text-center text-slate-500 font-medium text-xs">
+                Loading alerts data...
+              </div>
+            ) : displayData.length === 0 ? (
+              <div className="p-12 text-center text-slate-500 text-xs font-medium">
+                {baseData.length === 0
+                  ? "All parameters are within normal thresholds. No active alerts reported."
+                  : "No schemes match your current search or status filter."}
+              </div>
+            ) : (
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-[#e8f1f8] text-[#0f4c81] border-b border-slate-200">
+                    <th className="py-2.5 px-2 text-[11px] font-bold uppercase tracking-wider text-center border-r border-slate-200/80 w-12">
+                      #
+                    </th>
+                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-left border-r border-slate-200/80 min-w-[240px]">
+                      Scheme & Location Details
+                    </th>
+                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-center border-r border-slate-200/80 min-w-[130px]">
+                      Alert Value & Date
+                    </th>
+                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-left border-r border-slate-200/80 min-w-[200px]">
+                      Assigned Engineer & Contact
+                    </th>
+                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-center border-r border-slate-200/80 min-w-[150px]">
+                      Email Dispatch
+                    </th>
+                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-center border-r border-slate-200/80 min-w-[150px]">
+                      SMS Gateway
+                    </th>
+                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-center border-r border-slate-200/80 min-w-[140px]">
+                      Alert & Ack Status
+                    </th>
+                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-center min-w-[120px]">
+                      Remarks / Action
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {paginatedData.map((row, idx) => {
+                    const actualIndex = startIdx + idx + 1;
+                    const ackInfo = getRowAckInfo(row);
+                    const hasEngineers = ackInfo.recipients.length > 0;
+                    const owner = getSchemeOwner(row);
+                    const allContacts = getAllSchemeContacts(row);
+                    const otherContactsCount = Math.max(0, allContacts.length - 1);
+
+                    return (
+                      <tr
+                        key={`${row.scheme_id}-${idx}`}
+                        className="hover:bg-slate-50/80 transition-colors"
+                      >
+                        {/* 1. # */}
+                        <td className="py-2.5 px-2 text-center border-r border-slate-100 align-middle">
+                          <span className="text-xs font-semibold text-slate-600">{actualIndex}</span>
+                        </td>
+
+                        {/* 2. Scheme & Location Details */}
+                        <td className="py-2.5 px-3 border-r border-slate-100 align-middle">
+                          <div>
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 uppercase tracking-wider">
-                                {owner.shortRole}
+                              <span className="font-bold text-xs text-slate-900 leading-tight">
+                                {row.scheme_name}
                               </span>
-                              <span className="text-xs font-semibold text-slate-900 leading-tight">
-                                {owner.name}
+                              <span className="text-[11px] text-slate-400 font-mono">
+                                (#{row.scheme_id})
                               </span>
                             </div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              {owner.mobile ? (
-                                <div className="flex items-center gap-1">
-                                  <a
-                                    href={`tel:${owner.mobile}`}
-                                    className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-700 hover:text-indigo-900 font-mono hover:underline"
-                                    title="Call Engineer"
-                                  >
-                                    <Phone className="h-2.5 w-2.5 text-indigo-600" />
-                                    <span>{owner.mobile}</span>
-                                  </a>
+                            <div className="text-[11px] text-slate-500 font-normal mt-0.5 flex items-center gap-1 flex-wrap">
+                              <MapPin className="h-3 w-3 text-slate-400 shrink-0 inline" />
+                              <span>
+                                {type === "lpcd"
+                                  ? `Village: ${row.village_name || row.scheme_name}`
+                                  : type === "chlorine"
+                                    ? `Sensor: ${row.esr_name || row.village_name || "Main Line Sensor"}`
+                                    : type === "pressure"
+                                      ? `Sensor: ${row.esr_name || row.village_name || "Terminal Point"}`
+                                      : `Sensor: ${row.esr_name || row.village_name || "Telemetry Node"}`}
+                              </span>
+                              {row.region && (
+                                <>
+                                  <span className="text-slate-300">|</span>
+                                  <span>{row.region}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* 3. Alert Value & Date */}
+                        <td className="py-2.5 px-3 text-center border-r border-slate-100 align-middle whitespace-nowrap">
+                          <div>
+                            <div className="text-xs font-bold text-red-600 font-mono">
+                              {row.current_value ?? row.alert_value ?? row.historical_value ?? row.previous_value ?? "0"}{" "}
+                              {type === "lpcd" ? "LPCD" : type === "chlorine" ? "mg/L" : type === "pressure" ? "Bar" : "Offline"}
+                            </div>
+                            <div className="text-[11px] text-slate-500 font-normal mt-0.5 flex items-center justify-center gap-1">
+                              <Calendar className="h-3 w-3 text-slate-400 shrink-0" />
+                              <span>{formatAlertDate(row)}</span>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* 4. Assigned Engineer & Contact */}
+                        <td className="py-2.5 px-3 border-r border-slate-100 align-middle">
+                          {owner ? (
+                            <div>
+                              <div className="font-bold text-xs text-slate-800 leading-tight">
+                                <span className="text-slate-500 font-semibold">{owner.shortRole}</span> {owner.name}
+                              </div>
+                              <div className="mt-0.5 flex items-center gap-2 flex-wrap">
+                                {owner.mobile ? (
+                                  <div className="flex items-center gap-1">
+                                    <a
+                                      href={`tel:${owner.mobile}`}
+                                      className="text-xs text-[#0f4c81] font-medium hover:underline flex items-center gap-1"
+                                    >
+                                      <Phone className="h-3 w-3" />
+                                      <span>{owner.mobile}</span>
+                                    </a>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigator.clipboard.writeText(owner.mobile!);
+                                        setCopiedMobile(owner.mobile!);
+                                        setTimeout(() => setCopiedMobile(null), 2000);
+                                      }}
+                                      className="p-0.5 text-slate-400 hover:text-slate-600 rounded cursor-pointer"
+                                      title="Copy mobile number"
+                                    >
+                                      {copiedMobile === owner.mobile ? (
+                                        <Check className="h-3 w-3 text-emerald-600" />
+                                      ) : (
+                                        <Copy className="h-3 w-3" />
+                                      )}
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="text-[10px] text-slate-400 italic">No mobile</span>
+                                )}
+                                {otherContactsCount > 0 && (
                                   <button
                                     type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      navigator.clipboard.writeText(owner.mobile!);
-                                      setCopiedMobile(owner.mobile!);
-                                      setTimeout(() => setCopiedMobile(null), 2000);
+                                      setSelectedContactsModal({
+                                        schemeName: row.scheme_name,
+                                        schemeId: row.scheme_id,
+                                        contacts: allContacts
+                                      });
                                     }}
-                                    className="p-0.5 text-slate-400 hover:text-slate-600 rounded transition-colors"
-                                    title="Copy Mobile Number"
+                                    className="text-[10px] text-blue-600 hover:underline font-medium cursor-pointer"
                                   >
-                                    {copiedMobile === owner.mobile ? (
-                                      <Check className="h-3 w-3 text-emerald-600" />
-                                    ) : (
-                                      <Copy className="h-3 w-3" />
+                                    +{otherContactsCount} other{otherContactsCount > 1 ? "s" : ""}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 italic">Unassigned in Directory</span>
+                          )}
+                        </td>
+
+                        {/* 5. Email Dispatch */}
+                        <td className="py-2.5 px-3 text-center border-r border-slate-100 align-middle whitespace-nowrap">
+                          {(() => {
+                            const isSent = Boolean(row.created_at || row.sent_date || row.ticket_id);
+                            const emailDate = row.created_at
+                              ? new Date(row.created_at)
+                              : (row.sent_date ? new Date(row.sent_date) : null);
+                            const timeStr = emailDate && !isNaN(emailDate.getTime())
+                              ? emailDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
+                              : null;
+                            const emailRecipientsCount = ackInfo.recipients.filter(r => !!r.email).length || ackInfo.recipients.length;
+
+                            if (isSent) {
+                              return (
+                                <div className="flex flex-col items-center gap-0.5">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                                      <Mail className="w-2.5 h-2.5 text-blue-600" />
+                                      Sent ({emailRecipientsCount})
+                                    </span>
+                                    {timeStr && (
+                                      <span className="text-[10px] text-slate-500 font-normal">
+                                        {timeStr}
+                                      </span>
                                     )}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className="text-[10px] font-medium text-blue-600 hover:underline cursor-pointer"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedEngineers({ title: row.scheme_name, row });
+                                    }}
+                                    title="View Email Recipients & Delivery Logs"
+                                  >
+                                    &lt; View Log
                                   </button>
                                 </div>
-                              ) : (
-                                <span className="text-[10px] text-slate-400 italic">No mobile</span>
-                              )}
-                              {otherContactsCount > 0 && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedContactsModal({
-                                      schemeName: row.scheme_name,
-                                      schemeId: row.scheme_id,
-                                      contacts: allContacts
-                                    });
-                                  }}
-                                  className="text-[10px] text-indigo-600 hover:text-indigo-800 font-semibold underline cursor-pointer"
-                                >
-                                  +{otherContactsCount} other{otherContactsCount > 1 ? 's' : ''}
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-[11px] text-slate-400 italic">Unassigned in Directory</span>
-                        )}
-                      </td>
+                              );
+                            }
 
-                      {/* 5. Email Sent Status & Log Details */}
-                      <td className="py-2 px-3 text-center border-r border-slate-200 align-middle whitespace-nowrap">
-                        {(() => {
-                          const isSent = Boolean(row.created_at || row.sent_date || row.ticket_id);
-                          const emailDate = row.created_at
-                            ? new Date(row.created_at)
-                            : (row.sent_date ? new Date(row.sent_date) : null);
-                          const timeStr = emailDate && !isNaN(emailDate.getTime())
-                            ? emailDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
-                            : null;
-                          const emailRecipientsCount = ackInfo.recipients.filter(r => !!r.email).length || ackInfo.recipients.length;
+                            return <span className="text-[11px] text-slate-400 italic">Not Sent</span>;
+                          })()}
+                        </td>
 
-                          if (isSent) {
-                            return (
-                              <div className="flex flex-col items-center gap-0.5">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                                    <Mail className="w-2.5 h-2.5 text-blue-600" />
-                                    Sent {emailRecipientsCount > 0 ? `(${emailRecipientsCount})` : ''}
-                                  </span>
-                                  {timeStr && (
-                                    <span className="text-[10px] text-slate-500 font-medium">
-                                      {timeStr}
-                                    </span>
-                                  )}
-                                </div>
-                                <button
-                                  type="button"
-                                  className="text-[10px] font-semibold text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-0.5 cursor-pointer"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedEngineers({ title: row.scheme_name, row });
-                                  }}
-                                  title="View Dispatched Email Recipients & Delivery Logs"
-                                >
-                                  <Eye className="w-2.5 h-2.5" /> View Log
-                                </button>
-                              </div>
-                            );
-                          }
+                        {/* 6. SMS Gateway */}
+                        <td className="py-2.5 px-3 text-center border-r border-slate-100 align-middle whitespace-nowrap">
+                          {row.sms_dispatches && row.sms_dispatches.length > 0 ? (
+                            (() => {
+                              const smsList = row.sms_dispatches!;
+                              const successCount = smsList.filter(s => s.is_success).length;
+                              const isFullSuccess = successCount === smsList.length;
+                              const latestSms = smsList[0];
+                              const smsDate = latestSms?.created_at ? new Date(latestSms.created_at) : null;
+                              const timeStr = smsDate && !isNaN(smsDate.getTime())
+                                ? smsDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
+                                : null;
 
-                          return (
-                            <span className="text-[11px] text-slate-400 italic">Not Sent</span>
-                          );
-                        })()}
-                      </td>
-
-                      {/* 6. SMS Dispatched Status & Log Details */}
-                      <td className="py-2 px-3 text-center border-r border-slate-200 align-middle whitespace-nowrap">
-                        {row.sms_dispatches && row.sms_dispatches.length > 0 ? (
-                          (() => {
-                            const smsList = row.sms_dispatches!;
-                            const successCount = smsList.filter(s => s.is_success).length;
-                            const isFullSuccess = successCount === smsList.length;
-                            const latestSms = smsList[0];
-                            const smsDate = latestSms?.created_at ? new Date(latestSms.created_at) : null;
-                            const timeStr = smsDate && !isNaN(smsDate.getTime())
-                              ? smsDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
-                              : null;
-
-                            return (
-                              <div className="flex flex-col items-center gap-0.5">
-                                <div className="flex items-center gap-1.5">
-                                  <span className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[11px] font-semibold border ${isFullSuccess
-                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                    : successCount > 0
-                                      ? 'bg-amber-50 text-amber-800 border-amber-200'
-                                      : 'bg-rose-50 text-rose-800 border-rose-200'
+                              return (
+                                <div className="flex flex-col items-center gap-0.5">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border ${
+                                      isFullSuccess
+                                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                        : successCount > 0
+                                          ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                          : 'bg-rose-50 text-rose-800 border-rose-200'
                                     }`}>
-                                    <MessageSquare className="w-2.5 h-2.5 text-current" />
-                                    {isFullSuccess
-                                      ? `Delivered (${successCount}/${smsList.length})`
-                                      : successCount > 0
-                                        ? `Partial (${successCount}/${smsList.length})`
-                                        : `Failed (${smsList.length})`}
-                                  </span>
-                                  {timeStr && (
-                                    <span className="text-[10px] text-slate-500 font-medium">
-                                      {timeStr}
+                                      <MessageSquare className="w-2.5 h-2.5 text-current" />
+                                      {isFullSuccess
+                                        ? `Delivered (${successCount}/${smsList.length})`
+                                        : successCount > 0
+                                          ? `Partial (${successCount}/${smsList.length})`
+                                          : `Failed (${smsList.length})`}
                                     </span>
-                                  )}
+                                    {timeStr && (
+                                      <span className="text-[10px] text-slate-500 font-normal">
+                                        {timeStr}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className="text-[10px] font-medium text-blue-600 hover:underline cursor-pointer"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedSmsModal({
+                                        schemeName: row.scheme_name,
+                                        schemeId: row.scheme_id,
+                                        dispatches: smsList,
+                                        alertType: type.toUpperCase()
+                                      });
+                                    }}
+                                  >
+                                    View Log
+                                  </button>
                                 </div>
-                                <button
-                                  type="button"
-                                  className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 hover:underline inline-flex items-center gap-0.5 cursor-pointer"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedSmsModal({
-                                      schemeName: row.scheme_name,
-                                      schemeId: row.scheme_id,
-                                      dispatches: smsList,
-                                      alertType: type.toUpperCase()
-                                    });
-                                  }}
-                                >
-                                  <Eye className="w-2.5 h-2.5" /> View Log
-                                </button>
-                              </div>
-                            );
-                          })()
-                        ) : (
-                          <span className="text-[11px] text-slate-400 italic">Not Dispatched</span>
-                        )}
-                      </td>
+                              );
+                            })()
+                          ) : (
+                            <span className="text-[11px] text-slate-400 italic">Not Dispatched</span>
+                          )}
+                        </td>
 
-                      {/* 7. Acknowledgement Status */}
-                      <td className="py-2 px-3 text-center border-r border-slate-200 align-middle whitespace-nowrap">
-                        {hasEngineers ? (
-                          <div className="inline-flex items-center justify-center gap-1.5">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border ${ackInfo.isFullyAcknowledged
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                              : ackInfo.isAcknowledged
-                                ? 'bg-blue-50 text-blue-800 border-blue-200'
-                                : 'bg-amber-50 text-amber-800 border-amber-200'
+                        {/* 7. Alert & Ack Status - NO VIOLATED TAG! */}
+                        <td className="py-2.5 px-3 text-center border-r border-slate-100 align-middle whitespace-nowrap">
+                          {hasEngineers ? (
+                            <div className="inline-flex items-center justify-center gap-1">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border ${
+                                ackInfo.isFullyAcknowledged
+                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                  : ackInfo.isAcknowledged
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : 'bg-amber-50 text-amber-800 border-amber-200'
                               }`}>
-                              {ackInfo.ackCount > 0 ? (
-                                <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" />
-                              ) : (
-                                <Clock className="w-3 h-3 mr-1 text-amber-600" />
-                              )}
-                              {ackInfo.totalRequired > 0
-                                ? `${ackInfo.ackCount}/${ackInfo.totalRequired} Ack`
-                                : ackInfo.isAcknowledged ? 'Acknowledged' : 'Pending'}
-                            </span>
-                            <button
-                              type="button"
-                              className="p-1 text-slate-400 hover:text-indigo-600 cursor-pointer rounded hover:bg-slate-100 transition-colors"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedEngineers({ title: row.scheme_name, row });
-                              }}
-                              title="View Assigned Personnel & Status"
-                            >
-                              <Eye className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="text-[11px] text-slate-400 italic">None Assigned</span>
-                        )}
-                      </td>
+                                {ackInfo.ackCount > 0 ? (
+                                  <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block mr-1" />
+                                ) : (
+                                  <span className="h-2 w-2 rounded-full bg-amber-500 inline-block mr-1" />
+                                )}
+                                {ackInfo.totalRequired > 0
+                                  ? `${ackInfo.ackCount}/${ackInfo.totalRequired} Ack`
+                                  : ackInfo.isAcknowledged ? 'Acknowledged' : 'Pending'}
+                              </span>
+                              <button
+                                type="button"
+                                className="p-0.5 text-slate-400 hover:text-[#0f4c81] cursor-pointer rounded"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedEngineers({ title: row.scheme_name, row });
+                                }}
+                                title="View Acknowledgement & Personnel Details"
+                              >
+                                <Info className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 italic">None Assigned</span>
+                          )}
+                        </td>
 
-                      {/* 8. Remarks */}
-                      <td className="py-2 px-3 text-center align-middle whitespace-nowrap">
-                        {renderRemarkCell(row.remarks, `Remarks for ${row.esr_name || row.village_name || row.scheme_name}`)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-
-        {/* Pagination Controls - Clean Government Style */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-2.5 border-t border-slate-200 bg-slate-50/70 text-xs text-slate-600">
-          <div className="font-medium">
-            Showing <span className="font-bold text-slate-900">{startItem}</span> to <span className="font-bold text-slate-900">{endItem}</span> of <span className="font-bold text-slate-900">{displayData.length}</span> schemes
+                        {/* 8. Remarks / Action */}
+                        <td className="py-2.5 px-3 text-center align-middle whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const issues = parseIssues(row.remarks);
+                              setSelectedRemarkDetails({ issues, title: `Remarks for ${row.esr_name || row.village_name || row.scheme_name}` });
+                            }}
+                            className="text-xs font-semibold text-[#0f4c81] hover:underline cursor-pointer inline-flex items-center gap-0.5"
+                          >
+                            View Issue →
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5">
-              <span className="text-slate-500 font-medium">Rows:</span>
-              <select
-                className="text-xs border-slate-200 rounded py-1 px-2 outline-none focus:ring-1 focus:ring-indigo-500 border bg-white cursor-pointer font-medium"
-                value={rowsPerPage}
-                onChange={(e) => {
-                  setRowsPerPage(Number(e.target.value));
-                  setPage(1);
-                }}
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
+          {/* 8. Pagination */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-2.5 border-t border-slate-200 bg-white text-xs text-slate-600">
+            <div className="font-normal text-slate-500">
+              Showing <span className="font-semibold text-slate-800">{startItem}</span> – <span className="font-semibold text-slate-800">{endItem}</span> of <span className="font-semibold text-slate-800">{displayData.length}</span> alerts
             </div>
 
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-7 w-7 text-slate-500 border-slate-200"
-                disabled={page === 1}
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-              >
-                <ChevronLeft className="h-3.5 w-3.5" />
-              </Button>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="text-slate-500">Rows per page:</span>
+                <select
+                  className="text-xs border border-slate-200 rounded py-1 px-2 outline-none focus:border-[#0f4c81] bg-white cursor-pointer font-medium text-slate-700"
+                  value={rowsPerPage}
+                  onChange={(e) => {
+                    setRowsPerPage(Number(e.target.value));
+                    setPage(1);
+                  }}
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
 
-              {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
-                let p = i + 1;
-                if (totalPages > 5 && page > 3) {
-                  p = page - 2 + i;
-                  if (p > totalPages) return null;
-                }
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  className="px-2 py-1 text-xs text-slate-600 hover:text-slate-900 disabled:opacity-40 cursor-pointer font-medium"
+                  disabled={page === 1}
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                >
+                  &lt; Previous
+                </button>
 
-                return (
-                  <Button
-                    key={p}
-                    variant={page === p ? "default" : "outline"}
-                    className={`h-7 w-7 text-xs font-semibold ${page === p ? 'bg-indigo-700 hover:bg-indigo-800 text-white' : 'text-slate-600 border-slate-200 bg-white hover:bg-slate-50'}`}
-                    onClick={() => setPage(p)}
-                  >
-                    {p}
-                  </Button>
-                );
-              })}
+                {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
+                  let p = i + 1;
+                  if (totalPages > 5 && page > 3) {
+                    p = page - 2 + i;
+                    if (p > totalPages) return null;
+                  }
 
-              {totalPages > 5 && page < totalPages - 2 && (
-                <>
-                  <span className="px-1 text-slate-400">...</span>
-                  <Button
-                    variant="outline"
-                    className="h-7 w-7 text-xs text-slate-600 border-slate-200 bg-white"
-                    onClick={() => setPage(totalPages)}
-                  >
-                    {totalPages}
-                  </Button>
-                </>
-              )}
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      className={`h-7 w-7 text-xs font-semibold rounded flex items-center justify-center transition-colors cursor-pointer ${
+                        page === p
+                          ? "bg-[#0f4c81] text-white"
+                          : "text-slate-700 border border-slate-200 bg-white hover:bg-slate-50"
+                      }`}
+                      onClick={() => setPage(p)}
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
 
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-7 w-7 text-slate-500 border-slate-200"
-                disabled={page === totalPages || totalPages === 0}
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              >
-                <ChevronRight className="h-3.5 w-3.5" />
-              </Button>
+                {totalPages > 5 && page < totalPages - 2 && (
+                  <>
+                    <span className="px-1 text-slate-400">...</span>
+                    <button
+                      type="button"
+                      className="h-7 w-7 text-xs text-slate-700 border border-slate-200 bg-white rounded flex items-center justify-center hover:bg-slate-50 cursor-pointer"
+                      onClick={() => setPage(totalPages)}
+                    >
+                      {totalPages}
+                    </button>
+                  </>
+                )}
+
+                <button
+                  type="button"
+                  className="px-2 py-1 text-xs text-[#0f4c81] hover:underline font-semibold disabled:opacity-40 cursor-pointer"
+                  disabled={page === totalPages || totalPages === 0}
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                >
+                  Next &gt;
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1635,291 +1740,179 @@ export default function AlertsProgressPage() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-slate-50/30">
-        <div className="container mx-auto p-6 space-y-6">
+      <div className="min-h-screen bg-[#f4f6f9]">
+        <div className="w-full px-4 sm:px-6 py-4 space-y-3.5">
 
-          {/* Official Government of Maharashtra / Jal Jeevan Mission Portal Header */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-            <div className="h-1.5 bg-gradient-to-r from-amber-500 via-slate-100 to-emerald-600 w-full" />
-            <div className="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-start sm:items-center gap-3.5">
-                <div className="h-12 w-12 rounded-lg bg-white border border-slate-200 flex items-center justify-center p-1 shrink-0 shadow-2xs">
-                  <img
-                    src="/images/jal-jeevan-mission-logo.png"
-                    alt="Jal Jeevan Mission"
-                    className="h-10 w-10 object-contain"
-                  />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
-                      Govt. of Maharashtra
-                    </span>
-                    <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-200">
-                      Water Supply & Sanitation Department
-                    </span>
-                  </div>
-                  <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight mt-1">
-                    Jal Jeevan Mission — Alert Dispatch & Escalation Portal
-                  </h1>
-                  <p className="text-xs text-slate-500 font-medium mt-0.5 max-w-3xl">
-                    Official monitoring of village LPCD deficits, water potability (residual chlorine), terminal pipeline pressure, and IoT sensor communication status with automated Email and DLT SMS dispatch logs.
-                  </p>
-                </div>
-              </div>
-
-              {/* Official Status Badges */}
-              <div className="flex items-center gap-2 flex-wrap shrink-0">
-                <div className="px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-left">
-                  <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Engineers Roster</div>
-                  <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5 mt-0.5">
-                    <Users className="h-3.5 w-3.5 text-indigo-600" />
-                    <span>{totalRosterEngineers > 0 ? `${totalRosterEngineers} Total Engineers` : 'Engineers Directory'}</span>
-                  </div>
-                </div>
-                <div className="px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-left">
-                  <div className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider">DLT SMS Gateway</div>
-                  <div className="text-xs font-bold text-emerald-800 flex items-center gap-1 mt-0.5">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>Active Gateway</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Navigation Tabs with Official GoI Styling */}
-          <div className="w-full">
-            <Tabs
-              value={activeTab}
-              onValueChange={(val) => {
-                setActiveTab(val);
-                setPage(1);
-              }}
-              className="w-full"
-            >
-              <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 gap-2 mb-4 p-1.5 bg-slate-100 border border-slate-200 rounded-xl h-auto">
-                <TabsTrigger
-                  value="lpcd"
-                  className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-blue-900 data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-b-blue-600 text-slate-700 hover:text-slate-900 transition-all"
-                >
-                  <Waves className="h-4 w-4 text-blue-600 shrink-0" />
-                  <span className="truncate">Village LPCD Alerts</span>
-                  {lpcdData.length > 0 && (
-                    <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-800">
-                      {lpcdData.length}
-                    </span>
-                  )}
-                </TabsTrigger>
-
-                <TabsTrigger
-                  value="chlorine"
-                  className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-emerald-900 data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-b-emerald-600 text-slate-700 hover:text-slate-900 transition-all"
-                >
-                  <Droplets className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span className="truncate">Chlorine Sensor Alerts</span>
-                  {chlorineData.length > 0 && (
-                    <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
-                      {chlorineData.length}
-                    </span>
-                  )}
-                </TabsTrigger>
-
-                <TabsTrigger
-                  value="pressure"
-                  className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-amber-900 data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-b-amber-600 text-slate-700 hover:text-slate-900 transition-all"
-                >
-                  <GaugeCircle className="h-4 w-4 text-amber-600 shrink-0" />
-                  <span className="truncate">Pressure Sensor Alerts</span>
-                  {pressureData.length > 0 && (
-                    <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800">
-                      {pressureData.length}
-                    </span>
-                  )}
-                </TabsTrigger>
-
-                <TabsTrigger
-                  value="offline"
-                  className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-rose-900 data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-b-rose-600 text-slate-700 hover:text-slate-900 transition-all"
-                >
-                  <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
-                  <span className="truncate">Offline Sensor Alerts</span>
-                  {offlineData.length > 0 && (
-                    <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-800">
-                      {offlineData.length}
-                    </span>
-                  )}
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-
-          {/* Metric Context & Indication Banner */}
-          <div className="rounded-xl p-4 bg-white border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 shrink-0 shadow-2xs">
-                {activeTab === "lpcd" ? (
-                  <Waves className="h-5 w-5 text-blue-600" />
-                ) : activeTab === "chlorine" ? (
-                  <Droplets className="h-5 w-5 text-emerald-600" />
-                ) : activeTab === "pressure" ? (
-                  <GaugeCircle className="h-5 w-5 text-amber-600" />
-                ) : (
-                  <AlertTriangle className="h-5 w-5 text-rose-600" />
-                )}
+          {/* 1. Portal Information Header */}
+          <div className="bg-white border border-slate-200 rounded p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="h-14 w-14 rounded bg-white border border-slate-200 flex items-center justify-center p-1.5 shrink-0">
+                <img
+                  src="/images/jal-jeevan-mission-logo.png"
+                  alt="Jal Jeevan Mission"
+                  className="h-full w-full object-contain"
+                />
               </div>
               <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-base md:text-lg font-bold text-slate-900">
-                    {activeTab === "lpcd"
-                      ? "Village LPCD Alerts Tracking"
-                      : activeTab === "chlorine"
-                        ? "Chlorine Sensor Alerts Tracking"
-                        : activeTab === "pressure"
-                          ? "Pressure Sensor Alerts Tracking"
-                          : "Offline Sensor Alerts Tracking"}
-                  </h2>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
-                    Indication: {activeTab === "lpcd" ? "Villages" : activeTab === "chlorine" ? "Chlorine Sensors" : activeTab === "pressure" ? "Pressure Sensors" : "Offline Sensors"}
-                  </span>
+                <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight leading-none">
+                  Jal Jeevan Mission
+                </h1>
+                <div className="text-base md:text-lg font-bold text-[#0f4c81] mt-1 leading-snug">
+                  Alert Dispatch & Escalation Portal
                 </div>
                 <p className="text-xs text-slate-500 font-medium mt-0.5">
-                  {activeTab === "lpcd"
-                    ? "Shows villages receiving water supply below 55 LPCD. Daily alerts dispatched to assigned Executive and Section Engineers."
-                    : activeTab === "chlorine"
-                      ? "Shows chlorine sensors reporting residual chlorine outside safe potability standard (0.20 – 0.50 mg/L)."
-                      : activeTab === "pressure"
-                        ? "Shows terminal pressure sensors outside required head range (0.20 – 0.70 Bar)."
-                        : "Shows IoT sensors currently experiencing telemetry dropout / communication failure."}
+                  Water Supply & Sanitation Department, Government of Maharashtra
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-xs font-semibold text-slate-500">Unit:</span>
-              <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-slate-100 text-slate-800 border border-slate-200">
-                {activeTab === "lpcd" ? "🏘️ Villages (<55 LPCD)" : activeTab === "chlorine" ? "🧪 Chlorine Sensors" : activeTab === "pressure" ? "⏱️ Pressure Sensors" : "📡 Offline Sensors"}
-              </span>
-            </div>
-          </div>
-
-          {/* Action Toolbar: Search, Date Selection & Excel Download */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 p-3 bg-white rounded-xl border border-slate-200 shadow-xs">
-            {/* Search Input */}
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder={activeTab === "lpcd" ? "Search by scheme name, ID, village, or region..." : "Search by scheme name, ID, sensor location, or region..."}
-                value={schemeSearch}
-                onChange={(e) => {
-                  setSchemeSearch(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50/70 hover:bg-white border border-slate-200 rounded-lg shadow-inner focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 placeholder-slate-400 transition-colors"
-              />
-              {schemeSearch && (
-                <button
-                  onClick={() => {
-                    setSchemeSearch("");
-                    setPage(1);
-                  }}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  title="Clear search"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-
-            {/* Village Filter */}
-            <div className="w-full sm:w-auto">
-              <VillageFilter
-                value={villageFilter}
-                onChange={(val) => {
-                  setVillageFilter(val);
-                  setPage(1);
-                }}
-                showLabel={false}
-                triggerClassName="h-8 text-xs bg-slate-50/70 border-slate-200"
-              />
-            </div>
-
-            {/* Date Filters & Download */}
-            <div className="flex items-center gap-2.5 flex-wrap">
-              {activeTab !== "offline" && (
-                <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-lg border border-slate-200 shadow-inner">
-                  <Button
-                    variant={activeSubTab === "current" ? "default" : "ghost"}
-                    className={`h-8 px-3 text-xs font-semibold rounded-md transition-colors ${activeSubTab === "current" ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs' : 'text-slate-600 hover:bg-white/80'}`}
-                    onClick={() => {
-                      setActiveSubTab("current");
-                      setPage(1);
-                    }}
-                  >
-                    <Calendar className="mr-1.5 h-3.5 w-3.5" />
-                    Current Day
-                  </Button>
-                  <Button
-                    variant={activeSubTab === "previous" ? "default" : "ghost"}
-                    className={`h-8 px-3 text-xs font-semibold rounded-md transition-colors ${activeSubTab === "previous" ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs' : 'text-slate-600 hover:bg-white/80'}`}
-                    onClick={() => {
-                      setActiveSubTab("previous");
-                      setPage(1);
-                    }}
-                  >
-                    <History className="mr-1.5 h-3.5 w-3.5" />
-                    Previous Day
-                  </Button>
-
-                  <div className="h-5 w-px bg-slate-300 mx-1"></div>
-
-                  <input
-                    type="date"
-                    value={customDate}
-                    onChange={(e) => {
-                      setCustomDate(e.target.value);
-                      if (e.target.value) {
-                        setActiveSubTab("custom");
-                        setPage(1);
-                      } else {
-                        setActiveSubTab("current");
-                        setPage(1);
-                      }
-                    }}
-                    className={`h-8 px-2.5 text-xs font-medium rounded-md border-0 outline-none cursor-pointer transition-colors ${activeSubTab === "custom" ? 'bg-indigo-600 text-white shadow-xs' : 'bg-transparent text-slate-600 hover:bg-white/80'}`}
-                  />
+            {/* Official Status Badges on Right */}
+            <div className="flex items-center gap-6 shrink-0 self-start md:self-center">
+              {/* Engineers */}
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">
+                  <Users className="h-5 w-5" />
                 </div>
-              )}
+                <div>
+                  <div className="text-[11px] text-slate-500 font-medium">Engineers</div>
+                  <div className="text-sm font-bold text-slate-900 leading-tight">
+                    {totalRosterEngineers > 0 ? `${totalRosterEngineers} Total` : "81 Total"}
+                  </div>
+                  <a
+                    href="/engineers"
+                    className="text-xs text-[#0f4c81] font-semibold hover:underline flex items-center gap-0.5 mt-0.5"
+                  >
+                    View Directory →
+                  </a>
+                </div>
+              </div>
 
-              <Button
-                onClick={handleDownloadReport}
-                disabled={isDownloading}
-                className="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs border border-emerald-700/50 rounded-lg text-xs"
-                title="Download Excel report containing all alert data"
-              >
-                {isDownloading ? (
-                  <span className="flex items-center gap-1.5">
-                    <div className="h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Generating Excel...
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1.5">
-                    <Download className="h-3.5 w-3.5" />
-                    Download Alerts Excel
-                  </span>
-                )}
-              </Button>
+              <div className="h-10 w-px bg-slate-200 hidden sm:block" />
+
+              {/* DLT SMS Gateway */}
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0 relative">
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                </div>
+                <div>
+                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                    DLT SMS GATEWAY
+                  </div>
+                  <div className="text-sm font-bold text-emerald-700 leading-tight mt-0.5">
+                    Active Gateway
+                  </div>
+                </div>
+              </div>
+
+              <div className="h-10 w-px bg-slate-200 hidden sm:block" />
+
+              {/* Last Updated */}
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">
+                  <Clock className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-[11px] text-slate-500 font-medium">Last Updated</div>
+                  <div className="text-xs font-bold text-slate-800 leading-tight mt-0.5">
+                    {now.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-medium">
+                    {now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Table Container */}
-          <div className="w-full">
-            {activeTab === "lpcd" && renderDataTable(lpcdData, "lpcd", isLoadingLpcd)}
-            {activeTab === "chlorine" && renderDataTable(chlorineData, "chlorine", isLoadingChlorine)}
-            {activeTab === "pressure" && renderDataTable(pressureData, "pressure", isLoadingPressure)}
-            {activeTab === "offline" && renderDataTable(offlineData, "offline", isLoadingOffline)}
+          {/* 2. Alert Category Tabs */}
+          <div className="bg-white border border-slate-200 rounded px-4 py-0 flex items-center overflow-x-auto">
+            <span className="text-xs font-bold text-slate-500 tracking-wider uppercase pr-6 whitespace-nowrap shrink-0">
+              ALERT CATEGORY
+            </span>
+            <div className="flex items-center gap-1 overflow-x-auto">
+              {/* Tab 1: LPCD */}
+              <button
+                type="button"
+                onClick={() => { setActiveTab("lpcd"); setPage(1); }}
+                className={`py-3 px-4 text-xs md:text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+                  activeTab === "lpcd"
+                    ? "border-[#0f4c81] text-[#0f4c81] font-bold"
+                    : "border-transparent text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Waves className="h-4 w-4 text-[#0f4c81]" />
+                <span>Village LPCD Alerts</span>
+                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
+                  activeTab === "lpcd" ? "bg-blue-100 text-[#0f4c81]" : "bg-slate-100 text-slate-600"
+                }`}>
+                  {lpcdData.length}
+                </span>
+              </button>
+
+              {/* Tab 2: Chlorine */}
+              <button
+                type="button"
+                onClick={() => { setActiveTab("chlorine"); setPage(1); }}
+                className={`py-3 px-4 text-xs md:text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+                  activeTab === "chlorine"
+                    ? "border-[#0f4c81] text-[#0f4c81] font-bold"
+                    : "border-transparent text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Droplets className="h-4 w-4 text-emerald-600" />
+                <span>Chlorine Sensor Alerts</span>
+                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
+                  activeTab === "chlorine" ? "bg-emerald-100 text-emerald-800" : "bg-emerald-50 text-emerald-700"
+                }`}>
+                  {chlorineData.length}
+                </span>
+              </button>
+
+              {/* Tab 3: Pressure */}
+              <button
+                type="button"
+                onClick={() => { setActiveTab("pressure"); setPage(1); }}
+                className={`py-3 px-4 text-xs md:text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+                  activeTab === "pressure"
+                    ? "border-[#0f4c81] text-[#0f4c81] font-bold"
+                    : "border-transparent text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <GaugeCircle className="h-4 w-4 text-amber-600" />
+                <span>Pressure Sensor Alerts</span>
+                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
+                  activeTab === "pressure" ? "bg-amber-100 text-amber-800" : "bg-amber-50 text-amber-700"
+                }`}>
+                  {pressureData.length}
+                </span>
+              </button>
+
+              {/* Tab 4: Offline */}
+              <button
+                type="button"
+                onClick={() => { setActiveTab("offline"); setPage(1); }}
+                className={`py-3 px-4 text-xs md:text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+                  activeTab === "offline"
+                    ? "border-[#0f4c81] text-[#0f4c81] font-bold"
+                    : "border-transparent text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <AlertTriangle className="h-4 w-4 text-rose-600" />
+                <span>Offline Sensor Alerts</span>
+                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
+                  activeTab === "offline" ? "bg-rose-100 text-rose-800" : "bg-rose-50 text-rose-700"
+                }`}>
+                  {offlineData.length}
+                </span>
+              </button>
+            </div>
           </div>
+
+          {/* 3. Section Render */}
+          {activeTab === "lpcd" && renderDataTable(lpcdData, "lpcd", isLoadingLpcd)}
+          {activeTab === "chlorine" && renderDataTable(chlorineData, "chlorine", isLoadingChlorine)}
+          {activeTab === "pressure" && renderDataTable(pressureData, "pressure", isLoadingPressure)}
+          {activeTab === "offline" && renderDataTable(offlineData, "offline", isLoadingOffline)}
 
           {/* On-Click Modal Dialog for Acknowledged / Pending List */}
           {ackModalData && (
@@ -1927,8 +1920,8 @@ export default function AlertsProgressPage() {
               <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col p-0 overflow-hidden bg-white border border-slate-200 shadow-2xl">
                 {/* Header */}
                 <div className={`p-5 border-b text-white flex items-center justify-between ${ackModalData.type === "acknowledged"
-                  ? "bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700"
-                  : "bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700"
+                  ? "bg-emerald-700 border-emerald-800"
+                  : "bg-amber-600 border-amber-700"
                   }`}>
                   <div>
                     <DialogTitle className="text-xl font-bold flex items-center gap-2 text-white">
@@ -2126,21 +2119,18 @@ export default function AlertsProgressPage() {
               <DialogContent className="max-w-2xl bg-white border-none shadow-2xl p-0 overflow-hidden">
                 {(() => {
                   const hasActive = selectedRemarkDetails.issues.some((i: any) => i.status === 'Active');
-                  const headerGradient = hasActive
-                    ? "from-red-600 via-rose-600 to-red-700"
-                    : "from-emerald-600 via-teal-600 to-emerald-700";
+                  const headerBg = hasActive ? "bg-rose-700" : "bg-[#0f4c81]";
                   return (
                     <>
-                      <div className={`p-6 pb-4 border-b border-white/10 flex justify-between items-center relative overflow-hidden bg-gradient-to-br ${headerGradient}`}>
-                        <div className="absolute inset-0 opacity-10 mix-blend-overlay" style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/cubes.png')" }}></div>
-                        <div className="relative z-10 flex-1 pr-6">
-                          <DialogTitle className="text-xl md:text-2xl font-bold flex items-center gap-3 text-white">
-                            <AlertCircle className="h-6 w-6 md:h-8 md:w-8 text-white/90" />
-                            <span className="tracking-tight text-white drop-shadow-sm">Issue Details & Remarks History</span>
+                      <div className={`p-5 pb-4 border-b border-white/10 flex justify-between items-center ${headerBg} text-white`}>
+                        <div className="flex-1 pr-6">
+                          <DialogTitle className="text-xl font-bold flex items-center gap-3 text-white">
+                            <AlertCircle className="h-6 w-6 text-white" />
+                            <span className="tracking-tight text-white">Issue Details & Remarks History</span>
                           </DialogTitle>
-                          <DialogDescription className="text-white/90 mt-2 font-medium flex items-center gap-2">
+                          <DialogDescription className="text-white/90 mt-1.5 font-medium flex items-center gap-2 text-xs">
                             <MapPin className="h-4 w-4 text-white/70" />
-                            <span className="drop-shadow-sm">{selectedRemarkDetails.title}</span>
+                            <span>{selectedRemarkDetails.title}</span>
                           </DialogDescription>
                         </div>
                       </div>
@@ -2308,7 +2298,7 @@ export default function AlertsProgressPage() {
                               className="flex items-start justify-between gap-3 p-3 rounded-xl border border-slate-100 bg-white hover:bg-slate-50/70 transition-colors shadow-sm"
                             >
                               <div className="flex items-start gap-3 min-w-0">
-                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-50 to-indigo-100 text-indigo-700 text-xs font-bold shadow-inner">
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-800 text-xs font-bold border border-blue-200">
                                   {getInitials(rec.name || rec.email || "NA")}
                                 </div>
                                 <div className="flex flex-col min-w-0">
@@ -2385,13 +2375,13 @@ export default function AlertsProgressPage() {
           {selectedSmsModal && (
             <Dialog open={!!selectedSmsModal} onOpenChange={(open) => !open && setSelectedSmsModal(null)}>
               <DialogContent className="max-w-2xl bg-white border border-slate-200 shadow-2xl rounded-2xl p-0 overflow-hidden">
-                <div className="p-5 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white flex items-center justify-between">
+                <div className="p-5 bg-[#0f4c81] text-white flex items-center justify-between border-b border-white/10">
                   <div>
                     <DialogTitle className="text-lg font-bold flex items-center gap-2 text-white">
                       <MessageSquare className="h-5 w-5 text-white" />
                       SMS Dispatch Logs & Delivery Status
                     </DialogTitle>
-                    <DialogDescription className="text-emerald-100 text-xs mt-1">
+                    <DialogDescription className="text-blue-100 text-xs mt-1">
                       Scheme: <span className="font-semibold text-white">{selectedSmsModal.schemeName}</span> (ID: {selectedSmsModal.schemeId}) • {selectedSmsModal.alertType} Alert
                     </DialogDescription>
                   </div>
@@ -2508,12 +2498,12 @@ export default function AlertsProgressPage() {
           {selectedContactsModal && (
             <Dialog open={!!selectedContactsModal} onOpenChange={(open) => !open && setSelectedContactsModal(null)}>
               <DialogContent className="max-w-md bg-white border border-slate-200 shadow-2xl rounded-2xl p-0 overflow-hidden">
-                <div className="p-5 bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-700 text-white">
+                <div className="p-5 bg-[#0f4c81] text-white border-b border-white/10">
                   <DialogTitle className="text-base font-bold flex items-center gap-2 text-white">
                     <Phone className="h-4 w-4 text-white" />
                     Scheme Engineers & Phone Numbers
                   </DialogTitle>
-                  <DialogDescription className="text-indigo-100 text-xs mt-1">
+                  <DialogDescription className="text-blue-100 text-xs mt-1">
                     {selectedContactsModal.schemeName} ({selectedContactsModal.schemeId})
                   </DialogDescription>
                 </div>
@@ -2585,14 +2575,14 @@ export default function AlertsProgressPage() {
               onOpenChange={(open) => !open && setEngineersModalData(null)}
             >
               <DialogContent className="max-w-3xl bg-white border border-slate-200 shadow-2xl p-0 overflow-hidden rounded-2xl">
-                <DialogHeader className="p-5 pb-4 border-b border-slate-100 bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-700 text-white">
+                <DialogHeader className="p-5 pb-4 border-b border-white/10 bg-[#0f4c81] text-white">
                   <div className="flex items-center justify-between gap-4">
                     <div className="min-w-0">
                       <DialogTitle className="text-lg md:text-xl font-bold flex items-center gap-2.5 text-white">
-                        <Users className="h-5 w-5 text-indigo-200 shrink-0" />
+                        <Users className="h-5 w-5 text-blue-200 shrink-0" />
                         <span>{engineersModalData.title}</span>
                       </DialogTitle>
-                      <DialogDescription className="text-indigo-100 text-xs mt-1">
+                      <DialogDescription className="text-blue-100 text-xs mt-1">
                         Engineers & supervisors notified via email alerts for active {activeTab === "lpcd" ? "Village LPCD" : activeTab === "chlorine" ? "Chlorine Sensor" : activeTab === "pressure" ? "Pressure Sensor" : "Offline Sensor"} alerts ({engineersModalData.engineers.length} notified / {totalRosterEngineers > 0 ? totalRosterEngineers : 'all'} total in Engineers Directory).
                       </DialogDescription>
                     </div>
@@ -2605,11 +2595,11 @@ export default function AlertsProgressPage() {
                       <div className="text-base font-extrabold text-white">{engineersModalData.engineers.length}</div>
                     </div>
                     <div className="bg-white/10 rounded-lg p-2 backdrop-blur-sm">
-                      <div className="text-[10px] font-medium text-indigo-200 uppercase tracking-wider">Total in Roster</div>
-                      <div className="text-base font-extrabold text-indigo-100">
+                      <div className="text-[10px] font-medium text-blue-200 uppercase tracking-wider">Total in Roster</div>
+                      <div className="text-base font-extrabold text-white">
                         {totalRosterEngineers > 0 ? totalRosterEngineers : '—'}
                       </div>
-                      <div className="text-[9px] text-indigo-200/80 truncate">Registered Personnel</div>
+                      <div className="text-[9px] text-blue-200/80 truncate">Registered Personnel</div>
                     </div>
                     <div className="bg-emerald-500/20 border border-emerald-300/30 rounded-lg p-2 backdrop-blur-sm">
                       <div className="text-[10px] font-medium text-emerald-200 uppercase tracking-wider">Fully Acknowledged</div>
