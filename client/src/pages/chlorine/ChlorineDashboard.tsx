@@ -175,6 +175,12 @@ interface ChlorineSensorStatus {
   connected: number;
   online: number;
   offline: number;
+  connectedSchemes?: number;
+  connectedVillages?: number;
+  onlineSchemes?: number;
+  onlineVillages?: number;
+  offlineSchemes?: number;
+  offlineVillages?: number;
 }
 
 type ChlorineRange =
@@ -845,96 +851,160 @@ const ChlorineDashboard: React.FC = () => {
 
   // Calculate sensor status counts for chlorine sensors using globally filtered data
   const calculateChlorineSensorStatus = useMemo((): ChlorineSensorStatus => {
-    const status = { connected: 0, online: 0, offline: 0 };
+    const status: ChlorineSensorStatus = {
+      connected: 0,
+      online: 0,
+      offline: 0,
+      connectedSchemes: 0,
+      connectedVillages: 0,
+      onlineSchemes: 0,
+      onlineVillages: 0,
+      offlineSchemes: 0,
+      offlineVillages: 0,
+    };
 
-    if (!globallyFilteredData || !communicationStatusData) {
+    if (!globallyFilteredData || globallyFilteredData.length === 0 || !communicationStatusData) {
       return status;
     }
 
-    // Create a map of the full hierarchy from globally filtered chlorine data
-    const chlorineLocationKeys = new Set(
-      globallyFilteredData.map(
-        (item) =>
-          `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`.toLowerCase(),
-      ),
-    );
+    const commStatusMap = new Map<string, CommunicationStatus>();
+    communicationStatusData.forEach((comm) => {
+      const key7 = `${comm.region}|${comm.circle}|${comm.division}|${comm.sub_division}|${comm.block}|${comm.village_name}|${comm.esr_name}`.toLowerCase().trim();
+      commStatusMap.set(key7, comm);
+      if (comm.scheme_id && comm.esr_name) {
+        commStatusMap.set(`${comm.scheme_id}|${comm.village_name}|${comm.esr_name}`.toLowerCase().trim(), comm);
+      }
+    });
 
-    // Filter communication status for regions if selected
-    const filteredCommStatus =
-      selectedRegion === "all"
-        ? communicationStatusData
-        : communicationStatusData.filter(
-          (comm) => comm.region === selectedRegion,
-        );
-
-    // Use Sets to track unique ESR names
     const uniqueConnectedESRs = new Set<string>();
     const uniqueOnlineESRs = new Set<string>();
     const uniqueOfflineESRs = new Set<string>();
 
-    filteredCommStatus.forEach((commStatus) => {
-      const commLocationKey = `${commStatus.region}|${commStatus.circle}|${commStatus.division}|${commStatus.sub_division}|${commStatus.block}|${commStatus.village_name}|${commStatus.esr_name}`.toLowerCase();
+    const connectedSchemes = new Set<string>();
+    const connectedVillages = new Set<string>();
+    const onlineSchemes = new Set<string>();
+    const onlineVillages = new Set<string>();
+    const offlineSchemes = new Set<string>();
+    const offlineVillages = new Set<string>();
 
-      if (chlorineLocationKeys.has(commLocationKey)) {
-        if (commStatus.chlorine_connected === "Connected") {
-          uniqueConnectedESRs.add(commLocationKey);
+    globallyFilteredData.forEach((item) => {
+      const key7 = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`.toLowerCase().trim();
+      const keyEsr = `${item.scheme_id}|${item.village_name}|${item.esr_name}`.toLowerCase().trim();
+      const commStatus = commStatusMap.get(key7) || commStatusMap.get(keyEsr);
 
-          if (commStatus.chlorine_status === "Online") {
-            uniqueOnlineESRs.add(commLocationKey);
-          } else if (commStatus.chlorine_status === "Offline") {
-            uniqueOfflineESRs.add(commLocationKey);
-          }
+      const sKey = (item.scheme_id || item.scheme_name || "").trim().toLowerCase();
+      const vKey = item.scheme_id
+        ? `${item.scheme_id.trim().toLowerCase()}|${(item.village_name || "").trim().toLowerCase()}`
+        : (item.village_name || "").trim().toLowerCase();
+
+      if (commStatus && commStatus.chlorine_connected === "Connected") {
+        uniqueConnectedESRs.add(key7);
+        if (sKey) connectedSchemes.add(sKey);
+        if (vKey) connectedVillages.add(vKey);
+
+        if (commStatus.chlorine_status === "Online") {
+          uniqueOnlineESRs.add(key7);
+          if (sKey) onlineSchemes.add(sKey);
+          if (vKey) onlineVillages.add(vKey);
+        } else if (commStatus.chlorine_status === "Offline") {
+          uniqueOfflineESRs.add(key7);
+          if (sKey) offlineSchemes.add(sKey);
+          if (vKey) offlineVillages.add(vKey);
         }
       }
     });
 
     status.connected = uniqueConnectedESRs.size;
-
     status.online = uniqueOnlineESRs.size;
     status.offline = uniqueOfflineESRs.size;
+
+    status.connectedSchemes = connectedSchemes.size;
+    status.connectedVillages = connectedVillages.size;
+    status.onlineSchemes = onlineSchemes.size;
+    status.onlineVillages = onlineVillages.size;
+    status.offlineSchemes = offlineSchemes.size;
+    status.offlineVillages = offlineVillages.size;
 
     return status;
   }, [
     globallyFilteredData,
     communicationStatusData,
-    selectedRegion,
-    withWaterSensorsData,
   ]);
 
   // Calculate statistics for the "With Water" section
   const calculateWithWaterRangeStats = useMemo(() => {
     if (!withWaterSensorsData?.withWaterSensors || !globallyFilteredData) {
-      return { total: 0, belowRange: 0, optimal: 0, above: 0, noData: 0, consistentZero: 0 };
+      return {
+        total: 0,
+        belowRange: 0,
+        optimal: 0,
+        above: 0,
+        noData: 0,
+        consistentZero: 0,
+        totalSchemes: 0,
+        totalVillages: 0,
+        belowRangeSchemes: 0,
+        belowRangeVillages: 0,
+        optimalSchemes: 0,
+        optimalVillages: 0,
+        aboveSchemes: 0,
+        aboveVillages: 0,
+      };
     }
 
     // Build a set of location keys for sensors that have water
-    const withWaterLocationKeys = new Set(
-      withWaterSensorsData.withWaterSensors.map(
-        (sensor: any) =>
-          `${sensor.region}|${sensor.circle}|${sensor.division}|${sensor.sub_division}|${sensor.block}|${sensor.village_name}|${sensor.esr_name}`.toLowerCase(),
-      ),
-    );
+    const withWaterLocationKeys = new Set<string>();
+    withWaterSensorsData.withWaterSensors.forEach((sensor: any) => {
+      const key7 = `${sensor.region}|${sensor.circle}|${sensor.division}|${sensor.sub_division}|${sensor.block}|${sensor.village_name}|${sensor.esr_name}`.toLowerCase().trim();
+      withWaterLocationKeys.add(key7);
+      if (sensor.scheme_id && sensor.esr_name) {
+        withWaterLocationKeys.add(`${sensor.scheme_id}|${sensor.village_name}|${sensor.esr_name}`.toLowerCase().trim());
+      }
+    });
 
-    // Filter globallyFilteredData (which respects scheme/region filters but NOT sensorStatusFilter)
-    // so card numbers stay stable when another card is clicked
+    // Filter globallyFilteredData (which respects all active filters)
     const filteredWithWater = globallyFilteredData.filter((item) => {
-      const locationKey = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`.toLowerCase();
-      return withWaterLocationKeys.has(locationKey);
+      const key7 = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`.toLowerCase().trim();
+      const keyEsr = `${item.scheme_id}|${item.village_name}|${item.esr_name}`.toLowerCase().trim();
+      return withWaterLocationKeys.has(key7) || withWaterLocationKeys.has(keyEsr);
     });
 
     let total = filteredWithWater.length;
     let belowRange = 0, optimal = 0, above = 0, consistentZero = 0;
 
+    const totalSchemes = new Set<string>();
+    const totalVillages = new Set<string>();
+    const belowRangeSchemes = new Set<string>();
+    const belowRangeVillages = new Set<string>();
+    const optimalSchemes = new Set<string>();
+    const optimalVillages = new Set<string>();
+    const aboveSchemes = new Set<string>();
+    const aboveVillages = new Set<string>();
+
     filteredWithWater.forEach((item) => {
+      const sKey = (item.scheme_id || item.scheme_name || "").trim().toLowerCase();
+      const vKey = item.scheme_id
+        ? `${item.scheme_id.trim().toLowerCase()}|${(item.village_name || "").trim().toLowerCase()}`
+        : (item.village_name || "").trim().toLowerCase();
+
+      if (sKey) totalSchemes.add(sKey);
+      if (vKey) totalVillages.add(vKey);
+
       const latestValue = getCurrentChlorineValue(item);
 
       if (latestValue !== null && !isNaN(latestValue)) {
         if (latestValue < 0.2 && latestValue >= 0) {
           belowRange++;
+          if (sKey) belowRangeSchemes.add(sKey);
+          if (vKey) belowRangeVillages.add(vKey);
         } else if (latestValue >= 0.2 && latestValue <= 0.5) {
           optimal++;
+          if (sKey) optimalSchemes.add(sKey);
+          if (vKey) optimalVillages.add(vKey);
         } else if (latestValue > 0.5) {
           above++;
+          if (sKey) aboveSchemes.add(sKey);
+          if (vKey) aboveVillages.add(vKey);
         }
       }
 
@@ -946,8 +1016,44 @@ const ChlorineDashboard: React.FC = () => {
     const sumRanges = belowRange + optimal + above;
     const noData = Math.max(total - sumRanges, 0);
 
-    return { total, belowRange, optimal, above, noData, consistentZero };
+    return {
+      total,
+      belowRange,
+      optimal,
+      above,
+      noData,
+      consistentZero,
+      totalSchemes: totalSchemes.size,
+      totalVillages: totalVillages.size,
+      belowRangeSchemes: belowRangeSchemes.size,
+      belowRangeVillages: belowRangeVillages.size,
+      optimalSchemes: optimalSchemes.size,
+      optimalVillages: optimalVillages.size,
+      aboveSchemes: aboveSchemes.size,
+      aboveVillages: aboveVillages.size,
+    };
   }, [withWaterSensorsData, globallyFilteredData, getCurrentChlorineValue]);
+
+  // Unique schemes and villages for the entire active filter selection
+  const globalUniqueSchemes = useMemo(() => {
+    const set = new Set<string>();
+    globallyFilteredData.forEach((item) => {
+      const key = (item.scheme_id || item.scheme_name || "").trim().toLowerCase();
+      if (key) set.add(key);
+    });
+    return set.size;
+  }, [globallyFilteredData]);
+
+  const globalUniqueVillages = useMemo(() => {
+    const set = new Set<string>();
+    globallyFilteredData.forEach((item) => {
+      const s = (item.scheme_id || "").trim().toLowerCase();
+      const v = (item.village_name || "").trim().toLowerCase();
+      if (s && v) set.add(`${s}|${v}`);
+      else if (v) set.add(v);
+    });
+    return set.size;
+  }, [globallyFilteredData]);
 
 
   // Handler for commissioned status filter changes (legacy, keeping for compatibility if needed elsewhere)
@@ -1112,29 +1218,40 @@ const ChlorineDashboard: React.FC = () => {
     if (sensorStatusFilter !== "all") {
       const commStatusMap = new Map<string, CommunicationStatus>();
       communicationStatusData?.forEach((status) => {
-        const key = `${status.region}|${status.circle}|${status.division}|${status.sub_division}|${status.block}|${status.village_name}|${status.esr_name}`.toLowerCase();
-        commStatusMap.set(key, status);
+        const key7 = `${status.region}|${status.circle}|${status.division}|${status.sub_division}|${status.block}|${status.village_name}|${status.esr_name}`.toLowerCase().trim();
+        commStatusMap.set(key7, status);
+        if (status.scheme_id && status.esr_name) {
+          commStatusMap.set(`${status.scheme_id}|${status.village_name}|${status.esr_name}`.toLowerCase().trim(), status);
+        }
       });
 
-      filtered = filtered.filter((item) => {
-        const key = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`.toLowerCase();
-        const commStatus = commStatusMap.get(key);
+      const withWaterLocationKeys = new Set<string>();
+      if (withWaterSensorsData?.withWaterSensors) {
+        withWaterSensorsData.withWaterSensors.forEach((sensor: any) => {
+          const key7 = `${sensor.region}|${sensor.circle}|${sensor.division}|${sensor.sub_division}|${sensor.block}|${sensor.village_name}|${sensor.esr_name}`.toLowerCase().trim();
+          withWaterLocationKeys.add(key7);
+          if (sensor.scheme_id && sensor.esr_name) {
+            withWaterLocationKeys.add(`${sensor.scheme_id}|${sensor.village_name}|${sensor.esr_name}`.toLowerCase().trim());
+          }
+        });
+      }
 
-        if (!commStatus) return false;
+      filtered = filtered.filter((item) => {
+        const key7 = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`.toLowerCase().trim();
+        const keyEsr = `${item.scheme_id}|${item.village_name}|${item.esr_name}`.toLowerCase().trim();
+        const commStatus = commStatusMap.get(key7) || commStatusMap.get(keyEsr);
 
         switch (sensorStatusFilter) {
           case "connected":
-            return commStatus.chlorine_connected === "Connected";
+            return commStatus ? commStatus.chlorine_connected === "Connected" : false;
           case "online":
-            return (
-              commStatus.chlorine_connected === "Connected" &&
-              commStatus.chlorine_status === "Online"
-            );
+            return commStatus
+              ? commStatus.chlorine_connected === "Connected" && commStatus.chlorine_status === "Online"
+              : false;
           case "offline":
-            return (
-              commStatus.chlorine_connected === "Connected" &&
-              commStatus.chlorine_status === "Offline"
-            );
+            return commStatus
+              ? commStatus.chlorine_connected === "Connected" && commStatus.chlorine_status === "Offline"
+              : false;
           case "noWater":
             if (noWaterSensorsData?.noWaterSensors) {
               return noWaterSensorsData.noWaterSensors.some(
@@ -1151,20 +1268,7 @@ const ChlorineDashboard: React.FC = () => {
             }
             return false;
           case "withWater":
-            if (withWaterSensorsData?.withWaterSensors) {
-              return withWaterSensorsData.withWaterSensors.some(
-                (sensor) =>
-                  String(sensor.region).toLowerCase() === String(item.region).toLowerCase() &&
-                  String(sensor.circle).toLowerCase() === String(item.circle).toLowerCase() &&
-                  String(sensor.division).toLowerCase() === String(item.division).toLowerCase() &&
-                  String(sensor.sub_division).toLowerCase() === String(item.sub_division).toLowerCase() &&
-                  String(sensor.block).toLowerCase() === String(item.block).toLowerCase() &&
-                  String(sensor.scheme_id).toLowerCase() === String(item.scheme_id).toLowerCase() &&
-                  String(sensor.village_name).toLowerCase() === String(item.village_name).toLowerCase() &&
-                  String(sensor.esr_name).toLowerCase() === String(item.esr_name).toLowerCase(),
-              );
-            }
-            return false;
+            return withWaterLocationKeys.has(key7) || withWaterLocationKeys.has(keyEsr);
           default:
             return true;
         }
@@ -1179,7 +1283,29 @@ const ChlorineDashboard: React.FC = () => {
     communicationStatusData,
     noWaterSensorsData,
     withWaterSensorsData,
+    getCurrentChlorineValue,
   ]);
+
+  // Unique schemes and villages for the active filtered data (table)
+  const filteredUniqueSchemes = useMemo(() => {
+    const set = new Set<string>();
+    filteredData.forEach((item) => {
+      const key = (item.scheme_id || item.scheme_name || "").trim().toLowerCase();
+      if (key) set.add(key);
+    });
+    return set.size;
+  }, [filteredData]);
+
+  const filteredUniqueVillages = useMemo(() => {
+    const set = new Set<string>();
+    filteredData.forEach((item) => {
+      const s = (item.scheme_id || "").trim().toLowerCase();
+      const v = (item.village_name || "").trim().toLowerCase();
+      if (s && v) set.add(`${s}|${v}`);
+      else if (v) set.add(v);
+    });
+    return set.size;
+  }, [filteredData]);
 
   // Listen for filter changes from chatbot
   useEffect(() => {
@@ -1968,20 +2094,27 @@ const ChlorineDashboard: React.FC = () => {
         </div>
 
         {/* Qualifying Schemes Info Footer */}
-        <div className="bg-slate-50 border-t border-slate-100 px-4 py-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+        <div className="bg-slate-50 border-t border-slate-100 px-4 py-2 flex flex-wrap justify-between items-center gap-2">
           <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
             <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block animate-pulse" />
             Live Data Feed
           </div>
-          <div className="flex items-center gap-2 flex-1 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 shadow-sm">
+          <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 shadow-sm">
             <Info className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
             <span className="text-xs font-medium text-blue-800">
               The data corresponds to{" "}
               <span className="inline-flex items-center justify-center bg-blue-600 text-white font-bold text-xs px-2 py-0.5 rounded-full mx-0.5 shadow-sm">
-                {qualifyingSchemeCount}
+                {globalUniqueSchemes}
               </span>{" "}
-              schemes where civil work is 100% complete.
+              schemes and{" "}
+              <span className="inline-flex items-center justify-center bg-indigo-600 text-white font-bold text-xs px-2 py-0.5 rounded-full mx-0.5 shadow-sm">
+                {globalUniqueVillages}
+              </span>{" "}
+              villages ({globallyFilteredData.length.toLocaleString()} ESRs).
             </span>
+          </div>
+          <div className="text-[10px] font-medium text-slate-600">
+            Showing <span className="text-blue-600 font-bold">{filteredData.length.toLocaleString()}</span> ESRs across <span className="text-blue-600 font-bold">{filteredUniqueSchemes}</span> schemes & <span className="text-blue-600 font-bold">{filteredUniqueVillages}</span> villages
           </div>
         </div>
 
@@ -2081,6 +2214,9 @@ const ChlorineDashboard: React.FC = () => {
               <p className="text-xs text-blue-600/70">
                 Chlorine sensors connected
               </p>
+              <div className="mt-1.5 pt-1 border-t border-blue-100 text-[11px] font-medium text-blue-700/80">
+                Belongs to {calculateChlorineSensorStatus.connectedSchemes} schemes, {calculateChlorineSensorStatus.connectedVillages} villages
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -2107,6 +2243,9 @@ const ChlorineDashboard: React.FC = () => {
               <p className="text-xs text-green-600/70">
                 Currently online & active
               </p>
+              <div className="mt-1.5 pt-1 border-t border-green-100 text-[11px] font-medium text-green-700/80">
+                Belongs to {calculateChlorineSensorStatus.onlineSchemes} schemes, {calculateChlorineSensorStatus.onlineVillages} villages
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -2133,6 +2272,9 @@ const ChlorineDashboard: React.FC = () => {
               <p className="text-xs text-orange-600/70">
                 Connected but offline
               </p>
+              <div className="mt-1.5 pt-1 border-t border-orange-100 text-[11px] font-medium text-orange-700/80">
+                Belongs to {calculateChlorineSensorStatus.offlineSchemes} schemes, {calculateChlorineSensorStatus.offlineVillages} villages
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -2160,6 +2302,9 @@ const ChlorineDashboard: React.FC = () => {
               <p className="text-xs text-blue-600/70">
                 Connected sensors with water
               </p>
+              <div className="mt-1.5 pt-1 border-t border-blue-100 text-[11px] font-medium text-blue-700/80">
+                Belongs to {calculateWithWaterRangeStats.totalSchemes} schemes, {calculateWithWaterRangeStats.totalVillages} villages
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -2181,7 +2326,7 @@ const ChlorineDashboard: React.FC = () => {
               </div>
             </div>
             <div
-              className={`cursor-pointer text-center px-5 py-2.5 bg-white rounded-xl border-2 hover:shadow-md transition-all duration-200 min-w-[88px] ${sensorStatusFilter === "withWater" && selectedWithWaterFilter === "all"
+              className={`cursor-pointer text-center px-4 py-2 bg-white rounded-xl border-2 hover:shadow-md transition-all duration-200 min-w-[100px] ${sensorStatusFilter === "withWater" && selectedWithWaterFilter === "all"
                 ? "border-blue-500 ring-2 ring-blue-400 ring-offset-2"
                 : "border-blue-200 hover:border-blue-400"
                 }`}
@@ -2189,6 +2334,7 @@ const ChlorineDashboard: React.FC = () => {
             >
               <p className="text-3xl font-bold text-blue-700">{calculateWithWaterRangeStats.total}</p>
               <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Total</p>
+              <p className="text-[10px] text-blue-600 font-medium mt-0.5">{calculateWithWaterRangeStats.totalSchemes} schemes • {calculateWithWaterRangeStats.totalVillages} villages</p>
             </div>
           </div>
 
@@ -2208,6 +2354,7 @@ const ChlorineDashboard: React.FC = () => {
               <p className="text-3xl font-bold text-red-600 mb-1">{calculateWithWaterRangeStats.belowRange || 0}</p>
               <p className="text-xs font-semibold text-red-700">Below Range</p>
               <p className="text-[10px] text-red-400 mt-0.5">&lt;0.2 mg/l</p>
+              <p className="text-[10px] text-red-500/80 mt-1 font-medium">{calculateWithWaterRangeStats.belowRangeSchemes} schemes • {calculateWithWaterRangeStats.belowRangeVillages} villages</p>
             </div>
 
             {/* Optimal Range */}
@@ -2224,6 +2371,7 @@ const ChlorineDashboard: React.FC = () => {
               <p className="text-3xl font-bold text-green-600 mb-1">{calculateWithWaterRangeStats.optimal || 0}</p>
               <p className="text-xs font-semibold text-green-700">Optimal Range</p>
               <p className="text-[10px] text-green-400 mt-0.5">0.2–0.5 mg/l</p>
+              <p className="text-[10px] text-green-600/80 mt-1 font-medium">{calculateWithWaterRangeStats.optimalSchemes} schemes • {calculateWithWaterRangeStats.optimalVillages} villages</p>
             </div>
 
             {/* Above Range */}
@@ -2240,6 +2388,7 @@ const ChlorineDashboard: React.FC = () => {
               <p className="text-3xl font-bold text-orange-600 mb-1">{calculateWithWaterRangeStats.above || 0}</p>
               <p className="text-xs font-semibold text-orange-700">Above Range</p>
               <p className="text-[10px] text-orange-400 mt-0.5">&gt;0.5 mg/l</p>
+              <p className="text-[10px] text-orange-600/80 mt-1 font-medium">{calculateWithWaterRangeStats.aboveSchemes} schemes • {calculateWithWaterRangeStats.aboveVillages} villages</p>
             </div>
           </div>
 
@@ -2358,9 +2507,12 @@ const ChlorineDashboard: React.FC = () => {
                 <AlertCircle className="h-5 w-5 text-orange-600" />
               )}
               {getFilterTitle(selectedCardFilter)}
-              <span className="ml-2 px-2 py-1 bg-blue-100 rounded-full text-blue-800 text-sm font-medium">
+              <span className="ml-2 px-2.5 py-1 bg-blue-100 rounded-full text-blue-800 text-sm font-semibold">
                 {filteredData.length}{" "}
                 {filteredData.length === 1 ? "ESR" : "ESRs"} found
+              </span>
+              <span className="px-2.5 py-1 bg-indigo-50 border border-indigo-200 rounded-full text-indigo-700 text-xs font-medium">
+                Belongs to {filteredUniqueSchemes} schemes & {filteredUniqueVillages} villages
               </span>
             </CardTitle>
 

@@ -668,7 +668,7 @@ const WaterConsumptionPage: React.FC = () => {
         const mjpFc = String(status.mjp_fully_completed || "").trim().toLowerCase();
 
         if (uiSchemeFilter === "commissioned") {
-          const isCivilCompleted = mjpComm === "yes" || ws === "yes";
+          const isCivilCompleted = ws === "yes";
           if (!isCivilCompleted) return false;
 
           if (waterSupplyStatus === "All") return true;
@@ -685,7 +685,7 @@ const WaterConsumptionPage: React.FC = () => {
 
         if (uiSchemeFilter === "common_filter") {
           const isInstrumented = fcs === "fully completed" || fcs === "completed" || fcs === "connected" || fcs === "fully-completed";
-          const isCivilCompleted = ws === "yes" || mjpComm === "yes";
+          const isCivilCompleted = ws === "yes";
           return isInstrumented && isCivilCompleted;
         }
 
@@ -917,29 +917,102 @@ const WaterConsumptionPage: React.FC = () => {
     // Use globally filtered data for card metrics (includes region, search, and status filters but NOT consumption filters)
     const baseData = getGloballyFilteredData;
 
+    const countSchemesAndVillages = (records: WaterConsumptionRecord[]) => {
+      const schemes = new Set<string>();
+      const villages = new Set<string>();
+      records.forEach((r) => {
+        const s = (r.scheme_id || r.scheme_name || "").trim().toLowerCase();
+        const v = (r.village_name || "").trim().toLowerCase();
+        if (s) schemes.add(s);
+        if (s && v) villages.add(`${s}|${v}`);
+        else if (v) villages.add(v);
+      });
+      return { schemes: schemes.size, villages: villages.size };
+    };
+
     const totalIntegrated = baseData.length;
-    const withWaterLatest = baseData.filter((record) => {
+    const withWaterRecords = baseData.filter((record) => {
       const latestValue = getLatestWaterValue(record);
       return latestValue !== null && latestValue > 0;
-    }).length;
-    const withoutWaterLatest = totalIntegrated - withWaterLatest;
-    const continuousWaterWeek = baseData.filter(
-      hasContinuousWaterForWeek,
-    ).length;
-    const continuousNoWaterWeek = baseData.filter(
-      hasContinuousNoWaterForWeek,
-    ).length;
-    const abruptConsumption = baseData.filter(hasAbruptConsumption).length;
+    });
+    const withoutWaterRecords = baseData.filter((record) => {
+      const latestValue = getLatestWaterValue(record);
+      return latestValue === null || latestValue <= 0;
+    });
+    const continuousWaterRecords = baseData.filter(hasContinuousWaterForWeek);
+    const continuousNoWaterRecords = baseData.filter(hasContinuousNoWaterForWeek);
+    const abruptConsumptionRecords = baseData.filter(hasAbruptConsumption);
+
+    const totalStats = countSchemesAndVillages(baseData);
+    const withWaterStats = countSchemesAndVillages(withWaterRecords);
+    const withoutWaterStats = countSchemesAndVillages(withoutWaterRecords);
+    const continuousWaterStats = countSchemesAndVillages(continuousWaterRecords);
+    const continuousNoWaterStats = countSchemesAndVillages(continuousNoWaterRecords);
+    const abruptStats = countSchemesAndVillages(abruptConsumptionRecords);
 
     return {
       totalIntegrated,
-      withWaterLatest,
-      withoutWaterLatest,
-      continuousWaterWeek,
-      continuousNoWaterWeek,
-      abruptConsumption,
+      withWaterLatest: withWaterRecords.length,
+      withoutWaterLatest: withoutWaterRecords.length,
+      continuousWaterWeek: continuousWaterRecords.length,
+      continuousNoWaterWeek: continuousNoWaterRecords.length,
+      abruptConsumption: abruptConsumptionRecords.length,
+      totalSchemes: totalStats.schemes,
+      totalVillages: totalStats.villages,
+      withWaterSchemes: withWaterStats.schemes,
+      withWaterVillages: withWaterStats.villages,
+      withoutWaterSchemes: withoutWaterStats.schemes,
+      withoutWaterVillages: withoutWaterStats.villages,
+      continuousWaterSchemes: continuousWaterStats.schemes,
+      continuousWaterVillages: continuousWaterStats.villages,
+      continuousNoWaterSchemes: continuousNoWaterStats.schemes,
+      continuousNoWaterVillages: continuousNoWaterStats.villages,
+      abruptSchemes: abruptStats.schemes,
+      abruptVillages: abruptStats.villages,
     };
   }, [getGloballyFilteredData]);
+
+  // Unique schemes and villages for the globally filtered data
+  const globalUniqueSchemes = useMemo(() => {
+    const set = new Set<string>();
+    getGloballyFilteredData.forEach((item) => {
+      const key = (item.scheme_id || item.scheme_name || "").trim().toLowerCase();
+      if (key) set.add(key);
+    });
+    return set.size;
+  }, [getGloballyFilteredData]);
+
+  const globalUniqueVillages = useMemo(() => {
+    const set = new Set<string>();
+    getGloballyFilteredData.forEach((item) => {
+      const s = (item.scheme_id || "").trim().toLowerCase();
+      const v = (item.village_name || "").trim().toLowerCase();
+      if (s && v) set.add(`${s}|${v}`);
+      else if (v) set.add(v);
+    });
+    return set.size;
+  }, [getGloballyFilteredData]);
+
+  // Unique schemes and villages for the active filtered table data
+  const filteredUniqueSchemes = useMemo(() => {
+    const set = new Set<string>();
+    filteredData.forEach((item) => {
+      const key = (item.scheme_id || item.scheme_name || "").trim().toLowerCase();
+      if (key) set.add(key);
+    });
+    return set.size;
+  }, [filteredData]);
+
+  const filteredUniqueVillages = useMemo(() => {
+    const set = new Set<string>();
+    filteredData.forEach((item) => {
+      const s = (item.scheme_id || "").trim().toLowerCase();
+      const v = (item.village_name || "").trim().toLowerCase();
+      if (s && v) set.add(`${s}|${v}`);
+      else if (v) set.add(v);
+    });
+    return set.size;
+  }, [filteredData]);
 
   // Helper function to get status badge
   const getStatusBadge = (record: WaterConsumptionRecord) => {
@@ -1688,6 +1761,9 @@ const WaterConsumptionPage: React.FC = () => {
                     Total ESR
                   </div>
                   <div className="text-blue-700 text-xs">Integrated</div>
+                  <div className="mt-1.5 pt-1 border-t border-blue-100 text-[10px] text-blue-700 font-medium">
+                    Belongs to {cardMetrics.totalSchemes} schemes, {cardMetrics.totalVillages} villages
+                  </div>
                 </CardContent>
               </Card>
 
@@ -1707,7 +1783,9 @@ const WaterConsumptionPage: React.FC = () => {
                   <div className="text-green-900 text-sm font-medium">
                     ESR with Water
                   </div>
-                  {/* <div className="text-green-700 text-xs">Latest Day</div> */}
+                  <div className="mt-1.5 pt-1 border-t border-green-100 text-[10px] text-green-700 font-medium">
+                    Belongs to {cardMetrics.withWaterSchemes} schemes, {cardMetrics.withWaterVillages} villages
+                  </div>
                 </CardContent>
               </Card>
 
@@ -1727,7 +1805,9 @@ const WaterConsumptionPage: React.FC = () => {
                   <div className="text-red-900 text-sm font-medium">
                     ESR with no Water
                   </div>
-                  {/* <div className="text-red-700 text-xs">Latest Day</div> */}
+                  <div className="mt-1.5 pt-1 border-t border-red-100 text-[10px] text-red-700 font-medium">
+                    Belongs to {cardMetrics.withoutWaterSchemes} schemes, {cardMetrics.withoutWaterVillages} villages
+                  </div>
                 </CardContent>
               </Card>
 
@@ -1748,6 +1828,9 @@ const WaterConsumptionPage: React.FC = () => {
                     Consisten Water Supply{" "}
                   </div>
                   <div className="text-teal-700 text-xs">For a Week</div>
+                  <div className="mt-1.5 pt-1 border-t border-teal-100 text-[10px] text-teal-700 font-medium">
+                    Belongs to {cardMetrics.continuousWaterSchemes} schemes, {cardMetrics.continuousWaterVillages} villages
+                  </div>
                 </CardContent>
               </Card>
 
@@ -1769,6 +1852,9 @@ const WaterConsumptionPage: React.FC = () => {
                     Consistent Zero Water Suppy
                   </div>
                   <div className="text-orange-700 text-xs">For a Week</div>
+                  <div className="mt-1.5 pt-1 border-t border-orange-100 text-[10px] text-orange-700 font-medium">
+                    Belongs to {cardMetrics.continuousNoWaterSchemes} schemes, {cardMetrics.continuousNoWaterVillages} villages
+                  </div>
                 </CardContent>
               </Card>
 
@@ -1790,6 +1876,9 @@ const WaterConsumptionPage: React.FC = () => {
                   </div>
                   <div className="text-purple-700 text-xs">
                     water Consumption &gt;1000% of ESR Capacity
+                  </div>
+                  <div className="mt-1.5 pt-1 border-t border-purple-100 text-[10px] text-purple-700 font-medium">
+                    Belongs to {cardMetrics.abruptSchemes} schemes, {cardMetrics.abruptVillages} villages
                   </div>
                 </CardContent>
               </Card>
@@ -2053,20 +2142,27 @@ const WaterConsumptionPage: React.FC = () => {
               </div>
 
               {/* Qualifying Schemes Info Footer */}
-              <div className="bg-slate-50 border-t border-slate-100 px-4 py-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+              <div className="bg-slate-50 border-t border-slate-100 px-4 py-2 flex flex-wrap justify-between items-center gap-2">
                 <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
                   <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block animate-pulse" />
                   Live Data Feed
                 </div>
-                <div className="flex items-center gap-2 flex-1 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 shadow-sm">
+                <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 shadow-sm">
                   <Info className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
                   <span className="text-xs font-medium text-blue-800">
                     The data corresponds to{" "}
                     <span className="inline-flex items-center justify-center bg-blue-600 text-white font-bold text-xs px-2 py-0.5 rounded-full mx-0.5 shadow-sm">
-                      {qualifyingSchemeCount}
+                      {globalUniqueSchemes}
                     </span>{" "}
-                    schemes where civil work is 100% complete.
+                    schemes and{" "}
+                    <span className="inline-flex items-center justify-center bg-indigo-600 text-white font-bold text-xs px-2 py-0.5 rounded-full mx-0.5 shadow-sm">
+                      {globalUniqueVillages}
+                    </span>{" "}
+                    villages ({getGloballyFilteredData.length.toLocaleString()} ESRs).
                   </span>
+                </div>
+                <div className="text-[10px] font-medium text-slate-600">
+                  Showing <span className="text-blue-600 font-bold">{filteredData.length.toLocaleString()}</span> ESRs across <span className="text-blue-600 font-bold">{filteredUniqueSchemes}</span> schemes & <span className="text-blue-600 font-bold">{filteredUniqueVillages}</span> villages
                 </div>
               </div>
             </div>
@@ -2298,12 +2394,20 @@ const WaterConsumptionPage: React.FC = () => {
               </div>
             ) : (
               <>
-                <div className="mb-4 text-sm text-gray-600">
-                  {totalItems === 0
-                    ? "No water consumption data available"
-                    : `Showing ${
-                        startIndex + 1
-                      } to ${endIndex} of ${totalItems} ESR locations`}
+                <div className="mb-4 text-sm text-gray-600 flex flex-wrap items-center gap-2">
+                  {totalItems === 0 ? (
+                    "No water consumption data available"
+                  ) : (
+                    <>
+                      <span>
+                        Showing {startIndex + 1} to {endIndex} of{" "}
+                        <strong className="text-gray-900">{totalItems}</strong> ESR locations
+                      </span>
+                      <span className="px-2.5 py-0.5 bg-indigo-50 border border-indigo-200 rounded-full text-indigo-700 text-xs font-medium">
+                        Belongs to {filteredUniqueSchemes} schemes & {filteredUniqueVillages} villages
+                      </span>
+                    </>
+                  )}
                 </div>
 
                 <table

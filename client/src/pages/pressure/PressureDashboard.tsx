@@ -171,6 +171,14 @@ interface PressureSensorStatus {
   online: number;
   offline: number;
   noWater: number;
+  connectedSchemes?: number;
+  connectedVillages?: number;
+  onlineSchemes?: number;
+  onlineVillages?: number;
+  offlineSchemes?: number;
+  offlineVillages?: number;
+  noWaterSchemes?: number;
+  noWaterVillages?: number;
 }
 
 interface ImportStats {
@@ -859,59 +867,6 @@ const PressureDashboard: React.FC = () => {
   // Calculate sensor status counts for pressure sensors
   // Temporary placeholder - will be moved after globallyFilteredData is defined
 
-  // Calculate range statistics for sensors WITH water
-  const calculateWithWaterRangeStats = useMemo(() => {
-    if (!allPressureData || !withWaterSensorsData?.withWaterSensors) {
-      return { belowRange: 0, optimal: 0, above: 0, totalCount: 0, noData: 0 };
-    }
-
-    // Get sensor IDs that have water
-    const withWaterSensorIds = new Set(
-      withWaterSensorsData.withWaterSensors.map(
-        (sensor: any) =>
-          `${sensor.region}|${sensor.circle}|${sensor.division}|${sensor.sub_division}|${sensor.block}|${sensor.village_name}|${sensor.esr_name}`.toLowerCase(),
-      ),
-    );
-
-    let belowRange = 0,
-      optimal = 0,
-      above = 0,
-      filteredWithWaterCount = 0;
-
-    allPressureData.forEach((data) => {
-      const sensorKey = `${data.region}|${data.circle}|${data.division}|${data.sub_division}|${data.block}|${data.village_name}|${data.esr_name}`.toLowerCase();
-
-      // Only count sensors that have water
-      if (withWaterSensorIds.has(sensorKey)) {
-        filteredWithWaterCount++;
-        const currentValue = getCurrentPressureValue(data);
-        if (currentValue !== null && !isNaN(currentValue)) {
-          if (currentValue < 0.2) {
-            belowRange++;
-          } else if (currentValue >= 0.2 && currentValue <= 0.7) {
-            optimal++;
-          } else {
-            above++;
-          }
-        }
-        // Null/blank values are NOT counted in any range category
-      }
-    });
-
-    const totalCount = filteredWithWaterCount;
-    const sumRanges = belowRange + optimal + above;
-    const noData = Math.max(totalCount - sumRanges, 0);
-
-    console.log("With water range calculations:", {
-      belowRange,
-      optimal,
-      above,
-      totalCount,
-      sumRanges,
-      noData,
-    });
-    return { belowRange, optimal, above, totalCount, noData };
-  }, [allPressureData, withWaterSensorsData]);
 
   // Calculate range statistics for sensors WITHOUT water
   const calculateWithoutWaterRangeStats = useMemo(() => {
@@ -1392,49 +1347,68 @@ const PressureDashboard: React.FC = () => {
 
   // Calculate sensor status counts for pressure sensors using summary stats data (excludes range/sensor filters)
   const calculatePressureSensorStatus = useMemo((): PressureSensorStatus => {
-    const status = { connected: 0, online: 0, offline: 0, noWater: 0 };
+    const status: PressureSensorStatus = {
+      connected: 0,
+      online: 0,
+      offline: 0,
+      noWater: 0,
+      connectedSchemes: 0,
+      connectedVillages: 0,
+      onlineSchemes: 0,
+      onlineVillages: 0,
+      offlineSchemes: 0,
+      offlineVillages: 0,
+      noWaterSchemes: 0,
+      noWaterVillages: 0,
+    };
 
-    if (!summaryStatsData || !communicationStatusData) {
+    if (!summaryStatsData || summaryStatsData.length === 0 || !communicationStatusData) {
       return status;
     }
 
-    // Create a map of the full hierarchy from summary filtered pressure data for exact matching
-    const pressureLocationKeys = new Set(
-      summaryStatsData.map(
-        (item) =>
-          `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`.toLowerCase(),
-      ),
-    );
+    const commStatusMap = new Map<string, CommunicationStatus>();
+    communicationStatusData.forEach((comm) => {
+      const key7 = `${comm.region}|${comm.circle}|${comm.division}|${comm.sub_division}|${comm.block}|${comm.village_name}|${comm.esr_name}`.toLowerCase().trim();
+      commStatusMap.set(key7, comm);
+      if (comm.scheme_id && comm.esr_name) {
+        commStatusMap.set(`${comm.scheme_id}|${comm.village_name}|${comm.esr_name}`.toLowerCase().trim(), comm);
+      }
+    });
 
-    // Filter communication status for regions if selected
-    const filteredCommStatus =
-      selectedRegion === "all"
-        ? communicationStatusData
-        : communicationStatusData.filter(
-          (comm) => comm.region === selectedRegion,
-        );
-
-    // Use Sets to track unique ESR names to avoid double counting
     const uniqueConnectedESRs = new Set<string>();
     const uniqueOnlineESRs = new Set<string>();
     const uniqueOfflineESRs = new Set<string>();
 
-    filteredCommStatus.forEach((commStatus) => {
-      // Create the location key for this communication status record
-      const commLocationKey = `${commStatus.region}|${commStatus.circle}|${commStatus.division}|${commStatus.sub_division}|${commStatus.block}|${commStatus.village_name}|${commStatus.esr_name}`.toLowerCase();
+    const connectedSchemes = new Set<string>();
+    const connectedVillages = new Set<string>();
+    const onlineSchemes = new Set<string>();
+    const onlineVillages = new Set<string>();
+    const offlineSchemes = new Set<string>();
+    const offlineVillages = new Set<string>();
 
-      // Only count if this exact location hierarchy has pressure data
-      if (pressureLocationKeys.has(commLocationKey)) {
-        // Count connected sensors (match exact database values)
-        if (commStatus.pressure_connected === "Connected") {
-          uniqueConnectedESRs.add(commLocationKey);
+    summaryStatsData.forEach((item) => {
+      const key7 = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`.toLowerCase().trim();
+      const keyEsr = `${item.scheme_id}|${item.village_name}|${item.esr_name}`.toLowerCase().trim();
+      const commStatus = commStatusMap.get(key7) || commStatusMap.get(keyEsr);
 
-          // Count online/offline status for connected sensors (match exact database values)
-          if (commStatus.pressure_status === "Online") {
-            uniqueOnlineESRs.add(commLocationKey);
-          } else if (commStatus.pressure_status === "Offline") {
-            uniqueOfflineESRs.add(commLocationKey);
-          }
+      const sKey = (item.scheme_id || item.scheme_name || "").trim().toLowerCase();
+      const vKey = item.scheme_id
+        ? `${item.scheme_id.trim().toLowerCase()}|${(item.village_name || "").trim().toLowerCase()}`
+        : (item.village_name || "").trim().toLowerCase();
+
+      if (commStatus && commStatus.pressure_connected === "Connected") {
+        uniqueConnectedESRs.add(key7);
+        if (sKey) connectedSchemes.add(sKey);
+        if (vKey) connectedVillages.add(vKey);
+
+        if (commStatus.pressure_status === "Online") {
+          uniqueOnlineESRs.add(key7);
+          if (sKey) onlineSchemes.add(sKey);
+          if (vKey) onlineVillages.add(vKey);
+        } else if (commStatus.pressure_status === "Offline") {
+          uniqueOfflineESRs.add(key7);
+          if (sKey) offlineSchemes.add(sKey);
+          if (vKey) offlineVillages.add(vKey);
         }
       }
     });
@@ -1443,21 +1417,43 @@ const PressureDashboard: React.FC = () => {
     status.online = uniqueOnlineESRs.size;
     status.offline = uniqueOfflineESRs.size;
 
+    status.connectedSchemes = connectedSchemes.size;
+    status.connectedVillages = connectedVillages.size;
+    status.onlineSchemes = onlineSchemes.size;
+    status.onlineVillages = onlineVillages.size;
+    status.offlineSchemes = offlineSchemes.size;
+    status.offlineVillages = offlineVillages.size;
+
     // Calculate no water sensors count from the filtered data
     // Count sensors from filtered data that appear in the no water sensors list
     if (noWaterSensorsData?.noWaterSensors) {
       const noWaterLocationKeys = new Set(
         noWaterSensorsData.noWaterSensors.map(
           (sensor: any) =>
-            `${sensor.region}|${sensor.circle}|${sensor.division}|${sensor.sub_division}|${sensor.block}|${sensor.village_name}|${sensor.esr_name}`,
+            `${sensor.region}|${sensor.circle}|${sensor.division}|${sensor.sub_division}|${sensor.block}|${sensor.village_name}|${sensor.esr_name}`.toLowerCase(),
         ),
       );
 
-      // Count how many of our summary filtered pressure sensors have no water
-      status.noWater = summaryStatsData.filter((item) => {
-        const locationKey = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`;
-        return noWaterLocationKeys.has(locationKey);
-      }).length;
+      const noWaterSchemes = new Set<string>();
+      const noWaterVillages = new Set<string>();
+      let noWaterCount = 0;
+
+      summaryStatsData.forEach((item) => {
+        const locationKey = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`.toLowerCase();
+        if (noWaterLocationKeys.has(locationKey)) {
+          noWaterCount++;
+          const sKey = (item.scheme_id || item.scheme_name || "").trim().toLowerCase();
+          const vKey = item.scheme_id
+            ? `${item.scheme_id.trim().toLowerCase()}|${(item.village_name || "").trim().toLowerCase()}`
+            : (item.village_name || "").trim().toLowerCase();
+          if (sKey) noWaterSchemes.add(sKey);
+          if (vKey) noWaterVillages.add(vKey);
+        }
+      });
+
+      status.noWater = noWaterCount;
+      status.noWaterSchemes = noWaterSchemes.size;
+      status.noWaterVillages = noWaterVillages.size;
     }
 
     return status;
@@ -1467,6 +1463,105 @@ const PressureDashboard: React.FC = () => {
     selectedRegion,
     noWaterSensorsData,
   ]);
+
+  // Calculate range statistics for sensors WITH water using summaryStatsData (obeys all active filters)
+  const calculateWithWaterRangeStats = useMemo(() => {
+    if (!summaryStatsData || summaryStatsData.length === 0 || !withWaterSensorsData?.withWaterSensors) {
+      return {
+        belowRange: 0,
+        optimal: 0,
+        above: 0,
+        totalCount: 0,
+        noData: 0,
+        totalSchemes: 0,
+        totalVillages: 0,
+        belowRangeSchemes: 0,
+        belowRangeVillages: 0,
+        optimalSchemes: 0,
+        optimalVillages: 0,
+        aboveSchemes: 0,
+        aboveVillages: 0,
+      };
+    }
+
+    // Get sensor IDs that have water
+    const withWaterLocationKeys = new Set<string>();
+    withWaterSensorsData.withWaterSensors.forEach((sensor: any) => {
+      const key7 = `${sensor.region}|${sensor.circle}|${sensor.division}|${sensor.sub_division}|${sensor.block}|${sensor.village_name}|${sensor.esr_name}`.toLowerCase().trim();
+      withWaterLocationKeys.add(key7);
+      if (sensor.scheme_id && sensor.esr_name) {
+        withWaterLocationKeys.add(`${sensor.scheme_id}|${sensor.village_name}|${sensor.esr_name}`.toLowerCase().trim());
+      }
+    });
+
+    let belowRange = 0,
+      optimal = 0,
+      above = 0,
+      filteredWithWaterCount = 0;
+
+    const totalSchemes = new Set<string>();
+    const totalVillages = new Set<string>();
+    const belowRangeSchemes = new Set<string>();
+    const belowRangeVillages = new Set<string>();
+    const optimalSchemes = new Set<string>();
+    const optimalVillages = new Set<string>();
+    const aboveSchemes = new Set<string>();
+    const aboveVillages = new Set<string>();
+
+    summaryStatsData.forEach((data) => {
+      const key7 = `${data.region}|${data.circle}|${data.division}|${data.sub_division}|${data.block}|${data.village_name}|${data.esr_name}`.toLowerCase().trim();
+      const keyEsr = `${data.scheme_id}|${data.village_name}|${data.esr_name}`.toLowerCase().trim();
+
+      // Only count sensors that have water
+      if (withWaterLocationKeys.has(key7) || withWaterLocationKeys.has(keyEsr)) {
+        filteredWithWaterCount++;
+        const sKey = (data.scheme_id || data.scheme_name || "").trim().toLowerCase();
+        const vKey = data.scheme_id
+          ? `${data.scheme_id.trim().toLowerCase()}|${(data.village_name || "").trim().toLowerCase()}`
+          : (data.village_name || "").trim().toLowerCase();
+
+        if (sKey) totalSchemes.add(sKey);
+        if (vKey) totalVillages.add(vKey);
+
+        const currentValue = getCurrentPressureValue(data);
+        if (currentValue !== null && !isNaN(currentValue)) {
+          if (currentValue < 0.2) {
+            belowRange++;
+            if (sKey) belowRangeSchemes.add(sKey);
+            if (vKey) belowRangeVillages.add(vKey);
+          } else if (currentValue >= 0.2 && currentValue <= 0.7) {
+            optimal++;
+            if (sKey) optimalSchemes.add(sKey);
+            if (vKey) optimalVillages.add(vKey);
+          } else {
+            above++;
+            if (sKey) aboveSchemes.add(sKey);
+            if (vKey) aboveVillages.add(vKey);
+          }
+        }
+      }
+    });
+
+    const totalCount = filteredWithWaterCount;
+    const sumRanges = belowRange + optimal + above;
+    const noData = Math.max(totalCount - sumRanges, 0);
+
+    return {
+      belowRange,
+      optimal,
+      above,
+      totalCount,
+      noData,
+      totalSchemes: totalSchemes.size,
+      totalVillages: totalVillages.size,
+      belowRangeSchemes: belowRangeSchemes.size,
+      belowRangeVillages: belowRangeVillages.size,
+      optimalSchemes: optimalSchemes.size,
+      optimalVillages: optimalVillages.size,
+      aboveSchemes: aboveSchemes.size,
+      aboveVillages: aboveVillages.size,
+    };
+  }, [summaryStatsData, withWaterSensorsData, getCurrentPressureValue]);
 
   // Calculate card statistics based on the globally filtered data
   const cardStats = useMemo(() => {
@@ -1642,6 +1737,48 @@ const PressureDashboard: React.FC = () => {
     noWaterSensorsData, // Add this dependency for noWater filtering
     withWaterSensorsData, // Add this dependency for withWater filtering
   ]);
+
+  // Unique schemes and villages for the summary (cards) data
+  const summaryUniqueSchemes = useMemo(() => {
+    const set = new Set<string>();
+    summaryStatsData.forEach((item) => {
+      const key = (item.scheme_id || item.scheme_name || "").trim().toLowerCase();
+      if (key) set.add(key);
+    });
+    return set.size;
+  }, [summaryStatsData]);
+
+  const summaryUniqueVillages = useMemo(() => {
+    const set = new Set<string>();
+    summaryStatsData.forEach((item) => {
+      const s = (item.scheme_id || "").trim().toLowerCase();
+      const v = (item.village_name || "").trim().toLowerCase();
+      if (s && v) set.add(`${s}|${v}`);
+      else if (v) set.add(v);
+    });
+    return set.size;
+  }, [summaryStatsData]);
+
+  // Unique schemes and villages for the active filtered data (table)
+  const filteredUniqueSchemes = useMemo(() => {
+    const set = new Set<string>();
+    filteredData.forEach((item) => {
+      const key = (item.scheme_id || item.scheme_name || "").trim().toLowerCase();
+      if (key) set.add(key);
+    });
+    return set.size;
+  }, [filteredData]);
+
+  const filteredUniqueVillages = useMemo(() => {
+    const set = new Set<string>();
+    filteredData.forEach((item) => {
+      const s = (item.scheme_id || "").trim().toLowerCase();
+      const v = (item.village_name || "").trim().toLowerCase();
+      if (s && v) set.add(`${s}|${v}`);
+      else if (v) set.add(v);
+    });
+    return set.size;
+  }, [filteredData]);
 
   // Listen for filter changes from chatbot and set up export functionality
   useEffect(() => {
@@ -2361,20 +2498,27 @@ const PressureDashboard: React.FC = () => {
         </div>
 
         {/* Qualifying Schemes Info Footer */}
-        <div className="bg-slate-50 border-t border-slate-100 px-4 py-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+        <div className="bg-slate-50 border-t border-slate-100 px-4 py-2 flex flex-wrap justify-between items-center gap-2">
           <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
             <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block animate-pulse" />
             Live Data Feed
           </div>
-          <div className="flex items-center gap-2 flex-1 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 shadow-sm">
+          <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 shadow-sm">
             <Info className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
             <span className="text-xs font-medium text-blue-800">
               The data corresponds to{" "}
               <span className="inline-flex items-center justify-center bg-blue-600 text-white font-bold text-xs px-2 py-0.5 rounded-full mx-0.5 shadow-sm">
-                {qualifyingSchemeCount}
+                {summaryUniqueSchemes}
               </span>{" "}
-              schemes where civil work is 100% complete.
+              schemes and{" "}
+              <span className="inline-flex items-center justify-center bg-indigo-600 text-white font-bold text-xs px-2 py-0.5 rounded-full mx-0.5 shadow-sm">
+                {summaryUniqueVillages}
+              </span>{" "}
+              villages ({summaryStatsData.length.toLocaleString()} ESRs).
             </span>
+          </div>
+          <div className="text-[10px] font-medium text-slate-600">
+            Showing <span className="text-blue-600 font-bold">{filteredData.length.toLocaleString()}</span> ESRs across <span className="text-blue-600 font-bold">{filteredUniqueSchemes}</span> schemes & <span className="text-blue-600 font-bold">{filteredUniqueVillages}</span> villages
           </div>
         </div>
 
@@ -2509,6 +2653,9 @@ const PressureDashboard: React.FC = () => {
               <p className="text-xs text-blue-600/70">
                 Pressure sensors connected
               </p>
+              <div className="mt-1.5 pt-1 border-t border-blue-100 text-[11px] font-medium text-blue-700/80">
+                Belongs to {calculatePressureSensorStatus.connectedSchemes} schemes, {calculatePressureSensorStatus.connectedVillages} villages
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -2535,6 +2682,9 @@ const PressureDashboard: React.FC = () => {
               <p className="text-xs text-green-600/70">
                 Currently online & active
               </p>
+              <div className="mt-1.5 pt-1 border-t border-green-100 text-[11px] font-medium text-green-700/80">
+                Belongs to {calculatePressureSensorStatus.onlineSchemes} schemes, {calculatePressureSensorStatus.onlineVillages} villages
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -2561,6 +2711,9 @@ const PressureDashboard: React.FC = () => {
               <p className="text-xs text-orange-600/70">
                 Connected but offline
               </p>
+              <div className="mt-1.5 pt-1 border-t border-orange-100 text-[11px] font-medium text-orange-700/80">
+                Belongs to {calculatePressureSensorStatus.offlineSchemes} schemes, {calculatePressureSensorStatus.offlineVillages} villages
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -2604,6 +2757,9 @@ const PressureDashboard: React.FC = () => {
               <p className="text-xs text-blue-600/70">
                 Connected sensors with water
               </p>
+              <div className="mt-1.5 pt-1 border-t border-blue-100 text-[11px] font-medium text-blue-700/80">
+                Belongs to {calculateWithWaterRangeStats.totalSchemes} schemes, {calculateWithWaterRangeStats.totalVillages} villages
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -2625,7 +2781,7 @@ const PressureDashboard: React.FC = () => {
               </div>
             </div>
             <div
-              className={`cursor-pointer text-center px-5 py-2.5 bg-white rounded-xl border-2 hover:shadow-md transition-all duration-200 min-w-[88px] ${sensorStatusFilter === "withWater" && selectedWithWaterFilter === "all"
+              className={`cursor-pointer text-center px-4 py-2 bg-white rounded-xl border-2 hover:shadow-md transition-all duration-200 min-w-[100px] ${sensorStatusFilter === "withWater" && selectedWithWaterFilter === "all"
                 ? "border-blue-500 ring-2 ring-blue-400 ring-offset-2"
                 : "border-blue-200 hover:border-blue-400"
                 }`}
@@ -2647,6 +2803,7 @@ const PressureDashboard: React.FC = () => {
                 })()}
               </p>
               <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Total</p>
+              <p className="text-[10px] text-blue-600 font-medium mt-0.5">{calculateWithWaterRangeStats.totalSchemes} schemes • {calculateWithWaterRangeStats.totalVillages} villages</p>
             </div>
           </div>
 
@@ -2666,6 +2823,7 @@ const PressureDashboard: React.FC = () => {
               <p className="text-3xl font-bold text-red-600 mb-1">{calculateWithWaterRangeStats.belowRange || 0}</p>
               <p className="text-xs font-semibold text-red-700">Below Range</p>
               <p className="text-[10px] text-red-400 mt-0.5">&lt;0.2 bar</p>
+              <p className="text-[10px] text-red-500/80 mt-1 font-medium">{calculateWithWaterRangeStats.belowRangeSchemes} schemes • {calculateWithWaterRangeStats.belowRangeVillages} villages</p>
             </div>
 
             {/* Optimal Range */}
@@ -2682,6 +2840,7 @@ const PressureDashboard: React.FC = () => {
               <p className="text-3xl font-bold text-green-600 mb-1">{calculateWithWaterRangeStats.optimal || 0}</p>
               <p className="text-xs font-semibold text-green-700">Optimal Range</p>
               <p className="text-[10px] text-green-400 mt-0.5">0.2–0.7 bar</p>
+              <p className="text-[10px] text-green-600/80 mt-1 font-medium">{calculateWithWaterRangeStats.optimalSchemes} schemes • {calculateWithWaterRangeStats.optimalVillages} villages</p>
             </div>
 
             {/* Above Range */}
@@ -2698,6 +2857,7 @@ const PressureDashboard: React.FC = () => {
               <p className="text-3xl font-bold text-orange-600 mb-1">{calculateWithWaterRangeStats.above || 0}</p>
               <p className="text-xs font-semibold text-orange-700">Above Range</p>
               <p className="text-[10px] text-orange-400 mt-0.5">&gt;0.7 bar</p>
+              <p className="text-[10px] text-orange-600/80 mt-1 font-medium">{calculateWithWaterRangeStats.aboveSchemes} schemes • {calculateWithWaterRangeStats.aboveVillages} villages</p>
             </div>
           </div>
 
@@ -2860,13 +3020,19 @@ const PressureDashboard: React.FC = () => {
 
       {/* Current Filter Label */}
       <div className="mb-6">
-        <h2 className="text-xl font-bold text-gray-800">
+        <h2 className="text-xl font-bold text-gray-800 flex flex-wrap items-center gap-2">
           {getFilterTitle(selectedCardFilter)}
           <Badge
             variant="outline"
             className="ml-2 text-blue-600 border-blue-200 bg-blue-50"
           >
             {filteredData.length} ESR Records
+          </Badge>
+          <Badge
+            variant="outline"
+            className="text-indigo-700 border-indigo-200 bg-indigo-50 font-medium"
+          >
+            Belongs to {filteredUniqueSchemes} schemes & {filteredUniqueVillages} villages
           </Badge>
         </h2>
       </div>

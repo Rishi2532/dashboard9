@@ -1081,11 +1081,10 @@ export default function AlertsProgressPage() {
                   setCustomDate("");
                   setPage(1);
                 }}
-                className={`px-3 h-full text-xs font-medium border-r border-slate-200 transition-colors cursor-pointer ${
-                  activeSubTab === "previous" && !customDate
-                    ? "bg-[#0f4c81] text-white font-semibold"
-                    : "bg-white text-slate-700 hover:bg-slate-50"
-                }`}
+                className={`px-3 h-full text-xs font-medium border-r border-slate-200 transition-colors cursor-pointer ${activeSubTab === "previous" && !customDate
+                  ? "bg-[#0f4c81] text-white font-semibold"
+                  : "bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
               >
                 Previous Day
               </button>
@@ -1096,11 +1095,10 @@ export default function AlertsProgressPage() {
                   setCustomDate("");
                   setPage(1);
                 }}
-                className={`px-3 h-full text-xs font-medium border-r border-slate-200 transition-colors cursor-pointer ${
-                  activeSubTab === "current" && !customDate
-                    ? "bg-[#0f4c81] text-white font-semibold"
-                    : "bg-white text-slate-700 hover:bg-slate-50"
-                }`}
+                className={`px-3 h-full text-xs font-medium border-r border-slate-200 transition-colors cursor-pointer ${activeSubTab === "current" && !customDate
+                  ? "bg-[#0f4c81] text-white font-semibold"
+                  : "bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
               >
                 Current Day
               </button>
@@ -1536,13 +1534,12 @@ export default function AlertsProgressPage() {
                               return (
                                 <div className="flex flex-col items-center gap-0.5">
                                   <div className="flex items-center gap-1.5">
-                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border ${
-                                      isFullSuccess
-                                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                        : successCount > 0
-                                          ? 'bg-amber-50 text-amber-800 border-amber-200'
-                                          : 'bg-rose-50 text-rose-800 border-rose-200'
-                                    }`}>
+                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border ${isFullSuccess
+                                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                      : successCount > 0
+                                        ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                        : 'bg-rose-50 text-rose-800 border-rose-200'
+                                      }`}>
                                       <MessageSquare className="w-2.5 h-2.5 text-current" />
                                       {isFullSuccess
                                         ? `Delivered (${successCount}/${smsList.length})`
@@ -1583,13 +1580,12 @@ export default function AlertsProgressPage() {
                         <td className="py-2.5 px-3 text-center border-r border-slate-100 align-middle whitespace-nowrap">
                           {hasEngineers ? (
                             <div className="inline-flex items-center justify-center gap-1">
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border ${
-                                ackInfo.isFullyAcknowledged
-                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                  : ackInfo.isAcknowledged
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                    : 'bg-amber-50 text-amber-800 border-amber-200'
-                              }`}>
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border ${ackInfo.isFullyAcknowledged
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                : ackInfo.isAcknowledged
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : 'bg-amber-50 text-amber-800 border-amber-200'
+                                }`}>
                                 {ackInfo.ackCount > 0 ? (
                                   <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block mr-1" />
                                 ) : (
@@ -1683,11 +1679,10 @@ export default function AlertsProgressPage() {
                     <button
                       key={p}
                       type="button"
-                      className={`h-7 w-7 text-xs font-semibold rounded flex items-center justify-center transition-colors cursor-pointer ${
-                        page === p
-                          ? "bg-[#0f4c81] text-white"
-                          : "text-slate-700 border border-slate-200 bg-white hover:bg-slate-50"
-                      }`}
+                      className={`h-7 w-7 text-xs font-semibold rounded flex items-center justify-center transition-colors cursor-pointer ${page === p
+                        ? "bg-[#0f4c81] text-white"
+                        : "text-slate-700 border border-slate-200 bg-white hover:bg-slate-50"
+                        }`}
                       onClick={() => setPage(p)}
                     >
                       {p}
@@ -1778,19 +1773,19 @@ export default function AlertsProgressPage() {
                   <div className="text-sm font-bold text-slate-900 leading-tight">
                     {totalRosterEngineers > 0 ? `${totalRosterEngineers} Total` : "81 Total"}
                   </div>
-                  <a
+                  {/* <a
                     href="/engineers"
                     className="text-xs text-[#0f4c81] font-semibold hover:underline flex items-center gap-0.5 mt-0.5"
                   >
                     View Directory →
-                  </a>
+                  </a> */}
                 </div>
               </div>
 
               <div className="h-10 w-px bg-slate-200 hidden sm:block" />
 
               {/* DLT SMS Gateway */}
-              <div className="flex items-center gap-3">
+              {/* <div className="flex items-center gap-3">
                 <div className="h-9 w-9 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0 relative">
                   <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
                 </div>
@@ -1802,7 +1797,7 @@ export default function AlertsProgressPage() {
                     Active Gateway
                   </div>
                 </div>
-              </div>
+              </div> */}
 
               <div className="h-10 w-px bg-slate-200 hidden sm:block" />
 
@@ -1834,17 +1829,15 @@ export default function AlertsProgressPage() {
               <button
                 type="button"
                 onClick={() => { setActiveTab("lpcd"); setPage(1); }}
-                className={`py-3 px-4 text-xs md:text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
-                  activeTab === "lpcd"
-                    ? "border-[#0f4c81] text-[#0f4c81] font-bold"
-                    : "border-transparent text-slate-600 hover:text-slate-900"
-                }`}
+                className={`py-3 px-4 text-xs md:text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${activeTab === "lpcd"
+                  ? "border-[#0f4c81] text-[#0f4c81] font-bold"
+                  : "border-transparent text-slate-600 hover:text-slate-900"
+                  }`}
               >
                 <Waves className="h-4 w-4 text-[#0f4c81]" />
                 <span>Village LPCD Alerts</span>
-                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
-                  activeTab === "lpcd" ? "bg-blue-100 text-[#0f4c81]" : "bg-slate-100 text-slate-600"
-                }`}>
+                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${activeTab === "lpcd" ? "bg-blue-100 text-[#0f4c81]" : "bg-slate-100 text-slate-600"
+                  }`}>
                   {lpcdData.length}
                 </span>
               </button>
@@ -1853,17 +1846,15 @@ export default function AlertsProgressPage() {
               <button
                 type="button"
                 onClick={() => { setActiveTab("chlorine"); setPage(1); }}
-                className={`py-3 px-4 text-xs md:text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
-                  activeTab === "chlorine"
-                    ? "border-[#0f4c81] text-[#0f4c81] font-bold"
-                    : "border-transparent text-slate-600 hover:text-slate-900"
-                }`}
+                className={`py-3 px-4 text-xs md:text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${activeTab === "chlorine"
+                  ? "border-[#0f4c81] text-[#0f4c81] font-bold"
+                  : "border-transparent text-slate-600 hover:text-slate-900"
+                  }`}
               >
                 <Droplets className="h-4 w-4 text-emerald-600" />
                 <span>Chlorine Sensor Alerts</span>
-                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
-                  activeTab === "chlorine" ? "bg-emerald-100 text-emerald-800" : "bg-emerald-50 text-emerald-700"
-                }`}>
+                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${activeTab === "chlorine" ? "bg-emerald-100 text-emerald-800" : "bg-emerald-50 text-emerald-700"
+                  }`}>
                   {chlorineData.length}
                 </span>
               </button>
@@ -1872,17 +1863,15 @@ export default function AlertsProgressPage() {
               <button
                 type="button"
                 onClick={() => { setActiveTab("pressure"); setPage(1); }}
-                className={`py-3 px-4 text-xs md:text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
-                  activeTab === "pressure"
-                    ? "border-[#0f4c81] text-[#0f4c81] font-bold"
-                    : "border-transparent text-slate-600 hover:text-slate-900"
-                }`}
+                className={`py-3 px-4 text-xs md:text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${activeTab === "pressure"
+                  ? "border-[#0f4c81] text-[#0f4c81] font-bold"
+                  : "border-transparent text-slate-600 hover:text-slate-900"
+                  }`}
               >
                 <GaugeCircle className="h-4 w-4 text-amber-600" />
                 <span>Pressure Sensor Alerts</span>
-                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
-                  activeTab === "pressure" ? "bg-amber-100 text-amber-800" : "bg-amber-50 text-amber-700"
-                }`}>
+                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${activeTab === "pressure" ? "bg-amber-100 text-amber-800" : "bg-amber-50 text-amber-700"
+                  }`}>
                   {pressureData.length}
                 </span>
               </button>
@@ -1891,17 +1880,15 @@ export default function AlertsProgressPage() {
               <button
                 type="button"
                 onClick={() => { setActiveTab("offline"); setPage(1); }}
-                className={`py-3 px-4 text-xs md:text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
-                  activeTab === "offline"
-                    ? "border-[#0f4c81] text-[#0f4c81] font-bold"
-                    : "border-transparent text-slate-600 hover:text-slate-900"
-                }`}
+                className={`py-3 px-4 text-xs md:text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${activeTab === "offline"
+                  ? "border-[#0f4c81] text-[#0f4c81] font-bold"
+                  : "border-transparent text-slate-600 hover:text-slate-900"
+                  }`}
               >
                 <AlertTriangle className="h-4 w-4 text-rose-600" />
                 <span>Offline Sensor Alerts</span>
-                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
-                  activeTab === "offline" ? "bg-rose-100 text-rose-800" : "bg-rose-50 text-rose-700"
-                }`}>
+                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${activeTab === "offline" ? "bg-rose-100 text-rose-800" : "bg-rose-50 text-rose-700"
+                  }`}>
                   {offlineData.length}
                 </span>
               </button>
