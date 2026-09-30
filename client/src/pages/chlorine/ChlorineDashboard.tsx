@@ -74,6 +74,7 @@ import AgencyTypeFilter from "@/components/dashboard/AgencyTypeFilter";
 import VillageFilter from "@/components/dashboard/VillageFilter";
 import { useVillageCompletion } from "@/hooks/useVillageCompletion";
 import ExcelJS from "exceljs";
+import { MissingSchemesModal, MissingSchemeRecord } from "@/components/MissingSchemesModal";
 
 // Define types for Chlorine Data
 interface ChlorineData {
@@ -224,6 +225,7 @@ const ChlorineDashboard: React.FC = () => {
   const [waterSupplyStatus, setWaterSupplyStatus] = useState<string>("All");
   const [villageFilter, setVillageFilter] = useState<"all" | "completed">("all");
   const { isVillageCompleted } = useVillageCompletion();
+  const [missingModalOpen, setMissingModalOpen] = useState(false);
 
   const schemeFilter = uiSchemeFilter === "commissioned" && waterSupplyStatus !== "All"
     ? `commissioned_${waterSupplyStatus.toLowerCase()}`
@@ -524,6 +526,19 @@ const ChlorineDashboard: React.FC = () => {
         return data;
       },
     });
+
+  // Fetch master water scheme data to discover all schemes and identify missing ones
+  const { data: masterWaterSchemeData = [] } = useQuery({
+    queryKey: ["/api/water-scheme-data"],
+    queryFn: async () => {
+      const response = await fetch("/api/water-scheme-data");
+      if (!response.ok) {
+        throw new Error("Failed to fetch master water scheme data");
+      }
+      return response.json();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
 
   // Fetch chlorine sensors with water data
@@ -1054,6 +1069,120 @@ const ChlorineDashboard: React.FC = () => {
     });
     return set.size;
   }, [globallyFilteredData]);
+
+  // Calculate missing schemes that qualify under current filter in master, but have no chlorine sensors
+  const missingChlorineSchemes = useMemo(() => {
+    if (!masterWaterSchemeData || masterWaterSchemeData.length === 0) return [];
+
+    // 1. Get unique master schemes
+    const masterSchemesMap = new Map<string, any>();
+    masterWaterSchemeData.forEach((row: any) => {
+      if (row.scheme_id && !masterSchemesMap.has(row.scheme_id)) {
+        masterSchemesMap.set(row.scheme_id, row);
+      }
+    });
+
+    // 2. Identify which scheme IDs are present in current globallyFilteredData
+    const presentSchemeIds = new Set<string>();
+    globallyFilteredData.forEach((item) => {
+      if (item.scheme_id) presentSchemeIds.add(String(item.scheme_id).trim());
+    });
+
+    // 3. For each master scheme, check if it qualifies under current filter
+    const missing: MissingSchemeRecord[] = [];
+    const validStatuses = ["fully completed", "completed", "in progress"];
+
+    masterSchemesMap.forEach((masterRow, schemeId) => {
+      const status = schemeStatusMap.get(schemeId);
+
+      // Check geographic filters
+      if (selectedRegion && selectedRegion !== "all" && masterRow.region !== selectedRegion) return;
+      if (selectedCircle && selectedCircle !== "all" && masterRow.circle !== selectedCircle) return;
+      if (selectedDivision && selectedDivision !== "all" && masterRow.division !== selectedDivision) return;
+      if (selectedSubdivision && selectedSubdivision !== "all" && masterRow.sub_division !== selectedSubdivision) return;
+      if (selectedBlock && selectedBlock !== "all" && masterRow.block !== selectedBlock) return;
+      if (selectedAgencyType && selectedAgencyType !== "ALL" && status?.agency_type !== selectedAgencyType) return;
+
+      // Check Universal filter
+      if (uiSchemeFilter !== "all") {
+        if (!status) return;
+
+        const fcs = String(status.fully_completion_scheme_status || "").trim().toLowerCase();
+        const ws = String(status.water_supply || "").trim().toLowerCase();
+        const mjpComm = String(status.mjp_commissioned || "").trim().toLowerCase();
+
+        if (uiSchemeFilter === "commissioned") {
+          const isCivilCompleted = ws === "yes";
+          const hasIoT = validStatuses.includes(fcs);
+          if (!isCivilCompleted || !hasIoT) return;
+          if (waterSupplyStatus !== "All") {
+            if (String(status.water_supply_status || "").toLowerCase() !== waterSupplyStatus.toLowerCase()) return;
+          }
+        } else if (uiSchemeFilter === "fully_completed") {
+          if (fcs !== "fully completed" && fcs !== "completed" && fcs !== "fully_completed") return;
+        } else if (uiSchemeFilter === "in_progress") {
+          if (fcs !== "in progress" && fcs !== "partial") return;
+        } else if (uiSchemeFilter === "common_filter") {
+          const isInstrumented = fcs === "fully completed" || fcs === "completed" || fcs === "fully_completed";
+          const isCivilCompleted = ws === "yes";
+          if (!isInstrumented || !isCivilCompleted) return;
+        } else if (uiSchemeFilter === "mjp_commissioned_yes") {
+          if (mjpComm !== "yes") return;
+        }
+      }
+
+      // Check scheme status filter if applied
+      if (schemeStatusFilter !== "all" && status) {
+        if (schemeStatusFilter === "Connected") {
+          if (status.fully_completion_scheme_status === "Not-Connected") return;
+        } else if (status.fully_completion_scheme_status !== schemeStatusFilter) {
+          return;
+        }
+      }
+
+      // If qualifying scheme is NOT in presentSchemeIds, it's missing!
+      if (!presentSchemeIds.has(String(schemeId).trim())) {
+        const clCount = Number(status?.residual_chlorine_analyzer_connected ?? 0);
+        const reason = clCount === 0
+          ? "0 Chlorine Analyzers installed in IoT master"
+          : "Analyzers configured but no chlorine data ingested";
+
+        missing.push({
+          scheme_id: schemeId,
+          scheme_name: status?.scheme_name || masterRow.scheme_name,
+          region: masterRow.region || status?.region,
+          circle: masterRow.circle || status?.circle,
+          division: masterRow.division || status?.division,
+          sub_division: masterRow.sub_division || status?.sub_division,
+          block: masterRow.block || status?.block,
+          agency_type: status?.agency_type,
+          water_supply: status?.water_supply,
+          water_supply_status: status?.water_supply_status,
+          fully_completion_scheme_status: status?.fully_completion_scheme_status,
+          pressure_transmitter_connected: Number(status?.pressure_transmitter_connected ?? 0),
+          residual_chlorine_analyzer_connected: clCount,
+          flow_meters_connected: Number(status?.flow_meters_connected ?? 0),
+          total_number_of_esr: status?.total_number_of_esr || masterRow.number_of_esr,
+          reason,
+        });
+      }
+    });
+
+    return missing;
+  }, [
+    masterWaterSchemeData,
+    globallyFilteredData,
+    schemeStatusMap,
+    selectedRegion,
+    selectedCircle,
+    selectedDivision,
+    selectedSubdivision,
+    selectedBlock,
+    selectedAgencyType,
+    uiSchemeFilter,
+    waterSupplyStatus,
+    schemeStatusFilter,
+  ]);
 
 
   // Handler for commissioned status filter changes (legacy, keeping for compatibility if needed elsewhere)
@@ -2112,6 +2241,18 @@ const ChlorineDashboard: React.FC = () => {
               </span>{" "}
               villages ({globallyFilteredData.length.toLocaleString()} ESRs).
             </span>
+            {missingChlorineSchemes.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setMissingModalOpen(true)}
+                className="h-6 text-[11px] bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-300 gap-1 font-semibold shadow-xs px-2 ml-1 cursor-pointer"
+              >
+                <AlertTriangle className="h-3 w-3 text-amber-600" />
+                <span>{missingChlorineSchemes.length} Without Chlorine Sensors</span>
+                <span className="bg-amber-200 text-amber-900 rounded-full px-1.5 py-0.1 text-[9px] font-bold">View</span>
+              </Button>
+            )}
           </div>
           <div className="text-[10px] font-medium text-slate-600">
             Showing <span className="text-blue-600 font-bold">{filteredData.length.toLocaleString()}</span> ESRs across <span className="text-blue-600 font-bold">{filteredUniqueSchemes}</span> schemes & <span className="text-blue-600 font-bold">{filteredUniqueVillages}</span> villages
@@ -3503,6 +3644,29 @@ const ChlorineDashboard: React.FC = () => {
           </Dialog>
         )
       }
+
+      {/* Missing Schemes Modal */}
+      <MissingSchemesModal
+        isOpen={missingModalOpen}
+        onClose={() => setMissingModalOpen(false)}
+        sensorType="chlorine"
+        filterLabel={
+          uiSchemeFilter === "commissioned"
+            ? `Commissioned${waterSupplyStatus !== "All" ? ` (${waterSupplyStatus} Supply)` : ""}`
+            : uiSchemeFilter === "fully_completed"
+            ? "Fully Completed"
+            : uiSchemeFilter === "in_progress"
+            ? "In Progress"
+            : uiSchemeFilter === "common_filter"
+            ? "Civil Complete & IoT Connected"
+            : uiSchemeFilter === "mjp_commissioned_yes"
+            ? "MJP Commissioned"
+            : "All Schemes"
+        }
+        qualifyingCount={globalUniqueSchemes + missingChlorineSchemes.length}
+        presentCount={globalUniqueSchemes}
+        missingSchemes={missingChlorineSchemes}
+      />
 
     </div>
 

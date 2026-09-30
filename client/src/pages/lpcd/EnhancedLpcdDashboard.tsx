@@ -826,10 +826,15 @@ const EnhancedLpcdDashboard = () => {
         if (!status) return false;
 
         if (uiSchemeFilter === "commissioned") {
+          const validStatuses = ["fully completed", "completed", "in progress"];
+          const hasIoT = validStatuses.includes(String(status.fully_completion_scheme_status || "").toLowerCase());
+          const isCivilCompleted = String(status.water_supply || "").toLowerCase() === "yes";
+          if (!isCivilCompleted || !hasIoT) return false;
+
           if (waterSupplyStatus !== "All") {
-            return status.water_supply_status === waterSupplyStatus;
+            return String(status.water_supply_status || "").toLowerCase() === waterSupplyStatus.toLowerCase();
           }
-          return status.water_supply === "Yes";
+          return true;
         }
 
         if (uiSchemeFilter === "fully_completed") {
@@ -1122,7 +1127,49 @@ const EnhancedLpcdDashboard = () => {
     return counts;
   };
 
+  const globallyFilteredSchemes = useMemo(() => {
+    return getGloballyFilteredSchemes();
+  }, [allWaterSchemeData, searchQuery, schemeFilter, uiSchemeFilter, waterSupplyStatus, schemeStatusFilter, schemeStatusData, villageFilter]);
+
+  const globalUniqueSchemes = useMemo(() => {
+    return new Set(globallyFilteredSchemes.map((s: any) => s.scheme_id).filter(Boolean)).size;
+  }, [globallyFilteredSchemes]);
+
+  const globalUniqueVillages = useMemo(() => {
+    return new Set(
+      globallyFilteredSchemes.map((s: any) =>
+        s.scheme_id ? `${s.scheme_id}|${s.village_name}` : s.village_name
+      ).filter(Boolean)
+    ).size;
+  }, [globallyFilteredSchemes]);
+
   const filteredSchemes = getFilteredSchemes();
+  const filteredUniqueSchemes = useMemo(() => {
+    return new Set(filteredSchemes.map((s: any) => s.scheme_id).filter(Boolean)).size;
+  }, [filteredSchemes]);
+
+  const getFilterDescription = () => {
+    if (uiSchemeFilter === "commissioned") {
+      if (waterSupplyStatus !== "All") {
+        return `where civil work is 100% complete (${waterSupplyStatus} supply)`;
+      }
+      return "where civil work is 100% complete";
+    }
+    if (uiSchemeFilter === "fully_completed") {
+      return "where IoT is fully completed";
+    }
+    if (uiSchemeFilter === "in_progress") {
+      return "where IoT is in progress";
+    }
+    if (uiSchemeFilter === "common_filter") {
+      return "with 100% civil work & IoT completed";
+    }
+    if (uiSchemeFilter === "mjp_commissioned_yes") {
+      return "which are MJP commissioned";
+    }
+    return "across all schemes";
+  };
+
   const filterCounts = getFilterCounts();
 
   // Pagination
@@ -2117,13 +2164,17 @@ const EnhancedLpcdDashboard = () => {
             <span className="text-xs font-medium text-blue-800">
               The data corresponds to{" "}
               <span className="inline-flex items-center justify-center bg-blue-600 text-white font-bold text-xs px-2 py-0.5 rounded-full mx-0.5 shadow-sm">
-                {qualifyingSchemeCount}
+                {globalUniqueSchemes}
               </span>{" "}
-              schemes where civil work is 100% complete.
+              schemes and{" "}
+              <span className="inline-flex items-center justify-center bg-indigo-600 text-white font-bold text-xs px-2 py-0.5 rounded-full mx-0.5 shadow-sm">
+                {globalUniqueVillages}
+              </span>{" "}
+              villages ({getFilterDescription()}).
             </span>
           </div>
           <div className="text-[10px] font-medium text-slate-600">
-            Showing <span className="text-blue-600 font-bold">{filteredSchemes.length.toLocaleString()}</span> villages
+            Showing <span className="text-blue-600 font-bold">{filteredSchemes.length.toLocaleString()}</span> villages across <span className="text-blue-600 font-bold">{filteredUniqueSchemes}</span> schemes
           </div>
         </div>
       </div>

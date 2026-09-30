@@ -3153,6 +3153,142 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get schemes qualifying for a filter that are missing physical sensor records (pressure or chlorine)
+  app.get("/api/schemes/missing-sensors", async (req, res) => {
+    try {
+      const db = await getDB();
+      const sensorType = (req.query.sensorType as string) || "pressure";
+      const filterType = (req.query.filterType as string) || "commissioned";
+      const waterSupplyStatus = (req.query.waterSupplyStatus as string) || "All";
+      const region = (req.query.region as string) || "all";
+      const circle = (req.query.circle as string) || "all";
+      const division = (req.query.division as string) || "all";
+      const subdivision = (req.query.subdivision as string) || "all";
+      const block = (req.query.block as string) || "all";
+      const agencyType = (req.query.agencyType as string) || "ALL";
+
+      // 1. Fetch all master schemes from water_scheme_data joined with scheme_status
+      const masterQuery = sql`
+        SELECT DISTINCT ON (wsd.scheme_id)
+          wsd.scheme_id,
+          wsd.scheme_name,
+          wsd.region,
+          wsd.circle,
+          wsd.division,
+          wsd.sub_division,
+          wsd.block,
+          ss.agency_type,
+          ss.water_supply,
+          ss.water_supply_status,
+          ss.fully_completion_scheme_status,
+          ss.mjp_commissioned,
+          ss.mjp_fully_completed,
+          COALESCE(ss.flow_meters_connected, 0) as flow_meters_connected,
+          COALESCE(ss.residual_chlorine_analyzer_connected, 0) as residual_chlorine_analyzer_connected,
+          COALESCE(ss.pressure_transmitter_connected, 0) as pressure_transmitter_connected,
+          COALESCE(ss.total_number_of_esr, 0) as total_number_of_esr
+        FROM water_scheme_data wsd
+        LEFT JOIN scheme_status ss ON wsd.scheme_id = ss.scheme_id
+        ORDER BY wsd.scheme_id
+      `;
+      const masterResult: any = await db.execute(masterQuery);
+      let allMaster = masterResult.rows || masterResult || [];
+
+      // 2. Geographic & agency filtering
+      if (region && region !== "all") {
+        allMaster = allMaster.filter((s: any) => s.region === region);
+      }
+      if (circle && circle !== "all") {
+        allMaster = allMaster.filter((s: any) => s.circle === circle);
+      }
+      if (division && division !== "all") {
+        allMaster = allMaster.filter((s: any) => s.division === division);
+      }
+      if (subdivision && subdivision !== "all") {
+        allMaster = allMaster.filter((s: any) => s.sub_division === subdivision);
+      }
+      if (block && block !== "all") {
+        allMaster = allMaster.filter((s: any) => s.block === block);
+      }
+      if (agencyType && agencyType !== "ALL") {
+        allMaster = allMaster.filter((s: any) => s.agency_type === agencyType);
+      }
+
+      // 3. Scheme Status / Universal filter
+      const validStatuses = ["fully completed", "completed", "in progress"];
+      const qualifying = allMaster.filter((scheme: any) => {
+        const fcs = String(scheme.fully_completion_scheme_status || "").trim().toLowerCase();
+        const ws = String(scheme.water_supply || "").trim().toLowerCase();
+        const mjpComm = String(scheme.mjp_commissioned || "").trim().toLowerCase();
+
+        if (filterType === "commissioned") {
+          const isCivil = ws === "yes";
+          const hasIoT = validStatuses.includes(fcs);
+          if (!isCivil || !hasIoT) return false;
+          if (waterSupplyStatus && waterSupplyStatus !== "All") {
+            return String(scheme.water_supply_status || "").trim().toLowerCase() === waterSupplyStatus.toLowerCase();
+          }
+          return true;
+        }
+
+        if (filterType === "fully_completed") {
+          return fcs === "fully completed" || fcs === "completed" || fcs === "fully_completed";
+        }
+
+        if (filterType === "in_progress") {
+          return fcs === "in progress" || fcs === "partial";
+        }
+
+        if (filterType === "common_filter") {
+          return (fcs === "fully completed" || fcs === "completed" || fcs === "fully_completed") && ws === "yes";
+        }
+
+        if (filterType === "mjp_commissioned_yes") {
+          return mjpComm === "yes";
+        }
+
+        return true; // "all"
+      });
+
+      // 4. Check actual presence in pressure_data or chlorine_data
+      const sensorTable = sensorType === "pressure" ? "pressure_data" : "chlorine_data";
+      const presentResult: any = await db.execute(sql.raw(`SELECT DISTINCT scheme_id FROM ${sensorTable}`));
+      const presentRows = presentResult.rows || presentResult || [];
+      const presentSet = new Set(presentRows.map((r: any) => r.scheme_id));
+
+      const missingSchemes = qualifying
+        .filter((s: any) => !presentSet.has(s.scheme_id))
+        .map((s: any) => {
+          let reason = "";
+          if (sensorType === "pressure") {
+            reason = Number(s.pressure_transmitter_connected) === 0
+              ? "0 Pressure Transmitters installed in IoT master"
+              : "Transmitters configured but no pressure data ingested yet";
+          } else {
+            reason = Number(s.residual_chlorine_analyzer_connected) === 0
+              ? "0 Chlorine Analyzers installed in IoT master"
+              : "Analyzers configured but no chlorine data ingested yet";
+          }
+          return {
+            ...s,
+            reason,
+          };
+        });
+
+      res.json({
+        sensorType,
+        filterType,
+        qualifyingCount: qualifying.length,
+        presentCount: qualifying.length - missingSchemes.length,
+        missingCount: missingSchemes.length,
+        missingSchemes,
+      });
+    } catch (error) {
+      console.error("Error fetching missing sensor schemes:", error);
+      res.status(500).json({ error: "Failed to fetch missing sensor schemes" });
+    }
+  });
+
   // Get scheme counts with both filtered count and total from regions table
   app.get("/api/schemes/counts", async (req, res) => {
     try {
