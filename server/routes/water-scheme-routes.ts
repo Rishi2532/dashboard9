@@ -1158,8 +1158,15 @@ async function importDataToDatabase(data: any[], isExcel: boolean, isLpcdTemplat
 
           // Process water values (days 1-7)
           for (let day = 1; day <= 7; day++) {
-            const waterDate = record[`water_date_day${day}`];
+            let waterDate = record[`water_date_day${day}`];
             const waterValue = record[`water_value_day${day}`];
+
+            // Auto-fill missing dates relative to today
+            if (!waterDate && waterValue !== null && waterValue !== undefined && String(waterValue).trim() !== "") {
+              const fallback = new Date();
+              fallback.setDate(fallback.getDate() - (7 - day + 1));
+              waterDate = require('date-fns').format(fallback, "dd-MMM");
+            }
 
             if (waterDate && waterValue !== null && waterValue !== undefined) {
               if (!datedEntries.has(waterDate)) {
@@ -1172,8 +1179,15 @@ async function importDataToDatabase(data: any[], isExcel: boolean, isLpcdTemplat
 
           // Process LPCD values (days 1-7)
           for (let day = 1; day <= 7; day++) {
-            const lpcdDate = record[`lpcd_date_day${day}`];
+            let lpcdDate = record[`lpcd_date_day${day}`];
             const lpcdValue = record[`lpcd_value_day${day}`];
+
+            // Auto-fill missing dates relative to today
+            if (!lpcdDate && lpcdValue !== null && lpcdValue !== undefined && String(lpcdValue).trim() !== "") {
+              const fallback = new Date();
+              fallback.setDate(fallback.getDate() - (7 - day + 1));
+              lpcdDate = require('date-fns').format(fallback, "dd-MMM");
+            }
 
             if (lpcdDate && lpcdValue !== null && lpcdValue !== undefined) {
               if (!datedEntries.has(lpcdDate)) {
@@ -1214,14 +1228,15 @@ async function importDataToDatabase(data: any[], isExcel: boolean, isLpcdTemplat
           for (let i = 0; i < historicalRecords.length; i += batchSize) {
             const batch = historicalRecords.slice(i, i + batchSize);
 
-            try {
-              // Build individual insert statements for each record
-              for (const histRecord of batch) {
+            // Build individual insert statements for each record
+            for (const histRecord of batch) {
+              try {
                 const insertQuery = `
                   INSERT INTO water_scheme_data_history 
                   (region, circle, division, sub_division, block, scheme_id, scheme_name, village_name, 
                    population, number_of_esr, data_date, water_value, lpcd_value, upload_batch_id, dashboard_url) 
                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                  ON CONFLICT (scheme_id, village_name, block, data_date, uploaded_at) DO NOTHING
                 `;
 
                 const values = [
@@ -1234,12 +1249,12 @@ async function importDataToDatabase(data: any[], isExcel: boolean, isLpcdTemplat
                 ];
 
                 await client.query(insertQuery, values);
+              } catch (recordError) {
+                console.error(`Error inserting historical record for ${histRecord.scheme_id}:`, recordError);
               }
-
-              console.log(`✅ Inserted batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(historicalRecords.length / batchSize)} into water_scheme_data_history`);
-            } catch (batchError) {
-              console.error(`Error inserting historical batch ${Math.floor(i / batchSize) + 1}:`, batchError);
             }
+
+            console.log(`✅ Inserted batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(historicalRecords.length / batchSize)} into water_scheme_data_history`);
           }
 
           console.log(`✅ Successfully stored ${historicalRecords.length} historical records with batch ID: ${uploadBatchId}`);

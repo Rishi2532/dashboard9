@@ -384,7 +384,7 @@ You are receiving this email because you are registered as a vendor for the ${re
 
   return sendEmail({
     to: vendorEmail,
-    from: "Maharashtra Water Alert",
+    from: "Mahajal IoT Alerts",
     replyTo: userEmail,
     subject,
     html,
