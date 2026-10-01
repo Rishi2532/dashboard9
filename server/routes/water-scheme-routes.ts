@@ -1236,7 +1236,7 @@ async function importDataToDatabase(data: any[], isExcel: boolean, isLpcdTemplat
                   (region, circle, division, sub_division, block, scheme_id, scheme_name, village_name, 
                    population, number_of_esr, data_date, water_value, lpcd_value, upload_batch_id, dashboard_url) 
                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-                  ON CONFLICT (scheme_id, village_name, block, data_date, uploaded_at) DO NOTHING
+                  ON CONFLICT (scheme_id, village_name, data_date, uploaded_at) DO NOTHING
                 `;
 
                 const values = [
