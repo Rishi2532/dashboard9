@@ -203,9 +203,19 @@ export default function EngineersHierarchyPage() {
   // SMS Gateway Tester Modal States
   const [testSmsOpen, setTestSmsOpen] = useState(false);
   const [testSmsMobile, setTestSmsMobile] = useState('');
-  const [testSmsTemplate, setTestSmsTemplate] = useState<'PRESSURE_LOW' | 'CHLORINE_HIGH' | 'CHLORINE_LOW' | 'LPCD_LOW'>('PRESSURE_LOW');
+  const [testSmsTemplate, setTestSmsTemplate] = useState<
+    | 'FLOW_SENSOR_OFFLINE'
+    | 'PRESSURE_SENSOR_OFFLINE'
+    | 'CHLORINE_LOW'
+    | 'LPCD_LOW'
+    | 'CHLORINE_SENSOR_OFFLINE'
+    | 'PRESSURE_LOW'
+    | 'CHLORINE_HIGH'
+  >('LPCD_LOW');
   const [testSmsScheme, setTestSmsScheme] = useState('7940695');
-  const [testSmsValue, setTestSmsValue] = useState('0.15');
+  const [testSmsVillage, setTestSmsVillage] = useState('रामगाव तांडा');
+  const [testSmsEsr, setTestSmsEsr] = useState('ESR-1');
+  const [testSmsValue, setTestSmsValue] = useState('38');
   const [isTestingSms, setIsTestingSms] = useState(false);
   const [testSmsResult, setTestSmsResult] = useState<any>(null);
 
@@ -231,7 +241,9 @@ export default function EngineersHierarchyPage() {
           mobile: cleanMobile,
           templateType: testSmsTemplate,
           scheme: testSmsScheme.trim() || '7940695',
-          value: testSmsValue.trim() || (testSmsTemplate === 'PRESSURE_LOW' ? '0.15' : '0.1'),
+          village: testSmsVillage.trim() || 'रामगाव तांडा',
+          esr: testSmsEsr.trim() || 'ESR-1',
+          value: testSmsValue.trim() || (testSmsTemplate === 'PRESSURE_LOW' ? '0.15' : testSmsTemplate === 'LPCD_LOW' ? '38' : '0.10'),
         }),
       });
 
@@ -1466,54 +1478,87 @@ export default function EngineersHierarchyPage() {
                 onValueChange={(val: any) => {
                   setTestSmsTemplate(val);
                   if (val === 'PRESSURE_LOW') setTestSmsValue('0.15');
-                  if (val === 'CHLORINE_HIGH') setTestSmsValue('0.65');
-                  if (val === 'CHLORINE_LOW') setTestSmsValue('0.10');
-                  if (val === 'LPCD_LOW') setTestSmsValue('38');
+                  else if (val === 'CHLORINE_HIGH') setTestSmsValue('0.65');
+                  else if (val === 'CHLORINE_LOW') setTestSmsValue('0.10');
+                  else if (val === 'LPCD_LOW') setTestSmsValue('38');
+                  else if (val.includes('OFFLINE')) setTestSmsValue('01-10-2026 11:30 AM');
                 }}
               >
                 <SelectTrigger className="h-9 text-xs">
                   <SelectValue placeholder="Select template" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="PRESSURE_LOW">
-                    Pressure Low (&lt; 0.2 bar) — ID: 1077305300036737013
+                  <SelectItem value="FLOW_SENSOR_OFFLINE">
+                    Flow Sensor Offline — ID: 1077293960125583218
                   </SelectItem>
-                  <SelectItem value="CHLORINE_HIGH">
-                    Residual Chlorine High (&gt; 0.5 mg/l) — ID: 1077159330036594383
+                  <SelectItem value="PRESSURE_SENSOR_OFFLINE">
+                    Pressure Sensor Offline — ID: 1077261240124038284
                   </SelectItem>
                   <SelectItem value="CHLORINE_LOW">
-                    Residual Chlorine Low (&lt; 0.2 mg/l) — ID: 1077438200031589278
+                    Residual Chlorine – Low (&lt; 0.2 mg/l) — ID: 1077228300124016722
                   </SelectItem>
                   <SelectItem value="LPCD_LOW">
-                    LPCD Low (&lt; 55 LPCD) — ID: 1077387830035602945
+                    LPCD – Low (&lt; 55 LPCD) — ID: 1077196480123998489
+                  </SelectItem>
+                  <SelectItem value="CHLORINE_SENSOR_OFFLINE">
+                    Residual Chlorine Sensor Offline — ID: 1077170600125566322
+                  </SelectItem>
+                  <SelectItem value="PRESSURE_LOW">
+                    Pressure Sensor – Low (&lt; 0.2 bar) — ID: 1077134590125541730
+                  </SelectItem>
+                  <SelectItem value="CHLORINE_HIGH">
+                    Residual Chlorine – High (&gt; 0.5 mg/l) — ID: 1077100380123978308
                   </SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {/* Dynamic Template Variables */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <div className="space-y-1">
-                <label className="font-semibold text-slate-700 dark:text-slate-300">
-                  Scheme Name / ID ({'{#var#}'} 1)
+                <label className="font-semibold text-slate-700 dark:text-slate-300 text-[11px]">
+                  Scheme Name ({'{#var#}'} 1)
                 </label>
                 <Input
                   type="text"
                   value={testSmsScheme}
                   onChange={(e) => setTestSmsScheme(e.target.value)}
-                  placeholder="e.g. 7940695"
+                  placeholder="e.g. Dhamangaon Deshmukh"
                   className="text-xs h-9"
                 />
               </div>
               <div className="space-y-1">
-                <label className="font-semibold text-slate-700 dark:text-slate-300">
-                  Sensor Value ({'{#var#}'} 2)
+                <label className="font-semibold text-slate-700 dark:text-slate-300 text-[11px]">
+                  {testSmsTemplate === 'LPCD_LOW' ? 'Village Name ({#var#} 2)' : 'Village & ESR ({#var#} 2)'}
+                </label>
+                <div className="flex gap-1.5">
+                  <Input
+                    type="text"
+                    value={testSmsVillage}
+                    onChange={(e) => setTestSmsVillage(e.target.value)}
+                    placeholder="Village"
+                    className="text-xs h-9 flex-1"
+                  />
+                  {testSmsTemplate !== 'LPCD_LOW' && (
+                    <Input
+                      type="text"
+                      value={testSmsEsr}
+                      onChange={(e) => setTestSmsEsr(e.target.value)}
+                      placeholder="ESR"
+                      className="text-xs h-9 w-20"
+                    />
+                  )}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700 dark:text-slate-300 text-[11px]">
+                  {testSmsTemplate.includes('OFFLINE') ? 'Offline Time ({#var#} 3)' : 'Alert Value ({#var#} 3)'}
                 </label>
                 <Input
                   type="text"
                   value={testSmsValue}
                   onChange={(e) => setTestSmsValue(e.target.value)}
-                  placeholder={testSmsTemplate === 'PRESSURE_LOW' ? '0.15' : testSmsTemplate === 'LPCD_LOW' ? '38' : '0.10'}
+                  placeholder={testSmsTemplate.includes('OFFLINE') ? '01-10-2026 11:30 AM' : testSmsTemplate === 'PRESSURE_LOW' ? '0.15' : testSmsTemplate === 'LPCD_LOW' ? '38' : '0.10'}
                   className="text-xs h-9 font-mono"
                 />
               </div>
@@ -1528,17 +1573,26 @@ export default function EngineersHierarchyPage() {
                 </span>
               </label>
               <div className="p-3 rounded-lg bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 text-xs text-slate-800 dark:text-slate-200 leading-relaxed font-sans">
-                {testSmsTemplate === 'PRESSURE_LOW' && (
-                  <>सूचना: JJM MVS <strong className="text-purple-700 dark:text-purple-300">{testSmsScheme || '{scheme}'}</strong> अंतर्गत ESR-1 च्या वितरण व्यवस्थेतील Pressure Sensor नुसार पाण्याचा दाब 0.2 bar पेक्षा कमी असून सध्याचा दाब <strong className="text-purple-700 dark:text-purple-300">{testSmsValue || '0.15'}</strong> bar इतका आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा</>
+                {testSmsTemplate === 'FLOW_SENSOR_OFFLINE' && (
+                  <>सूचना: JJM MVS <strong className="text-purple-700 dark:text-purple-300">{testSmsScheme || '{scheme}'}</strong> अंतर्गत <strong className="text-purple-700 dark:text-purple-300">{testSmsVillage ? `${testSmsVillage}${testSmsEsr ? ` (${testSmsEsr})` : ''}` : '{village and esr}'}</strong> येथील Flow Sensor Offline आढळला असून Offline Date &amp; Time <strong className="text-purple-700 dark:text-purple-300">{testSmsValue || '01-10-2026 11:30 AM'}</strong> आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा</>
                 )}
-                {testSmsTemplate === 'CHLORINE_HIGH' && (
-                  <>सूचना: JJM MVS <strong className="text-purple-700 dark:text-purple-300">{testSmsScheme || '{scheme}'}</strong> अंतर्गत ESR-1 मध्ये Residual Chlorine ची मात्रा 0.5 mg/l पेक्षा जास्त असून सध्याची मात्रा <strong className="text-purple-700 dark:text-purple-300">{testSmsValue || '0.65'}</strong> mg/l इतकी आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा</>
+                {testSmsTemplate === 'PRESSURE_SENSOR_OFFLINE' && (
+                  <>सूचना: JJM MVS <strong className="text-purple-700 dark:text-purple-300">{testSmsScheme || '{scheme}'}</strong> अंतर्गत <strong className="text-purple-700 dark:text-purple-300">{testSmsVillage ? `${testSmsVillage}${testSmsEsr ? ` (${testSmsEsr})` : ''}` : '{village and esr}'}</strong> येथील Pressure Sensor Offline आढळला असून Offline Date &amp; Time <strong className="text-purple-700 dark:text-purple-300">{testSmsValue || '01-10-2026 11:30 AM'}</strong> आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा</>
                 )}
                 {testSmsTemplate === 'CHLORINE_LOW' && (
-                  <>सूचना: JJM MVS <strong className="text-purple-700 dark:text-purple-300">{testSmsScheme || '{scheme}'}</strong> अंतर्गत ESR-1 मध्ये Residual Chlorine ची मात्रा 0.2 mg/l पेक्षा कमी असून सध्याची मात्रा <strong className="text-purple-700 dark:text-purple-300">{testSmsValue || '0.10'}</strong> mg/l इतकी आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा</>
+                  <>सूचना: JJM MVS <strong className="text-purple-700 dark:text-purple-300">{testSmsScheme || '{scheme}'}</strong> अंतर्गत <strong className="text-purple-700 dark:text-purple-300">{testSmsVillage ? `${testSmsVillage}${testSmsEsr ? ` (${testSmsEsr})` : ''}` : '{village and esr}'}</strong> येथील वितरण व्यवस्थेत Residual Chlorine ची मात्रा 0.2 mg/l पेक्षा कमी असून सध्याची मात्रा <strong className="text-purple-700 dark:text-purple-300">{testSmsValue || '0.10'}</strong> mg/l इतकी आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा</>
                 )}
                 {testSmsTemplate === 'LPCD_LOW' && (
-                  <>सूचना: JJM MVS <strong className="text-purple-700 dark:text-purple-300">{testSmsScheme || '{scheme}'}</strong> अंतर्गत पाणीपुरवठ्याचा दर 55 LPCD पेक्षा कमी असून सध्याचा पाणीपुरवठ्याचा दर <strong className="text-purple-700 dark:text-purple-300">{testSmsValue || '38'}</strong> LPCD आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा</>
+                  <>सूचना: JJM MVS <strong className="text-purple-700 dark:text-purple-300">{testSmsScheme || '{scheme}'}</strong> अंतर्गत <strong className="text-purple-700 dark:text-purple-300">{testSmsVillage || '{village}'}</strong> येथील पाणीपुरवठ्याचा दर 55 LPCD पेक्षा कमी असून सध्याचा पाणीपुरवठ्याचा दर <strong className="text-purple-700 dark:text-purple-300">{testSmsValue || '38'}</strong> LPCD आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा</>
+                )}
+                {testSmsTemplate === 'CHLORINE_SENSOR_OFFLINE' && (
+                  <>सूचना: JJM MVS <strong className="text-purple-700 dark:text-purple-300">{testSmsScheme || '{scheme}'}</strong> अंतर्गत <strong className="text-purple-700 dark:text-purple-300">{testSmsVillage ? `${testSmsVillage}${testSmsEsr ? ` (${testSmsEsr})` : ''}` : '{village and esr}'}</strong> येथील Residual Chlorine Sensor Offline आढळला असून Offline Date &amp; Time <strong className="text-purple-700 dark:text-purple-300">{testSmsValue || '01-10-2026 11:30 AM'}</strong> आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा</>
+                )}
+                {testSmsTemplate === 'PRESSURE_LOW' && (
+                  <>सूचना: JJM MVS <strong className="text-purple-700 dark:text-purple-300">{testSmsScheme || '{scheme}'}</strong> अंतर्गत <strong className="text-purple-700 dark:text-purple-300">{testSmsVillage ? `${testSmsVillage}${testSmsEsr ? ` (${testSmsEsr})` : ''}` : '{village and esr}'}</strong> येथील वितरण व्यवस्थेतील Pressure Sensor नुसार पाण्याचा दाब 0.2 bar पेक्षा कमी असून सध्याचा दाब <strong className="text-purple-700 dark:text-purple-300">{testSmsValue || '0.15'}</strong> bar इतका आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा</>
+                )}
+                {testSmsTemplate === 'CHLORINE_HIGH' && (
+                  <>सूचना: JJM MVS <strong className="text-purple-700 dark:text-purple-300">{testSmsScheme || '{scheme}'}</strong> अंतर्गत <strong className="text-purple-700 dark:text-purple-300">{testSmsVillage ? `${testSmsVillage}${testSmsEsr ? ` (${testSmsEsr})` : ''}` : '{village and esr}'}</strong> येथील वितरण व्यवस्थेत Residual Chlorine ची मात्रा 0.5 mg/l पेक्षा जास्त असून सध्याची मात्रा <strong className="text-purple-700 dark:text-purple-300">{testSmsValue || '0.65'}</strong> mg/l इतकी आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा</>
                 )}
               </div>
             </div>

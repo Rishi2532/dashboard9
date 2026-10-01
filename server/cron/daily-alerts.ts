@@ -32,6 +32,10 @@ interface Alert {
   water_value?: string | number;
   offline_issue?: boolean;
   offline_sensors?: string;
+  flow_offline?: boolean;
+  pressure_offline?: boolean;
+  chlorine_offline?: boolean;
+  offline_time?: string | Date | null;
   ticket_id?: string;
   token?: string;
 }
@@ -188,7 +192,9 @@ export async function runDailyAlertsJob() {
           esr_name,
           chlorine_status,
           pressure_status,
-          flow_meter_status
+          flow_meter_status,
+          last_seen,
+          pressure_last_seen
         FROM communication_status
         WHERE chlorine_status = 'Offline'
            OR pressure_status = 'Offline'
@@ -197,9 +203,13 @@ export async function runDailyAlertsJob() {
 
       offlineRowsRes.rows.forEach((row: any) => {
         const offlineSensorsList: string[] = [];
-        if (row.chlorine_status === 'Offline') offlineSensorsList.push('Chlorine');
-        if (row.pressure_status === 'Offline') offlineSensorsList.push('Pressure');
-        if (row.flow_meter_status === 'Offline') offlineSensorsList.push('Flow Meter');
+        const isChlorine = row.chlorine_status === 'Offline';
+        const isPressure = row.pressure_status === 'Offline';
+        const isFlow = row.flow_meter_status === 'Offline';
+
+        if (isChlorine) offlineSensorsList.push('Chlorine');
+        if (isPressure) offlineSensorsList.push('Pressure');
+        if (isFlow) offlineSensorsList.push('Flow Meter');
 
         addAlert(row.scheme_id, row.scheme_name, {
           scheme_id: row.scheme_id || "N/A",
@@ -208,6 +218,10 @@ export async function runDailyAlertsJob() {
           esr_name: row.esr_name || "N/A",
           offline_issue: true,
           offline_sensors: offlineSensorsList.join(', '),
+          flow_offline: isFlow,
+          pressure_offline: isPressure,
+          chlorine_offline: isChlorine,
+          offline_time: row.last_seen || row.pressure_last_seen || null,
         });
       });
     } catch (offlineErr) {
@@ -233,7 +247,7 @@ export async function runDailyAlertsJob() {
     const emailsToSend: Record<string, { name: string; names: string[]; alerts: Alert[] }> = {};
 
     // Group alerts by Engineer Mobile
-    const smsToSend: Record<string, { name: string; alerts: Alert[] }> = {};
+    const smsToSend: Record<string, { name: string; email?: string; alerts: Alert[] }> = {};
 
     allEngineerDetails.forEach((engineer) => {
       let schemeAlerts: Alert[] = [];
@@ -602,7 +616,7 @@ export async function runDailyAlertsJob() {
         // Deduplicate alerts
         const uniqueAlertsMap = new Map();
         alerts.forEach(a => {
-          const key = `${a.scheme_id}-${a.village_name}-${a.esr_name}-${a.chlorine_issue}-${a.pressure_issue}-${a.lpcd_issue}`;
+          const key = `${a.scheme_id}-${a.village_name}-${a.esr_name}-${a.chlorine_issue}-${a.pressure_issue}-${a.lpcd_issue}-${a.flow_offline}-${a.pressure_offline}-${a.chlorine_offline}`;
           uniqueAlertsMap.set(key, a);
         });
         const uniqueAlerts = Array.from(uniqueAlertsMap.values());

@@ -3,7 +3,7 @@ import { getDB } from "../../db";
 import { users, schemeEngineerDetails } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
-import { DLT_TEMPLATES, sendSmartpingDLTSMS } from "../../services/sms-service";
+import { DLT_TEMPLATES, sendSmartpingDLTSMS, formatVillageAndEsr, formatVillageName, formatOfflineDateTime } from "../../services/sms-service";
 import { sendEngineerCredentialsEmail } from "../../services/email-service";
 
 const router = Router();
@@ -471,7 +471,7 @@ router.get("/hierarchy", async (req: Request, res: Response) => {
       const phone = cleanStr(u.phone).replace(/\D/g, "").slice(-10);
 
       let matchedItem: any = null;
-      for (const item of directoryMap.values()) {
+      for (const item of Array.from(directoryMap.values())) {
         if (name && item.name && item.name.toLowerCase() === name.toLowerCase()) {
           matchedItem = item;
           break;
@@ -701,13 +701,31 @@ router.get("/hierarchy", async (req: Request, res: Response) => {
  */
 router.post("/test-sms", async (req: Request, res: Response) => {
   try {
-    const { mobile, templateType = "PRESSURE_LOW", scheme = "7940695", value = "0.15" } = req.body;
+    const {
+      mobile,
+      templateType = "PRESSURE_LOW",
+      scheme = "7940695",
+      village = "गावाचे नाव",
+      esr = "ESR-1",
+      value = "0.15",
+    } = req.body;
     if (!mobile) {
       return res.status(400).json({ success: false, message: "Mobile number is required" });
     }
 
     const template = DLT_TEMPLATES[templateType as keyof typeof DLT_TEMPLATES] || DLT_TEMPLATES.PRESSURE_LOW;
-    const messageText = template.render(scheme, value);
+    let messageText: string;
+    if (templateType === "LPCD_LOW") {
+      const vName = formatVillageName(village, scheme);
+      messageText = (template as any).render(scheme, vName, value);
+    } else if (templateType.includes("OFFLINE")) {
+      const vAndE = formatVillageAndEsr(village, esr);
+      const dtVal = value && value.includes("-") ? value : formatOfflineDateTime();
+      messageText = (template as any).render(scheme, vAndE, dtVal);
+    } else {
+      const vAndE = formatVillageAndEsr(village, esr);
+      messageText = (template as any).render(scheme, vAndE, value);
+    }
 
     const result = await sendSmartpingDLTSMS({
       mobile,
