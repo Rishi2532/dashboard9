@@ -266,8 +266,8 @@ export async function logSmsAlert(data: {
 export function formatSchemeName(schemeName?: string | null, schemeId?: string | null): string {
   let name = (schemeName && schemeName !== "N/A" ? schemeName : schemeId && schemeId !== "N/A" ? schemeId : "MVS Scheme").trim();
   name = name.replace(/^(JJM\s+MVS\s+|JJM\s+|MVS\s+)/i, "").trim();
-  if (name.length > 30) {
-    name = name.substring(0, 30).trim();
+  if (name.length > 60) {
+    name = name.substring(0, 60).trim();
   }
   return name || "Scheme";
 }
@@ -277,14 +277,15 @@ export function formatSchemeName(schemeName?: string | null, schemeId?: string |
  */
 export function formatVillageName(villageName?: string | null, fallbackScheme?: string | null): string {
   let vName = (villageName && villageName !== "N/A" ? villageName : fallbackScheme || "ग्राम स्तर").trim();
-  if (vName.length > 30) {
-    vName = vName.substring(0, 30).trim();
+  if (vName.length > 60) {
+    vName = vName.substring(0, 60).trim();
   }
   return vName || "ग्राम स्तर";
 }
 
 /**
  * Format Village and ESR Name for non-LPCD alerts (Pressure, Chlorine, Offline) 2nd variable: {#var#}
+ * Returns village_name + esr_name
  */
 export function formatVillageAndEsr(villageName?: string | null, esrName?: string | null): string {
   const v = villageName && villageName !== "N/A" ? villageName.trim() : "";
@@ -292,12 +293,14 @@ export function formatVillageAndEsr(villageName?: string | null, esrName?: strin
 
   let combined = "";
   if (v && e) {
-    if (v.toLowerCase().includes(e.toLowerCase())) {
-      combined = v;
-    } else if (e.toLowerCase().includes(v.toLowerCase())) {
+    // If ESR name already contains the village name, use ESR name directly to avoid duplication
+    if (e.toLowerCase().includes(v.toLowerCase())) {
       combined = e;
+    } else if (v.toLowerCase().includes(e.toLowerCase())) {
+      combined = v;
     } else {
-      combined = `${v} (${e})`;
+      // village_name + esr_name
+      combined = `${v} ${e}`;
     }
   } else if (v) {
     combined = v;
@@ -307,12 +310,12 @@ export function formatVillageAndEsr(villageName?: string | null, esrName?: strin
     combined = "वितरण व्यवस्था";
   }
 
-  if (combined.length > 30) {
-    if (v && v.length <= 30) {
-      combined = v;
-    } else {
-      combined = combined.substring(0, 30).trim();
-    }
+  // Clean consecutive whitespace
+  combined = combined.replace(/\s+/g, " ").trim();
+
+  // Generous limit to prevent runaway DB strings without dropping the ESR name
+  if (combined.length > 70) {
+    combined = combined.substring(0, 70).trim();
   }
   return combined || "वितरण व्यवस्था";
 }
