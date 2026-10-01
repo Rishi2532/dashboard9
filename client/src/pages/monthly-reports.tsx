@@ -30,7 +30,7 @@ import { generateMonthlyReportPDF } from "@/lib/pdf-generator-monthly";
 import { generateMonthlyChlorineReportPDF } from "@/lib/pdf-generator-monthly-chlorine";
 import { generateMonthlyPressureReportPDF } from "@/lib/pdf-generator-monthly-pressure";
 import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
-import VillageFilter from "@/components/dashboard/VillageFilter";
+import VillageFilter, { VillageFilterValue } from "@/components/dashboard/VillageFilter";
 import { useVillageCompletion } from "@/hooks/useVillageCompletion";
 
 export default function MonthlyReportsPage() {
@@ -40,7 +40,7 @@ export default function MonthlyReportsPage() {
   const [selectedSubdivision, setSelectedSubdivision] = useState<string>("all");
   const [selectedBlock, setSelectedBlock] = useState<string>("all");
   const [selectedSchemeId, setSelectedSchemeId] = useState<string>("all");
-  const [villageFilter, setVillageFilter] = useState<"all" | "completed">("all");
+  const [villageFilter, setVillageFilter] = useState<VillageFilterValue>("all");
   const { isVillageCompleted } = useVillageCompletion();
 
   // Default to current month YYYY-MM
@@ -102,6 +102,10 @@ export default function MonthlyReportsPage() {
     if (villageFilter === "completed") {
       return schemes.filter((scheme: any) =>
         isVillageCompleted(scheme.village_name, scheme.scheme_id, scheme.scheme_name)
+      );
+    } else if (villageFilter === "in_progress") {
+      return schemes.filter((scheme: any) =>
+        !isVillageCompleted(scheme.village_name, scheme.scheme_id, scheme.scheme_name)
       );
     }
     return schemes;

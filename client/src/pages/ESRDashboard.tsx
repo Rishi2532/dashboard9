@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { useState, useMemo } from "react";
 import { Activity, Zap, Droplets, BarChart3, Wifi, WifiOff } from "lucide-react";
-import VillageFilter from "@/components/dashboard/VillageFilter";
+import VillageFilter, { VillageFilterValue } from "@/components/dashboard/VillageFilter";
 import { useVillageCompletion } from "@/hooks/useVillageCompletion";
 
 interface ESRMonitoring {
@@ -53,7 +53,7 @@ const ALL_REGIONS = [
 export default function ESRDashboard() {
   const [selectedRegion, setSelectedRegion] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
-  const [villageFilter, setVillageFilter] = useState<"all" | "completed">("all");
+  const [villageFilter, setVillageFilter] = useState<VillageFilterValue>("all");
   const { isVillageCompleted } = useVillageCompletion();
 
   const { data: esrData, isLoading: esrLoading, refetch: refetchEsr } = useQuery({
@@ -75,6 +75,10 @@ export default function ESRDashboard() {
     if (villageFilter === "completed") {
       return list.filter((esr: ESRMonitoring) =>
         isVillageCompleted(esr.village_name, esr.scheme_id, esr.scheme_name)
+      );
+    } else if (villageFilter === "in_progress") {
+      return list.filter((esr: ESRMonitoring) =>
+        !isVillageCompleted(esr.village_name, esr.scheme_id, esr.scheme_name)
       );
     }
     return list;

@@ -78,7 +78,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/dashboard/dashboard-layout";
 import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
 import AgencyTypeFilter from "@/components/dashboard/AgencyTypeFilter";
-import VillageFilter from "@/components/dashboard/VillageFilter";
+import VillageFilter, { VillageFilterValue } from "@/components/dashboard/VillageFilter";
 import { useVillageCompletion } from "@/hooks/useVillageCompletion";
 
 // Define interface for water consumption data
@@ -189,7 +189,7 @@ const WaterConsumptionPage: React.FC = () => {
   const [uiSchemeFilter, setUiSchemeFilter] = useState<string>("commissioned");
   const [waterSupplyStatus, setWaterSupplyStatus] = useState<string>("All");
   const [iotStatus, setIotStatus] = useState<string>("all");
-  const [villageFilter, setVillageFilter] = useState<"all" | "completed">("all");
+  const [villageFilter, setVillageFilter] = useState<VillageFilterValue>("all");
   const { isVillageCompleted } = useVillageCompletion();
 
   // Pagination state
@@ -670,9 +670,7 @@ const WaterConsumptionPage: React.FC = () => {
         if (uiSchemeFilter === "commissioned") {
           const isCivilCompleted = ws === "yes";
           if (!isCivilCompleted) return false;
-
-          if (waterSupplyStatus === "All") return true;
-          return String(status.water_supply_status || "").trim().toLowerCase() === waterSupplyStatus.toLowerCase();
+          return true;
         }
 
         if (uiSchemeFilter === "fully_completed") {
@@ -697,6 +695,15 @@ const WaterConsumptionPage: React.FC = () => {
       });
     }
 
+    // Apply Water Supply Status filter independently for ANY category
+    if (waterSupplyStatus !== "All") {
+      filtered = filtered.filter((record) => {
+        const status = schemeStatusMap.get(record.scheme_id);
+        if (!status) return false;
+        return String(status.water_supply_status || "").trim().toLowerCase() === waterSupplyStatus.toLowerCase();
+      });
+    }
+
     // Apply IoT status filter - check fully_completion_scheme_status field from scheme_status table
     if (iotStatus !== "all") {
       filtered = filtered.filter((record) => {
@@ -715,6 +722,10 @@ const WaterConsumptionPage: React.FC = () => {
     if (villageFilter === "completed") {
       filtered = filtered.filter((record) =>
         isVillageCompleted(record.village_name, record.scheme_id, record.scheme_name),
+      );
+    } else if (villageFilter === "in_progress") {
+      filtered = filtered.filter((record) =>
+        !isVillageCompleted(record.village_name, record.scheme_id, record.scheme_name),
       );
     }
 

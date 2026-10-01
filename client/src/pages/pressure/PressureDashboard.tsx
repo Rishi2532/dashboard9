@@ -53,7 +53,7 @@ import { TranslatedText } from "@/components/ui/translated-text";
 import { useAuth } from "@/hooks/use-auth";
 import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
 import AgencyTypeFilter from "@/components/dashboard/AgencyTypeFilter";
-import VillageFilter from "@/components/dashboard/VillageFilter";
+import VillageFilter, { VillageFilterValue } from "@/components/dashboard/VillageFilter";
 import { useVillageCompletion } from "@/hooks/useVillageCompletion";
 import { MissingSchemesModal, MissingSchemeRecord } from "@/components/MissingSchemesModal";
 import {
@@ -431,7 +431,7 @@ const PressureDashboard: React.FC = () => {
   const [waterSupplyStatus, setWaterSupplyStatus] = useState<string>("All");
   const [schemeStatusFilter, setSchemeStatusFilter] = useState<string>("all");
   const [selectedAgencyType, setSelectedAgencyType] = useState<string>("ALL");
-  const [villageFilter, setVillageFilter] = useState<"all" | "completed">("all");
+  const [villageFilter, setVillageFilter] = useState<VillageFilterValue>("all");
   const { isVillageCompleted } = useVillageCompletion();
 
   // Card-specific filter state (only affects table data, not card counts)
@@ -1200,39 +1200,44 @@ const PressureDashboard: React.FC = () => {
 
         if (uiSchemeFilter === "commissioned") {
           // 100% Civil work Completed means water_supply = Yes
-          const isCivilCompleted = status.water_supply === "Yes";
-          if (!isCivilCompleted) return false;
-
-          // If civil completed, check specific water supply status tabs
-          if (waterSupplyStatus === "All") return true;
-          return status.water_supply_status === waterSupplyStatus;
+          return status.water_supply === "Yes";
         }
 
         if (uiSchemeFilter === "fully_completed") {
           // Fully Instrumented Schemes: fully_completion_scheme_status = Fully Completed or Completed
-          const statusValue = String(status.fully_completion_scheme_status || "");
-          return statusValue === "Fully Completed" || statusValue === "Completed";
+          const statusValue = String(status.fully_completion_scheme_status || "").toLowerCase();
+          return statusValue === "fully completed" || statusValue === "completed" || statusValue === "fully_completed";
         }
 
         if (uiSchemeFilter === "in_progress") {
           // Partially instrumented: fully_completion_scheme_status = In Progress
-          return status.fully_completion_scheme_status === "In Progress";
+          const statusValue = String(status.fully_completion_scheme_status || "").toLowerCase();
+          return statusValue === "in progress" || statusValue === "partial";
         }
 
         if (uiSchemeFilter === "common_filter") {
           // Common filter: fully_completion_scheme_status = Fully Completed or Completed AND water_supply = Yes
-          const statusValue = String(status.fully_completion_scheme_status || "");
-          const isInstrumented = statusValue === "Fully Completed" || statusValue === "Completed";
+          const statusValue = String(status.fully_completion_scheme_status || "").toLowerCase();
+          const isInstrumented = statusValue === "fully completed" || statusValue === "completed" || statusValue === "fully_completed";
           const isCivilCompleted = status.water_supply === "Yes";
           return isInstrumented && isCivilCompleted;
         }
 
         if (uiSchemeFilter === "mjp_commissioned_yes") {
           // Commissioned: mjp_commissioned = Yes
-          return status.mjp_commissioned === "Yes";
+          return String(status.mjp_commissioned || "").toLowerCase() === "yes";
         }
 
         return true;
+      });
+    }
+
+    // Apply Water Supply Status filter independently for ANY category
+    if (waterSupplyStatus !== "All") {
+      filtered = filtered.filter((scheme) => {
+        const status = schemeStatusMap.get(scheme.scheme_id);
+        if (!status) return false;
+        return String(status.water_supply_status || "").trim().toLowerCase() === waterSupplyStatus.toLowerCase();
       });
     }
 
@@ -1254,6 +1259,10 @@ const PressureDashboard: React.FC = () => {
     if (villageFilter === "completed") {
       filtered = filtered.filter((item) =>
         isVillageCompleted(item.village_name, item.scheme_id, item.scheme_name),
+      );
+    } else if (villageFilter === "in_progress") {
+      filtered = filtered.filter((item) =>
+        !isVillageCompleted(item.village_name, item.scheme_id, item.scheme_name),
       );
     }
 
@@ -1300,33 +1309,40 @@ const PressureDashboard: React.FC = () => {
         if (!status) return true;
 
         if (uiSchemeFilter === "commissioned") {
-          const isCivilCompleted = status.water_supply === "Yes";
-          if (!isCivilCompleted) return false;
-          if (waterSupplyStatus === "All") return true;
-          return status.water_supply_status === waterSupplyStatus;
+          return String(status.water_supply || "").toLowerCase() === "yes";
         }
 
         if (uiSchemeFilter === "fully_completed") {
-          const statusValue = String(status.fully_completion_scheme_status || "");
-          return statusValue === "Fully Completed" || statusValue === "Completed";
+          const statusValue = String(status.fully_completion_scheme_status || "").toLowerCase();
+          return statusValue === "fully completed" || statusValue === "completed" || statusValue === "fully_completed";
         }
 
         if (uiSchemeFilter === "in_progress") {
-          return status.fully_completion_scheme_status === "In Progress";
+          const statusValue = String(status.fully_completion_scheme_status || "").toLowerCase();
+          return statusValue === "in progress" || statusValue === "partial";
         }
 
         if (uiSchemeFilter === "common_filter") {
-          const statusValue = String(status.fully_completion_scheme_status || "");
-          const isInstrumented = statusValue === "Fully Completed" || statusValue === "Completed";
-          const isCivilCompleted = status.water_supply === "Yes";
+          const statusValue = String(status.fully_completion_scheme_status || "").toLowerCase();
+          const isInstrumented = statusValue === "fully completed" || statusValue === "completed" || statusValue === "fully_completed";
+          const isCivilCompleted = String(status.water_supply || "").toLowerCase() === "yes";
           return isInstrumented && isCivilCompleted;
         }
 
         if (uiSchemeFilter === "mjp_commissioned_yes") {
-          return status.mjp_commissioned === "Yes";
+          return String(status.mjp_commissioned || "").toLowerCase() === "yes";
         }
 
         return true;
+      });
+    }
+
+    // Apply Water Supply Status filter independently for ANY category
+    if (waterSupplyStatus !== "All") {
+      filtered = filtered.filter((scheme) => {
+        const status = schemeStatusMap.get(scheme.scheme_id);
+        if (!status) return false;
+        return String(status.water_supply_status || "").trim().toLowerCase() === waterSupplyStatus.toLowerCase();
       });
     }
 
@@ -1348,6 +1364,10 @@ const PressureDashboard: React.FC = () => {
     if (villageFilter === "completed") {
       filtered = filtered.filter((item) =>
         isVillageCompleted(item.village_name, item.scheme_id, item.scheme_name),
+      );
+    } else if (villageFilter === "in_progress") {
+      filtered = filtered.filter((item) =>
+        !isVillageCompleted(item.village_name, item.scheme_id, item.scheme_name),
       );
     }
 
@@ -1846,9 +1866,6 @@ const PressureDashboard: React.FC = () => {
           const isCivilCompleted = ws === "yes";
           const hasIoT = validStatuses.includes(fcs);
           if (!isCivilCompleted || !hasIoT) return;
-          if (waterSupplyStatus !== "All") {
-            if (String(status.water_supply_status || "").toLowerCase() !== waterSupplyStatus.toLowerCase()) return;
-          }
         } else if (uiSchemeFilter === "fully_completed") {
           if (fcs !== "fully completed" && fcs !== "completed" && fcs !== "fully_completed") return;
         } else if (uiSchemeFilter === "in_progress") {
@@ -1860,6 +1877,12 @@ const PressureDashboard: React.FC = () => {
         } else if (uiSchemeFilter === "mjp_commissioned_yes") {
           if (mjpComm !== "yes") return;
         }
+      }
+
+      // Check water supply status independently for ANY category
+      if (waterSupplyStatus !== "All") {
+        if (!status) return;
+        if (String(status.water_supply_status || "").toLowerCase() !== waterSupplyStatus.toLowerCase()) return;
       }
 
       // Check scheme status filter if applied

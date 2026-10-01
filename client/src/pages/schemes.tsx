@@ -36,9 +36,7 @@ export default function Schemes() {
   const [waterSupplyStatus, setWaterSupplyStatus] = useState<string>("All");
   const [selectedAgencyType, setSelectedAgencyType] = useState<string>("ALL");
 
-  const schemeFilter = uiSchemeFilter === "commissioned" && waterSupplyStatus !== "All"
-    ? `commissioned_${waterSupplyStatus.toLowerCase()}`
-    : uiSchemeFilter;
+  const schemeFilter = uiSchemeFilter;
 
   const [currentFilteredSchemes, setCurrentFilteredSchemes] = useState<
     SchemeStatus[]
@@ -213,11 +211,6 @@ export default function Schemes() {
           // Commissioned: 100% Civil Work Completed (water_supply = Yes)
           const isCivilCompleted = ws === "yes";
           if (!isCivilCompleted) return false;
-
-          if (waterSupplyStatus !== "All") {
-            const wss = String(status.water_supply_status || "").trim().toLowerCase();
-            return wss === waterSupplyStatus.toLowerCase();
-          }
           return true;
         }
 
@@ -243,6 +236,16 @@ export default function Schemes() {
         }
 
         return true;
+      });
+    }
+
+    // Apply Water Supply Status filter independently for ANY category
+    if (waterSupplyStatus !== "All") {
+      filtered = filtered.filter((scheme) => {
+        const status = schemeStatusMap.get(scheme.scheme_id);
+        if (!status) return false;
+        const wss = String(status.water_supply_status || "").trim().toLowerCase();
+        return wss === waterSupplyStatus.toLowerCase();
       });
     }
 

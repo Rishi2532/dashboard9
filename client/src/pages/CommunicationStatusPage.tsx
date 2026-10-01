@@ -60,7 +60,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import FilterBar from "@/components/dashboard/FilterBar";
-import VillageFilter from "@/components/dashboard/VillageFilter";
+import VillageFilter, { VillageFilterValue } from "@/components/dashboard/VillageFilter";
 import { useVillageCompletion } from "@/hooks/useVillageCompletion";
 interface CommunicationOverview {
   total_esrs: number;
@@ -142,7 +142,7 @@ export default function CommunicationStatusPage() {
   const [uiSchemeFilter, setUiSchemeFilter] = useState<string>("commissioned");
   const [waterSupplyStatus, setWaterSupplyStatus] = useState<string>("All");
   const [selectedWaterSupply, setSelectedWaterSupply] = useState<string>("all");
-  const [villageFilter, setVillageFilter] = useState<"all" | "completed">("all");
+  const [villageFilter, setVillageFilter] = useState<VillageFilterValue>("all");
   const { isVillageCompleted } = useVillageCompletion();
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -365,6 +365,10 @@ export default function CommunicationStatusPage() {
     if (villageFilter === "completed") {
       result = result.filter((scheme: CommunicationScheme) =>
         isVillageCompleted(scheme.village_name, scheme.scheme_id, scheme.scheme_name)
+      );
+    } else if (villageFilter === "in_progress") {
+      result = result.filter((scheme: CommunicationScheme) =>
+        !isVillageCompleted(scheme.village_name, scheme.scheme_id, scheme.scheme_name)
       );
     }
 
@@ -864,6 +868,10 @@ export default function CommunicationStatusPage() {
     if (villageFilter === "completed") {
       result = result.filter((scheme: CommunicationScheme) =>
         isVillageCompleted(scheme.village_name, scheme.scheme_id, scheme.scheme_name)
+      );
+    } else if (villageFilter === "in_progress") {
+      result = result.filter((scheme: CommunicationScheme) =>
+        !isVillageCompleted(scheme.village_name, scheme.scheme_id, scheme.scheme_name)
       );
     }
 

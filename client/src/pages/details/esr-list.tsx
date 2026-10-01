@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import VillageFilter from "@/components/dashboard/VillageFilter";
+import VillageFilter, { VillageFilterValue } from "@/components/dashboard/VillageFilter";
 import { useVillageCompletion } from "@/hooks/useVillageCompletion";
 
 interface ESRDetailProps {
@@ -62,7 +62,7 @@ export default function ESRListPage() {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(50);
-  const [villageFilter, setVillageFilter] = useState<"all" | "completed">("all");
+  const [villageFilter, setVillageFilter] = useState<VillageFilterValue>("all");
   const { isVillageCompleted } = useVillageCompletion();
 
   // Fetch sensor data based on type
@@ -224,6 +224,10 @@ export default function ESRListPage() {
     if (villageFilter === "completed") {
       finalResults = finalResults.filter((item: any) =>
         isVillageCompleted(item.village_name, item.scheme_id, item.scheme_name)
+      );
+    } else if (villageFilter === "in_progress") {
+      finalResults = finalResults.filter((item: any) =>
+        !isVillageCompleted(item.village_name, item.scheme_id, item.scheme_name)
       );
     }
 

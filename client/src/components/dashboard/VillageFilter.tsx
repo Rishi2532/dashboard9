@@ -7,11 +7,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, Home } from "lucide-react";
+import { CheckCircle2, Home, Clock } from "lucide-react";
+
+export type VillageFilterValue = "all" | "completed" | "in_progress";
 
 export interface VillageFilterProps {
-  value: "all" | "completed";
-  onChange: (value: "all" | "completed") => void;
+  value: VillageFilterValue;
+  onChange: (value: VillageFilterValue) => void;
   variant?: "select" | "toggle";
   className?: string;
   triggerClassName?: string;
@@ -70,6 +72,19 @@ export default function VillageFilter({
             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
             Fully Completed Villages
           </button>
+          <button
+            type="button"
+            onClick={() => onChange("in_progress")}
+            className={cn(
+              "flex-1 px-3 py-2 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-1.5",
+              value === "in_progress"
+                ? "bg-white text-amber-700 shadow-sm border border-amber-100"
+                : "text-gray-500 hover:text-gray-700",
+            )}
+          >
+            <Clock className="h-3.5 w-3.5 text-amber-600" />
+            In Progress Villages
+          </button>
         </div>
       </div>
     );
@@ -87,11 +102,12 @@ export default function VillageFilter({
           {label}
         </p>
       )}
-      <Select value={value} onValueChange={(val) => onChange(val as "all" | "completed")}>
+      <Select value={value} onValueChange={(val) => onChange(val as VillageFilterValue)}>
         <SelectTrigger
           className={cn(
             "w-full bg-white border-emerald-200 h-9 text-xs focus:ring-emerald-500",
             value === "completed" && "border-emerald-500 bg-emerald-50/40 text-emerald-800 font-semibold",
+            value === "in_progress" && "border-amber-500 bg-amber-50/40 text-amber-800 font-semibold",
             triggerClassName,
           )}
         >
@@ -105,8 +121,15 @@ export default function VillageFilter({
               Fully Completed Villages
             </span>
           </SelectItem>
+          <SelectItem value="in_progress">
+            <span className="flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5 text-amber-600 inline" />
+              In Progress Villages
+            </span>
+          </SelectItem>
         </SelectContent>
       </Select>
     </div>
   );
 }
+

@@ -44,7 +44,7 @@ import {
   DialogHeader
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/use-auth";
-import VillageFilter from "@/components/dashboard/VillageFilter";
+import VillageFilter, { VillageFilterValue } from "@/components/dashboard/VillageFilter";
 import { useVillageCompletion } from "@/hooks/useVillageCompletion";
 
 // Define TypeScript interfaces for our data
@@ -481,7 +481,7 @@ export default function AlertsProgressPage() {
   const [customDate, setCustomDate] = useState<string>("");
   const [schemeSearch, setSchemeSearch] = useState<string>("");
   const [ackStatusFilter, setAckStatusFilter] = useState<"all" | "acknowledged" | "pending">("all");
-  const [villageFilter, setVillageFilter] = useState<"all" | "completed">("all");
+  const [villageFilter, setVillageFilter] = useState<VillageFilterValue>("all");
   const { isVillageCompleted } = useVillageCompletion();
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(25);
@@ -934,6 +934,9 @@ export default function AlertsProgressPage() {
       }
       if (villageFilter === "completed") {
         return isVillageCompleted(row.village_name, row.scheme_id, row.scheme_name);
+      }
+      if (villageFilter === "in_progress") {
+        return !isVillageCompleted(row.village_name, row.scheme_id, row.scheme_name);
       }
       return true;
     });

@@ -32,7 +32,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import GeographicalFilters from "@/components/dashboard/GeographicalFilters";
 import AgencyTypeFilter from "@/components/dashboard/AgencyTypeFilter";
-import VillageFilter from "@/components/dashboard/VillageFilter";
+import VillageFilter, { VillageFilterValue } from "@/components/dashboard/VillageFilter";
 import { useVillageCompletion } from "@/hooks/useVillageCompletion";
 import { useAuth } from "@/hooks/use-auth";
 import { useComprehensiveActivityTracker } from "@/hooks/use-comprehensive-activity-tracker";
@@ -189,12 +189,10 @@ const EnhancedLpcdDashboard = () => {
   const [schemeStatusFilter, setSchemeStatusFilter] = useState("all");
   const [uiSchemeFilter, setUiSchemeFilter] = useState<string>("commissioned");
   const [waterSupplyStatus, setWaterSupplyStatus] = useState<string>("All");
-  const [villageFilter, setVillageFilter] = useState<"all" | "completed">("all");
+  const [villageFilter, setVillageFilter] = useState<VillageFilterValue>("all");
   const { isVillageCompleted } = useVillageCompletion();
 
-  const schemeFilter = uiSchemeFilter === "commissioned" && waterSupplyStatus !== "All"
-    ? `commissioned_${waterSupplyStatus.toLowerCase()}`
-    : uiSchemeFilter;
+  const schemeFilter = uiSchemeFilter;
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -819,8 +817,8 @@ const EnhancedLpcdDashboard = () => {
       });
     }
 
-    // Apply commissioned status filter
-    if (schemeFilter !== "all" || uiSchemeFilter !== "all") {
+    // Apply commissioned / category status filter
+    if (uiSchemeFilter !== "all") {
       filtered = filtered.filter((scheme) => {
         const status = schemeStatusMap.get(scheme.scheme_id);
         if (!status) return false;
@@ -829,12 +827,7 @@ const EnhancedLpcdDashboard = () => {
           const validStatuses = ["fully completed", "completed", "in progress"];
           const hasIoT = validStatuses.includes(String(status.fully_completion_scheme_status || "").toLowerCase());
           const isCivilCompleted = String(status.water_supply || "").toLowerCase() === "yes";
-          if (!isCivilCompleted || !hasIoT) return false;
-
-          if (waterSupplyStatus !== "All") {
-            return String(status.water_supply_status || "").toLowerCase() === waterSupplyStatus.toLowerCase();
-          }
-          return true;
+          return isCivilCompleted && hasIoT;
         }
 
         if (uiSchemeFilter === "fully_completed") {
@@ -843,19 +836,31 @@ const EnhancedLpcdDashboard = () => {
         }
 
         if (uiSchemeFilter === "in_progress") {
-          return status.fully_completion_scheme_status === "In Progress";
+          const statusValue = String(status.fully_completion_scheme_status || "").toLowerCase();
+          return statusValue === "in progress" || statusValue === "partial";
         }
 
         if (uiSchemeFilter === "common_filter") {
           const statusValue = String(status.fully_completion_scheme_status || "").toLowerCase();
-          return (statusValue === "fully completed" || statusValue === "completed" || statusValue === "fully_completed") && status.water_supply === "Yes";
+          const isInstrumented = statusValue === "fully completed" || statusValue === "completed" || statusValue === "fully_completed";
+          const isCivilCompleted = String(status.water_supply || "").toLowerCase() === "yes";
+          return isInstrumented && isCivilCompleted;
         }
 
         if (uiSchemeFilter === "mjp_commissioned_yes") {
-          return status.mjp_commissioned === "Yes";
+          return String(status.mjp_commissioned || "").toLowerCase() === "yes";
         }
 
         return true;
+      });
+    }
+
+    // Apply Water Supply Status filter independently for ANY category
+    if (waterSupplyStatus !== "All") {
+      filtered = filtered.filter((scheme) => {
+        const status = schemeStatusMap.get(scheme.scheme_id);
+        if (!status) return false;
+        return String(status.water_supply_status || "").trim().toLowerCase() === waterSupplyStatus.toLowerCase();
       });
     }
 
@@ -877,6 +882,19 @@ const EnhancedLpcdDashboard = () => {
     if (villageFilter === "completed") {
       filtered = filtered.filter((scheme: any) =>
         isVillageCompleted(scheme.village_name, scheme.scheme_id, scheme.scheme_name)
+      );
+
+      // Deduplicate records by (scheme_id, village_name) (case-insensitive)
+      const seen = new Set<string>();
+      filtered = filtered.filter((scheme: any) => {
+        const key = `${(scheme.scheme_id || "").trim().toLowerCase()}|${(scheme.village_name || "").trim().toLowerCase()}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    } else if (villageFilter === "in_progress") {
+      filtered = filtered.filter((scheme: any) =>
+        !isVillageCompleted(scheme.village_name, scheme.scheme_id, scheme.scheme_name)
       );
 
       // Deduplicate records by (scheme_id, village_name) (case-insensitive)
@@ -1149,25 +1167,22 @@ const EnhancedLpcdDashboard = () => {
   }, [filteredSchemes]);
 
   const getFilterDescription = () => {
+    let base = "across all schemes";
     if (uiSchemeFilter === "commissioned") {
-      if (waterSupplyStatus !== "All") {
-        return `where civil work is 100% complete (${waterSupplyStatus} supply)`;
-      }
-      return "where civil work is 100% complete";
+      base = "where civil work is 100% complete";
+    } else if (uiSchemeFilter === "fully_completed") {
+      base = "where IoT is fully completed";
+    } else if (uiSchemeFilter === "in_progress") {
+      base = "where IoT is in progress";
+    } else if (uiSchemeFilter === "common_filter") {
+      base = "with 100% civil work & IoT completed";
+    } else if (uiSchemeFilter === "mjp_commissioned_yes") {
+      base = "which are MJP commissioned";
     }
-    if (uiSchemeFilter === "fully_completed") {
-      return "where IoT is fully completed";
+    if (waterSupplyStatus !== "All") {
+      base += ` (${waterSupplyStatus} supply)`;
     }
-    if (uiSchemeFilter === "in_progress") {
-      return "where IoT is in progress";
-    }
-    if (uiSchemeFilter === "common_filter") {
-      return "with 100% civil work & IoT completed";
-    }
-    if (uiSchemeFilter === "mjp_commissioned_yes") {
-      return "which are MJP commissioned";
-    }
-    return "across all schemes";
+    return base;
   };
 
   const filterCounts = getFilterCounts();

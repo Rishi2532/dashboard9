@@ -170,9 +170,7 @@ const SchemeLpcdDashboard = () => {
   const [uiSchemeFilter, setUiSchemeFilter] = useState<string>("commissioned");
   const [waterSupplyStatus, setWaterSupplyStatus] = useState<string>("All");
 
-  const schemeFilter = uiSchemeFilter === "commissioned" && waterSupplyStatus !== "All"
-    ? `commissioned_${waterSupplyStatus.toLowerCase()}`
-    : uiSchemeFilter;
+  const schemeFilter = uiSchemeFilter;
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -623,15 +621,12 @@ const SchemeLpcdDashboard = () => {
     }
 
     // 3. Apply commissioned/status filters
-    if (schemeFilter !== "all" || uiSchemeFilter !== "all") {
+    if (uiSchemeFilter !== "all") {
       filtered = filtered.filter((scheme) => {
         const status = schemeStatusMap.get(scheme.scheme_id);
         if (!status) return false;
 
         if (uiSchemeFilter === "commissioned") {
-          if (waterSupplyStatus !== "All") {
-            return status.water_supply_status === waterSupplyStatus;
-          }
           return status.water_supply === "Yes";
         }
 
@@ -641,7 +636,8 @@ const SchemeLpcdDashboard = () => {
         }
 
         if (uiSchemeFilter === "in_progress") {
-          return status.fully_completion_scheme_status === "In Progress";
+          const statusValue = String(status.fully_completion_scheme_status || "").toLowerCase();
+          return statusValue === "in progress" || statusValue === "partial";
         }
 
         if (uiSchemeFilter === "common_filter") {
@@ -650,10 +646,19 @@ const SchemeLpcdDashboard = () => {
         }
 
         if (uiSchemeFilter === "mjp_commissioned_yes") {
-          return status.mjp_commissioned === "Yes";
+          return String(status.mjp_commissioned || "").toLowerCase() === "yes";
         }
 
         return true;
+      });
+    }
+
+    // Apply Water Supply Status filter independently for ANY category
+    if (waterSupplyStatus !== "All") {
+      filtered = filtered.filter((scheme) => {
+        const status = schemeStatusMap.get(scheme.scheme_id);
+        if (!status) return false;
+        return String(status.water_supply_status || "").trim().toLowerCase() === waterSupplyStatus.toLowerCase();
       });
     }
 

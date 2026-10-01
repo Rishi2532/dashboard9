@@ -348,12 +348,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           v.scheme_name, 
           v.fully_completion_village_status
         FROM village v
-        WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
+        WHERE v.village_name IS NOT NULL
       `);
       const rows = result.rows || result || [];
-      const villageNames = Array.from(new Set(rows.map((r: any) => r.village_name).filter(Boolean)));
+      const completedVillages = Array.from(new Set(
+        rows.filter((r: any) => String(r.fully_completion_village_status || '').toLowerCase().trim() === 'completed')
+            .map((r: any) => r.village_name)
+            .filter(Boolean)
+      ));
+      const inProgressVillages = Array.from(new Set(
+        rows.filter((r: any) => String(r.fully_completion_village_status || '').toLowerCase().trim() !== 'completed')
+            .map((r: any) => r.village_name)
+            .filter(Boolean)
+      ));
       res.json({
-        completedVillages: villageNames,
+        completedVillages,
+        inProgressVillages,
         records: rows
       });
     } catch (error) {
