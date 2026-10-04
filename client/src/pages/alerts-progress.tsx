@@ -638,10 +638,10 @@ export default function AlertsProgressPage() {
 
   // Queries for each metric
   const { data: lpcdData = [], isLoading: isLoadingLpcd } = useQuery<AlertData[]>({
-    queryKey: ["/api/alerts-progress/lpcd", customDate],
+    queryKey: ["/api/alerts-progress/lpcd", customDate, activeSubTab],
     queryFn: async () => {
       try {
-        const url = customDate ? `/api/alerts-progress/lpcd?date=${customDate}` : "/api/alerts-progress/lpcd";
+        const url = customDate ? `/api/alerts-progress/lpcd?date=${customDate}` : `/api/alerts-progress/lpcd?subTab=${activeSubTab}`;
         const res = await fetch(url);
         if (!res.ok) return [];
         const json = await res.json();
@@ -654,10 +654,10 @@ export default function AlertsProgressPage() {
   });
 
   const { data: chlorineData = [], isLoading: isLoadingChlorine } = useQuery<AlertData[]>({
-    queryKey: ["/api/alerts-progress/chlorine", customDate],
+    queryKey: ["/api/alerts-progress/chlorine", customDate, activeSubTab],
     queryFn: async () => {
       try {
-        const url = customDate ? `/api/alerts-progress/chlorine?date=${customDate}` : "/api/alerts-progress/chlorine";
+        const url = customDate ? `/api/alerts-progress/chlorine?date=${customDate}` : `/api/alerts-progress/chlorine?subTab=${activeSubTab}`;
         const res = await fetch(url);
         if (!res.ok) return [];
         const json = await res.json();
@@ -670,10 +670,10 @@ export default function AlertsProgressPage() {
   });
 
   const { data: pressureData = [], isLoading: isLoadingPressure } = useQuery<AlertData[]>({
-    queryKey: ["/api/alerts-progress/pressure", customDate],
+    queryKey: ["/api/alerts-progress/pressure", customDate, activeSubTab],
     queryFn: async () => {
       try {
-        const url = customDate ? `/api/alerts-progress/pressure?date=${customDate}` : "/api/alerts-progress/pressure";
+        const url = customDate ? `/api/alerts-progress/pressure?date=${customDate}` : `/api/alerts-progress/pressure?subTab=${activeSubTab}`;
         const res = await fetch(url);
         if (!res.ok) return [];
         const json = await res.json();
@@ -686,10 +686,11 @@ export default function AlertsProgressPage() {
   });
 
   const { data: offlineData = [], isLoading: isLoadingOffline } = useQuery<AlertData[]>({
-    queryKey: ["/api/alerts-progress/offline"],
+    queryKey: ["/api/alerts-progress/offline", customDate, activeSubTab],
     queryFn: async () => {
       try {
-        const res = await fetch("/api/alerts-progress/offline");
+        const url = customDate ? `/api/alerts-progress/offline?date=${customDate}` : `/api/alerts-progress/offline?subTab=${activeSubTab}`;
+        const res = await fetch(url);
         if (!res.ok) return [];
         const json = await res.json();
         return Array.isArray(json) ? json : [];
@@ -751,6 +752,18 @@ export default function AlertsProgressPage() {
       }
     });
     return villages.size || lpcdData.length;
+  }, [lpcdData]);
+
+  const lpcdEsrsCount = useMemo(() => {
+    const esrs = new Set<string>();
+    lpcdData.forEach((row) => {
+      if (row.esr_name) {
+        const v = (row.village_name || "").trim().toLowerCase();
+        const e = row.esr_name.trim().toLowerCase();
+        esrs.add(`${row.scheme_id}_${v}_${e}`);
+      }
+    });
+    return esrs.size;
   }, [lpcdData]);
 
   const chlorineEsrsCount = useMemo(() => {
@@ -4203,7 +4216,7 @@ export default function AlertsProgressPage() {
           </div>
 
           {/* 2. Alert Category Interactive Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
             {/* Card 1: LPCD */}
             <button
               type="button"
@@ -4230,22 +4243,24 @@ export default function AlertsProgressPage() {
                 )}
               </div>
               <div className="mt-1">
-                <div className="text-xl font-black text-slate-900 tracking-tight flex items-baseline gap-1.5">
-                  <span>{lpcdSchemesCount}</span>
-                  <span className="text-xs font-semibold text-[#0f4c81]">{lpcdSchemesCount === 1 ? 'Scheme' : 'Schemes'}</span>
+                <div className="text-2xl font-black text-slate-900 tracking-tight flex items-baseline gap-1.5">
+                  <span>{lpcdData.length}</span>
+                  <span className="text-xs font-semibold text-[#0f4c81]">Alerts</span>
                 </div>
                 <div className="text-[11px] font-semibold text-slate-700 mt-1 flex items-center gap-1.5 flex-wrap">
-                  <span className="inline-flex items-center gap-0.5 text-blue-700">
-                    <Mail className="h-3 w-3" /> {lpcdActualEmailsCount} Email
-                  </span>
+                  <span className="text-slate-800">{lpcdSchemesCount} Scheme{lpcdSchemesCount === 1 ? '' : 's'}</span>
                   <span className="text-slate-300">•</span>
-                  <span className="inline-flex items-center gap-0.5 text-purple-700">
-                    <MessageSquare className="h-3 w-3" /> {lpcdActualSmsCount} SMS
-                  </span>
+                  <span className="text-slate-800"><strong className="text-slate-900">{lpcdVillagesCount}</strong> Villages</span>
+                  {lpcdEsrsCount > 0 && (
+                    <>
+                      <span className="text-slate-300">•</span>
+                      <span className="text-slate-800"><strong className="text-slate-900">{lpcdEsrsCount}</strong> ESR</span>
+                    </>
+                  )}
                 </div>
-                <div className="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1">
-                  <MapPin className="h-3 w-3 text-blue-500 shrink-0" />
-                  <span><strong className="text-slate-700">{lpcdVillagesCount}</strong> Villages Covered</span>
+                <div className="text-[10px] text-slate-500 font-medium mt-1 flex items-center gap-1">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                  <span>Data with critical parameters</span>
                 </div>
               </div>
             </button>
@@ -4276,22 +4291,20 @@ export default function AlertsProgressPage() {
                 )}
               </div>
               <div className="mt-1">
-                <div className="text-xl font-black text-slate-900 tracking-tight flex items-baseline gap-1.5">
-                  <span>{chlorineSchemesCount}</span>
-                  <span className="text-xs font-semibold text-emerald-700">{chlorineSchemesCount === 1 ? 'Scheme' : 'Schemes'}</span>
+                <div className="text-2xl font-black text-slate-900 tracking-tight flex items-baseline gap-1.5">
+                  <span>{chlorineData.length}</span>
+                  <span className="text-xs font-semibold text-emerald-700">Alerts</span>
                 </div>
                 <div className="text-[11px] font-semibold text-slate-700 mt-1 flex items-center gap-1.5 flex-wrap">
-                  <span className="inline-flex items-center gap-0.5 text-blue-700">
-                    <Mail className="h-3 w-3" /> {chlorineActualEmailsCount} Email
-                  </span>
+                  <span className="text-slate-800">{chlorineSchemesCount} Scheme{chlorineSchemesCount === 1 ? '' : 's'}</span>
                   <span className="text-slate-300">•</span>
-                  <span className="inline-flex items-center gap-0.5 text-purple-700">
-                    <MessageSquare className="h-3 w-3" /> {chlorineActualSmsCount} SMS
-                  </span>
+                  <span className="text-slate-800"><strong className="text-slate-900">{chlorineVillagesCount}</strong> Villages</span>
+                  <span className="text-slate-300">•</span>
+                  <span className="text-slate-800"><strong className="text-slate-900">{chlorineEsrsCount}</strong> ESR</span>
                 </div>
-                <div className="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1">
-                  <MapPin className="h-3 w-3 text-emerald-500 shrink-0" />
-                  <span><strong className="text-slate-700">{chlorineVillagesCount}</strong> Vil • <strong className="text-slate-700">{chlorineEsrsCount}</strong> ESR</span>
+                <div className="text-[10px] text-slate-500 font-medium mt-1 flex items-center gap-1">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  <span>Data with critical parameters</span>
                 </div>
               </div>
             </button>
@@ -4322,22 +4335,20 @@ export default function AlertsProgressPage() {
                 )}
               </div>
               <div className="mt-1">
-                <div className="text-xl font-black text-slate-900 tracking-tight flex items-baseline gap-1.5">
-                  <span>{pressureSchemesCount}</span>
-                  <span className="text-xs font-semibold text-amber-700">{pressureSchemesCount === 1 ? 'Scheme' : 'Schemes'}</span>
+                <div className="text-2xl font-black text-slate-900 tracking-tight flex items-baseline gap-1.5">
+                  <span>{pressureData.length}</span>
+                  <span className="text-xs font-semibold text-amber-700">Alerts</span>
                 </div>
                 <div className="text-[11px] font-semibold text-slate-700 mt-1 flex items-center gap-1.5 flex-wrap">
-                  <span className="inline-flex items-center gap-0.5 text-blue-700">
-                    <Mail className="h-3 w-3" /> {pressureActualEmailsCount} Email
-                  </span>
+                  <span className="text-slate-800">{pressureSchemesCount} Scheme{pressureSchemesCount === 1 ? '' : 's'}</span>
                   <span className="text-slate-300">•</span>
-                  <span className="inline-flex items-center gap-0.5 text-purple-700">
-                    <MessageSquare className="h-3 w-3" /> {pressureActualSmsCount} SMS
-                  </span>
+                  <span className="text-slate-800"><strong className="text-slate-900">{pressureVillagesCount}</strong> Villages</span>
+                  <span className="text-slate-300">•</span>
+                  <span className="text-slate-800"><strong className="text-slate-900">{pressureEsrsCount}</strong> ESR</span>
                 </div>
-                <div className="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1">
-                  <MapPin className="h-3 w-3 text-amber-500 shrink-0" />
-                  <span><strong className="text-slate-700">{pressureVillagesCount}</strong> Vil • <strong className="text-slate-700">{pressureEsrsCount}</strong> ESR</span>
+                <div className="text-[10px] text-slate-500 font-medium mt-1 flex items-center gap-1">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                  <span>Data with critical parameters</span>
                 </div>
               </div>
             </button>
@@ -4368,72 +4379,25 @@ export default function AlertsProgressPage() {
                 )}
               </div>
               <div className="mt-1">
-                <div className="text-xl font-black text-slate-900 tracking-tight flex items-baseline gap-1.5">
-                  <span>{offlineSchemesCount}</span>
-                  <span className="text-xs font-semibold text-rose-700">{offlineSchemesCount === 1 ? 'Scheme' : 'Schemes'}</span>
+                <div className="text-2xl font-black text-slate-900 tracking-tight flex items-baseline gap-1.5">
+                  <span>{offlineData.length}</span>
+                  <span className="text-xs font-semibold text-rose-700">Alerts</span>
                 </div>
                 <div className="text-[11px] font-semibold text-slate-700 mt-1 flex items-center gap-1.5 flex-wrap">
-                  <span className="inline-flex items-center gap-0.5 text-blue-700">
-                    <Mail className="h-3 w-3" /> {offlineActualEmailsCount} Email
-                  </span>
+                  <span className="text-slate-800">{offlineSchemesCount} Scheme{offlineSchemesCount === 1 ? '' : 's'}</span>
                   <span className="text-slate-300">•</span>
-                  <span className="inline-flex items-center gap-0.5 text-purple-700">
-                    <MessageSquare className="h-3 w-3" /> {offlineActualSmsCount} SMS
-                  </span>
+                  <span className="text-slate-800"><strong className="text-slate-900">{offlineVillagesCount}</strong> Villages</span>
+                  <span className="text-slate-300">•</span>
+                  <span className="text-slate-800"><strong className="text-slate-900">{offlineEsrsCount}</strong> ESR</span>
                 </div>
-                <div className="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1">
-                  <MapPin className="h-3 w-3 text-rose-500 shrink-0" />
-                  <span><strong className="text-slate-700">{offlineVillagesCount}</strong> Vil • <strong className="text-slate-700">{offlineEsrsCount}</strong> ESR</span>
+                <div className="text-[10px] text-slate-500 font-medium mt-1 flex items-center gap-1">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                  <span>Data with critical parameters</span>
                 </div>
               </div>
             </button>
 
-            {/* Card 5: Daily Email & SMS Alerts */}
-            <button
-              type="button"
-              onClick={() => { setActiveTab("daily_dispatches"); setDailyPage(1); }}
-              className={`text-left p-4 rounded-xl border transition-all duration-200 cursor-pointer relative overflow-hidden group ${activeTab === "daily_dispatches"
-                ? "bg-white border-[#0f4c81] shadow-md ring-2 ring-[#0f4c81]/25 -translate-y-0.5"
-                : "bg-white border-slate-200 hover:border-blue-300 hover:shadow-sm hover:-translate-y-0.5"
-                }`}
-            >
-              <div className={`absolute top-0 left-0 right-0 h-1.5 transition-all ${activeTab === "daily_dispatches" ? "bg-[#0f4c81]" : "bg-transparent group-hover:bg-blue-200"
-                }`} />
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="flex items-center gap-2">
-                  <div className={`p-2 rounded-lg ${activeTab === "daily_dispatches" ? "bg-indigo-100 text-indigo-800" : "bg-slate-100 text-slate-600 group-hover:bg-indigo-50 group-hover:text-indigo-700"
-                    }`}>
-                    <Send className="h-4 w-4" />
-                  </div>
-                  <span className="text-xs font-bold text-slate-700">Daily Dispatches</span>
-                </div>
-                {activeTab === "daily_dispatches" && (
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#0f4c81] bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
-                    Active
-                  </span>
-                )}
-              </div>
-              <div className="mt-1">
-                <div className="text-xl font-black text-slate-900 tracking-tight flex items-baseline gap-1.5">
-                  <span>{dailySchemesCount}</span>
-                  <span className="text-xs font-semibold text-indigo-700">{dailySchemesCount === 1 ? 'Scheme' : 'Schemes'}</span>
-                </div>
-                <div className="text-[11px] font-semibold text-slate-700 mt-1 flex items-center gap-1.5 flex-wrap">
-                  <span className="inline-flex items-center gap-0.5 text-blue-700">
-                    <Mail className="h-3 w-3" /> {dailyActualEmailsCount} Email
-                  </span>
-                  <span className="text-slate-300">•</span>
-                  <span className="inline-flex items-center gap-0.5 text-purple-700">
-                    <MessageSquare className="h-3 w-3" /> {dailyActualSmsCount} SMS
-                  </span>
-                </div>
-                <div className="text-[10px] text-slate-500 font-medium mt-0.5">
-                  <span>Dispatched across all parameters</span>
-                </div>
-              </div>
-            </button>
-
-            {/* Card 6: Real-Time Critical */}
+            {/* Card 5: Real-Time Critical */}
             <button
               type="button"
               onClick={() => { setActiveTab("realtime"); setRealtimePage(1); }}
@@ -4458,20 +4422,24 @@ export default function AlertsProgressPage() {
                 </span>
               </div>
 
-
               <div className="mt-1">
                 <div className="text-2xl font-black text-rose-600 tracking-tight flex items-baseline gap-1.5">
                   <span>{realtimeProgress?.alerts?.length ?? 0}</span>
-
+                  <span className="text-xs font-semibold text-rose-600">Alerts</span>
                 </div>
-
+                <div className="text-[11px] font-semibold text-slate-700 mt-1 flex items-center gap-1.5">
+                  <span>Active real-time sensors</span>
+                </div>
+                <div className="text-[10px] text-rose-600 font-medium mt-1 flex items-center gap-1">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse shrink-0" />
+                  <span>Live telemetry alerts</span>
+                </div>
               </div>
             </button>
           </div>
 
           {/* 3. Section Render */}
           {activeTab === "realtime" && renderRealtimeDataTable()}
-          {activeTab === "daily_dispatches" && renderDailyDispatchesDataTable()}
           {activeTab === "lpcd" && renderDataTable(lpcdData, "lpcd", isLoadingLpcd)}
           {activeTab === "chlorine" && renderDataTable(chlorineData, "chlorine", isLoadingChlorine)}
           {activeTab === "pressure" && renderDataTable(pressureData, "pressure", isLoadingPressure)}

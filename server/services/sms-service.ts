@@ -208,6 +208,7 @@ export async function logSmsAlert(data: {
   gateway_status?: number;
   gateway_response?: string;
   is_success?: boolean;
+  dispatch_type?: 'daily' | 'realtime';
 }) {
   try {
     const db = await getDB();
@@ -226,6 +227,7 @@ export async function logSmsAlert(data: {
         gateway_response TEXT,
         is_success BOOLEAN DEFAULT TRUE,
         sent_date DATE DEFAULT CURRENT_DATE,
+        dispatch_type VARCHAR(50) DEFAULT 'daily',
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
       CREATE INDEX IF NOT EXISTS idx_sms_alert_logs_mobile ON sms_alert_logs(mobile);
@@ -237,7 +239,7 @@ export async function logSmsAlert(data: {
     await db.execute(sql`
       INSERT INTO sms_alert_logs (
         mobile, engineer_name, engineer_email, scheme_id, scheme_name,
-        template_id, template_name, message_text, gateway_status, gateway_response, is_success, sent_date
+        template_id, template_name, message_text, gateway_status, gateway_response, is_success, sent_date, dispatch_type
       ) VALUES (
         ${cleanMobile},
         ${data.engineer_name || null},
@@ -250,7 +252,8 @@ export async function logSmsAlert(data: {
         ${data.gateway_status || null},
         ${data.gateway_response || null},
         ${data.is_success !== undefined ? data.is_success : true},
-        CURRENT_DATE
+        CURRENT_DATE,
+        ${data.dispatch_type || 'daily'}
       )
     `);
   } catch (err: any) {
@@ -730,6 +733,7 @@ export async function sendRealtimeSingleAlertSMS(
     gateway_status: res.status,
     gateway_response: res.response,
     is_success: res.success,
+    dispatch_type: 'realtime',
   });
 
   return res;
