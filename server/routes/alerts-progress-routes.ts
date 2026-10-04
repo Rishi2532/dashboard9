@@ -85,17 +85,10 @@ router.get('/total-engineers', async (req, res) => {
 router.get('/lpcd', async (req, res) => {
   try {
     const requestedDate = req.query.date as string;
-    const subTab = (req.query.subTab as string) || 'current';
-    let dateFilter = `sent_date = CURRENT_DATE`;
-    let queryParams: any[] = [];
-    if (requestedDate) {
-      dateFilter = `sent_date = $1::date`;
-      queryParams = [requestedDate];
-    } else if (subTab === 'previous') {
-      dateFilter = `sent_date = CURRENT_DATE - INTERVAL '1 day'`;
-    } else {
-      dateFilter = `sent_date = CURRENT_DATE`;
-    }
+    const dateFilter = requestedDate 
+      ? `sent_date = $1::date` 
+      : `sent_date >= CURRENT_DATE - INTERVAL '1 day'`;
+    const queryParams = requestedDate ? [requestedDate] : [];
 
     const client = await pool.connect();
     try {
@@ -164,7 +157,6 @@ router.get('/lpcd', async (req, res) => {
                  message_text, gateway_status, is_success, sent_date, created_at, scheme_id
           FROM sms_alert_logs
           WHERE (template_name ILIKE '%LPCD%' OR template_name IS NULL)
-            AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
             AND ${dateFilter}
           ORDER BY scheme_id, mobile, sent_date, created_at DESC
         ),
@@ -249,17 +241,10 @@ router.get('/lpcd', async (req, res) => {
 router.get('/chlorine', async (req, res) => {
   try {
     const requestedDate = req.query.date as string;
-    const subTab = (req.query.subTab as string) || 'current';
-    let dateFilter = `sent_date = CURRENT_DATE`;
-    let queryParams: any[] = [];
-    if (requestedDate) {
-      dateFilter = `sent_date = $1::date`;
-      queryParams = [requestedDate];
-    } else if (subTab === 'previous') {
-      dateFilter = `sent_date = CURRENT_DATE - INTERVAL '1 day'`;
-    } else {
-      dateFilter = `sent_date = CURRENT_DATE`;
-    }
+    const dateFilter = requestedDate 
+      ? `sent_date = $1::date` 
+      : `sent_date >= CURRENT_DATE - INTERVAL '1 day'`;
+    const queryParams = requestedDate ? [requestedDate] : [];
 
     const client = await pool.connect();
     try {
@@ -328,7 +313,6 @@ router.get('/chlorine', async (req, res) => {
                  message_text, gateway_status, is_success, sent_date, created_at, scheme_id
           FROM sms_alert_logs
           WHERE (template_name ILIKE '%Chlorine%' AND template_name NOT ILIKE '%Offline%')
-            AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
             AND ${dateFilter}
           ORDER BY scheme_id, mobile, sent_date, created_at DESC
         ),
@@ -414,17 +398,10 @@ router.get('/chlorine', async (req, res) => {
 router.get('/pressure', async (req, res) => {
   try {
     const requestedDate = req.query.date as string;
-    const subTab = (req.query.subTab as string) || 'current';
-    let dateFilter = `sent_date = CURRENT_DATE`;
-    let queryParams: any[] = [];
-    if (requestedDate) {
-      dateFilter = `sent_date = $1::date`;
-      queryParams = [requestedDate];
-    } else if (subTab === 'previous') {
-      dateFilter = `sent_date = CURRENT_DATE - INTERVAL '1 day'`;
-    } else {
-      dateFilter = `sent_date = CURRENT_DATE`;
-    }
+    const dateFilter = requestedDate 
+      ? `sent_date = $1::date` 
+      : `sent_date >= CURRENT_DATE - INTERVAL '1 day'`;
+    const queryParams = requestedDate ? [requestedDate] : [];
 
     const client = await pool.connect();
     try {
@@ -487,16 +464,6 @@ router.get('/pressure', async (req, res) => {
           ) sub
           GROUP BY scheme_id, sent_date
         ),
-        deduped_sms AS (
-          SELECT DISTINCT ON (scheme_id, mobile, sent_date)
-                 id, mobile, engineer_name, engineer_email, template_name, template_id,
-                 message_text, gateway_status, is_success, sent_date, created_at, scheme_id
-          FROM sms_alert_logs
-          WHERE (template_name ILIKE '%Pressure%' AND template_name NOT ILIKE '%Offline%')
-            AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
-            AND ${dateFilter}
-          ORDER BY scheme_id, mobile, sent_date, created_at DESC
-        ),
         sms_status AS (
           SELECT scheme_id,
                  sent_date,
@@ -513,7 +480,9 @@ router.get('/pressure', async (req, res) => {
                    'sent_date', sent_date::text,
                    'created_at', created_at
                  ) ORDER BY created_at DESC) as sms_dispatches
-          FROM deduped_sms
+          FROM sms_alert_logs
+          WHERE (template_name ILIKE '%Pressure%' OR template_name IS NULL)
+            AND ${dateFilter}
           GROUP BY scheme_id, sent_date
         )
         SELECT 
@@ -579,17 +548,10 @@ router.get('/pressure', async (req, res) => {
 router.get('/offline', async (req, res) => {
   try {
     const requestedDate = req.query.date as string;
-    const subTab = (req.query.subTab as string) || 'current';
-    let dateFilter = `sent_date = CURRENT_DATE`;
-    let queryParams: any[] = [];
-    if (requestedDate) {
-      dateFilter = `sent_date = $1::date`;
-      queryParams = [requestedDate];
-    } else if (subTab === 'previous') {
-      dateFilter = `sent_date = CURRENT_DATE - INTERVAL '1 day'`;
-    } else {
-      dateFilter = `sent_date = CURRENT_DATE`;
-    }
+    const dateFilter = requestedDate 
+      ? `sent_date = $1::date` 
+      : `sent_date >= CURRENT_DATE - INTERVAL '1 day'`;
+    const queryParams = requestedDate ? [requestedDate] : [];
 
     const client = await pool.connect();
     try {
@@ -642,16 +604,6 @@ router.get('/offline', async (req, res) => {
             AND ${dateFilter}
           ORDER BY scheme_id, sent_date, created_at DESC
         ),
-        deduped_sms AS (
-          SELECT DISTINCT ON (scheme_id, mobile, sent_date)
-                 id, mobile, engineer_name, engineer_email, template_name, template_id,
-                 message_text, gateway_status, is_success, sent_date, created_at, scheme_id
-          FROM sms_alert_logs
-          WHERE (template_name ILIKE '%Offline%' OR template_name IS NULL)
-            AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
-            AND ${dateFilter}
-          ORDER BY scheme_id, mobile, sent_date, created_at DESC
-        ),
         sms_status AS (
           SELECT scheme_id,
                  sent_date,
@@ -668,7 +620,9 @@ router.get('/offline', async (req, res) => {
                    'sent_date', sent_date::text,
                    'created_at', created_at
                  ) ORDER BY created_at DESC) as sms_dispatches
-          FROM deduped_sms
+          FROM sms_alert_logs
+          WHERE (template_name ILIKE '%Offline%' OR template_name IS NULL)
+            AND ${dateFilter}
           GROUP BY scheme_id, sent_date
         )
         SELECT 
@@ -1084,16 +1038,6 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               ) sub
               GROUP BY scheme_id, sent_date
             ),
-            deduped_sms AS (
-              SELECT DISTINCT ON (scheme_id, mobile, sent_date)
-                     id, mobile, engineer_name, engineer_email, template_name, template_id,
-                     message_text, gateway_status, is_success, sent_date, created_at, scheme_id
-              FROM sms_alert_logs
-              WHERE (template_name ILIKE '%LPCD%' OR template_name IS NULL)
-                AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
-                AND ${dateFilter}
-              ORDER BY scheme_id, mobile, sent_date, created_at DESC
-            ),
             sms_status AS (
               SELECT scheme_id,
                      sent_date,
@@ -1110,7 +1054,9 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
                        'sent_date', sent_date::text,
                        'created_at', created_at
                      ) ORDER BY created_at DESC) as sms_dispatches
-              FROM deduped_sms
+              FROM sms_alert_logs
+              WHERE (template_name ILIKE '%LPCD%' OR template_name IS NULL)
+                AND ${dateFilter}
               GROUP BY scheme_id, sent_date
             )
             SELECT 
@@ -1278,16 +1224,6 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               ) sub
               GROUP BY scheme_id, sent_date
             ),
-            deduped_sms AS (
-              SELECT DISTINCT ON (scheme_id, mobile, sent_date)
-                     id, mobile, engineer_name, engineer_email, template_name, template_id,
-                     message_text, gateway_status, is_success, sent_date, created_at, scheme_id
-              FROM sms_alert_logs
-              WHERE (template_name ILIKE '%Chlorine%' AND template_name NOT ILIKE '%Offline%')
-                AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
-                AND ${dateFilter}
-              ORDER BY scheme_id, mobile, sent_date, created_at DESC
-            ),
             sms_status AS (
               SELECT scheme_id,
                      sent_date,
@@ -1304,7 +1240,9 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
                        'sent_date', sent_date::text,
                        'created_at', created_at
                      ) ORDER BY created_at DESC) as sms_dispatches
-              FROM deduped_sms
+              FROM sms_alert_logs
+              WHERE (template_name ILIKE '%Chlorine%' OR template_name IS NULL)
+                AND ${dateFilter}
               GROUP BY scheme_id, sent_date
             )
             SELECT 
@@ -1475,16 +1413,6 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               ) sub
               GROUP BY scheme_id, sent_date
             ),
-            deduped_sms AS (
-              SELECT DISTINCT ON (scheme_id, mobile, sent_date)
-                     id, mobile, engineer_name, engineer_email, template_name, template_id,
-                     message_text, gateway_status, is_success, sent_date, created_at, scheme_id
-              FROM sms_alert_logs
-              WHERE (template_name ILIKE '%Pressure%' AND template_name NOT ILIKE '%Offline%')
-                AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
-                AND ${dateFilter}
-              ORDER BY scheme_id, mobile, sent_date, created_at DESC
-            ),
             sms_status AS (
               SELECT scheme_id,
                      sent_date,
@@ -1501,7 +1429,9 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
                        'sent_date', sent_date::text,
                        'created_at', created_at
                      ) ORDER BY created_at DESC) as sms_dispatches
-              FROM deduped_sms
+              FROM sms_alert_logs
+              WHERE (template_name ILIKE '%Pressure%' OR template_name IS NULL)
+                AND ${dateFilter}
               GROUP BY scheme_id, sent_date
             )
             SELECT 
@@ -1661,16 +1591,6 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
                 AND ${dateFilter}
               ORDER BY scheme_id, sent_date, created_at DESC
             ),
-            deduped_sms AS (
-              SELECT DISTINCT ON (scheme_id, mobile, sent_date)
-                     id, mobile, engineer_name, engineer_email, template_name, template_id,
-                     message_text, gateway_status, is_success, sent_date, created_at, scheme_id
-              FROM sms_alert_logs
-              WHERE (template_name ILIKE '%Offline%' OR template_name IS NULL)
-                AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
-                AND ${dateFilter}
-              ORDER BY scheme_id, mobile, sent_date, created_at DESC
-            ),
             sms_status AS (
               SELECT scheme_id,
                      sent_date,
@@ -1687,7 +1607,9 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
                        'sent_date', sent_date::text,
                        'created_at', created_at
                      ) ORDER BY created_at DESC) as sms_dispatches
-              FROM deduped_sms
+              FROM sms_alert_logs
+              WHERE (template_name ILIKE '%Offline%' OR template_name IS NULL)
+                AND ${dateFilter}
               GROUP BY scheme_id, sent_date
             )
             SELECT 

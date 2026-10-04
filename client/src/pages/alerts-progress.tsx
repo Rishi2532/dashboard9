@@ -638,10 +638,10 @@ export default function AlertsProgressPage() {
 
   // Queries for each metric
   const { data: lpcdData = [], isLoading: isLoadingLpcd } = useQuery<AlertData[]>({
-    queryKey: ["/api/alerts-progress/lpcd", customDate, activeSubTab],
+    queryKey: ["/api/alerts-progress/lpcd", customDate],
     queryFn: async () => {
       try {
-        const url = customDate ? `/api/alerts-progress/lpcd?date=${customDate}` : `/api/alerts-progress/lpcd?subTab=${activeSubTab}`;
+        const url = customDate ? `/api/alerts-progress/lpcd?date=${customDate}` : "/api/alerts-progress/lpcd";
         const res = await fetch(url);
         if (!res.ok) return [];
         const json = await res.json();
@@ -654,10 +654,10 @@ export default function AlertsProgressPage() {
   });
 
   const { data: chlorineData = [], isLoading: isLoadingChlorine } = useQuery<AlertData[]>({
-    queryKey: ["/api/alerts-progress/chlorine", customDate, activeSubTab],
+    queryKey: ["/api/alerts-progress/chlorine", customDate],
     queryFn: async () => {
       try {
-        const url = customDate ? `/api/alerts-progress/chlorine?date=${customDate}` : `/api/alerts-progress/chlorine?subTab=${activeSubTab}`;
+        const url = customDate ? `/api/alerts-progress/chlorine?date=${customDate}` : "/api/alerts-progress/chlorine";
         const res = await fetch(url);
         if (!res.ok) return [];
         const json = await res.json();
@@ -670,10 +670,10 @@ export default function AlertsProgressPage() {
   });
 
   const { data: pressureData = [], isLoading: isLoadingPressure } = useQuery<AlertData[]>({
-    queryKey: ["/api/alerts-progress/pressure", customDate, activeSubTab],
+    queryKey: ["/api/alerts-progress/pressure", customDate],
     queryFn: async () => {
       try {
-        const url = customDate ? `/api/alerts-progress/pressure?date=${customDate}` : `/api/alerts-progress/pressure?subTab=${activeSubTab}`;
+        const url = customDate ? `/api/alerts-progress/pressure?date=${customDate}` : "/api/alerts-progress/pressure";
         const res = await fetch(url);
         if (!res.ok) return [];
         const json = await res.json();
@@ -686,10 +686,10 @@ export default function AlertsProgressPage() {
   });
 
   const { data: offlineData = [], isLoading: isLoadingOffline } = useQuery<AlertData[]>({
-    queryKey: ["/api/alerts-progress/offline", customDate, activeSubTab],
+    queryKey: ["/api/alerts-progress/offline", customDate],
     queryFn: async () => {
       try {
-        const url = customDate ? `/api/alerts-progress/offline?date=${customDate}` : `/api/alerts-progress/offline?subTab=${activeSubTab}`;
+        const url = customDate ? `/api/alerts-progress/offline?date=${customDate}` : "/api/alerts-progress/offline";
         const res = await fetch(url);
         if (!res.ok) return [];
         const json = await res.json();
