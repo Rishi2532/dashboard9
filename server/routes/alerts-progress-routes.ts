@@ -179,6 +179,7 @@ router.get('/lpcd', async (req, res) => {
           w.village_name,
           w.lpcd_value_day7 as current_value,
           w.lpcd_value_day6 as previous_value,
+          w.lpcd_date_day7 as current_value_date,
           e.alert_value as historical_value,
           COALESCE(e.ee_civil_name, sed.ee_civil_name) as ee_civil_name,
           COALESCE(e.ee_civil_email, sed.ee_civil_email) as ee_civil_email,
@@ -328,6 +329,7 @@ router.get('/chlorine', async (req, res) => {
           c.esr_name,
           c.chlorine_value_7 as current_value,
           c.chlorine_value_6 as previous_value,
+          c.chlorine_date_day_7 as current_value_date,
           e.alert_value as historical_value,
           COALESCE(e.ee_civil_name, sed.ee_civil_name) as ee_civil_name,
           COALESCE(e.ee_civil_email, sed.ee_civil_email) as ee_civil_email,
@@ -477,6 +479,7 @@ router.get('/pressure', async (req, res) => {
           p.esr_name,
           p.pressure_value_7 as current_value,
           p.pressure_value_6 as previous_value,
+          p.pressure_date_day_7 as current_value_date,
           e.alert_value as historical_value,
           COALESCE(e.ee_civil_name, sed.ee_civil_name) as ee_civil_name,
           COALESCE(e.ee_civil_email, sed.ee_civil_email) as ee_civil_email,
@@ -583,7 +586,7 @@ router.get('/offline', async (req, res) => {
           SELECT DISTINCT ON (scheme_id, sent_date)
                  scheme_id, ticket_id, alert_value, created_at, sent_date
           FROM email_alert_logs
-          WHERE alert_type = 'Offline'
+          WHERE alert_type ILIKE '%Offline%'
             AND ${dateFilter}
           ORDER BY scheme_id, sent_date, created_at DESC
         ),
@@ -658,6 +661,8 @@ router.get('/offline', async (req, res) => {
           COALESCE(sms.sms_dispatches, '[]'::json) as sms_dispatches
         FROM communication_status c
         INNER JOIN scheme_status s ON c.scheme_id = s.scheme_id
+        JOIN recent_logs e ON c.scheme_id = e.scheme_id
+        JOIN sms_status sms ON (c.scheme_id = sms.scheme_id AND e.sent_date::date = sms.sent_date::date)
         LEFT JOIN scheme_engineer_details sed ON (c.scheme_id = sed.scheme_id OR c.scheme_name ILIKE sed.scheme)
         LEFT JOIN (
           SELECT DISTINCT ON (region) region, employee_name, email, phone
@@ -665,9 +670,7 @@ router.get('/offline', async (req, res) => {
           ORDER BY region, id
         ) v ON c.region = v.region
         LEFT JOIN issues i ON c.scheme_id = i.scheme_id
-        LEFT JOIN recent_logs e ON c.scheme_id = e.scheme_id
         LEFT JOIN ack_status a ON (c.scheme_id = a.scheme_id AND e.sent_date::date = a.sent_date::date)
-        LEFT JOIN sms_status sms ON (c.scheme_id = sms.scheme_id AND e.sent_date::date = sms.sent_date::date)
         WHERE (c.chlorine_status = 'Offline' 
            OR c.pressure_status = 'Offline' 
            OR c.flow_meter_status = 'Offline')
@@ -1104,10 +1107,10 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
             { header: 'Latest Remark / Action', key: 'remark', width: 32 },
             { header: 'Ticket ID', key: 'ticket_id', width: 16 },
             { header: 'Alert Date', key: 'sent_date', width: 14 },
-            { header: 'EE Civil', key: 'ee_civil', width: 32 },
-            { header: 'EE Mech', key: 'ee_mech', width: 32 },
             { header: 'DE / AE Civil', key: 'de_civil', width: 32 },
             { header: 'DE / AE Mech', key: 'de_mech', width: 32 },
+            { header: 'EE Civil', key: 'ee_civil', width: 32 },
+            { header: 'EE Mech', key: 'ee_mech', width: 32 },
             { header: 'Superintending Engineer', key: 'se', width: 32 },
             { header: 'Chief Engineer', key: 'ce', width: 32 },
           ];
@@ -1138,10 +1141,10 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               remark,
               row.ticket_id || '-',
               row.sent_date ? String(row.sent_date).slice(0, 10) : '-',
-              formatContact(row.ee_civil_name, row.ee_civil_email, row.ee_civil_mobile),
-              formatContact(row.ee_mech_name, row.ee_mech_email, row.ee_mech_mobile),
               formatContact(row.de_ae_civil_name, row.de_ae_civil_email, row.de_ae_civil_mobile),
               formatContact(row.de_ae_mech_name, row.de_ae_mech_email, row.de_ae_mech_mobile),
+              formatContact(row.ee_civil_name, row.ee_civil_email, row.ee_civil_mobile),
+              formatContact(row.ee_mech_name, row.ee_mech_email, row.ee_mech_mobile),
               formatContact(row.se_name, row.se_email, row.se_mobile),
               formatContact(row.chief_engineer_name, row.chief_engineer_email, row.chief_engineer_mobile),
             ];
@@ -1292,10 +1295,10 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
             { header: 'Latest Remark / Action', key: 'remark', width: 32 },
             { header: 'Ticket ID', key: 'ticket_id', width: 16 },
             { header: 'Alert Date', key: 'sent_date', width: 14 },
-            { header: 'EE Civil', key: 'ee_civil', width: 32 },
-            { header: 'EE Mech', key: 'ee_mech', width: 32 },
             { header: 'DE / AE Civil', key: 'de_civil', width: 32 },
             { header: 'DE / AE Mech', key: 'de_mech', width: 32 },
+            { header: 'EE Civil', key: 'ee_civil', width: 32 },
+            { header: 'EE Mech', key: 'ee_mech', width: 32 },
             { header: 'Superintending Engineer', key: 'se', width: 32 },
             { header: 'Chief Engineer', key: 'ce', width: 32 },
           ];
@@ -1327,10 +1330,10 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               remark,
               row.ticket_id || '-',
               row.sent_date ? String(row.sent_date).slice(0, 10) : '-',
-              formatContact(row.ee_civil_name, row.ee_civil_email, row.ee_civil_mobile),
-              formatContact(row.ee_mech_name, row.ee_mech_email, row.ee_mech_mobile),
               formatContact(row.de_ae_civil_name, row.de_ae_civil_email, row.de_ae_civil_mobile),
               formatContact(row.de_ae_mech_name, row.de_ae_mech_email, row.de_ae_mech_mobile),
+              formatContact(row.ee_civil_name, row.ee_civil_email, row.ee_civil_mobile),
+              formatContact(row.ee_mech_name, row.ee_mech_email, row.ee_mech_mobile),
               formatContact(row.se_name, row.se_email, row.se_mobile),
               formatContact(row.chief_engineer_name, row.chief_engineer_email, row.chief_engineer_mobile),
             ];
@@ -1481,10 +1484,10 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
             { header: 'Latest Remark / Action', key: 'remark', width: 32 },
             { header: 'Ticket ID', key: 'ticket_id', width: 16 },
             { header: 'Alert Date', key: 'sent_date', width: 14 },
-            { header: 'EE Civil', key: 'ee_civil', width: 32 },
-            { header: 'EE Mech', key: 'ee_mech', width: 32 },
             { header: 'DE / AE Civil', key: 'de_civil', width: 32 },
             { header: 'DE / AE Mech', key: 'de_mech', width: 32 },
+            { header: 'EE Civil', key: 'ee_civil', width: 32 },
+            { header: 'EE Mech', key: 'ee_mech', width: 32 },
             { header: 'Superintending Engineer', key: 'se', width: 32 },
             { header: 'Chief Engineer', key: 'ce', width: 32 },
           ];
@@ -1516,10 +1519,10 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               remark,
               row.ticket_id || '-',
               row.sent_date ? String(row.sent_date).slice(0, 10) : '-',
-              formatContact(row.ee_civil_name, row.ee_civil_email, row.ee_civil_mobile),
-              formatContact(row.ee_mech_name, row.ee_mech_email, row.ee_mech_mobile),
               formatContact(row.de_ae_civil_name, row.de_ae_civil_email, row.de_ae_civil_mobile),
               formatContact(row.de_ae_mech_name, row.de_ae_mech_email, row.de_ae_mech_mobile),
+              formatContact(row.ee_civil_name, row.ee_civil_email, row.ee_civil_mobile),
+              formatContact(row.ee_mech_name, row.ee_mech_email, row.ee_mech_mobile),
               formatContact(row.se_name, row.se_email, row.se_mobile),
               formatContact(row.chief_engineer_name, row.chief_engineer_email, row.chief_engineer_mobile),
             ];
@@ -1527,7 +1530,25 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
           });
         } else if (tabKey === 'offline') {
           const offlineQuery = `
-            WITH ack_status AS (
+            WITH issues AS (
+              SELECT scheme_id, 
+                     json_agg(json_build_object(
+                       'problem_level', problem_level,
+                       'village_name', village_name,
+                       'esr_name', esr_name,
+                       'reason', reason,
+                       'status', status,
+                       'status_value', status_value,
+                       'resolution_remark', resolution_remark,
+                       'created_at', created_at,
+                       'resolved_at', resolved_at,
+                       'creator_name', creator_name
+                     )) as remarks
+              FROM issue_reports
+              WHERE sensor_type = 'Offline' OR status_value LIKE '%Offline%' OR reason LIKE '%Offline%'
+              GROUP BY scheme_id
+            ),
+            ack_status AS (
               SELECT scheme_id,
                      sent_date,
                      json_agg(json_build_object(
@@ -1552,7 +1573,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               SELECT DISTINCT ON (scheme_id, sent_date)
                      scheme_id, ticket_id, alert_value, created_at, sent_date
               FROM email_alert_logs
-              WHERE alert_type = 'Offline'
+              WHERE alert_type ILIKE '%Offline%'
                 AND ${dateFilter}
               ORDER BY scheme_id, sent_date, created_at DESC
             ),
@@ -1614,6 +1635,8 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               COALESCE(sms.sms_dispatches, '[]'::json) as sms_dispatches
             FROM communication_status c
             INNER JOIN scheme_status s ON c.scheme_id = s.scheme_id
+            JOIN recent_logs e ON c.scheme_id = e.scheme_id
+            JOIN sms_status sms ON (c.scheme_id = sms.scheme_id AND e.sent_date::date = sms.sent_date::date)
             LEFT JOIN scheme_engineer_details sed ON (c.scheme_id = sed.scheme_id OR c.scheme_name ILIKE sed.scheme)
             LEFT JOIN (
               SELECT DISTINCT ON (region) region, employee_name, email, phone
@@ -1621,9 +1644,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               ORDER BY region, id
             ) v ON c.region = v.region
             LEFT JOIN issues i ON c.scheme_id = i.scheme_id
-            LEFT JOIN recent_logs e ON c.scheme_id = e.scheme_id
             LEFT JOIN ack_status a ON (c.scheme_id = a.scheme_id AND e.sent_date::date = a.sent_date::date)
-            LEFT JOIN sms_status sms ON (c.scheme_id = sms.scheme_id AND e.sent_date::date = sms.sent_date::date)
             WHERE (c.chlorine_status = 'Offline' 
                OR c.pressure_status = 'Offline' 
                OR c.flow_meter_status = 'Offline')
@@ -1656,13 +1677,13 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
             { header: 'Latest Remark / Action', key: 'remark', width: 32 },
             { header: 'Ticket ID', key: 'ticket_id', width: 16 },
             { header: 'Alert Date', key: 'sent_date', width: 14 },
-            { header: 'EE Civil', key: 'ee_civil', width: 32 },
-            { header: 'EE Mech', key: 'ee_mech', width: 32 },
             { header: 'DE / AE Civil', key: 'de_civil', width: 32 },
             { header: 'DE / AE Mech', key: 'de_mech', width: 32 },
+            { header: 'EE Civil', key: 'ee_civil', width: 32 },
+            { header: 'EE Mech', key: 'ee_mech', width: 32 },
             { header: 'Superintending Engineer', key: 'se', width: 32 },
             { header: 'Chief Engineer', key: 'ce', width: 32 },
-            { header: 'Assigned Vendor / Engineer', key: 'vendor', width: 32 },
+            { header: 'Assigned Vendor / Agency', key: 'vendor', width: 32 },
           ];
           styleSheet(sheet, `Offline Sensor Alerts Summary (Communication Blackout) - ${titleSuffix}`, cols);
           rows.forEach((row: any, idx: number) => {
@@ -1701,10 +1722,10 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               remark,
               row.ticket_id || '-',
               row.sent_date ? String(row.sent_date).slice(0, 10) : '-',
-              formatContact(row.ee_civil_name, row.ee_civil_email, row.ee_civil_mobile),
-              formatContact(row.ee_mech_name, row.ee_mech_email, row.ee_mech_mobile),
               formatContact(row.de_ae_civil_name, row.de_ae_civil_email, row.de_ae_civil_mobile),
               formatContact(row.de_ae_mech_name, row.de_ae_mech_email, row.de_ae_mech_mobile),
+              formatContact(row.ee_civil_name, row.ee_civil_email, row.ee_civil_mobile),
+              formatContact(row.ee_mech_name, row.ee_mech_email, row.ee_mech_mobile),
               formatContact(row.se_name, row.se_email, row.se_mobile),
               formatContact(row.chief_engineer_name, row.chief_engineer_email, row.chief_engineer_mobile),
               formatContact(row.vendor_name, row.vendor_email, row.vendor_phone),
@@ -1728,6 +1749,143 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
   } catch (error) {
     console.error('Error generating Excel report:', error);
     res.status(500).json({ error: 'Failed to generate report' });
+  }
+});
+
+/**
+ * GET /api/alerts-progress/export-total-engineers
+ * Exports official Excel sheet of all registered engineers and personnel across schemes
+ */
+router.get('/export-total-engineers', async (req, res) => {
+  try {
+    const client = await pool.connect();
+    try {
+      const sedRes = await client.query('SELECT * FROM scheme_engineer_details');
+
+      const map = new Map<string, {
+        name: string;
+        role: string;
+        email: string;
+        mobile: string;
+        scheme?: string;
+        scheme_id?: string;
+        region?: string;
+        district?: string;
+        division?: string;
+      }>();
+
+      sedRes.rows.forEach(s => {
+        const roles = [
+          { n: s.chief_engineer_name, e: s.chief_engineer_email, m: s.chief_engineer_mobile, r: 'Chief Engineer (CE)' },
+          { n: s.se_name, e: s.se_email, m: s.se_mobile, r: 'Superintending Engineer (SE)' },
+          { n: s.ee_civil_name, e: s.ee_civil_email, m: s.ee_civil_mobile, r: 'Executive Engineer (Civil)' },
+          { n: s.ee_mech_name, e: s.ee_mech_email, m: s.ee_mech_mobile, r: 'Executive Engineer (Mech)' },
+          { n: s.de_ae_civil_name, e: s.de_ae_civil_email, m: s.de_ae_civil_mobile, r: 'Deputy / Assistant Engineer (Civil)' },
+          { n: s.de_ae_mech_name, e: s.de_ae_mech_email, m: s.de_ae_mech_mobile, r: 'Deputy / Assistant Engineer (Mech)' }
+        ];
+
+        roles.forEach(item => {
+          if (!item.n || !item.n.trim()) return;
+          const cleanName = item.n.trim();
+          const lowerName = cleanName.toLowerCase();
+          if (
+            cleanName === '-' ||
+            cleanName === '--' ||
+            lowerName.includes('no engineer') ||
+            lowerName.includes('vendor') ||
+            lowerName === 'n/a' ||
+            lowerName === 'na' ||
+            lowerName === 'null' ||
+            lowerName === 'none'
+          ) {
+            return;
+          }
+
+          const k = `${lowerName}_${item.r.toLowerCase()}`;
+          if (!map.has(k)) {
+            map.set(k, {
+              name: cleanName,
+              role: item.r,
+              email: item.e?.trim() || '-',
+              mobile: item.m?.trim() || '-',
+              scheme: s.scheme || s.scheme_name || '-',
+              scheme_id: s.scheme_id || '-',
+              region: s.region?.replace(/[\uFEFF]/g, '').trim() || '-',
+              district: s.district || '-',
+              division: s.division || '-'
+            });
+          }
+        });
+      });
+
+      const engineers = Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+
+      const ExcelJSModule = await import('exceljs');
+      const ExcelJS = (ExcelJSModule as any).default || ExcelJSModule;
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'MJP Water Supply Telemetry System';
+      workbook.created = new Date();
+
+      const sheet = workbook.addWorksheet('Scheme Engineers Directory');
+      const cols = [
+        { header: 'Sr No.', key: 'sr_no', width: 8 },
+        { header: 'Engineer Name', key: 'name', width: 28 },
+        { header: 'Designation / Role', key: 'role', width: 32 },
+        { header: 'Mobile Number', key: 'mobile', width: 18 },
+        { header: 'Email Address', key: 'email', width: 32 },
+        { header: 'Region', key: 'region', width: 20 },
+        { header: 'District', key: 'district', width: 18 },
+        { header: 'Assigned Scheme', key: 'scheme', width: 34 },
+        { header: 'Scheme ID', key: 'scheme_id', width: 14 }
+      ];
+
+      styleSheet(sheet, `MJP Maharashtra - Total Scheme Engineers Directory (${engineers.length} Engineers)`, cols);
+
+      engineers.forEach((eng, idx) => {
+        const values = [
+          idx + 1,
+          eng.name,
+          eng.role,
+          eng.mobile,
+          eng.email,
+          eng.region || 'All Maharashtra',
+          eng.district || '-',
+          eng.scheme || '-',
+          eng.scheme_id || '-'
+        ];
+        const row = sheet.addRow(values);
+        row.height = 20;
+        row.font = { name: 'Calibri', size: 10, color: { argb: 'FF1E293B' } };
+        const bgColor = idx % 2 === 0 ? 'FFF8FAFC' : 'FFFFFFFF';
+        row.eachCell((cell, colNumber) => {
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          };
+          cell.alignment = { vertical: 'middle' };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+          if (colNumber === 1 || colNumber === 4 || colNumber === 9) {
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+          }
+        });
+      });
+
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const filename = `MJP_Total_Scheme_Engineers_Directory_${todayStr}.xlsx`;
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+      await workbook.xlsx.write(res);
+      res.end();
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error generating total engineers report:', error);
+    res.status(500).json({ error: 'Failed to generate total engineers report' });
   }
 });
 
@@ -1761,5 +1919,84 @@ router.get('/email-failures', async (req, res) => {
   }
 });
 
+// Endpoint to fetch all Daily Email and SMS Alert Dispatches (strictly excluding Real-Time alerts)
+router.get('/daily-dispatches', async (req, res) => {
+  try {
+    const requestedDate = req.query.date as string;
+    const dateFilter = requestedDate 
+      ? `sent_date = $1::date` 
+      : `sent_date >= CURRENT_DATE - INTERVAL '1 day'`;
+    const queryParams = requestedDate ? [requestedDate] : [];
+
+    const client = await pool.connect();
+    try {
+      // 1. Fetch Daily Email Alert Dispatches (strictly exclude Real-Time alerts)
+      const emailsQuery = `
+        SELECT 
+          id, scheme_id, scheme_name, region, village_name, esr_name, 
+          alert_type, alert_value, ticket_id, sent_time, created_at,
+          TO_CHAR(sent_date, 'YYYY-MM-DD') as sent_date,
+          ee_civil_name, ee_civil_email,
+          ee_mech_name, ee_mech_email,
+          de_ae_civil_name, de_ae_civil_email,
+          de_ae_mech_name, de_ae_mech_email,
+          se_name, se_email,
+          chief_engineer_name, chief_engineer_email
+        FROM email_alert_logs
+        WHERE (ticket_id NOT LIKE 'TKT-RT-%' OR ticket_id IS NULL)
+          AND ${dateFilter}
+        ORDER BY created_at DESC
+      `;
+      const emailsResult = await client.query(emailsQuery, queryParams);
+
+      // 2. Fetch Daily SMS Alert Dispatches (strictly exclude Real-Time templates)
+      const smsQuery = `
+        SELECT 
+          id, mobile, engineer_name, engineer_email, scheme_id, scheme_name,
+          template_id, template_name, message_text, gateway_status, gateway_response,
+          is_success, created_at,
+          TO_CHAR(sent_date, 'YYYY-MM-DD') as sent_date
+        FROM sms_alert_logs
+        WHERE template_name NOT IN (
+          'Residual Chlorine Sensor Offline', 
+          'Residual Chlorine – Low', 
+          'Flow Meter Sensor Offline', 
+          'Pressure Sensor Offline'
+        )
+        AND ${dateFilter}
+        ORDER BY created_at DESC
+      `;
+      const smsResult = await client.query(smsQuery, queryParams);
+
+      const emails = emailsResult.rows;
+      const sms = smsResult.rows;
+
+      const uniqueEmailSchemes = new Set(emails.map(e => e.scheme_id)).size;
+      const uniqueSmsSchemes = new Set(sms.map(s => s.scheme_id)).size;
+      const allUniqueSchemes = new Set([...emails.map(e => e.scheme_id), ...sms.map(s => s.scheme_id)]).size;
+
+      res.json({
+        summary: {
+          totalEmails: emails.length,
+          actualEmailsSent: uniqueEmailSchemes, // 1 consolidated email per scheme
+          totalSms: sms.length,
+          totalDispatches: emails.length + sms.length,
+          schemesCount: allUniqueSchemes,
+          emailSchemesCount: uniqueEmailSchemes,
+          smsSchemesCount: uniqueSmsSchemes
+        },
+        emails,
+        sms
+      });
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error fetching daily alert dispatches:', error);
+    res.status(500).json({ error: 'Failed to fetch daily alert dispatches' });
+  }
+});
+
 export default router;
+
 

@@ -60,6 +60,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import VillageFilter, { VillageFilterValue } from "@/components/dashboard/VillageFilter";
 import { useVillageCompletion } from "@/hooks/useVillageCompletion";
+import { downloadTotalEngineersExcel, downloadTabEngineersExcel } from "@/lib/alerts-excel-export";
 
 // Define TypeScript interfaces for our data
 interface IssueRemark {
@@ -133,6 +134,7 @@ interface AlertData {
   site_supervisor_email: string | null;
   created_at?: string;
   sent_date?: string;
+  current_value_date?: string | null;
   remarks: IssueRemark[];
   acknowledgements?: { engineer_email: string; engineer_name: string; acknowledged_at: string | null }[];
   sms_dispatches?: SmsDispatchItem[];
@@ -197,25 +199,7 @@ export const isValidEngineerName = (rawName?: string | null): boolean => {
 
 // Helper to determine the primary Scheme Owner from Engineers Directory
 export const getSchemeOwner = (row: AlertData) => {
-  // EE (Civil) is the primary Scheme Owner in JJM/MJP, followed by EE (Mech), DE/AE (Civil), DE/AE (Mech), SE, CE
-  if (isValidEngineerName(row.ee_civil_name)) {
-    return {
-      role: "Executive Engineer (Civil)",
-      shortRole: "EE (Civil)",
-      name: row.ee_civil_name!.trim(),
-      mobile: row.ee_civil_mobile?.trim() || null,
-      email: row.ee_civil_email?.trim() || null,
-    };
-  }
-  if (isValidEngineerName(row.ee_mech_name)) {
-    return {
-      role: "Executive Engineer (Mech)",
-      shortRole: "EE (Mech)",
-      name: row.ee_mech_name!.trim(),
-      mobile: row.ee_mech_mobile?.trim() || null,
-      email: row.ee_mech_email?.trim() || null,
-    };
-  }
+  // Order: DE/AE (Civil) → DE/AE (Mech) → EE (Civil) → EE (Mech) → SE → CE (low to high)
   if (isValidEngineerName(row.de_ae_civil_name)) {
     return {
       role: "DE / AE (Civil)",
@@ -232,6 +216,24 @@ export const getSchemeOwner = (row: AlertData) => {
       name: row.de_ae_mech_name!.trim(),
       mobile: row.de_ae_mech_mobile?.trim() || null,
       email: row.de_ae_mech_email?.trim() || null,
+    };
+  }
+  if (isValidEngineerName(row.ee_civil_name)) {
+    return {
+      role: "Executive Engineer (Civil)",
+      shortRole: "EE (Civil)",
+      name: row.ee_civil_name!.trim(),
+      mobile: row.ee_civil_mobile?.trim() || null,
+      email: row.ee_civil_email?.trim() || null,
+    };
+  }
+  if (isValidEngineerName(row.ee_mech_name)) {
+    return {
+      role: "Executive Engineer (Mech)",
+      shortRole: "EE (Mech)",
+      name: row.ee_mech_name!.trim(),
+      mobile: row.ee_mech_mobile?.trim() || null,
+      email: row.ee_mech_email?.trim() || null,
     };
   }
   if (isValidEngineerName(row.se_name)) {
@@ -258,17 +260,18 @@ export const getSchemeOwner = (row: AlertData) => {
 // Helper to get all assigned contacts with mobile numbers for a scheme
 export const getAllSchemeContacts = (row: AlertData) => {
   const contacts: { role: string; name: string; mobile: string | null; email: string | null }[] = [];
-  if (isValidEngineerName(row.ee_civil_name)) {
-    contacts.push({ role: "Executive Engineer (Civil)", name: row.ee_civil_name!.trim(), mobile: row.ee_civil_mobile?.trim() || null, email: row.ee_civil_email?.trim() || null });
-  }
-  if (isValidEngineerName(row.ee_mech_name)) {
-    contacts.push({ role: "Executive Engineer (Mech)", name: row.ee_mech_name!.trim(), mobile: row.ee_mech_mobile?.trim() || null, email: row.ee_mech_email?.trim() || null });
-  }
+  // Order: DE/AE (Civil) → DE/AE (Mech) → EE (Civil) → EE (Mech) → SE → CE (low to high)
   if (isValidEngineerName(row.de_ae_civil_name)) {
     contacts.push({ role: "DE / AE (Civil)", name: row.de_ae_civil_name!.trim(), mobile: row.de_ae_civil_mobile?.trim() || null, email: row.de_ae_civil_email?.trim() || null });
   }
   if (isValidEngineerName(row.de_ae_mech_name)) {
     contacts.push({ role: "DE / AE (Mech)", name: row.de_ae_mech_name!.trim(), mobile: row.de_ae_mech_mobile?.trim() || null, email: row.de_ae_mech_email?.trim() || null });
+  }
+  if (isValidEngineerName(row.ee_civil_name)) {
+    contacts.push({ role: "Executive Engineer (Civil)", name: row.ee_civil_name!.trim(), mobile: row.ee_civil_mobile?.trim() || null, email: row.ee_civil_email?.trim() || null });
+  }
+  if (isValidEngineerName(row.ee_mech_name)) {
+    contacts.push({ role: "Executive Engineer (Mech)", name: row.ee_mech_name!.trim(), mobile: row.ee_mech_mobile?.trim() || null, email: row.ee_mech_email?.trim() || null });
   }
   if (isValidEngineerName(row.se_name)) {
     contacts.push({ role: "Superintending Engineer", name: row.se_name!.trim(), mobile: row.se_mobile?.trim() || null, email: row.se_email?.trim() || null });
@@ -281,8 +284,10 @@ export const getAllSchemeContacts = (row: AlertData) => {
 
 // Safe date formatter for alert records that prevents timezone shifting
 export const formatAlertDate = (row: AlertData) => {
-  if (row.sent_date) {
-    const s = String(row.sent_date).split('T')[0];
+  // Prefer the actual sensor data date over the alert dispatch date
+  const dateStr = row.current_value_date || row.sent_date;
+  if (dateStr) {
+    const s = String(dateStr).split('T')[0];
     const parts = s.split('-');
     if (parts.length === 3) {
       const year = parseInt(parts[0], 10);
@@ -348,35 +353,9 @@ export const getRowRecipients = (row: AlertData) => {
   };
 
   // Strictly consider available persons from Engineers Directory only (no vendors, no blanks/dashes, no dummy fallbacks)
-  // 1. Executive Engineer (Civil)
-  if (isValidEngineerName(row.ee_civil_name)) {
-    const name = row.ee_civil_name!.trim();
-    const { isAck, acknowledged_at } = checkAck(row.ee_civil_email || null, name);
-    recipients.push({
-      role: "Executive Engineer (Civil)",
-      name,
-      email: row.ee_civil_email || null,
-      mobile: row.ee_civil_mobile?.trim() || null,
-      isAcknowledged: isAck,
-      acknowledged_at
-    });
-  }
+  // Order: DE/AE (Civil) → DE/AE (Mech) → EE (Civil) → EE (Mech) → SE → CE (low to high)
 
-  // 2. Executive Engineer (Mech)
-  if (isValidEngineerName(row.ee_mech_name)) {
-    const name = row.ee_mech_name!.trim();
-    const { isAck, acknowledged_at } = checkAck(row.ee_mech_email || null, name);
-    recipients.push({
-      role: "Executive Engineer (Mech)",
-      name,
-      email: row.ee_mech_email || null,
-      mobile: row.ee_mech_mobile?.trim() || null,
-      isAcknowledged: isAck,
-      acknowledged_at
-    });
-  }
-
-  // 3. DE/AE (Civil)
+  // 1. DE/AE (Civil)
   if (isValidEngineerName(row.de_ae_civil_name)) {
     const name = row.de_ae_civil_name!.trim();
     const { isAck, acknowledged_at } = checkAck(row.de_ae_civil_email || null, name);
@@ -390,7 +369,7 @@ export const getRowRecipients = (row: AlertData) => {
     });
   }
 
-  // 4. DE/AE (Mech)
+  // 2. DE/AE (Mech)
   if (isValidEngineerName(row.de_ae_mech_name)) {
     const name = row.de_ae_mech_name!.trim();
     const { isAck, acknowledged_at } = checkAck(row.de_ae_mech_email || null, name);
@@ -399,6 +378,34 @@ export const getRowRecipients = (row: AlertData) => {
       name,
       email: row.de_ae_mech_email || null,
       mobile: row.de_ae_mech_mobile?.trim() || null,
+      isAcknowledged: isAck,
+      acknowledged_at
+    });
+  }
+
+  // 3. Executive Engineer (Civil)
+  if (isValidEngineerName(row.ee_civil_name)) {
+    const name = row.ee_civil_name!.trim();
+    const { isAck, acknowledged_at } = checkAck(row.ee_civil_email || null, name);
+    recipients.push({
+      role: "Executive Engineer (Civil)",
+      name,
+      email: row.ee_civil_email || null,
+      mobile: row.ee_civil_mobile?.trim() || null,
+      isAcknowledged: isAck,
+      acknowledged_at
+    });
+  }
+
+  // 4. Executive Engineer (Mech)
+  if (isValidEngineerName(row.ee_mech_name)) {
+    const name = row.ee_mech_name!.trim();
+    const { isAck, acknowledged_at } = checkAck(row.ee_mech_email || null, name);
+    recipients.push({
+      role: "Executive Engineer (Mech)",
+      name,
+      email: row.ee_mech_email || null,
+      mobile: row.ee_mech_mobile?.trim() || null,
       isAcknowledged: isAck,
       acknowledged_at
     });
@@ -519,6 +526,7 @@ export default function AlertsProgressPage() {
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isDownloadingTotalEng, setIsDownloadingTotalEng] = useState(false);
 
   // Real-Time Alert Stream State
   const [realtimeFilter, setRealtimeFilter] = useState<"all" | "chlorine_critical" | "chlorine_offline" | "flow_offline" | "pressure_critical" | "acknowledged" | "pending">("all");
@@ -539,9 +547,15 @@ export default function AlertsProgressPage() {
   const [selectedSmsModal, setSelectedSmsModal] = useState<{
     schemeName: string;
     schemeId: string;
+    villageName?: string | null;
+    esrName?: string | null;
+    alertValue?: string | number | null;
     dispatches: SmsDispatchItem[];
     alertType: string;
+    actualMessageText?: string;
   } | null>(null);
+
+  const [emailModalTab, setEmailModalTab] = useState<"recipients" | "email">("recipients");
 
   const [selectedContactsModal, setSelectedContactsModal] = useState<{
     schemeName: string;
@@ -584,6 +598,14 @@ export default function AlertsProgressPage() {
   const [engineerModalSearch, setEngineerModalSearch] = useState("");
   const [engineerFilterTab, setEngineerFilterTab] = useState<"all" | "acknowledged" | "pending">("all");
 
+  // Daily Dispatches State & Modal
+  const [dailyChannelFilter, setDailyChannelFilter] = useState<"all" | "email" | "sms">("all");
+  const [dailyAlertTypeFilter, setDailyAlertTypeFilter] = useState<string>("all");
+  const [dailySearch, setDailySearch] = useState<string>("");
+  const [dailyPage, setDailyPage] = useState<number>(1);
+  const [dailyRowsPerPage, setDailyRowsPerPage] = useState<number>(25);
+  const [selectedDailySmsItem, setSelectedDailySmsItem] = useState<any | null>(null);
+
   const handleDownloadReport = async () => {
     setIsDownloading(true);
     try {
@@ -598,6 +620,19 @@ export default function AlertsProgressPage() {
     } catch (error) {
       console.error("Failed to download report", error);
       setIsDownloading(false);
+    }
+  };
+
+  const handleDownloadTotalEngineers = async () => {
+    setIsDownloadingTotalEng(true);
+    try {
+      await downloadTotalEngineersExcel();
+    } catch (error) {
+      console.error("Failed to download total engineers report", error);
+    } finally {
+      setTimeout(() => {
+        setIsDownloadingTotalEng(false);
+      }, 1500);
     }
   };
 
@@ -680,6 +715,308 @@ export default function AlertsProgressPage() {
     enabled: true,
   });
   const totalRosterEngineers = rosterData?.totalEngineers || 0;
+
+  // Query Daily Alert Dispatches (strictly excluding Real-Time alerts)
+  const { data: dailyDispatchesData, isLoading: isLoadingDailyDispatches } = useQuery<{
+    summary: {
+      totalEmails: number;
+      totalSms: number;
+      totalDispatches: number;
+    };
+    emails: any[];
+    sms: any[];
+  }>({
+    queryKey: ["/api/alerts-progress/daily-dispatches", customDate],
+    queryFn: async () => {
+      try {
+        const url = customDate ? `/api/alerts-progress/daily-dispatches?date=${customDate}` : "/api/alerts-progress/daily-dispatches";
+        const res = await fetch(url);
+        if (!res.ok) return { summary: { totalEmails: 0, totalSms: 0, totalDispatches: 0 }, emails: [], sms: [] };
+        return res.json();
+      } catch {
+        return { summary: { totalEmails: 0, totalSms: 0, totalDispatches: 0 }, emails: [], sms: [] };
+      }
+    },
+    enabled: true,
+  });
+
+  // Coverage statistics for category cards (Villages & ESRs covered)
+  const lpcdVillagesCount = useMemo(() => {
+    const villages = new Set<string>();
+    lpcdData.forEach((row) => {
+      if (row.village_name) {
+        row.village_name.split(',').map(v => v.trim()).filter(Boolean).forEach(v => {
+          villages.add(`${row.scheme_id}_${v.toLowerCase()}`);
+        });
+      }
+    });
+    return villages.size || lpcdData.length;
+  }, [lpcdData]);
+
+  const chlorineEsrsCount = useMemo(() => {
+    const esrs = new Set<string>();
+    chlorineData.forEach((row) => {
+      if (row.esr_name) {
+        const v = (row.village_name || "").trim().toLowerCase();
+        const e = row.esr_name.trim().toLowerCase();
+        esrs.add(`${row.scheme_id}_${v}_${e}`);
+      }
+    });
+    return esrs.size;
+  }, [chlorineData]);
+
+  const chlorineVillagesCount = useMemo(() => {
+    const villages = new Set<string>();
+    chlorineData.forEach((row) => {
+      if (row.village_name) {
+        row.village_name.split(',').map(v => v.trim()).filter(Boolean).forEach(v => {
+          villages.add(`${row.scheme_id}_${v.toLowerCase()}`);
+        });
+      }
+    });
+    return villages.size;
+  }, [chlorineData]);
+
+  const pressureEsrsCount = useMemo(() => {
+    const esrs = new Set<string>();
+    pressureData.forEach((row) => {
+      if (row.esr_name) {
+        const v = (row.village_name || "").trim().toLowerCase();
+        const e = row.esr_name.trim().toLowerCase();
+        esrs.add(`${row.scheme_id}_${v}_${e}`);
+      }
+    });
+    return esrs.size;
+  }, [pressureData]);
+
+  const pressureVillagesCount = useMemo(() => {
+    const villages = new Set<string>();
+    pressureData.forEach((row) => {
+      if (row.village_name) {
+        row.village_name.split(',').map(v => v.trim()).filter(Boolean).forEach(v => {
+          villages.add(`${row.scheme_id}_${v.toLowerCase()}`);
+        });
+      }
+    });
+    return villages.size;
+  }, [pressureData]);
+
+  const offlineEsrsCount = useMemo(() => {
+    const esrs = new Set<string>();
+    offlineData.forEach((row) => {
+      if (row.esr_name) {
+        const v = (row.village_name || "").trim().toLowerCase();
+        const e = row.esr_name.trim().toLowerCase();
+        esrs.add(`${row.scheme_id}_${v}_${e}`);
+      }
+    });
+    return esrs.size;
+  }, [offlineData]);
+
+  const offlineVillagesCount = useMemo(() => {
+    const villages = new Set<string>();
+    offlineData.forEach((row) => {
+      if (row.village_name) {
+        row.village_name.split(',').map(v => v.trim()).filter(Boolean).forEach(v => {
+          villages.add(`${row.scheme_id}_${v.toLowerCase()}`);
+        });
+      }
+    });
+    return villages.size;
+  }, [offlineData]);
+
+  // Actual Schemes, Email, and SMS counts per tab (strictly 1 consolidated email per scheme)
+  const lpcdSchemesCount = useMemo(() => new Set(lpcdData.map(r => r.scheme_id)).size, [lpcdData]);
+  const lpcdActualEmailsCount = lpcdSchemesCount;
+  const lpcdActualSmsCount = useMemo(() => {
+    const seen = new Set<string>();
+    let count = 0;
+    lpcdData.forEach(r => {
+      (r.sms_dispatches || []).forEach(s => {
+        const key = s.id ? `id-${s.id}` : `${s.mobile}-${s.created_at || ''}`;
+        if (!seen.has(key)) { seen.add(key); count++; }
+      });
+    });
+    return count;
+  }, [lpcdData]);
+
+  const chlorineSchemesCount = useMemo(() => new Set(chlorineData.map(r => r.scheme_id)).size, [chlorineData]);
+  const chlorineActualEmailsCount = chlorineSchemesCount;
+  const chlorineActualSmsCount = useMemo(() => {
+    const seen = new Set<string>();
+    let count = 0;
+    chlorineData.forEach(r => {
+      (r.sms_dispatches || []).forEach(s => {
+        const key = s.id ? `id-${s.id}` : `${s.mobile}-${s.created_at || ''}`;
+        if (!seen.has(key)) { seen.add(key); count++; }
+      });
+    });
+    return count;
+  }, [chlorineData]);
+
+  const pressureSchemesCount = useMemo(() => new Set(pressureData.map(r => r.scheme_id)).size, [pressureData]);
+  const pressureActualEmailsCount = pressureSchemesCount;
+  const pressureActualSmsCount = useMemo(() => {
+    const seen = new Set<string>();
+    let count = 0;
+    pressureData.forEach(r => {
+      (r.sms_dispatches || []).forEach(s => {
+        const key = s.id ? `id-${s.id}` : `${s.mobile}-${s.created_at || ''}`;
+        if (!seen.has(key)) { seen.add(key); count++; }
+      });
+    });
+    return count;
+  }, [pressureData]);
+
+  const offlineSchemesCount = useMemo(() => new Set(offlineData.map(r => r.scheme_id)).size, [offlineData]);
+  const offlineActualEmailsCount = offlineSchemesCount;
+  const offlineActualSmsCount = useMemo(() => {
+    const seen = new Set<string>();
+    let count = 0;
+    offlineData.forEach(r => {
+      (r.sms_dispatches || []).forEach(s => {
+        const key = s.id ? `id-${s.id}` : `${s.mobile}-${s.created_at || ''}`;
+        if (!seen.has(key)) { seen.add(key); count++; }
+      });
+    });
+    return count;
+  }, [offlineData]);
+
+  const dailySchemesCount = useMemo(() => {
+    const schemes = new Set<string>();
+    (dailyDispatchesData?.emails || []).forEach((e: any) => { if (e.scheme_id) schemes.add(e.scheme_id); });
+    (dailyDispatchesData?.sms || []).forEach((s: any) => { if (s.scheme_id) schemes.add(s.scheme_id); });
+    return schemes.size;
+  }, [dailyDispatchesData]);
+
+  const dailyActualEmailsCount = useMemo(() => {
+    return new Set((dailyDispatchesData?.emails || []).map((e: any) => e.scheme_id)).size;
+  }, [dailyDispatchesData]);
+
+  const dailyActualSmsCount = useMemo(() => {
+    return dailyDispatchesData?.summary?.totalSms ?? (dailyDispatchesData?.sms || []).length;
+  }, [dailyDispatchesData]);
+
+  // Unified Daily Dispatches list
+  const unifiedDailyDispatches = useMemo(() => {
+    const list: any[] = [];
+
+    // 1. Process Emails
+    (dailyDispatchesData?.emails || []).forEach((e: any) => {
+      const recs: { role: string; name: string; contact: string }[] = [];
+      if (isValidEngineerName(e.ee_civil_name)) recs.push({ role: "EE (Civil)", name: e.ee_civil_name!.trim(), contact: e.ee_civil_email || '' });
+      if (isValidEngineerName(e.ee_mech_name)) recs.push({ role: "EE (Mech)", name: e.ee_mech_name!.trim(), contact: e.ee_mech_email || '' });
+      if (isValidEngineerName(e.de_ae_civil_name)) recs.push({ role: "DE/AE (Civil)", name: e.de_ae_civil_name!.trim(), contact: e.de_ae_civil_email || '' });
+      if (isValidEngineerName(e.de_ae_mech_name)) recs.push({ role: "DE/AE (Mech)", name: e.de_ae_mech_name!.trim(), contact: e.de_ae_mech_email || '' });
+      if (isValidEngineerName(e.se_name)) recs.push({ role: "SE", name: e.se_name!.trim(), contact: e.se_email || '' });
+      if (isValidEngineerName(e.chief_engineer_name)) recs.push({ role: "CE", name: e.chief_engineer_name!.trim(), contact: e.chief_engineer_email || '' });
+
+      const primary = recs[0] || { role: "Field Officer", name: "Scheme Engineers", contact: "" };
+      const createdDate = e.created_at ? new Date(e.created_at) : null;
+      const timeStr = createdDate ? createdDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }) : (e.sent_time?.slice(0, 5) || "-");
+      const dateStr = e.sent_date ? String(e.sent_date).slice(0, 10) : (createdDate ? createdDate.toLocaleDateString("en-IN") : "-");
+
+      list.push({
+        id: `email-${e.id}`,
+        rawId: e.id,
+        channel: "email",
+        createdTime: createdDate ? createdDate.getTime() : (e.sent_date ? new Date(e.sent_date).getTime() : 0),
+        dateStr,
+        timeStr,
+        schemeId: e.scheme_id,
+        schemeName: e.scheme_name || e.scheme_id,
+        region: e.region || "",
+        villageName: e.village_name || "-",
+        esrName: e.esr_name || "-",
+        alertType: e.alert_type || "Daily Alert",
+        ticketId: e.ticket_id || null,
+        recipientName: primary.name,
+        recipientRole: primary.role,
+        recipientContact: primary.contact,
+        recipientsList: recs,
+        alertValue: e.alert_value !== null && e.alert_value !== undefined ? String(e.alert_value) : "-",
+        rawItem: e,
+        status: "Delivered",
+        isSuccess: true,
+      });
+    });
+
+    // 2. Process SMS
+    (dailyDispatchesData?.sms || []).forEach((s: any) => {
+      const createdDate = s.created_at ? new Date(s.created_at) : null;
+      const timeStr = createdDate ? createdDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }) : "-";
+      const dateStr = s.sent_date ? String(s.sent_date).slice(0, 10) : (createdDate ? createdDate.toLocaleDateString("en-IN") : "-");
+
+      let villageName = "-";
+      let esrName = "-";
+      if (s.message_text) {
+        const match = s.message_text.match(/अंतर्गत\s+([^\s]+(?:\s+[^\s]+)?)\s+([^\s]+(?:\s+[^\s]+)?(?:\s+ESR)?)/i);
+        if (match) {
+          villageName = match[1]?.trim() || "-";
+          if (match[2]) esrName = match[2]?.trim() || "-";
+        }
+      }
+
+      list.push({
+        id: `sms-${s.id}`,
+        rawId: s.id,
+        channel: "sms",
+        createdTime: createdDate ? createdDate.getTime() : (s.sent_date ? new Date(s.sent_date).getTime() : 0),
+        dateStr,
+        timeStr,
+        schemeId: s.scheme_id || "",
+        schemeName: s.scheme_name || s.scheme_id || "Water Supply Scheme",
+        region: "",
+        villageName,
+        esrName,
+        alertType: s.template_name || "Daily SMS Alert",
+        ticketId: null,
+        recipientName: s.engineer_name || "Designated Engineer",
+        recipientRole: "Field Officer",
+        recipientContact: s.mobile || "",
+        recipientsList: [{ role: "Field Officer", name: s.engineer_name || "Engineer", contact: s.mobile || "" }],
+        alertValue: s.message_text || "",
+        templateName: s.template_name || "Official SMS",
+        rawItem: s,
+        status: s.is_success ? (s.gateway_status ? `Delivered (${s.gateway_status})` : "Delivered") : "Failed",
+        isSuccess: s.is_success !== false,
+      });
+    });
+
+    list.sort((a, b) => b.createdTime - a.createdTime);
+    return list;
+  }, [dailyDispatchesData]);
+
+  const filteredDailyDispatches = useMemo(() => {
+    return unifiedDailyDispatches.filter((item) => {
+      if (dailyChannelFilter !== "all" && item.channel !== dailyChannelFilter) {
+        return false;
+      }
+      if (dailyAlertTypeFilter !== "all") {
+        const t = (item.alertType || "").toLowerCase();
+        if (dailyAlertTypeFilter === "lpcd" && !t.includes("lpcd")) return false;
+        if (dailyAlertTypeFilter === "chlorine" && !t.includes("chlorine")) return false;
+        if (dailyAlertTypeFilter === "pressure" && !t.includes("pressure")) return false;
+        if (dailyAlertTypeFilter === "offline" && !t.includes("offline")) return false;
+      }
+      if (dailySearch.trim()) {
+        const query = dailySearch.toLowerCase().trim();
+        const match =
+          item.schemeName.toLowerCase().includes(query) ||
+          item.schemeId.toLowerCase().includes(query) ||
+          item.villageName.toLowerCase().includes(query) ||
+          item.esrName.toLowerCase().includes(query) ||
+          item.recipientName.toLowerCase().includes(query) ||
+          item.recipientContact.toLowerCase().includes(query) ||
+          (item.ticketId && item.ticketId.toLowerCase().includes(query)) ||
+          item.alertType.toLowerCase().includes(query) ||
+          item.alertValue.toLowerCase().includes(query);
+        if (!match) return false;
+      }
+      return true;
+    });
+  }, [unifiedDailyDispatches, dailyChannelFilter, dailyAlertTypeFilter, dailySearch]);
+
 
   // Real-Time Telemetry Stream Query (5-Minute Continuous Scanning)
   const { data: realtimeProgress, isLoading: isLoadingRealtime, refetch: refetchRealtime, isFetching: isFetchingRealtime } = useQuery<{
@@ -1447,7 +1784,26 @@ export default function AlertsProgressPage() {
               >
                 <div className="text-[10px] font-semibold text-emerald-800">✅ Acknowledged</div>
                 <div className="text-base font-bold text-emerald-700">{acknowledgedRealtimeRows.length}</div>
-                <div className="text-[9px] text-emerald-600 font-medium mt-0.5">View List →</div>
+                <div className="flex items-center justify-center gap-1 mt-1">
+                  <span className="text-[9px] text-emerald-600 font-medium">View List →</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      downloadTabEngineersExcel({
+                        tabName: "Real-Time Critical",
+                        tabType: "realtime",
+                        status: "acknowledged",
+                        rows: acknowledgedRealtimeRows,
+                        dateStr: todayYmd
+                      });
+                    }}
+                    className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-900 bg-emerald-200/80 hover:bg-emerald-300 px-1.5 py-0.5 rounded cursor-pointer transition-colors shadow-2xs"
+                    title="Download Excel of Acknowledged Engineers for Real-Time tab"
+                  >
+                    <Download className="h-2.5 w-2.5" /> Ack Excel
+                  </button>
+                </div>
               </div>
               <div
                 onClick={(e) => {
@@ -1467,7 +1823,26 @@ export default function AlertsProgressPage() {
               >
                 <div className="text-[10px] font-semibold text-amber-800">⏳ Pending</div>
                 <div className="text-base font-bold text-amber-700">{pendingRealtimeRows.length}</div>
-                <div className="text-[9px] text-amber-600 font-medium mt-0.5">View List →</div>
+                <div className="flex items-center justify-center gap-1 mt-1">
+                  <span className="text-[9px] text-amber-600 font-medium">View List →</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      downloadTabEngineersExcel({
+                        tabName: "Real-Time Critical",
+                        tabType: "realtime",
+                        status: "pending",
+                        rows: pendingRealtimeRows,
+                        dateStr: todayYmd
+                      });
+                    }}
+                    className="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-950 bg-amber-200/80 hover:bg-amber-300 px-1.5 py-0.5 rounded cursor-pointer transition-colors shadow-2xs"
+                    title="Download Excel of Pending Engineers for Real-Time tab"
+                  >
+                    <Download className="h-2.5 w-2.5" /> Pending Excel
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1575,7 +1950,7 @@ export default function AlertsProgressPage() {
         {/* Real-Time Sent Alerts Table - Matching Daily Alerts Table Structure */}
         <div className="bg-white border border-slate-200 rounded overflow-hidden shadow-xs">
           {/* Table Header Bar */}
-          <div className="px-4 py-3 border-b border-slate-200 bg-white flex items-center justify-between">
+          <div className="px-4 py-3 border-b border-slate-200 bg-white flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
                 REAL-TIME ALERT DETAILS & ACKNOWLEDGEMENTS
@@ -1584,18 +1959,71 @@ export default function AlertsProgressPage() {
                 ({filteredRealtimeAlerts.length} alerts)
               </span>
             </div>
-            {(realtimeFilter !== "all" || realtimeSearch) && (
-              <button
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                size="sm"
+                variant="outline"
                 onClick={() => {
-                  setRealtimeFilter("all");
-                  setRealtimeSearch("");
-                  setRealtimePage(1);
+                  downloadTabEngineersExcel({
+                    tabName: "Real-Time",
+                    tabType: "realtime",
+                    status: "acknowledged",
+                    rows: acknowledgedRealtimeRows,
+                    dateStr: todayYmd
+                  });
                 }}
-                className="text-xs text-[#0f4c81] hover:underline font-semibold cursor-pointer"
+                className="h-7 px-2.5 text-[11px] font-bold border-emerald-300 text-emerald-800 bg-emerald-50/50 hover:bg-emerald-100/70 flex items-center gap-1 cursor-pointer"
+                title="Download Excel of Acknowledged Engineers in Real-Time tab"
               >
-                Reset Filters
-              </button>
-            )}
+                <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+                <span>Ack Engineers Excel ({acknowledgedRealtimeRows.length})</span>
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  downloadTabEngineersExcel({
+                    tabName: "Real-Time",
+                    tabType: "realtime",
+                    status: "pending",
+                    rows: pendingRealtimeRows,
+                    dateStr: todayYmd
+                  });
+                }}
+                className="h-7 px-2.5 text-[11px] font-bold border-amber-300 text-amber-800 bg-amber-50/50 hover:bg-amber-100/70 flex items-center gap-1 cursor-pointer"
+                title="Download Excel of Pending Engineers in Real-Time tab"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5 text-amber-600" />
+                <span>Pending Engineers Excel ({pendingRealtimeRows.length})</span>
+              </Button>
+
+              <Button
+                onClick={handleDownloadTotalEngineers}
+                disabled={isDownloadingTotalEng}
+                variant="outline"
+                size="sm"
+                className="h-7 px-2.5 text-[11px] font-bold border-slate-300 text-slate-800 hover:bg-indigo-50 hover:text-indigo-900 flex items-center gap-1 cursor-pointer"
+                title="Download complete scheme engineers directory (.xlsx)"
+              >
+                <Users className="h-3.5 w-3.5 text-indigo-600" />
+                <span>Total Scheme Engineers ({totalRosterEngineers || 6})</span>
+              </Button>
+
+              {(realtimeFilter !== "all" || realtimeSearch) && (
+                <button
+                  onClick={() => {
+                    setRealtimeFilter("all");
+                    setRealtimeSearch("");
+                    setRealtimePage(1);
+                  }}
+                  className="text-xs text-[#0f4c81] hover:underline font-semibold cursor-pointer ml-1"
+                >
+                  Reset Filters
+                </button>
+              )}
+            </div>
           </div>
 
           {isLoadingRealtime ? (
@@ -1629,10 +2057,10 @@ export default function AlertsProgressPage() {
                       Assigned Engineer & Contact
                     </th>
                     <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-center border-r border-slate-200/80 min-w-[150px]">
-                      Email Dispatch
+                      Email Sent
                     </th>
                     <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-center border-r border-slate-200/80 min-w-[150px]">
-                      SMS Gateway
+                      SMS Sent
                     </th>
                     <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-center border-r border-slate-200/80 min-w-[160px]">
                       Alert & Ack Status
@@ -1692,12 +2120,21 @@ export default function AlertsProgressPage() {
                                 (#{row.scheme_id})
                               </span>
                             </div>
-                            <div className="text-[11px] text-slate-500 font-normal mt-0.5 flex items-center gap-1 flex-wrap">
+                            <div className="text-[11px] text-slate-500 font-normal mt-0.5 flex items-center gap-1.5 flex-wrap">
                               <MapPin className="h-3 w-3 text-slate-400 shrink-0 inline" />
-                              <span>
-                                Sensor: <strong>{row.esr_name || "Main ESR"}</strong>
-                                {row.village_name && ` • Village: ${row.village_name}`}
-                              </span>
+                              {row.village_name && (
+                                <span>
+                                  Village: <strong className="text-slate-800 font-semibold">{row.village_name}</strong>
+                                </span>
+                              )}
+                              {row.village_name && row.esr_name && (
+                                <span className="text-slate-300">•</span>
+                              )}
+                              {row.esr_name && (
+                                <span>
+                                  ESR: <strong className="text-slate-800 font-semibold">{row.esr_name}</strong>
+                                </span>
+                              )}
                               {row.region && (
                                 <>
                                   <span className="text-slate-300">|</span>
@@ -1875,7 +2312,7 @@ export default function AlertsProgressPage() {
                                       }`}>
                                       <MessageSquare className="w-2.5 h-2.5 text-current" />
                                       {isFullSuccess
-                                        ? `Delivered (${successCount}/${smsRecs.length})`
+                                        ? `Sent (${successCount}/${smsRecs.length})`
                                         : successCount > 0
                                           ? `Partial (${successCount}/${smsRecs.length})`
                                           : `Failed (${smsRecs.length})`}
@@ -1894,6 +2331,9 @@ export default function AlertsProgressPage() {
                                       setSelectedSmsModal({
                                         schemeName: row.scheme_name || row.scheme_id,
                                         schemeId: row.scheme_id,
+                                        villageName: row.village_name,
+                                        esrName: row.esr_name,
+                                        alertValue: row.alert_value || row.current_value,
                                         dispatches: smsRecs,
                                         alertType: String(row.alert_type || "REALTIME").toUpperCase()
                                       });
@@ -2016,6 +2456,550 @@ export default function AlertsProgressPage() {
             </div>
           )}
         </div>
+      </div>
+    );
+  };
+
+  const renderDailyDispatchesDataTable = () => {
+    const totalCount = filteredDailyDispatches.length;
+    const totalPages = Math.max(1, Math.ceil(totalCount / dailyRowsPerPage));
+    const currentPage = Math.min(dailyPage, totalPages);
+    const startIdx = (currentPage - 1) * dailyRowsPerPage;
+    const endIdx = Math.min(startIdx + dailyRowsPerPage, totalCount);
+    const pageItems = filteredDailyDispatches.slice(startIdx, endIdx);
+
+    const emailCount = unifiedDailyDispatches.filter(i => i.channel === "email").length;
+    const smsCount = unifiedDailyDispatches.filter(i => i.channel === "sms").length;
+    const uniqueSchemes = new Set(unifiedDailyDispatches.map(i => i.schemeId).filter(Boolean)).size;
+
+    return (
+      <div className="space-y-4">
+        {/* KPI / Statistics Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center gap-3.5">
+            <div className="p-3 rounded-lg bg-indigo-100 text-indigo-800">
+              <Send className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Daily Dispatches</div>
+              <div className="text-2xl font-black text-slate-900 font-mono mt-0.5">
+                {dailyDispatchesData?.summary?.totalDispatches ?? 0}
+              </div>
+              <div className="text-[11px] text-slate-500 font-medium">Emails & SMS (Excl. Real-Time)</div>
+            </div>
+          </div>
+
+          <div
+            onClick={() => { setDailyChannelFilter("email"); setDailyPage(1); }}
+            className={`border rounded-xl p-4 shadow-sm flex items-center gap-3.5 cursor-pointer transition-all ${dailyChannelFilter === "email" ? "bg-blue-50/70 border-blue-400 ring-2 ring-blue-400/20" : "bg-white border-slate-200 hover:border-blue-300"
+              }`}
+          >
+            <div className="p-3 rounded-lg bg-blue-100 text-[#0f4c81]">
+              <Mail className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Daily Emails Sent</div>
+              <div className="text-2xl font-black text-[#0f4c81] font-mono mt-0.5">
+                {dailyDispatchesData?.summary?.totalEmails ?? emailCount}
+              </div>
+              <div className="text-[11px] text-blue-700 font-medium">To Scheme Engineers & Officers</div>
+            </div>
+          </div>
+
+          <div
+            onClick={() => { setDailyChannelFilter("sms"); setDailyPage(1); }}
+            className={`border rounded-xl p-4 shadow-sm flex items-center gap-3.5 cursor-pointer transition-all ${dailyChannelFilter === "sms" ? "bg-purple-50/70 border-purple-400 ring-2 ring-purple-400/20" : "bg-white border-slate-200 hover:border-purple-300"
+              }`}
+          >
+            <div className="p-3 rounded-lg bg-purple-100 text-purple-800">
+              <Smartphone className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Daily SMS Dispatched</div>
+              <div className="text-2xl font-black text-purple-800 font-mono mt-0.5">
+                {dailyDispatchesData?.summary?.totalSms ?? smsCount}
+              </div>
+              <div className="text-[11px] text-purple-700 font-medium">Via NIC SMS Gateway</div>
+            </div>
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center gap-3.5">
+            <div className="p-3 rounded-lg bg-emerald-100 text-emerald-800">
+              <Layers className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Schemes Covered</div>
+              <div className="text-2xl font-black text-emerald-700 font-mono mt-0.5">
+                {uniqueSchemes}
+              </div>
+              <div className="text-[11px] text-emerald-700 font-medium">Active Water Supply Schemes</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Toolbar & Filters */}
+        <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm flex flex-wrap items-center justify-between gap-3">
+          {/* Channel selector pills */}
+          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg">
+            <button
+              type="button"
+              onClick={() => { setDailyChannelFilter("all"); setDailyPage(1); }}
+              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${dailyChannelFilter === "all" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                }`}
+            >
+              All Dispatches ({unifiedDailyDispatches.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => { setDailyChannelFilter("email"); setDailyPage(1); }}
+              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer ${dailyChannelFilter === "email" ? "bg-[#0f4c81] text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
+                }`}
+            >
+              <Mail className="h-3.5 w-3.5" />
+              Emails ({emailCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => { setDailyChannelFilter("sms"); setDailyPage(1); }}
+              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer ${dailyChannelFilter === "sms" ? "bg-purple-700 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
+                }`}
+            >
+              <Smartphone className="h-3.5 w-3.5" />
+              SMS ({smsCount})
+            </button>
+          </div>
+
+          {/* Search box & Alert type filter */}
+          <div className="flex items-center gap-2 flex-1 max-w-xl">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search scheme, village, ESR, engineer, mobile, ticket ID..."
+                value={dailySearch}
+                onChange={(e) => { setDailySearch(e.target.value); setDailyPage(1); }}
+                className="w-full pl-8 pr-7 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-600 text-slate-800 placeholder-slate-400 h-8"
+              />
+              {dailySearch && (
+                <button
+                  type="button"
+                  onClick={() => { setDailySearch(""); setDailyPage(1); }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+
+            <select
+              value={dailyAlertTypeFilter}
+              onChange={(e) => { setDailyAlertTypeFilter(e.target.value); setDailyPage(1); }}
+              className="h-8 px-2.5 py-1 text-xs border border-slate-200 rounded-lg bg-white text-slate-800 font-medium outline-none focus:border-indigo-600 cursor-pointer"
+            >
+              <option value="all">All Alert Types</option>
+              <option value="lpcd">Low LPCD Alerts</option>
+              <option value="chlorine">Chlorine Alerts</option>
+              <option value="pressure">Pressure Alerts</option>
+              <option value="offline">Offline Sensor Alerts</option>
+            </select>
+          </div>
+
+          <Button
+            onClick={handleDownloadTotalEngineers}
+            disabled={isDownloadingTotalEng}
+            variant="outline"
+            className="h-8 px-3 bg-white border-slate-300 text-slate-800 hover:bg-indigo-50 hover:text-indigo-900 font-semibold rounded-lg text-xs shadow-none flex items-center gap-1.5 cursor-pointer ml-auto"
+            title="Download complete scheme engineers directory (.xlsx)"
+          >
+            <Users className="h-4 w-4 text-indigo-600" />
+            <span>Total Scheme Engineers ({totalRosterEngineers || 6})</span>
+          </Button>
+        </div>
+
+        {/* Data Table */}
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            {isLoadingDailyDispatches ? (
+              <div className="p-16 text-center text-slate-500 font-medium text-xs flex flex-col items-center justify-center gap-2">
+                <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+                <span>Loading daily alert dispatches...</span>
+              </div>
+            ) : filteredDailyDispatches.length === 0 ? (
+              <div className="p-16 text-center text-slate-500 text-xs font-medium">
+                No daily alert dispatches found matching your search or filters.
+              </div>
+            ) : (
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-[#eef2ff] text-indigo-900 border-b border-indigo-100">
+                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-center border-r border-indigo-100 w-12">
+                      #
+                    </th>
+                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-center border-r border-indigo-100 w-28">
+                      Channel
+                    </th>
+                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-left border-r border-indigo-100 min-w-[150px]">
+                      Alert Category & Value
+                    </th>
+                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-left border-r border-indigo-100 min-w-[240px]">
+                      Scheme & Location Details
+                    </th>
+                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-left border-r border-indigo-100 min-w-[220px]">
+                      Recipient Engineer & Contact
+                    </th>
+                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-center w-36">
+                      Sent Date & Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {pageItems.map((item, idx) => {
+                    const actualIndex = startIdx + idx + 1;
+                    const isEmail = item.channel === "email";
+
+                    return (
+                      <tr key={item.id} className="hover:bg-indigo-50/30 transition-colors">
+                        {/* 1. # */}
+                        <td className="py-3 px-3 text-center border-r border-slate-100 align-middle">
+                          <span className="text-xs font-semibold text-slate-500 font-mono">{actualIndex}</span>
+                        </td>
+
+                        {/* 2. Channel & Ticket */}
+                        <td className="py-3 px-3 text-center border-r border-slate-100 align-middle">
+                          <div className="flex flex-col items-center gap-1">
+                            <Badge className={`text-[10px] font-bold px-2 py-0.5 ${isEmail
+                              ? "bg-blue-100 text-[#0f4c81] border-blue-200"
+                              : "bg-purple-100 text-purple-800 border-purple-200"
+                              }`}>
+                              {isEmail ? (
+                                <span className="flex items-center gap-1">
+                                  <Mail className="h-3 w-3" /> Email
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-1">
+                                  <Smartphone className="h-3 w-3" /> SMS
+                                </span>
+                              )}
+                            </Badge>
+                            {item.ticketId ? (
+                              <div className="flex items-center gap-1 text-[10px] font-mono text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                                <span>{item.ticketId}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(item.ticketId);
+                                    setCopiedMobile(item.ticketId);
+                                    setTimeout(() => setCopiedMobile(null), 2000);
+                                  }}
+                                  className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                                  title="Copy Ticket ID"
+                                >
+                                  {copiedMobile === item.ticketId ? (
+                                    <Check className="h-2.5 w-2.5 text-emerald-600" />
+                                  ) : (
+                                    <Copy className="h-2.5 w-2.5" />
+                                  )}
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-slate-400 font-mono">DLT Gateway</span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* 3. Alert Category & Value */}
+                        <td className="py-3 px-3 border-r border-slate-100 align-middle">
+                          <div className="space-y-1">
+                            <Badge className={`text-[10px] font-bold px-2 py-0.5 ${item.alertType.toLowerCase().includes("lpcd")
+                              ? "bg-sky-50 text-sky-800 border-sky-300"
+                              : item.alertType.toLowerCase().includes("chlorine")
+                                ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                                : item.alertType.toLowerCase().includes("pressure")
+                                  ? "bg-amber-50 text-amber-800 border-amber-300"
+                                  : "bg-rose-50 text-rose-800 border-rose-300"
+                              }`}>
+                              {item.alertType}
+                            </Badge>
+                            {isEmail && item.alertValue !== "-" && (
+                              <div className="text-[11px] font-mono font-semibold text-rose-600">
+                                Value: {item.alertValue}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* 4. Scheme & Location */}
+                        <td className="py-3 px-3 border-r border-slate-100 align-middle">
+                          <div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-bold text-xs text-slate-900 leading-tight">
+                                {item.schemeName}
+                              </span>
+                              {item.schemeId && (
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                  (#{item.schemeId})
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-slate-500 font-normal mt-1 flex items-center gap-1.5 flex-wrap">
+                              <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
+                              {item.villageName !== "-" && (
+                                <span className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[10px] font-medium">
+                                  Village: {item.villageName}
+                                </span>
+                              )}
+                              {item.esrName !== "-" && (
+                                <span className="bg-blue-50 text-[#0f4c81] px-1.5 py-0.5 rounded text-[10px] font-medium">
+                                  ESR: {item.esrName}
+                                </span>
+                              )}
+                              {item.region && (
+                                <span className="text-slate-400 text-[10px]">
+                                  | {item.region}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* 5. Recipient Engineer & Contact */}
+                        <td className="py-3 px-3 border-r border-slate-100 align-middle">
+                          <div>
+                            <div className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                              <span className="text-indigo-600 font-semibold text-[11px]">{item.recipientRole || "Engineer"}:</span>
+                              <span>{item.recipientName}</span>
+                            </div>
+                            <div className="mt-1 flex items-center gap-2 flex-wrap">
+                              {isEmail ? (
+                                item.recipientContact ? (
+                                  <a
+                                    href={`mailto:${item.recipientContact}`}
+                                    className="text-[11px] text-[#0f4c81] font-medium hover:underline flex items-center gap-1"
+                                  >
+                                    <Mail className="h-3 w-3" />
+                                    <span>{item.recipientContact}</span>
+                                  </a>
+                                ) : (
+                                  <span className="text-[10px] text-slate-400 italic">No email</span>
+                                )
+                              ) : (
+                                item.recipientContact ? (
+                                  <div className="flex items-center gap-1">
+                                    <a
+                                      href={`tel:${item.recipientContact}`}
+                                      className="text-[11px] text-purple-700 font-semibold hover:underline flex items-center gap-1"
+                                    >
+                                      <Phone className="h-3 w-3" />
+                                      <span>+{item.recipientContact}</span>
+                                    </a>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(item.recipientContact);
+                                        setCopiedMobile(item.recipientContact);
+                                        setTimeout(() => setCopiedMobile(null), 2000);
+                                      }}
+                                      className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                                      title="Copy mobile number"
+                                    >
+                                      {copiedMobile === item.recipientContact ? (
+                                        <Check className="h-3 w-3 text-emerald-600" />
+                                      ) : (
+                                        <Copy className="h-3 w-3" />
+                                      )}
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="text-[10px] text-slate-400 italic">No mobile</span>
+                                )
+                              )}
+
+                              {isEmail && item.recipientsList && item.recipientsList.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedContactsModal({
+                                      schemeName: item.schemeName,
+                                      schemeId: item.schemeId,
+                                      contacts: item.recipientsList.map((r: any) => ({
+                                        role: r.role,
+                                        name: r.name,
+                                        email: r.contact,
+                                        mobile: null,
+                                      }))
+                                    });
+                                  }}
+                                  className="text-[10px] text-indigo-600 hover:underline font-semibold cursor-pointer"
+                                >
+                                  +{item.recipientsList.length - 1} other engineers
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+
+                        {/* 7. Sent Date & Status */}
+                        <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
+                          <div className="space-y-1 inline-flex flex-col items-center">
+                            <Badge className="bg-emerald-50 text-emerald-800 border-emerald-300 text-[10px] font-bold px-2 py-0.5">
+                              <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-600" />
+                              {item.status}
+                            </Badge>
+                            <div className="text-[10px] text-slate-500 flex items-center justify-center gap-1">
+                              <Calendar className="h-3 w-3 text-slate-400 shrink-0" />
+                              <span>{item.dateStr}</span>
+                            </div>
+                            {item.timeStr && item.timeStr !== "-" && (
+                              <div className="text-[10px] text-slate-400 flex items-center justify-center gap-1">
+                                <Clock className="h-2.5 w-2.5 text-slate-400 shrink-0" />
+                                <span>{item.timeStr}</span>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* Pagination Footer */}
+          {filteredDailyDispatches.length > 0 && (
+            <div className="p-3 border-t border-slate-100 bg-slate-50/60 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
+              <div className="flex items-center gap-2">
+                <span>
+                  Showing <strong className="text-slate-800">{startIdx + 1}</strong> to{" "}
+                  <strong className="text-slate-800">{endIdx}</strong> of{" "}
+                  <strong className="text-slate-800">{filteredDailyDispatches.length}</strong> dispatches
+                </span>
+                <span className="text-slate-300">|</span>
+                <div className="flex items-center gap-1">
+                  <span>Show</span>
+                  <select
+                    value={dailyRowsPerPage}
+                    onChange={(e) => {
+                      setDailyRowsPerPage(Number(e.target.value));
+                      setDailyPage(1);
+                    }}
+                    className="h-7 px-1.5 text-xs border border-slate-200 rounded bg-white font-medium"
+                  >
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDailyPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage <= 1}
+                  className="h-7 px-2 text-xs cursor-pointer"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5 mr-0.5" /> Previous
+                </Button>
+                <span className="px-2 font-semibold text-slate-700">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDailyPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage >= totalPages}
+                  className="h-7 px-2 text-xs cursor-pointer"
+                >
+                  Next <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Modal for viewing complete SMS message text */}
+        {selectedDailySmsItem && (
+          <Dialog open={!!selectedDailySmsItem} onOpenChange={(open) => !open && setSelectedDailySmsItem(null)}>
+            <DialogContent className="max-w-3xl bg-white border border-slate-200 shadow-2xl p-0 overflow-hidden">
+              <div className="bg-purple-700 text-white p-4">
+                <DialogTitle className="text-base font-bold flex items-center gap-2 text-white">
+                  <Smartphone className="h-5 w-5" />
+                  Daily Alert SMS Dispatch Details
+                </DialogTitle>
+                <DialogDescription className="text-purple-100 text-xs mt-0.5">
+                  DLT Template: {selectedDailySmsItem.templateName || "JJM Alert Template"}
+                </DialogDescription>
+              </div>
+              <div className="p-5 space-y-4 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-lg border border-slate-200">
+                  <div>
+                    <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider">Recipient Engineer</span>
+                    <span className="font-bold text-slate-800 text-xs mt-0.5 block break-words">{selectedDailySmsItem.recipientName}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider">Mobile Number</span>
+                    <span className="font-bold text-purple-700 text-xs font-mono mt-0.5 block">+{selectedDailySmsItem.recipientContact}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider">Scheme</span>
+                    <span className="font-medium text-slate-800 text-xs mt-0.5 block break-words" title={selectedDailySmsItem.schemeName}>{selectedDailySmsItem.schemeName}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider">Sent Date & Time</span>
+                    <span className="font-medium text-slate-800 text-xs mt-0.5 block">{selectedDailySmsItem.dateStr} {selectedDailySmsItem.timeStr}</span>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-slate-700">Official SMS Body (Marathi / English)</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedDailySmsItem.alertValue);
+                        setCopiedMobile("sms_text");
+                        setTimeout(() => setCopiedMobile(null), 2000);
+                      }}
+                      className="text-[11px] text-purple-700 hover:text-purple-900 font-semibold flex items-center gap-1 cursor-pointer"
+                    >
+                      {copiedMobile === "sms_text" ? (
+                        <>
+                          <Check className="h-3 w-3 text-emerald-600" />
+                          <span className="text-emerald-700">Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3 w-3" />
+                          <span>Copy Message</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <div className="p-4 bg-purple-50/70 border border-purple-200 rounded-lg text-slate-900 leading-relaxed font-sans text-sm break-words whitespace-pre-wrap">
+                    {selectedDailySmsItem.alertValue}
+                  </div>
+                </div>
+
+                {selectedDailySmsItem.rawItem?.gateway_response && (
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-500 block mb-1">NIC Gateway Response Payload</label>
+                    <pre className="p-2.5 bg-slate-100 rounded text-[10px] font-mono text-slate-700 overflow-x-auto whitespace-pre-wrap break-all">
+                      {selectedDailySmsItem.rawItem.gateway_response}
+                    </pre>
+                  </div>
+                )}
+              </div>
+              <div className="p-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+                <Button variant="outline" size="sm" onClick={() => setSelectedDailySmsItem(null)} className="cursor-pointer">
+                  Close
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     );
   };
@@ -2318,13 +3302,13 @@ export default function AlertsProgressPage() {
             </div>
           )}
 
-          {/* Download Excel Button */}
-          <div className="ml-auto">
+          {/* Download Excel Button Group */}
+          <div className="ml-auto flex items-center gap-2 flex-wrap">
             <Button
               onClick={handleDownloadReport}
               disabled={isDownloading}
               className="h-8 px-3.5 bg-[#107c41] hover:bg-[#0e6b37] text-white font-semibold rounded text-xs shadow-none flex items-center gap-1.5 cursor-pointer"
-              title="Download Excel report containing all alert data"
+              title="Download Excel report containing all alert data for current selection"
             >
               {isDownloading ? (
                 <span className="flex items-center gap-1.5">
@@ -2335,6 +3319,26 @@ export default function AlertsProgressPage() {
                 <span className="flex items-center gap-1.5">
                   <FileSpreadsheet className="h-4 w-4" />
                   Download Alerts Excel
+                </span>
+              )}
+            </Button>
+
+            <Button
+              onClick={handleDownloadTotalEngineers}
+              disabled={isDownloadingTotalEng}
+              variant="outline"
+              className="h-8 px-3 bg-white border-slate-300 text-slate-800 hover:bg-indigo-50 hover:text-indigo-900 hover:border-indigo-300 font-semibold rounded text-xs shadow-none flex items-center gap-1.5 cursor-pointer"
+              title="Download complete directory of scheme engineers from scheme_engineer_details"
+            >
+              {isDownloadingTotalEng ? (
+                <span className="flex items-center gap-1.5">
+                  <div className="h-3.5 w-3.5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                  Exporting...
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5">
+                  <Users className="h-4 w-4 text-indigo-600" />
+                  Total Scheme Engineers ({totalRosterEngineers || 6})
                 </span>
               )}
             </Button>
@@ -2357,13 +3361,13 @@ export default function AlertsProgressPage() {
               </button>
             </div>
 
-            <div className="flex items-center gap-3 text-xs text-slate-600 flex-wrap">
+            <div className="flex items-center gap-2.5 text-xs text-slate-600 flex-wrap">
               <span>
-                Engineers Notified <strong className="text-[#0f4c81] font-bold text-sm ml-1">{totalEngineers} / {totalRosterEngineers || 81}</strong>
+                Engineers Notified <strong className="text-[#0f4c81] font-bold text-sm ml-1">{totalEngineers} / {totalRosterEngineers || 6}</strong>
               </span>
               <span className="text-slate-300">|</span>
               <span className="font-bold text-[#0f4c81]">
-                {totalRosterEngineers > 0 ? `${Math.round((totalEngineers / totalRosterEngineers) * 100)}%` : '99%'} Active
+                {totalRosterEngineers > 0 ? `${Math.round((totalEngineers / totalRosterEngineers) * 100)}%` : '100%'} Active
               </span>
               <span className="text-slate-300">|</span>
               <button
@@ -2379,6 +3383,16 @@ export default function AlertsProgressPage() {
                 className="text-[#0f4c81] font-semibold hover:underline flex items-center gap-0.5 cursor-pointer"
               >
                 View Engineers →
+              </button>
+              <span className="text-slate-300">|</span>
+              <button
+                type="button"
+                onClick={handleDownloadTotalEngineers}
+                className="text-emerald-700 font-bold hover:underline flex items-center gap-1 cursor-pointer text-xs"
+                title="Download complete registered engineers directory (.xlsx)"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+                <span>Roster Excel</span>
               </button>
             </div>
           </div>
@@ -2420,20 +3434,46 @@ export default function AlertsProgressPage() {
                 });
                 setModalSearch("");
               }}
-              className="bg-[#f0fdf4] border border-emerald-200 rounded p-3.5 flex items-center gap-3.5 cursor-pointer hover:border-emerald-300 transition-colors"
+              className="bg-[#f0fdf4] border border-emerald-200 rounded p-3.5 flex flex-col justify-between cursor-pointer hover:border-emerald-300 transition-colors group relative"
               title={`Click to view list of acknowledged ${unitNoun}`}
             >
-              <CheckCircle2 className="h-8 w-8 text-emerald-600 shrink-0" />
-              <div>
-                <div className="text-xs font-medium text-slate-700">
-                  Acknowledged
+              <div className="flex items-center gap-3.5">
+                <CheckCircle2 className="h-8 w-8 text-emerald-600 shrink-0" />
+                <div>
+                  <div className="text-xs font-medium text-slate-700">
+                    Acknowledged
+                  </div>
+                  <div className="text-2xl font-black text-slate-900 font-mono leading-tight mt-0.5">
+                    {totalAcknowledged}
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-medium">
+                    {Math.round((totalAcknowledged / (baseData.length || 1)) * 100)}% of alerts confirmed
+                  </div>
                 </div>
-                <div className="text-2xl font-black text-slate-900 font-mono leading-tight mt-0.5">
-                  {totalAcknowledged}
-                </div>
-                <div className="text-[11px] text-slate-500 font-medium">
-                  {Math.round((totalAcknowledged / (baseData.length || 1)) * 100)}% of alerts confirmed
-                </div>
+              </div>
+
+              <div className="mt-2.5 pt-2 border-t border-emerald-100/80 flex items-center justify-between">
+                <span className="text-[10px] text-emerald-700 font-semibold">
+                  {totalAcknowledged} Schemes Confirmed
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    downloadTabEngineersExcel({
+                      tabName: type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : type === "pressure" ? "Pressure" : "Offline",
+                      tabType: type,
+                      status: "acknowledged",
+                      rows: acknowledgedRows,
+                      dateStr: customDate || (activeSubTab === "previous" ? yesterdayYmd : todayYmd)
+                    });
+                  }}
+                  className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 px-2 py-0.5 rounded cursor-pointer transition-colors shadow-2xs"
+                  title="Download Excel of Acknowledged Engineers for this tab"
+                >
+                  <Download className="h-3 w-3 text-emerald-700" />
+                  <span>Ack Excel</span>
+                </button>
               </div>
             </div>
 
@@ -2447,20 +3487,46 @@ export default function AlertsProgressPage() {
                 });
                 setModalSearch("");
               }}
-              className="bg-[#fffbeb] border border-amber-200 rounded p-3.5 flex items-center gap-3.5 cursor-pointer hover:border-amber-300 transition-colors"
+              className="bg-[#fffbeb] border border-amber-200 rounded p-3.5 flex flex-col justify-between cursor-pointer hover:border-amber-300 transition-colors group relative"
               title={`Click to view list of pending acknowledgement ${unitNoun}`}
             >
-              <Clock className="h-8 w-8 text-amber-600 shrink-0" />
-              <div>
-                <div className="text-xs font-medium text-slate-700">
-                  Pending Action
+              <div className="flex items-center gap-3.5">
+                <Clock className="h-8 w-8 text-amber-600 shrink-0" />
+                <div>
+                  <div className="text-xs font-medium text-slate-700">
+                    Pending Action
+                  </div>
+                  <div className="text-2xl font-black text-amber-600 font-mono leading-tight mt-0.5">
+                    {totalPending}
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-medium">
+                    Awaiting field response
+                  </div>
                 </div>
-                <div className="text-2xl font-black text-amber-600 font-mono leading-tight mt-0.5">
-                  {totalPending}
-                </div>
-                <div className="text-[11px] text-slate-500 font-medium">
-                  Awaiting field response
-                </div>
+              </div>
+
+              <div className="mt-2.5 pt-2 border-t border-amber-100/80 flex items-center justify-between">
+                <span className="text-[10px] text-amber-700 font-semibold">
+                  {totalPending} Schemes Pending
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    downloadTabEngineersExcel({
+                      tabName: type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : type === "pressure" ? "Pressure" : "Offline",
+                      tabType: type,
+                      status: "pending",
+                      rows: pendingRows,
+                      dateStr: customDate || (activeSubTab === "previous" ? yesterdayYmd : todayYmd)
+                    });
+                  }}
+                  className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 px-2 py-0.5 rounded cursor-pointer transition-colors shadow-2xs"
+                  title="Download Excel of Pending Engineers for this tab"
+                >
+                  <Download className="h-3 w-3 text-amber-800" />
+                  <span>Pending Excel</span>
+                </button>
               </div>
             </div>
 
@@ -2487,7 +3553,7 @@ export default function AlertsProgressPage() {
         {/* 7. Alert Details Table */}
         <div className="bg-white border border-slate-200 rounded overflow-hidden">
           {/* Table Header Bar */}
-          <div className="px-4 py-3 border-b border-slate-200 bg-white flex items-center justify-between">
+          <div className="px-4 py-3 border-b border-slate-200 bg-white flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
                 ALERT DETAILS
@@ -2496,18 +3562,59 @@ export default function AlertsProgressPage() {
                 ({displayData.length} {unitNoun})
               </span>
             </div>
-            {(ackStatusFilter !== "all" || schemeSearch || villageFilter !== "all") && (
-              <button
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                size="sm"
+                variant="outline"
                 onClick={() => {
-                  setAckStatusFilter("all");
-                  setVillageFilter("all");
-                  setSchemeSearch("");
+                  downloadTabEngineersExcel({
+                    tabName: type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : type === "pressure" ? "Pressure" : "Offline",
+                    tabType: type,
+                    status: "acknowledged",
+                    rows: acknowledgedRows,
+                    dateStr: customDate || (activeSubTab === "previous" ? yesterdayYmd : todayYmd)
+                  });
                 }}
-                className="text-xs text-[#0f4c81] hover:underline font-semibold cursor-pointer"
+                className="h-7 px-2.5 text-[11px] font-bold border-emerald-300 text-emerald-800 bg-emerald-50/50 hover:bg-emerald-100/70 flex items-center gap-1 cursor-pointer"
+                title="Download Excel of all Acknowledged Engineers in this tab"
               >
-                Reset Filters
-              </button>
-            )}
+                <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+                <span>Ack Engineers Excel ({totalAcknowledged})</span>
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  downloadTabEngineersExcel({
+                    tabName: type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : type === "pressure" ? "Pressure" : "Offline",
+                    tabType: type,
+                    status: "pending",
+                    rows: pendingRows,
+                    dateStr: customDate || (activeSubTab === "previous" ? yesterdayYmd : todayYmd)
+                  });
+                }}
+                className="h-7 px-2.5 text-[11px] font-bold border-amber-300 text-amber-800 bg-amber-50/50 hover:bg-amber-100/70 flex items-center gap-1 cursor-pointer"
+                title="Download Excel of all Pending Engineers in this tab"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5 text-amber-600" />
+                <span>Pending Engineers Excel ({totalPending})</span>
+              </Button>
+
+              {(ackStatusFilter !== "all" || schemeSearch || villageFilter !== "all") && (
+                <button
+                  onClick={() => {
+                    setAckStatusFilter("all");
+                    setVillageFilter("all");
+                    setSchemeSearch("");
+                  }}
+                  className="text-xs text-[#0f4c81] hover:underline font-semibold cursor-pointer ml-1"
+                >
+                  Reset Filters
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Table Content */}
@@ -2538,11 +3645,16 @@ export default function AlertsProgressPage() {
                     <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-left border-r border-slate-200/80 min-w-[200px]">
                       Assigned Engineer & Contact
                     </th>
+                    {type === "offline" && (
+                      <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-left border-r border-slate-200/80 min-w-[180px]">
+                        Vendor (Agency)
+                      </th>
+                    )}
                     <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-center border-r border-slate-200/80 min-w-[150px]">
-                      Email Dispatch
+                      Email sent
                     </th>
                     <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-center border-r border-slate-200/80 min-w-[150px]">
-                      SMS Gateway
+                      SMS sent
                     </th>
                     <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-center border-r border-slate-200/80 min-w-[140px]">
                       Alert & Ack Status
@@ -2582,17 +3694,24 @@ export default function AlertsProgressPage() {
                                 (#{row.scheme_id})
                               </span>
                             </div>
-                            <div className="text-[11px] text-slate-500 font-normal mt-0.5 flex items-center gap-1 flex-wrap">
+                            <div className="text-[11px] text-slate-500 font-normal mt-0.5 flex items-center gap-1.5 flex-wrap">
                               <MapPin className="h-3 w-3 text-slate-400 shrink-0 inline" />
-                              <span>
-                                {type === "lpcd"
-                                  ? `Village: ${row.village_name || row.scheme_name}`
-                                  : type === "chlorine"
-                                    ? `Sensor: ${row.esr_name || row.village_name || "Main Line Sensor"}`
-                                    : type === "pressure"
-                                      ? `Sensor: ${row.esr_name || row.village_name || "Terminal Point"}`
-                                      : `Sensor: ${row.esr_name || row.village_name || "Telemetry Node"}`}
-                              </span>
+                              {row.village_name && (
+                                <span>
+                                  Village: <strong className="text-slate-800 font-semibold">{row.village_name}</strong>
+                                </span>
+                              )}
+                              {row.village_name && row.esr_name && (
+                                <span className="text-slate-300">•</span>
+                              )}
+                              {row.esr_name && (
+                                <span>
+                                  ESR: <strong className="text-slate-800 font-semibold">{row.esr_name}</strong>
+                                </span>
+                              )}
+                              {!row.village_name && !row.esr_name && (
+                                <span>{row.scheme_name}</span>
+                              )}
                               {row.region && (
                                 <>
                                   <span className="text-slate-300">|</span>
@@ -2677,6 +3796,35 @@ export default function AlertsProgressPage() {
                             <span className="text-[11px] text-slate-400 italic">Unassigned in Directory</span>
                           )}
                         </td>
+
+                        {/* Vendor Column for Offline Tab */}
+                        {type === "offline" && (
+                          <td className="py-2.5 px-3 border-r border-slate-100 align-middle">
+                            {row.vendor_name ? (
+                              <div>
+                                <div className="font-bold text-xs text-slate-800 leading-tight">
+                                  {row.vendor_name}
+                                </div>
+                                {row.vendor_email && (
+                                  <a
+                                    href={`mailto:${row.vendor_email}`}
+                                    className="text-[11px] text-indigo-600 hover:underline block truncate mt-0.5"
+                                  >
+                                    {row.vendor_email}
+                                  </a>
+                                )}
+                                {row.vendor_phone && (
+                                  <div className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1">
+                                    <Phone className="h-2.5 w-2.5 text-slate-400 shrink-0" />
+                                    <span>{row.vendor_phone}</span>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-[11px] text-slate-400 italic">No Vendor Assigned</span>
+                            )}
+                          </td>
+                        )}
 
                         {/* 5. Email Dispatch */}
                         <td className="py-2.5 px-3 text-center border-r border-slate-100 align-middle whitespace-nowrap">
@@ -2763,11 +3911,37 @@ export default function AlertsProgressPage() {
                                     className="text-[10px] font-medium text-blue-600 hover:underline cursor-pointer"
                                     onClick={(e) => {
                                       e.stopPropagation();
+                                      const cleanScheme = (row.scheme_name || '').replace(/^(JJM\s+MVS\s+|JJM\s+|MVS\s+)/i, '').trim();
+                                      const val = row.current_value ?? row.alert_value ?? row.historical_value ?? '0';
+                                      const loc = [row.village_name, row.esr_name].filter(Boolean).join(' ') || (row.village_name || 'वितरण व्यवस्था');
+                                      let actualMsg = '';
+                                      if (type === 'lpcd') {
+                                        actualMsg = `सूचना: JJM MVS ${cleanScheme} अंतर्गत ${row.village_name || 'ग्राम स्तर'} येथील पाणीपुरवठ्याचा दर 55 LPCD पेक्षा कमी असून सध्याचा पाणीपुरवठ्याचा दर ${val} LPCD आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा`;
+                                      } else if (type === 'chlorine') {
+                                        actualMsg = `सूचना: JJM MVS ${cleanScheme} अंतर्गत ${loc} येथील वितरण व्यवस्थेत Residual Chlorine ची मात्रा 0.2 mg/l पेक्षा कमी असून सध्याची मात्रा ${val} mg/l इतकी आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा`;
+                                      } else if (type === 'pressure') {
+                                        actualMsg = `सूचना: JJM MVS ${cleanScheme} अंतर्गत ${loc} येथील वितरण व्यवस्थेतील Pressure Sensor नुसार पाण्याचा दाब 0.2 bar पेक्षा कमी असून सध्याचा दाब ${val} bar इतका आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा`;
+                                      } else {
+                                        const dtStr = row.sent_date ? new Date(row.sent_date).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
+                                        actualMsg = `सूचना: JJM MVS ${cleanScheme} अंतर्गत ${loc} येथील Sensor Offline आढळला असून Offline Date & Time ${dtStr} आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा`;
+                                      }
+
+                                      const matchingDispatches = smsList.filter(s =>
+                                        (row.village_name && s.message_text && s.message_text.toLowerCase().includes(row.village_name.toLowerCase())) ||
+                                        (row.esr_name && s.message_text && s.message_text.toLowerCase().includes(row.esr_name.toLowerCase()))
+                                      );
+                                      const chosenDispatches = matchingDispatches.length > 0 ? matchingDispatches : smsList;
+                                      const foundMsg = matchingDispatches.find(s => s.message_text)?.message_text;
+
                                       setSelectedSmsModal({
                                         schemeName: row.scheme_name,
                                         schemeId: row.scheme_id,
-                                        dispatches: smsList,
-                                        alertType: type.toUpperCase()
+                                        villageName: row.village_name,
+                                        esrName: row.esr_name,
+                                        alertValue: val,
+                                        dispatches: chosenDispatches,
+                                        alertType: type.toUpperCase(),
+                                        actualMessageText: foundMsg || actualMsg
                                       });
                                     }}
                                   >
@@ -2958,7 +4132,7 @@ export default function AlertsProgressPage() {
                   Jal Jeevan Mission
                 </h1>
                 <div className="text-base md:text-lg font-bold text-[#0f4c81] mt-1 leading-snug">
-                  Alert Dispatch & Escalation Portal
+                  Alert Dispatch & Escalation Portal for 39/41 Schemes
                 </div>
                 <p className="text-xs text-slate-500 font-medium mt-0.5">
                   Water Supply & Sanitation Department, Government of Maharashtra
@@ -2976,14 +4150,18 @@ export default function AlertsProgressPage() {
                 <div>
                   <div className="text-[11px] text-slate-500 font-medium">Engineers</div>
                   <div className="text-sm font-bold text-slate-900 leading-tight">
-                    {totalRosterEngineers > 0 ? `${totalRosterEngineers} Total` : "81 Total"}
+                    {totalRosterEngineers > 0 ? `${totalRosterEngineers} Total` : "6 Total"}
                   </div>
-                  {/* <a
-                    href="/engineers"
-                    className="text-xs text-[#0f4c81] font-semibold hover:underline flex items-center gap-0.5 mt-0.5"
+                  <button
+                    type="button"
+                    onClick={handleDownloadTotalEngineers}
+                    disabled={isDownloadingTotalEng}
+                    className="text-[11px] text-[#0f4c81] font-bold hover:underline flex items-center gap-1 mt-0.5 cursor-pointer"
+                    title="Download complete scheme engineers directory (.xlsx)"
                   >
-                    View Directory →
-                  </a> */}
+                    <FileSpreadsheet className="h-3 w-3 text-emerald-600" />
+                    <span>Download Excel</span>
+                  </button>
                 </div>
               </div>
 
@@ -3025,7 +4203,7 @@ export default function AlertsProgressPage() {
           </div>
 
           {/* 2. Alert Category Interactive Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
             {/* Card 1: LPCD */}
             <button
               type="button"
@@ -3043,7 +4221,7 @@ export default function AlertsProgressPage() {
                     }`}>
                     <Waves className="h-4 w-4" />
                   </div>
-                  <span className="text-xs font-bold text-slate-700">Low Village LPCD Alerts</span>
+                  <span className="text-xs font-bold text-slate-700">Low LPCD Alerts</span>
                 </div>
                 {activeTab === "lpcd" && (
                   <span className="text-[10px] font-bold uppercase tracking-wider text-[#0f4c81] bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
@@ -3052,11 +4230,22 @@ export default function AlertsProgressPage() {
                 )}
               </div>
               <div className="mt-1">
-                <div className="text-2xl font-black text-slate-900 tracking-tight">
-                  {lpcdData.length}
+                <div className="text-xl font-black text-slate-900 tracking-tight flex items-baseline gap-1.5">
+                  <span>{lpcdSchemesCount}</span>
+                  <span className="text-xs font-semibold text-[#0f4c81]">{lpcdSchemesCount === 1 ? 'Scheme' : 'Schemes'}</span>
                 </div>
-                <div className="text-[11px] text-slate-500 font-medium mt-0.5">
-                  Villages &lt; 55 LPCD (Daily)
+                <div className="text-[11px] font-semibold text-slate-700 mt-1 flex items-center gap-1.5 flex-wrap">
+                  <span className="inline-flex items-center gap-0.5 text-blue-700">
+                    <Mail className="h-3 w-3" /> {lpcdActualEmailsCount} Email
+                  </span>
+                  <span className="text-slate-300">•</span>
+                  <span className="inline-flex items-center gap-0.5 text-purple-700">
+                    <MessageSquare className="h-3 w-3" /> {lpcdActualSmsCount} SMS
+                  </span>
+                </div>
+                <div className="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1">
+                  <MapPin className="h-3 w-3 text-blue-500 shrink-0" />
+                  <span><strong className="text-slate-700">{lpcdVillagesCount}</strong> Villages Covered</span>
                 </div>
               </div>
             </button>
@@ -3066,11 +4255,11 @@ export default function AlertsProgressPage() {
               type="button"
               onClick={() => { setActiveTab("chlorine"); setPage(1); }}
               className={`text-left p-4 rounded-xl border transition-all duration-200 cursor-pointer relative overflow-hidden group ${activeTab === "chlorine"
-                ? "bg-white border-emerald-600 shadow-md ring-2 ring-emerald-600/25 -translate-y-0.5"
-                : "bg-white border-slate-200 hover:border-emerald-300 hover:shadow-sm hover:-translate-y-0.5"
+                ? "bg-white border-[#0f4c81] shadow-md ring-2 ring-[#0f4c81]/25 -translate-y-0.5"
+                : "bg-white border-slate-200 hover:border-blue-300 hover:shadow-sm hover:-translate-y-0.5"
                 }`}
             >
-              <div className={`absolute top-0 left-0 right-0 h-1.5 transition-all ${activeTab === "chlorine" ? "bg-emerald-600" : "bg-transparent group-hover:bg-emerald-200"
+              <div className={`absolute top-0 left-0 right-0 h-1.5 transition-all ${activeTab === "chlorine" ? "bg-[#0f4c81]" : "bg-transparent group-hover:bg-blue-200"
                 }`} />
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2">
@@ -3078,20 +4267,31 @@ export default function AlertsProgressPage() {
                     }`}>
                     <Droplets className="h-4 w-4" />
                   </div>
-                  <span className="text-xs font-bold text-slate-700">Residual Chlorine Alerts</span>
+                  <span className="text-xs font-bold text-slate-700">Residual Chlorine</span>
                 </div>
                 {activeTab === "chlorine" && (
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#0f4c81] bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
                     Active
                   </span>
                 )}
               </div>
               <div className="mt-1">
-                <div className="text-2xl font-black text-slate-900 tracking-tight">
-                  {chlorineData.length}
+                <div className="text-xl font-black text-slate-900 tracking-tight flex items-baseline gap-1.5">
+                  <span>{chlorineSchemesCount}</span>
+                  <span className="text-xs font-semibold text-emerald-700">{chlorineSchemesCount === 1 ? 'Scheme' : 'Schemes'}</span>
                 </div>
-                <div className="text-[11px] text-slate-500 font-medium mt-0.5">
-                  Chlorine Alerts (Daily)
+                <div className="text-[11px] font-semibold text-slate-700 mt-1 flex items-center gap-1.5 flex-wrap">
+                  <span className="inline-flex items-center gap-0.5 text-blue-700">
+                    <Mail className="h-3 w-3" /> {chlorineActualEmailsCount} Email
+                  </span>
+                  <span className="text-slate-300">•</span>
+                  <span className="inline-flex items-center gap-0.5 text-purple-700">
+                    <MessageSquare className="h-3 w-3" /> {chlorineActualSmsCount} SMS
+                  </span>
+                </div>
+                <div className="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1">
+                  <MapPin className="h-3 w-3 text-emerald-500 shrink-0" />
+                  <span><strong className="text-slate-700">{chlorineVillagesCount}</strong> Vil • <strong className="text-slate-700">{chlorineEsrsCount}</strong> ESR</span>
                 </div>
               </div>
             </button>
@@ -3101,11 +4301,11 @@ export default function AlertsProgressPage() {
               type="button"
               onClick={() => { setActiveTab("pressure"); setPage(1); }}
               className={`text-left p-4 rounded-xl border transition-all duration-200 cursor-pointer relative overflow-hidden group ${activeTab === "pressure"
-                ? "bg-white border-amber-600 shadow-md ring-2 ring-amber-600/25 -translate-y-0.5"
-                : "bg-white border-slate-200 hover:border-amber-300 hover:shadow-sm hover:-translate-y-0.5"
+                ? "bg-white border-[#0f4c81] shadow-md ring-2 ring-[#0f4c81]/25 -translate-y-0.5"
+                : "bg-white border-slate-200 hover:border-blue-300 hover:shadow-sm hover:-translate-y-0.5"
                 }`}
             >
-              <div className={`absolute top-0 left-0 right-0 h-1.5 transition-all ${activeTab === "pressure" ? "bg-amber-600" : "bg-transparent group-hover:bg-amber-200"
+              <div className={`absolute top-0 left-0 right-0 h-1.5 transition-all ${activeTab === "pressure" ? "bg-[#0f4c81]" : "bg-transparent group-hover:bg-blue-200"
                 }`} />
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2">
@@ -3113,20 +4313,31 @@ export default function AlertsProgressPage() {
                     }`}>
                     <GaugeCircle className="h-4 w-4" />
                   </div>
-                  <span className="text-xs font-bold text-slate-700">Low Pressure Alerts</span>
+                  <span className="text-xs font-bold text-slate-700">Low Pressure</span>
                 </div>
                 {activeTab === "pressure" && (
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#0f4c81] bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
                     Active
                   </span>
                 )}
               </div>
               <div className="mt-1">
-                <div className="text-2xl font-black text-slate-900 tracking-tight">
-                  {pressureData.length}
+                <div className="text-xl font-black text-slate-900 tracking-tight flex items-baseline gap-1.5">
+                  <span>{pressureSchemesCount}</span>
+                  <span className="text-xs font-semibold text-amber-700">{pressureSchemesCount === 1 ? 'Scheme' : 'Schemes'}</span>
                 </div>
-                <div className="text-[11px] text-slate-500 font-medium mt-0.5">
-                  Pressure Alerts (Daily)
+                <div className="text-[11px] font-semibold text-slate-700 mt-1 flex items-center gap-1.5 flex-wrap">
+                  <span className="inline-flex items-center gap-0.5 text-blue-700">
+                    <Mail className="h-3 w-3" /> {pressureActualEmailsCount} Email
+                  </span>
+                  <span className="text-slate-300">•</span>
+                  <span className="inline-flex items-center gap-0.5 text-purple-700">
+                    <MessageSquare className="h-3 w-3" /> {pressureActualSmsCount} SMS
+                  </span>
+                </div>
+                <div className="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1">
+                  <MapPin className="h-3 w-3 text-amber-500 shrink-0" />
+                  <span><strong className="text-slate-700">{pressureVillagesCount}</strong> Vil • <strong className="text-slate-700">{pressureEsrsCount}</strong> ESR</span>
                 </div>
               </div>
             </button>
@@ -3136,11 +4347,11 @@ export default function AlertsProgressPage() {
               type="button"
               onClick={() => { setActiveTab("offline"); setPage(1); }}
               className={`text-left p-4 rounded-xl border transition-all duration-200 cursor-pointer relative overflow-hidden group ${activeTab === "offline"
-                ? "bg-white border-rose-600 shadow-md ring-2 ring-rose-600/25 -translate-y-0.5"
-                : "bg-white border-slate-200 hover:border-rose-300 hover:shadow-sm hover:-translate-y-0.5"
+                ? "bg-white border-[#0f4c81] shadow-md ring-2 ring-[#0f4c81]/25 -translate-y-0.5"
+                : "bg-white border-slate-200 hover:border-blue-300 hover:shadow-sm hover:-translate-y-0.5"
                 }`}
             >
-              <div className={`absolute top-0 left-0 right-0 h-1.5 transition-all ${activeTab === "offline" ? "bg-rose-600" : "bg-transparent group-hover:bg-rose-200"
+              <div className={`absolute top-0 left-0 right-0 h-1.5 transition-all ${activeTab === "offline" ? "bg-[#0f4c81]" : "bg-transparent group-hover:bg-blue-200"
                 }`} />
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2">
@@ -3151,31 +4362,87 @@ export default function AlertsProgressPage() {
                   <span className="text-xs font-bold text-slate-700">Offline Sensors</span>
                 </div>
                 {activeTab === "offline" && (
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#0f4c81] bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
                     Active
                   </span>
                 )}
               </div>
               <div className="mt-1">
-                <div className="text-2xl font-black text-slate-900 tracking-tight">
-                  {offlineData.length}
+                <div className="text-xl font-black text-slate-900 tracking-tight flex items-baseline gap-1.5">
+                  <span>{offlineSchemesCount}</span>
+                  <span className="text-xs font-semibold text-rose-700">{offlineSchemesCount === 1 ? 'Scheme' : 'Schemes'}</span>
                 </div>
-                <div className="text-[11px] text-slate-500 font-medium mt-0.5">
-                  Offline Alerts (Daily)
+                <div className="text-[11px] font-semibold text-slate-700 mt-1 flex items-center gap-1.5 flex-wrap">
+                  <span className="inline-flex items-center gap-0.5 text-blue-700">
+                    <Mail className="h-3 w-3" /> {offlineActualEmailsCount} Email
+                  </span>
+                  <span className="text-slate-300">•</span>
+                  <span className="inline-flex items-center gap-0.5 text-purple-700">
+                    <MessageSquare className="h-3 w-3" /> {offlineActualSmsCount} SMS
+                  </span>
+                </div>
+                <div className="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1">
+                  <MapPin className="h-3 w-3 text-rose-500 shrink-0" />
+                  <span><strong className="text-slate-700">{offlineVillagesCount}</strong> Vil • <strong className="text-slate-700">{offlineEsrsCount}</strong> ESR</span>
                 </div>
               </div>
             </button>
 
-            {/* Card 5: Real-Time Critical */}
+            {/* Card 5: Daily Email & SMS Alerts */}
+            <button
+              type="button"
+              onClick={() => { setActiveTab("daily_dispatches"); setDailyPage(1); }}
+              className={`text-left p-4 rounded-xl border transition-all duration-200 cursor-pointer relative overflow-hidden group ${activeTab === "daily_dispatches"
+                ? "bg-white border-[#0f4c81] shadow-md ring-2 ring-[#0f4c81]/25 -translate-y-0.5"
+                : "bg-white border-slate-200 hover:border-blue-300 hover:shadow-sm hover:-translate-y-0.5"
+                }`}
+            >
+              <div className={`absolute top-0 left-0 right-0 h-1.5 transition-all ${activeTab === "daily_dispatches" ? "bg-[#0f4c81]" : "bg-transparent group-hover:bg-blue-200"
+                }`} />
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <div className={`p-2 rounded-lg ${activeTab === "daily_dispatches" ? "bg-indigo-100 text-indigo-800" : "bg-slate-100 text-slate-600 group-hover:bg-indigo-50 group-hover:text-indigo-700"
+                    }`}>
+                    <Send className="h-4 w-4" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-700">Daily Dispatches</span>
+                </div>
+                {activeTab === "daily_dispatches" && (
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#0f4c81] bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
+                    Active
+                  </span>
+                )}
+              </div>
+              <div className="mt-1">
+                <div className="text-xl font-black text-slate-900 tracking-tight flex items-baseline gap-1.5">
+                  <span>{dailySchemesCount}</span>
+                  <span className="text-xs font-semibold text-indigo-700">{dailySchemesCount === 1 ? 'Scheme' : 'Schemes'}</span>
+                </div>
+                <div className="text-[11px] font-semibold text-slate-700 mt-1 flex items-center gap-1.5 flex-wrap">
+                  <span className="inline-flex items-center gap-0.5 text-blue-700">
+                    <Mail className="h-3 w-3" /> {dailyActualEmailsCount} Email
+                  </span>
+                  <span className="text-slate-300">•</span>
+                  <span className="inline-flex items-center gap-0.5 text-purple-700">
+                    <MessageSquare className="h-3 w-3" /> {dailyActualSmsCount} SMS
+                  </span>
+                </div>
+                <div className="text-[10px] text-slate-500 font-medium mt-0.5">
+                  <span>Dispatched across all parameters</span>
+                </div>
+              </div>
+            </button>
+
+            {/* Card 6: Real-Time Critical */}
             <button
               type="button"
               onClick={() => { setActiveTab("realtime"); setRealtimePage(1); }}
               className={`text-left p-4 rounded-xl border transition-all duration-200 cursor-pointer relative overflow-hidden group ${activeTab === "realtime"
-                ? "bg-white border-rose-600 shadow-md ring-2 ring-rose-600/25 -translate-y-0.5"
-                : "bg-white border-slate-200 hover:border-rose-300 hover:shadow-sm hover:-translate-y-0.5"
+                ? "bg-white border-[#0f4c81] shadow-md ring-2 ring-[#0f4c81]/25 -translate-y-0.5"
+                : "bg-white border-slate-200 hover:border-blue-300 hover:shadow-sm hover:-translate-y-0.5"
                 }`}
             >
-              <div className={`absolute top-0 left-0 right-0 h-1.5 transition-all ${activeTab === "realtime" ? "bg-rose-600" : "bg-transparent group-hover:bg-rose-200"
+              <div className={`absolute top-0 left-0 right-0 h-1.5 transition-all ${activeTab === "realtime" ? "bg-[#0f4c81]" : "bg-transparent group-hover:bg-blue-200"
                 }`} />
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2">
@@ -3183,27 +4450,28 @@ export default function AlertsProgressPage() {
                     }`}>
                     <Zap className="h-4 w-4 text-rose-600" />
                   </div>
-                  <span className="text-xs font-bold text-slate-700">Real-Time Critical</span>
+                  <span className="text-xs font-bold text-slate-700">Real-Time alerts</span>
                 </div>
                 <span className="flex h-2 w-2 relative">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
                 </span>
               </div>
+
+
               <div className="mt-1">
                 <div className="text-2xl font-black text-rose-600 tracking-tight flex items-baseline gap-1.5">
                   <span>{realtimeProgress?.alerts?.length ?? 0}</span>
-                  <span className="text-xs font-semibold text-rose-700">Live</span>
+
                 </div>
-                <div className="text-[11px] text-slate-500 font-medium mt-0.5">
-                  5-Min Telemetry Stream
-                </div>
+
               </div>
             </button>
           </div>
 
           {/* 3. Section Render */}
           {activeTab === "realtime" && renderRealtimeDataTable()}
+          {activeTab === "daily_dispatches" && renderDailyDispatchesDataTable()}
           {activeTab === "lpcd" && renderDataTable(lpcdData, "lpcd", isLoadingLpcd)}
           {activeTab === "chlorine" && renderDataTable(chlorineData, "chlorine", isLoadingChlorine)}
           {activeTab === "pressure" && renderDataTable(pressureData, "pressure", isLoadingPressure)}
@@ -3265,7 +4533,7 @@ export default function AlertsProgressPage() {
                           <th className="p-2.5 text-center w-10">#</th>
                           <th className="p-2.5">Scheme Details</th>
                           <th className="p-2.5 text-center">
-                            {activeTab === "lpcd" ? "Village Name" : "Sensor / ESR Location"}
+                            {activeTab === "lpcd" ? "Village Name" : "Village & ESR Location"}
                           </th>
                           <th className="p-2.5 text-center">
                             {activeTab === "lpcd" ? "Alert LPCD (<55)" : activeTab === "chlorine" ? "Chlorine (mg/L)" : activeTab === "pressure" ? "Pressure (Bar)" : "Offline Sensor"}
@@ -3291,20 +4559,24 @@ export default function AlertsProgressPage() {
                               <td className="p-2.5 text-center text-slate-700 font-medium">
                                 {activeTab === "lpcd" ? (
                                   <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-blue-50 text-blue-700">
-                                    🏘️ {row.village_name || row.scheme_name}
-                                  </span>
-                                ) : activeTab === "chlorine" ? (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-50 text-emerald-700">
-                                    🧪 {row.esr_name || row.village_name || "-"}
-                                  </span>
-                                ) : activeTab === "pressure" ? (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-700">
-                                    ⏱️ {row.esr_name || row.village_name || "-"}
+                                    🏘️ Village: {row.village_name || row.scheme_name}
                                   </span>
                                 ) : (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-rose-50 text-rose-700">
-                                    📡 {row.esr_name || row.village_name || "-"}
-                                  </span>
+                                  <div className="flex flex-col items-center gap-0.5">
+                                    {row.village_name && (
+                                      <span className="text-[11px] font-semibold text-slate-800">
+                                        Village: {row.village_name}
+                                      </span>
+                                    )}
+                                    {row.esr_name && (
+                                      <span className="text-[10px] text-slate-500 font-medium">
+                                        ESR: {row.esr_name}
+                                      </span>
+                                    )}
+                                    {!row.village_name && !row.esr_name && (
+                                      <span className="text-slate-400">-</span>
+                                    )}
+                                  </div>
                                 )}
                               </td>
                               <td className="p-2.5 text-center font-bold text-rose-600">
@@ -3388,7 +4660,7 @@ export default function AlertsProgressPage() {
                 </div>
 
                 {/* Footer */}
-                <div className="p-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+                <div className="p-3.5 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-2">
                   <Button
                     variant="outline"
                     size="sm"
@@ -3396,7 +4668,7 @@ export default function AlertsProgressPage() {
                       setAckStatusFilter(ackModalData.type);
                       setAckModalData(null);
                     }}
-                    className={`text-xs font-semibold ${ackModalData.type === "acknowledged"
+                    className={`text-xs font-semibold cursor-pointer ${ackModalData.type === "acknowledged"
                       ? "text-emerald-700 border-emerald-300 hover:bg-emerald-50"
                       : "text-amber-700 border-amber-300 hover:bg-amber-50"
                       }`}
@@ -3404,13 +4676,37 @@ export default function AlertsProgressPage() {
                     <Filter className="w-3.5 h-3.5 mr-1" />
                     Filter Page Table to {ackModalData.type === "acknowledged" ? "Acknowledged" : "Pending"}
                   </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => setAckModalData(null)}
-                    className="bg-slate-800 hover:bg-slate-900 text-white text-xs px-4"
-                  >
-                    Close
-                  </Button>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        downloadTabEngineersExcel({
+                          tabName: activeTab === "lpcd" ? "LPCD" : activeTab === "chlorine" ? "Chlorine" : activeTab === "pressure" ? "Pressure" : activeTab === "offline" ? "Offline" : "Realtime",
+                          tabType: activeTab === "realtime" ? "realtime" : (activeTab as any),
+                          status: ackModalData.type,
+                          rows: ackModalData.rows,
+                          dateStr: customDate || (activeSubTab === "previous" ? yesterdayYmd : todayYmd)
+                        });
+                      }}
+                      className={`text-xs font-bold text-white shadow-none cursor-pointer flex items-center gap-1.5 ${ackModalData.type === "acknowledged"
+                        ? "bg-emerald-700 hover:bg-emerald-800"
+                        : "bg-amber-600 hover:bg-amber-700"
+                        }`}
+                      title={`Download Excel sheet of ${ackModalData.type} engineers`}
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5" />
+                      Download {ackModalData.type === "acknowledged" ? "Acknowledged" : "Pending"} Excel ({modalFilteredRows.length})
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      onClick={() => setAckModalData(null)}
+                      className="bg-slate-800 hover:bg-slate-900 text-white text-xs px-4 cursor-pointer"
+                    >
+                      Close
+                    </Button>
+                  </div>
                 </div>
               </DialogContent>
             </Dialog>
@@ -3422,7 +4718,7 @@ export default function AlertsProgressPage() {
               open={!!selectedRemarkDetails}
               onOpenChange={(open) => !open && setSelectedRemarkDetails(null)}
             >
-              <DialogContent className="max-w-2xl bg-white border-none shadow-2xl p-0 overflow-hidden">
+              <DialogContent className="max-w-3xl bg-white border-none shadow-2xl p-0 overflow-hidden">
                 {(() => {
                   const hasActive = selectedRemarkDetails.issues.some((i: any) => i.status === 'Active');
                   const headerBg = hasActive ? "bg-rose-700" : "bg-[#0f4c81]";
@@ -3519,19 +4815,59 @@ export default function AlertsProgressPage() {
 
           {/* Engineers Details Dialog */}
           {selectedEngineers && (
-            <Dialog open={!!selectedEngineers} onOpenChange={(open) => !open && setSelectedEngineers(null)}>
-              <DialogContent className="max-w-lg bg-white border border-slate-200 shadow-2xl rounded-2xl p-6">
-                <DialogHeader className="border-b border-slate-100 pb-4">
-                  <div className="flex items-center justify-between gap-2">
+            <Dialog
+              open={!!selectedEngineers}
+              onOpenChange={(open) => {
+                if (!open) {
+                  setSelectedEngineers(null);
+                  setEmailModalTab("recipients");
+                }
+              }}
+            >
+              <DialogContent className="max-w-4xl max-h-[88vh] bg-white border border-slate-200 shadow-2xl rounded-2xl p-6 flex flex-col overflow-hidden">
+                <DialogHeader className="border-b border-slate-100 pb-4 shrink-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
                       <Mail className="h-5 w-5 text-blue-600" />
                       Email Alert Dispatch Logs & Acknowledgement
                     </DialogTitle>
+
+                    {/* View Switcher Tabs */}
+                    <div className="inline-flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setEmailModalTab("recipients")}
+                        className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
+                          emailModalTab === "recipients"
+                            ? "bg-white text-blue-700 shadow-xs"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
+                      >
+                        <Users className="h-3.5 w-3.5" />
+                        Notified Personnel & Ack
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEmailModalTab("email")}
+                        className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
+                          emailModalTab === "email"
+                            ? "bg-white text-blue-700 shadow-xs"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        View Sent Email Content
+                      </button>
+                    </div>
                   </div>
+
                   <DialogDescription className="text-slate-600 font-medium text-xs mt-1">
                     Scheme: <span className="font-semibold text-slate-800">{selectedEngineers.title}</span>
                     {selectedEngineers.row.village_name && (
                       <span className="text-slate-400 ml-1.5">• Village: {selectedEngineers.row.village_name}</span>
+                    )}
+                    {selectedEngineers.row.esr_name && (
+                      <span className="text-slate-400 ml-1.5">• ESR: {selectedEngineers.row.esr_name}</span>
                     )}
                     {selectedEngineers.row.ticket_id && (
                       <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded bg-blue-50 text-[10px] font-mono font-bold text-blue-700 border border-blue-200">
@@ -3573,8 +4909,141 @@ export default function AlertsProgressPage() {
                     return "bg-teal-50 text-teal-700 border-teal-200";
                   };
 
+                  if (emailModalTab === "email") {
+                    const alertTypeTitle = selectedEngineers.row.alert_type 
+                      ? selectedEngineers.row.alert_type.toUpperCase() 
+                      : (activeTab === 'lpcd' ? 'LPCD DEFICIT' : activeTab === 'chlorine' ? 'CHLORINE DEFICIT' : activeTab === 'pressure' ? 'PRESSURE DEFICIT' : 'SENSOR OFFLINE');
+
+                    const thresholdText = activeTab === 'lpcd' 
+                      ? '55 LPCD (Minimum Standard)' 
+                      : activeTab === 'chlorine' 
+                        ? '0.20 mg/L / ppm (Minimum Standard)' 
+                        : activeTab === 'pressure' 
+                          ? '0.20 bar (Minimum Terminal Pressure)' 
+                          : 'Online (Continuous Connectivity)';
+
+                    return (
+                      <div className="flex-1 overflow-y-auto py-3 space-y-4 max-h-[62vh] pr-1">
+                        {/* Email Envelope Meta Card */}
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs space-y-2">
+                          <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+                            <span className="text-slate-500 font-semibold">From:</span>
+                            <span className="font-semibold text-slate-800">State JJM Alert Monitoring Center &lt;alerts@mjp.gov.in&gt;</span>
+                          </div>
+                          <div className="flex items-start justify-between border-b border-slate-200/80 pb-2">
+                            <span className="text-slate-500 font-semibold shrink-0 pt-0.5">To (Recipients):</span>
+                            <div className="flex flex-wrap gap-1.5 justify-end">
+                              {recipients.length > 0 ? (
+                                recipients.map((r, i) => (
+                                  <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-white border border-slate-200 rounded text-[11px] text-slate-700">
+                                    <span className="font-bold text-slate-900">{r.name}</span>
+                                    <span className="text-[10px] text-slate-500">({r.role})</span>
+                                    {r.email && <span className="text-[10px] text-blue-600">&lt;{r.email}&gt;</span>}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-slate-400 italic">No assigned engineer email</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+                            <span className="text-slate-500 font-semibold">Subject:</span>
+                            <span className="font-bold text-slate-900">
+                              [JJM ALERT - CRITICAL] {alertTypeTitle} Incident at Scheme: {selectedEngineers.title}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-500 font-semibold">Ticket ID:</span>
+                            <span className="font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                              {selectedEngineers.row.ticket_id || `TCK-${selectedEngineers.row.scheme_id}`}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Email Official Body */}
+                        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs space-y-4">
+                          <div className="border-l-4 border-l-rose-500 pl-4 py-1">
+                            <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wide">
+                              Government of Maharashtra • Water Supply & Sanitation Department
+                            </h4>
+                            <p className="text-xs text-slate-500">
+                              Maharashtra Jeevan Pradhikaran (MJP) — Jal Jeevan Mission Monitoring Division
+                            </p>
+                          </div>
+
+                          <p className="text-xs text-slate-700 leading-relaxed">
+                            Respected Engineers,<br />
+                            This automated dispatch is issued to notify you of an operational threshold breach detected by IoT telemetry for scheme <span className="font-bold text-slate-900">{selectedEngineers.title}</span>. Immediate verification and resolution are requested.
+                          </p>
+
+                          {/* Technical Breach Table */}
+                          <div className="border border-slate-200 rounded-lg overflow-hidden text-xs">
+                            <table className="w-full text-left">
+                              <tbody className="divide-y divide-slate-100">
+                                <tr className="bg-slate-50/70">
+                                  <td className="py-2 px-3 font-semibold text-slate-600 w-1/3">Scheme Name & ID</td>
+                                  <td className="py-2 px-3 font-bold text-slate-900">{selectedEngineers.title} ({selectedEngineers.row.scheme_id})</td>
+                                </tr>
+                                <tr>
+                                  <td className="py-2 px-3 font-semibold text-slate-600">Region</td>
+                                  <td className="py-2 px-3 text-slate-800">{selectedEngineers.row.region || "Maharashtra"}</td>
+                                </tr>
+                                <tr className="bg-slate-50/70">
+                                  <td className="py-2 px-3 font-semibold text-slate-600">Affected Village / ESR</td>
+                                  <td className="py-2 px-3 text-slate-800">
+                                    {selectedEngineers.row.village_name || "All Covered Villages"}
+                                    {selectedEngineers.row.esr_name ? ` • ESR: ${selectedEngineers.row.esr_name}` : ""}
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td className="py-2 px-3 font-semibold text-slate-600">Alert Category</td>
+                                  <td className="py-2 px-3 font-bold text-rose-600 uppercase">{alertTypeTitle}</td>
+                                </tr>
+                                <tr className="bg-slate-50/70">
+                                  <td className="py-2 px-3 font-semibold text-slate-600">Recorded Metric Value</td>
+                                  <td className="py-2 px-3">
+                                    <span className="font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200 mr-2">
+                                      {selectedEngineers.row.current_value !== null && selectedEngineers.row.current_value !== undefined 
+                                        ? String(selectedEngineers.row.current_value) 
+                                        : "Threshold Breached"}
+                                    </span>
+                                    <span className="text-slate-500">
+                                      (Expected Standard: {thresholdText})
+                                    </span>
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td className="py-2 px-3 font-semibold text-slate-600">Sent Timestamp</td>
+                                  <td className="py-2 px-3 text-slate-700 font-mono">
+                                    {selectedEngineers.row.created_at || selectedEngineers.row.sent_date
+                                      ? new Date(selectedEngineers.row.created_at || selectedEngineers.row.sent_date!).toLocaleString('en-IN')
+                                      : new Date().toLocaleString('en-IN')}
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+
+                          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900 space-y-1">
+                            <div className="font-bold flex items-center gap-1.5 text-amber-800">
+                              <AlertTriangle className="h-4 w-4 text-amber-600" />
+                              Required Engineering Action:
+                            </div>
+                            <p className="leading-relaxed">
+                              Assigned Sub-Divisional and Sectional Engineers (DE / AE Civil & Mech) must verify field supply parameters, inspect local chlorination / pressure regulation, and report rectification through the MJP Jal Jeevan Mission Monitoring portal.
+                            </p>
+                          </div>
+
+                          <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-400">
+                            Note: This email was automatically generated and dispatched to the designated jurisdictional roster. Please log in to the JJM Portal to submit resolution remarks.
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
                   return (
-                    <div className="flex flex-col space-y-4 py-2">
+                    <div className="flex-1 overflow-y-auto py-2 space-y-4 max-h-[62vh] pr-1">
                       {/* Summary Badges Bar */}
                       <div className="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-center">
                         <div className="flex flex-col items-center">
@@ -3592,7 +5061,7 @@ export default function AlertsProgressPage() {
                       </div>
 
                       {/* Recipient Cards List */}
-                      <div className="max-h-[380px] overflow-y-auto space-y-2 pr-1">
+                      <div className="space-y-2">
                         {recipients.length === 0 ? (
                           <div className="text-center py-8 text-slate-400 text-sm">
                             No assigned personnel found for this scheme.
@@ -3680,8 +5149,8 @@ export default function AlertsProgressPage() {
           {/* SMS Dispatch Details Dialog */}
           {selectedSmsModal && (
             <Dialog open={!!selectedSmsModal} onOpenChange={(open) => !open && setSelectedSmsModal(null)}>
-              <DialogContent className="max-w-2xl bg-white border border-slate-200 shadow-2xl rounded-2xl p-0 overflow-hidden">
-                <div className="p-5 bg-[#0f4c81] text-white flex items-center justify-between border-b border-white/10">
+              <DialogContent className="max-w-4xl max-h-[88vh] bg-white border border-slate-200 shadow-2xl rounded-2xl p-0 overflow-hidden flex flex-col">
+                <div className="p-5 bg-[#0f4c81] text-white flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/10 gap-3 shrink-0">
                   <div>
                     <DialogTitle className="text-lg font-bold flex items-center gap-2 text-white">
                       <MessageSquare className="h-5 w-5 text-white" />
@@ -3690,104 +5159,170 @@ export default function AlertsProgressPage() {
                     <DialogDescription className="text-blue-100 text-xs mt-1">
                       Scheme: <span className="font-semibold text-white">{selectedSmsModal.schemeName}</span> (ID: {selectedSmsModal.schemeId}) • {selectedSmsModal.alertType} Alert
                     </DialogDescription>
+                    
+                    {/* Village, ESR, and Metric Value Badges */}
+                    <div className="flex flex-wrap items-center gap-2 mt-2 text-xs">
+                      {selectedSmsModal.villageName && (
+                        <span className="bg-white/20 text-white px-2 py-0.5 rounded font-medium">
+                          Village: {selectedSmsModal.villageName}
+                        </span>
+                      )}
+                      {selectedSmsModal.esrName && (
+                        <span className="bg-white/20 text-white px-2 py-0.5 rounded font-medium">
+                          ESR: {selectedSmsModal.esrName}
+                        </span>
+                      )}
+                      {selectedSmsModal.alertValue !== undefined && selectedSmsModal.alertValue !== null && (
+                        <span className="bg-rose-500 text-white px-2 py-0.5 rounded font-bold shadow-xs">
+                          Breach Value: {selectedSmsModal.alertValue}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                <div className="p-5 max-h-[70vh] overflow-y-auto space-y-4 bg-slate-50/50">
+                <div className="p-5 max-h-[65vh] overflow-y-auto space-y-4 bg-slate-50/50 flex-1">
                   {/* Dispatched DLT Message Content Card */}
-                  {selectedSmsModal.dispatches.length > 0 && selectedSmsModal.dispatches[0].message_text && (
+                  {(selectedSmsModal.actualMessageText || (selectedSmsModal.dispatches.length > 0 && selectedSmsModal.dispatches[0].message_text)) && (
                     <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                          DLT Approved SMS Content
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                          <Smartphone className="h-3.5 w-3.5 text-indigo-600" />
+                          DLT Approved SMS Content (Dispatched Marathi Text)
                         </span>
-                        {selectedSmsModal.dispatches[0].template_name && (
+                        {selectedSmsModal.dispatches[0]?.template_name && (
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
                             {selectedSmsModal.dispatches[0].template_name}
                           </span>
                         )}
                       </div>
-                      <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 text-xs font-medium text-slate-800 leading-relaxed font-sans">
-                        {selectedSmsModal.dispatches[0].message_text}
+                      <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 text-xs font-medium text-slate-900 leading-relaxed font-sans select-all">
+                        {selectedSmsModal.actualMessageText || selectedSmsModal.dispatches[0]?.message_text}
                       </div>
-                      {selectedSmsModal.dispatches[0].template_id && (
-                        <div className="mt-2 text-[10px] text-slate-400 font-mono">
-                          DLT Template ID: {selectedSmsModal.dispatches[0].template_id}
-                        </div>
-                      )}
+                      <div className="flex items-center justify-between mt-2 pt-1 border-t border-slate-100 text-[10px] text-slate-400 font-mono">
+                        <span>
+                          {selectedSmsModal.dispatches[0]?.template_id ? `DLT Template ID: ${selectedSmsModal.dispatches[0].template_id}` : 'DLT Approved Header: MJP-ALERT'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const text = selectedSmsModal.actualMessageText || selectedSmsModal.dispatches[0]?.message_text || "";
+                            navigator.clipboard.writeText(text);
+                            setCopiedMobile("sms_modal_text");
+                            setTimeout(() => setCopiedMobile(null), 2000);
+                          }}
+                          className="text-indigo-600 hover:text-indigo-800 font-sans font-bold flex items-center gap-1 cursor-pointer"
+                        >
+                          {copiedMobile === "sms_modal_text" ? (
+                            <>
+                              <Check className="h-3 w-3 text-emerald-600" />
+                              Copied!
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3 w-3" />
+                              Copy SMS
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   )}
 
-                  {/* Recipients Table */}
-                  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
-                    <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                        Dispatched Recipients ({selectedSmsModal.dispatches.length})
-                      </span>
-                      <span className="text-xs font-semibold text-emerald-700">
-                        {selectedSmsModal.dispatches.filter(s => s.is_success).length} Delivered
-                      </span>
-                    </div>
+                  {/* Recipients Table (Ordered AE to CE) */}
+                  {(() => {
+                    const getSmsRank = (sms: SmsDispatchItem) => {
+                      const text = `${sms.engineer_name || ''} ${sms.engineer_email || ''}`.toLowerCase();
+                      if (text.includes("civil") && (text.includes("ae") || text.includes("de") || text.includes("assistant"))) return 1;
+                      if (text.includes("mech") && (text.includes("ae") || text.includes("de") || text.includes("assistant"))) return 2;
+                      if (text.includes("civil") && (text.includes("ee") || text.includes("executive"))) return 3;
+                      if (text.includes("mech") && (text.includes("ee") || text.includes("executive"))) return 4;
+                      if (text.includes("superintending") || text.includes("se")) return 5;
+                      if (text.includes("chief") || text.includes("ce")) return 6;
+                      if (text.includes("vendor") || text.includes("agency")) return 7;
+                      return 8;
+                    };
 
-                    <div className="divide-y divide-slate-100">
-                      {selectedSmsModal.dispatches.map((sms, sIdx) => (
-                        <div key={sms.id || sIdx} className="p-3.5 flex items-center justify-between gap-3 hover:bg-slate-50/60 transition-colors">
-                          <div className="min-w-0">
-                            <div className="text-xs font-bold text-slate-900 truncate">
-                              {sms.engineer_name || "Assigned Engineer"}
-                            </div>
-                            {sms.engineer_email && (
-                              <div className="text-[11px] text-slate-500 truncate mt-0.5">
-                                {sms.engineer_email}
-                              </div>
-                            )}
-                            <div className="flex items-center gap-2 mt-1">
-                              <a
-                                href={`tel:${sms.mobile}`}
-                                className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
-                              >
-                                <Phone className="h-3 w-3" />
-                                <span>{sms.mobile}</span>
-                              </a>
-                            </div>
-                          </div>
+                    const sortedDispatches = [...selectedSmsModal.dispatches].sort((a, b) => getSmsRank(a) - getSmsRank(b));
 
-                          <div className="flex flex-col items-end shrink-0">
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold border ${sms.is_success
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : 'bg-rose-50 text-rose-700 border-rose-200'
-                              }`}>
-                              {sms.is_success ? (
-                                <>
-                                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                                  Delivered
-                                </>
-                              ) : (
-                                <>
-                                  <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
-                                  Failed {sms.gateway_status ? `(${sms.gateway_status})` : ''}
-                                </>
-                              )}
-                            </span>
-                            {sms.created_at && (
-                              <span className="text-[10px] text-slate-400 font-medium mt-1">
-                                {new Date(sms.created_at).toLocaleString('en-IN', {
-                                  day: '2-digit',
-                                  month: 'short',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                  hour12: true
-                                })}
-                              </span>
-                            )}
-                          </div>
+                    return (
+                      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+                        <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                            Dispatched Recipients ({sortedDispatches.length}) — AE to CE Order
+                          </span>
+                          <span className="text-xs font-semibold text-emerald-700">
+                            {sortedDispatches.filter(s => s.is_success).length} sent
+                          </span>
                         </div>
-                      ))}
-                    </div>
-                  </div>
+
+                        <div className="divide-y divide-slate-100">
+                          {sortedDispatches.length === 0 ? (
+                            <div className="text-center py-6 text-slate-400 text-xs">
+                              No SMS dispatches recorded for this alert.
+                            </div>
+                          ) : (
+                            sortedDispatches.map((sms, sIdx) => (
+                              <div key={sms.id || sIdx} className="p-3.5 flex items-center justify-between gap-3 hover:bg-slate-50/60 transition-colors">
+                                <div className="min-w-0">
+                                  <div className="text-xs font-bold text-slate-900 truncate">
+                                    {sms.engineer_name || "Assigned Engineer"}
+                                  </div>
+                                  {sms.engineer_email && (
+                                    <div className="text-[11px] text-slate-500 truncate mt-0.5">
+                                      {sms.engineer_email}
+                                    </div>
+                                  )}
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <a
+                                      href={`tel:${sms.mobile}`}
+                                      className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
+                                    >
+                                      <Phone className="h-3 w-3" />
+                                      <span>{sms.mobile}</span>
+                                    </a>
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-col items-end shrink-0">
+                                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold border ${sms.is_success
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : 'bg-rose-50 text-rose-700 border-rose-200'
+                                    }`}>
+                                    {sms.is_success ? (
+                                      <>
+                                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                                        Sent
+                                      </>
+                                    ) : (
+                                      <>
+                                        <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
+                                        Failed {sms.gateway_status ? `(${sms.gateway_status})` : ''}
+                                      </>
+                                    )}
+                                  </span>
+                                  {sms.created_at && (
+                                    <span className="text-[10px] text-slate-400 font-medium mt-1">
+                                      {new Date(sms.created_at).toLocaleString('en-IN', {
+                                        day: '2-digit',
+                                        month: 'short',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        hour12: true
+                                      })}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
-                <div className="p-3.5 border-t border-slate-100 bg-slate-50 flex justify-end">
+                <div className="p-3.5 border-t border-slate-100 bg-slate-50 flex justify-end shrink-0">
                   <Button
                     size="sm"
                     onClick={() => setSelectedSmsModal(null)}
@@ -3803,7 +5338,7 @@ export default function AlertsProgressPage() {
           {/* Scheme All Assigned Contacts Modal */}
           {selectedContactsModal && (
             <Dialog open={!!selectedContactsModal} onOpenChange={(open) => !open && setSelectedContactsModal(null)}>
-              <DialogContent className="max-w-md bg-white border border-slate-200 shadow-2xl rounded-2xl p-0 overflow-hidden">
+              <DialogContent className="max-w-xl bg-white border border-slate-200 shadow-2xl rounded-2xl p-0 overflow-hidden">
                 <div className="p-5 bg-[#0f4c81] text-white border-b border-white/10">
                   <DialogTitle className="text-base font-bold flex items-center gap-2 text-white">
                     <Phone className="h-4 w-4 text-white" />
@@ -3880,7 +5415,7 @@ export default function AlertsProgressPage() {
               open={!!engineersModalData}
               onOpenChange={(open) => !open && setEngineersModalData(null)}
             >
-              <DialogContent className="max-w-3xl bg-white border border-slate-200 shadow-2xl p-0 overflow-hidden rounded-2xl">
+              <DialogContent className="max-w-4xl max-h-[88vh] bg-white border border-slate-200 shadow-2xl p-0 overflow-hidden rounded-2xl flex flex-col">
                 <DialogHeader className="p-5 pb-4 border-b border-white/10 bg-[#0f4c81] text-white">
                   <div className="flex items-center justify-between gap-4">
                     <div className="min-w-0">
@@ -4096,7 +5631,7 @@ export default function AlertsProgressPage() {
                                 )}
                                 {s.esr_name && (
                                   <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded font-semibold">
-                                    Sensor: {s.esr_name}
+                                    ESR: {s.esr_name}
                                   </span>
                                 )}
                               </div>
@@ -4109,17 +5644,35 @@ export default function AlertsProgressPage() {
                 </div>
 
                 {/* Footer */}
-                <div className="p-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+                <div className="p-3.5 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-2">
                   <div className="text-xs text-slate-500">
                     Showing <span className="font-semibold text-slate-800">{engineersModalData.engineers.length}</span> assigned personnel
                   </div>
-                  <Button
-                    size="sm"
-                    onClick={() => setEngineersModalData(null)}
-                    className="bg-slate-800 hover:bg-slate-900 text-white text-xs px-4"
-                  >
-                    Close
-                  </Button>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        downloadTabEngineersExcel({
+                          tabName: activeTab === "lpcd" ? "LPCD" : activeTab === "chlorine" ? "Chlorine" : activeTab === "pressure" ? "Pressure" : activeTab === "offline" ? "Offline" : "Realtime",
+                          tabType: activeTab === "realtime" ? "realtime" : (activeTab as any),
+                          status: engineerFilterTab as any,
+                          rows: engineersModalData.engineers,
+                          dateStr: customDate || (activeSubTab === "previous" ? yesterdayYmd : todayYmd)
+                        });
+                      }}
+                      className="text-xs font-bold text-white bg-[#0f4c81] hover:bg-[#0c3c66] shadow-none cursor-pointer flex items-center gap-1.5"
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5" />
+                      Download {engineerFilterTab === "acknowledged" ? "Acknowledged" : engineerFilterTab === "pending" ? "Pending" : "All"} Engineers Excel
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => setEngineersModalData(null)}
+                      className="bg-slate-800 hover:bg-slate-900 text-white text-xs px-4 cursor-pointer"
+                    >
+                      Close
+                    </Button>
+                  </div>
                 </div>
               </DialogContent>
             </Dialog>

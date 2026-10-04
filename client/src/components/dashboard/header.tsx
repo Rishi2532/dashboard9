@@ -470,7 +470,7 @@ export default function Header() {
                 ESR-Wise Data
               </Button>
             </Link>
-            {authData?.isAdmin && (
+            {/* {authData?.isAdmin && (
               <Link href="/alerts-progress">
                 <Button
                   variant="ghost"
@@ -486,7 +486,7 @@ export default function Header() {
                   Alerts Progress
                 </Button>
               </Link>
-            )}
+            )} */}
             <Button
               size="sm"
               onClick={openChatbot}
