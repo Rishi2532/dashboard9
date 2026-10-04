@@ -284,8 +284,8 @@ export const getAllSchemeContacts = (row: AlertData) => {
 
 // Safe date formatter for alert records that prevents timezone shifting
 export const formatAlertDate = (row: AlertData) => {
-  // Prefer the actual sensor data date over the alert dispatch date
-  const dateStr = row.current_value_date || row.sent_date;
+  // Prefer the alert log dispatch date
+  const dateStr = row.sent_date || row.current_value_date;
   if (dateStr) {
     const s = String(dateStr).split('T')[0];
     const parts = s.split('-');

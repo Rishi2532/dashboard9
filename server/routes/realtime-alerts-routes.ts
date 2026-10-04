@@ -222,9 +222,51 @@ router.post('/acknowledge', async (req: Request, res: Response) => {
 router.get('/progress', async (req: Request, res: Response) => {
   const client = await pool.connect();
   try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS realtime_acknowledgements (
+        id SERIAL PRIMARY KEY,
+        token VARCHAR(100) UNIQUE,
+        scheme_id VARCHAR(50),
+        scheme_name VARCHAR(255),
+        village_name VARCHAR(255),
+        esr_name VARCHAR(255),
+        alert_type VARCHAR(100),
+        alert_value VARCHAR(100),
+        ticket_id VARCHAR(100),
+        engineer_name VARCHAR(255),
+        engineer_email VARCHAR(255),
+        remarks TEXT,
+        is_acknowledged BOOLEAN DEFAULT FALSE,
+        acknowledged_at TIMESTAMP WITH TIME ZONE,
+        sent_date DATE DEFAULT CURRENT_DATE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS realtime_sensor_data (
+        id SERIAL PRIMARY KEY,
+        scheme_id VARCHAR(50),
+        scheme_name VARCHAR(255),
+        village_name VARCHAR(255),
+        esr_name VARCHAR(255),
+        chlorine_value NUMERIC(10, 4),
+        chlorine_timestamp TIMESTAMP WITH TIME ZONE,
+        chlorine_comm_status VARCHAR(50),
+        flow_rate_value NUMERIC(10, 4),
+        flow_rate_timestamp TIMESTAMP WITH TIME ZONE,
+        flow_rate_comm_status VARCHAR(50),
+        pressure_value NUMERIC(10, 4),
+        pressure_timestamp TIMESTAMP WITH TIME ZONE,
+        pressure_comm_status VARCHAR(50),
+        prev_chlorine_status VARCHAR(50),
+        prev_chlorine_value NUMERIC(10, 4),
+        last_updated_values JSONB,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `);
+
     // 1. Target schemes for which real-time alerts are sent (assigned to engineers / logged in dispatches)
     // 2. Fetch Sent Alerts from realtime_acknowledgements
-    const sentAlertsRes = await client.query(`
+    let sentAlertsRes = await client.query(`
       SELECT 
         ra.id,
         ra.token,
@@ -261,9 +303,53 @@ router.get('/progress', async (req: Request, res: Response) => {
       LEFT JOIN scheme_status s ON ra.scheme_id = s.scheme_id
       LEFT JOIN realtime_sensor_data rsd ON (ra.scheme_id = rsd.scheme_id AND (ra.esr_name = rsd.esr_name OR (ra.esr_name IS NULL AND rsd.esr_name IS NULL)))
       LEFT JOIN scheme_engineer_details sed ON (ra.scheme_id = sed.scheme_id OR s.scheme_name ILIKE sed.scheme)
-      WHERE ra.sent_date = CURRENT_DATE
+      WHERE ra.sent_date >= CURRENT_DATE - INTERVAL '1 day'
       ORDER BY ra.created_at DESC
     `);
+
+    // Fallback to email_alert_logs if realtime_acknowledgements has 0 records on cloud
+    if (sentAlertsRes.rows.length === 0) {
+      sentAlertsRes = await client.query(`
+        SELECT 
+          e.id,
+          e.ticket_id as token,
+          e.scheme_id,
+          COALESCE(e.scheme_name, s.scheme_name, e.scheme_id) as scheme_name,
+          e.village_name,
+          e.esr_name,
+          e.alert_type,
+          e.alert_value,
+          e.ticket_id,
+          COALESCE(e.ee_civil_name, sed.ee_civil_name) as engineer_name,
+          COALESCE(e.ee_civil_email, sed.ee_civil_email) as engineer_email,
+          NULL as remarks,
+          FALSE as is_acknowledged,
+          NULL as acknowledged_at,
+          e.sent_date,
+          e.created_at,
+          s.region,
+          s.circle,
+          s.division,
+          s.block,
+          NULL as chlorine_value,
+          NULL as flow_rate_value,
+          NULL as pressure_value,
+          NULL as prev_chlorine_status,
+          NULL as prev_chlorine_value,
+          sed.ee_civil_name, sed.ee_civil_email, sed.ee_civil_mobile,
+          sed.ee_mech_name, sed.ee_mech_email, sed.ee_mech_mobile,
+          sed.de_ae_civil_name, sed.de_ae_civil_email, sed.de_ae_civil_mobile,
+          sed.de_ae_mech_name, sed.de_ae_mech_email, sed.de_ae_mech_mobile,
+          sed.se_name, sed.se_email, sed.se_mobile,
+          sed.chief_engineer_name, sed.chief_engineer_email, sed.chief_engineer_mobile
+        FROM email_alert_logs e
+        LEFT JOIN scheme_status s ON e.scheme_id = s.scheme_id
+        LEFT JOIN scheme_engineer_details sed ON (e.scheme_id = sed.scheme_id OR s.scheme_name ILIKE sed.scheme)
+        WHERE (e.ticket_id LIKE 'TKT-RT-%' OR e.alert_type ILIKE '%Sensor Offline%' OR e.alert_type ILIKE '%Offline%')
+          AND e.sent_date >= CURRENT_DATE - INTERVAL '1 day'
+        ORDER BY e.created_at DESC
+      `);
+    }
 
     // 3. Also fetch Active Critical Sensors from realtime_sensor_data ONLY FOR schemes where alerts are sent
     const activeSensorsRes = await client.query(`
