@@ -1335,10 +1335,35 @@ export default function AlertsProgressPage() {
     const uniqueCriticalSensors = new Set(criticalAlerts.map((a: any) => `${a.scheme_id}|${a.esr_name || 'Main ESR'}`.toLowerCase()));
     const uniqueCriticalSchemes = new Set(criticalAlerts.map((a: any) => String(a.scheme_id).trim()).filter(Boolean));
     const uniqueCriticalVillages = new Set(criticalAlerts.map((a: any) => String(a.village_name || a.scheme_name).trim()).filter(Boolean));
+    const uniqueCriticalEsrs = new Set(criticalAlerts.map((a: any) => `${a.scheme_id}|${a.esr_name || a.village_name || 'Main ESR'}`.toLowerCase()).filter(Boolean));
 
     const criticalUniqueSensorsCount = uniqueCriticalSensors.size;
     const criticalSchemesCount = uniqueCriticalSchemes.size;
     const criticalVillagesCount = uniqueCriticalVillages.size;
+    const criticalEsrsCount = uniqueCriticalEsrs.size || criticalUniqueSensorsCount;
+
+    // Restored counts
+    const restoredAlerts = allRealtimeAlerts.filter((a: any) =>
+      a.category_type === 'restored' ||
+      String(a.alert_type || '').toLowerCase().includes('restore') ||
+      String(a.alert_type || '').toLowerCase().includes('good')
+    );
+    const restoredSchemesCount = new Set(restoredAlerts.map((a: any) => String(a.scheme_id).trim()).filter(Boolean)).size;
+    const restoredVillagesCount = new Set(restoredAlerts.map((a: any) => String(a.village_name || a.scheme_name).trim()).filter(Boolean)).size;
+    const restoredEsrsCount = new Set(restoredAlerts.map((a: any) => `${a.scheme_id}|${a.esr_name || 'Main ESR'}`.toLowerCase()).filter(Boolean)).size;
+    const restoredTotalCount = Math.max(summary.restored_chlorine_count || 0, restoredEsrsCount, restoredAlerts.length);
+
+    // Offline counts
+    const offlineAlerts = allRealtimeAlerts.filter((a: any) =>
+      a.category_type === 'offline' ||
+      a.category_type === 'chlorine_offline' ||
+      a.category_type === 'flow_offline' ||
+      String(a.alert_type || '').toLowerCase().includes('offline')
+    );
+    const offlineSchemesCount = new Set(offlineAlerts.map((a: any) => String(a.scheme_id).trim()).filter(Boolean)).size;
+    const offlineVillagesCount = new Set(offlineAlerts.map((a: any) => String(a.village_name || a.scheme_name).trim()).filter(Boolean)).size;
+    const offlineEsrsCount = new Set(offlineAlerts.map((a: any) => `${a.scheme_id}|${a.esr_name || 'Main ESR'}`.toLowerCase()).filter(Boolean)).size;
+    const offlineTotalCount = (summary.chlorine_offline_count || 0) + (summary.flow_offline_count || 0) || offlineAlerts.length;
 
     // Sub-counts strictly partitioned so low + high === criticalUniqueSensorsCount
     const highSensorKeys = new Set(
@@ -1359,6 +1384,10 @@ export default function AlertsProgressPage() {
 
     const acknowledgedRealtimeRows = allRealtimeAlerts.filter((r: any) => Boolean(r.is_acknowledged) || getRowAckInfo(r).isAcknowledged);
     const pendingRealtimeRows = allRealtimeAlerts.filter((r: any) => !r.is_acknowledged && !getRowAckInfo(r).isAcknowledged);
+
+    const ackSchemesCount = new Set(acknowledgedRealtimeRows.map((a: any) => String(a.scheme_id).trim()).filter(Boolean)).size;
+    const ackVillagesCount = new Set(acknowledgedRealtimeRows.map((a: any) => String(a.village_name || a.scheme_name).trim()).filter(Boolean)).size;
+    const ackEsrsCount = new Set(acknowledgedRealtimeRows.map((a: any) => `${a.scheme_id}|${a.esr_name || 'Main ESR'}`.toLowerCase()).filter(Boolean)).size;
 
     // Group unique notified engineers and assigned schemes for Real-Time Alerts
     const realtimeEngineersMap = new Map<string, {
@@ -1482,52 +1511,49 @@ export default function AlertsProgressPage() {
           </div> */}
         </div>
 
-        {/* 5 Interactive Metric Cards */}
+        {/* 5 Uniform Interactive Metric Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5">
-          {/* Card 1: Low / High Chlorine Sent */}
+          {/* Card 1: Critical Residual Chlorine */}
           <div
             onClick={() => { setRealtimeFilter("chlorine_critical"); setRealtimePage(1); }}
-            className={`cursor-pointer rounded-xl border p-4 space-y-2.5 transition-all shadow-xs hover:shadow-md ${realtimeFilter === "chlorine_critical"
+            className={`cursor-pointer rounded-xl border p-4 flex flex-col justify-between transition-all shadow-xs hover:shadow-md ${realtimeFilter === "chlorine_critical"
               ? "bg-rose-50/90 border-rose-500 ring-2 ring-rose-400/40 shadow-sm"
               : "bg-white border-rose-200 hover:border-rose-300"
               }`}
           >
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-rose-900 flex items-center gap-1.5">
-                <Droplets className="w-4 h-4 text-rose-600" />
-                Critical Residual Chlorine Alerts Sent
-              </span>
-              <Badge className="bg-rose-100 text-rose-800 border-rose-200 text-[10px] font-bold">
-                5-Min Alert
-              </Badge>
-            </div>
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-rose-900 flex items-center gap-1.5 truncate">
+                  <Droplets className="w-4 h-4 text-rose-600 shrink-0" />
+                  Critical Residual Chlorine
+                </span>
+                <Badge className="bg-rose-100 text-rose-800 border-rose-200 text-[10px] font-bold shrink-0">
+                  5-Min Alert
+                </Badge>
+              </div>
 
-            <div className="flex items-baseline justify-between pt-1">
-              <span className="text-3xl font-extrabold text-rose-700">
-                {criticalUniqueSensorsCount}
-              </span>
-              <div className="text-right">
-                <div className="text-xs font-bold text-slate-800">
-                  {criticalSchemesCount} Scheme{criticalSchemesCount !== 1 ? 's' : ''}
+              <div className="flex items-baseline justify-between pt-1">
+                <div>
+                  <span className="text-3xl font-extrabold text-rose-700 font-mono">
+                    {criticalUniqueSensorsCount}
+                  </span>
+                  <div className="text-[11px] text-slate-500 font-medium">Critical Alerts</div>
                 </div>
-                <div className="text-[11px] text-slate-500 font-medium">
-                  {criticalVillagesCount} Village{criticalVillagesCount !== 1 ? 's' : ''}
+                <div className="text-right space-y-0.5">
+                  <div className="text-xs font-bold text-slate-800">
+                    {criticalSchemesCount} Scheme{criticalSchemesCount !== 1 ? 's' : ''}
+                  </div>
+                  <div className="text-[11px] text-slate-600 font-medium">
+                    {criticalVillagesCount} Village{criticalVillagesCount !== 1 ? 's' : ''}
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-medium">
+                    {criticalEsrsCount} ESR{criticalEsrsCount !== 1 ? 's' : ''}
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-1.5 pt-1 text-xs">
-              <div className="p-2 rounded-lg bg-rose-100/70 border border-rose-200 text-center">
-                <div className="text-[10px] font-semibold text-rose-800">&lt; 0.20 Low</div>
-                <div className="text-base font-bold text-rose-700">{criticalLowCount}</div>
-              </div>
-              <div className="p-2 rounded-lg bg-amber-100/70 border border-amber-200 text-center">
-                <div className="text-[10px] font-semibold text-amber-800">&gt; 0.50 High</div>
-                <div className="text-base font-bold text-amber-700">{criticalHighCount}</div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-1 border-t border-rose-100 text-[11px] font-semibold">
+            <div className="pt-2.5 mt-3 border-t border-rose-100 flex items-center justify-between text-[11px] font-semibold">
               <span
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1561,169 +1587,158 @@ export default function AlertsProgressPage() {
                 <Clock className="w-3.5 h-3.5 text-amber-600" /> {criticalPendingCount} Pending
               </span>
             </div>
-
-            <div className="text-[10px] text-slate-500 pt-0.5 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
-              <span>Gated strictly on active water flow (&gt; 0 m³/h)</span>
-            </div>
           </div>
 
-          {/* Card 2: Changed / Restored Chlorine */}
+          {/* Card 2: Restored to Acceptable Range */}
           <div
             onClick={() => { setRealtimeFilter("restored"); setRealtimePage(1); }}
-            className={`cursor-pointer rounded-xl border p-4 space-y-2.5 transition-all shadow-xs hover:shadow-md ${realtimeFilter === "restored"
+            className={`cursor-pointer rounded-xl border p-4 flex flex-col justify-between transition-all shadow-xs hover:shadow-md ${realtimeFilter === "restored"
               ? "bg-emerald-50/90 border-emerald-500 ring-2 ring-emerald-400/40 shadow-sm"
               : "bg-white border-emerald-200 hover:border-emerald-300"
               }`}
           >
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-emerald-600" />
-                Restored to acceptable range
-              </span>
-              <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px] font-bold">
-                Delta Recovery
-              </Badge>
-            </div>
-
-            <div className="flex items-baseline justify-between pt-1">
-              <span className="text-3xl font-extrabold text-emerald-700">
-                {summary.restored_chlorine_count}
-              </span>
-            </div>
-
-            <div className="p-2 rounded-lg bg-emerald-100/70 border border-emerald-200 text-xs text-center">
-              <div className="text-[10px] font-semibold text-emerald-800 uppercase tracking-wider">
-                Restored to Standard
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-1.5 truncate">
+                  <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                  Restored to Acceptable
+                </span>
+                <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px] font-bold shrink-0">
+                  Potable
+                </Badge>
               </div>
-              <div className="text-xs text-emerald-900 font-bold mt-0.5">
-                Was Low/High → Now Good (0.2–0.5)
+
+              <div className="flex items-baseline justify-between pt-1">
+                <div>
+                  <span className="text-3xl font-extrabold text-emerald-700 font-mono">
+                    {restoredTotalCount}
+                  </span>
+                  <div className="text-[11px] text-slate-500 font-medium">Sensors Normal</div>
+                </div>
+                <div className="text-right space-y-0.5">
+                  <div className="text-xs font-bold text-slate-800">
+                    {restoredSchemesCount} Scheme{restoredSchemesCount !== 1 ? 's' : ''}
+                  </div>
+                  <div className="text-[11px] text-slate-600 font-medium">
+                    {restoredVillagesCount} Village{restoredVillagesCount !== 1 ? 's' : ''}
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-medium">
+                    {restoredEsrsCount} ESR{restoredEsrsCount !== 1 ? 's' : ''}
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="text-[10px] text-emerald-700 pt-0.5 flex items-center gap-1 font-medium">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Chlorine potability successfully restored</span>
+            <div className="pt-2.5 mt-3 border-t border-emerald-100 flex items-center justify-between text-[11px] font-semibold">
+              <span className="text-emerald-700 flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Standard 0.2–0.5
+              </span>
+              <span className="text-slate-500 font-normal">Active Flow</span>
             </div>
           </div>
 
-          {/* Card 3: Chlorine & Flow Offline (Individually Clickable) */}
+          {/* Card 3: Offline Sensor Alerts */}
           <div
             onClick={() => { setRealtimeFilter("offline"); setRealtimePage(1); }}
-            className={`cursor-pointer rounded-xl border p-4 space-y-2.5 transition-all shadow-xs hover:shadow-md ${realtimeFilter === "offline" || realtimeFilter === "chlorine_offline" || realtimeFilter === "flow_offline"
+            className={`cursor-pointer rounded-xl border p-4 flex flex-col justify-between transition-all shadow-xs hover:shadow-md ${realtimeFilter === "offline" || realtimeFilter === "chlorine_offline" || realtimeFilter === "flow_offline"
               ? "bg-slate-100/90 border-slate-700 ring-2 ring-slate-400/40 shadow-sm"
               : "bg-white border-slate-200 hover:border-slate-300"
               }`}
           >
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                <WifiOff className="w-4 h-4 text-rose-600" />
-                Offline Sensor Alerts
-              </span>
-              <Badge className="bg-slate-100 text-slate-700 border-slate-200 text-[10px] font-bold">
-                Dropout
-              </Badge>
-            </div>
-
-            <div className="flex items-baseline justify-between pt-1">
-              <span className="text-3xl font-extrabold text-slate-900">
-                {(summary.chlorine_offline_count || 0) + (summary.flow_offline_count || 0)}
-              </span>
-              <span className="text-xs text-slate-500 font-medium">Transmitters Offline</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-1.5 pt-1 text-xs">
-              <div
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setRealtimeFilter("chlorine_offline");
-                  setRealtimePage(1);
-                }}
-                className={`p-2 rounded-lg border text-center transition-all cursor-pointer hover:shadow-xs ${realtimeFilter === "chlorine_offline"
-                  ? "bg-rose-100 border-rose-500 ring-2 ring-rose-400/50 shadow-xs"
-                  : "bg-rose-50/90 border-rose-200 hover:bg-rose-100"
-                  }`}
-                title="Click to filter Chlorine Sensor Offline (dispatched every 5 minutes)"
-              >
-                <div className="text-[10px] font-semibold text-rose-800">Chlorine Offline</div>
-                <div className="text-base font-bold text-rose-700">{summary.chlorine_offline_count}</div>
-                <div className="text-[9px] text-slate-500 font-medium mt-0.5">Every 5 mins</div>
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5 truncate">
+                  <WifiOff className="w-4 h-4 text-rose-600 shrink-0" />
+                  Offline Sensor Alerts
+                </span>
+                <Badge className="bg-slate-100 text-slate-700 border-slate-200 text-[10px] font-bold shrink-0">
+                  Dropout
+                </Badge>
               </div>
-              <div
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setRealtimeFilter("flow_offline");
-                  setRealtimePage(1);
-                }}
-                className={`p-2 rounded-lg border text-center transition-all cursor-pointer hover:shadow-xs ${realtimeFilter === "flow_offline"
-                  ? "bg-amber-100 border-amber-500 ring-2 ring-amber-400/50 shadow-xs"
-                  : "bg-amber-50/90 border-amber-200 hover:bg-amber-100"
-                  }`}
-                title="Click to filter Flow Meter Offline (dispatched once daily)"
-              >
-                <div className="text-[10px] font-semibold text-amber-800">Flow Offline</div>
-                <div className="text-base font-bold text-amber-700">{summary.flow_offline_count}</div>
-                <div className="text-[9px] text-slate-500 font-medium mt-0.5">Sent Once Daily</div>
+
+              <div className="flex items-baseline justify-between pt-1">
+                <div>
+                  <span className="text-3xl font-extrabold text-slate-900 font-mono">
+                    {offlineTotalCount}
+                  </span>
+                  <div className="text-[11px] text-slate-500 font-medium">Offline Sensors</div>
+                </div>
+                <div className="text-right space-y-0.5">
+                  <div className="text-xs font-bold text-slate-800">
+                    {offlineSchemesCount} Scheme{offlineSchemesCount !== 1 ? 's' : ''}
+                  </div>
+                  <div className="text-[11px] text-slate-600 font-medium">
+                    {offlineVillagesCount} Village{offlineVillagesCount !== 1 ? 's' : ''}
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-medium">
+                    {offlineEsrsCount} ESR{offlineEsrsCount !== 1 ? 's' : ''}
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="text-[10px] text-slate-500 pt-0.5 flex items-center justify-between">
-              <span>Pressure Offline: {summary.pressure_offline_count}</span>
+            <div className="pt-2.5 mt-3 border-t border-slate-100 flex items-center justify-between text-[11px] font-semibold text-slate-700">
+              <span>Chlorine: {summary.chlorine_offline_count || 0}</span>
+              <span>Flow: {summary.flow_offline_count || 0}</span>
             </div>
           </div>
 
           {/* Card 4: Email & SMS Dispatches */}
           <div
             onClick={() => { setRealtimeFilter("all"); setRealtimePage(1); }}
-            className={`cursor-pointer rounded-xl border p-4 space-y-2.5 transition-all shadow-xs hover:shadow-md ${realtimeFilter === "all"
+            className={`cursor-pointer rounded-xl border p-4 flex flex-col justify-between transition-all shadow-xs hover:shadow-md ${realtimeFilter === "all"
               ? "bg-blue-50/90 border-blue-500 ring-2 ring-blue-400/40 shadow-sm"
               : "bg-white border-blue-200 hover:border-blue-300"
               }`}
           >
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-blue-900 flex items-center gap-1.5">
-                <Mail className="w-4 h-4 text-blue-600" />
-                Dispatches & Recipients
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-blue-900 flex items-center gap-1.5 truncate">
+                  <Mail className="w-4 h-4 text-blue-600 shrink-0" />
+                  Dispatches & Recipients
+                </span>
+                <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-[10px] font-bold shrink-0">
+                  Today
+                </Badge>
+              </div>
+
+              <div className="flex items-baseline justify-between pt-1">
+                <div>
+                  <span className="text-3xl font-extrabold text-blue-700 font-mono">
+                    {summary.emails_sent_today + summary.sms_sent_today}
+                  </span>
+                  <div className="text-[11px] text-slate-500 font-medium">Total Dispatches</div>
+                </div>
+                <div className="text-right space-y-0.5">
+                  <div className="text-xs font-bold text-slate-800">
+                    {summary.emails_sent_today} Email{summary.emails_sent_today !== 1 ? 's' : ''}
+                  </div>
+                  <div className="text-[11px] text-slate-600 font-medium">
+                    {summary.sms_sent_today} SMS Sent
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-medium">
+                    {realtimeNotifiedEngineersList.length || summary.email_recipients_count || 6} Engineers
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2.5 mt-3 border-t border-blue-100 flex items-center justify-between text-[11px] font-semibold">
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEngineersModalData({
+                    title: `Notified Engineers & Assigned Personnel (${realtimeNotifiedEngineersList.length || 6})`,
+                    engineers: realtimeNotifiedEngineersList
+                  });
+                  setEngineerModalSearch("");
+                  setEngineerFilterTab("all");
+                }}
+                className="text-blue-700 flex items-center gap-1 cursor-pointer hover:underline"
+              >
+                <Users className="w-3.5 h-3.5 text-blue-600" /> View Engineers →
               </span>
-              <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-[10px] font-bold">
-                Today
-              </Badge>
-            </div>
-
-            <div className="grid grid-cols-2 gap-1.5 pt-1 text-xs">
-              <div className="p-2 rounded-lg bg-blue-100/70 border border-blue-200 text-center">
-                <div className="text-[10px] font-semibold text-blue-800">Emails Sent</div>
-                <div className="text-xl font-extrabold text-blue-700">{summary.emails_sent_today}</div>
-              </div>
-              <div className="p-2 rounded-lg bg-indigo-100/70 border border-indigo-200 text-center">
-                <div className="text-[10px] font-semibold text-indigo-800">SMS Sent</div>
-                <div className="text-xl font-extrabold text-indigo-700">{summary.sms_sent_today}</div>
-              </div>
-            </div>
-
-            <div
-              onClick={(e) => {
-                e.stopPropagation();
-                setEngineersModalData({
-                  title: `Notified Engineers & Assigned Personnel (${realtimeNotifiedEngineersList.length || 6})`,
-                  engineers: realtimeNotifiedEngineersList
-                });
-                setEngineerModalSearch("");
-                setEngineerFilterTab("all");
-              }}
-              className="p-2 rounded-lg bg-slate-50 border border-slate-200 text-center text-xs cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all"
-              title="Click to view full roster of notified personnel"
-            >
-              <div className="text-[10px] font-medium text-slate-500">Notified Personnel</div>
-              <div className="text-sm font-bold text-slate-800 flex items-center justify-center gap-1">
-                <span>{realtimeNotifiedEngineersList.length || summary.email_recipients_count || 6} Engineers Contacted</span>
-                <span className="text-[#0f4c81] text-xs font-semibold hover:underline">View →</span>
-              </div>
-            </div>
-
-            <div className="text-[10px] text-slate-500 pt-0.5 flex items-center gap-1">
-              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-              <span>Consolidated 1 mail per engineer + Airtel DLT SMS</span>
+              <span className="text-slate-500 font-normal">Consolidated</span>
             </div>
           </div>
 
@@ -1737,70 +1752,49 @@ export default function AlertsProgressPage() {
               });
               setModalSearch("");
             }}
-            className={`cursor-pointer rounded-xl border p-4 space-y-2.5 transition-all shadow-xs hover:shadow-md ${realtimeFilter === "acknowledged" || realtimeFilter === "pending"
+            className={`cursor-pointer rounded-xl border p-4 flex flex-col justify-between transition-all shadow-xs hover:shadow-md ${realtimeFilter === "acknowledged" || realtimeFilter === "pending"
               ? "bg-teal-50/90 border-teal-500 ring-2 ring-teal-400/40 shadow-sm"
               : "bg-white border-teal-200 hover:border-teal-300"
               }`}
             title="Click to view modal of acknowledged alerts"
           >
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-teal-900 flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-teal-600" />
-                Alerts Acknowledged
-              </span>
-              <Badge className="bg-teal-100 text-teal-800 border-teal-200 text-[10px] font-bold">
-                Real-Time
-              </Badge>
-            </div>
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-teal-900 flex items-center gap-1.5 truncate">
+                  <CheckCircle2 className="w-4 h-4 text-teal-600 shrink-0" />
+                  Alerts Acknowledged
+                </span>
+                <Badge className="bg-teal-100 text-teal-800 border-teal-200 text-[10px] font-bold shrink-0">
+                  Real-Time
+                </Badge>
+              </div>
 
-            <div className="flex items-baseline justify-between pt-1">
-              <span className="text-3xl font-extrabold text-teal-700">
-                {acknowledgedRealtimeRows.length}
-              </span>
-              <span className="text-xs text-slate-500 font-medium">of {allRealtimeAlerts.length} Alerts</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-1.5 pt-1 text-xs">
-              <div
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setAckModalData({
-                    title: `Acknowledged Real-Time Alerts (${acknowledgedRealtimeRows.length} Alerts)`,
-                    type: "acknowledged",
-                    rows: acknowledgedRealtimeRows
-                  });
-                  setModalSearch("");
-                }}
-                className={`p-2 rounded-lg border text-center transition-all cursor-pointer hover:shadow-xs ${realtimeFilter === "acknowledged"
-                  ? "bg-emerald-100 border-emerald-500 ring-2 ring-emerald-400/50 shadow-xs"
-                  : "bg-emerald-50/90 border-emerald-200 hover:bg-emerald-100"
-                  }`}
-                title="Click to view list of acknowledged alerts"
-              >
-                <div className="text-[10px] font-semibold text-emerald-800">✅ Acknowledged</div>
-                <div className="text-base font-bold text-emerald-700">{acknowledgedRealtimeRows.length}</div>
-                <div className="flex items-center justify-center gap-1 mt-1">
-                  <span className="text-[9px] text-emerald-600 font-medium">View List →</span>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      downloadTabEngineersExcel({
-                        tabName: "Real-Time Critical",
-                        tabType: "realtime",
-                        status: "acknowledged",
-                        rows: acknowledgedRealtimeRows,
-                        dateStr: todayYmd
-                      });
-                    }}
-                    className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-900 bg-emerald-200/80 hover:bg-emerald-300 px-1.5 py-0.5 rounded cursor-pointer transition-colors shadow-2xs"
-                    title="Download Excel of Acknowledged Engineers for Real-Time tab"
-                  >
-                    <Download className="h-2.5 w-2.5" /> Ack Excel
-                  </button>
+              <div className="flex items-baseline justify-between pt-1">
+                <div>
+                  <span className="text-3xl font-extrabold text-teal-700 font-mono">
+                    {acknowledgedRealtimeRows.length}
+                  </span>
+                  <div className="text-[11px] text-slate-500 font-medium">of {allRealtimeAlerts.length} Alerts</div>
+                </div>
+                <div className="text-right space-y-0.5">
+                  <div className="text-xs font-bold text-slate-800">
+                    {ackSchemesCount} Scheme{ackSchemesCount !== 1 ? 's' : ''}
+                  </div>
+                  <div className="text-[11px] text-slate-600 font-medium">
+                    {ackVillagesCount} Village{ackVillagesCount !== 1 ? 's' : ''}
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-medium">
+                    {ackEsrsCount} ESR{ackEsrsCount !== 1 ? 's' : ''}
+                  </div>
                 </div>
               </div>
-              <div
+            </div>
+
+            <div className="pt-2.5 mt-3 border-t border-teal-100 flex items-center justify-between text-[11px] font-semibold">
+              <span className="text-emerald-700 flex items-center gap-1">
+                <Check className="w-3.5 h-3.5 text-emerald-600" /> {acknowledgedRealtimeRows.length} Confirmed
+              </span>
+              <span
                 onClick={(e) => {
                   e.stopPropagation();
                   setAckModalData({
@@ -1810,40 +1804,10 @@ export default function AlertsProgressPage() {
                   });
                   setModalSearch("");
                 }}
-                className={`p-2 rounded-lg border text-center transition-all cursor-pointer hover:shadow-xs ${realtimeFilter === "pending"
-                  ? "bg-amber-100 border-amber-500 ring-2 ring-amber-400/50 shadow-xs"
-                  : "bg-amber-50/90 border-amber-200 hover:bg-amber-100"
-                  }`}
-                title="Click to view list of pending alerts"
+                className="text-amber-700 flex items-center gap-1 cursor-pointer hover:underline"
               >
-                <div className="text-[10px] font-semibold text-amber-800">⏳ Pending</div>
-                <div className="text-base font-bold text-amber-700">{pendingRealtimeRows.length}</div>
-                <div className="flex items-center justify-center gap-1 mt-1">
-                  <span className="text-[9px] text-amber-600 font-medium">View List →</span>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      downloadTabEngineersExcel({
-                        tabName: "Real-Time Critical",
-                        tabType: "realtime",
-                        status: "pending",
-                        rows: pendingRealtimeRows,
-                        dateStr: todayYmd
-                      });
-                    }}
-                    className="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-950 bg-amber-200/80 hover:bg-amber-300 px-1.5 py-0.5 rounded cursor-pointer transition-colors shadow-2xs"
-                    title="Download Excel of Pending Engineers for Real-Time tab"
-                  >
-                    <Download className="h-2.5 w-2.5" /> Pending Excel
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="text-[10px] text-teal-700 pt-0.5 flex items-center gap-1 font-medium">
-              <Check className="w-3.5 h-3.5 text-teal-600" />
-              <span>Logged via 1-click email & portal</span>
+                <Clock className="w-3.5 h-3.5 text-amber-600" /> {pendingRealtimeRows.length} Pending
+              </span>
             </div>
           </div>
         </div>
