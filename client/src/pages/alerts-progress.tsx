@@ -638,10 +638,13 @@ export default function AlertsProgressPage() {
 
   // Queries for each metric
   const { data: lpcdData = [], isLoading: isLoadingLpcd } = useQuery<AlertData[]>({
-    queryKey: ["/api/alerts-progress/lpcd", customDate],
+    queryKey: ["/api/alerts-progress/lpcd", customDate, activeSubTab],
     queryFn: async () => {
       try {
-        const url = customDate ? `/api/alerts-progress/lpcd?date=${customDate}` : "/api/alerts-progress/lpcd";
+        const params = new URLSearchParams();
+        if (customDate) params.append("date", customDate);
+        if (activeSubTab) params.append("subTab", activeSubTab);
+        const url = `/api/alerts-progress/lpcd?${params.toString()}`;
         const res = await fetch(url);
         if (!res.ok) return [];
         const json = await res.json();
@@ -654,10 +657,13 @@ export default function AlertsProgressPage() {
   });
 
   const { data: chlorineData = [], isLoading: isLoadingChlorine } = useQuery<AlertData[]>({
-    queryKey: ["/api/alerts-progress/chlorine", customDate],
+    queryKey: ["/api/alerts-progress/chlorine", customDate, activeSubTab],
     queryFn: async () => {
       try {
-        const url = customDate ? `/api/alerts-progress/chlorine?date=${customDate}` : "/api/alerts-progress/chlorine";
+        const params = new URLSearchParams();
+        if (customDate) params.append("date", customDate);
+        if (activeSubTab) params.append("subTab", activeSubTab);
+        const url = `/api/alerts-progress/chlorine?${params.toString()}`;
         const res = await fetch(url);
         if (!res.ok) return [];
         const json = await res.json();
@@ -670,10 +676,13 @@ export default function AlertsProgressPage() {
   });
 
   const { data: pressureData = [], isLoading: isLoadingPressure } = useQuery<AlertData[]>({
-    queryKey: ["/api/alerts-progress/pressure", customDate],
+    queryKey: ["/api/alerts-progress/pressure", customDate, activeSubTab],
     queryFn: async () => {
       try {
-        const url = customDate ? `/api/alerts-progress/pressure?date=${customDate}` : "/api/alerts-progress/pressure";
+        const params = new URLSearchParams();
+        if (customDate) params.append("date", customDate);
+        if (activeSubTab) params.append("subTab", activeSubTab);
+        const url = `/api/alerts-progress/pressure?${params.toString()}`;
         const res = await fetch(url);
         if (!res.ok) return [];
         const json = await res.json();
@@ -686,10 +695,13 @@ export default function AlertsProgressPage() {
   });
 
   const { data: offlineData = [], isLoading: isLoadingOffline } = useQuery<AlertData[]>({
-    queryKey: ["/api/alerts-progress/offline", customDate],
+    queryKey: ["/api/alerts-progress/offline", customDate, activeSubTab],
     queryFn: async () => {
       try {
-        const url = customDate ? `/api/alerts-progress/offline?date=${customDate}` : "/api/alerts-progress/offline";
+        const params = new URLSearchParams();
+        if (customDate) params.append("date", customDate);
+        if (activeSubTab) params.append("subTab", activeSubTab);
+        const url = `/api/alerts-progress/offline?${params.toString()}`;
         const res = await fetch(url);
         if (!res.ok) return [];
         const json = await res.json();
@@ -727,10 +739,13 @@ export default function AlertsProgressPage() {
     emails: any[];
     sms: any[];
   }>({
-    queryKey: ["/api/alerts-progress/daily-dispatches", customDate],
+    queryKey: ["/api/alerts-progress/daily-dispatches", customDate, activeSubTab],
     queryFn: async () => {
       try {
-        const url = customDate ? `/api/alerts-progress/daily-dispatches?date=${customDate}` : "/api/alerts-progress/daily-dispatches";
+        const params = new URLSearchParams();
+        if (customDate) params.append("date", customDate);
+        if (activeSubTab) params.append("subTab", activeSubTab);
+        const url = `/api/alerts-progress/daily-dispatches?${params.toString()}`;
         const res = await fetch(url);
         if (!res.ok) return { summary: { totalEmails: 0, totalSms: 0, totalDispatches: 0 }, emails: [], sms: [] };
         return res.json();
@@ -1143,42 +1158,9 @@ export default function AlertsProgressPage() {
   };
 
   // Helper to filter data based on strict literal calendar dates
-  const getFilteredData = (data: AlertData[], type: "lpcd" | "chlorine" | "pressure" | "offline") => {
+  const getFilteredData = (data: AlertData[], _type: "lpcd" | "chlorine" | "pressure" | "offline") => {
     if (!Array.isArray(data) || data.length === 0) return [];
-    if (type === "offline") return data;
-
-    const todayStr = now.toDateString();
-    const yesterdayStr = yesterdayDate.toDateString();
-
-    if (activeSubTab === "custom") {
-      return data; // Backend already filters by the exact date
-    }
-
-    if (activeSubTab === "current") {
-      // Current day = Alert sent date matches today or created today
-      return data.filter((row) => {
-        if (row.sent_date) {
-          const s = String(row.sent_date).split('T')[0];
-          if (s === todayYmd) return true;
-        }
-        if (row.created_at) {
-          return new Date(row.created_at).toDateString() === todayStr;
-        }
-        return false;
-      });
-    } else {
-      // Previous day = Alert sent date matches yesterday or created yesterday
-      return data.filter((row) => {
-        if (row.sent_date) {
-          const s = String(row.sent_date).split('T')[0];
-          if (s === yesterdayYmd) return true;
-        }
-        if (row.created_at) {
-          return new Date(row.created_at).toDateString() === yesterdayStr;
-        }
-        return false;
-      });
-    }
+    return data; // Backend already queries the exact single day for activeSubTab or customDate
   };
 
   const isStillFailing = (row: AlertData, type: "lpcd" | "chlorine" | "pressure" | "offline") => {
@@ -3739,8 +3721,9 @@ export default function AlertsProgressPage() {
                         <td className="py-2.5 px-3 text-center border-r border-slate-100 align-middle whitespace-nowrap">
                           <div>
                             <div className="text-xs font-bold text-red-600 font-mono">
-                              {row.current_value ?? row.alert_value ?? row.historical_value ?? row.previous_value ?? "0"}{" "}
-                              {type === "lpcd" ? "LPCD" : type === "chlorine" ? "mg/L" : type === "pressure" ? "Bar" : "Offline"}
+                              {type === "offline"
+                                ? "Offline"
+                                : `${row.alert_value ?? row.current_value ?? row.historical_value ?? row.previous_value ?? "0"} ${type === "lpcd" ? "LPCD" : type === "chlorine" ? "mg/L" : type === "pressure" ? "Bar" : ""}`}
                             </div>
                             <div className="text-[11px] text-slate-500 font-normal mt-0.5 flex items-center justify-center gap-1">
                               <Calendar className="h-3 w-3 text-slate-400 shrink-0" />

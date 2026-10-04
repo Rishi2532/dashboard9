@@ -2053,10 +2053,17 @@ router.get('/email-failures', async (req, res) => {
 router.get('/daily-dispatches', async (req, res) => {
   try {
     const requestedDate = req.query.date as string;
-    const dateFilter = requestedDate 
-      ? `sent_date = $1::date` 
-      : `sent_date >= CURRENT_DATE - INTERVAL '1 day'`;
-    const queryParams = requestedDate ? [requestedDate] : [];
+    const subTab = (req.query.subTab as string) || 'current';
+    let dateFilter = '';
+    const queryParams: any[] = [];
+    if (requestedDate) {
+      dateFilter = `sent_date = $1::date`;
+      queryParams.push(requestedDate);
+    } else if (subTab === 'previous') {
+      dateFilter = `sent_date = (COALESCE((SELECT MAX(sent_date) FROM email_alert_logs WHERE sent_date = CURRENT_DATE), (SELECT MAX(sent_date) FROM email_alert_logs)) - INTERVAL '1 day')::date`;
+    } else {
+      dateFilter = `sent_date = COALESCE((SELECT MAX(sent_date) FROM email_alert_logs WHERE sent_date = CURRENT_DATE), (SELECT MAX(sent_date) FROM email_alert_logs))`;
+    }
 
     const client = await pool.connect();
     try {
