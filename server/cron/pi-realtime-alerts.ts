@@ -77,7 +77,21 @@ interface RealtimeAlert {
 /**
  * Initializes and starts the 5-minute Real-Time Alert Cron Engine
  */
+// Flag to pause real-time alerts
+export let isRealtimeAlertsStopped = true;
+
+export function setRealtimeAlertsStopped(stopped: boolean) {
+  isRealtimeAlertsStopped = stopped;
+}
+
 export function startPiRealtimeAlertsCron() {
+  if (isRealtimeAlertsStopped) {
+    console.log(
+      "⏸️ [Real-Time Alerts Engine] STOPPED for now as requested (will rewind tomorrow)."
+    );
+    return;
+  }
+
   const cronExpression =
     process.env.PI_REALTIME_ALERTS_CRON_SCHEDULE || "*/5 * * * *";
   console.log(
@@ -159,6 +173,12 @@ function mapCommStatus(pt: any): "Online" | "Offline" | null {
  * Main Real-Time Alert Engine Job
  */
 export async function runPiRealtimeAlertsJob(rootPath?: string) {
+  if (isRealtimeAlertsStopped) {
+    console.log(
+      "⏸️ [Real-Time Alerts Engine] Polling and alerts dispatch is currently STOPPED. Will rewind tomorrow."
+    );
+    return;
+  }
   const startTime = Date.now();
   console.log("⚡ [Real-Time Alerts Engine] Polling live telemetry streams...");
 
