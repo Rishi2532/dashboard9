@@ -1552,12 +1552,12 @@ export const realtimeSensorData = pgTable(
     chlorine_comm_status: varchar("chlorine_comm_status", { length: 20 }),
     
     // Pressure
-    pressure_value: decimal("pressure_value", { precision: 12, scale: 2 }),
+    pressure_value: decimal("pressure_value"),
     pressure_timestamp: timestamp("pressure_timestamp", { withTimezone: true }),
     pressure_comm_status: varchar("pressure_comm_status", { length: 20 }),
     
     // Flow Rate
-    flow_rate_value: decimal("flow_rate_value", { precision: 12, scale: 2 }),
+    flow_rate_value: decimal("flow_rate_value"),
     flow_rate_timestamp: timestamp("flow_rate_timestamp", { withTimezone: true }),
     flow_rate_comm_status: varchar("flow_rate_comm_status", { length: 20 }),
     

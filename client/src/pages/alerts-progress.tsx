@@ -3024,103 +3024,182 @@ export default function AlertsProgressPage() {
             </div>
           </div>
 
-          {/* 2. Alert Category Tabs */}
-          <div className="bg-white border border-slate-200 rounded px-4 py-0 flex items-center overflow-x-auto shadow-2xs">
-            <span className="text-xs font-bold text-slate-500 tracking-wider uppercase pr-6 whitespace-nowrap shrink-0">
-              ALERT CATEGORY
-            </span>
-            <div className="flex items-center gap-1 overflow-x-auto">
-              {/* Tab 1: LPCD */}
-              <button
-                type="button"
-                onClick={() => { setActiveTab("lpcd"); setPage(1); }}
-                className={`py-3 px-4 text-xs md:text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${activeTab === "lpcd"
-                  ? "border-[#0f4c81] text-[#0f4c81] font-bold"
-                  : "border-transparent text-slate-600 hover:text-slate-900"
-                  }`}
-              >
-                <Waves className="h-4 w-4 text-[#0f4c81]" />
-                <span>Village LPCD Alerts (Daily)</span>
-                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${activeTab === "lpcd" ? "bg-blue-100 text-[#0f4c81]" : "bg-slate-100 text-slate-600"
-                  }`}>
-                  {lpcdData.length}
-                </span>
-              </button>
-
-              {/* Tab 2: Chlorine */}
-              <button
-                type="button"
-                onClick={() => { setActiveTab("chlorine"); setPage(1); }}
-                className={`py-3 px-4 text-xs md:text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${activeTab === "chlorine"
-                  ? "border-[#0f4c81] text-[#0f4c81] font-bold"
-                  : "border-transparent text-slate-600 hover:text-slate-900"
-                  }`}
-              >
-                <Droplets className="h-4 w-4 text-emerald-600" />
-                <span>Chlorine Sensor Alerts (Daily)</span>
-                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${activeTab === "chlorine" ? "bg-emerald-100 text-emerald-800" : "bg-emerald-50 text-emerald-700"
-                  }`}>
-                  {chlorineData.length}
-                </span>
-              </button>
-
-              {/* Tab 3: Pressure */}
-              <button
-                type="button"
-                onClick={() => { setActiveTab("pressure"); setPage(1); }}
-                className={`py-3 px-4 text-xs md:text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${activeTab === "pressure"
-                  ? "border-[#0f4c81] text-[#0f4c81] font-bold"
-                  : "border-transparent text-slate-600 hover:text-slate-900"
-                  }`}
-              >
-                <GaugeCircle className="h-4 w-4 text-amber-600" />
-                <span>Pressure Sensor Alerts (Daily)</span>
-                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${activeTab === "pressure" ? "bg-amber-100 text-amber-800" : "bg-amber-50 text-amber-700"
-                  }`}>
-                  {pressureData.length}
-                </span>
-              </button>
-
-              {/* Tab 4: Offline */}
-              <button
-                type="button"
-                onClick={() => { setActiveTab("offline"); setPage(1); }}
-                className={`py-3 px-4 text-xs md:text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${activeTab === "offline"
-                  ? "border-[#0f4c81] text-[#0f4c81] font-bold"
-                  : "border-transparent text-slate-600 hover:text-slate-900"
-                  }`}
-              >
-                <AlertTriangle className="h-4 w-4 text-rose-600" />
-                <span>Offline Sensor Alerts (Daily)</span>
-                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${activeTab === "offline" ? "bg-rose-100 text-rose-800" : "bg-rose-50 text-rose-700"
-                  }`}>
-                  {offlineData.length}
-                </span>
-              </button>
-
-              {/* Tab 5: ⚡ Real-Time Critical Alerts (Placed at the end) */}
-              <button
-                type="button"
-                onClick={() => { setActiveTab("realtime"); setRealtimePage(1); }}
-                className={`py-3 px-4 text-xs md:text-sm font-semibold flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${activeTab === "realtime"
-                  ? "border-rose-600 text-rose-700 font-bold bg-rose-50/60"
-                  : "border-transparent text-slate-600 hover:text-slate-900"
-                  }`}
-              >
-                <div className="relative flex items-center">
-                  <span className="flex h-2 w-2 relative mr-1.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
-                  </span>
-                  <Zap className="h-4 w-4 text-rose-600" />
+          {/* 2. Alert Category Interactive Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+            {/* Card 1: LPCD */}
+            <button
+              type="button"
+              onClick={() => { setActiveTab("lpcd"); setPage(1); }}
+              className={`text-left p-4 rounded-xl border transition-all duration-200 cursor-pointer relative overflow-hidden group ${activeTab === "lpcd"
+                ? "bg-white border-[#0f4c81] shadow-md ring-2 ring-[#0f4c81]/25 -translate-y-0.5"
+                : "bg-white border-slate-200 hover:border-blue-300 hover:shadow-sm hover:-translate-y-0.5"
+                }`}
+            >
+              <div className={`absolute top-0 left-0 right-0 h-1.5 transition-all ${activeTab === "lpcd" ? "bg-[#0f4c81]" : "bg-transparent group-hover:bg-blue-200"
+                }`} />
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <div className={`p-2 rounded-lg ${activeTab === "lpcd" ? "bg-blue-100 text-[#0f4c81]" : "bg-slate-100 text-slate-600 group-hover:bg-blue-50 group-hover:text-[#0f4c81]"
+                    }`}>
+                    <Waves className="h-4 w-4" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-700">Low Village LPCD Alerts</span>
                 </div>
-                <span>⚡ Real-Time Critical Alerts</span>
-                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${activeTab === "realtime" ? "bg-rose-100 text-rose-800" : "bg-rose-50 text-rose-700"
-                  }`}>
-                  {realtimeProgress?.alerts?.length ?? 0}
+                {activeTab === "lpcd" && (
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#0f4c81] bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
+                    Active
+                  </span>
+                )}
+              </div>
+              <div className="mt-1">
+                <div className="text-2xl font-black text-slate-900 tracking-tight">
+                  {lpcdData.length}
+                </div>
+                <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+                  Villages &lt; 55 LPCD (Daily)
+                </div>
+              </div>
+            </button>
+
+            {/* Card 2: Chlorine Sensors */}
+            <button
+              type="button"
+              onClick={() => { setActiveTab("chlorine"); setPage(1); }}
+              className={`text-left p-4 rounded-xl border transition-all duration-200 cursor-pointer relative overflow-hidden group ${activeTab === "chlorine"
+                ? "bg-white border-emerald-600 shadow-md ring-2 ring-emerald-600/25 -translate-y-0.5"
+                : "bg-white border-slate-200 hover:border-emerald-300 hover:shadow-sm hover:-translate-y-0.5"
+                }`}
+            >
+              <div className={`absolute top-0 left-0 right-0 h-1.5 transition-all ${activeTab === "chlorine" ? "bg-emerald-600" : "bg-transparent group-hover:bg-emerald-200"
+                }`} />
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <div className={`p-2 rounded-lg ${activeTab === "chlorine" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600 group-hover:bg-emerald-50 group-hover:text-emerald-700"
+                    }`}>
+                    <Droplets className="h-4 w-4" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-700">Residual Chlorine Alerts</span>
+                </div>
+                {activeTab === "chlorine" && (
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                    Active
+                  </span>
+                )}
+              </div>
+              <div className="mt-1">
+                <div className="text-2xl font-black text-slate-900 tracking-tight">
+                  {chlorineData.length}
+                </div>
+                <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+                  Chlorine Alerts (Daily)
+                </div>
+              </div>
+            </button>
+
+            {/* Card 3: Pressure Sensors */}
+            <button
+              type="button"
+              onClick={() => { setActiveTab("pressure"); setPage(1); }}
+              className={`text-left p-4 rounded-xl border transition-all duration-200 cursor-pointer relative overflow-hidden group ${activeTab === "pressure"
+                ? "bg-white border-amber-600 shadow-md ring-2 ring-amber-600/25 -translate-y-0.5"
+                : "bg-white border-slate-200 hover:border-amber-300 hover:shadow-sm hover:-translate-y-0.5"
+                }`}
+            >
+              <div className={`absolute top-0 left-0 right-0 h-1.5 transition-all ${activeTab === "pressure" ? "bg-amber-600" : "bg-transparent group-hover:bg-amber-200"
+                }`} />
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <div className={`p-2 rounded-lg ${activeTab === "pressure" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600 group-hover:bg-amber-50 group-hover:text-amber-700"
+                    }`}>
+                    <GaugeCircle className="h-4 w-4" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-700">Low Pressure Alerts</span>
+                </div>
+                {activeTab === "pressure" && (
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                    Active
+                  </span>
+                )}
+              </div>
+              <div className="mt-1">
+                <div className="text-2xl font-black text-slate-900 tracking-tight">
+                  {pressureData.length}
+                </div>
+                <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+                  Pressure Alerts (Daily)
+                </div>
+              </div>
+            </button>
+
+            {/* Card 4: Offline Sensors */}
+            <button
+              type="button"
+              onClick={() => { setActiveTab("offline"); setPage(1); }}
+              className={`text-left p-4 rounded-xl border transition-all duration-200 cursor-pointer relative overflow-hidden group ${activeTab === "offline"
+                ? "bg-white border-rose-600 shadow-md ring-2 ring-rose-600/25 -translate-y-0.5"
+                : "bg-white border-slate-200 hover:border-rose-300 hover:shadow-sm hover:-translate-y-0.5"
+                }`}
+            >
+              <div className={`absolute top-0 left-0 right-0 h-1.5 transition-all ${activeTab === "offline" ? "bg-rose-600" : "bg-transparent group-hover:bg-rose-200"
+                }`} />
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <div className={`p-2 rounded-lg ${activeTab === "offline" ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-600 group-hover:bg-rose-50 group-hover:text-rose-700"
+                    }`}>
+                    <AlertTriangle className="h-4 w-4" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-700">Offline Sensors</span>
+                </div>
+                {activeTab === "offline" && (
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded">
+                    Active
+                  </span>
+                )}
+              </div>
+              <div className="mt-1">
+                <div className="text-2xl font-black text-slate-900 tracking-tight">
+                  {offlineData.length}
+                </div>
+                <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+                  Offline Alerts (Daily)
+                </div>
+              </div>
+            </button>
+
+            {/* Card 5: Real-Time Critical */}
+            <button
+              type="button"
+              onClick={() => { setActiveTab("realtime"); setRealtimePage(1); }}
+              className={`text-left p-4 rounded-xl border transition-all duration-200 cursor-pointer relative overflow-hidden group ${activeTab === "realtime"
+                ? "bg-white border-rose-600 shadow-md ring-2 ring-rose-600/25 -translate-y-0.5"
+                : "bg-white border-slate-200 hover:border-rose-300 hover:shadow-sm hover:-translate-y-0.5"
+                }`}
+            >
+              <div className={`absolute top-0 left-0 right-0 h-1.5 transition-all ${activeTab === "realtime" ? "bg-rose-600" : "bg-transparent group-hover:bg-rose-200"
+                }`} />
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <div className={`p-2 rounded-lg ${activeTab === "realtime" ? "bg-rose-100 text-rose-800" : "bg-rose-50 text-rose-700 group-hover:bg-rose-100"
+                    }`}>
+                    <Zap className="h-4 w-4 text-rose-600" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-700">Real-Time Critical</span>
+                </div>
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
                 </span>
-              </button>
-            </div>
+              </div>
+              <div className="mt-1">
+                <div className="text-2xl font-black text-rose-600 tracking-tight flex items-baseline gap-1.5">
+                  <span>{realtimeProgress?.alerts?.length ?? 0}</span>
+                  <span className="text-xs font-semibold text-rose-700">Live</span>
+                </div>
+                <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+                  5-Min Telemetry Stream
+                </div>
+              </div>
+            </button>
           </div>
 
           {/* 3. Section Render */}

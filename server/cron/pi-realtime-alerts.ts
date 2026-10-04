@@ -121,10 +121,10 @@ function extractNumericValue(valObj: any): number | null {
   const raw = typeof valObj === "object" && valObj !== null && "Value" in valObj ? valObj.Value : valObj;
   if (raw === undefined || raw === null) return null;
   if (typeof raw === "object" && raw !== null && raw.IsSystem) return null;
-  if (typeof raw === "number" && !isNaN(raw)) return raw;
+  if (typeof raw === "number" && !isNaN(raw) && isFinite(raw)) return raw;
   if (typeof raw === "string") {
     const parsed = parseFloat(raw.replace(/[^0-9.-]/g, ""));
-    return isNaN(parsed) ? null : parsed;
+    return isNaN(parsed) || !isFinite(parsed) ? null : parsed;
   }
   return null;
 }

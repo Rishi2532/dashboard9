@@ -1265,14 +1265,19 @@ export async function sendRealtimeSingleAlertEmail(params: RealtimeAlertEmailPar
           </table>
         </div>
 
-        <!-- Action Links -->
-        <div style="text-align: center; margin: 24px 0;">
-          <a href="${engineerDashboardUrl}" style="background-color: #16a34a; color: #ffffff !important; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-size: 14px; font-weight: 700; display: inline-block; margin-right: 10px; box-shadow: 0 2px 4px rgba(22, 163, 74, 0.25);" target="_blank">
-            ✅ Acknowledge in Portal
+        <!-- Instructions directing engineer to the dashboard to acknowledge (Same as Daily Alerts) -->
+        <div style="background-color: #f0fdf4; border: 2px solid #16a34a; border-radius: 10px; padding: 20px; margin: 24px 0; text-align: center;">
+          <p style="margin: 0 0 8px 0; color: #15803d; font-weight: 700; font-size: 16px;">📌 Acknowledgement & Action Required</p>
+          <p style="margin: 0 0 16px 0; color: #166534; font-size: 14px; line-height: 1.5;">
+            Please visit the <strong>Engineer Dashboard</strong> on the MahaJal IoT portal to view and acknowledge these critical alerts, track scheme status, and submit action remarks.
+          </p>
+          <a href="${engineerDashboardUrl}"
+             style="display: inline-block; background: #16a34a; color: #ffffff !important; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 700; letter-spacing: 0.3px;">
+            🔗 Visit Engineer Dashboard to Acknowledge
           </a>
-          <a href="${dashboardUrl}" style="background-color: #2563eb; color: #ffffff !important; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-size: 14px; font-weight: 700; display: inline-block; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);" target="_blank">
-            📊 View Alerts Progress
-          </a>
+          <p style="margin: 12px 0 0 0; font-size: 12px; color: #64748b;">
+            Direct URL: <a href="${engineerDashboardUrl}" style="color: #2563eb; text-decoration: underline;">${engineerDashboardUrl}</a>
+          </p>
         </div>
 
         <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; padding: 12px; font-size: 12px; color: #92400e; line-height: 1.4;">
@@ -1440,19 +1445,18 @@ export async function sendRealtimeConsolidatedAlertEmail(
           </tbody>
         </table>
 
-        <!-- 1-Click Acknowledge Banner -->
-        <div style="background-color: #f0fdf4; border: 2px solid #16a34a; border-radius: 8px; padding: 18px 20px; margin: 24px 0; text-align: center;">
-          <h3 style="margin: 0 0 6px 0; color: #15803d; font-size: 15px; font-weight: 700;">
-            ✅ One-Click Real-Time Acknowledgement
-          </h3>
-          <p style="margin: 0 0 14px 0; color: #166534; font-size: 13px; line-height: 1.4;">
-            Click below to instantly record your acknowledgment for all ${count} live alerts with a single click:
+        <!-- Instructions directing engineer to the dashboard to acknowledge (Same as Daily Alerts) -->
+        <div style="background-color: #f0fdf4; border: 2px solid #16a34a; border-radius: 10px; padding: 20px; margin: 24px 0; text-align: center;">
+          <p style="margin: 0 0 8px 0; color: #15803d; font-weight: 700; font-size: 16px;">📌 Acknowledgement & Action Required</p>
+          <p style="margin: 0 0 16px 0; color: #166534; font-size: 14px; line-height: 1.5;">
+            Please visit the <strong>Engineer Dashboard</strong> on the MahaJal IoT portal to view and acknowledge these critical alerts, track scheme status, and submit action remarks.
           </p>
-          <a href="${ackUrl}" style="background-color: #16a34a; color: #ffffff !important; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-size: 14px; font-weight: 700; display: inline-block; box-shadow: 0 2px 4px rgba(22, 163, 74, 0.25);" target="_blank">
-            👉 Click Here to Acknowledge All (${count}) Live Alerts
+          <a href="${engineerDashboardUrl}"
+             style="display: inline-block; background: #16a34a; color: #ffffff !important; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 700; letter-spacing: 0.3px;">
+            🔗 Visit Engineer Dashboard to Acknowledge
           </a>
-          <p style="margin: 10px 0 0 0; font-size: 11.5px; color: #64748b;">
-            Or log into your <a href="${engineerDashboardUrl}" style="color: #2563eb; text-decoration: underline;">Engineer Portal</a> to review telemetry charts and submit detailed remarks.
+          <p style="margin: 12px 0 0 0; font-size: 12px; color: #64748b;">
+            Direct URL: <a href="${engineerDashboardUrl}" style="color: #2563eb; text-decoration: underline;">${engineerDashboardUrl}</a>
           </p>
         </div>
 
