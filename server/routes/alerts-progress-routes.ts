@@ -464,6 +464,15 @@ router.get('/pressure', async (req, res) => {
           ) sub
           GROUP BY scheme_id, sent_date
         ),
+        deduped_sms AS (
+          SELECT DISTINCT ON (scheme_id, mobile, sent_date)
+                 id, mobile, engineer_name, engineer_email, template_name, template_id,
+                 message_text, gateway_status, is_success, sent_date, created_at, scheme_id
+          FROM sms_alert_logs
+          WHERE (template_name ILIKE '%Pressure%' AND template_name NOT ILIKE '%Offline%')
+            AND ${dateFilter}
+          ORDER BY scheme_id, mobile, sent_date, created_at DESC
+        ),
         sms_status AS (
           SELECT scheme_id,
                  sent_date,
@@ -480,9 +489,7 @@ router.get('/pressure', async (req, res) => {
                    'sent_date', sent_date::text,
                    'created_at', created_at
                  ) ORDER BY created_at DESC) as sms_dispatches
-          FROM sms_alert_logs
-          WHERE (template_name ILIKE '%Pressure%' OR template_name IS NULL)
-            AND ${dateFilter}
+          FROM deduped_sms
           GROUP BY scheme_id, sent_date
         )
         SELECT 
@@ -604,6 +611,15 @@ router.get('/offline', async (req, res) => {
             AND ${dateFilter}
           ORDER BY scheme_id, sent_date, created_at DESC
         ),
+        deduped_sms AS (
+          SELECT DISTINCT ON (scheme_id, mobile, sent_date)
+                 id, mobile, engineer_name, engineer_email, template_name, template_id,
+                 message_text, gateway_status, is_success, sent_date, created_at, scheme_id
+          FROM sms_alert_logs
+          WHERE (template_name ILIKE '%Offline%' OR template_name IS NULL)
+            AND ${dateFilter}
+          ORDER BY scheme_id, mobile, sent_date, created_at DESC
+        ),
         sms_status AS (
           SELECT scheme_id,
                  sent_date,
@@ -620,9 +636,7 @@ router.get('/offline', async (req, res) => {
                    'sent_date', sent_date::text,
                    'created_at', created_at
                  ) ORDER BY created_at DESC) as sms_dispatches
-          FROM sms_alert_logs
-          WHERE (template_name ILIKE '%Offline%' OR template_name IS NULL)
-            AND ${dateFilter}
+          FROM deduped_sms
           GROUP BY scheme_id, sent_date
         )
         SELECT 
