@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Link, useLocation } from "wouter";
@@ -57,6 +57,7 @@ import {
   Send,
   Filter,
   Info,
+  Zap,
 } from "lucide-react";
 
 interface VillageSummary {
@@ -321,9 +322,11 @@ export default function EngineerDashboard() {
   const [activeTab, setActiveTab] = useState("all");
 
   // Alert filter state
+  const [alertsTabMode, setAlertsTabMode] = useState<"daily" | "realtime">("daily");
   const [dateFilterMode, setDateFilterMode] = useState<"today" | "all" | "custom">("today");
   const [customSelectedDate, setCustomSelectedDate] = useState<string>("");
   const [alertSearchTerm, setAlertSearchTerm] = useState("");
+  const [realtimeSearchTerm, setRealtimeSearchTerm] = useState("");
 
   // Local state to track acknowledged alert keys for instant optimistic feedback
   const [acknowledgedAlertKeys, setAcknowledgedAlertKeys] = useState<Set<string>>(new Set());
@@ -340,6 +343,9 @@ export default function EngineerDashboard() {
   // SMS alert logs modal state
   const [isSmsModalOpen, setIsSmsModalOpen] = useState(false);
 
+  // Real-time alerts remarks state
+  const [realtimeAckRemarksMap, setRealtimeAckRemarksMap] = useState<Record<string, string>>({});
+
   // Fetch summary data for assigned schemes (scoped to current user, no stale cache overlap)
   const { data, isLoading, isRefetching, refetch } = useQuery<SchemesSummaryResponse>({
     queryKey: ["/api/engineer/schemes-summary", user?.id || user?.username || "current"],
@@ -347,7 +353,46 @@ export default function EngineerDashboard() {
     staleTime: 0,
   });
 
+  // Fetch live real-time critical alerts stream
+  const { data: realtimeProgress, refetch: refetchRealtime, isFetching: isFetchingRealtime } = useQuery<{
+    summary: any;
+    alerts: any[];
+  }>({
+    queryKey: ["/api/realtime-alerts/progress"],
+    queryFn: async () => {
+      const res = await fetch("/api/realtime-alerts/progress");
+      if (!res.ok) return { summary: {}, alerts: [] };
+      return res.json();
+    },
+    refetchInterval: 20000,
+  });
+
   const schemes = data?.schemes || [];
+
+  // Identify assigned real-time alerts for this engineer
+  const assignedSchemeIdSet = new Set((schemes || []).map((s) => s.scheme_id));
+  const myRealtimeAlerts = (realtimeProgress?.alerts || []).filter((a: any) => {
+    if (assignedSchemeIdSet.has(a.scheme_id)) return true;
+    const engEmail = (engineerProfile?.email || user?.email || "").toLowerCase().trim();
+    if (!engEmail) return false;
+    return [
+      a.ee_civil_email, a.ee_mech_email, a.de_ae_civil_email, a.de_ae_mech_email, a.se_email, a.chief_engineer_email
+    ].some((e: any) => e && e.toLowerCase().trim() === engEmail);
+  });
+  const pendingRealtimeAlerts = myRealtimeAlerts.filter((a: any) => !a.is_acknowledged);
+  const pendingRealtimeCount = pendingRealtimeAlerts.length;
+
+  const filteredMyRealtimeAlerts = myRealtimeAlerts.filter((a: any) => {
+    if (!realtimeSearchTerm.trim()) return true;
+    const q = realtimeSearchTerm.toLowerCase().trim();
+    const sName = (a.scheme_name || "").toLowerCase();
+    const sId = (a.scheme_id || "").toLowerCase();
+    const esr = (a.esr_name || "").toLowerCase();
+    const vName = (a.village_name || "").toLowerCase();
+    const aType = (a.alert_type || "").toLowerCase();
+    const reg = (a.region || "").toLowerCase();
+    return sName.includes(q) || sId.includes(q) || esr.includes(q) || vName.includes(q) || aType.includes(q) || reg.includes(q);
+  });
 
   // Filter schemes by search term and tab
   const filteredSchemes = schemes.filter((s) => {
@@ -379,10 +424,14 @@ export default function EngineerDashboard() {
   );
 
   // Identify latest alert date (defaulting to current day / most recent log date)
-  const latestAlertDate =
-    allAlerts.length > 0 && allAlerts[0]?.sent_date
-      ? String(allAlerts[0].sent_date).slice(0, 10)
-      : new Date().toISOString().slice(0, 10);
+  const latestAlertDate = useMemo(() => {
+    if (!allAlerts.length) return new Date().toISOString().slice(0, 10);
+    const dates = allAlerts
+      .map((a: any) => (a.sent_date ? String(a.sent_date).slice(0, 10) : ""))
+      .filter(Boolean);
+    if (dates.length === 0) return new Date().toISOString().slice(0, 10);
+    return dates.sort().reverse()[0];
+  }, [allAlerts]);
 
   // Filter alerts by date mode
   const displayedAlerts = allAlerts.filter((a) => {
@@ -410,8 +459,10 @@ export default function EngineerDashboard() {
     return sName.includes(q) || sId.includes(q) || esr.includes(q) || vName.includes(q) || aType.includes(q) || aVal.includes(q) || reg.includes(q);
   });
 
-  // Pending alerts to acknowledge
+  // Pending alerts to acknowledge (strictly latest alerts only)
   const pendingAlertsToAck = displayedAlerts.filter((a) => {
+    const isLatest = !a.sent_date || String(a.sent_date).slice(0, 10) === latestAlertDate;
+    if (!isLatest) return false;
     const alertKey = getAlertKey(a);
     return !Boolean(a.is_acknowledged) && !Boolean(a.acknowledged) && !Boolean(a.acknowledged_at) && !acknowledgedAlertKeys.has(alertKey);
   });
@@ -647,6 +698,84 @@ export default function EngineerDashboard() {
     },
   });
 
+  // Real-Time Alert Acknowledge Mutation
+  const ackSingleRealtimeMutation = useMutation({
+    mutationFn: async (alert: any) => {
+      const remarks = realtimeAckRemarksMap[alert.ticket_id || `${alert.scheme_id}-${alert.esr_name}`] || "Acknowledged in Engineer Portal";
+      const res = await fetch("/api/realtime-alerts/acknowledge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scheme_id: alert.scheme_id,
+          esr_name: alert.esr_name,
+          alert_type: alert.chlorine_comm_status === 'Offline' ? 'Chlorine Offline' : 'Chlorine Critical',
+          ticket_id: alert.ticket_id,
+          remarks,
+          engineer_email: engineerProfile?.email || user?.email,
+          engineer_name: engineerProfile?.name || user?.name || user?.username,
+        }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to acknowledge real-time alert");
+      }
+      return res.json();
+    },
+    onSuccess: (resData, variables) => {
+      toast({
+        title: "✅ Real-Time Alert Acknowledged",
+        description: `Alert for ${variables.esr_name || variables.scheme_name || variables.scheme_id} marked as acknowledged.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/realtime-alerts/progress"] });
+      refetchRealtime();
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Acknowledgement Error",
+        description: err.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Batch Acknowledge All Real-Time Alerts
+  const ackAllRealtimeMutation = useMutation({
+    mutationFn: async (alertsToAck: any[]) => {
+      for (const alert of alertsToAck) {
+        const remarks = realtimeAckRemarksMap[alert.ticket_id || `${alert.scheme_id}-${alert.esr_name}`] || "Batch Acknowledged in Engineer Portal";
+        await fetch("/api/realtime-alerts/acknowledge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            scheme_id: alert.scheme_id,
+            esr_name: alert.esr_name,
+            alert_type: alert.chlorine_comm_status === 'Offline' ? 'Chlorine Offline' : 'Chlorine Critical',
+            ticket_id: alert.ticket_id,
+            remarks,
+            engineer_email: engineerProfile?.email || user?.email,
+            engineer_name: engineerProfile?.name || user?.name || user?.username,
+          }),
+        });
+      }
+      return { success: true };
+    },
+    onSuccess: (resData, variables) => {
+      toast({
+        title: "✅ All Real-Time Alerts Acknowledged",
+        description: `Successfully acknowledged ${variables.length} active real-time alerts.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/realtime-alerts/progress"] });
+      refetchRealtime();
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Batch Acknowledgement Error",
+        description: err.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col">
       <Header />
@@ -708,7 +837,7 @@ export default function EngineerDashboard() {
                 variant="outline"
                 size="sm"
                 onClick={() => setIsSmsModalOpen(true)}
-                className="bg-white/10 hover:bg-white/20 text-white border-white/20 shadow-sm"
+                className="bg-white/10 hover:bg-white/20 text-white border-white/20 shadow-sm cursor-pointer"
               >
                 <Smartphone className="w-4 h-4 mr-2 text-indigo-300" />
                 SMS Alerts ({data?.smsAlertsCount ?? data?.recentSmsAlerts?.length ?? 0})
@@ -1442,354 +1571,675 @@ export default function EngineerDashboard() {
           )}
         </div>
 
-        {/* Action Center - Active Critical Alerts Table */}
-        <div className="space-y-4 pt-4">
-          {/* Catchy Top Header Bar */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 md:p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-xl border border-indigo-900/40">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 shrink-0">
-                <AlertTriangle className="w-5 h-5 text-rose-400 animate-pulse" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">
-                    Recent Critical Alerts on Your Schemes
-                  </h3>
-                  <Badge className="bg-rose-500/20 text-rose-300 border-rose-400/40 text-[11px] font-bold px-2 py-0.5">
-                    {displayedAlerts.length} Active
-                  </Badge>
-                  {pendingAlertsToAck.length > 0 && (
-                    <Badge className="bg-amber-500/20 text-amber-300 border-amber-400/40 text-[11px] font-bold px-2 py-0.5">
-                      {pendingAlertsToAck.length} Pending Acknowledgment
-                    </Badge>
-                  )}
-                  <Badge 
-                    onClick={() => setIsSmsModalOpen(true)}
-                    className="bg-indigo-500/30 hover:bg-indigo-500/50 text-indigo-200 border-indigo-400/40 text-[11px] font-bold px-2 py-0.5 cursor-pointer transition-colors flex items-center gap-1"
-                  >
-                    <Smartphone className="w-3 h-3 text-indigo-300" />
-                    {data?.smsAlertsCount ?? data?.recentSmsAlerts?.length ?? 0} SMS Sent
-                  </Badge>
+        {/* Action Center - Active Critical Alerts & Real-Time Alerts Section */}
+        <div id="alerts-action-center" className="space-y-4 pt-4">
+          {/* Top Tab Bar: Daily Critical Alerts vs Real-Time Live Alerts */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+            <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setAlertsTabMode("daily")}
+                className={`px-4 py-2 rounded-lg font-bold text-xs sm:text-sm transition-all cursor-pointer flex items-center gap-2 ${
+                  alertsTabMode === "daily"
+                    ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm border border-slate-200/80 dark:border-slate-700"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
+              >
+                <AlertTriangle className="w-4 h-4 text-amber-500" />
+                <span>Daily Critical Alerts</span>
+                <Badge className={`text-[10px] font-bold ${
+                  alertsTabMode === "daily"
+                    ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                    : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300"
+                }`}>
+                  {displayedAlerts.length}
+                </Badge>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setAlertsTabMode("realtime")}
+                className={`px-4 py-2 rounded-lg font-bold text-xs sm:text-sm transition-all cursor-pointer flex items-center gap-2 ${
+                  alertsTabMode === "realtime"
+                    ? "bg-gradient-to-r from-rose-600 to-rose-700 text-white shadow-sm"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
+              >
+                <div className="relative flex items-center">
+                  <span className="flex h-2 w-2 relative mr-1">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                  </span>
+                  <Zap className="w-4 h-4" />
                 </div>
-                <p className="text-xs text-slate-300 mt-0.5">
-                  Real-time telemetry incidents requiring field verification and restoration
-                </p>
-              </div>
+                <span>⚡ Real-Time Live Alerts</span>
+                <Badge className={`text-[10px] font-bold ${
+                  alertsTabMode === "realtime" ? "bg-white/20 text-white" : "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300"
+                }`}>
+                  {myRealtimeAlerts.length}
+                </Badge>
+              </button>
             </div>
 
-            {/* Quick Bulk Action Buttons */}
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <Button
-                size="sm"
-                onClick={() => batchAcknowledgeMutation.mutate(pendingAlertsToAck)}
-                disabled={pendingAlertsToAck.length === 0 || batchAcknowledgeMutation.isPending}
-                className="h-9 px-3.5 text-xs bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-semibold shadow-md flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                title={pendingAlertsToAck.length > 0 ? `Acknowledge all ${pendingAlertsToAck.length} unacknowledged alerts` : "All alerts already acknowledged"}
-              >
-                {batchAcknowledgeMutation.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                    Acknowledging...
-                  </>
-                ) : (
-                  <>
-                    <CheckCheck className="w-4 h-4 text-emerald-100" />
-                    Acknowledge All ({pendingAlertsToAck.length})
-                  </>
-                )}
-              </Button>
-
-              <Button
-                size="sm"
-                onClick={() => sendAllRemindersMutation.mutate(offlineAlertsList)}
-                disabled={offlineAlertsList.length === 0 || sendAllRemindersMutation.isPending}
-                className="h-9 px-3.5 text-xs bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 active:scale-95 text-white font-semibold shadow-md flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                title={offlineAlertsList.length > 0 ? `Send consolidated offline reminder email(s) to regional vendors and copy supervisory engineers (DE/AE Civil, DE/AE Mech, SE, Chief Engineer) for ${offlineAlertsList.length} locations` : "No offline alerts"}
-              >
-                {sendAllRemindersMutation.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                    Sending All Reminders...
-                  </>
-                ) : (
-                  <>
-                    <BellRing className="w-4 h-4 text-amber-100" />
-                    Send All Reminders ({offlineAlertsList.length})
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-
-          {/* Explanatory Banner: What does "Send Reminder" mean? */}
-          <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-100 shadow-xs">
-            <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-            <div>
-              <span className="font-semibold text-amber-300">What does &quot;Send Reminder&quot; mean?</span>
-              <p className="text-slate-300 text-[11.5px] mt-0.5 leading-relaxed">
-                Clicking <strong>Send Reminder</strong> dispatches an official priority offline telemetry alert email directly to the assigned <strong>Regional Vendor</strong>, while automatically copying supervisory department engineers: <strong>EE (Civil)</strong>, <strong>EE (Mech)</strong>, <strong>DE/AE (Civil)</strong>, <strong>DE/AE (Mech)</strong>, <strong>Superintending Engineer (SE)</strong>, and the <strong>Chief Engineer</strong> to ensure immediate physical inspection and telemetry restoration.
-              </p>
-            </div>
-          </div>
-
-          {/* Filter Toolbar: Search + Date pills + Date Picker */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <Input
-                placeholder="Search alerts by scheme, ESR, village, type..."
-                value={alertSearchTerm}
-                onChange={(e) => setAlertSearchTerm(e.target.value)}
-                className="h-8 pl-8 pr-7 text-xs bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 rounded-lg focus-visible:ring-1"
-              />
-              {alertSearchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setAlertSearchTerm("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
+            <div className="text-xs text-slate-500 dark:text-slate-400 px-2 font-medium">
+              {alertsTabMode === "daily" ? (
+                <span>Daily telemetry compliance incidents across your assigned schemes</span>
+              ) : (
+                <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-semibold">
+                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                  Live 5-minute continuous telemetry stream
+                </span>
               )}
             </div>
-
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setDateFilterMode("today")}
-                  className={`px-3 py-1 rounded-md font-semibold text-xs transition-all ${
-                    dateFilterMode === "today"
-                      ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm"
-                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
-                  }`}
-                >
-                  Current Day ({latestAlertDate || "Today"})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDateFilterMode("all")}
-                  className={`px-3 py-1 rounded-md font-semibold text-xs transition-all ${
-                    dateFilterMode === "all"
-                      ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm"
-                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
-                  }`}
-                >
-                  All ({allAlerts.length})
-                </button>
-              </div>
-
-              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs">
-                <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                <input
-                  type="date"
-                  value={customSelectedDate}
-                  onChange={(e) => {
-                    setCustomSelectedDate(e.target.value);
-                    if (e.target.value) setDateFilterMode("custom");
-                  }}
-                  className="bg-transparent border-none text-xs text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer font-medium"
-                />
-              </div>
-            </div>
           </div>
 
-          {filteredDisplayedAlerts.length === 0 ? (
-            <div className="p-10 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-              <CheckCircle2 className="w-9 h-9 mx-auto text-emerald-500 mb-2" />
-              <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                {alertSearchTerm
-                  ? `No alerts match "${alertSearchTerm}"`
-                  : dateFilterMode === "today"
-                  ? "No critical alerts recorded for today"
-                  : dateFilterMode === "custom" && customSelectedDate
-                  ? `No critical alerts found for ${customSelectedDate}`
-                  : "All schemes are within normal operating parameters"}
-              </h4>
-              <p className="text-xs text-slate-500 mt-1">
-                {alertSearchTerm ? "Try clearing your search query." : "Zero telemetry thresholds breached for this selection."}
-              </p>
-            </div>
-          ) : (
-            <Card className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left border-collapse table-auto">
-                  <thead className="bg-slate-50/90 dark:bg-slate-800/70 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold uppercase tracking-wider text-[11px]">
-                    <tr>
-                      <th className="py-2.5 px-2 text-center w-8">#</th>
-                      <th className="py-2.5 px-3 text-left">Scheme & Location</th>
-                      <th className="py-2.5 px-3 text-left">ESR Reservoir</th>
-                      <th className="py-2.5 px-2 text-center w-24 whitespace-nowrap">Alert Type</th>
-                      <th className="py-2.5 px-3 text-left">Recorded Value</th>
-                      <th className="py-2.5 px-2 text-center w-24 whitespace-nowrap">Date</th>
-                      <th className="py-2.5 px-2 text-center w-24 whitespace-nowrap">Status</th>
-                      <th className="py-2.5 px-3 text-right w-[270px] whitespace-nowrap">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
-                    {filteredDisplayedAlerts.map((alert, idx) => {
-                      const alertKey = getAlertKey(alert);
-                      const isAcked =
-                        Boolean(alert.is_acknowledged) ||
-                        Boolean(alert.acknowledged) ||
-                        Boolean(alert.acknowledged_at) ||
-                        acknowledgedAlertKeys.has(alertKey);
-                      const formattedType = getFormattedAlertType(alert);
-                      const reminderRecord = reminderSentRecords[alertKey] || (alert.reminder_sent_at ? {
-                        vendor_name: alert.reminder_vendor_name,
-                        vendor_email: alert.reminder_vendor_email,
-                        sent_at: alert.reminder_sent_at,
-                      } : null);
+          {/* TAB 1: DAILY CRITICAL ALERTS */}
+          {alertsTabMode === "daily" && (
+            <div className="space-y-4">
+              {/* Catchy Top Header Bar */}
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 md:p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-xl border border-indigo-900/40">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 shrink-0">
+                    <AlertTriangle className="w-5 h-5 text-rose-400 animate-pulse" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">
+                        Recent Critical Alerts on Your Schemes
+                      </h3>
+                      <Badge className="bg-rose-500/20 text-rose-300 border-rose-400/40 text-[11px] font-bold px-2 py-0.5">
+                        {displayedAlerts.length} Active
+                      </Badge>
+                      {pendingAlertsToAck.length > 0 && (
+                        <Badge className="bg-amber-500/20 text-amber-300 border-amber-400/40 text-[11px] font-bold px-2 py-0.5">
+                          {pendingAlertsToAck.length} Pending Acknowledgment
+                        </Badge>
+                      )}
+                      <Badge 
+                        onClick={() => setIsSmsModalOpen(true)}
+                        className="bg-indigo-500/30 hover:bg-indigo-500/50 text-indigo-200 border-indigo-400/40 text-[11px] font-bold px-2 py-0.5 cursor-pointer transition-colors flex items-center gap-1"
+                      >
+                        <Smartphone className="w-3 h-3 text-indigo-300" />
+                        {data?.smsAlertsCount ?? data?.recentSmsAlerts?.length ?? 0} SMS Sent
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-slate-300 mt-0.5">
+                      Daily telemetry incidents requiring field verification and restoration
+                    </p>
+                  </div>
+                </div>
 
-                      return (
-                        <tr
-                          key={alert.id || idx}
-                          className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors group"
-                        >
-                          {/* 1. Index */}
-                          <td className="py-2.5 px-2 text-center font-medium text-slate-400 group-hover:text-slate-600 align-middle">
-                            {idx + 1}
-                          </td>
+                {/* Quick Bulk Action Buttons */}
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <Button
+                    size="sm"
+                    onClick={() => batchAcknowledgeMutation.mutate(pendingAlertsToAck)}
+                    disabled={pendingAlertsToAck.length === 0 || batchAcknowledgeMutation.isPending}
+                    className="h-9 px-3.5 text-xs bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-semibold shadow-md flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                    title={pendingAlertsToAck.length > 0 ? `Acknowledge all ${pendingAlertsToAck.length} unacknowledged alerts` : "All alerts already acknowledged"}
+                  >
+                    {batchAcknowledgeMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                        Acknowledging...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCheck className="w-4 h-4 text-emerald-100" />
+                        Acknowledge All ({pendingAlertsToAck.length})
+                      </>
+                    )}
+                  </Button>
 
-                          {/* 2. Scheme & Location */}
-                          <td className="py-2.5 px-3 align-middle">
-                            <div className="font-bold text-slate-900 dark:text-white leading-snug break-words">
-                              {alert.parentSchemeName || alert.scheme_name || alert.scheme_id}
-                            </div>
-                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                              <span className="font-mono text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1.5 py-0.5 rounded font-medium">
-                                ID: {alert.scheme_id}
-                              </span>
-                              {alert.region && (
-                                <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold bg-indigo-50 dark:bg-indigo-950/50 px-1.5 py-0.5 rounded">
-                                  {alert.region}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-
-                          {/* 3. ESR Reservoir */}
-                          <td className="py-2.5 px-3 align-middle">
-                            <div className="font-semibold text-slate-800 dark:text-slate-200 break-words">
-                              {alert.esr_name || "-"}
-                            </div>
-                            {alert.village_name && (
-                              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                                {alert.village_name}
-                              </div>
-                            )}
-                          </td>
-
-                          {/* 4. Alert Type Badge */}
-                          <td className="py-2.5 px-2 text-center align-middle whitespace-nowrap">
-                            <Badge className={`${getAlertBadgeClass(formattedType)} px-2 py-0.5 text-[10px] font-bold shadow-xs whitespace-nowrap`}>
-                              {formattedType}
-                            </Badge>
-                          </td>
-
-                          {/* 5. Recorded Value Column */}
-                          <td className="py-2.5 px-3 align-middle">
-                            <div className="font-bold text-rose-600 dark:text-rose-400 text-xs leading-tight break-words">
-                              {getAlertValueDisplay(alert, formattedType)}
-                            </div>
-                            {formattedType === "Offline" && reminderRecord && (
-                              <div className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-[10px] font-medium shadow-xs leading-tight break-words">
-                                <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
-                                <span>Reminder sent: {reminderRecord.vendor_name || reminderRecord.vendor_email}</span>
-                                {reminderRecord.sent_at && (
-                                  <span className="text-amber-600/80 dark:text-amber-400/80 font-normal">
-                                    ({formatReminderTime(reminderRecord.sent_at)})
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </td>
-
-                          {/* 6. Date & Ticket */}
-                          <td className="py-2.5 px-2 text-center align-middle whitespace-nowrap">
-                            <div className="font-medium text-slate-700 dark:text-slate-300">
-                              {alert.sent_date ? String(alert.sent_date).slice(0, 10) : "-"}
-                            </div>
-                            {alert.ticket_id && (
-                              <div className="font-mono text-[9px] text-blue-600 dark:text-blue-400 font-semibold mt-0.5">
-                                #{alert.ticket_id}
-                              </div>
-                            )}
-                          </td>
-
-                          {/* 7. Status Badge */}
-                          <td className="py-2.5 px-2 text-center align-middle whitespace-nowrap">
-                            {isAcked ? (
-                              <Badge className="bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.5 inline-flex items-center gap-1 shadow-xs">
-                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                Acknowledged
-                              </Badge>
-                            ) : (
-                              <Badge className="bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 text-[10px] font-bold px-2 py-0.5 inline-flex items-center gap-1 shadow-xs">
-                                <Clock className="w-3 h-3 text-amber-600" />
-                                Pending
-                              </Badge>
-                            )}
-                          </td>
-
-                          {/* 8. Actions */}
-                          <td className="py-2.5 px-3 text-right align-middle whitespace-nowrap">
-                            <div className="flex items-center justify-end gap-1.5 flex-nowrap">
-                              {formattedType === "Offline" && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => sendReminderMutation.mutate(alert)}
-                                  disabled={sendingReminderKey === alertKey || sendReminderMutation.isPending}
-                                  className={`h-7 px-2 text-[11px] font-semibold shadow-xs flex items-center gap-1 shrink-0 transition-all ${
-                                    reminderRecord
-                                      ? "bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800"
-                                      : "bg-amber-600 hover:bg-amber-700 text-white"
-                                  }`}
-                                  title={
-                                    reminderRecord
-                                      ? `Reminder previously sent to ${reminderRecord.vendor_name || reminderRecord.vendor_email} and copied supervisory engineers (${formatReminderTime(reminderRecord.sent_at)}). Click to resend.`
-                                      : "Send urgent offline reminder email to regional vendor (and copy DE/AE Civil, DE/AE Mech, SE, Chief Engineer)"
-                                  }
-                                >
-                                  {sendingReminderKey === alertKey ? (
-                                    <>
-                                      <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                                      Sending...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <BellRing className="w-3 h-3 mr-0.5" />
-                                      {reminderRecord ? "Resend" : "Send Reminder"}
-                                    </>
-                                  )}
-                                </Button>
-                              )}
-                              {!isAcked && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => acknowledgeMutation.mutate(alert)}
-                                  disabled={acknowledgeMutation.isPending}
-                                  className="h-7 px-2.5 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs flex items-center gap-1 shrink-0"
-                                  title="Acknowledge this alert"
-                                >
-                                  <Check className="w-3 h-3" />
-                                  Acknowledge
-                                </Button>
-                              )}
-                              <Link href={`/helpdesk/issue-reporting?scheme_id=${alert.scheme_id}`}>
-                                <Button size="sm" variant="outline" className="h-7 px-2 text-[11px] text-slate-700 hover:text-slate-900 border-slate-300 font-medium shrink-0">
-                                  Remark
-                                </Button>
-                              </Link>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                  <Button
+                    size="sm"
+                    onClick={() => sendAllRemindersMutation.mutate(offlineAlertsList)}
+                    disabled={offlineAlertsList.length === 0 || sendAllRemindersMutation.isPending}
+                    className="h-9 px-3.5 text-xs bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 active:scale-95 text-white font-semibold shadow-md flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                    title={offlineAlertsList.length > 0 ? `Send consolidated offline reminder email(s) to regional vendors and copy supervisory engineers for ${offlineAlertsList.length} locations` : "No offline alerts"}
+                  >
+                    {sendAllRemindersMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                        Sending All Reminders...
+                      </>
+                    ) : (
+                      <>
+                        <BellRing className="w-4 h-4 text-amber-100" />
+                        Send All Reminders ({offlineAlertsList.length})
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
-            </Card>
+
+              {/* Explanatory Banner */}
+              <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-100 shadow-xs">
+                <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-semibold text-amber-300">What does &quot;Send Reminder&quot; mean?</span>
+                  <p className="text-slate-300 text-[11.5px] mt-0.5 leading-relaxed">
+                    Clicking <strong>Send Reminder</strong> dispatches an official priority offline telemetry alert email directly to the assigned <strong>Regional Vendor</strong>, while automatically copying supervisory department engineers: <strong>EE (Civil)</strong>, <strong>EE (Mech)</strong>, <strong>DE/AE (Civil)</strong>, <strong>DE/AE (Mech)</strong>, <strong>Superintending Engineer (SE)</strong>, and the <strong>Chief Engineer</strong> to ensure immediate physical inspection and telemetry restoration.
+                  </p>
+                </div>
+              </div>
+
+              {/* Filter Toolbar: Search + Date pills + Date Picker */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                <div className="relative flex-1 max-w-sm">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    placeholder="Search alerts by scheme, ESR, village, type..."
+                    value={alertSearchTerm}
+                    onChange={(e) => setAlertSearchTerm(e.target.value)}
+                    className="h-8 pl-8 pr-7 text-xs bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 rounded-lg focus-visible:ring-1"
+                  />
+                  {alertSearchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setAlertSearchTerm("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setDateFilterMode("today")}
+                      className={`px-3 py-1 rounded-md font-semibold text-xs transition-all cursor-pointer ${
+                        dateFilterMode === "today"
+                          ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm"
+                          : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                      }`}
+                    >
+                      Current Day ({latestAlertDate || "Today"})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDateFilterMode("all")}
+                      className={`px-3 py-1 rounded-md font-semibold text-xs transition-all cursor-pointer ${
+                        dateFilterMode === "all"
+                          ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm"
+                          : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                      }`}
+                    >
+                      All ({allAlerts.length})
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs">
+                    <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                    <input
+                      type="date"
+                      value={customSelectedDate}
+                      onChange={(e) => {
+                        setCustomSelectedDate(e.target.value);
+                        if (e.target.value) setDateFilterMode("custom");
+                      }}
+                      className="bg-transparent border-none text-xs text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer font-medium"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {filteredDisplayedAlerts.length === 0 ? (
+                <div className="p-10 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                  <CheckCircle2 className="w-9 h-9 mx-auto text-emerald-500 mb-2" />
+                  <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                    {alertSearchTerm
+                      ? `No alerts match "${alertSearchTerm}"`
+                      : dateFilterMode === "today"
+                      ? "No critical alerts recorded for today"
+                      : dateFilterMode === "custom" && customSelectedDate
+                      ? `No critical alerts found for ${customSelectedDate}`
+                      : "All schemes are within normal operating parameters"}
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {alertSearchTerm ? "Try clearing your search query." : "Zero telemetry thresholds breached for this selection."}
+                  </p>
+                </div>
+              ) : (
+                <Card className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left border-collapse table-auto">
+                      <thead className="bg-slate-50/90 dark:bg-slate-800/70 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold uppercase tracking-wider text-[11px]">
+                        <tr>
+                          <th className="py-2.5 px-2 text-center w-8">#</th>
+                          <th className="py-2.5 px-3 text-left">Scheme & Location</th>
+                          <th className="py-2.5 px-3 text-left">ESR Reservoir</th>
+                          <th className="py-2.5 px-2 text-center w-24 whitespace-nowrap">Alert Type</th>
+                          <th className="py-2.5 px-3 text-left">Recorded Value</th>
+                          <th className="py-2.5 px-2 text-center w-24 whitespace-nowrap">Date</th>
+                          <th className="py-2.5 px-2 text-center w-24 whitespace-nowrap">Status</th>
+                          <th className="py-2.5 px-3 text-right w-[270px] whitespace-nowrap">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                        {filteredDisplayedAlerts.map((alert, idx) => {
+                          const alertKey = getAlertKey(alert);
+                          const isAcked =
+                            Boolean(alert.is_acknowledged) ||
+                            Boolean(alert.acknowledged) ||
+                            Boolean(alert.acknowledged_at) ||
+                            acknowledgedAlertKeys.has(alertKey);
+                          const isLatestAlert = !alert.sent_date || String(alert.sent_date).slice(0, 10) === latestAlertDate;
+                          const formattedType = getFormattedAlertType(alert);
+                          const reminderRecord = reminderSentRecords[alertKey] || (alert.reminder_sent_at ? {
+                            vendor_name: alert.reminder_vendor_name,
+                            vendor_email: alert.reminder_vendor_email,
+                            sent_at: alert.reminder_sent_at,
+                          } : null);
+
+                          return (
+                            <tr
+                              key={alert.id || idx}
+                              className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors group"
+                            >
+                              <td className="py-2.5 px-2 text-center font-medium text-slate-400 group-hover:text-slate-600 align-middle">
+                                {idx + 1}
+                              </td>
+                              <td className="py-2.5 px-3 align-middle">
+                                <div className="font-bold text-slate-900 dark:text-white leading-snug break-words">
+                                  {alert.parentSchemeName || alert.scheme_name || alert.scheme_id}
+                                </div>
+                                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                  <span className="font-mono text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1.5 py-0.5 rounded font-medium">
+                                    ID: {alert.scheme_id}
+                                  </span>
+                                  {alert.region && (
+                                    <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold bg-indigo-50 dark:bg-indigo-950/50 px-1.5 py-0.5 rounded">
+                                      {alert.region}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-3 align-middle">
+                                <div className="font-semibold text-slate-800 dark:text-slate-200 break-words">
+                                  {alert.esr_name || "-"}
+                                </div>
+                                {alert.village_name && (
+                                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                    {alert.village_name}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="py-2.5 px-2 text-center align-middle whitespace-nowrap">
+                                <Badge className={`${getAlertBadgeClass(formattedType)} px-2 py-0.5 text-[10px] font-bold shadow-xs whitespace-nowrap`}>
+                                  {formattedType}
+                                </Badge>
+                              </td>
+                              <td className="py-2.5 px-3 align-middle">
+                                <div className="font-bold text-rose-600 dark:text-rose-400 text-xs leading-tight break-words">
+                                  {getAlertValueDisplay(alert, formattedType)}
+                                </div>
+                                {formattedType === "Offline" && reminderRecord && (
+                                  <div className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-[10px] font-medium shadow-xs leading-tight break-words">
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                                    <span>Reminder sent: {reminderRecord.vendor_name || reminderRecord.vendor_email}</span>
+                                    {reminderRecord.sent_at && (
+                                      <span className="text-amber-600/80 dark:text-amber-400/80 font-normal">
+                                        ({formatReminderTime(reminderRecord.sent_at)})
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="py-2.5 px-2 text-center align-middle whitespace-nowrap">
+                                <div className="font-medium text-slate-700 dark:text-slate-300">
+                                  {alert.sent_date ? String(alert.sent_date).slice(0, 10) : "-"}
+                                </div>
+                                {alert.ticket_id && (
+                                  <div className="font-mono text-[9px] text-blue-600 dark:text-blue-400 font-semibold mt-0.5">
+                                    #{alert.ticket_id}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="py-2.5 px-2 text-center align-middle whitespace-nowrap">
+                                {isAcked ? (
+                                  <Badge className="bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.5 inline-flex items-center gap-1 shadow-xs">
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                    Acknowledged
+                                  </Badge>
+                                ) : isLatestAlert ? (
+                                  <Badge className="bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 text-[10px] font-bold px-2 py-0.5 inline-flex items-center gap-1 shadow-xs">
+                                    <Clock className="w-3 h-3 text-amber-600" />
+                                    Pending
+                                  </Badge>
+                                ) : (
+                                  <Badge className="bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 text-[10px] font-medium px-2 py-0.5 inline-flex items-center gap-1 shadow-xs">
+                                    <Clock className="w-3 h-3 text-slate-400" />
+                                    Historical Pending
+                                  </Badge>
+                                )}
+                              </td>
+                              <td className="py-2.5 px-3 text-right align-middle whitespace-nowrap">
+                                <div className="flex items-center justify-end gap-1.5 flex-nowrap">
+                                  {formattedType === "Offline" && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => sendReminderMutation.mutate(alert)}
+                                      disabled={sendingReminderKey === alertKey || sendReminderMutation.isPending}
+                                      className={`h-7 px-2 text-[11px] font-semibold shadow-xs flex items-center gap-1 shrink-0 transition-all cursor-pointer ${
+                                        reminderRecord
+                                          ? "bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800"
+                                          : "bg-amber-600 hover:bg-amber-700 text-white"
+                                      }`}
+                                      title={
+                                        reminderRecord
+                                          ? `Reminder previously sent to ${reminderRecord.vendor_name || reminderRecord.vendor_email} and copied supervisory engineers (${formatReminderTime(reminderRecord.sent_at)}). Click to resend.`
+                                          : "Send urgent offline reminder email to regional vendor (and copy DE/AE Civil, DE/AE Mech, SE, Chief Engineer)"
+                                      }
+                                    >
+                                      {sendingReminderKey === alertKey ? (
+                                        <>
+                                          <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                                          Sending...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <BellRing className="w-3 h-3 mr-0.5" />
+                                          {reminderRecord ? "Resend" : "Send Reminder"}
+                                        </>
+                                      )}
+                                    </Button>
+                                  )}
+                                  {!isAcked && isLatestAlert && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => acknowledgeMutation.mutate(alert)}
+                                      disabled={acknowledgeMutation.isPending}
+                                      className="h-7 px-2.5 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs flex items-center gap-1 shrink-0 cursor-pointer"
+                                      title="Acknowledge this active alert"
+                                    >
+                                      <Check className="w-3 h-3" />
+                                      Acknowledge
+                                    </Button>
+                                  )}
+                                  {!isAcked && !isLatestAlert && (
+                                    <span className="text-[10px] text-slate-400 dark:text-slate-500 italic px-1.5 py-0.5" title="Only latest alerts can be acknowledged">
+                                      Historical (Read-only)
+                                    </span>
+                                  )}
+                                  <Link href={`/helpdesk/issue-reporting?scheme_id=${alert.scheme_id}`}>
+                                    <Button size="sm" variant="outline" className="h-7 px-2 text-[11px] text-slate-700 hover:text-slate-900 border-slate-300 font-medium shrink-0 cursor-pointer">
+                                      Remark
+                                    </Button>
+                                  </Link>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              )}
+            </div>
+          )}
+
+          {/* TAB 2: ⚡ RECENT REAL-TIME ALERTS */}
+          {alertsTabMode === "realtime" && (
+            <div className="space-y-4">
+              {/* Catchy Top Header Bar */}
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 md:p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-rose-950 to-slate-900 text-white shadow-xl border border-rose-900/40">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 shrink-0">
+                    <Zap className="w-5 h-5 text-rose-400 animate-pulse" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">
+                        Recent Real-Time Alerts
+                      </h3>
+                      <Badge className="bg-rose-500/20 text-rose-300 border-rose-400/40 text-[11px] font-bold px-2 py-0.5">
+                        {myRealtimeAlerts.length} Active Real-Time
+                      </Badge>
+                      {pendingRealtimeCount > 0 && (
+                        <Badge className="bg-amber-500/20 text-amber-300 border-amber-400/40 text-[11px] font-bold px-2 py-0.5">
+                          {pendingRealtimeCount} Pending Acknowledgment
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-rose-200/80 mt-0.5">
+                      Live 5-minute telemetry scan. Residual chlorine evaluated on active flow (&gt; 0 m³/h).
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  {pendingRealtimeCount > 1 && (
+                    <Button
+                      size="sm"
+                      onClick={() => ackAllRealtimeMutation.mutate(pendingRealtimeAlerts)}
+                      disabled={ackAllRealtimeMutation.isPending}
+                      className="h-9 px-3.5 text-xs bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-semibold shadow-md flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <CheckCheck className="w-4 h-4 text-emerald-100" />
+                      {ackAllRealtimeMutation.isPending ? "Recording..." : `Acknowledge All (${pendingRealtimeCount})`}
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => refetchRealtime()}
+                    disabled={isFetchingRealtime}
+                    className="h-9 px-3 text-xs bg-white/10 hover:bg-white/20 text-white border-white/20 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isFetchingRealtime ? "animate-spin" : ""}`} />
+                    Refresh Telemetry
+                  </Button>
+                </div>
+              </div>
+
+              {/* Real-time Search Toolbar */}
+              <div className="flex items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                <div className="relative flex-1 max-w-sm">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    placeholder="Search real-time alerts by scheme, ESR, village..."
+                    value={realtimeSearchTerm}
+                    onChange={(e) => setRealtimeSearchTerm(e.target.value)}
+                    className="h-8 pl-8 pr-7 text-xs bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 rounded-lg focus-visible:ring-1"
+                  />
+                  {realtimeSearchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setRealtimeSearchTerm("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="text-xs text-slate-500 font-medium">
+                  Showing <span className="font-bold text-slate-900 dark:text-white">{filteredMyRealtimeAlerts.length}</span> live alert{filteredMyRealtimeAlerts.length !== 1 ? 's' : ''}
+                </div>
+              </div>
+
+              {filteredMyRealtimeAlerts.length === 0 ? (
+                <div className="p-10 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
+                  <CheckCircle2 className="w-9 h-9 mx-auto text-emerald-500" />
+                  <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                    {realtimeSearchTerm ? `No real-time alerts match "${realtimeSearchTerm}"` : "All Real-Time Telemetry Normal"}
+                  </h4>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto">
+                    {realtimeSearchTerm ? "Try clearing your search query." : "All monitored transmitters across your schemes are currently within safe operating thresholds."}
+                  </p>
+                </div>
+              ) : (
+                <Card className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left border-collapse table-auto">
+                      <thead className="bg-[#e8f1f8] text-[#0f4c81] dark:bg-slate-800/80 dark:text-slate-200 border-b border-slate-200 dark:border-slate-700 font-bold uppercase text-[10.5px] tracking-wider">
+                        <tr>
+                          <th className="py-3 px-2 text-center w-8">#</th>
+                          <th className="py-3 px-3 min-w-[200px]">Scheme & Location Details</th>
+                          <th className="py-3 px-3 text-center min-w-[140px]">Alert Issue & Type</th>
+                          <th className="py-3 px-3 text-center min-w-[180px]">Live Telemetry Readings</th>
+                          <th className="py-3 px-3 text-center min-w-[100px]">Polled At</th>
+                          <th className="py-3 px-3 text-center min-w-[110px]">Status</th>
+                          <th className="py-3 px-3 min-w-[280px]">Resolution Remarks & Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {filteredMyRealtimeAlerts.map((alert: any, idx: number) => {
+                          const clVal = alert.chlorine_value !== null && alert.chlorine_value !== undefined ? Number(alert.chlorine_value) : null;
+                          const frVal = alert.flow_rate_value !== null && alert.flow_rate_value !== undefined ? Number(alert.flow_rate_value) : null;
+                          const prVal = alert.pressure_value !== null && alert.pressure_value !== undefined ? Number(alert.pressure_value) : null;
+                          const isClOffline = alert.chlorine_comm_status === 'Offline';
+                          const isFrOffline = alert.flow_rate_comm_status === 'Offline';
+                          const hasFlow = frVal !== null && frVal > 0;
+                          const isClLow = hasFlow && clVal !== null && clVal < 0.2;
+                          const isClHigh = hasFlow && clVal !== null && clVal > 0.5;
+                          const alertKey = alert.ticket_id || `${alert.scheme_id}-${alert.esr_name}`;
+                          const currentRemark = realtimeAckRemarksMap[alertKey] || "";
+
+                          return (
+                            <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                              <td className="py-3 px-2 text-center font-medium text-slate-500 align-middle">
+                                {idx + 1}
+                              </td>
+                              <td className="py-3 px-3 align-middle">
+                                <div>
+                                  <div className="font-bold text-slate-900 dark:text-white text-xs leading-tight">
+                                    {alert.scheme_name || alert.scheme_id}
+                                  </div>
+                                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                                    <span className="font-mono font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-900 text-[10px]">
+                                      #{alert.scheme_id}
+                                    </span>
+                                    <span>• Node: <strong>{alert.esr_name || "ESR"}</strong></span>
+                                    {alert.village_name && <span>• Village: {alert.village_name}</span>}
+                                  </div>
+                                  {alert.region && (
+                                    <div className="text-[10px] text-slate-400 mt-0.5">
+                                      {alert.region} Region {alert.block ? `• Block: ${alert.block}` : ''}
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
+                                <div className="space-y-1 inline-flex flex-col items-center">
+                                  <Badge className={`text-[10.5px] font-bold px-2 py-0.5 ${
+                                    isClLow || isClHigh
+                                      ? "bg-rose-50 text-rose-800 border-rose-300"
+                                      : isClOffline || isFrOffline
+                                      ? "bg-amber-50 text-amber-800 border-amber-300"
+                                      : "bg-blue-50 text-blue-800 border-blue-300"
+                                  }`}>
+                                    {isClLow ? (
+                                      <>
+                                        <Droplets className="w-3 h-3 mr-1 inline text-rose-600" />
+                                        Low Chlorine
+                                      </>
+                                    ) : isClHigh ? (
+                                      <>
+                                        <Droplets className="w-3 h-3 mr-1 inline text-amber-600" />
+                                        High Chlorine
+                                      </>
+                                    ) : isClOffline ? (
+                                      <>
+                                        <WifiOff className="w-3 h-3 mr-1 inline text-amber-600" />
+                                        Chlorine Offline
+                                      </>
+                                    ) : isFrOffline ? (
+                                      <>
+                                        <WifiOff className="w-3 h-3 mr-1 inline text-amber-600" />
+                                        Flow Offline
+                                      </>
+                                    ) : (
+                                      alert.alert_type || "Telemetry Alert"
+                                    )}
+                                  </Badge>
+                                  <div className="font-mono font-extrabold text-xs text-slate-900 dark:text-white">
+                                    {alert.alert_value || (clVal !== null ? `${clVal.toFixed(2)} mg/L` : '-')}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-3 px-3 text-center align-middle">
+                                <div className="inline-flex items-center gap-2 flex-wrap justify-center text-xs">
+                                  {clVal !== null && (
+                                    <span className={`px-2 py-0.5 rounded font-mono font-bold ${
+                                      isClLow ? "bg-rose-100 text-rose-800" : isClHigh ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"
+                                    }`}>
+                                      CL: {clVal.toFixed(2)} mg/L
+                                    </span>
+                                  )}
+                                  {frVal !== null && (
+                                    <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono">
+                                      FR: {frVal.toFixed(2)} m³/h
+                                    </span>
+                                  )}
+                                  {prVal !== null && (
+                                    <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono">
+                                      PT: {prVal.toFixed(2)} Bar
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="py-3 px-3 text-center align-middle whitespace-nowrap text-slate-600 dark:text-slate-400 text-xs">
+                                {alert.last_updated_values ? formatLoginTime(alert.last_updated_values) : "Live Scan"}
+                              </td>
+                              <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
+                                {alert.is_acknowledged ? (
+                                  <Badge className="bg-emerald-50 text-emerald-700 border-emerald-300 text-[10px] font-bold px-2 py-0.5 inline-flex items-center gap-1">
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                    Acknowledged
+                                  </Badge>
+                                ) : (
+                                  <Badge className="bg-amber-50 text-amber-700 border-amber-300 text-[10px] font-bold px-2 py-0.5 inline-flex items-center gap-1">
+                                    <Clock className="w-3 h-3 text-amber-600" />
+                                    Pending
+                                  </Badge>
+                                )}
+                              </td>
+                              <td className="py-3 px-3 align-middle">
+                                {!alert.is_acknowledged ? (
+                                  <div className="flex items-center gap-2">
+                                    <Input
+                                      placeholder="Resolution remarks (e.g. Chlorinator dosed, valve checked)..."
+                                      value={currentRemark}
+                                      onChange={(e) => setRealtimeAckRemarksMap(prev => ({ ...prev, [alertKey]: e.target.value }))}
+                                      className="h-8 text-xs bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 flex-1"
+                                    />
+                                    <Button
+                                      size="sm"
+                                      onClick={() => ackSingleRealtimeMutation.mutate(alert)}
+                                      disabled={ackSingleRealtimeMutation.isPending}
+                                      className="h-8 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shrink-0 cursor-pointer flex items-center gap-1"
+                                    >
+                                      <Check className="w-3.5 h-3.5" />
+                                      Acknowledge
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <div className="p-1.5 rounded-lg bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 text-[11px] text-emerald-900 dark:text-emerald-200 flex items-center justify-between gap-2">
+                                    <span className="truncate">
+                                      <strong>Note:</strong> {alert.remarks || "Acknowledged via Portal"}
+                                    </span>
+                                    {alert.acknowledged_at && (
+                                      <span className="text-[10px] text-emerald-700 dark:text-emerald-400 shrink-0">
+                                        {formatLoginTime(alert.acknowledged_at)}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              )}
+            </div>
           )}
         </div>
 

@@ -1557,7 +1557,13 @@ export const realtimeSensorData = pgTable(
     pressure_comm_status: varchar("pressure_comm_status", { length: 20 }),
     
     // Flow Rate
+    flow_rate_value: decimal("flow_rate_value", { precision: 12, scale: 2 }),
+    flow_rate_timestamp: timestamp("flow_rate_timestamp", { withTimezone: true }),
     flow_rate_comm_status: varchar("flow_rate_comm_status", { length: 20 }),
+    
+    // Previous state tracking for delta/recovery analysis
+    prev_chlorine_status: varchar("prev_chlorine_status", { length: 20 }),
+    prev_chlorine_value: decimal("prev_chlorine_value"),
     
     // Track update times
     last_updated_values: timestamp("last_updated_values", { withTimezone: true }).defaultNow(),
@@ -1582,3 +1588,33 @@ export const insertRealtimeSensorDataSchema = createInsertSchema(realtimeSensorD
 
 export type InsertRealtimeSensorData = z.infer<typeof insertRealtimeSensorDataSchema>;
 export type RealtimeSensorData = typeof realtimeSensorData.$inferSelect;
+
+// Real-Time Alert Acknowledgements table
+export const realtimeAcknowledgements = pgTable("realtime_acknowledgements", {
+  id: serial("id").primaryKey(),
+  token: varchar("token", { length: 128 }).notNull().unique(),
+  scheme_id: varchar("scheme_id", { length: 100 }),
+  scheme_name: varchar("scheme_name", { length: 255 }),
+  village_name: varchar("village_name", { length: 255 }),
+  esr_name: varchar("esr_name", { length: 255 }),
+  alert_type: varchar("alert_type", { length: 100 }).notNull(),
+  alert_value: varchar("alert_value", { length: 100 }),
+  ticket_id: varchar("ticket_id", { length: 100 }),
+  engineer_name: varchar("engineer_name", { length: 255 }),
+  engineer_email: varchar("engineer_email", { length: 255 }),
+  engineer_mobile: varchar("engineer_mobile", { length: 30 }),
+  remarks: text("remarks"),
+  is_acknowledged: boolean("is_acknowledged").default(false),
+  acknowledged_at: timestamp("acknowledged_at", { withTimezone: true }),
+  sent_date: date("sent_date").defaultNow(),
+  created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const insertRealtimeAcknowledgementSchema = createInsertSchema(realtimeAcknowledgements).omit({
+  id: true,
+  created_at: true,
+});
+
+export type InsertRealtimeAcknowledgement = z.infer<typeof insertRealtimeAcknowledgementSchema>;
+export type RealtimeAcknowledgement = typeof realtimeAcknowledgements.$inferSelect;
+

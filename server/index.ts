@@ -8,7 +8,7 @@ const __dirname = path.dirname(__filename);
 
 // Load environment variables from .env file first
 dotenv.config();
-console.log("📄 Loaded .env file");
+console.log("📄 Loaded .env file [Updated]");
 
 
 console.log(`   SMTP_HOST: ${process.env.SMTP_HOST || 'smtp.gmail.com (default)'}`);
@@ -59,7 +59,8 @@ import "./init-database.js"; // Initial data cleanup (optional, based on require
 import { initializeDataCleanup } from "./data-cleanup.js"; // Run data cleanup on startup
 import { mqttService } from "./mqtt-service"; // Initialize MQTT service
 import { startDailyAlertsCron } from "./cron/daily-alerts.js"; // Start daily alerts cron
-// import { initPiChlorineIngestionCron } from "./cron/pi-chlorine-ingestion.js"; // Start PI Ingestion cron
+import { initPiChlorineIngestionCron } from "./cron/pi-chlorine-ingestion.js"; // Start PI Ingestion cron
+import { startPiRealtimeAlertsCron } from "./cron/pi-realtime-alerts.js"; // Start PI Real-Time 5-minute alerts engine
 // import { initPiPressureIngestionCron } from "./cron/pi-pressure-ingestion.js"; // Start PI Pressure Ingestion cron
 // import { initPiWaterSchemeIngestionCron } from "./cron/pi-water-scheme-ingestion.js"; 
 // import { initPiSchemeLpcdIngestionCron } from "./cron/pi-scheme-lpcd-ingestion.js";
@@ -227,7 +228,8 @@ app.use((req, res, next) => {
       setTimeout(() => {
         initializeDataCleanup().catch(console.error);
         startDailyAlertsCron(); // Start the daily alerts cron job
-        // initPiChlorineIngestionCron(); // Start PI Web API Sync
+        initPiChlorineIngestionCron(); // Start PI Web API Sync
+        startPiRealtimeAlertsCron(); // Start PI Real-Time 5-minute Alert Engine
         // initPiPressureIngestionCron(); // Start PI Web API Pressure Sync
         // initPiWaterSchemeIngestionCron();
         // initPiSchemeLpcdIngestionCron();

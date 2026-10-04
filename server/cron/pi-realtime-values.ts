@@ -44,14 +44,14 @@ export async function runPiRealtimeValuesIngestion(rootPath?: string) {
 
           let chlorineValue: number | null = null;
           let chlorineTimestamp: Date | null = null;
-          if (chlorineAttr && chlorineAttr.Value !== undefined) {
+          if (chlorineAttr && chlorineAttr.Value !== undefined && chlorineAttr.Value !== null) {
             chlorineValue = typeof chlorineAttr.Value === 'number' ? chlorineAttr.Value : null;
-            if (typeof chlorineAttr.Value === 'object' && chlorineAttr.Value !== null && 'Value' in chlorineAttr.Value) {
+            if (typeof chlorineAttr.Value === 'object' && chlorineAttr.Value !== null) {
                // Support digital states like {"Name": "Pt Created", "Value": 253}
                if (chlorineAttr.Value.IsSystem) {
                  chlorineValue = null;
-               } else {
-                 chlorineValue = chlorineAttr.Value.Value;
+               } else if ('Value' in chlorineAttr.Value) {
+                 chlorineValue = typeof chlorineAttr.Value.Value === 'number' ? chlorineAttr.Value.Value : null;
                }
             }
             // Only set timestamp if we have a valid non-system value
@@ -62,13 +62,13 @@ export async function runPiRealtimeValuesIngestion(rootPath?: string) {
 
           let pressureValue: number | null = null;
           let pressureTimestamp: Date | null = null;
-          if (pressureAttr && pressureAttr.Value !== undefined) {
+          if (pressureAttr && pressureAttr.Value !== undefined && pressureAttr.Value !== null) {
             pressureValue = typeof pressureAttr.Value === 'number' ? pressureAttr.Value : null;
-            if (typeof pressureAttr.Value === 'object' && pressureAttr.Value !== null && 'Value' in pressureAttr.Value) {
+            if (typeof pressureAttr.Value === 'object' && pressureAttr.Value !== null) {
                if (pressureAttr.Value.IsSystem) {
                  pressureValue = null;
-               } else {
-                 pressureValue = pressureAttr.Value.Value;
+               } else if ('Value' in pressureAttr.Value) {
+                 pressureValue = typeof pressureAttr.Value.Value === 'number' ? pressureAttr.Value.Value : null;
                }
             }
             // Only set timestamp if we have a valid non-system value

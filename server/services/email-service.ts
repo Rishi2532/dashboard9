@@ -1108,8 +1108,7 @@ export async function sendEngineerCredentialsEmail(params: {
               <td style="padding: 8px 0; color: #64748b; width: 140px;"><strong>Portal URL:</strong></td>
               <td style="padding: 8px 0;"><a href="${loginUrl}" style="color: #2563eb; text-decoration: underline; font-weight: 600;" target="_blank">${loginUrl}</a></td>
             </tr>
-            <tr>
-              <td style="padding: 8px 0; color: #64748b;"><strong>Username / Login ID:</strong></td>
+                          <td style="padding: 8px 0; color: #64748b;"><strong>Username / Login ID:</strong></td>
               <td style="padding: 8px 0;"><code style="background-color: #e2e8f0; color: #0f172a; padding: 3px 8px; border-radius: 4px; font-size: 14px; font-weight: 700; font-family: monospace;">${params.username}</code></td>
             </tr>
             ${params.password ? `
@@ -1160,5 +1159,324 @@ export async function sendEngineerCredentialsEmail(params: {
   });
 }
 
+export interface RealtimeAlertEmailParams {
+  toEmail: string;
+  engineerName: string;
+  scheme_id: string;
+  scheme_name: string;
+  region?: string;
+  circle?: string;
+  division?: string;
+  sub_division?: string;
+  block?: string;
+  village_name?: string;
+  esr_name?: string;
+  alert_type: string;
+  alert_value: string | number;
+  flow_rate?: number | null;
+  telemetry_timestamp?: Date | string | null;
+  ticket_id?: string;
+}
 
+export async function sendRealtimeSingleAlertEmail(params: RealtimeAlertEmailParams): Promise<boolean> {
+  const baseUrl = process.env.APP_BASE_URL || 'https://dashboard1.mahajaliot.in';
+  const dashboardUrl = `${baseUrl.replace(/\/$/, '')}/alerts-progress`;
+  const engineerDashboardUrl = `${baseUrl.replace(/\/$/, '')}/engineer`;
+
+  const isCritical = params.alert_type.toLowerCase().includes('low') || params.alert_type.toLowerCase().includes('offline');
+  const badgeColor = params.alert_type.toLowerCase().includes('high') ? '#7c3aed' : params.alert_type.toLowerCase().includes('offline') ? '#ea580c' : '#dc2626';
+
+  const formattedTime = params.telemetry_timestamp
+    ? new Date(params.telemetry_timestamp).toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+    })
+    : new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+
+  const subject = `🚨 [REAL-TIME ALERT] ${params.alert_type.toUpperCase()} - ${params.scheme_name} (ID: ${params.scheme_id})`;
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+      <div style="background-color: ${badgeColor}; color: #ffffff; padding: 18px 24px; text-align: center;">
+        <h1 style="margin: 0; font-size: 20px; font-weight: 800; letter-spacing: 0.5px;">⚠️ JJM SWSM REAL-TIME ALERT</h1>
+        <p style="margin: 4px 0 0 0; opacity: 0.95; font-size: 13px;">Water Infrastructure Telemetry Monitoring</p>
+      </div>
+
+      <div style="padding: 24px; background-color: #ffffff;">
+        <p style="color: #1e293b; font-size: 15px; margin-top: 0;">Hello <strong>${params.engineerName}</strong>,</p>
+        <p style="color: #475569; font-size: 14px; line-height: 1.5; margin-bottom: 20px;">
+          The following critical telemetry condition was detected in real-time on your assigned scheme.
+        </p>
+
+        <!-- Alert Summary Box -->
+        <div style="background-color: #fff1f2; border: 2px solid ${badgeColor}; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+          <div style="display: inline-block; background-color: ${badgeColor}; color: #ffffff; font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 4px; text-transform: uppercase; margin-bottom: 10px;">
+            ${params.alert_type}
+          </div>
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <tr>
+              <td style="padding: 6px 0; color: #64748b; width: 140px;"><strong>Parameter / Value:</strong></td>
+              <td style="padding: 6px 0; color: #991b1b; font-weight: 800; font-size: 16px;">${params.alert_value}</td>
+            </tr>
+            ${params.flow_rate !== undefined && params.flow_rate !== null ? `
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;"><strong>Active Flow Rate:</strong></td>
+              <td style="padding: 6px 0; color: #047857; font-weight: 700;">${params.flow_rate} m³/h (Water Flowing)</td>
+            </tr>` : ''}
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;"><strong>Timestamp (IST):</strong></td>
+              <td style="padding: 6px 0; color: #1e293b; font-weight: 600;">${formattedTime}</td>
+            </tr>
+            ${params.ticket_id ? `
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;"><strong>Ticket ID:</strong></td>
+              <td style="padding: 6px 0; color: #2563eb; font-weight: 700;">${params.ticket_id}</td>
+            </tr>` : ''}
+          </table>
+        </div>
+
+        <!-- Scheme Location Hierarchy -->
+        <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px; margin-bottom: 20px;">
+          <h3 style="margin: 0 0 10px 0; font-size: 13px; color: #334155; text-transform: uppercase; font-weight: 700;">📍 Scheme & Asset Details</h3>
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <tr>
+              <td style="padding: 4px 0; color: #64748b; width: 120px;"><strong>Scheme:</strong></td>
+              <td style="padding: 4px 0; color: #1e293b;"><strong>${params.scheme_name}</strong> (ID: ${params.scheme_id})</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; color: #64748b;"><strong>Village:</strong></td>
+              <td style="padding: 4px 0; color: #1e293b;">${params.village_name || 'N/A'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; color: #64748b;"><strong>Reservoir / ESR:</strong></td>
+              <td style="padding: 4px 0; color: #1e293b;">${params.esr_name || 'N/A'}</td>
+            </tr>
+            ${params.region ? `
+            <tr>
+              <td style="padding: 4px 0; color: #64748b;"><strong>Region / Circle:</strong></td>
+              <td style="padding: 4px 0; color: #1e293b;">${params.region}${params.circle ? ` / ${params.circle}` : ''}</td>
+            </tr>` : ''}
+          </table>
+        </div>
+
+        <!-- Action Links -->
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${engineerDashboardUrl}" style="background-color: #16a34a; color: #ffffff !important; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-size: 14px; font-weight: 700; display: inline-block; margin-right: 10px; box-shadow: 0 2px 4px rgba(22, 163, 74, 0.25);" target="_blank">
+            ✅ Acknowledge in Portal
+          </a>
+          <a href="${dashboardUrl}" style="background-color: #2563eb; color: #ffffff !important; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-size: 14px; font-weight: 700; display: inline-block; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);" target="_blank">
+            📊 View Alerts Progress
+          </a>
+        </div>
+
+        <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; padding: 12px; font-size: 12px; color: #92400e; line-height: 1.4;">
+          <strong>Notice:</strong> This is a real-time critical notification from the MahaJal IoT SCADA telemetry system. Please take immediate corrective action.
+        </div>
+
+        <p style="color: #94a3b8; font-size: 11px; margin-top: 20px; border-top: 1px solid #f1f5f9; padding-top: 10px; text-align: center;">
+          Water Supply & Sanitation Department, Government of Maharashtra • MahaJal IoT Platform
+        </p>
+      </div>
+    </div>
+  `;
+
+  return sendEmail({
+    to: params.toEmail,
+    from: "MahaJal Real-Time Alerts",
+    subject,
+    html,
+    headers: {
+      "X-Priority": isCritical ? "1" : "2",
+      "X-MSMail-Priority": isCritical ? "High" : "Normal",
+      Importance: isCritical ? "High" : "Normal",
+    },
+  });
+}
+
+export interface RealtimeConsolidatedAlertItem {
+  scheme_id: string;
+  scheme_name: string;
+  region?: string;
+  circle?: string;
+  division?: string;
+  sub_division?: string;
+  block?: string;
+  village_name?: string;
+  esr_name?: string;
+  alert_type: string;
+  alert_value: string | number;
+  flow_rate?: number | null;
+  telemetry_timestamp?: Date | string | null;
+  ticket_id?: string;
+}
+
+export interface RealtimeConsolidatedAlertEmailParams {
+  toEmail: string;
+  engineerName: string;
+  alerts: RealtimeConsolidatedAlertItem[];
+  acknowledgeToken: string;
+}
+
+/**
+ * Sends a single consolidated HTML email to an engineer containing ALL live real-time telemetry alerts.
+ */
+export async function sendRealtimeConsolidatedAlertEmail(
+  params: RealtimeConsolidatedAlertEmailParams
+): Promise<boolean> {
+  const count = params.alerts.length;
+  if (count === 0) return true;
+
+  const baseUrl = process.env.APP_BASE_URL || 'https://dashboard1.mahajaliot.in';
+  const ackUrl = `${baseUrl.replace(/\/$/, '')}/api/realtime-alerts/acknowledge?token=${params.acknowledgeToken}`;
+  const engineerDashboardUrl = `${baseUrl.replace(/\/$/, '')}/engineer`;
+
+  const nowFormatted = new Date().toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+
+  let rowsHtml = "";
+  params.alerts.forEach((alert, idx) => {
+    const isChlorine = alert.alert_type.toLowerCase().includes("chlorine");
+    const isPressure = alert.alert_type.toLowerCase().includes("pressure");
+    const isFlow = alert.alert_type.toLowerCase().includes("flow");
+    const isOffline = alert.alert_type.toLowerCase().includes("offline");
+
+    let badgeColor = "#dc2626";
+    let badgeBg = "#fee2e2";
+    if (isOffline) {
+      badgeColor = "#c2410c";
+      badgeBg = "#ffedd5";
+    } else if (alert.alert_type.toLowerCase().includes("high")) {
+      badgeColor = "#6d28d9";
+      badgeBg = "#ede9fe";
+    }
+
+    let detailHtml = `<span style="display:inline-block; font-weight:700; color:${badgeColor}; background:${badgeBg}; padding:3px 8px; border-radius:4px; font-size:12px; margin-bottom:4px;">${alert.alert_type}</span>`;
+
+    if (isChlorine && !isOffline) {
+      detailHtml += `<div style="font-size:12px; color:#1e293b; font-weight:600;">Value: <span style="color:#dc2626;">${alert.alert_value}</span></div>`;
+      if (alert.flow_rate !== undefined && alert.flow_rate !== null) {
+        detailHtml += `<div style="font-size:11px; color:#047857; font-weight:600;">🌊 Active Flow: ${alert.flow_rate} m³/h</div>`;
+      }
+    } else if (isPressure && !isOffline) {
+      detailHtml += `<div style="font-size:12px; color:#1e293b; font-weight:600;">Value: <span style="color:#dc2626;">${alert.alert_value}</span></div>`;
+    } else if (isOffline) {
+      detailHtml += `<div style="font-size:11.5px; color:#7c2d12;">Sensor Communication Offline</div>`;
+    }
+
+    const tTime = alert.telemetry_timestamp
+      ? new Date(alert.telemetry_timestamp).toLocaleTimeString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      })
+      : nowFormatted;
+
+    rowsHtml += `
+      <tr style="border-bottom: 1px solid #e2e8f0; background-color: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+        <td style="padding: 10px 8px; text-align: center; color: #64748b; font-weight: 700; border: 1px solid #cbd5e1;">
+          ${idx + 1}
+        </td>
+        <td style="padding: 10px 12px; color: #1e293b; border: 1px solid #cbd5e1;">
+          <strong style="font-size: 13.5px; color: #0f172a;">${alert.scheme_name}</strong><br>
+          <span style="font-size: 11.5px; color: #64748b;">${alert.village_name || 'N/A'} (ID: ${alert.scheme_id})</span>
+        </td>
+        <td style="padding: 10px 12px; color: #334155; font-size: 13px; font-weight: 500; border: 1px solid #cbd5e1;">
+          ${alert.esr_name || '-'}
+        </td>
+        <td style="padding: 10px 12px; border: 1px solid #cbd5e1;">
+          ${detailHtml}
+        </td>
+        <td style="padding: 10px 8px; text-align: center; font-family: monospace; font-size: 11px; color: #2563eb; font-weight: 700; border: 1px solid #cbd5e1;">
+          ${alert.ticket_id || '-'}
+        </td>
+      </tr>
+    `;
+  });
+
+  const subject = `🚨 [REAL-TIME SCADA ALERT] ${count} Critical Telemetry Alert(s) - Action Required`;
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 680px; margin: 0 auto; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.08);">
+      <div style="background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%); color: #ffffff; padding: 22px 24px; text-align: center;">
+        <h1 style="margin: 0; font-size: 20px; font-weight: 800; letter-spacing: 0.5px;">⚡ JJM SWSM REAL-TIME TELEMETRY ALERT</h1>
+        <p style="margin: 5px 0 0 0; opacity: 0.95; font-size: 13.5px; font-weight: 500;">
+          Live IoT Alert Summary — ${count} Location(s) Requiring Immediate Attention
+        </p>
+      </div>
+
+      <div style="padding: 24px 28px; background-color: #ffffff;">
+        <h2 style="color: #1e293b; margin-top: 0; font-size: 16px;">Dear ${params.engineerName || "Assigned Engineer"},</h2>
+        <p style="color: #334155; font-size: 13.5px; line-height: 1.5; margin-bottom: 18px;">
+          The MahaJal IoT SCADA monitoring system has detected <strong>${count} real-time critical condition(s)</strong> across your assigned schemes as of <strong>${nowFormatted} IST</strong>.
+        </p>
+
+        <!-- Alerts Table -->
+        <table style="width: 100%; border-collapse: collapse; margin: 18px 0; border: 1px solid #cbd5e1; font-size: 12.5px;">
+          <thead>
+            <tr style="background-color: #f1f5f9; border-bottom: 2px solid #cbd5e1;">
+              <th style="padding: 10px 8px; text-align: center; color: #475569; font-weight: 700; width: 30px; border: 1px solid #cbd5e1;">#</th>
+              <th style="padding: 10px 12px; text-align: left; color: #475569; font-weight: 700; border: 1px solid #cbd5e1;">Scheme / Village</th>
+              <th style="padding: 10px 12px; text-align: left; color: #475569; font-weight: 700; border: 1px solid #cbd5e1;">ESR / Reservoir</th>
+              <th style="padding: 10px 12px; text-align: left; color: #475569; font-weight: 700; border: 1px solid #cbd5e1;">Live Condition</th>
+              <th style="padding: 10px 8px; text-align: center; color: #475569; font-weight: 700; width: 85px; border: 1px solid #cbd5e1;">Ticket</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+
+        <!-- 1-Click Acknowledge Banner -->
+        <div style="background-color: #f0fdf4; border: 2px solid #16a34a; border-radius: 8px; padding: 18px 20px; margin: 24px 0; text-align: center;">
+          <h3 style="margin: 0 0 6px 0; color: #15803d; font-size: 15px; font-weight: 700;">
+            ✅ One-Click Real-Time Acknowledgement
+          </h3>
+          <p style="margin: 0 0 14px 0; color: #166534; font-size: 13px; line-height: 1.4;">
+            Click below to instantly record your acknowledgment for all ${count} live alerts with a single click:
+          </p>
+          <a href="${ackUrl}" style="background-color: #16a34a; color: #ffffff !important; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-size: 14px; font-weight: 700; display: inline-block; box-shadow: 0 2px 4px rgba(22, 163, 74, 0.25);" target="_blank">
+            👉 Click Here to Acknowledge All (${count}) Live Alerts
+          </a>
+          <p style="margin: 10px 0 0 0; font-size: 11.5px; color: #64748b;">
+            Or log into your <a href="${engineerDashboardUrl}" style="color: #2563eb; text-decoration: underline;">Engineer Portal</a> to review telemetry charts and submit detailed remarks.
+          </p>
+        </div>
+
+        <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px; padding: 12px 16px; margin: 18px 0; font-size: 12.5px; color: #92400e; line-height: 1.4;">
+          <strong>Notice:</strong> Chlorine alerts are strictly verified against active flow rate (> 0 m³/h). Please inspect dosing systems and field telemetry at the listed locations immediately.
+        </div>
+
+        <p style="color: #64748b; font-size: 11.5px; margin-top: 22px; border-top: 1px solid #e2e8f0; padding-top: 14px; line-height: 1.4; text-align: center;">
+          Water Supply & Sanitation Department, Government of Maharashtra • MahaJal IoT SCADA Telemetry Platform
+        </p>
+      </div>
+    </div>
+  `;
+
+  return sendEmail({
+    to: params.toEmail,
+    from: "MahaJal Real-Time Alerts",
+    subject,
+    html,
+    headers: {
+      "X-Priority": "1",
+      "X-MSMail-Priority": "High",
+      Importance: "High",
+    },
+  });
+}
 

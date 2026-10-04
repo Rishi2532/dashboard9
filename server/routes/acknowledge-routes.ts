@@ -59,18 +59,32 @@ router.get('/', async (req: Request, res: Response) => {
 
   const client = await pool.connect();
   try {
-    // Find all rows with this token
-    const findResult = await client.query(
+    // Find all rows with this token in email_acknowledgements
+    let findResult = await client.query(
       `SELECT * FROM email_acknowledgements WHERE token = $1`,
       [token]
     );
+
+    let isRealtime = false;
+    if (findResult.rows.length === 0) {
+      // Check realtime_acknowledgements table
+      findResult = await client.query(
+        `SELECT * FROM realtime_acknowledgements WHERE token = $1`,
+        [token]
+      );
+      if (findResult.rows.length > 0) {
+        isRealtime = true;
+      }
+    }
 
     if (findResult.rows.length === 0) {
       return res.status(404).send(renderPage('Link Not Found', 'This acknowledgement link is invalid or has expired. Please check your email for the correct link.', false));
     }
 
     const firstRecord = findResult.rows[0];
-    const alreadyAcknowledged = findResult.rows.every((r: any) => r.acknowledged_at !== null);
+    const alreadyAcknowledged = isRealtime
+      ? findResult.rows.every((r: any) => r.is_acknowledged)
+      : findResult.rows.every((r: any) => r.acknowledged_at !== null);
 
     if (alreadyAcknowledged) {
       const ackTime = new Date(firstRecord.acknowledged_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
@@ -88,12 +102,19 @@ router.get('/', async (req: Request, res: Response) => {
     }
 
     // Mark ALL rows with this token as acknowledged
-    const updateResult = await client.query(
-      `UPDATE email_acknowledgements SET acknowledged_at = NOW() WHERE token = $1 AND acknowledged_at IS NULL RETURNING scheme_id, alert_type`,
-      [token]
-    );
+    if (isRealtime) {
+      await client.query(
+        `UPDATE realtime_acknowledgements SET is_acknowledged = TRUE, acknowledged_at = NOW() WHERE token = $1`,
+        [token]
+      );
+    } else {
+      await client.query(
+        `UPDATE email_acknowledgements SET acknowledged_at = NOW() WHERE token = $1 AND acknowledged_at IS NULL`,
+        [token]
+      );
+    }
 
-    const acknowledgedSchemes = updateResult.rows.length;
+    const acknowledgedSchemes = findResult.rows.length;
     const engineerName = firstRecord.engineer_name || firstRecord.engineer_email;
     const isSingle = acknowledgedSchemes === 1;
     const successDetail = isSingle

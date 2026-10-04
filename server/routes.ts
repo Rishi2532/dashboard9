@@ -60,6 +60,7 @@ import issueReportingRoutes from "./routes/issue-reporting-routes";
 import flowmeterRoutes from "./routes/flowmeter-routes";
 import alertsProgressRoutes from "./routes/alerts-progress-routes";
 import acknowledgeRoutes from "./routes/acknowledge-routes";
+import realtimeAlertsRoutes from "./routes/realtime-alerts-routes";
 import { sendSingleOfflineReminderEmail, sendBatchOfflineReminderEmail } from "./services/email-service";
 // import { mqttService } from "./mqtt-service";
 
@@ -410,6 +411,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Mount Acknowledge routes (public — no auth needed so engineer can click from email)
   app.use("/api/acknowledge", acknowledgeRoutes);
+
+  // Mount Real-Time Live Alerts routes
+  app.use("/api/realtime-alerts", realtimeAlertsRoutes);
 
   // Vendor API endpoints - get vendors by region
   app.get("/api/vendors", async (req, res) => {

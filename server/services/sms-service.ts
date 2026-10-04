@@ -649,3 +649,89 @@ export async function sendOfflineSensorsSMS(mobile: string, name: string, region
     return false;
   }
 }
+
+export interface RealtimeSingleAlertSMSParams {
+  mobile: string;
+  engineerName?: string;
+  engineerEmail?: string;
+  scheme_id: string;
+  scheme_name: string;
+  village_name?: string;
+  esr_name?: string;
+  alert_type: 'flow_offline' | 'chlorine_offline' | 'pressure_offline' | 'chlorine_low' | 'chlorine_high' | 'pressure_low';
+  alert_value?: string | number;
+  offline_time?: string | Date | null;
+}
+
+/**
+ * Sends a single real-time DLT-approved SMS alert to an engineer.
+ */
+export async function sendRealtimeSingleAlertSMS(
+  params: RealtimeSingleAlertSMSParams
+): Promise<{ success: boolean; status?: number; response?: string; error?: string }> {
+  const schemeVal = formatSchemeName(params.scheme_name, params.scheme_id);
+  const villageAndEsr = formatVillageAndEsr(params.village_name, params.esr_name);
+  const dateTime = formatOfflineDateTime(params.offline_time);
+
+  let templateId: string = "";
+  let templateName: string = "";
+  let messageText: string = "";
+
+  switch (params.alert_type) {
+    case 'flow_offline':
+      templateId = DLT_TEMPLATES.FLOW_SENSOR_OFFLINE.contentId;
+      templateName = DLT_TEMPLATES.FLOW_SENSOR_OFFLINE.name;
+      messageText = DLT_TEMPLATES.FLOW_SENSOR_OFFLINE.render(schemeVal, villageAndEsr, dateTime);
+      break;
+    case 'chlorine_offline':
+      templateId = DLT_TEMPLATES.CHLORINE_SENSOR_OFFLINE.contentId;
+      templateName = DLT_TEMPLATES.CHLORINE_SENSOR_OFFLINE.name;
+      messageText = DLT_TEMPLATES.CHLORINE_SENSOR_OFFLINE.render(schemeVal, villageAndEsr, dateTime);
+      break;
+    case 'pressure_offline':
+      templateId = DLT_TEMPLATES.PRESSURE_SENSOR_OFFLINE.contentId;
+      templateName = DLT_TEMPLATES.PRESSURE_SENSOR_OFFLINE.name;
+      messageText = DLT_TEMPLATES.PRESSURE_SENSOR_OFFLINE.render(schemeVal, villageAndEsr, dateTime);
+      break;
+    case 'chlorine_low':
+      templateId = DLT_TEMPLATES.CHLORINE_LOW.contentId;
+      templateName = DLT_TEMPLATES.CHLORINE_LOW.name;
+      messageText = DLT_TEMPLATES.CHLORINE_LOW.render(schemeVal, villageAndEsr, String(params.alert_value ?? '0.00'));
+      break;
+    case 'chlorine_high':
+      templateId = DLT_TEMPLATES.CHLORINE_HIGH.contentId;
+      templateName = DLT_TEMPLATES.CHLORINE_HIGH.name;
+      messageText = DLT_TEMPLATES.CHLORINE_HIGH.render(schemeVal, villageAndEsr, String(params.alert_value ?? '0.55'));
+      break;
+    case 'pressure_low':
+      templateId = DLT_TEMPLATES.PRESSURE_LOW.contentId;
+      templateName = DLT_TEMPLATES.PRESSURE_LOW.name;
+      messageText = DLT_TEMPLATES.PRESSURE_LOW.render(schemeVal, villageAndEsr, String(params.alert_value ?? '0.00'));
+      break;
+    default:
+      return { success: false, error: `Unknown alert_type: ${params.alert_type}` };
+  }
+
+  const res = await sendSmartpingDLTSMS({
+    mobile: params.mobile,
+    text: messageText,
+    dltContentId: templateId,
+  });
+
+  await logSmsAlert({
+    mobile: params.mobile,
+    engineer_name: params.engineerName,
+    engineer_email: params.engineerEmail,
+    scheme_id: params.scheme_id,
+    scheme_name: params.scheme_name,
+    template_id: templateId,
+    template_name: templateName,
+    message_text: messageText,
+    gateway_status: res.status,
+    gateway_response: res.response,
+    is_success: res.success,
+  });
+
+  return res;
+}
+
