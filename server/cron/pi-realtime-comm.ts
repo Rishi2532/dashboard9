@@ -20,7 +20,6 @@ let isIngesting = false;
 
 export async function runPiRealtimeCommIngestion(rootPath?: string) {
   if (isIngesting) {
-    console.log("PI Web API Realtime Comm Ingestion is already running. Skipping this cycle.");
     return;
   }
   isIngesting = true;

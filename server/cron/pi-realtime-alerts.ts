@@ -78,7 +78,7 @@ interface RealtimeAlert {
  * Initializes and starts the 5-minute Real-Time Alert Cron Engine
  */
 // Flag to pause real-time alerts
-export let isRealtimeAlertsStopped = true;
+export let isRealtimeAlertsStopped = false;
 
 export function setRealtimeAlertsStopped(stopped: boolean) {
   isRealtimeAlertsStopped = stopped;
@@ -87,15 +87,15 @@ export function setRealtimeAlertsStopped(stopped: boolean) {
 export function startPiRealtimeAlertsCron() {
   if (isRealtimeAlertsStopped) {
     console.log(
-      "⏸️ [Real-Time Alerts Engine] STOPPED for now as requested (will rewind tomorrow)."
+      "⏸️ [Real-Time Alerts Engine] STOPPED for now as requested."
     );
     return;
   }
 
   const cronExpression =
-    process.env.PI_REALTIME_ALERTS_CRON_SCHEDULE || "*/5 * * * *";
+    process.env.PI_REALTIME_ALERTS_CRON_SCHEDULE || "*/15 * * * *";
   console.log(
-    `⚡ [Real-Time Alerts Engine] Scheduled with cron pattern: "${cronExpression}" (Asia/Kolkata)`
+    `⚡ [Real-Time Alerts Engine] Scheduled with 15-min cron pattern: "${cronExpression}" (Asia/Kolkata)`
   );
 
   // Trigger an initial telemetry run on startup after 10 seconds
@@ -169,6 +169,8 @@ function mapCommStatus(pt: any): "Online" | "Offline" | null {
   return null;
 }
 
+let isRealtimeAlertsRunning = false;
+
 /**
  * Main Real-Time Alert Engine Job
  */
@@ -179,6 +181,11 @@ export async function runPiRealtimeAlertsJob(rootPath?: string) {
     );
     return;
   }
+  if (isRealtimeAlertsRunning) {
+    console.log("⏳ [Real-Time Alerts Engine] A real-time cycle is already in progress. Skipping overlapping trigger.");
+    return;
+  }
+  isRealtimeAlertsRunning = true;
   const startTime = Date.now();
   console.log("⚡ [Real-Time Alerts Engine] Polling live telemetry streams...");
 
@@ -191,9 +198,29 @@ export async function runPiRealtimeAlertsJob(rootPath?: string) {
       console.warn("⚠️ No ESR elements found in PI AF. Skipping real-time cycle.");
       return;
     }
-    console.log(`📡 Polling live telemetry for ${esrs.length} ESRs...`);
 
-    // 2. Fetch active scheme filter (water_supply = 'Yes')
+    // 2. Fetch schemes with assigned engineers for real-time alerts
+    const allEngineerDetails = await db.select().from(schemeEngineerDetails);
+    const targetSchemeIds = new Set(
+      allEngineerDetails.map((r) => String(r.scheme_id || "").trim()).filter(Boolean)
+    );
+    const targetSchemeNames = new Set(
+      allEngineerDetails.map((r) => String(r.scheme || "").trim().toLowerCase()).filter(Boolean)
+    );
+
+    // Filter ESRs to target schemes so we ONLY poll live telemetry for schemes where alerts can actually be sent
+    const targetEsrs = (targetSchemeIds.size > 0 || targetSchemeNames.size > 0)
+      ? esrs.filter((esr) => {
+          const hierarchy = extractHierarchyFromPath(esr.Path);
+          const sId = hierarchy.scheme_id ? String(hierarchy.scheme_id).trim() : "";
+          const sName = hierarchy.scheme_name ? String(hierarchy.scheme_name).trim().toLowerCase() : "";
+          return (sId && targetSchemeIds.has(sId)) || (sName && targetSchemeNames.has(sName));
+        })
+      : esrs;
+
+    console.log(`📡 Polling live telemetry for ${targetEsrs.length} target ESRs (out of ${esrs.length} total ESRs)...`);
+
+    // 3. Fetch active scheme filter (water_supply = 'Yes')
     const validSchemesRes = await db
       .select({
         scheme_id: schemeStatuses.scheme_id,
@@ -217,12 +244,12 @@ export async function runPiRealtimeAlertsJob(rootPath?: string) {
       return false;
     };
 
-    // 3. Batch fetch live streamsets for all ESRs (BATCH_SIZE = 12)
+    // 4. Batch fetch live streamsets for target ESRs (BATCH_SIZE = 12)
     const telemetryList: ESRTelemetry[] = [];
     const BATCH_SIZE = 12;
 
-    for (let i = 0; i < esrs.length; i += BATCH_SIZE) {
-      const batch = esrs.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < targetEsrs.length; i += BATCH_SIZE) {
+      const batch = targetEsrs.slice(i, i + BATCH_SIZE);
 
       await Promise.all(
         batch.map(async (esr) => {
@@ -401,14 +428,12 @@ export async function runPiRealtimeAlertsJob(rootPath?: string) {
     }
 
     // 5. Query alerts that have ALREADY been sent today (to enforce once-per-day cadence for Flow Offline & Pressure)
-    const todayStr = new Date().toISOString().split("T")[0];
     const sentAlertsTodayRes = await pool.query(
       `
       SELECT scheme_id, esr_name, alert_type 
       FROM email_alert_logs 
-      WHERE sent_date = $1
-    `,
-      [todayStr]
+      WHERE sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
+    `
     );
 
     const sentOnceAlertsSet = new Set<string>();
@@ -417,7 +442,32 @@ export async function runPiRealtimeAlertsJob(rootPath?: string) {
       sentOnceAlertsSet.add(key);
     });
 
-    // 6. Evaluate Real-Time Alert Rules & Cadences
+    // 5b. Query communication_status to ensure real-time alerts are ONLY sent for sensors with 'Connected' status
+    const commStatusRes = await pool.query(`
+      SELECT scheme_id, village_name, esr_name, 
+             chlorine_connected, flow_meter_connected, pressure_connected
+      FROM communication_status
+    `);
+    const commConnectedMap = new Map<string, {
+      chlorineConnected: boolean;
+      flowConnected: boolean;
+      pressureConnected: boolean;
+    }>();
+    commStatusRes.rows.forEach((r: any) => {
+      const key = `${r.scheme_id || ""}|${r.village_name || ""}|${r.esr_name || ""}`.toLowerCase();
+      const altKey = `${r.scheme_id || ""}|${r.esr_name || ""}`.toLowerCase();
+      const connInfo = {
+        chlorineConnected: String(r.chlorine_connected || "").trim().toLowerCase() === 'connected',
+        flowConnected: String(r.flow_meter_connected || "").trim().toLowerCase() === 'connected',
+        pressureConnected: String(r.pressure_connected || "").trim().toLowerCase() === 'connected',
+      };
+      commConnectedMap.set(key, connInfo);
+      if (!commConnectedMap.has(altKey)) {
+        commConnectedMap.set(altKey, connInfo);
+      }
+    });
+
+    // 6. Evaluate Real-Time Alert Rules & Cadences (Strictly for Connected Sensors)
     const triggeredAlerts: RealtimeAlert[] = [];
 
     for (const t of telemetryList) {
@@ -425,10 +475,19 @@ export async function runPiRealtimeAlertsJob(rootPath?: string) {
         continue; // Skip inactive schemes
       }
 
+      const key = `${t.scheme_id || ""}|${t.village_name || ""}|${t.esr_name || ""}`.toLowerCase();
+      const altKey = `${t.scheme_id || ""}|${t.esr_name || ""}`.toLowerCase();
+      const commConn = commConnectedMap.get(key) || commConnectedMap.get(altKey);
+
+      // Only alert if the specific sensor is marked Connected in communication_status
+      const isChlorineConnected = commConn ? commConn.chlorineConnected : false;
+      const isFlowConnected = commConn ? commConn.flowConnected : false;
+      const isPressureConnected = commConn ? commConn.pressureConnected : false;
+
       const isWaterFlowing = t.flowRate !== null && t.flowRate > 0;
 
-      // --- RULE 1: Chlorine Real-Time Alert (Flow-Gated: ONLY when flowRate > 0) -> EVERY 5 MINUTES ---
-      if (isWaterFlowing && t.chlorine !== null) {
+      // --- RULE 1: Chlorine Real-Time Alert (Flow-Gated: ONLY when flowRate > 0 AND Chlorine is Connected) ---
+      if (isChlorineConnected && isWaterFlowing && t.chlorine !== null) {
         if (t.chlorine < 0.2) {
           triggeredAlerts.push({
             scheme_id: t.scheme_id,
@@ -468,8 +527,8 @@ export async function runPiRealtimeAlertsJob(rootPath?: string) {
         }
       }
 
-      // --- RULE 2: Chlorine Sensor Real-Time Offline -> EVERY 5 MINUTES ---
-      if (t.chlorineCommStatus === "Offline") {
+      // --- RULE 2: Chlorine Sensor Real-Time Offline (ONLY when Chlorine is Connected) ---
+      if (isChlorineConnected && t.chlorineCommStatus === "Offline") {
         triggeredAlerts.push({
           scheme_id: t.scheme_id,
           scheme_name: t.scheme_name,
@@ -489,8 +548,8 @@ export async function runPiRealtimeAlertsJob(rootPath?: string) {
         });
       }
 
-      // --- RULE 3: Flow Meter Real-Time Offline -> SENT ONCE per day / event ---
-      if (t.flowCommStatus === "Offline") {
+      // --- RULE 3: Flow Meter Real-Time Offline (ONLY when Flow Meter is Connected -> SENT ONCE per day) ---
+      if (isFlowConnected && t.flowCommStatus === "Offline") {
         const flowKey = `${t.scheme_id}|${t.esr_name}|Flow Sensor Offline`.toLowerCase();
         const flowGenericKey = `${t.scheme_id}|${t.esr_name}|Offline`.toLowerCase();
         if (!sentOnceAlertsSet.has(flowKey) && !sentOnceAlertsSet.has(flowGenericKey)) {
@@ -515,8 +574,8 @@ export async function runPiRealtimeAlertsJob(rootPath?: string) {
         }
       }
 
-      // --- RULE 4: Pressure Real-Time Alert & Offline -> SENT ONCE per day / event ---
-      if (t.pressure !== null && t.pressure < 0.2 && t.pressure >= 0) {
+      // --- RULE 4: Pressure Real-Time Alert & Offline (ONLY when Pressure is Connected -> SENT ONCE per day) ---
+      if (isPressureConnected && t.pressure !== null && t.pressure < 0.2 && t.pressure >= 0) {
         const pressureKey = `${t.scheme_id}|${t.esr_name}|Low Pressure`.toLowerCase();
         if (!sentOnceAlertsSet.has(pressureKey)) {
           triggeredAlerts.push({
@@ -540,7 +599,7 @@ export async function runPiRealtimeAlertsJob(rootPath?: string) {
         }
       }
 
-      if (t.pressureCommStatus === "Offline") {
+      if (isPressureConnected && t.pressureCommStatus === "Offline") {
         const pressureOfflineKey = `${t.scheme_id}|${t.esr_name}|Pressure Sensor Offline`.toLowerCase();
         const pressureGenericKey = `${t.scheme_id}|${t.esr_name}|Offline`.toLowerCase();
         if (!sentOnceAlertsSet.has(pressureOfflineKey) && !sentOnceAlertsSet.has(pressureGenericKey)) {
@@ -567,11 +626,12 @@ export async function runPiRealtimeAlertsJob(rootPath?: string) {
     }
 
     if (triggeredAlerts.length === 0) {
+      const nextTimeStr = new Date(Date.now() + 15 * 60 * 1000).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: '2-digit', minute: '2-digit', second: '2-digit' });
       console.log(
         `✅ [Real-Time Alerts Engine] Cycle completed in ${(
           (Date.now() - startTime) /
           1000
-        ).toFixed(2)}s: 0 real-time alerts.`
+        ).toFixed(2)}s: 0 real-time alerts. Next 15-minute cycle at ${nextTimeStr} IST.`
       );
       return;
     }
@@ -580,8 +640,7 @@ export async function runPiRealtimeAlertsJob(rootPath?: string) {
       `🚨 [Real-Time Alerts Engine] Detected ${triggeredAlerts.length} real-time alert events. Consolidating per engineer...`
     );
 
-    // 7. Group alerts by Engineer Email for Consolidated Dispatch
-    const allEngineerDetails = await db.select().from(schemeEngineerDetails);
+    // 7. Group alerts by Engineer Email for Consolidated Dispatch (reusing allEngineerDetails)
 
     const alertsBySchemeId: Record<string, RealtimeAlert[]> = {};
     const alertsBySchemeName: Record<string, RealtimeAlert[]> = {};
@@ -640,14 +699,10 @@ export async function runPiRealtimeAlertsJob(rootPath?: string) {
 
       if (matchedAlerts.length === 0) continue;
 
-      // Extract emails and mobiles for all engineer roles on this scheme
+      // Extract emails and mobiles ONLY for DE and AE roles on this scheme (strictly excluding EE, SE, and CE for real-time alerts)
       const roles: Array<{ name?: string | null; email?: string | null; mobile?: string | null }> = [
-        { name: engineer.ee_civil_name, email: engineer.ee_civil_email, mobile: engineer.ee_civil_mobile },
-        { name: engineer.ee_mech_name, email: engineer.ee_mech_email, mobile: engineer.ee_mech_mobile },
         { name: engineer.de_ae_civil_name, email: engineer.de_ae_civil_email, mobile: engineer.de_ae_civil_mobile },
         { name: engineer.de_ae_mech_name, email: engineer.de_ae_mech_email, mobile: engineer.de_ae_mech_mobile },
-        { name: engineer.se_name, email: engineer.se_email, mobile: engineer.se_mobile },
-        { name: engineer.chief_engineer_name, email: engineer.chief_engineer_email, mobile: engineer.chief_engineer_mobile },
       ];
 
       for (const r of roles) {
@@ -811,15 +866,18 @@ export async function runPiRealtimeAlertsJob(rootPath?: string) {
       dbClient.release();
     }
 
+    const nextTimeStr = new Date(Date.now() + 15 * 60 * 1000).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: '2-digit', minute: '2-digit', second: '2-digit' });
     console.log(
       `⚡ [Real-Time Alerts Engine] Cycle completed in ${(
         (Date.now() - startTime) /
         1000
       ).toFixed(2)}s. Dispatched consolidated alerts to ${
         Object.keys(engineerGroups).length
-      } engineers.`
+      } engineers. Next 15-minute cycle at ${nextTimeStr} IST.`
     );
   } catch (err: any) {
     console.error("❌ Fatal error in runPiRealtimeAlertsJob:", err);
+  } finally {
+    isRealtimeAlertsRunning = false;
   }
 }

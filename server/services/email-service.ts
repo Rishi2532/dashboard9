@@ -574,7 +574,7 @@ export async function sendDailyAlertEmail(
 
   return sendEmail({
     to: engineerEmail,
-    from: "Maharashtra Water Alert",
+    from: "Mahajal IoT Alert",
     subject,
     html,
     headers: {
@@ -1149,7 +1149,7 @@ export async function sendEngineerCredentialsEmail(params: {
     from: "MahaJal IoT Login Credentials",
     cc: [
       "semmjpbelapur@gmail.com",
-      "rishikesh.salunkhe@cstech.ai",
+      "rishikesh.salunke@cstech.ai",
       "umesh.shelake@cstech.ai",
       "naganath.patil@cstech.ai",
       "aniruddha.dhumale@cstech.ai",
@@ -1281,7 +1281,7 @@ export async function sendRealtimeSingleAlertEmail(params: RealtimeAlertEmailPar
         </div>
 
         <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; padding: 12px; font-size: 12px; color: #92400e; line-height: 1.4;">
-          <strong>Notice:</strong> This is a real-time critical notification from the MahaJal IoT SCADA telemetry system. Please take immediate corrective action.
+          <strong>Notice:</strong> This is a real-time critical notification from the MahaJal Monitoring system. Please take immediate corrective action.
         </div>
 
         <p style="color: #94a3b8; font-size: 11px; margin-top: 20px; border-top: 1px solid #f1f5f9; padding-top: 10px; text-align: center;">
@@ -1412,7 +1412,7 @@ export async function sendRealtimeConsolidatedAlertEmail(
     `;
   });
 
-  const subject = `🚨 [REAL-TIME SCADA ALERT] ${count} Critical Telemetry Alert(s) - Action Required`;
+  const subject = `🚨 [REAL-TIME IoT ALERT] ${count} Critical Telemetry Alert(s) - Action Required`;
 
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 680px; margin: 0 auto; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.08);">
@@ -1426,7 +1426,7 @@ export async function sendRealtimeConsolidatedAlertEmail(
       <div style="padding: 24px 28px; background-color: #ffffff;">
         <h2 style="color: #1e293b; margin-top: 0; font-size: 16px;">Dear ${params.engineerName || "Assigned Engineer"},</h2>
         <p style="color: #334155; font-size: 13.5px; line-height: 1.5; margin-bottom: 18px;">
-          The MahaJal IoT SCADA monitoring system has detected <strong>${count} real-time critical condition(s)</strong> across your assigned schemes as of <strong>${nowFormatted} IST</strong>.
+          The MahaJal IoT  monitoring system has detected <strong>${count} real-time critical condition(s)</strong> across your assigned schemes as of <strong>${nowFormatted} IST</strong>.
         </p>
 
         <!-- Alerts Table -->
@@ -1465,7 +1465,7 @@ export async function sendRealtimeConsolidatedAlertEmail(
         </div>
 
         <p style="color: #64748b; font-size: 11.5px; margin-top: 22px; border-top: 1px solid #e2e8f0; padding-top: 14px; line-height: 1.4; text-align: center;">
-          Water Supply & Sanitation Department, Government of Maharashtra • MahaJal IoT SCADA Telemetry Platform
+          Water Supply & Sanitation Department, Government of Maharashtra • MahaJal IoT Monitoring Platform
         </p>
       </div>
     </div>
@@ -1473,7 +1473,7 @@ export async function sendRealtimeConsolidatedAlertEmail(
 
   return sendEmail({
     to: params.toEmail,
-    from: "MahaJal Real-Time Alerts",
+    from: "MahaJal IoT Real-Time Alerts",
     subject,
     html,
     headers: {

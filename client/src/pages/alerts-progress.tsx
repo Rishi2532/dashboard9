@@ -2127,12 +2127,6 @@ export default function AlertsProgressPage() {
                               {row.alert_value || (row.chlorine_value !== null && row.chlorine_value !== undefined ? `${Number(row.chlorine_value).toFixed(2)} mg/L` : '-')}
                             </div>
 
-                            {row.flow_rate_value !== null && Number(row.flow_rate_value) > 0 && (
-                              <div className="text-[10px] text-emerald-700 font-semibold">
-                                Flow: {Number(row.flow_rate_value).toFixed(2)} m³/h
-                              </div>
-                            )}
-
                             {alertTimeStr && (
                               <div className="text-[10px] text-slate-500 font-normal flex items-center justify-center gap-1">
                                 <Clock className="h-3 w-3 text-slate-400 shrink-0" />

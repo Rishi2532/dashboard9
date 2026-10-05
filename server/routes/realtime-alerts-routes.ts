@@ -351,63 +351,6 @@ router.get('/progress', async (req: Request, res: Response) => {
       `);
     }
 
-    // 3. Also fetch Active Critical Sensors from realtime_sensor_data ONLY FOR schemes where alerts are sent
-    const activeSensorsRes = await client.query(`
-      WITH target_schemes AS (
-        SELECT DISTINCT scheme_id FROM scheme_engineer_details WHERE scheme_id IS NOT NULL
-        UNION
-        SELECT DISTINCT scheme_id FROM realtime_acknowledgements WHERE sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
-        UNION
-        SELECT DISTINCT scheme_id FROM email_alert_logs WHERE sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
-      )
-      SELECT 
-        r.scheme_id,
-        r.village_name,
-        r.esr_name,
-        r.chlorine_value,
-        r.chlorine_timestamp,
-        r.chlorine_comm_status,
-        r.flow_rate_value,
-        r.flow_rate_timestamp,
-        r.flow_rate_comm_status,
-        r.pressure_value,
-        r.pressure_timestamp,
-        r.pressure_comm_status,
-        r.prev_chlorine_status,
-        r.prev_chlorine_value,
-        r.last_updated_values,
-        s.scheme_name,
-        s.region,
-        s.circle,
-        s.division,
-        s.block,
-        sed.ee_civil_name, sed.ee_civil_email, sed.ee_civil_mobile,
-        sed.ee_mech_name, sed.ee_mech_email, sed.ee_mech_mobile,
-        sed.de_ae_civil_name, sed.de_ae_civil_email, sed.de_ae_civil_mobile,
-        sed.de_ae_mech_name, sed.de_ae_mech_email, sed.de_ae_mech_mobile,
-        sed.se_name, sed.se_email, sed.se_mobile,
-        sed.chief_engineer_name, sed.chief_engineer_email, sed.chief_engineer_mobile
-      FROM realtime_sensor_data r
-      JOIN target_schemes ts ON r.scheme_id = ts.scheme_id
-      LEFT JOIN scheme_status s ON r.scheme_id = s.scheme_id
-      LEFT JOIN scheme_engineer_details sed ON (r.scheme_id = sed.scheme_id OR s.scheme_name ILIKE sed.scheme)
-      WHERE 
-        -- Chlorine Critical with active flow
-        (r.flow_rate_value > 0 AND r.chlorine_value IS NOT NULL AND (r.chlorine_value < 0.2 OR r.chlorine_value > 0.5))
-        -- Or Chlorine Offline
-        OR r.chlorine_comm_status = 'Offline'
-        -- Or Flow Offline
-        OR r.flow_rate_comm_status = 'Offline'
-        -- Or Restored Chlorine
-        OR (
-          r.prev_chlorine_status IN ('Critical', 'Offline') 
-          AND (
-            (r.chlorine_comm_status = 'Online' AND r.flow_rate_value > 0 AND r.chlorine_value >= 0.2 AND r.chlorine_value <= 0.5)
-            OR (r.chlorine_comm_status = 'Online' AND r.prev_chlorine_status = 'Offline')
-          )
-        )
-      ORDER BY r.last_updated_values DESC
-    `);
 
     // Fetch email and sms dispatch stats
     const statsRes = await client.query(`
@@ -559,97 +502,9 @@ router.get('/progress', async (req: Request, res: Response) => {
       }
     }
 
-    // Also include active / restored sensors from activeSensorsRes for alerted schemes
-    for (const r of activeSensorsRes.rows) {
-      let alertType = 'Low Chlorine';
-      let categoryType = 'chlorine_critical';
-      let alertValue = '-';
+    // Dispatched alerts are strictly sourced from sentAlertsRes (realtime_acknowledgements / email_alert_logs)
+    // preserving exact immutable sent time and alert value at time of dispatch.
 
-      const isRestored = r.prev_chlorine_status && r.prev_chlorine_status !== 'Good' && (
-        (r.chlorine_comm_status === 'Online' && Number(r.flow_rate_value) > 0 && Number(r.chlorine_value) >= 0.2 && Number(r.chlorine_value) <= 0.5) ||
-        (r.chlorine_comm_status === 'Online' && r.prev_chlorine_status === 'Offline')
-      );
-
-      if (isRestored) {
-        alertType = 'Restored to Standard';
-        categoryType = 'restored';
-        alertValue = `${Number(r.chlorine_value || 0).toFixed(2)} mg/L (Good)`;
-      } else if (r.flow_rate_value > 0 && r.chlorine_value !== null && Number(r.chlorine_value) > 0.5) {
-        alertType = 'High Chlorine';
-        categoryType = 'chlorine_critical';
-        alertValue = `${Number(r.chlorine_value).toFixed(2)} mg/L`;
-      } else if (r.flow_rate_value > 0 && r.chlorine_value !== null && Number(r.chlorine_value) < 0.2) {
-        alertType = 'Low Chlorine';
-        categoryType = 'chlorine_critical';
-        alertValue = `${Number(r.chlorine_value).toFixed(2)} mg/L`;
-      } else if (r.chlorine_comm_status === 'Offline') {
-        alertType = 'Chlorine Sensor Offline';
-        categoryType = 'chlorine_offline';
-        alertValue = 'Offline';
-      } else if (r.flow_rate_comm_status === 'Offline') {
-        alertType = 'Flow Meter Offline';
-        categoryType = 'flow_offline';
-        alertValue = 'Offline';
-      }
-
-      const key = `${r.scheme_id}|${r.esr_name || ''}|${alertType}`.toLowerCase();
-      if (!alertsMap.has(key)) {
-        const emailRecipients = buildEmailRecipients(r);
-        const schemeAcks = acksTodayRes.rows.filter((a: any) => a.scheme_id === r.scheme_id);
-        const schemeSms = smsTodayRes.rows.filter((s: any) => s.scheme_id === r.scheme_id);
-
-        alertsMap.set(key, {
-          scheme_id: r.scheme_id,
-          scheme_name: r.scheme_name,
-          village_name: r.village_name,
-          esr_name: r.esr_name,
-          alert_type: alertType,
-          alert_value: alertValue,
-          flow_rate_value: r.flow_rate_value,
-          chlorine_value: r.chlorine_value,
-          pressure_value: r.pressure_value,
-          prev_chlorine_status: r.prev_chlorine_status,
-          prev_chlorine_value: r.prev_chlorine_value,
-          region: r.region,
-          circle: r.circle,
-          division: r.division,
-          block: r.block,
-          ticket_id: `TKT-RT-${r.scheme_id}`,
-          category_type: categoryType,
-          sent_date: new Date().toISOString().split('T')[0],
-          created_at: r.last_updated_values,
-          is_acknowledged: schemeAcks.length > 0,
-          acknowledged_at: schemeAcks[0]?.acknowledged_at || null,
-          acknowledged_by: schemeAcks[0]?.engineer_name || null,
-          remarks: schemeAcks[0]?.remarks || null,
-          ee_civil_name: r.ee_civil_name,
-          ee_civil_email: r.ee_civil_email,
-          ee_civil_mobile: r.ee_civil_mobile,
-          ee_mech_name: r.ee_mech_name,
-          ee_mech_email: r.ee_mech_email,
-          ee_mech_mobile: r.ee_mech_mobile,
-          de_ae_civil_name: r.de_ae_civil_name,
-          de_ae_civil_email: r.de_ae_civil_email,
-          de_ae_civil_mobile: r.de_ae_civil_mobile,
-          de_ae_mech_name: r.de_ae_mech_name,
-          de_ae_mech_email: r.de_ae_mech_email,
-          de_ae_mech_mobile: r.de_ae_mech_mobile,
-          se_name: r.se_name,
-          se_email: r.se_email,
-          se_mobile: r.se_mobile,
-          chief_engineer_name: r.chief_engineer_name,
-          chief_engineer_email: r.chief_engineer_email,
-          chief_engineer_mobile: r.chief_engineer_mobile,
-          email_recipients: emailRecipients,
-          sms_recipients: schemeSms,
-          acknowledgements: schemeAcks,
-          sms_dispatches: schemeSms,
-          total_emails_sent: emailRecipients.length,
-          total_sms_sent: schemeSms.length,
-          is_dispatched: true,
-        });
-      }
-    }
 
     const finalAlertsList = Array.from(alertsMap.values());
 

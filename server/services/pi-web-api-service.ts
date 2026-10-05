@@ -87,15 +87,35 @@ export function extractHierarchyFromPath(path: string) {
  * Crawls the PI AF Hierarchy starting from a given path (e.g., \\DemoAF\JJM\JJM\Maharashtra)
  * Finds all elements matching the given template name.
  */
+import fs from 'fs';
+import path from 'path';
+
 let cachedESRs: PIElement[] | null = null;
 let lastESRCacheTime = 0;
 const ESR_CACHE_TTL = 1000 * 60 * 60 * 12; // 12 hours
+const ESR_CACHE_FILE = path.join(process.cwd(), 'server', 'cached_esrs.json');
 
 export async function getAllESRs(rootPath: string = '\\\\DemoAF\\JJM\\JJM\\Maharashtra'): Promise<PIElement[]> {
   const now = Date.now();
   if (cachedESRs && (now - lastESRCacheTime < ESR_CACHE_TTL)) {
     console.log("Using cached ESR list...");
     return cachedESRs;
+  }
+
+  // Check disk cache first to avoid slow 15-minute recursive network crawl
+  if (fs.existsSync(ESR_CACHE_FILE)) {
+    try {
+      const raw = fs.readFileSync(ESR_CACHE_FILE, 'utf-8');
+      const data = JSON.parse(raw);
+      if (Array.isArray(data) && data.length > 0) {
+        cachedESRs = data;
+        lastESRCacheTime = now;
+        console.log(`✅ Loaded ${cachedESRs.length} ESRs instantly from disk cache (${ESR_CACHE_FILE})`);
+        return cachedESRs;
+      }
+    } catch (e: any) {
+      console.warn("Could not read disk cache for ESRs:", e.message);
+    }
   }
 
   console.log(`Starting crawl for ESRs at path: ${rootPath}...`);
@@ -108,6 +128,12 @@ export async function getAllESRs(rootPath: string = '\\\\DemoAF\\JJM\\JJM\\Mahar
     const esrs = await findElementsByTemplate(rootPath, targetTemplates);
     cachedESRs = esrs;
     lastESRCacheTime = now;
+    try {
+      fs.writeFileSync(ESR_CACHE_FILE, JSON.stringify(esrs));
+      console.log(`💾 Saved ${esrs.length} ESRs to disk cache (${ESR_CACHE_FILE})`);
+    } catch (writeErr: any) {
+      console.warn("Failed to write ESR cache to disk:", writeErr.message);
+    }
     return esrs;
   } catch (error) {
     console.error("Error fetching all ESRs:", error);
@@ -141,10 +167,11 @@ async function traverseElement(element: PIElement, targetTemplates: string[], re
       const childrenRes = await fetchWithRetry(`/elements/${element.WebId}/elements?maxCount=100000`);
       const children: PIElement[] = childrenRes.data.Items || [];
       
-      // Process children in batches to avoid overwhelming the PI server or node
-      for (const child of children) {
-        await traverseElement(child, targetTemplates, results);
-        // await delay(10); // slight delay to prevent rate limiting if tree is huge
+      // Process children concurrently in batches to accelerate discovery
+      const BATCH_SIZE = 8;
+      for (let i = 0; i < children.length; i += BATCH_SIZE) {
+        const batch = children.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map((child) => traverseElement(child, targetTemplates, results)));
       }
     } catch (error) {
       console.error(`Error traversing element ${element.Name}:`, error);

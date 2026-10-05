@@ -12,7 +12,6 @@ let isIngesting = false;
 
 export async function runPiRealtimeValuesIngestion(rootPath?: string) {
   if (isIngesting) {
-    console.log("PI Web API Realtime Values Ingestion is already running. Skipping this cycle.");
     return;
   }
   isIngesting = true;
