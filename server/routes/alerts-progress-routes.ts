@@ -24,6 +24,32 @@ router.use((req: any, res: any, next: any) => {
 });
 
 /**
+ * Helper to build strict single-date SQL filter for alert queries
+ * - requestedDate: strictly queries that exact date
+ * - subTab === 'previous': strictly queries yesterday's date in IST
+ * - subTab === 'current' (or default): strictly queries today's date in IST (shows 0 if no alerts sent today)
+ */
+function getAlertDateFilter(requestedDate?: string, subTab: string = 'current') {
+  if (requestedDate) {
+    return {
+      dateFilter: `sent_date = $1::date`,
+      queryParams: [requestedDate],
+    };
+  }
+  if (subTab === 'previous') {
+    return {
+      dateFilter: `sent_date = ((CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '1 day')::date`,
+      queryParams: [],
+    };
+  }
+  // 'current' or default: strictly today's alerts in IST
+  return {
+    dateFilter: `sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date`,
+    queryParams: [],
+  };
+}
+
+/**
  * GET /api/alerts-progress/total-engineers
  * Returns the total count of unique engineers assigned in scheme_engineer_details
  */
@@ -86,24 +112,7 @@ router.get('/lpcd', async (req, res) => {
   try {
     const requestedDate = req.query.date as string;
     const subTab = (req.query.subTab as string) || 'current';
-    let dateFilter = '';
-    let queryParams: any[] = [];
-    if (requestedDate) {
-      dateFilter = `sent_date = $1::date`;
-      queryParams = [requestedDate];
-    } else if (subTab === 'previous') {
-      dateFilter = `sent_date = (
-        COALESCE(
-          (SELECT MAX(sent_date) FROM email_alert_logs WHERE sent_date = CURRENT_DATE),
-          (SELECT MAX(sent_date) FROM email_alert_logs)
-        ) - INTERVAL '1 day'
-      )::date`;
-    } else {
-      dateFilter = `sent_date = COALESCE(
-        (SELECT MAX(sent_date) FROM email_alert_logs WHERE sent_date = CURRENT_DATE),
-        (SELECT MAX(sent_date) FROM email_alert_logs)
-      )`;
-    }
+    const { dateFilter, queryParams } = getAlertDateFilter(requestedDate, subTab);
 
     const client = await pool.connect();
     try {
@@ -258,24 +267,7 @@ router.get('/chlorine', async (req, res) => {
   try {
     const requestedDate = req.query.date as string;
     const subTab = (req.query.subTab as string) || 'current';
-    let dateFilter = '';
-    let queryParams: any[] = [];
-    if (requestedDate) {
-      dateFilter = `sent_date = $1::date`;
-      queryParams = [requestedDate];
-    } else if (subTab === 'previous') {
-      dateFilter = `sent_date = (
-        COALESCE(
-          (SELECT MAX(sent_date) FROM email_alert_logs WHERE sent_date = CURRENT_DATE),
-          (SELECT MAX(sent_date) FROM email_alert_logs)
-        ) - INTERVAL '1 day'
-      )::date`;
-    } else {
-      dateFilter = `sent_date = COALESCE(
-        (SELECT MAX(sent_date) FROM email_alert_logs WHERE sent_date = CURRENT_DATE),
-        (SELECT MAX(sent_date) FROM email_alert_logs)
-      )`;
-    }
+    const { dateFilter, queryParams } = getAlertDateFilter(requestedDate, subTab);
 
     const client = await pool.connect();
     try {
@@ -431,24 +423,7 @@ router.get('/pressure', async (req, res) => {
   try {
     const requestedDate = req.query.date as string;
     const subTab = (req.query.subTab as string) || 'current';
-    let dateFilter = '';
-    let queryParams: any[] = [];
-    if (requestedDate) {
-      dateFilter = `sent_date = $1::date`;
-      queryParams = [requestedDate];
-    } else if (subTab === 'previous') {
-      dateFilter = `sent_date = (
-        COALESCE(
-          (SELECT MAX(sent_date) FROM email_alert_logs WHERE sent_date = CURRENT_DATE),
-          (SELECT MAX(sent_date) FROM email_alert_logs)
-        ) - INTERVAL '1 day'
-      )::date`;
-    } else {
-      dateFilter = `sent_date = COALESCE(
-        (SELECT MAX(sent_date) FROM email_alert_logs WHERE sent_date = CURRENT_DATE),
-        (SELECT MAX(sent_date) FROM email_alert_logs)
-      )`;
-    }
+    const { dateFilter, queryParams } = getAlertDateFilter(requestedDate, subTab);
 
     const client = await pool.connect();
     try {
@@ -604,24 +579,7 @@ router.get('/offline', async (req, res) => {
   try {
     const requestedDate = req.query.date as string;
     const subTab = (req.query.subTab as string) || 'current';
-    let dateFilter = '';
-    let queryParams: any[] = [];
-    if (requestedDate) {
-      dateFilter = `sent_date = $1::date`;
-      queryParams = [requestedDate];
-    } else if (subTab === 'previous') {
-      dateFilter = `sent_date = (
-        COALESCE(
-          (SELECT MAX(sent_date) FROM email_alert_logs WHERE sent_date = CURRENT_DATE),
-          (SELECT MAX(sent_date) FROM email_alert_logs)
-        ) - INTERVAL '1 day'
-      )::date`;
-    } else {
-      dateFilter = `sent_date = COALESCE(
-        (SELECT MAX(sent_date) FROM email_alert_logs WHERE sent_date = CURRENT_DATE),
-        (SELECT MAX(sent_date) FROM email_alert_logs)
-      )`;
-    }
+    const { dateFilter, queryParams } = getAlertDateFilter(requestedDate, subTab);
 
     const client = await pool.connect();
     try {
@@ -756,7 +714,7 @@ router.get('/offline', async (req, res) => {
         FROM communication_status c
         INNER JOIN scheme_status s ON c.scheme_id = s.scheme_id
         JOIN recent_logs e ON c.scheme_id = e.scheme_id
-        JOIN sms_status sms ON (c.scheme_id = sms.scheme_id AND e.sent_date::date = sms.sent_date::date)
+        LEFT JOIN sms_status sms ON (c.scheme_id = sms.scheme_id AND e.sent_date::date = sms.sent_date::date)
         LEFT JOIN scheme_engineer_details sed ON (c.scheme_id = sed.scheme_id OR c.scheme_name ILIKE sed.scheme)
         LEFT JOIN (
           SELECT DISTINCT ON (region) region, employee_name, email, phone
@@ -1028,25 +986,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
     const subTab = (req.query.subTab as string) || 'current';
     const activeTab = ((req.query.tab as string) || 'lpcd').toLowerCase();
 
-    let dateFilter = '';
-    let queryParams: any[] = [];
-
-    if (requestedDate) {
-      dateFilter = `sent_date = $1::date`;
-      queryParams = [requestedDate];
-    } else if (subTab === 'previous') {
-      dateFilter = `sent_date = (
-        COALESCE(
-          (SELECT MAX(sent_date) FROM email_alert_logs WHERE sent_date = CURRENT_DATE),
-          (SELECT MAX(sent_date) FROM email_alert_logs)
-        ) - INTERVAL '1 day'
-      )::date`;
-    } else {
-      dateFilter = `sent_date = COALESCE(
-        (SELECT MAX(sent_date) FROM email_alert_logs WHERE sent_date = CURRENT_DATE),
-        (SELECT MAX(sent_date) FROM email_alert_logs)
-      )`;
-    }
+    const { dateFilter, queryParams } = getAlertDateFilter(requestedDate, subTab);
 
     const titleSuffix = requestedDate 
       ? `Date: ${requestedDate}` 
@@ -2054,16 +1994,7 @@ router.get('/daily-dispatches', async (req, res) => {
   try {
     const requestedDate = req.query.date as string;
     const subTab = (req.query.subTab as string) || 'current';
-    let dateFilter = '';
-    const queryParams: any[] = [];
-    if (requestedDate) {
-      dateFilter = `sent_date = $1::date`;
-      queryParams.push(requestedDate);
-    } else if (subTab === 'previous') {
-      dateFilter = `sent_date = (COALESCE((SELECT MAX(sent_date) FROM email_alert_logs WHERE sent_date = CURRENT_DATE), (SELECT MAX(sent_date) FROM email_alert_logs)) - INTERVAL '1 day')::date`;
-    } else {
-      dateFilter = `sent_date = COALESCE((SELECT MAX(sent_date) FROM email_alert_logs WHERE sent_date = CURRENT_DATE), (SELECT MAX(sent_date) FROM email_alert_logs))`;
-    }
+    const { dateFilter, queryParams } = getAlertDateFilter(requestedDate, subTab);
 
     const client = await pool.connect();
     try {

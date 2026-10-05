@@ -303,7 +303,7 @@ router.get('/progress', async (req: Request, res: Response) => {
       LEFT JOIN scheme_status s ON ra.scheme_id = s.scheme_id
       LEFT JOIN realtime_sensor_data rsd ON (ra.scheme_id = rsd.scheme_id AND (ra.esr_name = rsd.esr_name OR (ra.esr_name IS NULL AND rsd.esr_name IS NULL)))
       LEFT JOIN scheme_engineer_details sed ON (ra.scheme_id = sed.scheme_id OR s.scheme_name ILIKE sed.scheme)
-      WHERE ra.sent_date >= CURRENT_DATE - INTERVAL '1 day'
+      WHERE ra.sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
       ORDER BY ra.created_at DESC
     `);
 
@@ -346,7 +346,7 @@ router.get('/progress', async (req: Request, res: Response) => {
         LEFT JOIN scheme_status s ON e.scheme_id = s.scheme_id
         LEFT JOIN scheme_engineer_details sed ON (e.scheme_id = sed.scheme_id OR s.scheme_name ILIKE sed.scheme)
         WHERE (e.ticket_id LIKE 'TKT-RT-%' OR e.alert_type ILIKE '%Sensor Offline%' OR e.alert_type ILIKE '%Offline%')
-          AND e.sent_date >= CURRENT_DATE - INTERVAL '1 day'
+          AND e.sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
         ORDER BY e.created_at DESC
       `);
     }
@@ -356,9 +356,9 @@ router.get('/progress', async (req: Request, res: Response) => {
       WITH target_schemes AS (
         SELECT DISTINCT scheme_id FROM scheme_engineer_details WHERE scheme_id IS NOT NULL
         UNION
-        SELECT DISTINCT scheme_id FROM realtime_acknowledgements WHERE sent_date = CURRENT_DATE
+        SELECT DISTINCT scheme_id FROM realtime_acknowledgements WHERE sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
         UNION
-        SELECT DISTINCT scheme_id FROM email_alert_logs WHERE sent_date = CURRENT_DATE
+        SELECT DISTINCT scheme_id FROM email_alert_logs WHERE sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
       )
       SELECT 
         r.scheme_id,
@@ -412,15 +412,15 @@ router.get('/progress', async (req: Request, res: Response) => {
     // Fetch email and sms dispatch stats
     const statsRes = await client.query(`
       WITH distinct_emails AS (
-        SELECT engineer_email as email FROM realtime_acknowledgements WHERE sent_date = CURRENT_DATE AND engineer_email IS NOT NULL AND engineer_email != ''
+        SELECT engineer_email as email FROM realtime_acknowledgements WHERE sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date AND engineer_email IS NOT NULL AND engineer_email != ''
         UNION
         SELECT unnest(ARRAY[ee_civil_email, ee_mech_email, civil_engineer_email, de_ae_civil_email, mechanical_engineer_email, de_ae_mech_email, se_email, chief_engineer_email]) as email
         FROM email_alert_logs
-        WHERE sent_date = CURRENT_DATE
+        WHERE sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
       ),
       email_stats AS (
         SELECT 
-          (SELECT COUNT(DISTINCT ticket_id)::int FROM email_alert_logs WHERE sent_date = CURRENT_DATE) as emails_sent_today,
+          (SELECT COUNT(DISTINCT ticket_id)::int FROM email_alert_logs WHERE sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date) as emails_sent_today,
           (SELECT COUNT(DISTINCT email)::int FROM distinct_emails WHERE email IS NOT NULL AND email != '') as distinct_recipients
       ),
       sms_stats AS (
@@ -428,7 +428,7 @@ router.get('/progress', async (req: Request, res: Response) => {
           COUNT(*)::int as sms_sent_today,
           COUNT(DISTINCT mobile)::int as sms_recipients
         FROM sms_alert_logs
-        WHERE sent_date = CURRENT_DATE
+        WHERE sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
       )
       SELECT 
         e.emails_sent_today,
@@ -444,14 +444,14 @@ router.get('/progress', async (req: Request, res: Response) => {
     const acksTodayRes = await client.query(`
       SELECT scheme_id, esr_name, ticket_id, engineer_name, engineer_email, is_acknowledged, acknowledged_at, sent_date, remarks
       FROM realtime_acknowledgements
-      WHERE sent_date = CURRENT_DATE AND (is_acknowledged = TRUE OR acknowledged_at IS NOT NULL)
+      WHERE sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date AND (is_acknowledged = TRUE OR acknowledged_at IS NOT NULL)
     `);
 
     // Fetch all SMS dispatch logs for today
     const smsTodayRes = await client.query(`
       SELECT id, mobile, engineer_name, engineer_email, template_name, message_text, gateway_status, is_success, sent_date, created_at, scheme_id
       FROM sms_alert_logs
-      WHERE sent_date = CURRENT_DATE
+      WHERE sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
       ORDER BY created_at DESC
     `);
 
