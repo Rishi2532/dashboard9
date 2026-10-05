@@ -61,13 +61,13 @@ import { mqttService } from "./mqtt-service"; // Initialize MQTT service
 import { startDailyAlertsCron } from "./cron/daily-alerts.js"; // Start daily alerts cron
 import { initPiChlorineIngestionCron } from "./cron/pi-chlorine-ingestion.js"; // Start PI Ingestion cron
 import { startPiRealtimeAlertsCron } from "./cron/pi-realtime-alerts.js"; // Start PI Real-Time 5-minute alerts engine
-// import { initPiPressureIngestionCron } from "./cron/pi-pressure-ingestion.js"; // Start PI Pressure Ingestion cron
-// import { initPiWaterSchemeIngestionCron } from "./cron/pi-water-scheme-ingestion.js"; 
-// import { initPiSchemeLpcdIngestionCron } from "./cron/pi-scheme-lpcd-ingestion.js";
-// import { initPiWaterConsumptionIngestionCron } from "./cron/pi-water-consumption-ingestion.js";
-// import { initPiCommunicationStatusIngestionCron } from "./cron/pi-communication-status-ingestion.js";
-// import { initPiRealtimeValuesCron } from "./cron/pi-realtime-values.js";
-// import { initPiRealtimeCommCron } from "./cron/pi-realtime-comm.js";
+import { initPiPressureIngestionCron } from "./cron/pi-pressure-ingestion.js"; // Start PI Pressure Ingestion cron
+import { initPiWaterSchemeIngestionCron } from "./cron/pi-water-scheme-ingestion.js";
+import { initPiSchemeLpcdIngestionCron } from "./cron/pi-scheme-lpcd-ingestion.js";
+import { initPiWaterConsumptionIngestionCron } from "./cron/pi-water-consumption-ingestion.js";
+import { initPiCommunicationStatusIngestionCron } from "./cron/pi-communication-status-ingestion.js";
+import { initPiRealtimeValuesCron } from "./cron/pi-realtime-values.js";
+import { initPiRealtimeCommCron } from "./cron/pi-realtime-comm.js";
 
 const app = express();
 app.disable('x-powered-by');
@@ -229,14 +229,14 @@ app.use((req, res, next) => {
         initializeDataCleanup().catch(console.error);
         startDailyAlertsCron(); // Start the daily alerts cron job
         initPiChlorineIngestionCron(); // Start PI Web API Sync
-        // startPiRealtimeAlertsCron(); // Temporarily stopped for now (will rewind tomorrow)
-        // initPiPressureIngestionCron(); // Start PI Web API Pressure Sync
-        // initPiWaterSchemeIngestionCron();
-        // initPiSchemeLpcdIngestionCron();
-        // initPiWaterConsumptionIngestionCron();
-        // initPiCommunicationStatusIngestionCron();
-        // initPiRealtimeValuesCron();
-        // initPiRealtimeCommCron();
+        // startPiRealtimeAlertsCron(); // PI Real-Time 5-minute alerts engine
+        initPiPressureIngestionCron(); // Start PI Web API Pressure Sync
+        initPiWaterSchemeIngestionCron();
+        initPiSchemeLpcdIngestionCron();
+        initPiWaterConsumptionIngestionCron();
+        initPiCommunicationStatusIngestionCron();
+        initPiRealtimeValuesCron();
+        initPiRealtimeCommCron();
       }, 5000); // Wait 5 seconds after server start
     },
   );

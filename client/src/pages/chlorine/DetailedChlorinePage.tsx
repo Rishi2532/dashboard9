@@ -3371,7 +3371,7 @@ const DetailedChlorinePage = () => {
                     <SelectValue placeholder="Select Category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="commissioned">Commissioned</SelectItem>
+                    <SelectItem value="commissioned">Functional</SelectItem>
                     <SelectItem value="all">All Schemes</SelectItem>
                     <SelectItem value="fully_completed">
                       Fully Completed

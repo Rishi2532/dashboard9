@@ -1797,7 +1797,7 @@ const SchemeLpcdDashboard = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Schemes</SelectItem>
-                <SelectItem value="commissioned">Commissioned (100% Civil)</SelectItem>
+                <SelectItem value="commissioned">Functional</SelectItem>
                 <SelectItem value="fully_completed">Fully Instrumented (100% IoT)</SelectItem>
                 <SelectItem value="in_progress">Partially Instrumented (In Progress)</SelectItem>
                 <SelectItem value="common_filter">Common (Civil + IoT Done)</SelectItem>

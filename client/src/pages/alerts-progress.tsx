@@ -1523,7 +1523,7 @@ export default function AlertsProgressPage() {
           >
             <div className="space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-rose-900 flex items-center gap-1.5 truncate">
+                <span className="text-[11px] font-bold text-rose-900 flex items-center gap-1.5 truncate">
                   <Droplets className="w-4 h-4 text-rose-600 shrink-0" />
                   Critical Residual Chlorine
                 </span>
@@ -1599,7 +1599,7 @@ export default function AlertsProgressPage() {
           >
             <div className="space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-1.5 truncate">
+                <span className="text-[11px] font-bold text-emerald-900 flex items-center gap-1.5 truncate">
                   <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
                   Restored to Acceptable
                 </span>
@@ -1647,7 +1647,7 @@ export default function AlertsProgressPage() {
           >
             <div className="space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5 truncate">
+                <span className="text-[11px] font-bold text-slate-800 flex items-center gap-1.5 truncate">
                   <WifiOff className="w-4 h-4 text-rose-600 shrink-0" />
                   Offline Sensor Alerts
                 </span>
@@ -1693,7 +1693,7 @@ export default function AlertsProgressPage() {
           >
             <div className="space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-blue-900 flex items-center gap-1.5 truncate">
+                <span className="text-[11px] font-bold text-blue-900 flex items-center gap-1.5 truncate">
                   <Mail className="w-4 h-4 text-blue-600 shrink-0" />
                   Dispatches & Recipients
                 </span>
@@ -1760,7 +1760,7 @@ export default function AlertsProgressPage() {
           >
             <div className="space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-teal-900 flex items-center gap-1.5 truncate">
+                <span className="text-[11px] font-bold text-teal-900 flex items-center gap-1.5 truncate">
                   <CheckCircle2 className="w-4 h-4 text-teal-600 shrink-0" />
                   Alerts Acknowledged
                 </span>
@@ -1911,8 +1911,8 @@ export default function AlertsProgressPage() {
           {/* Table Header Bar */}
           <div className="px-4 py-3 border-b border-slate-200 bg-white flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
-                REAL-TIME ALERT DETAILS & ACKNOWLEDGEMENTS
+              <span className="text-xs font-bold text-slate-900">
+                Real-Time Alert Details & Acknowledgements
               </span>
               <span className="text-xs font-normal text-slate-500">
                 ({filteredRealtimeAlerts.length} alerts)
@@ -2003,28 +2003,28 @@ export default function AlertsProgressPage() {
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-[#e8f1f8] text-[#0f4c81] border-b border-slate-200">
-                    <th className="py-2.5 px-2 text-[11px] font-bold uppercase tracking-wider text-center border-r border-slate-200/80 w-12">
-                      #
+                    <th className="py-2.5 px-2 text-[11px] font-bold text-center border-r border-slate-200/80 w-14">
+                      Sr. No.
                     </th>
-                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-left border-r border-slate-200/80 min-w-[240px]">
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-slate-200/80 min-w-[240px]">
                       Scheme & Location Details
                     </th>
-                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-center border-r border-slate-200/80 min-w-[140px]">
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-slate-200/80 min-w-[140px]">
                       Alert Value & Time
                     </th>
-                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-left border-r border-slate-200/80 min-w-[200px]">
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-slate-200/80 min-w-[200px]">
                       Assigned Engineer & Contact
                     </th>
-                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-center border-r border-slate-200/80 min-w-[150px]">
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-slate-200/80 min-w-[150px]">
                       Email Sent
                     </th>
-                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-center border-r border-slate-200/80 min-w-[150px]">
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-slate-200/80 min-w-[150px]">
                       SMS Sent
                     </th>
-                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-center border-r border-slate-200/80 min-w-[160px]">
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-slate-200/80 min-w-[160px]">
                       Alert & Ack Status
                     </th>
-                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-center min-w-[140px]">
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-center min-w-[140px]">
                       Remarks / Action
                     </th>
                   </tr>
@@ -2294,7 +2294,7 @@ export default function AlertsProgressPage() {
                                         esrName: row.esr_name,
                                         alertValue: row.alert_value || row.current_value,
                                         dispatches: smsRecs,
-                                        alertType: String(row.alert_type || "REALTIME").toUpperCase()
+                                        alertType: row.alert_type ? String(row.alert_type) : "Real-Time"
                                       });
                                     }}
                                   >
@@ -2440,7 +2440,7 @@ export default function AlertsProgressPage() {
               <Send className="h-6 w-6" />
             </div>
             <div>
-              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Daily Dispatches</div>
+              <div className="text-xs font-semibold text-slate-500">Total Daily Dispatches</div>
               <div className="text-2xl font-black text-slate-900 font-mono mt-0.5">
                 {dailyDispatchesData?.summary?.totalDispatches ?? 0}
               </div>
@@ -2457,7 +2457,7 @@ export default function AlertsProgressPage() {
               <Mail className="h-6 w-6" />
             </div>
             <div>
-              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Daily Emails Sent</div>
+              <div className="text-xs font-semibold text-slate-500">Daily Emails Sent</div>
               <div className="text-2xl font-black text-[#0f4c81] font-mono mt-0.5">
                 {dailyDispatchesData?.summary?.totalEmails ?? emailCount}
               </div>
@@ -2474,7 +2474,7 @@ export default function AlertsProgressPage() {
               <Smartphone className="h-6 w-6" />
             </div>
             <div>
-              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Daily SMS Dispatched</div>
+              <div className="text-xs font-semibold text-slate-500">Daily SMS Dispatched</div>
               <div className="text-2xl font-black text-purple-800 font-mono mt-0.5">
                 {dailyDispatchesData?.summary?.totalSms ?? smsCount}
               </div>
@@ -2487,7 +2487,7 @@ export default function AlertsProgressPage() {
               <Layers className="h-6 w-6" />
             </div>
             <div>
-              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Schemes Covered</div>
+              <div className="text-xs font-semibold text-slate-500">Schemes Covered</div>
               <div className="text-2xl font-black text-emerald-700 font-mono mt-0.5">
                 {uniqueSchemes}
               </div>
@@ -2591,22 +2591,22 @@ export default function AlertsProgressPage() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-[#eef2ff] text-indigo-900 border-b border-indigo-100">
-                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-center border-r border-indigo-100 w-12">
-                      #
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-indigo-100 w-14">
+                      Sr. No.
                     </th>
-                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-center border-r border-indigo-100 w-28">
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-indigo-100 w-28">
                       Channel
                     </th>
-                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-left border-r border-indigo-100 min-w-[150px]">
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-indigo-100 min-w-[150px]">
                       Alert Category & Value
                     </th>
-                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-left border-r border-indigo-100 min-w-[240px]">
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-indigo-100 min-w-[240px]">
                       Scheme & Location Details
                     </th>
-                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-left border-r border-indigo-100 min-w-[220px]">
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-indigo-100 min-w-[220px]">
                       Recipient Engineer & Contact
                     </th>
-                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-center w-36">
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-center w-36">
                       Sent Date & Status
                     </th>
                   </tr>
@@ -2895,19 +2895,19 @@ export default function AlertsProgressPage() {
               <div className="p-5 space-y-4 text-xs">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-lg border border-slate-200">
                   <div>
-                    <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider">Recipient Engineer</span>
+                    <span className="text-slate-500 block text-[11px] font-semibold">Recipient Engineer</span>
                     <span className="font-bold text-slate-800 text-xs mt-0.5 block break-words">{selectedDailySmsItem.recipientName}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider">Mobile Number</span>
+                    <span className="text-slate-500 block text-[11px] font-semibold">Mobile Number</span>
                     <span className="font-bold text-purple-700 text-xs font-mono mt-0.5 block">+{selectedDailySmsItem.recipientContact}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider">Scheme</span>
+                    <span className="text-slate-500 block text-[11px] font-semibold">Scheme</span>
                     <span className="font-medium text-slate-800 text-xs mt-0.5 block break-words" title={selectedDailySmsItem.schemeName}>{selectedDailySmsItem.schemeName}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider">Sent Date & Time</span>
+                    <span className="text-slate-500 block text-[11px] font-semibold">Sent Date & Time</span>
                     <span className="font-medium text-slate-800 text-xs mt-0.5 block">{selectedDailySmsItem.dateStr} {selectedDailySmsItem.timeStr}</span>
                   </div>
                 </div>
@@ -3129,13 +3129,13 @@ export default function AlertsProgressPage() {
 
           <div className="flex items-center gap-2.5 shrink-0">
             <div className="border border-slate-200 bg-slate-50/60 px-3 py-1.5 rounded text-left min-w-[90px]">
-              <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">INDICATION</div>
+              <div className="text-[10px] text-slate-500 font-semibold">Indication</div>
               <div className="text-xs font-bold text-slate-800">
                 {unitNoun}
               </div>
             </div>
             <div className="border border-slate-200 bg-slate-50/60 px-3 py-1.5 rounded text-left min-w-[120px]">
-              <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">UNIT</div>
+              <div className="text-[10px] text-slate-500 font-semibold">Unit</div>
               <div className="text-xs font-bold text-slate-800">
                 {type === "lpcd" ? "Villages (< 55 LPCD)" : type === "chlorine" ? "Sensors (0.20-0.50 mg/L)" : type === "pressure" ? "Sensors (0.20-0.70 Bar)" : "Offline Sensors"}
               </div>
@@ -3308,8 +3308,8 @@ export default function AlertsProgressPage() {
         <div className="bg-white border border-slate-200 rounded p-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
-                ALERT SUMMARY
+              <span className="text-xs font-bold text-slate-900">
+                Alert Summary
               </span>
               <button
                 type="button"
@@ -3514,8 +3514,8 @@ export default function AlertsProgressPage() {
           {/* Table Header Bar */}
           <div className="px-4 py-3 border-b border-slate-200 bg-white flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
-                ALERT DETAILS
+              <span className="text-xs font-bold text-slate-900">
+                Alert Details
               </span>
               <span className="text-xs font-normal text-slate-500">
                 ({displayData.length} {unitNoun})
@@ -3592,33 +3592,33 @@ export default function AlertsProgressPage() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-[#e8f1f8] text-[#0f4c81] border-b border-slate-200">
-                    <th className="py-2.5 px-2 text-[11px] font-bold uppercase tracking-wider text-center border-r border-slate-200/80 w-12">
-                      #
+                    <th className="py-2.5 px-2 text-[11px] font-bold text-center border-r border-slate-200/80 w-14">
+                      Sr. No.
                     </th>
-                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-left border-r border-slate-200/80 min-w-[240px]">
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-slate-200/80 min-w-[240px]">
                       Scheme & Location Details
                     </th>
-                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-center border-r border-slate-200/80 min-w-[130px]">
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-slate-200/80 min-w-[130px]">
                       Alert Value & Date
                     </th>
-                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-left border-r border-slate-200/80 min-w-[200px]">
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-slate-200/80 min-w-[200px]">
                       Assigned Engineer & Contact
                     </th>
                     {type === "offline" && (
-                      <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-left border-r border-slate-200/80 min-w-[180px]">
+                      <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-slate-200/80 min-w-[180px]">
                         Vendor (Agency)
                       </th>
                     )}
-                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-center border-r border-slate-200/80 min-w-[150px]">
-                      Email sent
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-slate-200/80 min-w-[150px]">
+                      Email Sent
                     </th>
-                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-center border-r border-slate-200/80 min-w-[150px]">
-                      SMS sent
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-slate-200/80 min-w-[150px]">
+                      SMS Sent
                     </th>
-                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-center border-r border-slate-200/80 min-w-[140px]">
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-slate-200/80 min-w-[140px]">
                       Alert & Ack Status
                     </th>
-                    <th className="py-2.5 px-3 text-[11px] font-bold uppercase tracking-wider text-center min-w-[120px]">
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-center min-w-[120px]">
                       Remarks / Action
                     </th>
                   </tr>
@@ -3900,7 +3900,7 @@ export default function AlertsProgressPage() {
                                         esrName: row.esr_name,
                                         alertValue: val,
                                         dispatches: chosenDispatches,
-                                        alertType: type.toUpperCase(),
+                                        alertType: type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : type === "pressure" ? "Pressure" : "Offline",
                                         actualMessageText: foundMsg || actualMsg
                                       });
                                     }}
@@ -4184,7 +4184,7 @@ export default function AlertsProgressPage() {
                   <span className="text-xs font-bold text-slate-700">Low LPCD Alerts</span>
                 </div>
                 {activeTab === "lpcd" && (
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#0f4c81] bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] font-bold text-[#0f4c81] bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
                     Active
                   </span>
                 )}
@@ -4232,7 +4232,7 @@ export default function AlertsProgressPage() {
                   <span className="text-xs font-bold text-slate-700">Residual Chlorine</span>
                 </div>
                 {activeTab === "chlorine" && (
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#0f4c81] bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] font-bold text-[#0f4c81] bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
                     Active
                   </span>
                 )}
@@ -4276,7 +4276,7 @@ export default function AlertsProgressPage() {
                   <span className="text-xs font-bold text-slate-700">Low Pressure</span>
                 </div>
                 {activeTab === "pressure" && (
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#0f4c81] bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] font-bold text-[#0f4c81] bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
                     Active
                   </span>
                 )}
@@ -4320,7 +4320,7 @@ export default function AlertsProgressPage() {
                   <span className="text-xs font-bold text-slate-700">Offline Sensors</span>
                 </div>
                 {activeTab === "offline" && (
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#0f4c81] bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] font-bold text-[#0f4c81] bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
                     Active
                   </span>
                 )}
@@ -4445,7 +4445,7 @@ export default function AlertsProgressPage() {
                     <table className="w-full text-xs text-left border-collapse">
                       <thead className="bg-slate-100 text-slate-700 font-bold sticky top-0 border-b border-slate-200">
                         <tr>
-                          <th className="p-2.5 text-center w-10">#</th>
+                          <th className="p-2.5 text-center w-14">Sr. No.</th>
                           <th className="p-2.5">Scheme Details</th>
                           <th className="p-2.5 text-center">
                             {activeTab === "lpcd" ? "Village Name" : "Village & ESR Location"}
@@ -4670,10 +4670,10 @@ export default function AlertsProgressPage() {
                                 <div className="flex justify-between items-start mb-3 gap-4">
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-1">
-                                      <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider">
-                                        {issue.problem_level ? `${issue.problem_level} Level`.toUpperCase() : (issue.category || "General")}
+                                      <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-[11px] font-bold">
+                                        {issue.problem_level ? `${issue.problem_level} Level` : (issue.category || "General")}
                                       </span>
-                                      <span className={`px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider ${issue.status === 'Resolved'
+                                      <span className={`px-2.5 py-1 rounded text-[11px] font-bold ${issue.status === 'Resolved'
                                         ? 'bg-green-100 text-green-800'
                                         : 'bg-red-100 text-red-800'
                                         }`}>
@@ -4706,7 +4706,7 @@ export default function AlertsProgressPage() {
                                     <div className="text-sm text-emerald-700 mt-3 pt-3 border-t border-emerald-100/50 bg-emerald-50/50 -mx-3.5 -mb-3.5 p-3.5 rounded-b-lg">
                                       <span className="font-bold text-emerald-900">Resolution Remark:</span> {issue.resolution_remark || 'Resolved'}
                                       {issue.resolved_at && (
-                                        <span className="block text-[10px] text-emerald-600 font-semibold mt-1.5 uppercase tracking-wider">
+                                        <span className="block text-[10px] text-emerald-600 font-semibold mt-1.5">
                                           Resolved on: {new Date(issue.resolved_at).toLocaleString('en-US', {
                                             month: 'short', day: 'numeric', year: 'numeric',
                                             hour: 'numeric', minute: '2-digit', hour12: true
@@ -4826,8 +4826,8 @@ export default function AlertsProgressPage() {
 
                   if (emailModalTab === "email") {
                     const alertTypeTitle = selectedEngineers.row.alert_type 
-                      ? selectedEngineers.row.alert_type.toUpperCase() 
-                      : (activeTab === 'lpcd' ? 'LPCD DEFICIT' : activeTab === 'chlorine' ? 'CHLORINE DEFICIT' : activeTab === 'pressure' ? 'PRESSURE DEFICIT' : 'SENSOR OFFLINE');
+                      ? (selectedEngineers.row.alert_type.charAt(0).toUpperCase() + selectedEngineers.row.alert_type.slice(1))
+                      : (activeTab === 'lpcd' ? 'LPCD Deficit' : activeTab === 'chlorine' ? 'Chlorine Deficit' : activeTab === 'pressure' ? 'Pressure Deficit' : 'Sensor Offline');
 
                     const thresholdText = activeTab === 'lpcd' 
                       ? '55 LPCD (Minimum Standard)' 
@@ -4878,7 +4878,7 @@ export default function AlertsProgressPage() {
                         {/* Email Official Body */}
                         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs space-y-4">
                           <div className="border-l-4 border-l-rose-500 pl-4 py-1">
-                            <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wide">
+                            <h4 className="text-sm font-bold text-slate-900">
                               Government of Maharashtra • Water Supply & Sanitation Department
                             </h4>
                             <p className="text-xs text-slate-500">
@@ -4912,7 +4912,7 @@ export default function AlertsProgressPage() {
                                 </tr>
                                 <tr>
                                   <td className="py-2 px-3 font-semibold text-slate-600">Alert Category</td>
-                                  <td className="py-2 px-3 font-bold text-rose-600 uppercase">{alertTypeTitle}</td>
+                                  <td className="py-2 px-3 font-bold text-rose-600">{alertTypeTitle}</td>
                                 </tr>
                                 <tr className="bg-slate-50/70">
                                   <td className="py-2 px-3 font-semibold text-slate-600">Recorded Metric Value</td>
@@ -5101,7 +5101,7 @@ export default function AlertsProgressPage() {
                   {(selectedSmsModal.actualMessageText || (selectedSmsModal.dispatches.length > 0 && selectedSmsModal.dispatches[0].message_text)) && (
                     <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                        <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5">
                           <Smartphone className="h-3.5 w-3.5 text-indigo-600" />
                           DLT Approved SMS Content (Dispatched Marathi Text)
                         </span>
@@ -5163,7 +5163,7 @@ export default function AlertsProgressPage() {
                     return (
                       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
                         <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between">
-                          <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                          <span className="text-xs font-bold text-slate-700">
                             Dispatched Recipients ({sortedDispatches.length}) — AE to CE Order
                           </span>
                           <span className="text-xs font-semibold text-emerald-700">
@@ -5268,7 +5268,7 @@ export default function AlertsProgressPage() {
                   {selectedContactsModal.contacts.map((c, cIdx) => (
                     <div key={cIdx} className="py-3 first:pt-0 last:pb-0 flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 uppercase tracking-wider">
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
                           {c.role}
                         </span>
                         <div className="text-xs font-bold text-slate-900 mt-1">{c.name}</div>
@@ -5347,24 +5347,24 @@ export default function AlertsProgressPage() {
                   {/* Summary Metric Pills inside Header */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 pt-3 border-t border-white/20 text-center">
                     <div className="bg-white/10 rounded-lg p-2 backdrop-blur-sm">
-                      <div className="text-[10px] font-medium text-indigo-200 uppercase tracking-wider">Notified in Alerts</div>
+                      <div className="text-[10px] font-medium text-indigo-200">Notified in Alerts</div>
                       <div className="text-base font-extrabold text-white">{engineersModalData.engineers.length}</div>
                     </div>
                     <div className="bg-white/10 rounded-lg p-2 backdrop-blur-sm">
-                      <div className="text-[10px] font-medium text-blue-200 uppercase tracking-wider">Total in Roster</div>
+                      <div className="text-[10px] font-medium text-blue-200">Total in Roster</div>
                       <div className="text-base font-extrabold text-white">
                         {totalRosterEngineers > 0 ? totalRosterEngineers : '—'}
                       </div>
                       <div className="text-[9px] text-blue-200/80 truncate">Registered Personnel</div>
                     </div>
                     <div className="bg-emerald-500/20 border border-emerald-300/30 rounded-lg p-2 backdrop-blur-sm">
-                      <div className="text-[10px] font-medium text-emerald-200 uppercase tracking-wider">Fully Acknowledged</div>
+                      <div className="text-[10px] font-medium text-emerald-200">Fully Acknowledged</div>
                       <div className="text-base font-extrabold text-emerald-100">
                         {engineersModalData.engineers.filter(e => e.isFullyAcknowledged).length}
                       </div>
                     </div>
                     <div className="bg-amber-500/20 border border-amber-300/30 rounded-lg p-2 backdrop-blur-sm">
-                      <div className="text-[10px] font-medium text-amber-200 uppercase tracking-wider">Pending Action</div>
+                      <div className="text-[10px] font-medium text-amber-200">Pending Action</div>
                       <div className="text-base font-extrabold text-amber-100">
                         {engineersModalData.engineers.filter(e => !e.isFullyAcknowledged).length}
                       </div>

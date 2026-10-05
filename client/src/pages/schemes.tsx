@@ -762,7 +762,7 @@ export default function Schemes() {
                 <SelectValue placeholder="Select Category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="commissioned">Commissioned (100% Civil)</SelectItem>
+                <SelectItem value="commissioned">Functional</SelectItem>
                 <SelectItem value="all">All Schemes</SelectItem>
                 <SelectItem value="fully_completed">Fully Completed</SelectItem>
                 <SelectItem value="in_progress">In Progress</SelectItem>
