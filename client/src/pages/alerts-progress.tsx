@@ -60,7 +60,11 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import VillageFilter, { VillageFilterValue } from "@/components/dashboard/VillageFilter";
 import { useVillageCompletion } from "@/hooks/useVillageCompletion";
-import { downloadTotalEngineersExcel, downloadTabEngineersExcel } from "@/lib/alerts-excel-export";
+import {
+  downloadTotalEngineersExcel,
+  downloadTabEngineersExcel,
+  downloadTabDispatchesExcel
+} from "@/lib/alerts-excel-export";
 
 // Define TypeScript interfaces for our data
 interface IssueRemark {
@@ -134,6 +138,8 @@ interface AlertData {
   site_supervisor_email: string | null;
   created_at?: string;
   sent_date?: string;
+  sent_time?: string | null;
+  telemetry_date?: string | null;
   current_value_date?: string | null;
   remarks: IssueRemark[];
   acknowledgements?: { engineer_email: string; engineer_name: string; acknowledged_at: string | null }[];
@@ -284,9 +290,16 @@ export const getAllSchemeContacts = (row: AlertData) => {
 
 // Safe date formatter for alert records that prevents timezone shifting
 export const formatAlertDate = (row: AlertData) => {
-  // Prefer the alert log dispatch date
-  const dateStr = row.sent_date || row.current_value_date;
+  // Prioritize the actual telemetry date where the value was received
+  const dateStr = row.telemetry_date || row.current_value_date || row.sent_date;
   if (dateStr) {
+    // If it contains timestamp or ISO e.g. "2026-10-06 11:30" or "2026-10-06T11:30:00"
+    if (String(dateStr).includes(' ') || (String(dateStr).includes('T') && !String(dateStr).endsWith('T00:00:00.000Z'))) {
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+      }
+    }
     const s = String(dateStr).split('T')[0];
     const parts = s.split('-');
     if (parts.length === 3) {
@@ -2052,9 +2065,21 @@ export default function AlertsProgressPage() {
                     }
                     const otherContactsCount = Math.max(0, allContacts.length - 1);
 
-                    const alertTimeStr = row.created_at
-                      ? new Date(row.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
-                      : null;
+                    const alertTimeStr = row.sent_time
+                      ? (() => {
+                          const parts = String(row.sent_time).split(':');
+                          if (parts.length >= 2) {
+                            let h = parseInt(parts[0], 10);
+                            const m = parts[1];
+                            const ampm = h >= 12 ? 'pm' : 'am';
+                            h = h % 12 || 12;
+                            return `${String(h).padStart(2, '0')}:${m} ${ampm}`;
+                          }
+                          return row.sent_time;
+                        })()
+                      : (row.created_at
+                        ? new Date(row.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
+                        : null);
 
                     const emailRecs = Array.isArray(row.email_recipients) ? row.email_recipients : [];
                     const smsRecs = (Array.isArray(row.sms_dispatches) && row.sms_dispatches.length > 0)
@@ -2127,10 +2152,10 @@ export default function AlertsProgressPage() {
                               {row.alert_value || (row.chlorine_value !== null && row.chlorine_value !== undefined ? `${Number(row.chlorine_value).toFixed(2)} mg/L` : '-')}
                             </div>
 
-                            {alertTimeStr && (
+                            {(row.telemetry_date || alertTimeStr) && (
                               <div className="text-[10px] text-slate-500 font-normal flex items-center justify-center gap-1">
                                 <Clock className="h-3 w-3 text-slate-400 shrink-0" />
-                                <span>{alertTimeStr}</span>
+                                <span>{row.telemetry_date ? formatAlertDate(row) : alertTimeStr}</span>
                               </div>
                             )}
                           </div>
@@ -2201,12 +2226,24 @@ export default function AlertsProgressPage() {
                         <td className="py-2.5 px-3 text-center border-r border-slate-100 align-middle whitespace-nowrap">
                           {(() => {
                             const isSent = Boolean(row.created_at || row.sent_date || row.ticket_id || emailRecs.length > 0);
-                            const emailDate = row.created_at
-                              ? new Date(row.created_at)
-                              : (row.sent_date ? new Date(row.sent_date) : null);
-                            const timeStr = emailDate && !isNaN(emailDate.getTime())
-                              ? emailDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
-                              : null;
+                            let timeStr: string | null = null;
+                            if (row.sent_time) {
+                              const parts = String(row.sent_time).split(':');
+                              if (parts.length >= 2) {
+                                let h = parseInt(parts[0], 10);
+                                const m = parts[1];
+                                const ampm = h >= 12 ? 'pm' : 'am';
+                                h = h % 12 || 12;
+                                timeStr = `${String(h).padStart(2, '0')}:${m} ${ampm}`;
+                              } else {
+                                timeStr = row.sent_time;
+                              }
+                            } else if (row.created_at) {
+                              const emailDate = new Date(row.created_at);
+                              timeStr = !isNaN(emailDate.getTime())
+                                ? emailDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
+                                : null;
+                            }
                             const emailRecipientsCount = ackInfo.recipients.filter(r => !!r.email).length || (emailRecs.length > 0 ? emailRecs.length : (ackInfo.recipients.length || 1));
 
                             if (isSent) {
@@ -3049,6 +3086,24 @@ export default function AlertsProgressPage() {
     });
 
     const totalEngineers = notifiedEngineersList.length;
+    const totalAckEngineers = notifiedEngineersList.filter(e => e.isAcknowledged).length;
+    const totalPendingEngineers = notifiedEngineersList.filter(e => !e.isAcknowledged).length;
+
+    // Dispatches calculation for this tab
+    const emailsSentCount = notifiedEngineersList.filter(e => !!e.email).length;
+    const tabSmsMap = new Map<string, any>();
+    baseData.forEach(r => {
+      if (Array.isArray(r.sms_dispatches)) {
+        r.sms_dispatches.forEach((s: any) => {
+          const sKey = `${s.mobile}-${s.template_name || ''}-${s.sent_date || ''}`;
+          if (!tabSmsMap.has(sKey)) {
+            tabSmsMap.set(sKey, s);
+          }
+        });
+      }
+    });
+    const tabSmsList = Array.from(tabSmsMap.values());
+    const smsSentCount = tabSmsList.length > 0 ? tabSmsList.length : notifiedEngineersList.filter(e => !!e.mobile).length;
 
     // Count remarks added
     const totalRemarks = baseData.filter(r => parseIssues(r.remarks).length > 0).length;
@@ -3069,7 +3124,7 @@ export default function AlertsProgressPage() {
         return getRowAckInfo(row).isAcknowledged;
       }
       if (ackStatusFilter === "pending") {
-        return !getRowAckInfo(row).isAcknowledged;
+        return !getRowAckInfo(row).isFullyAcknowledged;
       }
       if (villageFilter === "completed") {
         return isVillageCompleted(row.village_name, row.scheme_id, row.scheme_name);
@@ -3350,64 +3405,122 @@ export default function AlertsProgressPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 mt-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5 mt-3.5">
             {/* Card 1: Total Triggered */}
             <div
               onClick={() => setAckStatusFilter("all")}
-              className="bg-[#fff5f5] border border-red-200 rounded p-3.5 flex items-center gap-3.5 cursor-pointer hover:border-red-300 transition-colors"
+              className="bg-[#fff5f5] border border-red-200 rounded p-3.5 flex flex-col justify-between cursor-pointer hover:border-red-300 transition-colors"
               title={`Click to view all ${unitNoun}`}
             >
-              <AlertTriangle className="h-8 w-8 text-red-600 shrink-0" />
-              <div>
-                <div className="text-xs font-medium text-slate-700">
-                  {type === "lpcd"
-                    ? "Villages < 55 LPCD"
-                    : type === "chlorine"
-                      ? "Chlorine Alerts"
-                      : type === "pressure"
-                        ? "Pressure Alerts"
-                        : "Offline Sensors"}
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="h-8 w-8 text-red-600 shrink-0" />
+                <div>
+                  <div className="text-xs font-medium text-slate-700">
+                    {type === "lpcd"
+                      ? "Villages < 55 LPCD"
+                      : type === "chlorine"
+                        ? "Chlorine Alerts"
+                        : type === "pressure"
+                          ? "Pressure Alerts"
+                          : "Offline Sensors"}
+                  </div>
+                  <div className="text-2xl font-black text-red-600 font-mono leading-tight mt-0.5">
+                    {firstKpiValue}
+                  </div>
+                  <div className="text-[11px] text-red-700 font-medium">
+                    Total Triggered
+                  </div>
                 </div>
-                <div className="text-2xl font-black text-red-600 font-mono leading-tight mt-0.5">
-                  {firstKpiValue}
-                </div>
-                <div className="text-[11px] text-red-700 font-medium">
-                  Total Triggered
-                </div>
+              </div>
+              <div className="mt-2.5 pt-2 border-t border-red-100/80 flex items-center justify-between">
+                <span className="text-[10px] text-red-700 font-semibold">
+                  {firstKpiValue} Active Issues
+                </span>
+                <span className="text-[10px] text-slate-500 font-medium">
+                  {baseData.length} records
+                </span>
               </div>
             </div>
 
-            {/* Card 2: Acknowledged */}
+            {/* Card 2: Dispatched Alerts (Email & SMS) */}
+            <div
+              className="bg-[#eef2ff] border border-indigo-200 rounded p-3.5 flex flex-col justify-between hover:border-indigo-300 transition-colors group relative"
+              title={`Consolidated Daily Dispatch: 1 email sent to each assigned engineer bundling all ${firstKpiValue} alerts`}
+            >
+              <div className="flex items-center gap-3">
+                <Mail className="h-8 w-8 text-indigo-600 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-medium text-slate-700">
+                    Alert Dispatches
+                  </div>
+                  <div className="text-lg font-black text-indigo-900 font-mono leading-tight mt-0.5 truncate">
+                    {emailsSentCount} Emails <span className="text-xs text-indigo-400 font-normal">•</span> {smsSentCount} SMS
+                  </div>
+                  <div className="text-[10.5px] text-indigo-700 font-medium mt-0.5 leading-snug">
+                    1 email/eng ({firstKpiValue} alerts bundled)
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-2.5 pt-2 border-t border-indigo-100/80 flex items-center justify-between gap-1">
+                <span className="text-[9.5px] text-indigo-800 font-semibold truncate" title={`1 email sent per person bundling all ${firstKpiValue} alerts`}>
+                  Consolidated Dispatch
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    downloadTabDispatchesExcel({
+                      tabName: type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : type === "pressure" ? "Pressure" : "Offline",
+                      tabType: type,
+                      dateStr: customDate || (activeSubTab === "previous" ? yesterdayYmd : todayYmd),
+                      engineers: notifiedEngineersList,
+                      totalAlerts: Number(firstKpiValue) || baseData.length,
+                      emailsCount: emailsSentCount,
+                      smsCount: smsSentCount,
+                      smsDispatches: tabSmsList
+                    });
+                  }}
+                  className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-800 bg-indigo-100 hover:bg-indigo-200 px-2 py-0.5 rounded cursor-pointer transition-colors shadow-2xs shrink-0"
+                  title="Download Excel of Email & SMS Dispatches for this tab"
+                >
+                  <Download className="h-3 w-3 text-indigo-700" />
+                  <span>Dispatches Excel</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Card 3: Engineers Acknowledged */}
             <div
               onClick={() => {
-                setAckModalData({
-                  title: `Acknowledged Alerts (${totalAcknowledged} ${unitNoun})`,
-                  type: "acknowledged",
-                  rows: acknowledgedRows
+                setEngineersModalData({
+                  title: `Acknowledged Engineers (${totalAckEngineers} of ${totalEngineers})`,
+                  engineers: notifiedEngineersList
                 });
-                setModalSearch("");
+                setEngineerModalSearch("");
+                setEngineerFilterTab("acknowledged");
               }}
               className="bg-[#f0fdf4] border border-emerald-200 rounded p-3.5 flex flex-col justify-between cursor-pointer hover:border-emerald-300 transition-colors group relative"
-              title={`Click to view list of acknowledged ${unitNoun}`}
+              title={`Click to view list of acknowledged engineers`}
             >
-              <div className="flex items-center gap-3.5">
+              <div className="flex items-center gap-3">
                 <CheckCircle2 className="h-8 w-8 text-emerald-600 shrink-0" />
                 <div>
                   <div className="text-xs font-medium text-slate-700">
                     Acknowledged
                   </div>
                   <div className="text-2xl font-black text-slate-900 font-mono leading-tight mt-0.5">
-                    {totalAcknowledged}
+                    {totalAckEngineers}
                   </div>
                   <div className="text-[11px] text-slate-500 font-medium">
-                    {Math.round((totalAcknowledged / (baseData.length || 1)) * 100)}% of alerts confirmed
+                    {totalAckEngineers} of {totalEngineers} confirmed ({Math.round((totalAckEngineers / (totalEngineers || 1)) * 100)}%)
                   </div>
                 </div>
               </div>
 
               <div className="mt-2.5 pt-2 border-t border-emerald-100/80 flex items-center justify-between">
                 <span className="text-[10px] text-emerald-700 font-semibold">
-                  {totalAcknowledged} Schemes Confirmed
+                  {totalAckEngineers} Confirmed ({totalPendingEngineers} Pending)
                 </span>
                 <button
                   type="button"
@@ -3417,7 +3530,8 @@ export default function AlertsProgressPage() {
                       tabName: type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : type === "pressure" ? "Pressure" : "Offline",
                       tabType: type,
                       status: "acknowledged",
-                      rows: acknowledgedRows,
+                      engineers: notifiedEngineersList,
+                      rows: baseData,
                       dateStr: customDate || (activeSubTab === "previous" ? yesterdayYmd : todayYmd)
                     });
                   }}
@@ -3430,37 +3544,37 @@ export default function AlertsProgressPage() {
               </div>
             </div>
 
-            {/* Card 3: Pending Action */}
+            {/* Card 4: Pending Action */}
             <div
               onClick={() => {
-                setAckModalData({
-                  title: `Pending Acknowledgement Alerts (${totalPending} ${unitNoun})`,
-                  type: "pending",
-                  rows: pendingRows
+                setEngineersModalData({
+                  title: `Pending Acknowledgement Engineers (${totalPendingEngineers} of ${totalEngineers})`,
+                  engineers: notifiedEngineersList
                 });
-                setModalSearch("");
+                setEngineerModalSearch("");
+                setEngineerFilterTab("pending");
               }}
               className="bg-[#fffbeb] border border-amber-200 rounded p-3.5 flex flex-col justify-between cursor-pointer hover:border-amber-300 transition-colors group relative"
-              title={`Click to view list of pending acknowledgement ${unitNoun}`}
+              title={`Click to view list of pending acknowledgement engineers`}
             >
-              <div className="flex items-center gap-3.5">
+              <div className="flex items-center gap-3">
                 <Clock className="h-8 w-8 text-amber-600 shrink-0" />
                 <div>
                   <div className="text-xs font-medium text-slate-700">
                     Pending Action
                   </div>
                   <div className="text-2xl font-black text-amber-600 font-mono leading-tight mt-0.5">
-                    {totalPending}
+                    {totalPendingEngineers}
                   </div>
                   <div className="text-[11px] text-slate-500 font-medium">
-                    Awaiting field response
+                    {totalPendingEngineers} of {totalEngineers} awaiting ({Math.round((totalPendingEngineers / (totalEngineers || 1)) * 100)}%)
                   </div>
                 </div>
               </div>
 
               <div className="mt-2.5 pt-2 border-t border-amber-100/80 flex items-center justify-between">
                 <span className="text-[10px] text-amber-700 font-semibold">
-                  {totalPending} Schemes Pending
+                  {totalPendingEngineers} Engineers Pending
                 </span>
                 <button
                   type="button"
@@ -3470,7 +3584,8 @@ export default function AlertsProgressPage() {
                       tabName: type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : type === "pressure" ? "Pressure" : "Offline",
                       tabType: type,
                       status: "pending",
-                      rows: pendingRows,
+                      engineers: notifiedEngineersList,
+                      rows: baseData,
                       dateStr: customDate || (activeSubTab === "previous" ? yesterdayYmd : todayYmd)
                     });
                   }}
@@ -3483,21 +3598,28 @@ export default function AlertsProgressPage() {
               </div>
             </div>
 
-            {/* Card 4: Action Reports */}
+            {/* Card 5: Action Reports */}
             <div
-              className="bg-[#f0f9ff] border border-sky-200 rounded p-3.5 flex items-center gap-3.5 hover:border-sky-300 transition-colors"
+              className="bg-[#f0f9ff] border border-sky-200 rounded p-3.5 flex flex-col justify-between hover:border-sky-300 transition-colors"
             >
-              <FileText className="h-8 w-8 text-sky-600 shrink-0" />
-              <div>
-                <div className="text-xs font-medium text-slate-700">
-                  Action Reports
+              <div className="flex items-center gap-3">
+                <FileText className="h-8 w-8 text-sky-600 shrink-0" />
+                <div>
+                  <div className="text-xs font-medium text-slate-700">
+                    Action Reports
+                  </div>
+                  <div className="text-2xl font-black text-slate-900 font-mono leading-tight mt-0.5">
+                    {totalRemarks}
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-medium">
+                    Field inspections recorded
+                  </div>
                 </div>
-                <div className="text-2xl font-black text-slate-900 font-mono leading-tight mt-0.5">
-                  {totalRemarks}
-                </div>
-                <div className="text-[11px] text-slate-500 font-medium">
-                  Field inspections recorded
-                </div>
+              </div>
+              <div className="mt-2.5 pt-2 border-t border-sky-100/80 flex items-center justify-between">
+                <span className="text-[10px] text-sky-700 font-semibold">
+                  {totalRemarks} Remarks Logged
+                </span>
               </div>
             </div>
           </div>
@@ -3521,11 +3643,34 @@ export default function AlertsProgressPage() {
                 size="sm"
                 variant="outline"
                 onClick={() => {
+                  downloadTabDispatchesExcel({
+                    tabName: type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : type === "pressure" ? "Pressure" : "Offline",
+                    tabType: type,
+                    dateStr: customDate || (activeSubTab === "previous" ? yesterdayYmd : todayYmd),
+                    engineers: notifiedEngineersList,
+                    totalAlerts: Number(firstKpiValue) || baseData.length,
+                    emailsCount: emailsSentCount,
+                    smsCount: smsSentCount,
+                    smsDispatches: tabSmsList
+                  });
+                }}
+                className="h-7 px-2.5 text-[11px] font-bold border-indigo-300 text-indigo-800 bg-indigo-50/50 hover:bg-indigo-100/70 flex items-center gap-1 cursor-pointer"
+                title="Download Excel of Email & SMS Dispatches for this tab"
+              >
+                <Mail className="h-3.5 w-3.5 text-indigo-600" />
+                <span>Dispatches Excel ({emailsSentCount})</span>
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
                   downloadTabEngineersExcel({
                     tabName: type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : type === "pressure" ? "Pressure" : "Offline",
                     tabType: type,
                     status: "acknowledged",
-                    rows: acknowledgedRows,
+                    engineers: notifiedEngineersList,
+                    rows: baseData,
                     dateStr: customDate || (activeSubTab === "previous" ? yesterdayYmd : todayYmd)
                   });
                 }}
@@ -3533,7 +3678,7 @@ export default function AlertsProgressPage() {
                 title="Download Excel of all Acknowledged Engineers in this tab"
               >
                 <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-                <span>Ack Engineers Excel ({totalAcknowledged})</span>
+                <span>Ack Engineers Excel ({totalAckEngineers})</span>
               </Button>
 
               <Button
@@ -3544,7 +3689,8 @@ export default function AlertsProgressPage() {
                     tabName: type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : type === "pressure" ? "Pressure" : "Offline",
                     tabType: type,
                     status: "pending",
-                    rows: pendingRows,
+                    engineers: notifiedEngineersList,
+                    rows: baseData,
                     dateStr: customDate || (activeSubTab === "previous" ? yesterdayYmd : todayYmd)
                   });
                 }}
@@ -3552,7 +3698,7 @@ export default function AlertsProgressPage() {
                 title="Download Excel of all Pending Engineers in this tab"
               >
                 <FileSpreadsheet className="h-3.5 w-3.5 text-amber-600" />
-                <span>Pending Engineers Excel ({totalPending})</span>
+                <span>Pending Engineers Excel ({totalPendingEngineers})</span>
               </Button>
 
               {(ackStatusFilter !== "all" || schemeSearch || villageFilter !== "all") && (
@@ -3784,12 +3930,24 @@ export default function AlertsProgressPage() {
                         <td className="py-2.5 px-3 text-center border-r border-slate-100 align-middle whitespace-nowrap">
                           {(() => {
                             const isSent = Boolean(row.created_at || row.sent_date || row.ticket_id);
-                            const emailDate = row.created_at
-                              ? new Date(row.created_at)
-                              : (row.sent_date ? new Date(row.sent_date) : null);
-                            const timeStr = emailDate && !isNaN(emailDate.getTime())
-                              ? emailDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
-                              : null;
+                            let timeStr: string | null = null;
+                            if (row.sent_time) {
+                              const parts = String(row.sent_time).split(':');
+                              if (parts.length >= 2) {
+                                let h = parseInt(parts[0], 10);
+                                const m = parts[1];
+                                const ampm = h >= 12 ? 'pm' : 'am';
+                                h = h % 12 || 12;
+                                timeStr = `${String(h).padStart(2, '0')}:${m} ${ampm}`;
+                              } else {
+                                timeStr = row.sent_time;
+                              }
+                            } else if (row.created_at) {
+                              const emailDate = new Date(row.created_at);
+                              timeStr = !isNaN(emailDate.getTime())
+                                ? emailDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
+                                : null;
+                            }
                             const emailRecipientsCount = ackInfo.recipients.filter(r => !!r.email).length || ackInfo.recipients.length;
 
                             if (isSent) {
@@ -3915,17 +4073,21 @@ export default function AlertsProgressPage() {
                             <div className="inline-flex items-center justify-center gap-1">
                               <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border ${ackInfo.isFullyAcknowledged
                                 ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                : ackInfo.isAcknowledged
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                  : 'bg-amber-50 text-amber-800 border-amber-200'
+                                : ackInfo.ackCount > 0
+                                  ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                  : 'bg-rose-50 text-rose-800 border-rose-200'
                                 }`}>
-                                {ackInfo.ackCount > 0 ? (
+                                {ackInfo.isFullyAcknowledged ? (
                                   <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block mr-1" />
-                                ) : (
+                                ) : ackInfo.ackCount > 0 ? (
                                   <span className="h-2 w-2 rounded-full bg-amber-500 inline-block mr-1" />
+                                ) : (
+                                  <span className="h-2 w-2 rounded-full bg-rose-500 inline-block mr-1" />
                                 )}
                                 {ackInfo.totalRequired > 0
-                                  ? `${ackInfo.ackCount}/${ackInfo.totalRequired} Ack`
+                                  ? ackInfo.isFullyAcknowledged
+                                    ? `${ackInfo.ackCount}/${ackInfo.totalRequired} Ack (All)`
+                                    : `${ackInfo.ackCount}/${ackInfo.totalRequired} Ack (${ackInfo.totalRequired - ackInfo.ackCount} Pending)`
                                   : ackInfo.isAcknowledged ? 'Acknowledged' : 'Pending'}
                               </span>
                               <button

@@ -3,7 +3,16 @@ import { getDB } from "../../db";
 import { users, schemeEngineerDetails } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
-import { DLT_TEMPLATES, sendSmartpingDLTSMS, formatVillageAndEsr, formatVillageName, formatOfflineDateTime } from "../../services/sms-service";
+import { 
+  DLT_TEMPLATES, 
+  sendSmartpingDLTSMS, 
+  checkSmartpingSmsStatus, 
+  updateSmsDeliveryStatus, 
+  syncPendingSmsDeliveryStatuses, 
+  formatVillageAndEsr, 
+  formatVillageName, 
+  formatOfflineDateTime 
+} from "../../services/sms-service";
 import { sendEngineerCredentialsEmail } from "../../services/email-service";
 
 const router = Router();
@@ -735,6 +744,7 @@ router.post("/test-sms", async (req: Request, res: Response) => {
 
     res.json({
       success: result.success,
+      transactionId: result.transactionId,
       gatewayStatus: result.status,
       gatewayResponse: result.response,
       error: result.error,
@@ -747,6 +757,67 @@ router.post("/test-sms", async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     console.error("Error sending test SMS:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * GET /api/admin/engineers/sms-status/:transactionId
+ * Query real-time delivery status for a transaction ID from Smartping
+ */
+router.get("/sms-status/:transactionId", async (req: Request, res: Response) => {
+  try {
+    const { transactionId } = req.params;
+    const statusResult = await checkSmartpingSmsStatus(transactionId);
+    
+    if (statusResult.success && statusResult.deliveryStatus) {
+      await updateSmsDeliveryStatus(transactionId, statusResult);
+    }
+    
+    res.json(statusResult);
+  } catch (err: any) {
+    console.error("Error checking SMS status:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * POST /api/admin/engineers/sms-sync-status
+ * Sync delivery statuses for pending SMS logs from the last 3 days
+ */
+router.post("/sms-sync-status", async (req: Request, res: Response) => {
+  try {
+    const limit = Number(req.body.limit) || 50;
+    const daysBack = Number(req.body.daysBack) || 3;
+    const summary = await syncPendingSmsDeliveryStatuses({ maxRecords: limit, daysBack });
+    res.json({ success: true, summary });
+  } catch (err: any) {
+    console.error("Error syncing SMS delivery statuses:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * GET /api/admin/engineers/sms-logs
+ * List recent SMS logs with their delivery status
+ */
+router.get("/sms-logs", async (req: Request, res: Response) => {
+  try {
+    const db = await getDB();
+    const limit = Math.min(Number(req.query.limit) || 100, 500);
+    const logs = await db.execute(sql`
+      SELECT 
+        id, mobile, engineer_name, engineer_email, scheme_id, scheme_name,
+        template_name, message_text, gateway_status, is_success, dispatch_type,
+        transaction_id, delivery_status, delivery_description, delivered_date,
+        delivery_checked_at, sent_date, created_at
+      FROM sms_alert_logs
+      ORDER BY id DESC
+      LIMIT ${limit}
+    `);
+    res.json({ success: true, count: logs.rows.length, logs: logs.rows });
+  } catch (err: any) {
+    console.error("Error fetching SMS logs:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 });

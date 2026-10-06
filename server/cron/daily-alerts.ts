@@ -1,6 +1,5 @@
 import cron from "node-cron";
 import { getDB } from "../db";
-import pg from 'pg';
 import {
   chlorineData,
   pressureData,
@@ -12,9 +11,6 @@ import {
 import { sendDailyAlertEmail, generateAcknowledgeToken, sendAutomaticOfflineEmails } from "../services/email-service";
 import { eq, or, lt, and, isNotNull, sql } from "drizzle-orm";
 import { sendDailyAlertSMS } from "../services/sms-service";
-
-const { Pool } = pg;
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 interface Alert {
   scheme_id: string;
@@ -36,14 +32,14 @@ interface Alert {
   pressure_offline?: boolean;
   chlorine_offline?: boolean;
   offline_time?: string | Date | null;
+  telemetry_date?: string;
   ticket_id?: string;
   token?: string;
 }
 
 export function startDailyAlertsCron() {
-  // Configurable cron schedule (defaults to 16:41 / 4:41 PM, or adjust via DAILY_ALERTS_CRON_SCHEDULE in .env)
-  // Example for 10:00 AM daily: '0 10 * * *'
-  const cronExpression = process.env.DAILY_ALERTS_CRON_SCHEDULE || "41 16   * * *";
+  const rawExpression = process.env.DAILY_ALERTS_CRON_SCHEDULE || "0 11 * * *";
+  const cronExpression = rawExpression.replace(/^['"]+|['"]+$/g, '').trim();
   console.log(`⏰ Daily alerts job scheduled with cron pattern: "${cronExpression}"`);
 
   cron.schedule(
@@ -127,6 +123,7 @@ export async function runDailyAlertsJob() {
         chlorine_issue: true,
         chlorine_type: isHigh ? "High Chlorine" : "Low Chlorine",
         chlorine_value: row.chlorine_value_7,
+        telemetry_date: row.chlorine_date_day_7 ? String(row.chlorine_date_day_7) : undefined,
       });
     });
 
@@ -152,11 +149,12 @@ export async function runDailyAlertsJob() {
           esr_name: row.esr_name || "N/A",
           pressure_issue: true,
           pressure_value: row.pressure_value_7,
+          telemetry_date: row.pressure_date_day_7 ? String(row.pressure_date_day_7) : undefined,
         });
       }
     });
 
-    // 3. Check Water Scheme Data (Keep ONLY LPCD < 55; water value 0 removed as lpcd 0 is included)
+    // 3. Check Water Scheme Data (Keep ONLY LPCD < 55)
     const lpcdIssues = await db
       .select()
       .from(waterSchemeData)
@@ -177,13 +175,14 @@ export async function runDailyAlertsJob() {
           village_name: row.village_name || "N/A",
           lpcd_issue: true,
           lpcd_value: row.lpcd_value_day7,
+          telemetry_date: row.lpcd_date_day7 ? String(row.lpcd_date_day7) : undefined,
         });
       }
     });
 
     // 4. Check Offline Sensors Data (communication_status)
     try {
-      const offlineRowsRes = await pool.query(`
+      const offlineRowsRes: any = await db.execute(sql`
         SELECT
           scheme_id,
           scheme_name,
@@ -201,29 +200,35 @@ export async function runDailyAlertsJob() {
            OR flow_meter_status = 'Offline'
       `);
 
-      offlineRowsRes.rows.forEach((row: any) => {
-        const offlineSensorsList: string[] = [];
-        const isChlorine = row.chlorine_status === 'Offline';
-        const isPressure = row.pressure_status === 'Offline';
-        const isFlow = row.flow_meter_status === 'Offline';
+      const offlineRows = offlineRowsRes.rows || offlineRowsRes;
+      if (Array.isArray(offlineRows)) {
+        offlineRows.forEach((row: any) => {
+          const offlineSensorsList: string[] = [];
+          const isChlorine = row.chlorine_status === 'Offline';
+          const isPressure = row.pressure_status === 'Offline';
+          const isFlow = row.flow_meter_status === 'Offline';
 
-        if (isChlorine) offlineSensorsList.push('Chlorine');
-        if (isPressure) offlineSensorsList.push('Pressure');
-        if (isFlow) offlineSensorsList.push('Flow Meter');
+          if (isChlorine) offlineSensorsList.push('Chlorine');
+          if (isPressure) offlineSensorsList.push('Pressure');
+          if (isFlow) offlineSensorsList.push('Flow Meter');
 
-        addAlert(row.scheme_id, row.scheme_name, {
-          scheme_id: row.scheme_id || "N/A",
-          scheme_name: row.scheme_name || "N/A",
-          village_name: row.village_name || "N/A",
-          esr_name: row.esr_name || "N/A",
-          offline_issue: true,
-          offline_sensors: offlineSensorsList.join(', '),
-          flow_offline: isFlow,
-          pressure_offline: isPressure,
-          chlorine_offline: isChlorine,
-          offline_time: row.last_seen || row.pressure_last_seen || null,
+          const offlineDate = row.last_seen || row.pressure_last_seen || null;
+
+          addAlert(row.scheme_id, row.scheme_name, {
+            scheme_id: row.scheme_id || "N/A",
+            scheme_name: row.scheme_name || "N/A",
+            village_name: row.village_name || "N/A",
+            esr_name: row.esr_name || "N/A",
+            offline_issue: true,
+            offline_sensors: offlineSensorsList.join(', '),
+            flow_offline: isFlow,
+            pressure_offline: isPressure,
+            chlorine_offline: isChlorine,
+            offline_time: offlineDate,
+            telemetry_date: offlineDate ? (typeof offlineDate === 'object' ? new Date(offlineDate).toISOString() : String(offlineDate)) : undefined,
+          });
         });
-      });
+      }
     } catch (offlineErr) {
       console.error("⚠️ Error checking offline sensors for daily alerts:", offlineErr);
     }
@@ -237,7 +242,7 @@ export async function runDailyAlertsJob() {
       return;
     }
 
-    // We'll query all engineer details and filter locally to avoid complex OR clauses if lists are huge
+    // Query all engineer details and filter locally
     const allEngineerDetails = await db.select().from(schemeEngineerDetails);
 
     // We will batch insert into emailAlertLogs at the end
@@ -248,6 +253,9 @@ export async function runDailyAlertsJob() {
 
     // Group alerts by Engineer Mobile
     const smsToSend: Record<string, { name: string; email?: string; alerts: Alert[] }> = {};
+
+    const now = new Date();
+    const istTimeStr = now.toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour12: false });
 
     allEngineerDetails.forEach((engineer) => {
       let schemeAlerts: Alert[] = [];
@@ -299,7 +307,6 @@ export async function runDailyAlertsJob() {
                 alerts: [],
               };
             } else {
-              // If another engineer shares this email (Case 2), keep their name in names list
               if (name && !emailsToSend[email].names.includes(name)) {
                 emailsToSend[email].names.push(name);
                 emailsToSend[email].name = emailsToSend[email].names.join(" / ");
@@ -407,6 +414,9 @@ export async function runDailyAlertsJob() {
             se_email: engineer.se_email || null,
             chief_engineer_name: engineer.chief_engineer_name || null,
             chief_engineer_email: engineer.chief_engineer_email || null,
+            dispatch_type: 'daily',
+            telemetry_date: alert.telemetry_date || null,
+            sent_time: istTimeStr,
           };
 
           const generateTicketId = () => `TKT-${Date.now().toString().slice(-4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
@@ -428,31 +438,28 @@ export async function runDailyAlertsJob() {
       }
     });
 
-    // First: ensure email_acknowledgements table exists (with correct schema)
-    const dbClient = await pool.connect();
+    // Ensure email_acknowledgements table exists
     try {
-      await dbClient.query(`
-          CREATE TABLE IF NOT EXISTS email_acknowledgements (
-            id SERIAL PRIMARY KEY,
-            token VARCHAR(128) NOT NULL,
-            scheme_id VARCHAR(50) NOT NULL,
-            alert_type VARCHAR(20) NOT NULL,
-            alert_id INTEGER,
-            ticket_id VARCHAR(100),
-            esr_name VARCHAR(255),
-            engineer_email VARCHAR(255) NOT NULL,
-            engineer_name VARCHAR(255),
-            sent_date DATE NOT NULL DEFAULT CURRENT_DATE,
-            acknowledged_at TIMESTAMP WITH TIME ZONE,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-          );
-          CREATE INDEX IF NOT EXISTS idx_email_acknowledgements_token ON email_acknowledgements(token);
-          CREATE INDEX IF NOT EXISTS idx_email_acknowledgements_scheme ON email_acknowledgements(scheme_id, alert_type, sent_date);
-        `);
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS email_acknowledgements (
+          id SERIAL PRIMARY KEY,
+          token VARCHAR(128) NOT NULL,
+          scheme_id VARCHAR(50) NOT NULL,
+          alert_type VARCHAR(20) NOT NULL,
+          alert_id INTEGER,
+          ticket_id VARCHAR(100),
+          esr_name VARCHAR(255),
+          engineer_email VARCHAR(255) NOT NULL,
+          engineer_name VARCHAR(255),
+          sent_date DATE NOT NULL DEFAULT CURRENT_DATE,
+          acknowledged_at TIMESTAMP WITH TIME ZONE,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_email_acknowledgements_token ON email_acknowledgements(token);
+        CREATE INDEX IF NOT EXISTS idx_email_acknowledgements_scheme ON email_acknowledgements(scheme_id, alert_type, sent_date);
+      `);
     } catch (e) {
-      // Table may already exist with old schema — that's OK, we'll work with what we have
-    } finally {
-      dbClient.release();
+      // Table may already exist
     }
 
     // Send the consolidated emails
@@ -472,7 +479,6 @@ export async function runDailyAlertsJob() {
 
     for (const email of emails) {
       const { name, alerts } = emailsToSend[email];
-      // Deduplicate alerts for this person just in case
       const uniqueAlertsMap = new Map();
       alerts.forEach(a => {
         const key = `${a.scheme_id}-${a.village_name}-${a.esr_name}-${a.chlorine_issue}-${a.chlorine_type}-${a.pressure_issue}-${a.lpcd_issue}-${a.offline_issue}-${a.offline_sensors}`;
@@ -482,7 +488,6 @@ export async function runDailyAlertsJob() {
 
       // Master token for "Acknowledge All" button
       const masterToken = generateAcknowledgeToken();
-      const tokenClient = await pool.connect();
       try {
         for (const alert of uniqueAlerts) {
           const alertType = alert.offline_issue
@@ -493,41 +498,40 @@ export async function runDailyAlertsJob() {
                 ? 'Low Pressure'
                 : 'Low LPCD';
 
-          // Individual token for separate per-alert acknowledgement button
           const itemToken = generateAcknowledgeToken();
           alert.token = itemToken;
 
-          // Track acknowledgement record for all engineers who share this email
           const recipientsForEmail = emailsToSend[email]?.names?.length > 0 
             ? emailsToSend[email].names 
             : [name];
 
           for (const engName of recipientsForEmail) {
-            // 1. Insert per-alert token
-            await tokenClient.query(
-              `INSERT INTO email_acknowledgements (token, scheme_id, alert_type, esr_name, engineer_email, engineer_name, sent_date)
-               VALUES ($1, $2, $3, $4, $5, $6, CURRENT_DATE)`,
-              [itemToken, alert.scheme_id, alertType, alert.esr_name || null, email, engName]
-            );
+            await db.execute(sql`
+              INSERT INTO email_acknowledgements (token, scheme_id, alert_type, esr_name, engineer_email, engineer_name, sent_date)
+              VALUES (${itemToken}, ${alert.scheme_id}, ${alertType}, ${alert.esr_name || null}, ${email}, ${engName}, CURRENT_DATE)
+            `);
 
-            // 2. Insert master token for bulk action
-            await tokenClient.query(
-              `INSERT INTO email_acknowledgements (token, scheme_id, alert_type, esr_name, engineer_email, engineer_name, sent_date)
-               VALUES ($1, $2, $3, $4, $5, $6, CURRENT_DATE)`,
-              [masterToken, alert.scheme_id, alertType, alert.esr_name || null, email, engName]
-            );
+            await db.execute(sql`
+              INSERT INTO email_acknowledgements (token, scheme_id, alert_type, esr_name, engineer_email, engineer_name, sent_date)
+              VALUES (${masterToken}, ${alert.scheme_id}, ${alertType}, ${alert.esr_name || null}, ${email}, ${engName}, CURRENT_DATE)
+            `);
           }
         }
-      } finally {
-        tokenClient.release();
+      } catch (tokenErr) {
+        console.warn("Could not insert email acknowledgement token:", tokenErr);
       }
 
       let isSuccess = false;
       let failureError: string | null = null;
 
       try {
-        // Pass uniqueAlerts with alert.token attached and masterToken for Acknowledge All
-        isSuccess = await sendDailyAlertEmail(email, name, uniqueAlerts, masterToken);
+        // Enforce 25-second timeout on each email send to prevent SMTP freezing cron
+        const sendPromise = sendDailyAlertEmail(email, name, uniqueAlerts, masterToken);
+        const timeoutPromise = new Promise<boolean>((_, reject) =>
+          setTimeout(() => reject(new Error("SMTP send timeout (25s exceeded)")), 25000)
+        );
+
+        isSuccess = await Promise.race([sendPromise, timeoutPromise]);
         if (!isSuccess) {
           failureError = "Mail server rejected message or transporter error (sendEmail returned false)";
         }
@@ -559,26 +563,11 @@ export async function runDailyAlertsJob() {
 
         console.error(`❌ Failed to send alert email to ${email}:`, failureError);
 
-        // Record failed attempt into private database audit table
         try {
-          const failClient = await pool.connect();
-          try {
-            await failClient.query(
-              `INSERT INTO email_delivery_failures (recipient_email, engineer_name, scheme_id, scheme_name, alert_count, alert_summary, error_message, attempted_at)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
-              [
-                email,
-                name,
-                primarySchemeId,
-                primarySchemeName,
-                uniqueAlerts.length,
-                alertSummary,
-                failureError,
-              ]
-            );
-          } finally {
-            failClient.release();
-          }
+          await db.execute(sql`
+            INSERT INTO email_delivery_failures (recipient_email, engineer_name, scheme_id, scheme_name, alert_count, alert_summary, error_message, attempted_at)
+            VALUES (${email}, ${name}, ${primarySchemeId}, ${primarySchemeName}, ${uniqueAlerts.length}, ${alertSummary}, ${failureError}, NOW())
+          `);
         } catch (dbErr) {
           console.error("⚠️ Error saving failure to email_delivery_failures table:", dbErr);
         }
@@ -605,7 +594,6 @@ export async function runDailyAlertsJob() {
     }
     console.log(`============================================================\n`);
 
-
     // Send the consolidated SMS alerts
     const mobiles = Object.keys(smsToSend);
     if (mobiles.length > 0) {
@@ -613,7 +601,6 @@ export async function runDailyAlertsJob() {
       for (const mobile of mobiles) {
         const { name, email, alerts } = smsToSend[mobile];
 
-        // Deduplicate alerts
         const uniqueAlertsMap = new Map();
         alerts.forEach(a => {
           const key = `${a.scheme_id}-${a.village_name}-${a.esr_name}-${a.chlorine_issue}-${a.pressure_issue}-${a.lpcd_issue}-${a.flow_offline}-${a.pressure_offline}-${a.chlorine_offline}`;
@@ -632,7 +619,6 @@ export async function runDailyAlertsJob() {
     // Persist logs in database
     if (emailLogsToInsert.length > 0) {
       console.log(`💾 Saving ${emailLogsToInsert.length} alert logs to the database...`);
-      // We do batch inserts to prevent inserting thousands of rows in one query block
       const batchSize = 100;
       for (let i = 0; i < emailLogsToInsert.length; i += batchSize) {
         const batch = emailLogsToInsert.slice(i, i + batchSize);

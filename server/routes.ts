@@ -62,6 +62,7 @@ import alertsProgressRoutes from "./routes/alerts-progress-routes";
 import acknowledgeRoutes from "./routes/acknowledge-routes";
 import realtimeAlertsRoutes from "./routes/realtime-alerts-routes";
 import { sendSingleOfflineReminderEmail, sendBatchOfflineReminderEmail } from "./services/email-service";
+import { updateSmsDeliveryStatus } from "./services/sms-service";
 // import { mqttService } from "./mqtt-service";
 
 const exec = promisify(cp.exec);
@@ -414,6 +415,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Mount Real-Time Live Alerts routes
   app.use("/api/realtime-alerts", realtimeAlertsRoutes);
+
+  // Mount Smartping SMS Webhook Callback (Public endpoint for real-time operator delivery reports)
+  app.get("/api/sms/callback", async (req, res) => {
+    try {
+      const { txid, to, from, description, pdu, text, deliverystatus, deliverydt } = req.query;
+      console.log(`📩 [Smartping Webhook Callback] TxID: ${txid}, Status: ${deliverystatus}, To: ${to}, Desc: ${description}, Date: ${deliverydt}`);
+
+      if (txid) {
+        await updateSmsDeliveryStatus(String(txid), {
+          success: true,
+          transactionId: String(txid),
+          deliveryStatus: String(deliverystatus || description || "UNKNOWN"),
+          description: String(description || ""),
+          deliveredDate: String(deliverydt || ""),
+        });
+      }
+      res.status(200).send("OK");
+    } catch (cbErr: any) {
+      console.warn("Error processing Smartping SMS callback:", cbErr.message);
+      res.status(200).send("OK");
+    }
+  });
 
   // Vendor API endpoints - get vendors by region
   app.get("/api/vendors", async (req, res) => {

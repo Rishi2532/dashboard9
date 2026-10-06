@@ -1479,6 +1479,8 @@ export const emailAlertLogs = pgTable("email_alert_logs", {
   sent_date: date("sent_date").defaultNow().notNull(), // e.g. '2026-06-02'
   sent_time: time("sent_time").defaultNow().notNull(), // e.g. '14:55:00'
   ticket_id: varchar("ticket_id", { length: 100 }).unique(),
+  dispatch_type: varchar("dispatch_type", { length: 50 }).default("daily"),
+  telemetry_date: varchar("telemetry_date", { length: 50 }),
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
@@ -1525,6 +1527,13 @@ export const smsAlertLogs = pgTable("sms_alert_logs", {
   gateway_status: integer("gateway_status"),
   gateway_response: text("gateway_response"),
   is_success: boolean("is_success").default(true),
+  dispatch_type: varchar("dispatch_type", { length: 50 }).default("daily"),
+  telemetry_date: varchar("telemetry_date", { length: 50 }),
+  transaction_id: varchar("transaction_id", { length: 100 }),
+  delivery_status: varchar("delivery_status", { length: 50 }).default("PENDING"),
+  delivery_description: text("delivery_description"),
+  delivered_date: varchar("delivered_date", { length: 50 }),
+  delivery_checked_at: timestamp("delivery_checked_at", { withTimezone: true }),
   sent_date: date("sent_date").defaultNow(),
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });

@@ -789,6 +789,12 @@ export async function runPiRealtimeAlertsJob(rootPath?: string) {
           }
 
           // Insert into email_alert_logs
+          const now = new Date();
+          const istTime = now.toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour12: false });
+          const telemetryDateStr = alert.telemetry_timestamp
+            ? new Date(alert.telemetry_timestamp).toISOString()
+            : new Date().toISOString();
+
           try {
             await db.insert(emailAlertLogs).values({
               scheme_id: alert.scheme_id,
@@ -818,6 +824,9 @@ export async function runPiRealtimeAlertsJob(rootPath?: string) {
               chief_engineer_email: group.engineerObj?.chief_engineer_email || null,
               ticket_id: ticketId,
               sent_date: new Date().toISOString().split("T")[0] as any,
+              sent_time: istTime,
+              dispatch_type: 'realtime',
+              telemetry_date: telemetryDateStr,
             });
           } catch (logErr: any) {
             console.warn("Could not insert realtime log into email_alert_logs:", logErr.message);
@@ -839,6 +848,7 @@ export async function runPiRealtimeAlertsJob(rootPath?: string) {
                   alert_type: alert.sms_alert_type,
                   alert_value: alert.alert_value,
                   offline_time: alert.telemetry_timestamp,
+                  telemetry_date: telemetryDateStr,
                 });
               } catch (smsErr) {
                 console.warn(`Could not dispatch SMS to ${cleanMob}:`, smsErr);

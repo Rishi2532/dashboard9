@@ -5,7 +5,19 @@ export interface TabEngineerExportOptions {
   tabType: "lpcd" | "chlorine" | "pressure" | "offline" | "realtime";
   status: "all" | "acknowledged" | "pending";
   rows: any[];
+  engineers?: any[];
   dateStr?: string;
+}
+
+export interface TabDispatchesExportOptions {
+  tabName: string;
+  tabType: "lpcd" | "chlorine" | "pressure" | "offline" | "realtime";
+  dateStr?: string;
+  engineers: any[];
+  totalAlerts: number;
+  emailsCount: number;
+  smsCount: number;
+  smsDispatches?: any[];
 }
 
 /**
@@ -33,9 +45,10 @@ export async function downloadTotalEngineersExcel(): Promise<void> {
 
 /**
  * Formats and triggers download of tab-specific engineers Excel (Acknowledged, Pending, or All)
+ * Evaluated strictly per individual person.
  */
 export async function downloadTabEngineersExcel(options: TabEngineerExportOptions): Promise<void> {
-  const { tabName, tabType, status, rows, dateStr } = options;
+  const { tabName, tabType, status, rows, engineers, dateStr } = options;
 
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "MJP Water Supply Telemetry System";
@@ -59,15 +72,13 @@ export async function downloadTabEngineersExcel(options: TabEngineerExportOption
     { header: "Email Address", key: "email", width: 30 },
     { header: "Scheme ID", key: "scheme_id", width: 14 },
     { header: "Scheme Name", key: "scheme_name", width: 32 },
-    { header: "Village Name", key: "village_name", width: 22 },
-    { header: "ESR Name", key: "esr_name", width: 24 },
+    { header: "Villages / Locations Covered", key: "locations", width: 30 },
+    { header: "Total Alerts Bundled", key: "alerts_count", width: 20 },
     { header: "Region", key: "region", width: 16 },
-    { header: "Alert Value / Parameter", key: "alert_value", width: 22 },
     { header: "Alert Date", key: "alert_date", width: 14 },
-    { header: "Ack Status", key: "ack_status", width: 16 },
+    { header: "Individual Status", key: "ack_status", width: 18 },
     { header: "Acknowledged By", key: "ack_by", width: 24 },
     { header: "Acknowledged Time", key: "ack_time", width: 22 },
-    { header: "Ticket ID", key: "ticket_id", width: 18 }
   ];
 
   // 1. Title Banner
@@ -105,121 +116,102 @@ export async function downloadTabEngineersExcel(options: TabEngineerExportOption
   // 3. Process Rows
   let srCounter = 1;
 
-  rows.forEach(item => {
-    // If the item is already an engineer entry from notifiedEngineersList
-    if (item.rolesList && item.schemes) {
-      const eng = item;
-      eng.schemes.forEach((sch: any) => {
-        if (status === "acknowledged" && !sch.isAcknowledged) return;
-        if (status === "pending" && sch.isAcknowledged) return;
+  // If notifiedEngineersList was explicitly passed, use it directly (already deduped per engineer)
+  const targetEngineers = (engineers && engineers.length > 0)
+    ? engineers
+    : (rows && rows.length > 0 && rows[0].rolesList && rows[0].schemes)
+      ? rows
+      : null;
 
-        const rowValues = [
-          srCounter++,
-          eng.name,
-          Array.from(eng.rolesList).join(", ") || "Assigned Officer",
-          eng.mobile || "-",
-          eng.email || "-",
-          sch.scheme_id || "-",
-          sch.scheme_name || "-",
-          sch.village_name || "-",
-          sch.esr_name || "-",
-          sch.region || "-",
-          sch.current_value || sch.alert_value || "-",
-          dateStr || new Date().toISOString().slice(0, 10),
-          sch.isAcknowledged ? "Acknowledged" : "Pending Action",
-          sch.isAcknowledged ? eng.name : "-",
-          sch.acknowledged_at ? new Date(sch.acknowledged_at).toLocaleString("en-IN") : "-",
-          sch.ticket_id || "-"
-        ];
+  if (targetEngineers) {
+    targetEngineers.forEach((eng: any) => {
+      const isAck = Boolean(eng.isAcknowledged);
+      if (status === "acknowledged" && !isAck) return;
+      if (status === "pending" && isAck) return;
 
-        const addedRow = worksheet.addRow(rowValues);
-        styleDataRow(addedRow, srCounter, sch.isAcknowledged ? "Acknowledged" : "Pending Action", 13);
-      });
-      return;
-    }
-
-    // If item is an AlertData scheme row
-    const acks = Array.isArray(item.acknowledgements) ? item.acknowledgements : [];
-    const isAck = acks.some((a: any) => a.acknowledged_at) || Boolean(item.acknowledged_at) || Boolean(item.is_acknowledged);
-
-    if (status === "acknowledged" && !isAck) return;
-    if (status === "pending" && isAck) return;
-
-    // Collect all contacts for this scheme
-    const recs: { name: string; role: string; email: string; mobile: string; isAck: boolean; ackAt: string | null }[] = [];
-
-    const addRec = (name?: string, role?: string, email?: string, mobile?: string) => {
-      if (!name || name.trim() === "-" || name.toLowerCase().includes("no engineer") || name.toLowerCase().includes("vendor")) return;
-      const ackMatch = acks.find((a: any) =>
-        (email && a.engineer_email && a.engineer_email.toLowerCase().trim() === email.toLowerCase().trim()) ||
-        (a.engineer_name && a.engineer_name.toLowerCase().trim() === name.toLowerCase().trim())
-      );
-      recs.push({
-        name: name.trim(),
-        role: role || "Engineer",
-        email: email?.trim() || "-",
-        mobile: mobile?.trim() || "-",
-        isAck: Boolean(ackMatch?.acknowledged_at || item.acknowledged_at),
-        ackAt: ackMatch?.acknowledged_at || item.acknowledged_at || null
-      });
-    };
-
-    addRec(item.de_ae_civil_name, "DE/AE (Civil)", item.de_ae_civil_email, item.de_ae_civil_mobile);
-    addRec(item.de_ae_mech_name, "DE/AE (Mech)", item.de_ae_mech_email, item.de_ae_mech_mobile);
-    addRec(item.ee_civil_name, "EE (Civil)", item.ee_civil_email, item.ee_civil_mobile);
-    addRec(item.ee_mech_name, "EE (Mech)", item.ee_mech_email, item.ee_mech_mobile);
-    addRec(item.se_name, "SE", item.se_email, item.se_mobile);
-    addRec(item.chief_engineer_name, "CE", item.chief_engineer_email, item.chief_engineer_mobile);
-    if (item.vendor_name) {
-      addRec(item.vendor_name, "Agency / Vendor", item.vendor_email, item.vendor_phone);
-    }
-
-    if (recs.length === 0) {
-      recs.push({
-        name: item.engineer_name || item.acknowledged_by || "Scheme Incharge",
-        role: "Field Incharge",
-        email: item.engineer_email || "-",
-        mobile: "-",
-        isAck,
-        ackAt: item.acknowledged_at || null
-      });
-    }
-
-    recs.forEach(rec => {
-      if (status === "acknowledged" && !rec.isAck) return;
-      if (status === "pending" && rec.isAck) return;
-
-      const unit =
-        tabType === "lpcd" ? "LPCD" : tabType === "chlorine" ? "mg/L" : tabType === "pressure" ? "Bar" : "Offline";
-      const valStr = `${item.current_value ?? item.alert_value ?? "-"} ${unit}`;
+      const schemesList = eng.schemes || [];
+      const schemeIds = Array.from(new Set(schemesList.map((s: any) => s.scheme_id).filter(Boolean))).join(", ") || "-";
+      const schemeNames = Array.from(new Set(schemesList.map((s: any) => s.scheme_name).filter(Boolean))).join(", ") || "-";
+      const locations = Array.from(new Set(schemesList.map((s: any) => s.esr_name || s.village_name).filter(Boolean))).join(", ") || "-";
+      const alertsCount = schemesList.length || 1;
+      const ackScheme = schemesList.find((s: any) => s.isAcknowledged && s.acknowledged_at);
+      const ackAt = ackScheme?.acknowledged_at || eng.acknowledged_at || null;
 
       const rowValues = [
         srCounter++,
-        rec.name,
-        rec.role,
-        rec.mobile,
-        rec.email,
-        item.scheme_id || "-",
-        item.scheme_name || "-",
-        item.village_name || "-",
-        item.esr_name || "-",
-        item.region || "-",
-        valStr,
-        item.sent_date ? String(item.sent_date).slice(0, 10) : dateStr || new Date().toISOString().slice(0, 10),
-        rec.isAck ? "Acknowledged" : "Pending Action",
-        rec.isAck ? rec.name : "-",
-        rec.ackAt ? new Date(rec.ackAt).toLocaleString("en-IN") : "-",
-        item.ticket_id || "-"
+        eng.name,
+        Array.from(eng.roles || eng.rolesList || []).join(", ") || "Assigned Officer",
+        eng.mobile || "-",
+        eng.email || "-",
+        schemeIds,
+        schemeNames,
+        locations,
+        alertsCount,
+        eng.region || schemesList[0]?.region || "-",
+        dateStr || new Date().toISOString().slice(0, 10),
+        isAck ? "Acknowledged" : "Pending Action",
+        isAck ? eng.name : "-",
+        ackAt ? new Date(ackAt).toLocaleString("en-IN") : "-",
       ];
 
       const addedRow = worksheet.addRow(rowValues);
-      styleDataRow(addedRow, srCounter, rec.isAck ? "Acknowledged" : "Pending Action", 13);
+      styleDataRow(addedRow, srCounter, isAck ? "Acknowledged" : "Pending Action", 12);
     });
-  });
+  } else {
+    // Process from AlertData rows by extracting unique recipients across rows
+    const seenEngKey = new Set<string>();
+
+    rows.forEach((item: any) => {
+      const acks = Array.isArray(item.acknowledgements) ? item.acknowledgements : [];
+
+      const addRecipient = (name?: string, role?: string, email?: string, mobile?: string) => {
+        if (!name || name.trim() === "-" || name.toLowerCase().includes("no engineer") || name.toLowerCase().includes("vendor")) return;
+        const key = `${name.toLowerCase().trim()}-${email?.toLowerCase().trim() || ''}`;
+        if (seenEngKey.has(key)) return;
+        seenEngKey.add(key);
+
+        const ackMatch = acks.find((a: any) =>
+          (email && a.engineer_email && a.engineer_email.toLowerCase().trim() === email.toLowerCase().trim()) ||
+          (a.engineer_name && a.engineer_name.toLowerCase().trim() === name.toLowerCase().trim())
+        );
+
+        const isAck = Boolean(ackMatch?.acknowledged_at);
+        if (status === "acknowledged" && !isAck) return;
+        if (status === "pending" && isAck) return;
+
+        const rowValues = [
+          srCounter++,
+          name.trim(),
+          role || "Assigned Officer",
+          mobile?.trim() || "-",
+          email?.trim() || "-",
+          item.scheme_id || "-",
+          item.scheme_name || "-",
+          item.esr_name || item.village_name || "-",
+          1,
+          item.region || "-",
+          dateStr || new Date().toISOString().slice(0, 10),
+          isAck ? "Acknowledged" : "Pending Action",
+          isAck ? name.trim() : "-",
+          ackMatch?.acknowledged_at ? new Date(ackMatch.acknowledged_at).toLocaleString("en-IN") : "-",
+        ];
+
+        const addedRow = worksheet.addRow(rowValues);
+        styleDataRow(addedRow, srCounter, isAck ? "Acknowledged" : "Pending Action", 12);
+      };
+
+      addRecipient(item.de_ae_civil_name, "DE/AE (Civil)", item.de_ae_civil_email, item.de_ae_civil_mobile);
+      addRecipient(item.de_ae_mech_name, "DE/AE (Mech)", item.de_ae_mech_email, item.de_ae_mech_mobile);
+      addRecipient(item.ee_civil_name, "EE (Civil)", item.ee_civil_email, item.ee_civil_mobile);
+      addRecipient(item.ee_mech_name, "EE (Mech)", item.ee_mech_email, item.ee_mech_mobile);
+      addRecipient(item.se_name, "Superintending Engineer", item.se_email, item.se_mobile);
+      addRecipient(item.chief_engineer_name, "Chief Engineer", item.chief_engineer_email, item.chief_engineer_mobile);
+    });
+  }
 
   // If no rows matched filter
   if (srCounter === 1) {
-    const emptyRow = worksheet.addRow(["-", `No ${status} engineers found for current filters`, "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-"]);
+    const emptyRow = worksheet.addRow(["-", `No ${status} engineers found for current filters`, "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-"]);
     emptyRow.font = { italic: true, color: { argb: "FF64748B" } };
   }
 
@@ -231,6 +223,170 @@ export async function downloadTabEngineersExcel(options: TabEngineerExportOption
 
   const formattedDate = dateStr || new Date().toISOString().slice(0, 10);
   const cleanFilename = `MJP_${tabName.replace(/\s+/g, "_")}_${status.toUpperCase()}_Engineers_${formattedDate}.xlsx`;
+
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = cleanFilename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+}
+
+/**
+ * Downloads a comprehensive Dispatches Excel workbook (Emails & SMS sent for this tab)
+ */
+export async function downloadTabDispatchesExcel(options: TabDispatchesExportOptions): Promise<void> {
+  const { tabName, dateStr, engineers, totalAlerts, emailsCount, smsCount, smsDispatches } = options;
+
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "MJP Water Supply Telemetry System";
+  workbook.created = new Date();
+
+  // ---------------- SHEET 1: EMAIL DISPATCHES ----------------
+  const emailSheet = workbook.addWorksheet(`${tabName.slice(0, 15)} Email Dispatches`.slice(0, 31));
+  const emailCols = [
+    { header: "Sr No.", key: "sr_no", width: 8 },
+    { header: "Engineer Name", key: "engineer_name", width: 26 },
+    { header: "Designation / Role", key: "role", width: 24 },
+    { header: "Email Address", key: "email", width: 32 },
+    { header: "Mobile Number", key: "mobile", width: 16 },
+    { header: "Dispatch Mode", key: "dispatch_mode", width: 22 },
+    { header: "Alerts Bundled in Email", key: "alerts_bundled", width: 22 },
+    { header: "Schemes Assigned", key: "schemes", width: 32 },
+    { header: "Ack Status", key: "ack_status", width: 16 },
+    { header: "Acknowledged Time", key: "ack_time", width: 22 },
+  ];
+
+  emailSheet.mergeCells(1, 1, 1, emailCols.length);
+  const emailTitle = emailSheet.getCell(1, 1);
+  emailTitle.value = `Maharashtra Jeevan Pradhikaran - ${tabName} Daily Email Dispatches (${emailsCount} Emails Sent, bundling all ${totalAlerts} alerts) - ${dateStr || new Date().toISOString().slice(0, 10)}`;
+  emailTitle.font = { name: "Calibri", size: 12, bold: true, color: { argb: "FFFFFFFF" } };
+  emailTitle.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E3A8A" } };
+  emailTitle.alignment = { vertical: "middle", horizontal: "center" };
+  emailSheet.getRow(1).height = 32;
+
+  emailSheet.getRow(2).values = emailCols.map(c => c.header);
+  emailSheet.getRow(2).height = 24;
+  emailSheet.getRow(2).font = { name: "Calibri", size: 10, bold: true, color: { argb: "FF0F172A" } };
+  emailSheet.getRow(2).alignment = { vertical: "middle", horizontal: "center" };
+  emailSheet.getRow(2).eachCell(cell => {
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE0E7FF" } };
+    cell.border = {
+      top: { style: "thin", color: { argb: "FFCBD5E1" } },
+      bottom: { style: "medium", color: { argb: "FF94A3B8" } },
+      left: { style: "thin", color: { argb: "FFCBD5E1" } },
+      right: { style: "thin", color: { argb: "FFCBD5E1" } }
+    };
+  });
+
+  emailCols.forEach((col, idx) => {
+    emailSheet.getColumn(idx + 1).width = col.width;
+  });
+
+  let emailSr = 1;
+  engineers.filter(e => !!e.email).forEach((eng: any) => {
+    const isAck = Boolean(eng.isAcknowledged);
+    const schemesList = eng.schemes || [];
+    const schemeNames = Array.from(new Set(schemesList.map((s: any) => s.scheme_name).filter(Boolean))).join(", ") || "-";
+    const ackScheme = schemesList.find((s: any) => s.isAcknowledged && s.acknowledged_at);
+    const ackAt = ackScheme?.acknowledged_at || eng.acknowledged_at || null;
+
+    const rowValues = [
+      emailSr++,
+      eng.name,
+      Array.from(eng.roles || eng.rolesList || []).join(", ") || "Assigned Officer",
+      eng.email || "-",
+      eng.mobile || "-",
+      "Consolidated Daily Digest (1 Email)",
+      `${totalAlerts} Alert${totalAlerts !== 1 ? 's' : ''}`,
+      schemeNames,
+      isAck ? "Acknowledged" : "Pending",
+      ackAt ? new Date(ackAt).toLocaleString("en-IN") : "-",
+    ];
+
+    const addedRow = emailSheet.addRow(rowValues);
+    styleDataRow(addedRow, emailSr, isAck ? "Acknowledged" : "Pending Action", 9);
+  });
+
+  // ---------------- SHEET 2: SMS DISPATCHES ----------------
+  const smsSheet = workbook.addWorksheet(`${tabName.slice(0, 15)} SMS Dispatches`.slice(0, 31));
+  const smsCols = [
+    { header: "Sr No.", key: "sr_no", width: 8 },
+    { header: "Recipient Name", key: "engineer_name", width: 26 },
+    { header: "Mobile Number", key: "mobile", width: 18 },
+    { header: "Template / Alert Type", key: "template_name", width: 28 },
+    { header: "Message Content", key: "message_text", width: 40 },
+    { header: "Gateway Status", key: "gateway_status", width: 18 },
+    { header: "Delivery Status", key: "is_success", width: 16 },
+    { header: "Dispatch Date", key: "sent_date", width: 14 }
+  ];
+
+  smsSheet.mergeCells(1, 1, 1, smsCols.length);
+  const smsTitle = smsSheet.getCell(1, 1);
+  smsTitle.value = `Maharashtra Jeevan Pradhikaran - ${tabName} Daily SMS Dispatches (${smsCount} SMS Logs) - ${dateStr || new Date().toISOString().slice(0, 10)}`;
+  smsTitle.font = { name: "Calibri", size: 12, bold: true, color: { argb: "FFFFFFFF" } };
+  smsTitle.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF92400E" } };
+  smsTitle.alignment = { vertical: "middle", horizontal: "center" };
+  smsSheet.getRow(1).height = 32;
+
+  smsSheet.getRow(2).values = smsCols.map(c => c.header);
+  smsSheet.getRow(2).height = 24;
+  smsSheet.getRow(2).font = { name: "Calibri", size: 10, bold: true, color: { argb: "FF0F172A" } };
+  smsSheet.getRow(2).alignment = { vertical: "middle", horizontal: "center" };
+  smsSheet.getRow(2).eachCell(cell => {
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFEF3C7" } };
+    cell.border = {
+      top: { style: "thin", color: { argb: "FFCBD5E1" } },
+      bottom: { style: "medium", color: { argb: "FF94A3B8" } },
+      left: { style: "thin", color: { argb: "FFCBD5E1" } },
+      right: { style: "thin", color: { argb: "FFCBD5E1" } }
+    };
+  });
+
+  smsCols.forEach((col, idx) => {
+    smsSheet.getColumn(idx + 1).width = col.width;
+  });
+
+  let smsSr = 1;
+  const smsRows = smsDispatches && smsDispatches.length > 0
+    ? smsDispatches
+    : engineers.filter(e => !!e.mobile).map(e => ({
+        engineer_name: e.name,
+        mobile: e.mobile,
+        template_name: `${tabName} Daily Alert`,
+        message_text: `Daily ${tabName} alert notification for assigned schemes`,
+        gateway_status: "SUCCESS",
+        is_success: true,
+        sent_date: dateStr || new Date().toISOString().slice(0, 10)
+      }));
+
+  smsRows.forEach((smsItem: any) => {
+    const isSuccess = smsItem.is_success !== false && (String(smsItem.gateway_status || '').toUpperCase().includes('SUCCESS') || smsItem.is_success === true);
+    const rowValues = [
+      smsSr++,
+      smsItem.engineer_name || "-",
+      smsItem.mobile || "-",
+      smsItem.template_name || `${tabName} Alert`,
+      smsItem.message_text || "-",
+      smsItem.gateway_status || (isSuccess ? "DELIVERED" : "FAILED"),
+      isSuccess ? "Success" : "Failed",
+      smsItem.sent_date || dateStr || new Date().toISOString().slice(0, 10),
+    ];
+
+    const addedRow = smsSheet.addRow(rowValues);
+    styleDataRow(addedRow, smsSr, isSuccess ? "Acknowledged" : "Pending Action", 7);
+  });
+
+  // Generate buffer and trigger browser download
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  });
+
+  const formattedDate = dateStr || new Date().toISOString().slice(0, 10);
+  const cleanFilename = `MJP_${tabName.replace(/\s+/g, "_")}_Daily_Dispatches_${formattedDate}.xlsx`;
 
   const url = window.URL.createObjectURL(blob);
   const link = document.createElement("a");

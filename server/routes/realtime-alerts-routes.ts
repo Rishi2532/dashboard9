@@ -326,6 +326,8 @@ router.get('/progress', async (req: Request, res: Response) => {
           FALSE as is_acknowledged,
           NULL as acknowledged_at,
           e.sent_date,
+          e.sent_time,
+          e.telemetry_date,
           e.created_at,
           s.region,
           s.circle,
@@ -345,7 +347,7 @@ router.get('/progress', async (req: Request, res: Response) => {
         FROM email_alert_logs e
         LEFT JOIN scheme_status s ON e.scheme_id = s.scheme_id
         LEFT JOIN scheme_engineer_details sed ON (e.scheme_id = sed.scheme_id OR s.scheme_name ILIKE sed.scheme)
-        WHERE (e.ticket_id LIKE 'TKT-RT-%' OR e.alert_type ILIKE '%Sensor Offline%' OR e.alert_type ILIKE '%Offline%')
+        WHERE (e.dispatch_type = 'realtime' OR e.ticket_id LIKE 'TKT-RT-%')
           AND e.sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
         ORDER BY e.created_at DESC
       `);
@@ -441,6 +443,10 @@ router.get('/progress', async (req: Request, res: Response) => {
           categoryType = 'chlorine_offline';
         } else if (lowerAlert.includes('flow') && lowerAlert.includes('offline')) {
           categoryType = 'flow_offline';
+        } else if (lowerAlert.includes('pressure') && lowerAlert.includes('offline')) {
+          categoryType = 'pressure_offline';
+        } else if (lowerAlert.includes('pressure')) {
+          categoryType = 'pressure_critical';
         } else if (lowerAlert.includes('offline')) {
           categoryType = 'offline';
         } else if (lowerAlert.includes('restore') || lowerAlert.includes('normal') || lowerAlert.includes('changed')) {
@@ -468,6 +474,8 @@ router.get('/progress', async (req: Request, res: Response) => {
           ticket_id: r.ticket_id,
           category_type: categoryType,
           sent_date: r.sent_date,
+          sent_time: r.sent_time || null,
+          telemetry_date: r.telemetry_date || r.created_at || null,
           created_at: r.created_at,
           is_acknowledged: Boolean(r.is_acknowledged) || schemeAcks.length > 0,
           acknowledged_at: r.acknowledged_at || (schemeAcks[0]?.acknowledged_at || null),

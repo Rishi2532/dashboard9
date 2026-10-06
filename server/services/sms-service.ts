@@ -22,6 +22,7 @@ interface Alert {
   offline_issue?: boolean;
   offline_sensors?: string;
   offline_time?: string | Date | null;
+  telemetry_date?: string;
   flow_offline?: boolean;
   pressure_offline?: boolean;
   chlorine_offline?: boolean;
@@ -30,8 +31,12 @@ interface Alert {
 // Smartping API Gateway Configuration
 const SMARTPING_CONFIG = {
   apiUrl: process.env.SMARTPING_API_URL || "https://pgapi.smartping.ai/fe/api/v1/send",
+  tokenUrl: process.env.SMARTPING_TOKEN_URL || "https://pgapi.smartping.ai/fe/api/v1/usermgmt/auth/token",
+  statusUrl: process.env.SMARTPING_STATUS_URL || "https://pgapi.smartping.ai/fe/status",
   username: process.env.SMARTPING_API_USERNAME || "CSTECH.trans",
   password: process.env.SMARTPING_API_PASSWORD || "Cyfuture@12345",
+  authUser: process.env.SMARTPING_AUTH_USER || "CSTECH",
+  authPassword: process.env.SMARTPING_AUTH_PASSWORD || "Cyfuture@12345",
   senderId: process.env.SMARTPING_SENDER_ID || "MJPIOT",
   headerId: process.env.SMARTPING_HEADER_ID || "1005041138203274315",
   peId: process.env.SMARTPING_PE_ID || "1001861588684954918",
@@ -131,6 +136,195 @@ export function normalizeIndianMobile(mobile: string): string | null {
   return clean;
 }
 
+// In-memory token cache for Smartping Auth
+let cachedAuthToken: { token: string; expiresAt: number } | null = null;
+
+/**
+ * Generates or retrieves a cached auth token from Smartping
+ */
+export async function getSmartpingAuthToken(): Promise<string | null> {
+  const now = Date.now();
+  // Return cached token if valid for at least another 2 minutes
+  if (cachedAuthToken && cachedAuthToken.expiresAt > now + 120000) {
+    return cachedAuthToken.token;
+  }
+
+  try {
+    const res = await fetch(SMARTPING_CONFIG.tokenUrl, {
+      method: "POST",
+      headers: {
+        "user": SMARTPING_CONFIG.authUser,
+        "password": SMARTPING_CONFIG.authPassword,
+        "Accept": "application/json",
+      },
+    });
+
+    const data: any = await res.json();
+    if (data?.token) {
+      const expiresInSec = Number(data.expiredInSec) || 604799;
+      cachedAuthToken = {
+        token: data.token,
+        expiresAt: now + (expiresInSec * 1000),
+      };
+      console.log(`🔑 [Smartping Auth] Token obtained: ${data.token.substring(0, 8)}... (Valid for ${Math.round(expiresInSec / 3600)}h)`);
+      return data.token;
+    } else {
+      console.warn("⚠️ [Smartping Auth] Token response did not include a token:", data);
+      return null;
+    }
+  } catch (err: any) {
+    console.error("❌ [Smartping Auth] Error requesting token:", err.message);
+    return null;
+  }
+}
+
+export interface SmartpingStatusResult {
+  success: boolean;
+  transactionId: string | number;
+  deliveryStatus?: string; // 'DELIVERY_SUCCESS' | 'DELIVERY_FAILED' | 'SUBMISSION_ACCEPTED' etc.
+  description?: string;
+  deliveredDate?: string;
+  pduSuccess?: number;
+  totalPdu?: number;
+  statusCode?: number;
+  raw?: any;
+  error?: string;
+}
+
+/**
+ * Checks the real-time delivery status of an SMS via Smartping Status Check API
+ */
+export async function checkSmartpingSmsStatus(
+  transactionId: string | number
+): Promise<SmartpingStatusResult> {
+  const txIdStr = String(transactionId).trim();
+  if (!txIdStr) {
+    return { success: false, transactionId, error: "Missing transactionId" };
+  }
+
+  const token = await getSmartpingAuthToken();
+  if (!token) {
+    return { success: false, transactionId, error: "Failed to generate Smartping auth token" };
+  }
+
+  try {
+    const url = `${SMARTPING_CONFIG.statusUrl}?token=${encodeURIComponent(token)}&transactionId=${encodeURIComponent(txIdStr)}`;
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Accept": "application/json",
+      },
+    });
+
+    const data: any = await res.json();
+    return {
+      success: true,
+      transactionId: data.transactionId || txIdStr,
+      deliveryStatus: data.deliveryStatus || "UNKNOWN",
+      description: data.description,
+      deliveredDate: data.deliveredDate,
+      pduSuccess: data.pduSuccess,
+      totalPdu: data.totalPdu,
+      statusCode: data.statusCode,
+      raw: data,
+    };
+  } catch (err: any) {
+    console.error(`❌ [Smartping Status] Error checking status for TxID ${txIdStr}:`, err.message);
+    return { success: false, transactionId, error: err.message };
+  }
+}
+
+/**
+ * Updates an SMS record in sms_alert_logs with verified delivery status
+ */
+export async function updateSmsDeliveryStatus(
+  transactionId: string | number,
+  statusResult: SmartpingStatusResult
+) {
+  try {
+    const db = await getDB();
+    const txIdStr = String(transactionId);
+    await db.execute(sql`
+      UPDATE sms_alert_logs
+      SET 
+        delivery_status = ${statusResult.deliveryStatus || 'UNKNOWN'},
+        delivery_description = ${statusResult.description || null},
+        delivered_date = ${statusResult.deliveredDate || null},
+        delivery_checked_at = NOW()
+      WHERE transaction_id = ${txIdStr}
+    `);
+  } catch (err: any) {
+    console.warn(`Could not update delivery status for TxID ${transactionId}:`, err.message);
+  }
+}
+
+/**
+ * Synchronizes pending SMS logs with the Smartping Status Check API
+ */
+export async function syncPendingSmsDeliveryStatuses(options: {
+  maxRecords?: number;
+  daysBack?: number;
+} = {}): Promise<{
+  checked: number;
+  delivered: number;
+  failed: number;
+  pending: number;
+  errors: number;
+}> {
+  const maxRecords = options.maxRecords || 50;
+  const daysBack = options.daysBack || 3;
+  const summary = { checked: 0, delivered: 0, failed: 0, pending: 0, errors: 0 };
+
+  try {
+    const db = await getDB();
+    const pendingRows = await db.execute(sql`
+      SELECT id, mobile, transaction_id, delivery_status, created_at
+      FROM sms_alert_logs
+      WHERE transaction_id IS NOT NULL
+        AND (delivery_status = 'PENDING' OR delivery_status = 'SUBMISSION_ACCEPTED' OR delivery_status IS NULL)
+        AND created_at >= NOW() - (${daysBack} * INTERVAL '1 day')
+      ORDER BY id DESC
+      LIMIT ${maxRecords}
+    `);
+
+    const records = pendingRows.rows || [];
+    if (records.length === 0) {
+      return summary;
+    }
+
+    console.log(`🔍 [Smartping Sync] Checking delivery status for ${records.length} pending SMS messages...`);
+
+    for (const row of records) {
+      if (!row.transaction_id) continue;
+      summary.checked++;
+
+      const res = await checkSmartpingSmsStatus(row.transaction_id);
+      if (res.success && res.deliveryStatus) {
+        await updateSmsDeliveryStatus(row.transaction_id, res);
+
+        if (res.deliveryStatus === 'DELIVERY_SUCCESS') {
+          summary.delivered++;
+        } else if (res.deliveryStatus === 'DELIVERY_FAILED' || res.deliveryStatus.includes('FAILED') || res.deliveryStatus.includes('REJECTED')) {
+          summary.failed++;
+        } else {
+          summary.pending++;
+        }
+      } else {
+        summary.errors++;
+      }
+
+      // Small 100ms throttle between calls
+      await new Promise(r => setTimeout(r, 100));
+    }
+
+    console.log(`✅ [Smartping Sync Complete] Checked ${summary.checked}: ${summary.delivered} Delivered, ${summary.failed} Failed, ${summary.pending} Pending, ${summary.errors} Errors.`);
+  } catch (err: any) {
+    console.error("❌ [Smartping Sync] Failed during sync:", err.message);
+  }
+
+  return summary;
+}
+
 /**
  * Sends a single DLT-compliant SMS via Smartping Gateway
  */
@@ -139,7 +333,7 @@ export async function sendSmartpingDLTSMS(params: {
   text: string;
   dltContentId: string;
   dltPrincipalEntityId?: string;
-}): Promise<{ success: boolean; status?: number; response?: string; error?: string }> {
+}): Promise<{ success: boolean; status?: number; response?: string; transactionId?: string; error?: string }> {
   const formattedMobile = normalizeIndianMobile(params.mobile);
   if (!formattedMobile) {
     return { success: false, error: "Invalid mobile number format" };
@@ -178,14 +372,22 @@ export async function sendSmartpingDLTSMS(params: {
 
     const bodyText = await res.text();
 
+    let transactionId: string | undefined;
+    try {
+      const parsed = JSON.parse(bodyText);
+      if (parsed.transactionId) {
+        transactionId = String(parsed.transactionId);
+      }
+    } catch (_) {}
+
     if (res.ok) {
-      console.log(`✅ Smartping SMS delivered to ${formattedMobile} (Template: ${params.dltContentId}): ${bodyText}`);
-      return { success: true, status: res.status, response: bodyText };
+      console.log(`✅ Smartping SMS accepted for ${formattedMobile} (TxID: ${transactionId || 'N/A'}, Template: ${params.dltContentId}): ${bodyText}`);
+      return { success: true, status: res.status, response: bodyText, transactionId };
     } else {
       console.warn(
         `⚠️ Smartping SMS gateway returned HTTP ${res.status} for ${formattedMobile}: ${bodyText}`
       );
-      return { success: false, status: res.status, response: bodyText };
+      return { success: false, status: res.status, response: bodyText, transactionId };
     }
   } catch (error: any) {
     console.error(`❌ Smartping SMS network error for ${formattedMobile}:`, error.message);
@@ -208,6 +410,10 @@ export async function logSmsAlert(data: {
   gateway_status?: number;
   gateway_response?: string;
   is_success?: boolean;
+  dispatch_type?: string;
+  telemetry_date?: string;
+  transaction_id?: string;
+  delivery_status?: string;
 }) {
   try {
     const db = await getDB();
@@ -225,19 +431,40 @@ export async function logSmsAlert(data: {
         gateway_status INTEGER,
         gateway_response TEXT,
         is_success BOOLEAN DEFAULT TRUE,
+        dispatch_type VARCHAR(50) DEFAULT 'daily',
+        telemetry_date VARCHAR(50),
+        transaction_id VARCHAR(100),
+        delivery_status VARCHAR(50) DEFAULT 'PENDING',
+        delivery_description TEXT,
+        delivered_date VARCHAR(50),
+        delivery_checked_at TIMESTAMP WITH TIME ZONE,
         sent_date DATE DEFAULT CURRENT_DATE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
       CREATE INDEX IF NOT EXISTS idx_sms_alert_logs_mobile ON sms_alert_logs(mobile);
       CREATE INDEX IF NOT EXISTS idx_sms_alert_logs_scheme ON sms_alert_logs(scheme_id);
       CREATE INDEX IF NOT EXISTS idx_sms_alert_logs_created ON sms_alert_logs(created_at);
+      CREATE INDEX IF NOT EXISTS idx_sms_alert_logs_txid ON sms_alert_logs(transaction_id);
+      CREATE INDEX IF NOT EXISTS idx_sms_alert_logs_delivery_status ON sms_alert_logs(delivery_status);
     `);
 
+    // Extract transactionId if not provided directly
+    let txId = data.transaction_id;
+    if (!txId && data.gateway_response) {
+      try {
+        const parsed = JSON.parse(data.gateway_response);
+        if (parsed.transactionId) txId = String(parsed.transactionId);
+      } catch (_) {}
+    }
+
     const cleanMobile = normalizeIndianMobile(data.mobile) || data.mobile;
+    const initialStatus = data.delivery_status || (data.is_success ? "PENDING" : "SUBMIT_FAILED");
+
     await db.execute(sql`
       INSERT INTO sms_alert_logs (
         mobile, engineer_name, engineer_email, scheme_id, scheme_name,
-        template_id, template_name, message_text, gateway_status, gateway_response, is_success, sent_date
+        template_id, template_name, message_text, gateway_status, gateway_response, is_success,
+        dispatch_type, telemetry_date, transaction_id, delivery_status, sent_date
       ) VALUES (
         ${cleanMobile},
         ${data.engineer_name || null},
@@ -250,6 +477,10 @@ export async function logSmsAlert(data: {
         ${data.gateway_status || null},
         ${data.gateway_response || null},
         ${data.is_success !== undefined ? data.is_success : true},
+        ${data.dispatch_type || 'daily'},
+        ${data.telemetry_date || null},
+        ${txId || null},
+        ${initialStatus},
         CURRENT_DATE
       )
     `);
@@ -418,6 +649,8 @@ export async function sendDailyAlertSMS(mobile: string, name: string, alerts: Al
         gateway_status: res.status,
         gateway_response: res.response,
         is_success: res.success,
+        dispatch_type: 'daily',
+        telemetry_date: pressureAlert.telemetry_date || null,
       });
     }
 
@@ -453,6 +686,8 @@ export async function sendDailyAlertSMS(mobile: string, name: string, alerts: Al
         gateway_status: res.status,
         gateway_response: res.response,
         is_success: res.success,
+        dispatch_type: 'daily',
+        telemetry_date: chlorineAlert.telemetry_date || null,
       });
     }
 
@@ -486,6 +721,8 @@ export async function sendDailyAlertSMS(mobile: string, name: string, alerts: Al
         gateway_status: res.status,
         gateway_response: res.response,
         is_success: res.success,
+        dispatch_type: 'daily',
+        telemetry_date: lpcdAlert.telemetry_date || null,
       });
     }
 
@@ -521,6 +758,8 @@ export async function sendDailyAlertSMS(mobile: string, name: string, alerts: Al
         gateway_status: res.status,
         gateway_response: res.response,
         is_success: res.success,
+        dispatch_type: 'daily',
+        telemetry_date: flowOfflineAlert.telemetry_date || (flowOfflineAlert.offline_time ? String(flowOfflineAlert.offline_time) : null),
       });
     }
 
@@ -556,6 +795,8 @@ export async function sendDailyAlertSMS(mobile: string, name: string, alerts: Al
         gateway_status: res.status,
         gateway_response: res.response,
         is_success: res.success,
+        dispatch_type: 'daily',
+        telemetry_date: pressureOfflineAlert.telemetry_date || (pressureOfflineAlert.offline_time ? String(pressureOfflineAlert.offline_time) : null),
       });
     }
 
@@ -591,6 +832,8 @@ export async function sendDailyAlertSMS(mobile: string, name: string, alerts: Al
         gateway_status: res.status,
         gateway_response: res.response,
         is_success: res.success,
+        dispatch_type: 'daily',
+        telemetry_date: chlorineOfflineAlert.telemetry_date || (chlorineOfflineAlert.offline_time ? String(chlorineOfflineAlert.offline_time) : null),
       });
     }
 
@@ -661,6 +904,7 @@ export interface RealtimeSingleAlertSMSParams {
   alert_type: 'flow_offline' | 'chlorine_offline' | 'pressure_offline' | 'chlorine_low' | 'chlorine_high' | 'pressure_low';
   alert_value?: string | number;
   offline_time?: string | Date | null;
+  telemetry_date?: string;
 }
 
 /**
@@ -730,6 +974,9 @@ export async function sendRealtimeSingleAlertSMS(
     gateway_status: res.status,
     gateway_response: res.response,
     is_success: res.success,
+    dispatch_type: 'realtime',
+    telemetry_date: params.telemetry_date || (params.offline_time ? new Date(params.offline_time).toISOString() : new Date().toISOString()),
+    transaction_id: res.transactionId,
   });
 
   return res;
