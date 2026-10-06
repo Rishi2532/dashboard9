@@ -1214,6 +1214,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.session.assignedSchemeIds = assignedSchemeIds;
         req.session.assignedSchemeNames = assignedSchemeNames;
         req.session.engineerProfile = engineerProfile;
+        req.session.username = user.username;
+        req.session.user = {
+          id: user.id,
+          username: user.username,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          role: user.role,
+        };
 
         // Log the user login with IP address and user agent
         try {
@@ -1287,6 +1296,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const assignedSchemeIds = req.session?.assignedSchemeIds || [];
     const assignedSchemeNames = req.session?.assignedSchemeNames || [];
     const engineerProfile = req.session?.engineerProfile || null;
+    const user = req.session?.user || (req.session?.userId ? {
+      id: req.session.userId,
+      username: req.session.username,
+      name: engineerProfile?.name,
+      email: engineerProfile?.email,
+      phone: engineerProfile?.phone,
+      role,
+    } : null);
 
     res.json({
       isLoggedIn,
@@ -1297,6 +1314,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       assignedSchemeIds,
       assignedSchemeNames,
       engineerProfile,
+      user,
     });
   });
 
@@ -1459,6 +1477,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             )
           )
           AND ea.acknowledged_at IS NOT NULL
+          ${!isAdmin && userEmail ? sql`AND LOWER(TRIM(ea.engineer_email)) = ${userEmail}` : sql``}
           ORDER BY ea.acknowledged_at DESC
           LIMIT 1
         ) ea ON true

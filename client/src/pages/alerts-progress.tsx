@@ -348,11 +348,13 @@ export const getRowRecipients = (row: AlertData) => {
       const aEmail = a.engineer_email ? a.engineer_email.toLowerCase().trim() : '';
       const aName = a.engineer_name ? a.engineer_name.toLowerCase().trim() : '';
 
-      // 1. Direct match by exact email address
-      if (targetEmail && aEmail && targetEmail === aEmail) return true;
+      // 1. If both records have an email address, require strict exact email match
+      if (targetEmail && aEmail) {
+        return targetEmail === aEmail;
+      }
 
-      // 2. Match by engineer name
-      if (targetName && aName && (targetName === aName || targetName.includes(aName) || aName.includes(targetName))) {
+      // 2. Fallback to name match ONLY if email address is absent on one of the records
+      if (targetName && aName && targetName === aName) {
         return true;
       }
 
@@ -3095,7 +3097,7 @@ export default function AlertsProgressPage() {
     baseData.forEach(r => {
       if (Array.isArray(r.sms_dispatches)) {
         r.sms_dispatches.forEach((s: any) => {
-          const sKey = `${s.mobile}-${s.template_name || ''}-${s.sent_date || ''}`;
+          const sKey = s.id ? `id-${s.id}` : `${s.mobile}-${s.message_text || ''}-${s.created_at || s.sent_date || ''}`;
           if (!tabSmsMap.has(sKey)) {
             tabSmsMap.set(sKey, s);
           }
@@ -3103,7 +3105,7 @@ export default function AlertsProgressPage() {
       }
     });
     const tabSmsList = Array.from(tabSmsMap.values());
-    const smsSentCount = tabSmsList.length > 0 ? tabSmsList.length : notifiedEngineersList.filter(e => !!e.mobile).length;
+    const smsSentCount = tabSmsList.length;
 
     // Count remarks added
     const totalRemarks = baseData.filter(r => parseIssues(r.remarks).length > 0).length;

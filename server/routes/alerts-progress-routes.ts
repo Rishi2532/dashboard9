@@ -8,6 +8,38 @@ const router = Router();
 const { Pool } = pg;
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
+// Self-healing migration to ensure newer columns exist on both local and cloud databases
+(async () => {
+  try {
+    const client = await pool.connect();
+    try {
+      await client.query(`
+        ALTER TABLE email_alert_logs 
+          ADD COLUMN IF NOT EXISTS dispatch_type VARCHAR(50) DEFAULT 'daily',
+          ADD COLUMN IF NOT EXISTS telemetry_date VARCHAR(50),
+          ADD COLUMN IF NOT EXISTS ticket_id VARCHAR(100);
+
+        ALTER TABLE sms_alert_logs 
+          ADD COLUMN IF NOT EXISTS dispatch_type VARCHAR(50) DEFAULT 'daily',
+          ADD COLUMN IF NOT EXISTS telemetry_date VARCHAR(50),
+          ADD COLUMN IF NOT EXISTS transaction_id VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS delivery_status VARCHAR(50) DEFAULT 'PENDING',
+          ADD COLUMN IF NOT EXISTS delivery_description TEXT,
+          ADD COLUMN IF NOT EXISTS delivered_date VARCHAR(50),
+          ADD COLUMN IF NOT EXISTS delivery_checked_at TIMESTAMP WITH TIME ZONE,
+          ADD COLUMN IF NOT EXISTS gateway_response TEXT,
+          ADD COLUMN IF NOT EXISTS scheme_id VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS scheme_name VARCHAR(255);
+      `);
+      console.log('✅ Alert logs tables schema verified (telemetry_date & dispatch_type ready)');
+    } finally {
+      client.release();
+    }
+  } catch (err: any) {
+    console.warn('ℹ️ Self-healing column check for alert logs:', err.message);
+  }
+})();
+
 // Allow authenticated users (both engineers and administrators)
 router.use((req: any, res: any, next: any) => {
   if (
@@ -183,14 +215,14 @@ router.get('/lpcd', async (req, res) => {
           GROUP BY scheme_id, sent_date
         ),
         deduped_sms AS (
-          SELECT DISTINCT ON (scheme_id, mobile, sent_date)
+          SELECT DISTINCT ON (id)
                  id, mobile, engineer_name, engineer_email, template_name, template_id,
                  message_text, gateway_status, is_success, sent_date, created_at, scheme_id
           FROM sms_alert_logs
           WHERE (template_name ILIKE '%LPCD%' OR template_name IS NULL)
             AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
             AND ${dateFilter}
-          ORDER BY scheme_id, mobile, sent_date, created_at DESC
+          ORDER BY id, created_at DESC
         ),
         sms_status AS (
           SELECT scheme_id,
@@ -342,14 +374,14 @@ router.get('/chlorine', async (req, res) => {
           GROUP BY scheme_id, sent_date
         ),
         deduped_sms AS (
-          SELECT DISTINCT ON (scheme_id, mobile, sent_date)
+          SELECT DISTINCT ON (id)
                  id, mobile, engineer_name, engineer_email, template_name, template_id,
                  message_text, gateway_status, is_success, sent_date, created_at, scheme_id
           FROM sms_alert_logs
           WHERE (template_name ILIKE '%Chlorine%' AND template_name NOT ILIKE '%Offline%')
             AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
             AND ${dateFilter}
-          ORDER BY scheme_id, mobile, sent_date, created_at DESC
+          ORDER BY id, created_at DESC
         ),
         sms_status AS (
           SELECT scheme_id,
@@ -502,14 +534,14 @@ router.get('/pressure', async (req, res) => {
           GROUP BY scheme_id, sent_date
         ),
         deduped_sms AS (
-          SELECT DISTINCT ON (scheme_id, mobile, sent_date)
+          SELECT DISTINCT ON (id)
                  id, mobile, engineer_name, engineer_email, template_name, template_id,
                  message_text, gateway_status, is_success, sent_date, created_at, scheme_id
           FROM sms_alert_logs
           WHERE (template_name ILIKE '%Pressure%' AND template_name NOT ILIKE '%Offline%')
             AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
             AND ${dateFilter}
-          ORDER BY scheme_id, mobile, sent_date, created_at DESC
+          ORDER BY id, created_at DESC
         ),
         sms_status AS (
           SELECT scheme_id,
@@ -662,7 +694,7 @@ router.get('/offline', async (req, res) => {
           ORDER BY scheme_id, COALESCE(esr_name, ''), COALESCE(village_name, ''), sent_date, created_at DESC
         ),
         deduped_sms AS (
-          SELECT DISTINCT ON (scheme_id, mobile, sent_date)
+          SELECT DISTINCT ON (id)
                  id, mobile, engineer_name, engineer_email, template_name, template_id,
                  message_text, gateway_status, is_success, sent_date, created_at, scheme_id,
                  dispatch_type, telemetry_date
@@ -670,7 +702,7 @@ router.get('/offline', async (req, res) => {
           WHERE (template_name ILIKE '%Offline%' OR template_name IS NULL)
             AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
             AND ${dateFilter}
-          ORDER BY scheme_id, mobile, sent_date, created_at DESC
+          ORDER BY id, created_at DESC
         ),
         sms_status AS (
           SELECT scheme_id,
@@ -1118,7 +1150,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               GROUP BY scheme_id, sent_date
             ),
             deduped_sms AS (
-              SELECT DISTINCT ON (scheme_id, mobile, sent_date)
+              SELECT DISTINCT ON (id)
                      id, mobile, engineer_name, engineer_email, template_name, template_id,
                      message_text, gateway_status, is_success, sent_date, created_at, scheme_id,
                      dispatch_type, telemetry_date
@@ -1126,7 +1158,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               WHERE (template_name ILIKE '%LPCD%' OR template_name IS NULL)
                 AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
                 AND ${dateFilter}
-              ORDER BY scheme_id, mobile, sent_date, created_at DESC
+              ORDER BY id, created_at DESC
             ),
             sms_status AS (
               SELECT scheme_id,
@@ -1317,7 +1349,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               GROUP BY scheme_id, sent_date
             ),
             deduped_sms AS (
-              SELECT DISTINCT ON (scheme_id, mobile, sent_date)
+              SELECT DISTINCT ON (id)
                      id, mobile, engineer_name, engineer_email, template_name, template_id,
                      message_text, gateway_status, is_success, sent_date, created_at, scheme_id,
                      dispatch_type, telemetry_date
@@ -1325,7 +1357,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               WHERE (template_name ILIKE '%Chlorine%' AND template_name NOT ILIKE '%Offline%')
                 AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
                 AND ${dateFilter}
-              ORDER BY scheme_id, mobile, sent_date, created_at DESC
+              ORDER BY id, created_at DESC
             ),
             sms_status AS (
               SELECT scheme_id,
@@ -1519,7 +1551,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               GROUP BY scheme_id, sent_date
             ),
             deduped_sms AS (
-              SELECT DISTINCT ON (scheme_id, mobile, sent_date)
+              SELECT DISTINCT ON (id)
                      id, mobile, engineer_name, engineer_email, template_name, template_id,
                      message_text, gateway_status, is_success, sent_date, created_at, scheme_id,
                      dispatch_type, telemetry_date
@@ -1527,7 +1559,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               WHERE (template_name ILIKE '%Pressure%' AND template_name NOT ILIKE '%Offline%')
                 AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
                 AND ${dateFilter}
-              ORDER BY scheme_id, mobile, sent_date, created_at DESC
+              ORDER BY id, created_at DESC
             ),
             sms_status AS (
               SELECT scheme_id,
@@ -1719,7 +1751,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               ORDER BY scheme_id, COALESCE(esr_name, ''), COALESCE(village_name, ''), sent_date, created_at DESC
             ),
             deduped_sms AS (
-              SELECT DISTINCT ON (scheme_id, mobile, sent_date)
+              SELECT DISTINCT ON (id)
                      id, mobile, engineer_name, engineer_email, template_name, template_id,
                      message_text, gateway_status, is_success, sent_date, created_at, scheme_id,
                      dispatch_type, telemetry_date
@@ -1727,7 +1759,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               WHERE (template_name ILIKE '%Offline%' OR template_name IS NULL)
                 AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
                 AND ${dateFilter}
-              ORDER BY scheme_id, mobile, sent_date, created_at DESC
+              ORDER BY id, created_at DESC
             ),
             sms_status AS (
               SELECT scheme_id,

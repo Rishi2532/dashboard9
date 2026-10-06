@@ -179,9 +179,23 @@ router.post('/acknowledge', async (req: Request, res: Response) => {
       updateRes = await client.query(
         `UPDATE realtime_acknowledgements
          SET is_acknowledged = TRUE, acknowledged_at = NOW(), remarks = $1, engineer_name = $2
-         WHERE ticket_id = $3
+         WHERE ticket_id = $3 AND (engineer_email IS NULL OR LOWER(TRIM(engineer_email)) = $4)
          RETURNING id`,
-        [remarks || 'Acknowledged in Portal', name, ticket_id]
+        [remarks || 'Acknowledged in Portal', name, ticket_id, email]
+      );
+    }
+
+    if (!updateRes || updateRes.rows.length === 0) {
+      // Try updating unacknowledged record for this engineer on this scheme/ESR
+      updateRes = await client.query(
+        `UPDATE realtime_acknowledgements
+         SET is_acknowledged = TRUE, acknowledged_at = NOW(), remarks = $1, engineer_name = $2
+         WHERE scheme_id = $3 
+           AND COALESCE(NULLIF(TRIM(esr_name), '-'), '') = COALESCE(NULLIF(TRIM($4), '-'), '')
+           AND sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
+           AND (engineer_email IS NULL OR LOWER(TRIM(engineer_email)) = $5)
+         RETURNING id`,
+        [remarks || 'Acknowledged in Portal', name, scheme_id, esr_name || null, email]
       );
     }
 
@@ -222,6 +236,15 @@ router.post('/acknowledge', async (req: Request, res: Response) => {
 router.get('/progress', async (req: Request, res: Response) => {
   const client = await pool.connect();
   try {
+    const sessionUser = (req as any).session;
+    let currentEngineerEmail = (sessionUser?.engineerProfile?.email || sessionUser?.user?.email || sessionUser?.email || '').trim().toLowerCase();
+    const isEngineerSession = sessionUser?.isEngineer === true || sessionUser?.role === 'engineer';
+    if (!currentEngineerEmail && sessionUser?.userId) {
+      const uRes = await client.query('SELECT email FROM users WHERE id = $1', [sessionUser.userId]);
+      if (uRes.rows[0]?.email) {
+        currentEngineerEmail = uRes.rows[0].email.trim().toLowerCase();
+      }
+    }
     await client.query(`
       CREATE TABLE IF NOT EXISTS realtime_acknowledgements (
         id SERIAL PRIMARY KEY,
@@ -304,7 +327,9 @@ router.get('/progress', async (req: Request, res: Response) => {
       LEFT JOIN realtime_sensor_data rsd ON (ra.scheme_id = rsd.scheme_id AND (ra.esr_name = rsd.esr_name OR (ra.esr_name IS NULL AND rsd.esr_name IS NULL)))
       LEFT JOIN scheme_engineer_details sed ON (ra.scheme_id = sed.scheme_id OR s.scheme_name ILIKE sed.scheme)
       WHERE ra.sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
-      ORDER BY ra.created_at DESC
+      ORDER BY 
+        ${isEngineerSession && currentEngineerEmail ? `(CASE WHEN LOWER(TRIM(ra.engineer_email)) = '${currentEngineerEmail}' THEN 0 ELSE 1 END),` : ''}
+        ra.created_at DESC
     `);
 
     // Fallback to email_alert_logs if realtime_acknowledgements has 0 records on cloud
@@ -387,7 +412,7 @@ router.get('/progress', async (req: Request, res: Response) => {
 
     // Fetch all acknowledgements recorded today for real-time and email
     const acksTodayRes = await client.query(`
-      SELECT scheme_id, esr_name, ticket_id, engineer_name, engineer_email, is_acknowledged, acknowledged_at, sent_date, remarks
+      SELECT scheme_id, esr_name, alert_type, ticket_id, engineer_name, engineer_email, is_acknowledged, acknowledged_at, sent_date, remarks
       FROM realtime_acknowledgements
       WHERE sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date AND (is_acknowledged = TRUE OR acknowledged_at IS NOT NULL)
     `);
@@ -434,7 +459,21 @@ router.get('/progress', async (req: Request, res: Response) => {
       const key = `${r.scheme_id}|${r.esr_name || ''}|${r.alert_type}`.toLowerCase();
       if (!alertsMap.has(key)) {
         const emailRecipients = buildEmailRecipients(r);
-        const schemeAcks = acksTodayRes.rows.filter((a: any) => a.scheme_id === r.scheme_id);
+        const alertAcks = acksTodayRes.rows.filter((a: any) => {
+          if (a.scheme_id !== r.scheme_id) return false;
+          if (r.ticket_id && a.ticket_id && a.ticket_id === r.ticket_id) return true;
+          if (r.esr_name && a.esr_name && a.esr_name.trim().toLowerCase() === r.esr_name.trim().toLowerCase() && a.alert_type === r.alert_type) return true;
+          return false;
+        });
+
+        const myAck = (isEngineerSession && currentEngineerEmail)
+          ? alertAcks.find((a: any) => (a.engineer_email || '').trim().toLowerCase() === currentEngineerEmail)
+          : null;
+
+        const isAlertAcked = (isEngineerSession && currentEngineerEmail)
+          ? Boolean(myAck)
+          : (Boolean(r.is_acknowledged) || alertAcks.length > 0);
+
         const schemeSms = smsTodayRes.rows.filter((s: any) => s.scheme_id === r.scheme_id);
 
         let categoryType = 'chlorine_critical';
@@ -477,9 +516,9 @@ router.get('/progress', async (req: Request, res: Response) => {
           sent_time: r.sent_time || null,
           telemetry_date: r.telemetry_date || r.created_at || null,
           created_at: r.created_at,
-          is_acknowledged: Boolean(r.is_acknowledged) || schemeAcks.length > 0,
-          acknowledged_at: r.acknowledged_at || (schemeAcks[0]?.acknowledged_at || null),
-          acknowledged_by: r.engineer_name || (schemeAcks[0]?.engineer_name || r.engineer_email || 'Engineer'),
+          is_acknowledged: isAlertAcked,
+          acknowledged_at: myAck ? myAck.acknowledged_at : (isEngineerSession ? null : (r.acknowledged_at || alertAcks[0]?.acknowledged_at || null)),
+          acknowledged_by: myAck ? (myAck.engineer_name || myAck.engineer_email) : (isEngineerSession ? null : (r.engineer_name || alertAcks[0]?.engineer_name || r.engineer_email || 'Engineer')),
           remarks: r.remarks,
           ee_civil_name: r.ee_civil_name,
           ee_civil_email: r.ee_civil_email,
@@ -501,7 +540,7 @@ router.get('/progress', async (req: Request, res: Response) => {
           chief_engineer_mobile: r.chief_engineer_mobile,
           email_recipients: emailRecipients,
           sms_recipients: schemeSms,
-          acknowledgements: schemeAcks,
+          acknowledgements: alertAcks,
           sms_dispatches: schemeSms,
           total_emails_sent: emailRecipients.length,
           total_sms_sent: schemeSms.length,

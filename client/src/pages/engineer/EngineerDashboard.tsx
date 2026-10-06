@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Link, useLocation } from "wouter";
@@ -346,6 +346,12 @@ export default function EngineerDashboard() {
   // Real-time alerts remarks state
   const [realtimeAckRemarksMap, setRealtimeAckRemarksMap] = useState<Record<string, string>>({});
 
+  // Reset optimistic state when switched to different engineer account
+  useEffect(() => {
+    setAcknowledgedAlertKeys(new Set());
+    setRealtimeAckRemarksMap({});
+  }, [user?.id, user?.email]);
+
   // Fetch summary data for assigned schemes (scoped to current user, no stale cache overlap)
   const { data, isLoading, isRefetching, refetch } = useQuery<SchemesSummaryResponse>({
     queryKey: ["/api/engineer/schemes-summary", user?.id || user?.username || "current"],
@@ -353,18 +359,19 @@ export default function EngineerDashboard() {
     staleTime: 0,
   });
 
-  // Fetch live real-time critical alerts stream
+  // Fetch live real-time critical alerts stream (scoped to current user)
   const { data: realtimeProgress, refetch: refetchRealtime, isFetching: isFetchingRealtime } = useQuery<{
     summary: any;
     alerts: any[];
   }>({
-    queryKey: ["/api/realtime-alerts/progress"],
+    queryKey: ["/api/realtime-alerts/progress", user?.id || user?.username || "current"],
     queryFn: async () => {
       const res = await fetch("/api/realtime-alerts/progress");
       if (!res.ok) return { summary: {}, alerts: [] };
       return res.json();
     },
     refetchInterval: 20000,
+    staleTime: 0,
   });
 
   const schemes = data?.schemes || [];
@@ -708,7 +715,7 @@ export default function EngineerDashboard() {
         body: JSON.stringify({
           scheme_id: alert.scheme_id,
           esr_name: alert.esr_name,
-          alert_type: alert.chlorine_comm_status === 'Offline' ? 'Chlorine Offline' : 'Chlorine Critical',
+          alert_type: alert.alert_type || (alert.chlorine_comm_status === 'Offline' ? 'Chlorine Offline' : 'Chlorine Critical'),
           ticket_id: alert.ticket_id,
           remarks,
           engineer_email: engineerProfile?.email || user?.email,
@@ -749,7 +756,7 @@ export default function EngineerDashboard() {
           body: JSON.stringify({
             scheme_id: alert.scheme_id,
             esr_name: alert.esr_name,
-            alert_type: alert.chlorine_comm_status === 'Offline' ? 'Chlorine Offline' : 'Chlorine Critical',
+            alert_type: alert.alert_type || (alert.chlorine_comm_status === 'Offline' ? 'Chlorine Offline' : 'Chlorine Critical'),
             ticket_id: alert.ticket_id,
             remarks,
             engineer_email: engineerProfile?.email || user?.email,

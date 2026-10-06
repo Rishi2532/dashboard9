@@ -512,93 +512,84 @@ export async function getEngineerAssignedSchemes(
     district?: string | null;
   } | null = null;
 
-  const isMatchingPerson = (eEmailRaw: string | null | undefined, ePhoneRaw: string | null | undefined, eNameRaw: string | null | undefined) => {
-    const eEmail = (eEmailRaw || "").trim().toLowerCase();
-    const eName = (eNameRaw || "").trim().toLowerCase();
-    const eNameNorm = normalizeName(eName);
+  const userPhone = (user.phone || "").replace(/\D/g, "").slice(-10);
 
-    if (!eName && !eEmail) return false;
-
-    // 1. Name Condition: exact name or normalized transliteration
-    const isNameMatch = Boolean(
-      userName && (userName === eName || uNameNorm === eNameNorm || (uUserNorm && uUserNorm === eNameNorm))
-    );
-
-    // Case 1 & Case 2: If the user's name matches the engineer's name in this scheme, match it!
-    // - Case 1: Same person with different emails across schemes gets all schemes aggregated under their name.
-    // - Case 2: Multiple people sharing the same email (e.g. ee_nagpur@gov.in) are segregated strictly by name,
-    //           so Anil Deshmukh only sees schemes under "Anil Deshmukh" and Vijay's schemes never leak.
-    if (isNameMatch) {
-      return true;
+  const matchPersonRole = (roles: { role: string; name?: string | null; email?: string | null; phone?: string | null }[]) => {
+    // 1. Highest Priority: Exact Email match
+    if (userEmails.length > 0) {
+      for (const r of roles) {
+        const eEmail = (r.email || "").trim().toLowerCase();
+        if (eEmail && userEmails.includes(eEmail)) {
+          return r;
+        }
+      }
     }
 
-    // Fallback: If the scheme row has no engineer name recorded (legacy email-only data),
-    // or if the user account has no name populated, fall back to exact email matching.
-    const isEmailMatch = Boolean(userEmails.length > 0 && userEmails.includes(eEmail));
-    if ((!eName || !userName) && isEmailMatch) {
-      return true;
+    // 2. Exact Phone match (10 digits)
+    if (userPhone && userPhone.length >= 10) {
+      for (const r of roles) {
+        const ePhone = (r.phone || "").replace(/\D/g, "").slice(-10);
+        if (ePhone && ePhone === userPhone) {
+          return r;
+        }
+      }
     }
 
-    return false;
+    // 3. Exact Name match (case-insensitive string equality)
+    if (userName) {
+      for (const r of roles) {
+        const eName = (r.name || "").trim().toLowerCase();
+        if (eName && eName === userName) {
+          return r;
+        }
+      }
+    }
+
+    // 4. Normalized Name match (fallback only if user has no email or email not in row)
+    if (userEmails.length === 0 && (userName || userUsername)) {
+      for (const r of roles) {
+        const eName = (r.name || "").trim().toLowerCase();
+        const eNameNorm = normalizeName(eName);
+        if (eName && (uNameNorm === eNameNorm || (uUserNorm && uUserNorm === eNameNorm))) {
+          return r;
+        }
+      }
+    }
+
+    return null;
   };
 
   for (const eng of allEngineers) {
-    let matchedRole = "";
-    let matchedName = "";
-    let matchedEmail = "";
-    let matchedPhone = "";
+    const roles = [
+      { role: "EE (Civil)", name: eng.ee_civil_name, email: eng.ee_civil_email, phone: eng.ee_civil_mobile },
+      { role: "EE (Mech)", name: eng.ee_mech_name, email: eng.ee_mech_email, phone: eng.ee_mech_mobile },
+      { role: "DE/AE (Civil)", name: eng.de_ae_civil_name, email: eng.de_ae_civil_email, phone: eng.de_ae_civil_mobile },
+      { role: "DE/AE (Mech)", name: eng.de_ae_mech_name, email: eng.de_ae_mech_email, phone: eng.de_ae_mech_mobile },
+      { role: "Superintending Engineer (SE)", name: eng.se_name, email: eng.se_email, phone: eng.se_mobile },
+      { role: "Chief Engineer", name: eng.chief_engineer_name, email: eng.chief_engineer_email, phone: eng.chief_engineer_mobile }
+    ];
 
-    if (isMatchingPerson(eng.ee_civil_email, eng.ee_civil_mobile, eng.ee_civil_name)) {
-      matchedRole = "EE (Civil)";
-      matchedName = eng.ee_civil_name || "";
-      matchedEmail = eng.ee_civil_email || "";
-      matchedPhone = eng.ee_civil_mobile || "";
-    } else if (isMatchingPerson(eng.ee_mech_email, eng.ee_mech_mobile, eng.ee_mech_name)) {
-      matchedRole = "EE (Mech)";
-      matchedName = eng.ee_mech_name || "";
-      matchedEmail = eng.ee_mech_email || "";
-      matchedPhone = eng.ee_mech_mobile || "";
-    } else if (isMatchingPerson(eng.de_ae_civil_email, eng.de_ae_civil_mobile, eng.de_ae_civil_name)) {
-      matchedRole = "DE/AE (Civil)";
-      matchedName = eng.de_ae_civil_name || "";
-      matchedEmail = eng.de_ae_civil_email || "";
-      matchedPhone = eng.de_ae_civil_mobile || "";
-    } else if (isMatchingPerson(eng.de_ae_mech_email, eng.de_ae_mech_mobile, eng.de_ae_mech_name)) {
-      matchedRole = "DE/AE (Mech)";
-      matchedName = eng.de_ae_mech_name || "";
-      matchedEmail = eng.de_ae_mech_email || "";
-      matchedPhone = eng.de_ae_mech_mobile || "";
-    } else if (isMatchingPerson(eng.se_email, eng.se_mobile, eng.se_name)) {
-      matchedRole = "Superintending Engineer (SE)";
-      matchedName = eng.se_name || "";
-      matchedEmail = eng.se_email || "";
-      matchedPhone = eng.se_mobile || "";
-    } else if (isMatchingPerson(eng.chief_engineer_email, eng.chief_engineer_mobile, eng.chief_engineer_name)) {
-      matchedRole = "Chief Engineer";
-      matchedName = eng.chief_engineer_name || "";
-      matchedEmail = eng.chief_engineer_email || "";
-      matchedPhone = eng.chief_engineer_mobile || "";
-    }
+    const matched = matchPersonRole(roles);
 
-    if (matchedRole && eng.scheme_id) {
+    if (matched && eng.scheme_id) {
       assigned.push({
         scheme_id: eng.scheme_id,
         scheme_name: eng.scheme || eng.scheme_id,
         region: eng.region,
         district: eng.district,
         division: eng.division,
-        engineer_role: matchedRole,
-        engineer_name: matchedName,
-        engineer_email: matchedEmail,
-        engineer_phone: matchedPhone,
+        engineer_role: matched.role,
+        engineer_name: matched.name || "",
+        engineer_email: matched.email || "",
+        engineer_phone: matched.phone || "",
       });
 
       if (!engineerProfile) {
         engineerProfile = {
-          name: matchedName || user.name || user.username || "Engineer",
-          email: matchedEmail || user.email || "",
-          phone: matchedPhone || user.phone || "",
-          role: matchedRole,
+          name: user.name || matched.name || user.username || "Engineer",
+          email: user.email || matched.email || "",
+          phone: user.phone || matched.phone || "",
+          role: matched.role,
           region: eng.region,
           district: eng.district,
           division: eng.division,
