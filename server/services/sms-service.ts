@@ -619,9 +619,15 @@ export async function sendDailyAlertSMS(mobile: string, name: string, alerts: Al
   try {
     let dltDispatched = false;
 
-    // 1. Pressure Low Alert (< 0.2 Bar)
-    const pressureAlert = alerts.find((a) => a.pressure_issue);
-    if (pressureAlert) {
+    // 1. Pressure Low Alerts (< 0.2 Bar) - 1 SMS per ESR / Village
+    const pressureAlerts = alerts.filter((a) => a.pressure_issue);
+    const uniquePressureMap = new Map<string, Alert>();
+    pressureAlerts.forEach((a) => {
+      const key = `${a.scheme_id || ""}|${a.village_name || ""}|${a.esr_name || ""}`;
+      if (!uniquePressureMap.has(key)) uniquePressureMap.set(key, a);
+    });
+
+    for (const pressureAlert of uniquePressureMap.values()) {
       const schemeVal = formatSchemeName(pressureAlert.scheme_name, pressureAlert.scheme_id);
       const villageAndEsr = formatVillageAndEsr(pressureAlert.village_name, pressureAlert.esr_name);
       const pVal = pressureAlert.pressure_value || "0.15";
@@ -654,9 +660,15 @@ export async function sendDailyAlertSMS(mobile: string, name: string, alerts: Al
       });
     }
 
-    // 2. Chlorine Alert (Low < 0.2 mg/l or High > 0.5 mg/l)
-    const chlorineAlert = alerts.find((a) => a.chlorine_issue);
-    if (chlorineAlert) {
+    // 2. Chlorine Alerts (Low < 0.2 mg/l or High > 0.5 mg/l) - 1 SMS per ESR / Village
+    const chlorineAlerts = alerts.filter((a) => a.chlorine_issue);
+    const uniqueChlorineMap = new Map<string, Alert>();
+    chlorineAlerts.forEach((a) => {
+      const key = `${a.scheme_id || ""}|${a.village_name || ""}|${a.esr_name || ""}`;
+      if (!uniqueChlorineMap.has(key)) uniqueChlorineMap.set(key, a);
+    });
+
+    for (const chlorineAlert of uniqueChlorineMap.values()) {
       const schemeVal = formatSchemeName(chlorineAlert.scheme_name, chlorineAlert.scheme_id);
       const villageAndEsr = formatVillageAndEsr(chlorineAlert.village_name, chlorineAlert.esr_name);
       const cVal = parseFloat(String(chlorineAlert.chlorine_value || "0.1"));
@@ -691,9 +703,15 @@ export async function sendDailyAlertSMS(mobile: string, name: string, alerts: Al
       });
     }
 
-    // 3. LPCD Low Alert (< 55 LPCD) - First two vars: Scheme and Village Name
-    const lpcdAlert = alerts.find((a) => a.lpcd_issue);
-    if (lpcdAlert) {
+    // 3. LPCD Low Alerts (< 55 LPCD) - 1 SMS per Village
+    const lpcdAlerts = alerts.filter((a) => a.lpcd_issue);
+    const uniqueLpcdMap = new Map<string, Alert>();
+    lpcdAlerts.forEach((a) => {
+      const key = `${a.scheme_id || ""}|${(a.village_name || "Main").trim().toLowerCase()}`;
+      if (!uniqueLpcdMap.has(key)) uniqueLpcdMap.set(key, a);
+    });
+
+    for (const lpcdAlert of uniqueLpcdMap.values()) {
       const schemeVal = formatSchemeName(lpcdAlert.scheme_name, lpcdAlert.scheme_id);
       const villageVal = formatVillageName(lpcdAlert.village_name, lpcdAlert.scheme_name);
       const lVal = lpcdAlert.lpcd_value || "38";
@@ -726,11 +744,17 @@ export async function sendDailyAlertSMS(mobile: string, name: string, alerts: Al
       });
     }
 
-    // 4. Flow Sensor Offline Alert
-    const flowOfflineAlert = alerts.find(
+    // 4. Flow Sensor Offline Alerts - 1 SMS per ESR
+    const flowOfflineAlerts = alerts.filter(
       (a) => a.flow_offline || (a.offline_issue && a.offline_sensors?.toLowerCase().includes("flow"))
     );
-    if (flowOfflineAlert) {
+    const uniqueFlowOfflineMap = new Map<string, Alert>();
+    flowOfflineAlerts.forEach((a) => {
+      const key = `${a.scheme_id || ""}|${a.village_name || ""}|${a.esr_name || ""}`;
+      if (!uniqueFlowOfflineMap.has(key)) uniqueFlowOfflineMap.set(key, a);
+    });
+
+    for (const flowOfflineAlert of uniqueFlowOfflineMap.values()) {
       const schemeVal = formatSchemeName(flowOfflineAlert.scheme_name, flowOfflineAlert.scheme_id);
       const villageAndEsr = formatVillageAndEsr(flowOfflineAlert.village_name, flowOfflineAlert.esr_name);
       const dateTime = formatOfflineDateTime(flowOfflineAlert.offline_time);
@@ -763,11 +787,17 @@ export async function sendDailyAlertSMS(mobile: string, name: string, alerts: Al
       });
     }
 
-    // 5. Pressure Sensor Offline Alert
-    const pressureOfflineAlert = alerts.find(
+    // 5. Pressure Sensor Offline Alerts - 1 SMS per ESR
+    const pressureOfflineAlerts = alerts.filter(
       (a) => a.pressure_offline || (a.offline_issue && a.offline_sensors?.toLowerCase().includes("pressure"))
     );
-    if (pressureOfflineAlert) {
+    const uniquePressureOfflineMap = new Map<string, Alert>();
+    pressureOfflineAlerts.forEach((a) => {
+      const key = `${a.scheme_id || ""}|${a.village_name || ""}|${a.esr_name || ""}`;
+      if (!uniquePressureOfflineMap.has(key)) uniquePressureOfflineMap.set(key, a);
+    });
+
+    for (const pressureOfflineAlert of uniquePressureOfflineMap.values()) {
       const schemeVal = formatSchemeName(pressureOfflineAlert.scheme_name, pressureOfflineAlert.scheme_id);
       const villageAndEsr = formatVillageAndEsr(pressureOfflineAlert.village_name, pressureOfflineAlert.esr_name);
       const dateTime = formatOfflineDateTime(pressureOfflineAlert.offline_time);
@@ -800,11 +830,17 @@ export async function sendDailyAlertSMS(mobile: string, name: string, alerts: Al
       });
     }
 
-    // 6. Residual Chlorine Sensor Offline Alert
-    const chlorineOfflineAlert = alerts.find(
+    // 6. Residual Chlorine Sensor Offline Alerts - 1 SMS per ESR
+    const chlorineOfflineAlerts = alerts.filter(
       (a) => a.chlorine_offline || (a.offline_issue && a.offline_sensors?.toLowerCase().includes("chlorine"))
     );
-    if (chlorineOfflineAlert) {
+    const uniqueChlorineOfflineMap = new Map<string, Alert>();
+    chlorineOfflineAlerts.forEach((a) => {
+      const key = `${a.scheme_id || ""}|${a.village_name || ""}|${a.esr_name || ""}`;
+      if (!uniqueChlorineOfflineMap.has(key)) uniqueChlorineOfflineMap.set(key, a);
+    });
+
+    for (const chlorineOfflineAlert of uniqueChlorineOfflineMap.values()) {
       const schemeVal = formatSchemeName(chlorineOfflineAlert.scheme_name, chlorineOfflineAlert.scheme_id);
       const villageAndEsr = formatVillageAndEsr(chlorineOfflineAlert.village_name, chlorineOfflineAlert.esr_name);
       const dateTime = formatOfflineDateTime(chlorineOfflineAlert.offline_time);
