@@ -846,7 +846,7 @@ router.get('/offline', async (req, res) => {
           COALESCE(sms.sms_dispatches, '[]'::json) as sms_dispatches
         FROM recent_logs e
         LEFT JOIN LATERAL (
-          SELECT c.chlorine_status, c.pressure_status, c.flow_meter_status,
+          SELECT c.scheme_id, c.chlorine_status, c.pressure_status, c.flow_meter_status,
                  c.chlorine_connected, c.pressure_connected, c.flow_meter_connected,
                  c.last_seen, c.pressure_last_seen, c.esr_name, c.village_name, c.scheme_name, c.region
           FROM communication_status c
