@@ -77,17 +77,18 @@ interface RealtimeAlert {
 /**
  * Initializes and starts the 5-minute Real-Time Alert Cron Engine
  */
-// Flag to pause real-time alerts
-export let isRealtimeAlertsStopped = false;
+// Flag to pause real-time alerts (Default: true / STOPPED to prevent SMS and email costs)
+export let isRealtimeAlertsStopped = process.env.ENABLE_REALTIME_ALERTS === "true" ? false : true;
 
 export function setRealtimeAlertsStopped(stopped: boolean) {
   isRealtimeAlertsStopped = stopped;
+  console.log(`[Real-Time Alerts Engine] Status changed: ${stopped ? "STOPPED ⏸️" : "RUNNING ⚡"}`);
 }
 
 export function startPiRealtimeAlertsCron() {
   if (isRealtimeAlertsStopped) {
     console.log(
-      "⏸️ [Real-Time Alerts Engine] STOPPED for now as requested."
+      "⏸️ [Real-Time Alerts Engine] STOPPED for now as requested. No real-time crons, SMS, or emails will be dispatched."
     );
     return;
   }
@@ -177,7 +178,7 @@ let isRealtimeAlertsRunning = false;
 export async function runPiRealtimeAlertsJob(rootPath?: string) {
   if (isRealtimeAlertsStopped) {
     console.log(
-      "⏸️ [Real-Time Alerts Engine] Polling and alerts dispatch is currently STOPPED. Will rewind tomorrow."
+      "⏸️ [Real-Time Alerts Engine] Real-time alerts dispatch is currently STOPPED to avoid excess costs. No SMS or emails sent."
     );
     return;
   }

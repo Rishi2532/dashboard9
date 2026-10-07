@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import pg from 'pg';
 import dotenv from 'dotenv';
-import { runPiRealtimeAlertsJob } from '../cron/pi-realtime-alerts';
+import { runPiRealtimeAlertsJob, isRealtimeAlertsStopped, setRealtimeAlertsStopped } from '../cron/pi-realtime-alerts';
 
 dotenv.config();
 
@@ -651,11 +651,36 @@ router.get('/progress', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/realtime-alerts/status
+ * Check if the real-time alerts engine is stopped or active
+ */
+router.get('/status', (req: Request, res: Response) => {
+  res.json({ stopped: isRealtimeAlertsStopped });
+});
+
+/**
+ * POST /api/realtime-alerts/toggle
+ * Toggle or explicitly set whether real-time alerts are stopped
+ */
+router.post('/toggle', (req: Request, res: Response) => {
+  const { stopped } = req.body;
+  if (typeof stopped === 'boolean') {
+    setRealtimeAlertsStopped(stopped);
+  } else {
+    setRealtimeAlertsStopped(!isRealtimeAlertsStopped);
+  }
+  res.json({ success: true, stopped: isRealtimeAlertsStopped });
+});
+
+/**
  * POST /api/realtime-alerts/trigger
  * Admin manual trigger to run a real-time cycle immediately
  */
 router.post('/trigger', async (req: Request, res: Response) => {
   try {
+    if (isRealtimeAlertsStopped) {
+      return res.status(400).json({ error: "Real-time alerts engine is currently STOPPED. Resume it before triggering." });
+    }
     console.log("Manual real-time alert trigger requested...");
     runPiRealtimeAlertsJob().catch(err => console.error("Error in manually triggered real-time job:", err));
     res.json({ success: true, message: "Real-time alerts cycle initiated in background" });

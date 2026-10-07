@@ -229,7 +229,7 @@ app.use((req, res, next) => {
         initializeDataCleanup().catch(console.error);
         startDailyAlertsCron(); // Start the daily alerts cron job
         initPiChlorineIngestionCron(); // Start PI Web API Sync
-        startPiRealtimeAlertsCron(); // PI Real-Time 15-minute alerts engine
+        // startPiRealtimeAlertsCron(); // PAUSED: Real-time alerts stopped to prevent excess SMS/Email costs. Start when requested.
         // initPiPressureIngestionCron(); // Start PI Web API Pressure Sync
         // initPiWaterSchemeIngestionCron();
         // initPiSchemeLpcdIngestionCron();
