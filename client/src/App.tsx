@@ -49,6 +49,7 @@ import SmartReportsPage from "./pages/smart-reports";
 import MonthlyReportsPage from "./pages/monthly-reports";
 import IssueReportingForm from "./pages/helpdesk/IssueReportingForm";
 import AlertsProgressPage from "./pages/alerts-progress";
+import AlertsWeeklyPage from "./pages/alerts-weekly";
 import ESRDashboard from "./pages/ESRDashboard";
 import EngineersHierarchyPage from "./pages/admin/EngineersHierarchyPage";
 
@@ -312,6 +313,18 @@ function App() {
                     <Route path="/alerts-progress">
                       <ProtectedRoute>
                         <AlertsProgressPage />
+                      </ProtectedRoute>
+                    </Route>
+
+                    <Route path="/alerts-weekly">
+                      <ProtectedRoute>
+                        <AlertsWeeklyPage />
+                      </ProtectedRoute>
+                    </Route>
+
+                    <Route path="/alerts-progress/weekly">
+                      <ProtectedRoute>
+                        <AlertsWeeklyPage />
                       </ProtectedRoute>
                     </Route>
 

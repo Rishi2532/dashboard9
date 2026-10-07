@@ -42,7 +42,8 @@ import {
   Send,
   Layers,
   Loader2,
-  Smartphone
+  Smartphone,
+  BarChart3
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -2092,9 +2093,15 @@ export default function AlertsProgressPage() {
                         : null);
 
                     const emailRecs = Array.isArray(row.email_recipients) ? row.email_recipients : [];
-                    const smsRecs = (Array.isArray(row.sms_dispatches) && row.sms_dispatches.length > 0)
+                    const rawSmsRecs = (Array.isArray(row.sms_dispatches) && row.sms_dispatches.length > 0)
                       ? row.sms_dispatches
                       : (Array.isArray(row.sms_recipients) ? row.sms_recipients : []);
+                    const smsRecs = (row.esr_name || row.village_name)
+                      ? rawSmsRecs.filter((s: any) =>
+                          (row.village_name && s.message_text && s.message_text.toLowerCase().includes(row.village_name.toLowerCase())) ||
+                          (row.esr_name && s.message_text && s.message_text.toLowerCase().includes(row.esr_name.toLowerCase()))
+                        )
+                      : rawSmsRecs;
 
                     return (
                       <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
@@ -3997,7 +4004,18 @@ export default function AlertsProgressPage() {
                         <td className="py-2.5 px-3 text-center border-r border-slate-100 align-middle whitespace-nowrap">
                           {row.sms_dispatches && row.sms_dispatches.length > 0 ? (
                             (() => {
-                              const smsList = row.sms_dispatches!;
+                              const rawSmsList = row.sms_dispatches!;
+                              const smsList = (row.village_name || row.esr_name)
+                                ? rawSmsList.filter(s =>
+                                    (row.village_name && s.message_text && s.message_text.toLowerCase().includes(row.village_name.toLowerCase())) ||
+                                    (row.esr_name && s.message_text && s.message_text.toLowerCase().includes(row.esr_name.toLowerCase()))
+                                  )
+                                : rawSmsList;
+
+                              if (smsList.length === 0) {
+                                return <span className="text-[11px] text-slate-400 italic">Not Dispatched</span>;
+                              }
+
                               const successCount = smsList.filter(s => s.is_success).length;
                               const isFullSuccess = successCount === smsList.length;
                               const latestSms = smsList[0];
@@ -4048,12 +4066,7 @@ export default function AlertsProgressPage() {
                                         actualMsg = `सूचना: JJM MVS ${cleanScheme} अंतर्गत ${loc} येथील Sensor Offline आढळला असून Offline Date & Time ${dtStr} आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा`;
                                       }
 
-                                      const matchingDispatches = smsList.filter(s =>
-                                        (row.village_name && s.message_text && s.message_text.toLowerCase().includes(row.village_name.toLowerCase())) ||
-                                        (row.esr_name && s.message_text && s.message_text.toLowerCase().includes(row.esr_name.toLowerCase()))
-                                      );
-                                      const chosenDispatches = matchingDispatches.length > 0 ? matchingDispatches : smsList;
-                                      const foundMsg = matchingDispatches.find(s => s.message_text)?.message_text;
+                                      const foundMsg = smsList.find(s => s.message_text)?.message_text;
 
                                       setSelectedSmsModal({
                                         schemeName: row.scheme_name,
@@ -4061,7 +4074,7 @@ export default function AlertsProgressPage() {
                                         villageName: row.village_name,
                                         esrName: row.esr_name,
                                         alertValue: val,
-                                        dispatches: chosenDispatches,
+                                        dispatches: smsList,
                                         alertType: type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : type === "pressure" ? "Pressure" : "Offline",
                                         actualMessageText: foundMsg || actualMsg
                                       });
@@ -4325,6 +4338,24 @@ export default function AlertsProgressPage() {
                   </div>
                 </div>
               </div>
+
+              <div className="h-10 w-px bg-slate-200 hidden sm:block" />
+
+              {/* Weekly Scheme Status & Graphs Page Button */}
+              <button
+                type="button"
+                onClick={() => window.location.href = "/alerts-weekly"}
+                className="flex items-center gap-2.5 px-3.5 py-2 rounded-lg bg-gradient-to-r from-[#0f4c81] to-blue-700 hover:from-[#0c3c66] hover:to-blue-800 text-white font-bold text-xs shadow-sm hover:shadow transition-all cursor-pointer border border-blue-400/30"
+                title="Open Weekly Status of Each Scheme with Daily Alert & SMS/Email Graphs"
+              >
+                <div className="p-1 rounded bg-white/20 text-white">
+                  <BarChart3 className="h-4 w-4" />
+                </div>
+                <div className="text-left">
+                  <div className="leading-tight font-bold">Weekly Scheme Status</div>
+                  <div className="text-[10px] text-blue-100 font-normal">7-Day Alert & SMS Graphs</div>
+                </div>
+              </button>
             </div>
           </div>
 

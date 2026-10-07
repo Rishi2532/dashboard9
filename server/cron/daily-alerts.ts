@@ -256,6 +256,9 @@ export async function runDailyAlertsJob() {
 
     const now = new Date();
     const istTimeStr = now.toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour12: false });
+    const istDayOfWeek = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Kolkata", weekday: "long" }).format(now);
+    const isMonday = istDayOfWeek.toLowerCase() === "monday";
+    console.log(`📅 Daily Alerts Dispatch Day (IST): ${istDayOfWeek} (Weekly SE/CE SMS dispatch: ${isMonday ? "ACTIVE (Monday)" : "SKIPPED (Runs Monday only)"})`);
 
     allEngineerDetails.forEach((engineer) => {
       let schemeAlerts: Alert[] = [];
@@ -382,11 +385,14 @@ export async function runDailyAlertsJob() {
           engineer.de_ae_mech_email || engineer.site_supervisor_email || engineer.mechanical_engineer_email
         );
 
-        // SE Mobile
-        addEngineerMobiles(sanitizeMobiles(engineer.se_mobile), engineer.se_name || "Superintending Engineer (SE)", engineer.se_email);
+        // SE and Chief Engineer Mobile: Sent once a week on Monday with daily alerts; skipped Tuesday through Sunday
+        if (isMonday) {
+          // SE Mobile
+          addEngineerMobiles(sanitizeMobiles(engineer.se_mobile), engineer.se_name || "Superintending Engineer (SE)", engineer.se_email);
 
-        // Chief Engineer Mobile
-        addEngineerMobiles(sanitizeMobiles(engineer.chief_engineer_mobile), engineer.chief_engineer_name || "Chief Engineer", engineer.chief_engineer_email);
+          // Chief Engineer Mobile
+          addEngineerMobiles(sanitizeMobiles(engineer.chief_engineer_mobile), engineer.chief_engineer_name || "Chief Engineer", engineer.chief_engineer_email);
+        }
 
         // Build emailAlertLogs entries for each issue in this scheme
         schemeAlerts.forEach((alert) => {

@@ -2273,6 +2273,195 @@ router.get('/daily-dispatches', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/alerts-progress/weekly-schemes
+ * Returns all schemes with their assigned engineers for the weekly status search & selector
+ */
+router.get('/weekly-schemes', async (_req, res) => {
+  try {
+    const client = await pool.connect();
+    try {
+      const schemesRes = await client.query(`
+        SELECT 
+          scheme_id,
+          scheme as scheme_name,
+          region,
+          district,
+          ee_civil_name, ee_civil_email, ee_civil_mobile,
+          ee_mech_name, ee_mech_email, ee_mech_mobile,
+          de_ae_civil_name, de_ae_civil_email, de_ae_civil_mobile,
+          de_ae_mech_name, de_ae_mech_email, de_ae_mech_mobile,
+          se_name, se_email, se_mobile,
+          chief_engineer_name, chief_engineer_email, chief_engineer_mobile
+        FROM scheme_engineer_details
+        ORDER BY scheme ASC;
+      `);
+
+      res.json(schemesRes.rows);
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error fetching weekly schemes:', error);
+    res.status(500).json({ error: 'Failed to fetch schemes list' });
+  }
+});
+
+/**
+ * GET /api/alerts-progress/weekly-status/:schemeId
+ * Returns 7-day breakdown of alerts, emails, and SMS for LPCD, Chlorine, Pressure, and Offline
+ */
+router.get('/weekly-status/:schemeId', async (req, res) => {
+  try {
+    const { schemeId } = req.params;
+    const client = await pool.connect();
+    try {
+      // 1. Fetch scheme details & engineers
+      const schemeRes = await client.query(`
+        SELECT 
+          scheme_id,
+          scheme as scheme_name,
+          region,
+          district,
+          ee_civil_name, ee_civil_email, ee_civil_mobile,
+          ee_mech_name, ee_mech_email, ee_mech_mobile,
+          de_ae_civil_name, de_ae_civil_email, de_ae_civil_mobile,
+          de_ae_mech_name, de_ae_mech_email, de_ae_mech_mobile,
+          se_name, se_email, se_mobile,
+          chief_engineer_name, chief_engineer_email, chief_engineer_mobile
+        FROM scheme_engineer_details
+        WHERE scheme_id = $1 OR LOWER(scheme) = LOWER($1)
+        LIMIT 1;
+      `, [schemeId]);
+
+      const schemeInfo = schemeRes.rows[0] || { scheme_id: schemeId, scheme_name: schemeId };
+
+      // 2. Query 7-day alert logs & SMS dispatches
+      const weeklyRes = await client.query(`
+        WITH date_series AS (
+          SELECT (CURRENT_DATE - i)::date as day_date
+          FROM generate_series(0, 6) i
+        ),
+        emails AS (
+          SELECT 
+            sent_date::date as day_date,
+            COUNT(*) FILTER (WHERE alert_type ILIKE '%lpcd%') as lpcd_alerts,
+            COUNT(*) FILTER (WHERE alert_type ILIKE '%chlorine%' AND alert_type NOT ILIKE '%offline%') as chlorine_alerts,
+            COUNT(*) FILTER (WHERE alert_type ILIKE '%pressure%' AND alert_type NOT ILIKE '%offline%') as pressure_alerts,
+            COUNT(*) FILTER (WHERE alert_type ILIKE '%offline%') as offline_alerts,
+            COUNT(*) as total_alerts
+          FROM email_alert_logs
+          WHERE scheme_id = $1 AND sent_date >= CURRENT_DATE - 7
+          GROUP BY sent_date::date
+        ),
+        sms AS (
+          SELECT 
+            sent_date::date as day_date,
+            COUNT(*) FILTER (WHERE template_name ILIKE '%lpcd%') as lpcd_sms,
+            COUNT(*) FILTER (WHERE template_name ILIKE '%lpcd%' AND is_success = true) as lpcd_sms_delivered,
+            COUNT(*) FILTER (WHERE template_name ILIKE '%chlorine%' AND template_name NOT ILIKE '%offline%') as chlorine_sms,
+            COUNT(*) FILTER (WHERE template_name ILIKE '%chlorine%' AND template_name NOT ILIKE '%offline%' AND is_success = true) as chlorine_sms_delivered,
+            COUNT(*) FILTER (WHERE template_name ILIKE '%pressure%' AND template_name NOT ILIKE '%offline%') as pressure_sms,
+            COUNT(*) FILTER (WHERE template_name ILIKE '%pressure%' AND template_name NOT ILIKE '%offline%' AND is_success = true) as pressure_sms_delivered,
+            COUNT(*) FILTER (WHERE template_name ILIKE '%offline%') as offline_sms,
+            COUNT(*) FILTER (WHERE template_name ILIKE '%offline%' AND is_success = true) as offline_sms_delivered,
+            COUNT(*) as total_sms,
+            COUNT(*) FILTER (WHERE is_success = true) as total_sms_delivered
+          FROM sms_alert_logs
+          WHERE scheme_id = $1 AND sent_date >= CURRENT_DATE - 7
+          GROUP BY sent_date::date
+        )
+        SELECT 
+          d.day_date,
+          TO_CHAR(d.day_date, 'Dy, DD Mon') as formatted_date,
+          COALESCE(e.lpcd_alerts, 0) as lpcd_email,
+          COALESCE(s.lpcd_sms, 0) as lpcd_sms,
+          COALESCE(s.lpcd_sms_delivered, 0) as lpcd_sms_delivered,
+          COALESCE(e.chlorine_alerts, 0) as chlorine_email,
+          COALESCE(s.chlorine_sms, 0) as chlorine_sms,
+          COALESCE(s.chlorine_sms_delivered, 0) as chlorine_sms_delivered,
+          COALESCE(e.pressure_alerts, 0) as pressure_email,
+          COALESCE(s.pressure_sms, 0) as pressure_sms,
+          COALESCE(s.pressure_sms_delivered, 0) as pressure_sms_delivered,
+          COALESCE(e.offline_alerts, 0) as offline_email,
+          COALESCE(s.offline_sms, 0) as offline_sms,
+          COALESCE(s.offline_sms_delivered, 0) as offline_sms_delivered,
+          COALESCE(e.total_alerts, 0) as total_email,
+          COALESCE(s.total_sms, 0) as total_sms,
+          COALESCE(s.total_sms_delivered, 0) as total_sms_delivered
+        FROM date_series d
+        LEFT JOIN emails e ON (e.day_date = d.day_date)
+        LEFT JOIN sms s ON (s.day_date = d.day_date)
+        ORDER BY d.day_date ASC;
+      `, [schemeId]);
+
+      // Calculate totals
+      const totals = {
+        lpcd_email: 0, lpcd_sms: 0, lpcd_sms_delivered: 0,
+        chlorine_email: 0, chlorine_sms: 0, chlorine_sms_delivered: 0,
+        pressure_email: 0, pressure_sms: 0, pressure_sms_delivered: 0,
+        offline_email: 0, offline_sms: 0, offline_sms_delivered: 0,
+        total_email: 0, total_sms: 0, total_sms_delivered: 0
+      };
+
+      const days = weeklyRes.rows.map(row => {
+        const item = {
+          day_date: row.day_date,
+          formatted_date: row.formatted_date,
+          lpcd_email: Number(row.lpcd_email),
+          lpcd_sms: Number(row.lpcd_sms),
+          lpcd_sms_delivered: Number(row.lpcd_sms_delivered),
+          chlorine_email: Number(row.chlorine_email),
+          chlorine_sms: Number(row.chlorine_sms),
+          chlorine_sms_delivered: Number(row.chlorine_sms_delivered),
+          pressure_email: Number(row.pressure_email),
+          pressure_sms: Number(row.pressure_sms),
+          pressure_sms_delivered: Number(row.pressure_sms_delivered),
+          offline_email: Number(row.offline_email),
+          offline_sms: Number(row.offline_sms),
+          offline_sms_delivered: Number(row.offline_sms_delivered),
+          total_email: Number(row.total_email),
+          total_sms: Number(row.total_sms),
+          total_sms_delivered: Number(row.total_sms_delivered),
+        };
+
+        totals.lpcd_email += item.lpcd_email;
+        totals.lpcd_sms += item.lpcd_sms;
+        totals.lpcd_sms_delivered += item.lpcd_sms_delivered;
+
+        totals.chlorine_email += item.chlorine_email;
+        totals.chlorine_sms += item.chlorine_sms;
+        totals.chlorine_sms_delivered += item.chlorine_sms_delivered;
+
+        totals.pressure_email += item.pressure_email;
+        totals.pressure_sms += item.pressure_sms;
+        totals.pressure_sms_delivered += item.pressure_sms_delivered;
+
+        totals.offline_email += item.offline_email;
+        totals.offline_sms += item.offline_sms;
+        totals.offline_sms_delivered += item.offline_sms_delivered;
+
+        totals.total_email += item.total_email;
+        totals.total_sms += item.total_sms;
+        totals.total_sms_delivered += item.total_sms_delivered;
+
+        return item;
+      });
+
+      res.json({
+        scheme: schemeInfo,
+        days,
+        totals
+      });
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error fetching weekly scheme status:', error);
+    res.status(500).json({ error: 'Failed to fetch weekly status' });
+  }
+});
+
 export default router;
 
 
