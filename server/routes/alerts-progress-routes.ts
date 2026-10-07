@@ -78,9 +78,9 @@ function getAlertDateFilter(requestedDate?: string, subTab: string = 'current') 
       queryParams: [],
     };
   }
-  // 'current' or default: strictly today's alerts in IST
+  // 'current' or default: today's alerts in IST or server current date
   return {
-    dateFilter: `sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date`,
+    dateFilter: `(sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date OR sent_date = CURRENT_DATE)`,
     queryParams: [],
   };
 }
@@ -284,9 +284,31 @@ router.get('/lpcd', async (req, res) => {
           COALESCE(a.acknowledgements, '[]'::json) as acknowledgements,
           COALESCE(sms.sms_dispatches, '[]'::json) as sms_dispatches
         FROM recent_logs e
-        LEFT JOIN water_scheme_data w ON (w.scheme_id = e.scheme_id AND (LOWER(TRIM(w.village_name)) = LOWER(TRIM(e.village_name)) OR w.village_name IS NULL OR e.village_name IS NULL))
-        LEFT JOIN scheme_status s ON e.scheme_id = s.scheme_id
-        LEFT JOIN scheme_engineer_details sed ON (e.scheme_id = sed.scheme_id OR e.scheme_name ILIKE sed.scheme)
+        LEFT JOIN LATERAL (
+          SELECT w.lpcd_value_day7, w.lpcd_value_day6, w.lpcd_date_day7, w.village_name, w.scheme_name, w.scheme_id, w.region
+          FROM water_scheme_data w 
+          WHERE w.scheme_id = e.scheme_id 
+            AND (e.village_name IS NULL OR LOWER(TRIM(w.village_name)) = LOWER(TRIM(e.village_name)))
+          ORDER BY (CASE WHEN e.village_name IS NOT NULL AND LOWER(TRIM(w.village_name)) = LOWER(TRIM(e.village_name)) THEN 0 ELSE 1 END)
+          LIMIT 1
+        ) w ON true
+        LEFT JOIN LATERAL (
+          SELECT s.water_supply 
+          FROM scheme_status s 
+          WHERE s.scheme_id = e.scheme_id 
+          LIMIT 1
+        ) s ON true
+        LEFT JOIN LATERAL (
+          SELECT sed.ee_civil_name, sed.ee_civil_email, sed.ee_civil_mobile,
+                 sed.ee_mech_name, sed.ee_mech_email, sed.ee_mech_mobile,
+                 sed.de_ae_civil_name, sed.de_ae_civil_email, sed.de_ae_civil_mobile,
+                 sed.de_ae_mech_name, sed.de_ae_mech_email, sed.de_ae_mech_mobile,
+                 sed.se_name, sed.se_email, sed.se_mobile,
+                 sed.chief_engineer_name, sed.chief_engineer_email, sed.chief_engineer_mobile
+          FROM scheme_engineer_details sed 
+          WHERE sed.scheme_id = e.scheme_id OR (e.scheme_name IS NOT NULL AND sed.scheme = e.scheme_name)
+          LIMIT 1
+        ) sed ON true
         LEFT JOIN issues i ON e.scheme_id = i.scheme_id
         LEFT JOIN ack_status a ON (e.scheme_id = a.scheme_id AND e.sent_date::date = a.sent_date::date)
         LEFT JOIN sms_status sms ON (e.scheme_id = sms.scheme_id AND e.sent_date::date = sms.sent_date::date)
@@ -444,9 +466,31 @@ router.get('/chlorine', async (req, res) => {
           COALESCE(a.acknowledgements, '[]'::json) as acknowledgements,
           COALESCE(sms.sms_dispatches, '[]'::json) as sms_dispatches
         FROM recent_logs e
-        LEFT JOIN chlorine_data c ON (c.scheme_id = e.scheme_id AND (c.esr_name = e.esr_name OR c.esr_name IS NULL OR e.esr_name IS NULL))
-        LEFT JOIN scheme_status s ON e.scheme_id = s.scheme_id
-        LEFT JOIN scheme_engineer_details sed ON (e.scheme_id = sed.scheme_id OR e.scheme_name ILIKE sed.scheme)
+        LEFT JOIN LATERAL (
+          SELECT c.chlorine_value_7, c.chlorine_value_6, c.chlorine_date_day_7, c.esr_name, c.village_name, c.scheme_name, c.scheme_id, c.region
+          FROM chlorine_data c
+          WHERE c.scheme_id = e.scheme_id 
+            AND (e.esr_name IS NULL OR LOWER(TRIM(c.esr_name)) = LOWER(TRIM(e.esr_name)))
+          ORDER BY (CASE WHEN e.esr_name IS NOT NULL AND LOWER(TRIM(c.esr_name)) = LOWER(TRIM(e.esr_name)) THEN 0 ELSE 1 END)
+          LIMIT 1
+        ) c ON true
+        LEFT JOIN LATERAL (
+          SELECT s.water_supply 
+          FROM scheme_status s 
+          WHERE s.scheme_id = e.scheme_id 
+          LIMIT 1
+        ) s ON true
+        LEFT JOIN LATERAL (
+          SELECT sed.ee_civil_name, sed.ee_civil_email, sed.ee_civil_mobile,
+                 sed.ee_mech_name, sed.ee_mech_email, sed.ee_mech_mobile,
+                 sed.de_ae_civil_name, sed.de_ae_civil_email, sed.de_ae_civil_mobile,
+                 sed.de_ae_mech_name, sed.de_ae_mech_email, sed.de_ae_mech_mobile,
+                 sed.se_name, sed.se_email, sed.se_mobile,
+                 sed.chief_engineer_name, sed.chief_engineer_email, sed.chief_engineer_mobile
+          FROM scheme_engineer_details sed 
+          WHERE sed.scheme_id = e.scheme_id OR (e.scheme_name IS NOT NULL AND sed.scheme = e.scheme_name)
+          LIMIT 1
+        ) sed ON true
         LEFT JOIN issues i ON e.scheme_id = i.scheme_id
         LEFT JOIN ack_status a ON (e.scheme_id = a.scheme_id AND e.sent_date::date = a.sent_date::date)
         LEFT JOIN sms_status sms ON (e.scheme_id = sms.scheme_id AND e.sent_date::date = sms.sent_date::date)
@@ -604,9 +648,31 @@ router.get('/pressure', async (req, res) => {
           COALESCE(a.acknowledgements, '[]'::json) as acknowledgements,
           COALESCE(sms.sms_dispatches, '[]'::json) as sms_dispatches
         FROM recent_logs e
-        LEFT JOIN pressure_data p ON (p.scheme_id = e.scheme_id AND (p.esr_name = e.esr_name OR p.esr_name IS NULL OR e.esr_name IS NULL))
-        LEFT JOIN scheme_status s ON e.scheme_id = s.scheme_id
-        LEFT JOIN scheme_engineer_details sed ON (e.scheme_id = sed.scheme_id OR e.scheme_name ILIKE sed.scheme)
+        LEFT JOIN LATERAL (
+          SELECT p.pressure_value_7, p.pressure_value_6, p.pressure_date_day_7, p.esr_name, p.village_name, p.scheme_name, p.scheme_id, p.region
+          FROM pressure_data p
+          WHERE p.scheme_id = e.scheme_id 
+            AND (e.esr_name IS NULL OR LOWER(TRIM(p.esr_name)) = LOWER(TRIM(e.esr_name)))
+          ORDER BY (CASE WHEN e.esr_name IS NOT NULL AND LOWER(TRIM(p.esr_name)) = LOWER(TRIM(e.esr_name)) THEN 0 ELSE 1 END)
+          LIMIT 1
+        ) p ON true
+        LEFT JOIN LATERAL (
+          SELECT s.water_supply 
+          FROM scheme_status s 
+          WHERE s.scheme_id = e.scheme_id 
+          LIMIT 1
+        ) s ON true
+        LEFT JOIN LATERAL (
+          SELECT sed.ee_civil_name, sed.ee_civil_email, sed.ee_civil_mobile,
+                 sed.ee_mech_name, sed.ee_mech_email, sed.ee_mech_mobile,
+                 sed.de_ae_civil_name, sed.de_ae_civil_email, sed.de_ae_civil_mobile,
+                 sed.de_ae_mech_name, sed.de_ae_mech_email, sed.de_ae_mech_mobile,
+                 sed.se_name, sed.se_email, sed.se_mobile,
+                 sed.chief_engineer_name, sed.chief_engineer_email, sed.chief_engineer_mobile
+          FROM scheme_engineer_details sed 
+          WHERE sed.scheme_id = e.scheme_id OR (e.scheme_name IS NOT NULL AND sed.scheme = e.scheme_name)
+          LIMIT 1
+        ) sed ON true
         LEFT JOIN issues i ON e.scheme_id = i.scheme_id
         LEFT JOIN ack_status a ON (e.scheme_id = a.scheme_id AND e.sent_date::date = a.sent_date::date)
         LEFT JOIN sms_status sms ON (e.scheme_id = sms.scheme_id AND e.sent_date::date = sms.sent_date::date)
@@ -672,25 +738,31 @@ router.get('/offline', async (req, res) => {
           ) sub
           GROUP BY scheme_id, sent_date
         ),
+        all_offline_logs AS (
+          SELECT 
+            scheme_id, scheme_name, region, village_name, esr_name, ticket_id, alert_value, telemetry_date,
+            sent_time, ee_civil_name, ee_civil_email, ee_mech_name, ee_mech_email,
+            de_ae_civil_name, de_ae_civil_email, de_ae_mech_name, de_ae_mech_email,
+            se_name, se_email, chief_engineer_name, chief_engineer_email,
+            civil_engineer_name, civil_engineer_email, mechanical_engineer_name, mechanical_engineer_email,
+            site_supervisor_name, site_supervisor_email, created_at, sent_date
+          FROM email_alert_logs
+          WHERE alert_type ILIKE '%Offline%' AND ${dateFilter}
+          UNION ALL
+          SELECT 
+            scheme_id, scheme_name, NULL as region, NULL as village_name, NULL as esr_name, NULL as ticket_id, 'Offline' as alert_value, telemetry_date,
+            NULL as sent_time, NULL as ee_civil_name, NULL as ee_civil_email, NULL as ee_mech_name, NULL as ee_mech_email,
+            NULL as de_ae_civil_name, NULL as de_ae_civil_email, NULL as de_ae_mech_name, NULL as de_ae_mech_email,
+            NULL as se_name, NULL as se_email, NULL as chief_engineer_name, NULL as chief_engineer_email,
+            NULL as civil_engineer_name, NULL as civil_engineer_email, NULL as mechanical_engineer_name, NULL as mechanical_engineer_email,
+            NULL as site_supervisor_name, NULL as site_supervisor_email, created_at, sent_date
+          FROM sms_alert_logs
+          WHERE (template_name ILIKE '%Offline%') AND ${dateFilter}
+        ),
         recent_logs AS (
           SELECT DISTINCT ON (scheme_id, COALESCE(esr_name, ''), COALESCE(village_name, ''), sent_date)
-                 scheme_id, scheme_name, region, village_name, esr_name, ticket_id, alert_value, telemetry_date,
-                 sent_time,
-                 ee_civil_name, ee_civil_email,
-                 ee_mech_name, ee_mech_email,
-                 de_ae_civil_name, de_ae_civil_email,
-                 de_ae_mech_name, de_ae_mech_email,
-                 se_name, se_email,
-                 chief_engineer_name, chief_engineer_email,
-                 civil_engineer_name, civil_engineer_email,
-                 mechanical_engineer_name, mechanical_engineer_email,
-                 site_supervisor_name, site_supervisor_email,
-                 created_at, sent_date
-          FROM email_alert_logs
-          WHERE alert_type ILIKE '%Offline%'
-            AND (ticket_id NOT LIKE 'TKT-RT-%' OR ticket_id IS NULL)
-            AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
-            AND ${dateFilter}
+            *
+          FROM all_offline_logs
           ORDER BY scheme_id, COALESCE(esr_name, ''), COALESCE(village_name, ''), sent_date, created_at DESC
         ),
         deduped_sms AS (
@@ -700,7 +772,6 @@ router.get('/offline', async (req, res) => {
                  dispatch_type, telemetry_date
           FROM sms_alert_logs
           WHERE (template_name ILIKE '%Offline%' OR template_name IS NULL)
-            AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
             AND ${dateFilter}
           ORDER BY id, created_at DESC
         ),
@@ -774,19 +845,44 @@ router.get('/offline', async (req, res) => {
           COALESCE(a.acknowledgements, '[]'::json) as acknowledgements,
           COALESCE(sms.sms_dispatches, '[]'::json) as sms_dispatches
         FROM recent_logs e
-        LEFT JOIN communication_status c ON (c.scheme_id = e.scheme_id)
-        LEFT JOIN scheme_status s ON e.scheme_id = s.scheme_id
+        LEFT JOIN LATERAL (
+          SELECT c.chlorine_status, c.pressure_status, c.flow_meter_status,
+                 c.chlorine_connected, c.pressure_connected, c.flow_meter_connected,
+                 c.last_seen, c.pressure_last_seen, c.esr_name, c.village_name, c.scheme_name, c.region
+          FROM communication_status c
+          WHERE c.scheme_id = e.scheme_id 
+            AND (e.esr_name IS NULL OR LOWER(TRIM(c.esr_name)) = LOWER(TRIM(e.esr_name)))
+          ORDER BY (CASE WHEN e.esr_name IS NOT NULL AND LOWER(TRIM(c.esr_name)) = LOWER(TRIM(e.esr_name)) THEN 0 ELSE 1 END)
+          LIMIT 1
+        ) c ON true
+        LEFT JOIN LATERAL (
+          SELECT s.water_supply, s.region, s.scheme_name
+          FROM scheme_status s 
+          WHERE s.scheme_id = e.scheme_id 
+          LIMIT 1
+        ) s ON true
         LEFT JOIN sms_status sms ON (e.scheme_id = sms.scheme_id AND e.sent_date::date = sms.sent_date::date)
-        LEFT JOIN scheme_engineer_details sed ON (e.scheme_id = sed.scheme_id OR e.scheme_name ILIKE sed.scheme)
-        LEFT JOIN (
-          SELECT DISTINCT ON (region) region, employee_name, email, phone
-          FROM vendor
-          ORDER BY region, id
-        ) v ON e.region = v.region
+        LEFT JOIN LATERAL (
+          SELECT sed.ee_civil_name, sed.ee_civil_email, sed.ee_civil_mobile,
+                 sed.ee_mech_name, sed.ee_mech_email, sed.ee_mech_mobile,
+                 sed.de_ae_civil_name, sed.de_ae_civil_email, sed.de_ae_civil_mobile,
+                 sed.de_ae_mech_name, sed.de_ae_mech_email, sed.de_ae_mech_mobile,
+                 sed.se_name, sed.se_email, sed.se_mobile,
+                 sed.chief_engineer_name, sed.chief_engineer_email, sed.chief_engineer_mobile
+          FROM scheme_engineer_details sed 
+          WHERE sed.scheme_id = e.scheme_id OR (e.scheme_name IS NOT NULL AND sed.scheme = e.scheme_name)
+          LIMIT 1
+        ) sed ON true
+        LEFT JOIN LATERAL (
+          SELECT employee_name, email, phone
+          FROM vendor v
+          WHERE v.region = e.region OR v.region = c.region OR v.region = s.region
+          LIMIT 1
+        ) v ON true
         LEFT JOIN issues i ON e.scheme_id = i.scheme_id
         LEFT JOIN ack_status a ON (e.scheme_id = a.scheme_id AND e.sent_date::date = a.sent_date::date)
         WHERE (s.water_supply = 'Yes' OR s.water_supply IS NULL)
-        ORDER BY e.region, e.scheme_name, e.village_name;
+        ORDER BY COALESCE(e.region, c.region, s.region), COALESCE(e.scheme_name, c.scheme_name, s.scheme_name), e.village_name;
       `;
       const result = await client.query(query, queryParams);
       

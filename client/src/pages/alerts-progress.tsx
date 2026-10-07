@@ -1072,6 +1072,7 @@ export default function AlertsProgressPage() {
       flow_offline_count: number;
       pressure_low_count: number;
       pressure_offline_count: number;
+      total_offline_count?: number;
       total_esrs: number;
       acknowledged_count?: number;
       pending_count?: number;
@@ -1082,10 +1083,14 @@ export default function AlertsProgressPage() {
     };
     alerts: any[];
   }>({
-    queryKey: ["/api/realtime-alerts/progress"],
+    queryKey: ["/api/realtime-alerts/progress", customDate, activeSubTab],
     queryFn: async () => {
       try {
-        const res = await fetch("/api/realtime-alerts/progress");
+        const params = new URLSearchParams();
+        if (customDate) params.append("date", customDate);
+        if (activeSubTab) params.append("subTab", activeSubTab);
+        const url = `/api/realtime-alerts/progress?${params.toString()}`;
+        const res = await fetch(url);
         if (!res.ok) return { summary: {} as any, alerts: [] };
         const json = await res.json();
         return {
@@ -1373,12 +1378,14 @@ export default function AlertsProgressPage() {
       a.category_type === 'offline' ||
       a.category_type === 'chlorine_offline' ||
       a.category_type === 'flow_offline' ||
-      String(a.alert_type || '').toLowerCase().includes('offline')
+      a.category_type === 'pressure_offline' ||
+      String(a.alert_type || '').toLowerCase().includes('offline') ||
+      String(a.alert_value || '').toLowerCase().includes('offline')
     );
     const offlineSchemesCount = new Set(offlineAlerts.map((a: any) => String(a.scheme_id).trim()).filter(Boolean)).size;
     const offlineVillagesCount = new Set(offlineAlerts.map((a: any) => String(a.village_name || a.scheme_name).trim()).filter(Boolean)).size;
     const offlineEsrsCount = new Set(offlineAlerts.map((a: any) => `${a.scheme_id}|${a.esr_name || 'Main ESR'}`.toLowerCase()).filter(Boolean)).size;
-    const offlineTotalCount = (summary.chlorine_offline_count || 0) + (summary.flow_offline_count || 0) || offlineAlerts.length;
+    const offlineTotalCount = (summary.total_offline_count ?? ((summary.chlorine_offline_count || 0) + (summary.flow_offline_count || 0) + (summary.pressure_offline_count || 0))) || offlineAlerts.length;
 
     // Sub-counts strictly partitioned so low + high === criticalUniqueSensorsCount
     const highSensorKeys = new Set(
@@ -1695,6 +1702,7 @@ export default function AlertsProgressPage() {
             <div className="pt-2.5 mt-3 border-t border-slate-100 flex items-center justify-between text-[11px] font-semibold text-slate-700">
               <span>Chlorine: {summary.chlorine_offline_count || 0}</span>
               <span>Flow: {summary.flow_offline_count || 0}</span>
+              <span>Pressure: {summary.pressure_offline_count || 0}</span>
             </div>
           </div>
 

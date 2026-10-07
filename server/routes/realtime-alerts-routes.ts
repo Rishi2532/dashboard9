@@ -287,8 +287,20 @@ router.get('/progress', async (req: Request, res: Response) => {
       );
     `);
 
-    // 1. Target schemes for which real-time alerts are sent (assigned to engineers / logged in dispatches)
-    // 2. Fetch Sent Alerts from realtime_acknowledgements
+    // 1. Support requestedDate & subTab for date resilience
+    const requestedDate = req.query.date as string;
+    const subTab = (req.query.subTab as string) || 'current';
+    let dateFilterSql = `(ra.sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date OR ra.sent_date = CURRENT_DATE)`;
+    let emailDateFilterSql = `(e.sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date OR e.sent_date = CURRENT_DATE)`;
+    if (requestedDate && requestedDate.trim() && requestedDate !== 'undefined' && requestedDate !== 'null') {
+      dateFilterSql = `ra.sent_date = '${requestedDate.trim()}'::date`;
+      emailDateFilterSql = `e.sent_date = '${requestedDate.trim()}'::date`;
+    } else if (subTab === 'previous') {
+      dateFilterSql = `ra.sent_date = ((CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '1 day')::date`;
+      emailDateFilterSql = `e.sent_date = ((CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '1 day')::date`;
+    }
+
+    // 2. Fetch Sent Alerts from realtime_acknowledgements (scoped with LATERAL joins to eliminate duplicate Cartesian explosion)
     let sentAlertsRes = await client.query(`
       SELECT 
         ra.id,
@@ -323,10 +335,30 @@ router.get('/progress', async (req: Request, res: Response) => {
         sed.se_name, sed.se_email, sed.se_mobile,
         sed.chief_engineer_name, sed.chief_engineer_email, sed.chief_engineer_mobile
       FROM realtime_acknowledgements ra
-      LEFT JOIN scheme_status s ON ra.scheme_id = s.scheme_id
-      LEFT JOIN realtime_sensor_data rsd ON (ra.scheme_id = rsd.scheme_id AND (ra.esr_name = rsd.esr_name OR (ra.esr_name IS NULL AND rsd.esr_name IS NULL)))
-      LEFT JOIN scheme_engineer_details sed ON (ra.scheme_id = sed.scheme_id OR s.scheme_name ILIKE sed.scheme)
-      WHERE ra.sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
+      LEFT JOIN LATERAL (
+        SELECT s.scheme_name, s.region, s.circle, s.division, s.block
+        FROM scheme_status s 
+        WHERE s.scheme_id = ra.scheme_id 
+        LIMIT 1
+      ) s ON true
+      LEFT JOIN LATERAL (
+        SELECT rsd.village_name, rsd.esr_name, rsd.chlorine_value, rsd.flow_rate_value, rsd.pressure_value, rsd.prev_chlorine_status, rsd.prev_chlorine_value
+        FROM realtime_sensor_data rsd 
+        WHERE rsd.scheme_id = ra.scheme_id AND (ra.esr_name IS NULL OR rsd.esr_name = ra.esr_name)
+        LIMIT 1
+      ) rsd ON true
+      LEFT JOIN LATERAL (
+        SELECT sed.ee_civil_name, sed.ee_civil_email, sed.ee_civil_mobile,
+               sed.ee_mech_name, sed.ee_mech_email, sed.ee_mech_mobile,
+               sed.de_ae_civil_name, sed.de_ae_civil_email, sed.de_ae_civil_mobile,
+               sed.de_ae_mech_name, sed.de_ae_mech_email, sed.de_ae_mech_mobile,
+               sed.se_name, sed.se_email, sed.se_mobile,
+               sed.chief_engineer_name, sed.chief_engineer_email, sed.chief_engineer_mobile
+        FROM scheme_engineer_details sed 
+        WHERE sed.scheme_id = ra.scheme_id OR (ra.scheme_name IS NOT NULL AND sed.scheme = ra.scheme_name)
+        LIMIT 1
+      ) sed ON true
+      WHERE ${dateFilterSql}
       ORDER BY 
         ${isEngineerSession && currentEngineerEmail ? `(CASE WHEN LOWER(TRIM(ra.engineer_email)) = '${currentEngineerEmail}' THEN 0 ELSE 1 END),` : ''}
         ra.created_at DESC
@@ -370,10 +402,25 @@ router.get('/progress', async (req: Request, res: Response) => {
           sed.se_name, sed.se_email, sed.se_mobile,
           sed.chief_engineer_name, sed.chief_engineer_email, sed.chief_engineer_mobile
         FROM email_alert_logs e
-        LEFT JOIN scheme_status s ON e.scheme_id = s.scheme_id
-        LEFT JOIN scheme_engineer_details sed ON (e.scheme_id = sed.scheme_id OR s.scheme_name ILIKE sed.scheme)
+        LEFT JOIN LATERAL (
+          SELECT s.scheme_name, s.region, s.circle, s.division, s.block
+          FROM scheme_status s 
+          WHERE s.scheme_id = e.scheme_id 
+          LIMIT 1
+        ) s ON true
+        LEFT JOIN LATERAL (
+          SELECT sed.ee_civil_name, sed.ee_civil_email, sed.ee_civil_mobile,
+                 sed.ee_mech_name, sed.ee_mech_email, sed.ee_mech_mobile,
+                 sed.de_ae_civil_name, sed.de_ae_civil_email, sed.de_ae_civil_mobile,
+                 sed.de_ae_mech_name, sed.de_ae_mech_email, sed.de_ae_mech_mobile,
+                 sed.se_name, sed.se_email, sed.se_mobile,
+                 sed.chief_engineer_name, sed.chief_engineer_email, sed.chief_engineer_mobile
+          FROM scheme_engineer_details sed 
+          WHERE sed.scheme_id = e.scheme_id OR (e.scheme_name IS NOT NULL AND sed.scheme = e.scheme_name)
+          LIMIT 1
+        ) sed ON true
         WHERE (e.dispatch_type = 'realtime' OR e.ticket_id LIKE 'TKT-RT-%')
-          AND e.sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
+          AND ${emailDateFilterSql}
         ORDER BY e.created_at DESC
       `);
     }
@@ -568,7 +615,8 @@ router.get('/progress', async (req: Request, res: Response) => {
     const restoredCount = finalAlertsList.filter((a: any) => a.category_type === 'restored').length;
     const chlorineOfflineCount = finalAlertsList.filter((a: any) => a.category_type === 'chlorine_offline').length;
     const flowOfflineCount = finalAlertsList.filter((a: any) => a.category_type === 'flow_offline').length;
-    const pressureOfflineCount = finalAlertsList.filter((a: any) => String(a.alert_type).toLowerCase().includes('pressure') && String(a.alert_type).toLowerCase().includes('offline')).length;
+    const pressureOfflineCount = finalAlertsList.filter((a: any) => a.category_type === 'pressure_offline' || (String(a.alert_type).toLowerCase().includes('pressure') && String(a.alert_type).toLowerCase().includes('offline'))).length;
+    const genericOfflineCount = finalAlertsList.filter((a: any) => a.category_type === 'offline').length;
     const acknowledgedCount = finalAlertsList.filter((a: any) => Boolean(a.is_acknowledged)).length;
     const pendingAcknowledgedCount = finalAlertsList.length - acknowledgedCount;
 
@@ -580,6 +628,7 @@ router.get('/progress', async (req: Request, res: Response) => {
       chlorine_offline_count: chlorineOfflineCount,
       flow_offline_count: flowOfflineCount,
       pressure_offline_count: pressureOfflineCount,
+      total_offline_count: (chlorineOfflineCount + flowOfflineCount + pressureOfflineCount + genericOfflineCount) || finalAlertsList.filter((a: any) => String(a.alert_type || '').toLowerCase().includes('offline')).length,
       acknowledged_count: acknowledgedCount,
       pending_acknowledged_count: pendingAcknowledgedCount,
       total_esrs: new Set(finalAlertsList.map((a: any) => `${a.scheme_id}|${a.esr_name || ''}`)).size || finalAlertsList.length,
