@@ -3728,18 +3728,6 @@ const DetailedChlorinePage = () => {
                   hideLabel={true}
                 />
               </div>
-              <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 flex-shrink-0" />
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Village:</span>
-                <VillageFilter
-                  value={villageFilter}
-                  onChange={(val) => {
-                    setVillageFilter(val);
-                  }}
-                  showLabel={false}
-                  triggerClassName="h-8 w-[160px] text-xs bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700"
-                />
-              </div>
 
               <div className="ml-auto flex-shrink-0">
                 <Button

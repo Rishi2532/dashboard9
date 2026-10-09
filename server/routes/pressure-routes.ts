@@ -284,21 +284,16 @@ router.get("/with-water-sensors", async (req, res) => {
 // Get regional pressure sensor statistics
 router.get("/regional-stats", async (req, res) => {
   try {
-    const { fullyCompleted, filterType, agencyType } = req.query;
-    console.log("Fetching regional pressure sensor statistics", { fullyCompleted, filterType, agencyType });
+    const { fullyCompleted, filterType, agencyType, villageFilter } = req.query;
+    console.log("Fetching regional pressure sensor statistics", { fullyCompleted, filterType, agencyType, villageFilter });
 
     const db = await getDB();
 
     let schemeIdFilter = "";
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string, undefined, villageFilter as string);
 
     if (filteredIds) {
       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
-        // No matches found by filter, return empty stats immediately
-        // But we need to return valid structure with empty counts for all regions? 
-        // Or just return empty array?
-        // The current logic queries distinct regions FIRST with the filter.
-        // If we use 'AND scheme_id IN (NULL)' effectively (or impossible ID), we get no regions.
         schemeIdFilter = "AND cs.scheme_id = 'NO_MATCHES_PLACEHOLDER'";
       } else {
         const ids = filteredIds.map((id: string) => `'${id}'`).join(',');
@@ -306,77 +301,83 @@ router.get("/regional-stats", async (req, res) => {
       }
     }
 
-    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-    const client = await pool.connect();
+    // Get all unique regions from scheme_status starting point
+    const regionsResult = await db.execute(sql.raw(`
+      SELECT DISTINCT region 
+      FROM scheme_status ss 
+      WHERE region IS NOT NULL 
+      ${schemeIdFilter.replace(/cs\.scheme_id/g, 'ss.scheme_id')} 
+      ORDER BY region
+    `));
+    const regions = (regionsResult.rows || []).map((row: any) => row.region);
+    console.log(`Found ${regions.length} regions for pressure stats`);
 
-    try {
-      // Get all unique regions from scheme_status starting point
-      const regionsResult = await client.query(`
-        SELECT DISTINCT region FROM scheme_status ss WHERE region IS NOT NULL ${schemeIdFilter.replace(/cs\.scheme_id/g, 'ss.scheme_id')} ORDER BY region
-      `);
-      const regions = regionsResult.rows.map((row: any) => row.region);
-      console.log(`Found ${regions.length} regions`);
+    const regionalStats = await Promise.all(
+      regions.map(async (region: string) => {
+        const safeRegion = String(region).replace(/'/g, "''");
+        const statsResult = await db.execute(sql.raw(`
+          SELECT 
+            COUNT(DISTINCT ss.scheme_id) as total_schemes,
+            COUNT(DISTINCT CASE WHEN (cs.pressure_connected = 'Connected' OR cs.pressure_connected = 'connected') THEN cs.id END) as total_connected,
+            COUNT(DISTINCT CASE WHEN (cs.pressure_connected = 'Connected' OR cs.pressure_connected = 'connected') AND (cs.pressure_status = 'Online' OR cs.pressure_status = 'online') THEN cs.id END) as total_online,
+            COUNT(DISTINCT CASE WHEN (cs.pressure_connected = 'Connected' OR cs.pressure_connected = 'connected') AND (cs.pressure_status = 'Offline' OR cs.pressure_status = 'offline') AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) THEN cs.id END) as offline_with_no_water,
+            COUNT(DISTINCT CASE WHEN (cs.pressure_connected = 'Connected' OR cs.pressure_connected = 'connected') AND (cs.pressure_status = 'Offline' OR cs.pressure_status = 'offline') AND wc.water_value_day7 > 0 THEN cs.id END) as offline_with_water,
+            COUNT(DISTINCT CASE WHEN (cs.pressure_connected = 'Connected' OR cs.pressure_connected = 'connected') AND (cs.pressure_status = 'Offline' OR cs.pressure_status = 'offline') THEN cs.id END) as total_offline,
+            COUNT(DISTINCT CASE WHEN (cs.pressure_connected = 'Connected' OR cs.pressure_connected = 'connected') AND (cs.pressure_status = 'Online' OR cs.pressure_status = 'online') AND wc.water_value_day7 > 0 THEN cs.id END) as online_with_water,
+            COUNT(DISTINCT CASE WHEN (cs.pressure_connected = 'Connected' OR cs.pressure_connected = 'connected') AND (cs.pressure_status = 'Online' OR cs.pressure_status = 'online') AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) THEN cs.id END) as online_without_water,
+            COUNT(DISTINCT CASE WHEN (cs.pressure_connected = 'Connected' OR cs.pressure_connected = 'connected') AND (cs.pressure_status = 'Online' OR cs.pressure_status = 'online') AND wc.water_value_day7 > 0 AND pd.pressure_value_7::numeric >= 0.2 AND pd.pressure_value_7::numeric <= 0.7 THEN cs.id END) as online_with_water_pressure_optimal,
+            COUNT(DISTINCT CASE WHEN (cs.pressure_connected = 'Connected' OR cs.pressure_connected = 'connected') AND (cs.pressure_status = 'Online' OR cs.pressure_status = 'online') AND wc.water_value_day7 > 0 AND pd.pressure_value_7::numeric > 0.7 THEN cs.id END) as online_with_water_pressure_above,
+            COUNT(DISTINCT CASE WHEN (cs.pressure_connected = 'Connected' OR cs.pressure_connected = 'connected') AND (cs.pressure_status = 'Online' OR cs.pressure_status = 'online') AND wc.water_value_day7 > 0 AND pd.pressure_value_7::numeric < 0.2 THEN cs.id END) as online_with_water_pressure_below,
+            COUNT(DISTINCT CASE WHEN (cs.pressure_connected = 'Connected' OR cs.pressure_connected = 'connected') AND (cs.pressure_status = 'Online' OR cs.pressure_status = 'online') AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) AND pd.pressure_value_7::numeric >= 0.2 AND pd.pressure_value_7::numeric <= 0.7 THEN cs.id END) as online_without_water_pressure_optimal,
+            COUNT(DISTINCT CASE WHEN (cs.pressure_connected = 'Connected' OR cs.pressure_connected = 'connected') AND (cs.pressure_status = 'Online' OR cs.pressure_status = 'online') AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) AND pd.pressure_value_7::numeric > 0.7 THEN cs.id END) as online_without_water_pressure_above,
+            COUNT(DISTINCT CASE WHEN (cs.pressure_connected = 'Connected' OR cs.pressure_connected = 'connected') AND (cs.pressure_status = 'Online' OR cs.pressure_status = 'online') AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) AND pd.pressure_value_7::numeric < 0.2 THEN cs.id END) as online_without_water_pressure_below,
+            COUNT(DISTINCT CASE WHEN (cs.pressure_connected = 'Connected' OR cs.pressure_connected = 'connected') AND (cs.pressure_status = 'Offline' OR cs.pressure_status = 'offline') AND CURRENT_TIMESTAMP - COALESCE(cs.pressure_last_seen, cs.last_seen) >= INTERVAL '7 days' THEN cs.id END) as offline_since_7days,
+            COUNT(DISTINCT CASE WHEN (cs.pressure_connected = 'Connected' OR cs.pressure_connected = 'connected') AND (cs.pressure_status = 'Offline' OR cs.pressure_status = 'offline') AND CURRENT_TIMESTAMP - COALESCE(cs.pressure_last_seen, cs.last_seen) >= INTERVAL '30 days' THEN cs.id END) as offline_since_30days,
+            COUNT(DISTINCT CASE WHEN (cs.pressure_connected = 'Connected' OR cs.pressure_connected = 'connected') AND (cs.pressure_status = 'Offline' OR cs.pressure_status = 'offline') AND CURRENT_TIMESTAMP - COALESCE(cs.pressure_last_seen, cs.last_seen) >= INTERVAL '3 days' THEN cs.id END) as offline_since_3days
+          FROM scheme_status ss
+          LEFT JOIN communication_status cs ON (ss.scheme_id = cs.scheme_id)
+          LEFT JOIN water_consumption wc ON (
+            cs.scheme_id = wc.scheme_id AND
+            cs.village_name = wc.village_name AND
+            cs.esr_name = wc.esr_name
+          )
+          LEFT JOIN pressure_data pd ON (
+            cs.scheme_id = pd.scheme_id AND
+            cs.village_name = pd.village_name AND
+            cs.esr_name = pd.esr_name
+          )
+          WHERE ss.region = '${safeRegion}' 
+          ${schemeIdFilter.replace(/cs\.scheme_id/g, 'ss.scheme_id')}
+        `));
 
-      const regionalStats = await Promise.all(
-        regions.map(async (region: string) => {
-          const statsResult = await client.query(`
-            SELECT 
-              COUNT(DISTINCT ss.scheme_id) as total_schemes,
-              COUNT(DISTINCT CASE WHEN cs.pressure_connected = 'Connected' THEN cs.id END) as total_connected,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' THEN cs.id END) as total_online,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Offline' AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) THEN cs.id END) as offline_with_no_water,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Offline' AND wc.water_value_day7 > 0 THEN cs.id END) as offline_with_water,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Offline' THEN cs.id END) as total_offline,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND wc.water_value_day7 > 0 THEN cs.id END) as online_with_water,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) THEN cs.id END) as online_without_water,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND wc.water_value_day7 > 0 AND pd.pressure_value_7 BETWEEN 0.2 AND 0.7 THEN cs.id END) as online_with_water_pressure_optimal,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND wc.water_value_day7 > 0 AND pd.pressure_value_7 > 0.7 THEN cs.id END) as online_with_water_pressure_above,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND wc.water_value_day7 > 0 AND pd.pressure_value_7 < 0.2 THEN cs.id END) as online_with_water_pressure_below,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) AND pd.pressure_value_7 BETWEEN 0.2 AND 0.7 THEN cs.id END) as online_without_water_pressure_optimal,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) AND pd.pressure_value_7 > 0.7 THEN cs.id END) as online_without_water_pressure_above,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Online' AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) AND pd.pressure_value_7 < 0.2 THEN cs.id END) as online_without_water_pressure_below,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Offline' AND CURRENT_TIMESTAMP - cs.pressure_last_seen >= INTERVAL '7 days' THEN cs.id END) as offline_since_7days,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Offline' AND CURRENT_TIMESTAMP - cs.pressure_last_seen >= INTERVAL '30 days' THEN cs.id END) as offline_since_30days,
-              COUNT(DISTINCT CASE WHEN cs.pressure_status = 'Offline' AND CURRENT_TIMESTAMP - cs.pressure_last_seen >= INTERVAL '3 days' THEN cs.id END) as offline_since_3days
-            FROM scheme_status ss
-            LEFT JOIN communication_status cs ON (ss.scheme_id = cs.scheme_id AND cs.pressure_connected = 'Connected')
-            LEFT JOIN water_consumption wc ON (cs.scheme_id = wc.scheme_id AND cs.village_name = wc.village_name)
-            LEFT JOIN pressure_data pd ON (cs.scheme_id = pd.scheme_id AND cs.village_name = pd.village_name AND cs.esr_name = pd.esr_name)
-            WHERE ss.region = $1 ${schemeIdFilter.replace(/cs\.scheme_id/g, 'ss.scheme_id')}
-          `, [region]);
+        const row = statsResult.rows[0] || {};
+        const onlineWithWater = Number(row.online_with_water) || 0;
+        const sumRanges = (Number(row.online_with_water_pressure_optimal) || 0) + (Number(row.online_with_water_pressure_above) || 0) + (Number(row.online_with_water_pressure_below) || 0);
 
-          const row = statsResult.rows[0] || {};
-          const onlineWithWater = Number(row.online_with_water) || 0;
-          const sumRanges = (Number(row.online_with_water_pressure_optimal) || 0) + (Number(row.online_with_water_pressure_above) || 0) + (Number(row.online_with_water_pressure_below) || 0);
+        return {
+          region,
+          totalConnected: Number(row.total_connected) || 0,
+          totalOnline: Number(row.total_online) || 0,
+          onlineWithWater,
+          onlineWithWaterPressureOptimal: Number(row.online_with_water_pressure_optimal) || 0,
+          onlineWithWaterPressureAbove: Number(row.online_with_water_pressure_above) || 0,
+          onlineWithWaterPressureBelow: Number(row.online_with_water_pressure_below) || 0,
+          onlineWithWaterNoPressureData: Math.max(onlineWithWater - sumRanges, 0),
+          onlineWithoutWater: Number(row.online_without_water) || 0,
+          onlineWithoutWaterPressureOptimal: Number(row.online_without_water_pressure_optimal) || 0,
+          onlineWithoutWaterPressureAbove: Number(row.online_without_water_pressure_above) || 0,
+          onlineWithoutWaterPressureBelow: Number(row.online_without_water_pressure_below) || 0,
+          totalOffline: Number(row.total_offline) || 0,
+          offlineWithNoWater: Number(row.offline_with_no_water) || 0,
+          offlineWithWater: Number(row.offline_with_water) || 0,
+          offlineSince7Days: Number(row.offline_since_7days) || 0,
+          offlineSince30Days: Number(row.offline_since_30days) || 0,
+          offlineSince3Days: Number(row.offline_since_3days) || 0,
+        };
+      })
+    );
 
-          return {
-            region,
-            totalConnected: Number(row.total_connected) || 0,
-            totalOnline: Number(row.total_online) || 0,
-            onlineWithWater,
-            onlineWithWaterPressureOptimal: Number(row.online_with_water_pressure_optimal) || 0,
-            onlineWithWaterPressureAbove: Number(row.online_with_water_pressure_above) || 0,
-            onlineWithWaterPressureBelow: Number(row.online_with_water_pressure_below) || 0,
-            onlineWithWaterNoPressureData: Math.max(onlineWithWater - sumRanges, 0),
-            onlineWithoutWater: Number(row.online_without_water) || 0,
-            onlineWithoutWaterPressureOptimal: Number(row.online_without_water_pressure_optimal) || 0,
-            onlineWithoutWaterPressureAbove: Number(row.online_without_water_pressure_above) || 0,
-            onlineWithoutWaterPressureBelow: Number(row.online_without_water_pressure_below) || 0,
-            totalOffline: Number(row.total_offline) || 0,
-            offlineWithNoWater: Number(row.offline_with_no_water) || 0,
-            offlineWithWater: Number(row.offline_with_water) || 0,
-            offlineSince7Days: Number(row.offline_since_7days) || 0,
-            offlineSince30Days: Number(row.offline_since_30days) || 0,
-            offlineSince3Days: Number(row.offline_since_3days) || 0,
-          };
-        })
-      );
-
-      res.json(regionalStats);
-    } finally {
-      client.release();
-      pool.end();
-    }
+    res.json(regionalStats);
   } catch (error) {
     console.error("Error getting regional pressure sensor statistics:", error);
     res.status(500).json({

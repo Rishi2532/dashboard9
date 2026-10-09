@@ -498,7 +498,7 @@ export default function EngineersHierarchyPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-4">
         {/* Top KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
           <Card className="shadow-sm border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -526,26 +526,6 @@ export default function EngineersHierarchyPage() {
                   {kpis?.de_ae_count ?? 0} DE/AE
                 </span>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-sm border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Registered Accounts</p>
-                  <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
-                    {kpis?.registered_count ?? '—'}
-                  </p>
-                </div>
-                <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center font-bold">
-                  <ShieldCheck className="w-5 h-5" />
-                </div>
-              </div>
-              <p className="mt-3 text-[11px] text-slate-500 flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                Active portal user credentials
-              </p>
             </CardContent>
           </Card>
 
@@ -589,26 +569,6 @@ export default function EngineersHierarchyPage() {
               <p className="mt-3 text-[11px] text-slate-500 flex items-center gap-1">
                 <CheckCircle2 className="w-3.5 h-3.5 text-indigo-500" />
                 DLT-compliant alert dispatches
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-sm border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Operational Actions</p>
-                  <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
-                    {kpis?.total_actions_taken ?? '—'}
-                  </p>
-                </div>
-                <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center font-bold">
-                  <Activity className="w-5 h-5" />
-                </div>
-              </div>
-              <p className="mt-3 text-[11px] text-slate-500 flex items-center gap-1">
-                <TrendingUp className="w-3.5 h-3.5 text-amber-500" />
-                Total acks & resolution remarks logged
               </p>
             </CardContent>
           </Card>
@@ -935,7 +895,7 @@ export default function EngineersHierarchyPage() {
                           </div>
                         </div>
 
-                        {/* Interactive Buttons Footer: Last 30 Logins & Actions Taken */}
+                        {/* Interactive Buttons Footer: Last 30 Logins & Required Actions */}
                         <div className="p-3 bg-slate-50 dark:bg-slate-900/80 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-2">
                           <Button
                             variant="outline"
@@ -957,7 +917,7 @@ export default function EngineersHierarchyPage() {
                             className="h-9 text-xs font-semibold bg-white dark:bg-slate-800 hover:bg-slate-100 border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1 shadow-sm"
                           >
                             <Activity className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                            <span className="truncate">Actions ({eng.actions_count})</span>
+                            <span className="truncate">Required Actions ({eng.actions_count})</span>
                           </Button>
                         </div>
                       </Card>
@@ -983,7 +943,7 @@ export default function EngineersHierarchyPage() {
                     <TableHead className="text-center">Alerts Sent</TableHead>
                     <TableHead className="text-center">SMS Sent</TableHead>
                     <TableHead className="text-center">Total Logins</TableHead>
-                    <TableHead className="text-center">Actions Taken</TableHead>
+                    <TableHead className="text-center">Required Actions</TableHead>
                     <TableHead className="text-right">Inspection</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -997,10 +957,10 @@ export default function EngineersHierarchyPage() {
                             eng.level === 'CE'
                               ? 'border-purple-300 text-purple-700 bg-purple-50 font-bold'
                               : eng.level === 'SE'
-                              ? 'border-blue-300 text-blue-700 bg-blue-50 font-bold'
-                              : eng.level === 'EE'
-                              ? 'border-teal-300 text-teal-700 bg-teal-50 font-bold'
-                              : 'border-amber-300 text-amber-700 bg-amber-50 font-bold'
+                                ? 'border-blue-300 text-blue-700 bg-blue-50 font-bold'
+                                : eng.level === 'EE'
+                                  ? 'border-teal-300 text-teal-700 bg-teal-50 font-bold'
+                                  : 'border-amber-300 text-amber-700 bg-amber-50 font-bold'
                           }
                         >
                           {eng.level}
@@ -1089,9 +1049,9 @@ export default function EngineersHierarchyPage() {
                             setActionCategoryFilter('ALL');
                           }}
                           className="h-8 px-2 text-xs text-amber-700 hover:text-amber-900 hover:bg-amber-50"
-                          title="View Actions Taken"
+                          title="View Required Actions"
                         >
-                          <Activity className="w-3.5 h-3.5 mr-1" /> Actions
+                          <Activity className="w-3.5 h-3.5 mr-1" /> Required Actions
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -1226,7 +1186,7 @@ export default function EngineersHierarchyPage() {
       </Dialog>
 
       {/* ========================================================================= */}
-      {/* ACTIONS TAKEN TIMELINE DIALOG                                             */}
+      {/* REQUIRED ACTIONS TIMELINE DIALOG                                             */}
       {/* ========================================================================= */}
       <Dialog
         open={Boolean(selectedActionsEngineer)}
@@ -1241,12 +1201,12 @@ export default function EngineersHierarchyPage() {
                     {selectedActionsEngineer?.position_title || selectedActionsEngineer?.level}
                   </Badge>
                   <Badge className="bg-amber-100 text-amber-800 text-xs">
-                    {selectedActionsEngineer?.actions_count} Operational Actions
+                    {selectedActionsEngineer?.actions_count} Required Actions
                   </Badge>
                 </div>
                 <DialogTitle className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                   <Activity className="w-5 h-5 text-amber-600" />
-                  Actions Taken: {selectedActionsEngineer?.name}
+                  Required Actions: {selectedActionsEngineer?.name}
                 </DialogTitle>
                 <DialogDescription className="text-xs text-slate-500 mt-1">
                   Audit trail of alert acknowledgements, problem resolutions, and operational updates.
@@ -1310,17 +1270,16 @@ export default function EngineersHierarchyPage() {
                       <div key={action.id || idx} className="relative pl-6">
                         {/* Dot Icon */}
                         <div
-                          className={`absolute -left-[17px] top-0 w-8 h-8 rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center text-white ${
-                            action.type === 'alert_acknowledged'
-                              ? 'bg-blue-600'
-                              : action.type === 'sms_sent'
+                          className={`absolute -left-[17px] top-0 w-8 h-8 rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center text-white ${action.type === 'alert_acknowledged'
+                            ? 'bg-blue-600'
+                            : action.type === 'sms_sent'
                               ? 'bg-indigo-600'
                               : action.type === 'issue_resolved'
-                              ? 'bg-emerald-600'
-                              : action.type === 'issue_reported'
-                              ? 'bg-amber-600'
-                              : 'bg-slate-600'
-                          }`}
+                                ? 'bg-emerald-600'
+                                : action.type === 'issue_reported'
+                                  ? 'bg-amber-600'
+                                  : 'bg-slate-600'
+                            }`}
                         >
                           {action.type === 'alert_acknowledged' && <CheckCircle2 className="w-4 h-4" />}
                           {action.type === 'sms_sent' && <Smartphone className="w-4 h-4" />}

@@ -1,1620 +1,1373 @@
-import React, { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Link } from 'wouter';
+import React, { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
+import { Link, useLocation } from "wouter";
 import {
-  Shield,
-  ShieldCheck,
-  Award,
-  Crown,
-  Building2,
-  Mail,
-  Phone,
-  Clock,
-  Activity,
-  Bell,
-  Search,
-  RefreshCw,
-  Copy,
-  Check,
-  ExternalLink,
-  ChevronRight,
-  Filter,
-  Users,
-  CheckCircle2,
-  AlertTriangle,
-  FileText,
-  Laptop,
-  ArrowLeft,
-  Calendar,
-  Layers,
-  Sparkles,
-  MapPin,
-  TrendingUp,
-  SlidersHorizontal,
-  Table as TableIcon,
-  LayoutGrid,
-  Smartphone,
-  Send,
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import Header from "@/components/dashboard/header";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { useToast } from '@/hooks/use-toast';
+  Activity,
+  AlertTriangle,
+  ArrowUpRight,
+  CheckCircle2,
+  Droplets,
+  Gauge,
+  HelpCircle,
+  Layers,
+  MapPin,
+  Phone,
+  Mail,
+  ShieldCheck,
+  UserCheck,
+  Wifi,
+  WifiOff,
+  Search,
+  ExternalLink,
+  ChevronRight,
+  Clock,
+  Sparkles,
+  Building2,
+  RefreshCw,
+  Calendar,
+  Check,
+  Laptop,
+} from "lucide-react";
 
-interface LoginSession {
+interface VillageSummary {
+  village_name: string;
+  lpcd_value: number | null;
+  water_value: number | null;
+  population: number;
+  number_of_esr: number;
+  is_compliant: boolean;
+}
+
+interface SensorReading {
+  esr_name: string;
+  village_name: string;
+  value: string | null;
+  date: string | null;
+  status: "ok" | "critical" | "high" | "low" | "no_data";
+}
+
+interface SchemeSummary {
+  scheme_id: string;
+  scheme_name: string;
+  region?: string;
+  circle?: string;
+  division?: string;
+  sub_division?: string;
+  block?: string;
+  engineer_role?: string;
+  engineer_name?: string;
+  total_esrs: number;
+  total_villages: number;
+  villages: VillageSummary[];
+  villages_compliant_count: number;
+  villages_non_compliant_count: number;
+  water_supply?: string;
+  completion_status?: string;
+  avg_chlorine?: string | null;
+  chlorine_status?: string;
+  has_chlorine_issue?: boolean;
+  chlorine_count?: number;
+  chlorine_ok_count: number;
+  chlorine_critical_count: number;
+  chlorine_high_count: number;
+  chlorine_nodata_count: number;
+  chlorine_sensors: SensorReading[];
+  avg_pressure?: string | null;
+  pressure_status?: string;
+  has_pressure_issue?: boolean;
+  pressure_count?: number;
+  pressure_ok_count: number;
+  pressure_low_count: number;
+  pressure_high_count: number;
+  pressure_nodata_count: number;
+  pressure_sensors: SensorReading[];
+  avg_lpcd?: number | null;
+  is_lpcd_compliant?: boolean;
+  online_sensors: number;
+  offline_sensors: number;
+  active_alerts: any[];
+  recent_alert_count: number;
+}
+
+interface LoginRecord {
   id: number;
-  user_id?: number;
+  user_id: string;
   username: string;
+  user_name?: string;
   login_time: string;
   logout_time?: string | null;
-  session_duration?: number | null;
-  session_duration_formatted?: string;
+  session_duration?: string | null;
   ip_address?: string | null;
   user_agent?: string | null;
   is_active?: boolean;
 }
 
-interface ActionItem {
-  id: string;
-  type: 'alert_acknowledged' | 'issue_resolved' | 'issue_reported' | 'user_activity' | 'sms_sent';
-  category: string;
-  title: string;
-  description: string;
-  timestamp: string;
-  meta?: Record<string, any>;
+interface SchemesSummaryResponse {
+  schemes: SchemeSummary[];
+  totalSchemes: number;
+  totalEsrs: number;
+  totalVillages: number;
+  villageLpcdCompliantCount: number;
+  villageLpcdNonCompliantCount: number;
+  totalChlorineSensors: number;
+  chlorineOkCount: number;
+  chlorineCriticalCount: number;
+  chlorineHighCount: number;
+  chlorineNoDataCount: number;
+  chlorineNonOptimalCount: number;
+  totalPressureSensors: number;
+  pressureOkCount: number;
+  pressureLowCount: number;
+  pressureHighCount: number;
+  pressureNoDataCount: number;
+  pressureNonOptimalCount: number;
+  totalSensorsCount: number;
+  lpcdCompliantCount: number;
+  lpcdNonCompliantCount: number;
+  onlineSensorsCount: number;
+  offlineSensorsCount: number;
+  activeAlertsCount: number;
+  totalAlertsCount: number;
+  recentLogins?: LoginRecord[];
 }
 
-interface EngineerHierarchyItem {
-  key: string;
-  rank: number; // 1: CE, 2: SE, 3: EE, 4: DE/AE
-  level: 'CE' | 'SE' | 'EE' | 'DE/AE';
-  position_title: string;
-  name: string;
-  email: string;
-  phone: string;
-  user_id: number | null;
-  username: string | null;
-  is_registered: boolean;
-  regions: string[];
-  districts: string[];
-  divisions: string[];
-  schemes: string[];
-  schemes_count: number;
-  alerts_sent_count: number;
-  alerts_acknowledged_count: number;
-  acknowledgement_rate: number;
-  sms_sent_count: number;
-  total_logins_recorded: number;
-  last_login_at: string | null;
-  last_30_logins: LoginSession[];
-  actions_taken: ActionItem[];
-  actions_count: number;
-}
-
-interface HierarchyResponse {
-  success: boolean;
-  kpis: {
-    total_engineers: number;
-    ce_count: number;
-    se_count: number;
-    ee_count: number;
-    de_ae_count: number;
-    registered_count: number;
-    total_alerts_sent: number;
-    total_alerts_acknowledged: number;
-    total_sms_sent: number;
-    total_actions_taken: number;
-  };
-  engineers: EngineerHierarchyItem[];
-}
-
-function parseUserAgent(ua: string | null | undefined): { browser: string; os: string } {
-  if (!ua) return { browser: 'Unknown Browser', os: 'Unknown OS' };
-  let os = 'Unknown OS';
-  if (ua.includes('Windows')) os = 'Windows';
-  else if (ua.includes('Macintosh') || ua.includes('Mac OS')) os = 'macOS';
-  else if (ua.includes('Android')) os = 'Android';
-  else if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
-  else if (ua.includes('Linux')) os = 'Linux';
-
-  let browser = 'Unknown Browser';
-  if (ua.includes('Edg/')) browser = 'Edge';
-  else if (ua.includes('Chrome/')) browser = 'Chrome';
-  else if (ua.includes('Safari/') && !ua.includes('Chrome/')) browser = 'Safari';
-  else if (ua.includes('Firefox/')) browser = 'Firefox';
-
-  return { browser, os };
-}
-
-function formatISTDateTime(dateStr: string | null | undefined): string {
-  if (!dateStr) return 'N/A';
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleString('en-IN', {
-      timeZone: 'Asia/Kolkata',
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    });
-  } catch {
-    return dateStr;
-  }
-}
-
-function getRelativeTime(dateStr: string | null | undefined): string {
-  if (!dateStr) return '';
-  try {
-    const d = new Date(dateStr);
-    const now = new Date();
-    const diffSec = Math.floor((now.getTime() - d.getTime()) / 1000);
-    if (diffSec < 60) return 'just now';
-    if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
-    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
-    if (diffSec < 604800) return `${Math.floor(diffSec / 86400)}d ago`;
-    return formatISTDateTime(dateStr);
-  } catch {
-    return dateStr;
-  }
-}
-
-export default function EngineersHierarchyPage() {
+export default function EngineerDashboard() {
   const { toast } = useToast();
-  const [copiedText, setCopiedText] = useState<string | null>(null);
+  const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
+  const { user, engineerProfile, assignedSchemes, isEngineer, isAdmin } = useAuth();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
 
-  // Filters & Search
-  const [searchTerm, setSearchTerm] = useState('');
-  const [tierFilter, setTierFilter] = useState<'ALL' | 'CE' | 'SE' | 'EE' | 'DE/AE'>('ALL');
-  const [regionFilter, setRegionFilter] = useState<string>('ALL');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'REGISTERED' | 'ROSTER_ONLY'>('ALL');
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  // Alert filter state
+  const [dateFilterMode, setDateFilterMode] = useState<"today" | "all" | "custom">("today");
+  const [customSelectedDate, setCustomSelectedDate] = useState<string>("");
 
-  // Modal States
-  const [selectedLoginsEngineer, setSelectedLoginsEngineer] = useState<EngineerHierarchyItem | null>(null);
-  const [selectedActionsEngineer, setSelectedActionsEngineer] = useState<EngineerHierarchyItem | null>(null);
-  const [actionCategoryFilter, setActionCategoryFilter] = useState<string>('ALL');
+  // Local state to track acknowledged alert keys for instant optimistic feedback
+  const [acknowledgedAlertKeys, setAcknowledgedAlertKeys] = useState<Set<string>>(new Set());
 
-  // SMS Gateway Tester Modal States
-  const [testSmsOpen, setTestSmsOpen] = useState(false);
-  const [testSmsMobile, setTestSmsMobile] = useState('');
-  const [testSmsTemplate, setTestSmsTemplate] = useState<
-    | 'FLOW_SENSOR_OFFLINE'
-    | 'PRESSURE_SENSOR_OFFLINE'
-    | 'CHLORINE_LOW'
-    | 'LPCD_LOW'
-    | 'CHLORINE_SENSOR_OFFLINE'
-    | 'PRESSURE_LOW'
-    | 'CHLORINE_HIGH'
-  >('LPCD_LOW');
-  const [testSmsScheme, setTestSmsScheme] = useState('7940695');
-  const [testSmsVillage, setTestSmsVillage] = useState('रामगाव तांडा');
-  const [testSmsEsr, setTestSmsEsr] = useState('ESR-1');
-  const [testSmsValue, setTestSmsValue] = useState('38');
-  const [isTestingSms, setIsTestingSms] = useState(false);
-  const [testSmsResult, setTestSmsResult] = useState<any>(null);
+  const getAlertKey = (a: any) => {
+    if (a.id) return `alert-id-${a.id}`;
+    if (a.ticket_id) return `ticket-${a.ticket_id}`;
+    return `alert-${a.scheme_id}-${a.alert_type}-${a.esr_name || ''}-${a.village_name || ''}-${a.sent_date ? String(a.sent_date).slice(0, 10) : ''}-${a.alert_value || ''}`;
+  };
 
-  const handleSendTestSms = async () => {
-    const cleanMobile = testSmsMobile.replace(/\D/g, '');
-    if (cleanMobile.length < 10) {
-      toast({
-        title: 'Invalid Mobile Number',
-        description: 'Please enter a valid 10-digit mobile number.',
-        variant: 'destructive',
-      });
-      return;
+  // Login logs modal state
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+
+  // Fetch summary data for assigned schemes
+  const { data, isLoading, isRefetching, refetch } = useQuery<SchemesSummaryResponse>({
+    queryKey: ["/api/engineer/schemes-summary"],
+    refetchInterval: 60000, // Auto-refresh every minute
+  });
+
+  const schemes = data?.schemes || [];
+
+  // Filter schemes by search term and tab
+  const filteredSchemes = schemes.filter((s) => {
+    const matchesSearch =
+      s.scheme_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.scheme_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (s.block && s.block.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (s.division && s.division.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    if (!matchesSearch) return false;
+
+    if (activeTab === "critical") {
+      return s.has_chlorine_issue || s.has_pressure_issue || !s.is_lpcd_compliant || s.offline_sensors > 0;
     }
+    if (activeTab === "healthy") {
+      return !s.has_chlorine_issue && !s.has_pressure_issue && s.is_lpcd_compliant && s.offline_sensors === 0;
+    }
+    return true;
+  });
 
-    setIsTestingSms(true);
-    setTestSmsResult(null);
+  // Collect all active alerts across all assigned schemes
+  const allAlerts = schemes.flatMap((s) =>
+    (s.active_alerts || []).map((a) => ({ ...a, parentSchemeName: s.scheme_name }))
+  );
 
+  // Identify latest alert date (defaulting to current day / most recent log date)
+  const latestAlertDate =
+    allAlerts.length > 0 && allAlerts[0]?.sent_date
+      ? String(allAlerts[0].sent_date).slice(0, 10)
+      : new Date().toISOString().slice(0, 10);
+
+  // Filter alerts by date mode
+  const displayedAlerts = allAlerts.filter((a) => {
+    const alertDateStr = a.sent_date ? String(a.sent_date).slice(0, 10) : "";
+    if (dateFilterMode === "today") {
+      return alertDateStr === latestAlertDate;
+    }
+    if (dateFilterMode === "custom" && customSelectedDate) {
+      return alertDateStr === customSelectedDate;
+    }
+    return true; // 'all'
+  });
+
+  // Helper for formatting login timestamps
+  const formatLoginTime = (dateStr?: string | null) => {
+    if (!dateStr) return "-";
     try {
-      const res = await fetch('/api/admin/engineers/test-sms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return String(dateStr);
+      return d.toLocaleString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
+    } catch {
+      return String(dateStr);
+    }
+  };
+
+  const getDeviceLabel = (ua?: string | null) => {
+    if (!ua) return "Desktop";
+    if (ua.includes("Mobile") || ua.includes("Android") || ua.includes("iPhone")) return "Mobile";
+    if (ua.includes("Chrome")) return "Chrome (PC)";
+    if (ua.includes("Firefox")) return "Firefox (PC)";
+    if (ua.includes("Safari") && !ua.includes("Chrome")) return "Safari (Mac)";
+    if (ua.includes("Edge")) return "Edge (PC)";
+    return "Web Browser";
+  };
+
+  // Performance calculations
+  const totalVillages = data?.totalVillages ?? 0;
+  const compliantVillages = data?.villageLpcdCompliantCount ?? 0;
+  const nonCompliantVillages = data?.villageLpcdNonCompliantCount ?? 0;
+  const villagePercent = totalVillages > 0 ? Math.round((compliantVillages / totalVillages) * 100) : 0;
+
+  const totalChlorineSensors = data?.totalChlorineSensors ?? ((data?.chlorineOkCount ?? 0) + (data?.chlorineCriticalCount ?? 0) + (data?.chlorineHighCount ?? 0) + (data?.chlorineNoDataCount ?? 0));
+  const chlorineOk = data?.chlorineOkCount ?? 0;
+  const chlorineNonOptimal = data?.chlorineNonOptimalCount ?? ((data?.chlorineCriticalCount ?? 0) + (data?.chlorineHighCount ?? 0) + (data?.chlorineNoDataCount ?? 0));
+  const chlorinePercent = totalChlorineSensors > 0 ? Math.round((chlorineOk / totalChlorineSensors) * 100) : 0;
+
+  const totalPressureSensors = data?.totalPressureSensors ?? ((data?.pressureOkCount ?? 0) + (data?.pressureLowCount ?? 0) + (data?.pressureHighCount ?? 0) + (data?.pressureNoDataCount ?? 0));
+  const pressureOk = data?.pressureOkCount ?? 0;
+  const pressureNonOptimal = data?.pressureNonOptimalCount ?? ((data?.pressureLowCount ?? 0) + (data?.pressureHighCount ?? 0) + (data?.pressureNoDataCount ?? 0));
+  const pressurePercent = totalPressureSensors > 0 ? Math.round((pressureOk / totalPressureSensors) * 100) : 0;
+
+  const onlineSensors = data?.onlineSensorsCount ?? 0;
+  const offlineSensors = data?.offlineSensorsCount ?? 0;
+  const totalSensors = data?.totalSensorsCount ?? (onlineSensors + offlineSensors);
+  const sensorOnlinePercent = totalSensors > 0 ? Math.round((onlineSensors / totalSensors) * 100) : 0;
+
+  // Acknowledge Alert Mutation
+  const acknowledgeMutation = useMutation({
+    mutationFn: async (alert: any) => {
+      // Optimistically add to state immediately
+      const alertKey = getAlertKey(alert);
+      setAcknowledgedAlertKeys((prev) => {
+        const next = new Set(prev);
+        next.add(alertKey);
+        return next;
+      });
+
+      const res = await fetch("/api/acknowledge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          mobile: cleanMobile,
-          templateType: testSmsTemplate,
-          scheme: testSmsScheme.trim() || '7940695',
-          village: testSmsVillage.trim() || 'रामगाव तांडा',
-          esr: testSmsEsr.trim() || 'ESR-1',
-          value: testSmsValue.trim() || (testSmsTemplate === 'PRESSURE_LOW' ? '0.15' : testSmsTemplate === 'LPCD_LOW' ? '38' : '0.10'),
+          alert_id: alert.id,
+          ticket_id: alert.ticket_id,
+          esr_name: alert.esr_name,
+          scheme_id: alert.scheme_id,
+          alert_type: alert.alert_type,
+          sent_date: alert.sent_date,
+          engineer_email: engineerProfile?.email || user?.email,
+          engineer_name: engineerProfile?.name || user?.name || user?.username,
         }),
       });
-
-      const json = await res.json();
-      setTestSmsResult(json);
-
-      if (json.success) {
-        toast({
-          title: 'SMS Sent Successfully',
-          description: `Gateway delivered to ${cleanMobile} (Status: ${json.gatewayStatus ?? 200})`,
-        });
-      } else {
-        toast({
-          title: 'Gateway Response Received',
-          description: json.message || `Gateway returned status ${json.gatewayStatus ?? 'error'}`,
-          variant: 'destructive',
-        });
-      }
-    } catch (err: any) {
-      setTestSmsResult({ success: false, error: err.message });
-      toast({
-        title: 'SMS Dispatch Error',
-        description: err.message,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsTestingSms(false);
-    }
-  };
-
-  // Fetch hierarchy data
-  const { data, isLoading, error, refetch, isFetching } = useQuery<HierarchyResponse>({
-    queryKey: ['/api/admin/engineers/hierarchy'],
-    queryFn: async () => {
-      const res = await fetch('/api/admin/engineers/hierarchy', {
-        headers: { 'Accept': 'application/json' },
-      });
       if (!res.ok) {
-        throw new Error(`Failed to load hierarchy data: ${res.statusText}`);
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to acknowledge alert");
       }
       return res.json();
     },
-    refetchInterval: 60000,
+    onSuccess: (resData, variables) => {
+      const alertKey = getAlertKey(variables);
+      setAcknowledgedAlertKeys((prev) => {
+        const next = new Set(prev);
+        next.add(alertKey);
+        return next;
+      });
+
+      toast({
+        title: "Alert Acknowledged",
+        description: `Alert ${variables.ticket_id ? `#${variables.ticket_id}` : `ID ${variables.id || ''}`} (${variables.alert_type}${variables.esr_name ? ` - ${variables.esr_name}` : ''}) has been marked as acknowledged.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/engineer/schemes-summary"] });
+      refetch();
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Acknowledgement Error",
+        description: err.message || "Failed to record acknowledgement.",
+        variant: "destructive",
+      });
+    },
   });
 
-  const engineers = data?.engineers || [];
-  const kpis = data?.kpis;
-
-  // Extract distinct regions for filter dropdown
-  const allRegions = useMemo(() => {
-    const set = new Set<string>();
-    for (const eng of engineers) {
-      for (const r of eng.regions) {
-        if (r) set.add(r.trim());
-      }
-    }
-    return Array.from(set).sort();
-  }, [engineers]);
-
-  // Filtered engineers list
-  const filteredEngineers = useMemo(() => {
-    return engineers.filter((eng) => {
-      // Tier filter
-      if (tierFilter !== 'ALL' && eng.level !== tierFilter) return false;
-
-      // Status filter
-      if (statusFilter === 'REGISTERED' && !eng.is_registered) return false;
-      if (statusFilter === 'ROSTER_ONLY' && eng.is_registered) return false;
-
-      // Region filter
-      if (regionFilter !== 'ALL' && !eng.regions.includes(regionFilter)) return false;
-
-      // Search term
-      if (searchTerm.trim()) {
-        const q = searchTerm.toLowerCase().trim();
-        const matchName = eng.name.toLowerCase().includes(q);
-        const matchEmail = eng.email.toLowerCase().includes(q);
-        const matchPhone = eng.phone.toLowerCase().includes(q);
-        const matchUsername = (eng.username || '').toLowerCase().includes(q);
-        const matchTitle = eng.position_title.toLowerCase().includes(q);
-        const matchSchemes = eng.schemes.some((s) => s.toLowerCase().includes(q));
-        const matchDistricts = eng.districts.some((d) => d.toLowerCase().includes(q));
-        if (!matchName && !matchEmail && !matchPhone && !matchUsername && !matchTitle && !matchSchemes && !matchDistricts) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [engineers, tierFilter, statusFilter, regionFilter, searchTerm]);
-
-  // Group filtered engineers by Tier
-  const groupedEngineers = useMemo(() => {
-    const ceList = filteredEngineers.filter((e) => e.level === 'CE');
-    const seList = filteredEngineers.filter((e) => e.level === 'SE');
-    const eeList = filteredEngineers.filter((e) => e.level === 'EE');
-    const deaeList = filteredEngineers.filter((e) => e.level === 'DE/AE');
-    return [
-      {
-        rank: 1,
-        level: 'CE' as const,
-        title: 'Chief Engineer (CE)',
-        subtitle: 'Apex Regional & Zonal Leadership',
-        badgeColor: 'from-purple-600 to-indigo-700 text-white',
-        borderAccent: 'border-purple-200 dark:border-purple-900',
-        items: ceList,
-      },
-      {
-        rank: 2,
-        level: 'SE' as const,
-        title: 'Superintending Engineer (SE)',
-        subtitle: 'Circle Jurisdiction & Oversight',
-        badgeColor: 'from-blue-600 to-cyan-700 text-white',
-        borderAccent: 'border-blue-200 dark:border-blue-900',
-        items: seList,
-      },
-      {
-        rank: 3,
-        level: 'EE' as const,
-        title: 'Executive Engineer (EE Civil & Mech)',
-        subtitle: 'Division Executive & Project In-Charge',
-        badgeColor: 'from-teal-600 to-emerald-700 text-white',
-        borderAccent: 'border-teal-200 dark:border-teal-900',
-        items: eeList,
-      },
-      {
-        rank: 4,
-        level: 'DE/AE' as const,
-        title: 'Deputy / Assistant Engineer (DE / AE Civil & Mech)',
-        subtitle: 'Sub-Division Execution & Monitoring',
-        badgeColor: 'from-amber-600 to-orange-700 text-white',
-        borderAccent: 'border-amber-200 dark:border-amber-900',
-        items: deaeList,
-      },
-    ];
-  }, [filteredEngineers]);
-
-  const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedText(text);
-    toast({
-      title: 'Copied to Clipboard',
-      description: `${label}: ${text}`,
-    });
-    setTimeout(() => setCopiedText(null), 2000);
-  };
-
-  // Helper for designation styling
-  const getPositionBadge = (level: string) => {
-    switch (level) {
-      case 'CE':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-sm">
-            <Crown className="w-3.5 h-3.5" /> Chief Engineer (CE)
-          </span>
-        );
-      case 'SE':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-sm">
-            <Award className="w-3.5 h-3.5" /> Superintending Engineer (SE)
-          </span>
-        );
-      case 'EE':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-sm">
-            <ShieldCheck className="w-3.5 h-3.5" /> Executive Engineer (EE)
-          </span>
-        );
-      case 'DE/AE':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-sm">
-            <Shield className="w-3.5 h-3.5" /> Deputy / Assistant Engineer (DE/AE)
-          </span>
-        );
-      default:
-        return null;
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-slate-50/60 dark:bg-slate-950 pb-16">
-      {/* Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white border-b border-slate-700 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Link href="/admin/dashboard">
-                  <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white hover:bg-slate-800 p-0 h-8 px-2 -ml-2 text-xs">
-                    <ArrowLeft className="w-3.5 h-3.5 mr-1" />
-                    Admin Portal
-                  </Button>
-                </Link>
-                <span className="text-slate-500">•</span>
-                <span className="text-xs text-amber-400 font-semibold uppercase tracking-wider flex items-center gap-1">
-                  <Shield className="w-3.5 h-3.5" /> Administrator Access Only
-                </span>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col">
+      <Header />
+
+      <main className="flex-1 p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full space-y-6">
+        {/* Profile & Designation Banner */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 p-6 md:p-8 text-white shadow-xl border border-blue-800/40">
+          <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-1/3 -mb-10 w-48 h-48 rounded-full bg-indigo-500/10 blur-2xl pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 flex-wrap">
+                <Badge className="bg-blue-500/20 text-blue-200 border-blue-400/30 px-3 py-1 font-semibold text-xs flex items-center gap-1.5">
+                  <UserCheck className="w-3.5 h-3.5 text-blue-300" />
+                  {engineerProfile?.role || (isEngineer ? "Assigned Engineer" : "Scheme Supervisor")}
+                </Badge>
+                {engineerProfile?.region && (
+                  <Badge variant="outline" className="text-white/80 border-white/20 text-xs">
+                    <MapPin className="w-3 h-3 mr-1" />
+                    {engineerProfile.region} Region
+                  </Badge>
+                )}
+                {engineerProfile?.division && (
+                  <Badge variant="outline" className="text-white/80 border-white/20 text-xs">
+                    <Building2 className="w-3 h-3 mr-1" />
+                    {engineerProfile.division} Division
+                  </Badge>
+                )}
               </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center gap-2">
-                Engineers Hierarchy & Operational Directory
+
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white flex items-center gap-2">
+                <span>Welcome, {engineerProfile?.name || user?.name || user?.username || "Engineer"}</span>
               </h1>
-              <p className="text-sm text-slate-300 mt-1 max-w-2xl">
-                Position-wise roster (CE, SE, EE, DE/AE), notification alerts sent, last 30 login sessions, and recorded operational actions.
+
+              <p className="text-blue-100/80 text-sm max-w-2xl">
+                Dedicated Scheme Operations Portal. Real-time telemetry monitoring, critical parameter compliance, and field alerts for your assigned water schemes.
               </p>
+
+              {/* Contact metadata */}
+              <div className="flex items-center gap-4 text-xs text-blue-200/70 pt-1 flex-wrap">
+                {(engineerProfile?.email || user?.email) && (
+                  <span className="flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-blue-300" />
+                    {engineerProfile?.email || user?.email}
+                  </span>
+                )}
+                {(engineerProfile?.phone || user?.phone) && (
+                  <span className="flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-blue-300" />
+                    {engineerProfile?.phone || user?.phone}
+                  </span>
+                )}
+              </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => {
-                  setTestSmsResult(null);
-                  setTestSmsOpen(true);
-                }}
-                className="bg-purple-950/80 border-purple-600/60 text-purple-200 hover:bg-purple-900 hover:text-white text-xs h-8 shadow-sm"
+                onClick={() => setIsLoginModalOpen(true)}
+                className="bg-white/10 hover:bg-white/20 text-white border-white/20 shadow-sm"
               >
-                <Smartphone className="w-3.5 h-3.5 mr-1.5 text-purple-300" />
-                Test SMS Gateway
+                <ShieldCheck className="w-4 h-4 mr-2 text-emerald-300" />
+                Login Activity ({data?.recentLogins?.length || 0})
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => refetch()}
-                disabled={isFetching}
-                className="bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700 hover:text-white"
+                disabled={isRefetching}
+                className="bg-white/10 hover:bg-white/20 text-white border-white/20 shadow-sm"
               >
-                <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isFetching ? 'animate-spin' : ''}`} />
-                Refresh Data
+                <RefreshCw className={`w-4 h-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+                {isRefetching ? "Refreshing..." : "Refresh Live Data"}
               </Button>
-              <div className="bg-slate-800 border border-slate-700 rounded-lg p-0.5 flex items-center">
-                <Button
-                  variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setViewMode('grid')}
-                  className="h-7 px-2.5 text-xs"
-                >
-                  <LayoutGrid className="w-3.5 h-3.5 mr-1" /> Grid
+              <Link href="/helpdesk/raise-issue">
+                <Button size="sm" className="bg-blue-500 hover:bg-blue-600 text-white shadow-md">
+                  <HelpCircle className="w-4 h-4 mr-2" />
+                  Raise Field Issue
                 </Button>
-                <Button
-                  variant={viewMode === 'table' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setViewMode('table')}
-                  className="h-7 px-2.5 text-xs"
-                >
-                  <TableIcon className="w-3.5 h-3.5 mr-1" /> Table
-                </Button>
-              </div>
+              </Link>
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-4">
-        {/* Top KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-          <Card className="shadow-sm border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Engineers</p>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
-                    {kpis?.total_engineers ?? '—'}
-                  </p>
+        {/* Catchy Scheme Performance Section Header */}
+        <div className="space-y-3 pt-1">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <div className="p-1 rounded-md bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
+                  <Sparkles className="w-4 h-4" />
                 </div>
-                <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 flex items-center justify-center font-bold">
-                  <Users className="w-5 h-5" />
-                </div>
+                <h2 className="text-lg md:text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+                  {(data?.totalSchemes ?? assignedSchemes?.length ?? 0) > 1
+                    ? "Overall Scheme Performance & Compliance Overview"
+                    : "Scheme Performance & Compliance Overview"}
+                </h2>
               </div>
-              <div className="mt-3 flex items-center gap-1.5 flex-wrap text-[11px] text-slate-600 dark:text-slate-400">
-                <span className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 font-semibold border border-purple-200">
-                  {kpis?.ce_count ?? 0} CE
-                </span>
-                <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold border border-blue-200">
-                  {kpis?.se_count ?? 0} SE
-                </span>
-                <span className="px-1.5 py-0.5 rounded bg-teal-50 text-teal-700 font-semibold border border-teal-200">
-                  {kpis?.ee_count ?? 0} EE
-                </span>
-                <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-semibold border border-amber-200">
-                  {kpis?.de_ae_count ?? 0} DE/AE
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-sm border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Alerts Delivered</p>
-                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
-                    {kpis?.total_alerts_sent ?? '—'}
-                  </p>
-                </div>
-                <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 flex items-center justify-center font-bold">
-                  <Bell className="w-5 h-5" />
-                </div>
-              </div>
-              <div className="mt-3 text-[11px] text-slate-500 flex items-center justify-between">
-                <span>Acknowledged: <strong>{kpis?.total_alerts_acknowledged ?? 0}</strong></span>
-                <span className="text-blue-600 font-semibold">
-                  {kpis && kpis.total_alerts_sent > 0
-                    ? `${Math.round((kpis.total_alerts_acknowledged / kpis.total_alerts_sent) * 100)}% ack rate`
-                    : '0% rate'}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-sm border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">SMS Dispatched</p>
-                  <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">
-                    {kpis?.total_sms_sent ?? '—'}
-                  </p>
-                </div>
-                <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 flex items-center justify-center font-bold">
-                  <Smartphone className="w-5 h-5" />
-                </div>
-              </div>
-              <p className="mt-3 text-[11px] text-slate-500 flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5 text-indigo-500" />
-                DLT-compliant alert dispatches
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                {(data?.totalSchemes ?? assignedSchemes?.length ?? 0) > 1
+                  ? `Combined aggregate telemetry performance metrics across all ${data?.totalSchemes ?? assignedSchemes?.length ?? 0} assigned schemes`
+                  : "Real-time telemetry performance and compliance metrics for your assigned scheme"}
               </p>
-            </CardContent>
-          </Card>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              {(data?.totalSchemes ?? assignedSchemes?.length ?? 0) > 1 && (
+                <Badge className="bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-200 border-blue-300 dark:border-blue-800 text-[11px] font-semibold px-2.5 py-1">
+                  Overall Combined
+                </Badge>
+              )}
+              <Badge variant="outline" className="bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-1">
+                <Layers className="w-3.5 h-3.5 mr-1 text-blue-600" />
+                {data?.totalSchemes ?? assignedSchemes?.length ?? 0} Schemes
+              </Badge>
+              <Badge variant="outline" className="bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 px-2.5 py-1">
+                <Building2 className="w-3.5 h-3.5 mr-1 text-indigo-600" />
+                {data?.totalEsrs ?? 0} ESR Reservoirs
+              </Badge>
+            </div>
+          </div>
+
+          {/* 4 Catchy Performance Cards: Village LPCD, Chlorine, Pressure, IoT Connectivity */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Card 1: Village LPCD (55 L Target) */}
+            <Card className="relative overflow-hidden bg-gradient-to-b from-emerald-50/50 to-white dark:from-emerald-950/20 dark:to-slate-900 border-emerald-200/70 dark:border-emerald-900/50 shadow-sm hover:shadow-md transition-all duration-200">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl pointer-events-none" />
+              <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
+                <div className="space-y-0.5">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400 flex items-center gap-1.5">
+                    <Activity className="w-3.5 h-3.5 text-emerald-600" />
+                    Village LPCD (55 L)
+                  </span>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                    JJM 55 LPCD Benchmark
+                  </div>
+                </div>
+                <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200 border-none text-[10px] font-bold">
+                  {villagePercent}% Pass
+                </Badge>
+              </CardHeader>
+              <CardContent className="p-4 pt-1 space-y-3">
+                {/* Total Villages */}
+                <div className="flex items-baseline justify-between">
+                  <span className="text-3xl font-extrabold text-slate-900 dark:text-white">
+                    {totalVillages}
+                  </span>
+                  <span className="text-xs font-medium text-slate-500">Total Villages</span>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden flex">
+                  <div
+                    className="bg-emerald-500 h-full transition-all duration-500"
+                    style={{ width: `${villagePercent}%` }}
+                  />
+                  <div
+                    className="bg-amber-500 h-full transition-all duration-500"
+                    style={{ width: `${100 - villagePercent}%` }}
+                  />
+                </div>
+
+                {/* Breakdown pills */}
+                <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                  <div className="p-2 rounded-lg bg-emerald-100/60 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
+                    <div className="text-[10px] font-medium text-emerald-800 dark:text-emerald-300">
+                      Achieving ≥ 55
+                    </div>
+                    <div className="text-lg font-bold text-emerald-700 dark:text-emerald-400">
+                      {compliantVillages}
+                    </div>
+                  </div>
+                  <div className="p-2 rounded-lg bg-amber-100/60 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800">
+                    <div className="text-[10px] font-medium text-amber-800 dark:text-amber-300">
+                      Not Achieving (&lt;55)
+                    </div>
+                    <div className="text-lg font-bold text-amber-700 dark:text-amber-400">
+                      {nonCompliantVillages}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Card 2: Chlorine Telemetry (0.2 - 0.5 mg/L) */}
+            <Card className="relative overflow-hidden bg-gradient-to-b from-cyan-50/50 to-white dark:from-cyan-950/20 dark:to-slate-900 border-cyan-200/70 dark:border-cyan-900/50 shadow-sm hover:shadow-md transition-all duration-200">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-500/10 rounded-full blur-xl pointer-events-none" />
+              <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
+                <div className="space-y-0.5">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-800 dark:text-cyan-400 flex items-center gap-1.5">
+                    <Droplets className="w-3.5 h-3.5 text-cyan-600" />
+                    Chlorine Sensors (CL)
+                  </span>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Optimal: 0.20 - 0.50 mg/L
+                  </div>
+                </div>
+                <Badge className="bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200 border-none text-[10px] font-bold">
+                  {chlorinePercent}% Optimal
+                </Badge>
+              </CardHeader>
+              <CardContent className="p-4 pt-1 space-y-3">
+                {/* Total Chlorine Sensors */}
+                <div className="flex items-baseline justify-between">
+                  <span className="text-3xl font-extrabold text-slate-900 dark:text-white">
+                    {totalChlorineSensors}
+                  </span>
+                  <span className="text-xs font-medium text-slate-500">Total CL Sensors</span>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden flex">
+                  <div
+                    className="bg-cyan-500 h-full transition-all duration-500"
+                    style={{ width: `${chlorinePercent}%` }}
+                  />
+                  <div
+                    className="bg-rose-500 h-full transition-all duration-500"
+                    style={{ width: `${100 - chlorinePercent}%` }}
+                  />
+                </div>
+
+                {/* Breakdown pills */}
+                <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                  <div className="p-2 rounded-lg bg-cyan-100/60 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800">
+                    <div className="text-[10px] font-medium text-cyan-800 dark:text-cyan-300">
+                      Optimal (0.2-0.5)
+                    </div>
+                    <div className="text-lg font-bold text-cyan-700 dark:text-cyan-400">
+                      {chlorineOk}
+                    </div>
+                  </div>
+                  <div className="p-2 rounded-lg bg-rose-100/60 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800">
+                    <div className="text-[10px] font-medium text-rose-800 dark:text-rose-300">
+                      Not in Optimal Range
+                    </div>
+                    <div className="text-lg font-bold text-rose-600 dark:text-rose-400">
+                      {chlorineNonOptimal}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sub-breakdown details */}
+                <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 px-0.5">
+                  <span className="text-rose-600 font-semibold">{data?.chlorineCriticalCount ?? 0} &lt;0.2</span>
+                  <span>•</span>
+                  <span className="text-amber-600 font-semibold">{data?.chlorineHighCount ?? 0} &gt;0.5</span>
+                  <span>•</span>
+                  <span>{data?.chlorineNoDataCount ?? 0} No Data</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Card 3: Pressure Telemetry (0.2 - 0.7 Bar) */}
+            <Card className="relative overflow-hidden bg-gradient-to-b from-indigo-50/50 to-white dark:from-indigo-950/20 dark:to-slate-900 border-indigo-200/70 dark:border-indigo-900/50 shadow-sm hover:shadow-md transition-all duration-200">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-full blur-xl pointer-events-none" />
+              <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
+                <div className="space-y-0.5">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-800 dark:text-indigo-400 flex items-center gap-1.5">
+                    <Gauge className="w-3.5 h-3.5 text-indigo-600" />
+                    Pressure Sensors (PT)
+                  </span>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Optimal: 0.20 - 0.70 Bar
+                  </div>
+                </div>
+                <Badge className="bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 border-none text-[10px] font-bold">
+                  {pressurePercent}% Optimal
+                </Badge>
+              </CardHeader>
+              <CardContent className="p-4 pt-1 space-y-3">
+                {/* Total Pressure Sensors */}
+                <div className="flex items-baseline justify-between">
+                  <span className="text-3xl font-extrabold text-slate-900 dark:text-white">
+                    {totalPressureSensors}
+                  </span>
+                  <span className="text-xs font-medium text-slate-500">Total PT Sensors</span>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden flex">
+                  <div
+                    className="bg-indigo-500 h-full transition-all duration-500"
+                    style={{ width: `${pressurePercent}%` }}
+                  />
+                  <div
+                    className="bg-rose-500 h-full transition-all duration-500"
+                    style={{ width: `${100 - pressurePercent}%` }}
+                  />
+                </div>
+
+                {/* Breakdown pills */}
+                <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                  <div className="p-2 rounded-lg bg-indigo-100/60 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800">
+                    <div className="text-[10px] font-medium text-indigo-800 dark:text-indigo-300">
+                      Optimal (0.2-0.7)
+                    </div>
+                    <div className="text-lg font-bold text-indigo-700 dark:text-indigo-400">
+                      {pressureOk}
+                    </div>
+                  </div>
+                  <div className="p-2 rounded-lg bg-rose-100/60 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800">
+                    <div className="text-[10px] font-medium text-rose-800 dark:text-rose-300">
+                      Not in Optimal Range
+                    </div>
+                    <div className="text-lg font-bold text-rose-600 dark:text-rose-400">
+                      {pressureNonOptimal}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sub-breakdown details */}
+                <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 px-0.5">
+                  <span className="text-rose-600 font-semibold">{data?.pressureLowCount ?? 0} &lt;0.2 Low</span>
+                  <span>•</span>
+                  <span className="text-amber-600 font-semibold">{data?.pressureHighCount ?? 0} &gt;0.7 High</span>
+                  <span>•</span>
+                  <span>{data?.pressureNoDataCount ?? 0} No Data</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Card 4: IoT Sensor Connectivity (Online / Offline) */}
+            <Card className="relative overflow-hidden bg-gradient-to-b from-teal-50/50 to-white dark:from-teal-950/20 dark:to-slate-900 border-teal-200/70 dark:border-teal-900/50 shadow-sm hover:shadow-md transition-all duration-200">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-teal-500/10 rounded-full blur-xl pointer-events-none" />
+              <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
+                <div className="space-y-0.5">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-teal-800 dark:text-teal-400 flex items-center gap-1.5">
+                    <Wifi className="w-3.5 h-3.5 text-teal-600" />
+                    IoT Sensors Network
+                  </span>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Live Telemetry Connectivity
+                  </div>
+                </div>
+                <Badge className="bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200 border-none text-[10px] font-bold">
+                  {sensorOnlinePercent}% Online
+                </Badge>
+              </CardHeader>
+              <CardContent className="p-4 pt-1 space-y-3">
+                {/* Total Sensors */}
+                <div className="flex items-baseline justify-between">
+                  <span className="text-3xl font-extrabold text-slate-900 dark:text-white">
+                    {totalSensors}
+                  </span>
+                  <span className="text-xs font-medium text-slate-500">Total Transmitters</span>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden flex">
+                  <div
+                    className="bg-teal-500 h-full transition-all duration-500"
+                    style={{ width: `${sensorOnlinePercent}%` }}
+                  />
+                  <div
+                    className="bg-rose-500 h-full transition-all duration-500"
+                    style={{ width: `${100 - sensorOnlinePercent}%` }}
+                  />
+                </div>
+
+                {/* Breakdown pills */}
+                <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                  <div className="p-2 rounded-lg bg-teal-100/60 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800">
+                    <div className="text-[10px] font-medium text-teal-800 dark:text-teal-300">
+                      Online & Active
+                    </div>
+                    <div className="text-lg font-bold text-teal-700 dark:text-teal-400">
+                      {onlineSensors}
+                    </div>
+                  </div>
+                  <div className="p-2 rounded-lg bg-rose-100/60 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800">
+                    <div className="text-[10px] font-medium text-rose-800 dark:text-rose-300">
+                      Offline / Stalled
+                    </div>
+                    <div className="text-lg font-bold text-rose-600 dark:text-rose-400">
+                      {offlineSensors}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 px-0.5">
+                  <span className="text-teal-600 font-medium">Auto-polling live</span>
+                  <span>•</span>
+                  <span>Flow, CL & PT nodes</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
-        {/* Filter and Search Bar */}
-        <Card className="shadow-sm border-slate-200 dark:border-slate-800 mb-6 bg-white dark:bg-slate-900">
-          <CardContent className="p-4 space-y-4">
-            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
-              {/* Search Bar */}
-              <div className="relative flex-1">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+        {/* Scheme Explorer Section */}
+        <div className="space-y-4 pt-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                My Assigned Schemes Overview
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Live monitoring cards for all schemes under your supervision
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                 <Input
-                  type="text"
-                  placeholder="Search by engineer name, email, phone, username, region or scheme..."
+                  placeholder="Search scheme, block, division..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-sm h-10"
+                  className="pl-9 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-xs"
                 />
-                {searchTerm && (
-                  <button
-                    onClick={() => setSearchTerm('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 font-semibold"
+              </div>
+
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto">
+                <TabsList className="bg-slate-200/70 dark:bg-slate-800">
+                  <TabsTrigger value="all" className="text-xs">
+                    All ({schemes.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="critical" className="text-xs text-rose-600 dark:text-rose-400">
+                    Needs Action
+                  </TabsTrigger>
+                  <TabsTrigger value="healthy" className="text-xs text-emerald-600 dark:text-emerald-400">
+                    Healthy
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          </div>
+
+          {isLoading ? (
+            <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+              <RefreshCw className="w-8 h-8 animate-spin mx-auto text-blue-600 mb-3" />
+              <p className="text-sm text-slate-600 dark:text-slate-400">Loading your assigned schemes telemetry...</p>
+            </div>
+          ) : filteredSchemes.length === 0 ? (
+            <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
+              <Layers className="w-10 h-10 mx-auto text-slate-400" />
+              <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200">
+                {searchTerm ? "No matching schemes found" : "No schemes assigned yet"}
+              </h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                {searchTerm
+                  ? "Try refining your search keyword."
+                  : "Your user account is not mapped to any schemes in scheme_engineer_details. Please contact your system administrator."}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {filteredSchemes.map((scheme) => {
+                const hasAnyIssue =
+                  scheme.has_chlorine_issue ||
+                  scheme.has_pressure_issue ||
+                  (scheme.avg_lpcd !== null && !scheme.is_lpcd_compliant) ||
+                  scheme.offline_sensors > 0;
+
+                // Scheme specific performance metrics
+                const schTotalVillages = scheme.total_villages || (scheme.villages?.length ?? 0);
+                const schCompliantVillages = scheme.villages_compliant_count ?? 0;
+                const schNonCompliantVillages = scheme.villages_non_compliant_count ?? Math.max(0, schTotalVillages - schCompliantVillages);
+                const schVillagePercent = schTotalVillages > 0 ? Math.round((schCompliantVillages / schTotalVillages) * 100) : (scheme.is_lpcd_compliant ? 100 : 0);
+
+                const schTotalCl = scheme.chlorine_count ?? ((scheme.chlorine_ok_count ?? 0) + (scheme.chlorine_critical_count ?? 0) + (scheme.chlorine_high_count ?? 0) + (scheme.chlorine_nodata_count ?? 0));
+                const schClOk = scheme.chlorine_ok_count ?? 0;
+                const schClNonOptimal = (scheme.chlorine_critical_count ?? 0) + (scheme.chlorine_high_count ?? 0) + (scheme.chlorine_nodata_count ?? 0);
+                const schClPercent = schTotalCl > 0 ? Math.round((schClOk / schTotalCl) * 100) : 0;
+
+                const schTotalPr = scheme.pressure_count ?? ((scheme.pressure_ok_count ?? 0) + (scheme.pressure_low_count ?? 0) + (scheme.pressure_high_count ?? 0) + (scheme.pressure_nodata_count ?? 0));
+                const schPrOk = scheme.pressure_ok_count ?? 0;
+                const schPrNonOptimal = (scheme.pressure_low_count ?? 0) + (scheme.pressure_high_count ?? 0) + (scheme.pressure_nodata_count ?? 0);
+                const schPrPercent = schTotalPr > 0 ? Math.round((schPrOk / schTotalPr) * 100) : 0;
+
+                const schOnlineSensors = scheme.online_sensors ?? 0;
+                const schOfflineSensors = scheme.offline_sensors ?? 0;
+                const schTotalSensors = schOnlineSensors + schOfflineSensors;
+                const schSensorOnlinePercent = schTotalSensors > 0 ? Math.round((schOnlineSensors / schTotalSensors) * 100) : 0;
+
+                return (
+                  <Card
+                    key={scheme.scheme_id}
+                    className={`bg-white dark:bg-slate-900 border rounded-2xl overflow-hidden transition-all duration-200 hover:shadow-xl ${hasAnyIssue
+                      ? "border-rose-200 dark:border-rose-900/60 shadow-sm"
+                      : "border-slate-200 dark:border-slate-800 shadow-sm"
+                      }`}
                   >
-                    Clear
-                  </button>
-                )}
-              </div>
-
-              {/* Region Filter */}
-              <div className="w-full md:w-48">
-                <Select value={regionFilter} onValueChange={setRegionFilter}>
-                  <SelectTrigger className="h-10 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-xs">
-                    <SelectValue placeholder="All Regions" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">All Regions</SelectItem>
-                    {allRegions.map((reg) => (
-                      <SelectItem key={reg} value={reg}>
-                        {reg}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Status Filter */}
-              <div className="w-full md:w-44">
-                <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
-                  <SelectTrigger className="h-10 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-xs">
-                    <SelectValue placeholder="Account Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">All Accounts</SelectItem>
-                    <SelectItem value="REGISTERED">Registered Only</SelectItem>
-                    <SelectItem value="ROSTER_ONLY">Roster Only</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Position Filter Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-t border-slate-100 dark:border-slate-800 pt-3">
-              <span className="text-xs font-semibold text-slate-400 flex items-center gap-1 mr-1 shrink-0">
-                <SlidersHorizontal className="w-3 h-3" /> Position:
-              </span>
-              <Button
-                variant={tierFilter === 'ALL' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setTierFilter('ALL')}
-                className="h-8 text-xs font-semibold shrink-0"
-              >
-                All Positions ({engineers.length})
-              </Button>
-              <Button
-                variant={tierFilter === 'CE' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setTierFilter('CE')}
-                className={`h-8 text-xs font-semibold shrink-0 ${tierFilter === 'CE' ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'text-purple-700 dark:text-purple-400'}`}
-              >
-                <Crown className="w-3 h-3 mr-1" />
-                Chief Engineer ({kpis?.ce_count ?? 0})
-              </Button>
-              <Button
-                variant={tierFilter === 'SE' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setTierFilter('SE')}
-                className={`h-8 text-xs font-semibold shrink-0 ${tierFilter === 'SE' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'text-blue-700 dark:text-blue-400'}`}
-              >
-                <Award className="w-3 h-3 mr-1" />
-                Superintending Engineer ({kpis?.se_count ?? 0})
-              </Button>
-              <Button
-                variant={tierFilter === 'EE' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setTierFilter('EE')}
-                className={`h-8 text-xs font-semibold shrink-0 ${tierFilter === 'EE' ? 'bg-teal-600 hover:bg-teal-700 text-white' : 'text-teal-700 dark:text-teal-400'}`}
-              >
-                <ShieldCheck className="w-3 h-3 mr-1" />
-                Executive Engineer ({kpis?.ee_count ?? 0})
-              </Button>
-              <Button
-                variant={tierFilter === 'DE/AE' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setTierFilter('DE/AE')}
-                className={`h-8 text-xs font-semibold shrink-0 ${tierFilter === 'DE/AE' ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'text-amber-700 dark:text-amber-400'}`}
-              >
-                <Shield className="w-3 h-3 mr-1" />
-                Deputy / Asst. Engineer ({kpis?.de_ae_count ?? 0})
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Loading State */}
-        {isLoading && (
-          <div className="py-20 text-center">
-            <RefreshCw className="w-10 h-10 text-cyan-600 animate-spin mx-auto mb-3" />
-            <p className="text-slate-600 dark:text-slate-400 font-medium">
-              Loading hierarchy records, logins, and operational metrics...
-            </p>
-          </div>
-        )}
-
-        {/* Error State */}
-        {error && (
-          <Card className="border-red-200 bg-red-50 dark:bg-red-950/30 p-6 text-center">
-            <AlertTriangle className="w-10 h-10 text-red-500 mx-auto mb-2" />
-            <h3 className="text-lg font-bold text-red-800 dark:text-red-200">Unable to load engineer hierarchy</h3>
-            <p className="text-sm text-red-600 dark:text-red-300 mt-1">{(error as Error).message}</p>
-            <Button onClick={() => refetch()} variant="outline" className="mt-4 border-red-300 text-red-700">
-              Try Again
-            </Button>
-          </Card>
-        )}
-
-        {/* Empty State */}
-        {!isLoading && !error && filteredEngineers.length === 0 && (
-          <Card className="p-12 text-center border-slate-200 dark:border-slate-800">
-            <Users className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-            <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300">No engineers match your filters</h3>
-            <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">
-              Try adjusting your search keywords, hierarchy level, or region filter to view engineer profiles.
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setSearchTerm('');
-                setTierFilter('ALL');
-                setRegionFilter('ALL');
-                setStatusFilter('ALL');
-              }}
-              className="mt-4"
-            >
-              Reset All Filters
-            </Button>
-          </Card>
-        )}
-
-        {/* Main Engineer Display: Grouped by Tier */}
-        {!isLoading && !error && filteredEngineers.length > 0 && viewMode === 'grid' && (
-          <div className="space-y-8">
-            {groupedEngineers.map((group) => {
-              if (group.items.length === 0) return null;
-              return (
-                <div key={group.level} className="space-y-3">
-                  {/* Position Section Header */}
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-2 border-b border-slate-200 dark:border-slate-800 gap-2">
-                    <div className="flex items-center gap-2.5">
-                      <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-gradient-to-r ${group.badgeColor}`}>
-                        {group.level}
-                      </span>
-                      <div>
-                        <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                          {group.title}
-                        </h2>
-                        <p className="text-xs text-slate-500">{group.subtitle}</p>
-                      </div>
-                    </div>
-                    <span className="text-xs font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full">
-                      {group.items.length} {group.items.length === 1 ? 'Officer' : 'Officers'}
-                    </span>
-                  </div>
-
-                  {/* Cards Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {group.items.map((eng) => (
-                      <Card
-                        key={eng.key}
-                        className="overflow-hidden border border-slate-200 dark:border-slate-800 hover:shadow-md transition-all bg-white dark:bg-slate-900 flex flex-col justify-between"
-                      >
-                        <div>
-                          {/* Card Top Strip */}
-                          <div className="p-4 pb-3 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/50">
-                            <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <div className="flex items-center gap-1.5 mb-1">
-                                  {getPositionBadge(eng.level)}
-                                </div>
-                                <h3 className="font-bold text-base text-slate-900 dark:text-white leading-tight">
-                                  {eng.name}
-                                </h3>
-                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                                  {eng.position_title}
-                                </p>
-                              </div>
-
-                              <div>
-                                {eng.is_registered ? (
-                                  <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 hover:bg-emerald-100 text-[10px] font-semibold border border-emerald-300">
-                                    @{eng.username}
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="outline" className="text-slate-400 text-[10px]">
-                                    Roster Only
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Contact Details */}
-                            <div className="mt-3 space-y-1 text-xs">
-                              {eng.email ? (
-                                <div className="flex items-center justify-between text-slate-600 dark:text-slate-300 group">
-                                  <a
-                                    href={`mailto:${eng.email}`}
-                                    className="flex items-center gap-1.5 hover:text-blue-600 truncate font-medium"
-                                    title={`Send email to ${eng.email}`}
-                                  >
-                                    <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                    <span className="truncate">{eng.email}</span>
-                                  </a>
-                                  <button
-                                    onClick={() => copyToClipboard(eng.email, 'Email')}
-                                    className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-0.5 rounded ml-1"
-                                    title="Copy email"
-                                  >
-                                    {copiedText === eng.email ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="flex items-center gap-1.5 text-slate-400 italic">
-                                  <Mail className="w-3.5 h-3.5 shrink-0" /> No email registered
-                                </div>
-                              )}
-
-                              {eng.phone ? (
-                                <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
-                                  <a
-                                    href={`tel:${eng.phone}`}
-                                    className="flex items-center gap-1.5 hover:text-blue-600 font-medium"
-                                  >
-                                    <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                    <span>{eng.phone}</span>
-                                  </a>
-                                  <div className="flex items-center gap-0.5">
-                                    <button
-                                      onClick={() => {
-                                        setTestSmsMobile(eng.phone);
-                                        setTestSmsResult(null);
-                                        setTestSmsOpen(true);
-                                      }}
-                                      className="text-purple-600 hover:text-purple-800 dark:text-purple-400 p-1 rounded hover:bg-purple-50 dark:hover:bg-purple-950/50"
-                                      title={`Test SMS to ${eng.phone}`}
-                                    >
-                                      <Smartphone className="w-3.5 h-3.5" />
-                                    </button>
-                                    <button
-                                      onClick={() => copyToClipboard(eng.phone, 'Phone')}
-                                      className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
-                                      title="Copy phone"
-                                    >
-                                      {copiedText === eng.phone ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : null}
-                            </div>
+                    {/* Card Header */}
+                    <CardHeader className="p-5 pb-4 bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-mono font-bold text-blue-700 dark:text-blue-300 bg-blue-100/80 dark:bg-blue-950/80 px-2.5 py-0.5 rounded-md border border-blue-200 dark:border-blue-900">
+                              {scheme.scheme_id}
+                            </span>
+                            <CardTitle className="text-lg font-bold text-slate-900 dark:text-white leading-tight">
+                              {scheme.scheme_name}
+                            </CardTitle>
                           </div>
 
-                          {/* Jurisdiction Details */}
-                          <div className="p-4 py-3 border-b border-slate-100 dark:border-slate-800/80 space-y-2 text-xs">
-                            <div className="flex items-start gap-1.5 text-slate-600 dark:text-slate-300">
-                              <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                              <div className="leading-snug">
-                                <span className="font-semibold text-slate-700 dark:text-slate-200">
-                                  {eng.regions.length > 0 ? eng.regions.join(', ') : 'Maharashtra'}
-                                </span>
-                                {eng.districts.length > 0 && (
-                                  <span className="text-slate-500"> • {eng.districts.slice(0, 3).join(', ')}</span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Schemes count and SMS badge */}
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-semibold">
-                                {eng.schemes_count} {eng.schemes_count === 1 ? 'Scheme' : 'Schemes'} Assigned
-                              </span>
-                              <span className="px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[11px] font-semibold flex items-center gap-1 border border-indigo-200 dark:border-indigo-800">
-                                <Smartphone className="w-3 h-3 text-indigo-500" />
-                                {eng.sms_sent_count ?? 0} SMS Dispatched
-                              </span>
-                            </div>
-
-                            {/* Alerts Delivered KPI Bar */}
-                            <div className="pt-2 border-t border-slate-100 dark:border-slate-800/60">
-                              <div className="flex items-center justify-between text-xs mb-1">
-                                <span className="text-slate-500 flex items-center gap-1">
-                                  <Bell className="w-3.5 h-3.5 text-blue-500" /> Alerts Sent:
-                                </span>
-                                <span className="font-bold text-slate-800 dark:text-slate-200">
-                                  {eng.alerts_sent_count} ({eng.alerts_acknowledged_count} acked)
-                                </span>
-                              </div>
-                              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                                <div
-                                  className="bg-blue-600 h-1.5 rounded-full transition-all"
-                                  style={{ width: `${Math.min(eng.acknowledgement_rate, 100)}%` }}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Interactive Buttons Footer: Last 30 Logins & Required Actions */}
-                        <div className="p-3 bg-slate-50 dark:bg-slate-900/80 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setSelectedLoginsEngineer(eng)}
-                            className="h-9 text-xs font-semibold bg-white dark:bg-slate-800 hover:bg-slate-100 border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1 shadow-sm"
-                          >
-                            <Clock className="w-3.5 h-3.5 text-purple-600 shrink-0" />
-                            <span className="truncate">Last 30 Logins ({eng.total_logins_recorded})</span>
-                          </Button>
-
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedActionsEngineer(eng);
-                              setActionCategoryFilter('ALL');
-                            }}
-                            className="h-9 text-xs font-semibold bg-white dark:bg-slate-800 hover:bg-slate-100 border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1 shadow-sm"
-                          >
-                            <Activity className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                            <span className="truncate">Required Actions ({eng.actions_count})</span>
-                          </Button>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Table View Mode */}
-        {!isLoading && !error && filteredEngineers.length > 0 && viewMode === 'table' && (
-          <Card className="shadow-sm border-slate-200 dark:border-slate-800 overflow-hidden">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader className="bg-slate-50 dark:bg-slate-900">
-                  <TableRow>
-                    <TableHead className="w-16">Designation</TableHead>
-                    <TableHead>Engineer Name & Title</TableHead>
-                    <TableHead>Email & Phone</TableHead>
-                    <TableHead>Region & Jurisdiction</TableHead>
-                    <TableHead className="text-center">Alerts Sent</TableHead>
-                    <TableHead className="text-center">SMS Sent</TableHead>
-                    <TableHead className="text-center">Total Logins</TableHead>
-                    <TableHead className="text-center">Required Actions</TableHead>
-                    <TableHead className="text-right">Inspection</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredEngineers.map((eng) => (
-                    <TableRow key={eng.key} className="hover:bg-slate-50/80 dark:hover:bg-slate-900/50">
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={
-                            eng.level === 'CE'
-                              ? 'border-purple-300 text-purple-700 bg-purple-50 font-bold'
-                              : eng.level === 'SE'
-                                ? 'border-blue-300 text-blue-700 bg-blue-50 font-bold'
-                                : eng.level === 'EE'
-                                  ? 'border-teal-300 text-teal-700 bg-teal-50 font-bold'
-                                  : 'border-amber-300 text-amber-700 bg-amber-50 font-bold'
-                          }
-                        >
-                          {eng.level}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-bold text-slate-900 dark:text-white">{eng.name}</div>
-                        <div className="text-xs text-slate-500">{eng.position_title}</div>
-                        {eng.is_registered && (
-                          <span className="text-[10px] text-emerald-600 font-semibold">@{eng.username}</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-xs">
-                          {eng.email ? (
-                            <a href={`mailto:${eng.email}`} className="text-blue-600 hover:underline flex items-center gap-1">
-                              <Mail className="w-3 h-3 text-slate-400" /> {eng.email}
-                            </a>
-                          ) : (
-                            <span className="text-slate-400 italic">No email</span>
-                          )}
-                          {eng.phone && (
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <a href={`tel:${eng.phone}`} className="text-slate-600 dark:text-slate-300 hover:underline flex items-center gap-1">
-                                <Phone className="w-3 h-3 text-slate-400" /> {eng.phone}
-                              </a>
-                              <button
-                                onClick={() => {
-                                  setTestSmsMobile(eng.phone);
-                                  setTestSmsResult(null);
-                                  setTestSmsOpen(true);
-                                }}
-                                className="text-purple-600 hover:text-purple-800 dark:text-purple-400 p-0.5 rounded"
-                                title={`Test SMS to ${eng.phone}`}
-                              >
-                                <Smartphone className="w-3 h-3" />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-xs text-slate-700 dark:text-slate-300 font-medium">
-                          {eng.regions.length > 0 ? eng.regions.join(', ') : 'Maharashtra'}
-                        </div>
-                        <div className="text-[11px] text-slate-500">
-                          {eng.schemes_count} {eng.schemes_count === 1 ? 'Scheme' : 'Schemes'}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                          {eng.alerts_sent_count} ({eng.alerts_acknowledged_count} ack)
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                          <Smartphone className="w-3 h-3 text-indigo-500" />
-                          {eng.sms_sent_count ?? 0}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">
-                          {eng.total_logins_recorded} sessions
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                          {eng.actions_count} logged
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right space-x-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSelectedLoginsEngineer(eng)}
-                          className="h-8 px-2 text-xs text-purple-700 hover:text-purple-900 hover:bg-purple-50"
-                          title="View Last 30 Logins"
-                        >
-                          <Clock className="w-3.5 h-3.5 mr-1" /> Logins
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedActionsEngineer(eng);
-                            setActionCategoryFilter('ALL');
-                          }}
-                          className="h-8 px-2 text-xs text-amber-700 hover:text-amber-900 hover:bg-amber-50"
-                          title="View Required Actions"
-                        >
-                          <Activity className="w-3.5 h-3.5 mr-1" /> Required Actions
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </Card>
-        )}
-      </div>
-
-      {/* ========================================================================= */}
-      {/* LAST 30 LOGINS MODAL DIALOG                                              */}
-      {/* ========================================================================= */}
-      <Dialog
-        open={Boolean(selectedLoginsEngineer)}
-        onOpenChange={(open) => !open && setSelectedLoginsEngineer(null)}
-      >
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col p-0 bg-white dark:bg-slate-900">
-          <DialogHeader className="p-6 pb-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/70">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <Badge variant="outline" className="text-xs border-purple-300 text-purple-700 bg-purple-50 font-bold">
-                    {selectedLoginsEngineer?.position_title || selectedLoginsEngineer?.level}
-                  </Badge>
-                  {selectedLoginsEngineer?.is_registered ? (
-                    <Badge className="bg-emerald-100 text-emerald-800 text-xs">
-                      Account: @{selectedLoginsEngineer.username}
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary" className="text-xs">
-                      Unregistered Profile
-                    </Badge>
-                  )}
-                </div>
-                <DialogTitle className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-purple-600" />
-                  Last 30 Login Sessions: {selectedLoginsEngineer?.name}
-                </DialogTitle>
-                <DialogDescription className="text-xs text-slate-500 mt-1">
-                  Chronological session logs recorded for {selectedLoginsEngineer?.email || selectedLoginsEngineer?.name}.
-                </DialogDescription>
-              </div>
-            </div>
-          </DialogHeader>
-
-          {/* Sessions List Content */}
-          <div className="p-6 overflow-y-auto flex-1 space-y-3">
-            {selectedLoginsEngineer && selectedLoginsEngineer.last_30_logins.length === 0 ? (
-              <div className="text-center py-12">
-                <Laptop className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-                <h4 className="text-base font-bold text-slate-700 dark:text-slate-300">No Login Activity Recorded Yet</h4>
-                <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-                  {selectedLoginsEngineer.is_registered
-                    ? `User '@${selectedLoginsEngineer.username}' has not initiated a portal session recently.`
-                    : 'This engineer does not yet have an active login credential configured.'}
-                </p>
-              </div>
-            ) : (
-              <div className="rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
-                <Table>
-                  <TableHeader className="bg-slate-50 dark:bg-slate-900/90 text-xs">
-                    <TableRow>
-                      <TableHead className="w-10">#</TableHead>
-                      <TableHead>Login Time (IST)</TableHead>
-                      <TableHead>Duration / Logout</TableHead>
-                      <TableHead>IP Address</TableHead>
-                      <TableHead>Browser & Platform</TableHead>
-                      <TableHead className="text-right">Session Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody className="text-xs">
-                    {selectedLoginsEngineer?.last_30_logins.map((session, index) => {
-                      const ua = parseUserAgent(session.user_agent);
-                      return (
-                        <TableRow key={session.id || index} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                          <TableCell className="font-bold text-slate-400">
-                            #{index + 1}
-                          </TableCell>
-                          <TableCell className="font-semibold text-slate-900 dark:text-white whitespace-nowrap">
-                            {formatISTDateTime(session.login_time)}
-                          </TableCell>
-                          <TableCell>
-                            <span className="font-medium text-slate-700 dark:text-slate-300">
-                              {session.session_duration_formatted || (session.session_duration ? `${session.session_duration}s` : 'Active')}
-                            </span>
-                          </TableCell>
-                          <TableCell className="font-mono text-slate-500 whitespace-nowrap">
-                            {session.ip_address || '—'}
-                          </TableCell>
-                          <TableCell>
-                            <span className="inline-flex items-center gap-1 text-slate-700 dark:text-slate-300">
-                              <Laptop className="w-3 h-3 text-slate-400" />
-                              {ua.browser} on {ua.os}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {session.is_active ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Active Now
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-                                Completed
+                          <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 pt-0.5 flex-wrap">
+                            {scheme.region && (
+                              <span className="flex items-center gap-1">
+                                <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                                {scheme.region} Region
                               </span>
                             )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </div>
-
-          <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
-            <span className="text-xs text-slate-500">
-              Showing up to 30 most recent sessions
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSelectedLoginsEngineer(null)}
-              className="text-xs"
-            >
-              Close
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* ========================================================================= */}
-      {/* REQUIRED ACTIONS TIMELINE DIALOG                                             */}
-      {/* ========================================================================= */}
-      <Dialog
-        open={Boolean(selectedActionsEngineer)}
-        onOpenChange={(open) => !open && setSelectedActionsEngineer(null)}
-      >
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col p-0 bg-white dark:bg-slate-900">
-          <DialogHeader className="p-6 pb-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/70">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <Badge variant="outline" className="text-xs border-amber-300 text-amber-700 bg-amber-50 font-bold">
-                    {selectedActionsEngineer?.position_title || selectedActionsEngineer?.level}
-                  </Badge>
-                  <Badge className="bg-amber-100 text-amber-800 text-xs">
-                    {selectedActionsEngineer?.actions_count} Required Actions
-                  </Badge>
-                </div>
-                <DialogTitle className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-amber-600" />
-                  Required Actions: {selectedActionsEngineer?.name}
-                </DialogTitle>
-                <DialogDescription className="text-xs text-slate-500 mt-1">
-                  Audit trail of alert acknowledgements, problem resolutions, and operational updates.
-                </DialogDescription>
-              </div>
-            </div>
-
-            {/* Filter Pills inside Action Modal */}
-            <div className="flex items-center gap-1.5 pt-3 flex-wrap">
-              <Button
-                variant={actionCategoryFilter === 'ALL' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setActionCategoryFilter('ALL')}
-                className="h-7 text-[11px] px-2.5"
-              >
-                All ({selectedActionsEngineer?.actions_taken.length || 0})
-              </Button>
-              <Button
-                variant={actionCategoryFilter === 'alert_acknowledged' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setActionCategoryFilter('alert_acknowledged')}
-                className="h-7 text-[11px] px-2.5 text-blue-700 dark:text-blue-400"
-              >
-                Alert Acks ({selectedActionsEngineer?.actions_taken.filter((a) => a.type === 'alert_acknowledged').length || 0})
-              </Button>
-              <Button
-                variant={actionCategoryFilter === 'sms_sent' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setActionCategoryFilter('sms_sent')}
-                className="h-7 text-[11px] px-2.5 text-indigo-700 dark:text-indigo-400"
-              >
-                SMS Dispatched ({selectedActionsEngineer?.actions_taken.filter((a) => a.type === 'sms_sent').length || 0})
-              </Button>
-              <Button
-                variant={actionCategoryFilter === 'issue_resolved' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setActionCategoryFilter('issue_resolved')}
-                className="h-7 text-[11px] px-2.5 text-emerald-700 dark:text-emerald-400"
-              >
-                Resolutions ({selectedActionsEngineer?.actions_taken.filter((a) => a.type === 'issue_resolved').length || 0})
-              </Button>
-            </div>
-          </DialogHeader>
-
-          {/* Actions Timeline List */}
-          <div className="p-6 overflow-y-auto flex-1 space-y-4">
-            {selectedActionsEngineer && selectedActionsEngineer.actions_taken.length === 0 ? (
-              <div className="text-center py-12">
-                <FileText className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-                <h4 className="text-base font-bold text-slate-700 dark:text-slate-300">No Actions Recorded</h4>
-                <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-                  No alert acknowledgements, SMS dispatches, or issue resolutions are recorded in the audit log for this engineer yet.
-                </p>
-              </div>
-            ) : (
-              <div className="relative border-l-2 border-slate-200 dark:border-slate-800 ml-3 space-y-6">
-                {selectedActionsEngineer?.actions_taken
-                  .filter((act) => actionCategoryFilter === 'ALL' || act.type === actionCategoryFilter)
-                  .map((action, idx) => {
-                    return (
-                      <div key={action.id || idx} className="relative pl-6">
-                        {/* Dot Icon */}
-                        <div
-                          className={`absolute -left-[17px] top-0 w-8 h-8 rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center text-white ${action.type === 'alert_acknowledged'
-                            ? 'bg-blue-600'
-                            : action.type === 'sms_sent'
-                              ? 'bg-indigo-600'
-                              : action.type === 'issue_resolved'
-                                ? 'bg-emerald-600'
-                                : action.type === 'issue_reported'
-                                  ? 'bg-amber-600'
-                                  : 'bg-slate-600'
-                            }`}
-                        >
-                          {action.type === 'alert_acknowledged' && <CheckCircle2 className="w-4 h-4" />}
-                          {action.type === 'sms_sent' && <Smartphone className="w-4 h-4" />}
-                          {action.type === 'issue_resolved' && <Check className="w-4 h-4" />}
-                          {action.type === 'issue_reported' && <AlertTriangle className="w-4 h-4" />}
-                          {action.type === 'user_activity' && <Activity className="w-4 h-4" />}
+                            {scheme.division && (
+                              <span className="flex items-center gap-1">
+                                <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                                {scheme.division} Div
+                              </span>
+                            )}
+                            {scheme.block && (
+                              <span className="flex items-center gap-1">
+                                <span>Block:</span>
+                                <span className="font-semibold text-slate-700 dark:text-slate-300">{scheme.block}</span>
+                              </span>
+                            )}
+                            <span className="text-slate-300 dark:text-slate-700">•</span>
+                            <Badge variant="outline" className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-[11px] font-medium py-0">
+                              {scheme.total_esrs} ESR Reservoirs
+                            </Badge>
+                            {schTotalVillages > 0 && (
+                              <Badge variant="outline" className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-[11px] font-medium py-0">
+                                {schTotalVillages} Villages
+                              </Badge>
+                            )}
+                          </div>
                         </div>
 
-                        {/* Action Card */}
-                        <div className="p-3.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/60 shadow-xs">
-                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-1">
-                            <span className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
-                              {action.title}
-                            </span>
-                            <span className="text-[11px] text-slate-500 font-medium whitespace-nowrap">
-                              {formatISTDateTime(action.timestamp)} ({getRelativeTime(action.timestamp)})
-                            </span>
-                          </div>
-
-                          <p className="text-xs text-slate-700 dark:text-slate-300 mt-1">
-                            {action.description}
-                          </p>
-
-                          {/* Meta pill badges */}
-                          {action.meta && (
-                            <div className="mt-2.5 flex items-center gap-1.5 flex-wrap text-[10px]">
-                              {action.meta.mobile && (
-                                <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-mono font-bold">
-                                  Mobile: {action.meta.mobile}
-                                </span>
-                              )}
-                              {action.meta.template_name && (
-                                <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
-                                  {action.meta.template_name}
-                                </span>
-                              )}
-                              {action.meta.ticket_id && (
-                                <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-mono font-bold">
-                                  Ticket #{action.meta.ticket_id}
-                                </span>
-                              )}
-                              {action.meta.scheme_id && (
-                                <span className="px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold">
-                                  Scheme ID: {action.meta.scheme_id}
-                                </span>
-                              )}
-                              {action.meta.alert_type && (
-                                <span className="px-2 py-0.5 rounded bg-cyan-100 text-cyan-800 font-semibold">
-                                  {action.meta.alert_type}
-                                </span>
-                              )}
-                              {action.meta.esr_name && (
-                                <span className="px-2 py-0.5 rounded bg-slate-200 text-slate-700">
-                                  ESR: {action.meta.esr_name}
-                                </span>
-                              )}
-                            </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {scheme.recent_alert_count > 0 && (
+                            <Badge className="bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950 dark:text-rose-200 text-xs font-semibold px-2.5 py-1 flex items-center gap-1">
+                              <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                              {scheme.recent_alert_count} Active Alerts
+                            </Badge>
+                          )}
+                          {hasAnyIssue ? (
+                            <Badge className="bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-200 text-xs font-semibold px-2.5 py-1">
+                              Needs Attention
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-200 text-xs font-semibold px-2.5 py-1 flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                              Optimal & Healthy
+                            </Badge>
                           )}
                         </div>
                       </div>
-                    );
-                  })}
+                    </CardHeader>
+
+                    {/* Card Body - 4 Individual Scheme Performance Cards */}
+                    <CardContent className="p-5 space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                        {/* Scheme Card 1: Village LPCD */}
+                        <div className="p-3.5 rounded-xl bg-gradient-to-b from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-slate-900 border border-emerald-200/70 dark:border-emerald-900/50 shadow-sm space-y-2.5 flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400 flex items-center gap-1">
+                                <Activity className="w-3.5 h-3.5 text-emerald-600" />
+                                Village LPCD (55 L)
+                              </span>
+                              <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200 border-none text-[10px] font-bold px-1.5 py-0">
+                                {schVillagePercent}% Pass
+                              </Badge>
+                            </div>
+                            <div className="mt-1 flex items-baseline justify-between">
+                              <span className="text-2xl font-extrabold text-slate-900 dark:text-white">
+                                {schTotalVillages}
+                              </span>
+                              <span className="text-[11px] font-medium text-slate-500">
+                                {scheme.avg_lpcd !== null ? `Avg ${scheme.avg_lpcd} L` : "Total Villages"}
+                              </span>
+                            </div>
+
+                            {/* Progress bar */}
+                            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden flex mt-2">
+                              <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${schVillagePercent}%` }} />
+                              <div className="bg-amber-500 h-full transition-all duration-500" style={{ width: `${100 - schVillagePercent}%` }} />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-1.5 text-xs pt-1">
+                            <div className="p-1.5 rounded-md bg-emerald-100/60 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
+                              <div className="text-[9px] font-medium text-emerald-800 dark:text-emerald-300">Achieving ≥ 55</div>
+                              <div className="text-base font-bold text-emerald-700 dark:text-emerald-400">{schCompliantVillages}</div>
+                            </div>
+                            <div className="p-1.5 rounded-md bg-amber-100/60 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800">
+                              <div className="text-[9px] font-medium text-amber-800 dark:text-amber-300">Not Achieving</div>
+                              <div className="text-base font-bold text-amber-700 dark:text-amber-400">{schNonCompliantVillages}</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Scheme Card 2: Chlorine Sensors */}
+                        <div className="p-3.5 rounded-xl bg-gradient-to-b from-cyan-50/60 to-white dark:from-cyan-950/20 dark:to-slate-900 border border-cyan-200/70 dark:border-cyan-900/50 shadow-sm space-y-2.5 flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-800 dark:text-cyan-400 flex items-center gap-1">
+                                <Droplets className="w-3.5 h-3.5 text-cyan-600" />
+                                Chlorine (CL)
+                              </span>
+                              <Badge className="bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200 border-none text-[10px] font-bold px-1.5 py-0">
+                                {schClPercent}% Optimal
+                              </Badge>
+                            </div>
+                            <div className="mt-1 flex items-baseline justify-between">
+                              <span className="text-2xl font-extrabold text-slate-900 dark:text-white">
+                                {schTotalCl}
+                              </span>
+                              <span className="text-[11px] font-medium text-slate-500">
+                                {scheme.avg_chlorine !== null ? `Avg ${scheme.avg_chlorine} mg/L` : "Total CL Sensors"}
+                              </span>
+                            </div>
+
+                            {/* Progress bar */}
+                            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden flex mt-2">
+                              <div className="bg-cyan-500 h-full transition-all duration-500" style={{ width: `${schClPercent}%` }} />
+                              <div className="bg-rose-500 h-full transition-all duration-500" style={{ width: `${100 - schClPercent}%` }} />
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <div className="grid grid-cols-2 gap-1.5 text-xs">
+                              <div className="p-1.5 rounded-md bg-cyan-100/60 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800">
+                                <div className="text-[9px] font-medium text-cyan-800 dark:text-cyan-300">Optimal (0.2-0.5)</div>
+                                <div className="text-base font-bold text-cyan-700 dark:text-cyan-400">{schClOk}</div>
+                              </div>
+                              <div className="p-1.5 rounded-md bg-rose-100/60 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800">
+                                <div className="text-[9px] font-medium text-rose-800 dark:text-rose-300">Non-Optimal</div>
+                                <div className="text-base font-bold text-rose-600 dark:text-rose-400">{schClNonOptimal}</div>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between text-[9px] text-slate-500 dark:text-slate-400 px-0.5">
+                              <span className="text-rose-600 font-medium">{scheme.chlorine_critical_count ?? 0} &lt;0.2</span>
+                              <span>•</span>
+                              <span className="text-amber-600 font-medium">{scheme.chlorine_high_count ?? 0} &gt;0.5</span>
+                              <span>•</span>
+                              <span>{scheme.chlorine_nodata_count ?? 0} N/D</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Scheme Card 3: Pressure Sensors */}
+                        <div className="p-3.5 rounded-xl bg-gradient-to-b from-indigo-50/60 to-white dark:from-indigo-950/20 dark:to-slate-900 border border-indigo-200/70 dark:border-indigo-900/50 shadow-sm space-y-2.5 flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-800 dark:text-indigo-400 flex items-center gap-1">
+                                <Gauge className="w-3.5 h-3.5 text-indigo-600" />
+                                Pressure (PT)
+                              </span>
+                              <Badge className="bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 border-none text-[10px] font-bold px-1.5 py-0">
+                                {schPrPercent}% Optimal
+                              </Badge>
+                            </div>
+                            <div className="mt-1 flex items-baseline justify-between">
+                              <span className="text-2xl font-extrabold text-slate-900 dark:text-white">
+                                {schTotalPr}
+                              </span>
+                              <span className="text-[11px] font-medium text-slate-500">
+                                {scheme.avg_pressure !== null ? `Avg ${scheme.avg_pressure} Bar` : "Total PT Sensors"}
+                              </span>
+                            </div>
+
+                            {/* Progress bar */}
+                            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden flex mt-2">
+                              <div className="bg-indigo-500 h-full transition-all duration-500" style={{ width: `${schPrPercent}%` }} />
+                              <div className="bg-rose-500 h-full transition-all duration-500" style={{ width: `${100 - schPrPercent}%` }} />
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <div className="grid grid-cols-2 gap-1.5 text-xs">
+                              <div className="p-1.5 rounded-md bg-indigo-100/60 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800">
+                                <div className="text-[9px] font-medium text-indigo-800 dark:text-indigo-300">Optimal (0.2-0.7)</div>
+                                <div className="text-base font-bold text-indigo-700 dark:text-indigo-400">{schPrOk}</div>
+                              </div>
+                              <div className="p-1.5 rounded-md bg-rose-100/60 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800">
+                                <div className="text-[9px] font-medium text-rose-800 dark:text-rose-300">Non-Optimal</div>
+                                <div className="text-base font-bold text-rose-600 dark:text-rose-400">{schPrNonOptimal}</div>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between text-[9px] text-slate-500 dark:text-slate-400 px-0.5">
+                              <span className="text-rose-600 font-medium">{scheme.pressure_low_count ?? 0} Low</span>
+                              <span>•</span>
+                              <span className="text-amber-600 font-medium">{scheme.pressure_high_count ?? 0} High</span>
+                              <span>•</span>
+                              <span>{scheme.pressure_nodata_count ?? 0} N/D</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Scheme Card 4: IoT Sensors Connectivity */}
+                        <div className="p-3.5 rounded-xl bg-gradient-to-b from-teal-50/60 to-white dark:from-teal-950/20 dark:to-slate-900 border border-teal-200/70 dark:border-teal-900/50 shadow-sm space-y-2.5 flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-bold uppercase tracking-wider text-teal-800 dark:text-teal-400 flex items-center gap-1">
+                                <Wifi className="w-3.5 h-3.5 text-teal-600" />
+                                IoT Sensors Network
+                              </span>
+                              <Badge className="bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200 border-none text-[10px] font-bold px-1.5 py-0">
+                                {schSensorOnlinePercent}% Online
+                              </Badge>
+                            </div>
+                            <div className="mt-1 flex items-baseline justify-between">
+                              <span className="text-2xl font-extrabold text-slate-900 dark:text-white">
+                                {schTotalSensors}
+                              </span>
+                              <span className="text-[11px] font-medium text-slate-500">
+                                Total Transmitters
+                              </span>
+                            </div>
+
+                            {/* Progress bar */}
+                            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden flex mt-2">
+                              <div className="bg-teal-500 h-full transition-all duration-500" style={{ width: `${schSensorOnlinePercent}%` }} />
+                              <div className="bg-rose-500 h-full transition-all duration-500" style={{ width: `${100 - schSensorOnlinePercent}%` }} />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-1.5 text-xs pt-1">
+                            <div className="p-1.5 rounded-md bg-teal-100/60 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800">
+                              <div className="text-[9px] font-medium text-teal-800 dark:text-teal-300">Online & Active</div>
+                              <div className="text-base font-bold text-teal-700 dark:text-teal-400">{schOnlineSensors}</div>
+                            </div>
+                            <div className="p-1.5 rounded-md bg-rose-100/60 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800">
+                              <div className="text-[9px] font-medium text-rose-800 dark:text-rose-300">Offline / Stale</div>
+                              <div className="text-base font-bold text-rose-600 dark:text-rose-400">{schOfflineSensors}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Active Alerts Banner if any */}
+                      {scheme.recent_alert_count > 0 && (
+                        <div className="p-3 rounded-xl bg-rose-50/90 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-xs text-rose-800 dark:text-rose-200 flex items-center justify-between gap-3">
+                          <span className="flex items-center gap-2 font-medium text-xs">
+                            <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                            This scheme currently has {scheme.recent_alert_count} active critical alerts requiring field inspection.
+                          </span>
+                          <Link href={`/helpdesk/issue-reporting?scheme_id=${scheme.scheme_id}`}>
+                            <Button size="sm" variant="outline" className="h-7 px-3 text-xs bg-rose-100/80 hover:bg-rose-200 text-rose-800 border-rose-300">
+                              Submit Field Remark <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                            </Button>
+                          </Link>
+                        </div>
+                      )}
+                    </CardContent>
+
+                    {/* Card Footer - Deep Links */}
+                    <CardFooter className="p-3.5 px-5 bg-slate-50/60 dark:bg-slate-900/80 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Link href={`/chlorine?scheme_id=${scheme.scheme_id}`}>
+                          <Button variant="outline" size="sm" className="h-8 px-3 text-xs font-medium text-cyan-800 dark:text-cyan-300 border-cyan-200 dark:border-cyan-900 hover:bg-cyan-50">
+                            <Droplets className="w-3.5 h-3.5 mr-1.5 text-cyan-600" />
+                            Chlorine Telemetry
+                          </Button>
+                        </Link>
+                        <Link href={`/pressure?scheme_id=${scheme.scheme_id}`}>
+                          <Button variant="outline" size="sm" className="h-8 px-3 text-xs font-medium text-indigo-800 dark:text-indigo-300 border-indigo-200 dark:border-indigo-900 hover:bg-indigo-50">
+                            <Gauge className="w-3.5 h-3.5 mr-1.5 text-indigo-600" />
+                            Pressure Telemetry
+                          </Button>
+                        </Link>
+                        <Link href={`/scheme-lpcd?scheme_id=${scheme.scheme_id}`}>
+                          <Button variant="outline" size="sm" className="h-8 px-3 text-xs font-medium text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900 hover:bg-emerald-50">
+                            <Activity className="w-3.5 h-3.5 mr-1.5 text-emerald-600" />
+                            LPCD Metrics
+                          </Button>
+                        </Link>
+                      </div>
+
+                      <Link href={`/scheme/${scheme.scheme_id}/${scheme.block || ""}`}>
+                        <Button size="sm" className="h-8 px-4 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm flex items-center gap-1.5">
+                          View Scheme Details <ArrowUpRight className="w-3.5 h-3.5" />
+                        </Button>
+                      </Link>
+                    </CardFooter>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Action Center - Active Critical Alerts Table */}
+        <div className="space-y-3 pt-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-rose-600" />
+                Recent Critical Alerts on Your Schemes
+              </h3>
+              <p className="text-xs text-slate-500">
+                Daily alerts generated where telemetry fell below acceptable thresholds
+              </p>
+            </div>
+
+            {/* Date filter pills & Date picker */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setDateFilterMode("today")}
+                  className={`px-2.5 py-1 rounded-md font-semibold transition-all ${dateFilterMode === "today"
+                    ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                    }`}
+                >
+                  Current Day ({latestAlertDate || "Today"})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDateFilterMode("all")}
+                  className={`px-2.5 py-1 rounded-md font-semibold transition-all ${dateFilterMode === "all"
+                    ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                    }`}
+                >
+                  All ({allAlerts.length})
+                </button>
               </div>
-            )}
+
+              <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-2 py-1 text-xs">
+                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                <input
+                  type="date"
+                  value={customSelectedDate}
+                  onChange={(e) => {
+                    setCustomSelectedDate(e.target.value);
+                    if (e.target.value) setDateFilterMode("custom");
+                  }}
+                  className="bg-transparent border-none text-xs text-slate-700 dark:text-slate-300 focus:outline-none"
+                />
+              </div>
+            </div>
           </div>
 
-          <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
-            <span className="text-xs text-slate-500">
-              Showing recorded acknowledgement & resolution audit history
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSelectedActionsEngineer(null)}
-              className="text-xs"
-            >
-              Close
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* ========================================================================= */}
-      {/* TEST SMS GATEWAY MODAL DIALOG                                             */}
-      {/* ========================================================================= */}
-      <Dialog open={testSmsOpen} onOpenChange={setTestSmsOpen}>
-        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto p-0 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl">
-          <DialogHeader className="p-5 pb-4 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-purple-950 via-slate-900 to-slate-900 text-white">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-purple-600/30 border border-purple-500/40 flex items-center justify-center text-purple-300 shrink-0">
-                <Smartphone className="w-5 h-5" />
-              </div>
-              <div>
-                <DialogTitle className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                  Smartping DLT SMS Gateway Tester
-                </DialogTitle>
-                <DialogDescription className="text-xs text-purple-200/80 mt-0.5">
-                  Trigger live Airtel DLT-compliant Marathi SMS messages via server backend.
-                </DialogDescription>
-              </div>
+          {displayedAlerts.length === 0 ? (
+            <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+              <CheckCircle2 className="w-8 h-8 mx-auto text-emerald-500 mb-2" />
+              <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                {dateFilterMode === "today"
+                  ? "No critical alerts recorded for today"
+                  : dateFilterMode === "custom" && customSelectedDate
+                    ? `No critical alerts found for ${customSelectedDate}`
+                    : "All schemes are within normal operating parameters"}
+              </h4>
+              <p className="text-xs text-slate-500 mt-1">
+                Zero telemetry thresholds breached for this selection.
+              </p>
             </div>
-          </DialogHeader>
+          ) : (
+            <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-semibold">
+                    <tr>
+                      <th className="p-3">Scheme</th>
+                      <th className="p-3">ESR Reservoir</th>
+                      <th className="p-3">Alert Type</th>
+                      <th className="p-3">Recorded Value</th>
+                      <th className="p-3">Email Sent Date</th>
+                      <th className="p-3">Status</th>
+                      <th className="p-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {displayedAlerts.map((alert, idx) => {
+                      const alertKey = getAlertKey(alert);
+                      const isAcked =
+                        Boolean(alert.is_acknowledged) ||
+                        Boolean(alert.acknowledged) ||
+                        Boolean(alert.acknowledged_at) ||
+                        acknowledgedAlertKeys.has(alertKey);
+                      return (
+                        <tr key={alert.id || idx} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                          <td className="p-3 font-medium text-slate-900 dark:text-white">
+                            {alert.parentSchemeName || alert.scheme_id}
+                          </td>
+                          <td className="p-3 text-slate-700 dark:text-slate-300">
+                            {alert.esr_name || "-"}
+                          </td>
+                          <td className="p-3">
+                            <Badge
+                              className={
+                                alert.alert_type === "Chlorine"
+                                  ? "bg-cyan-50 text-cyan-700 border-cyan-200"
+                                  : alert.alert_type === "Pressure"
+                                    ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                    : "bg-amber-50 text-amber-700 border-amber-200"
+                              }
+                            >
+                              {alert.alert_type}
+                            </Badge>
+                          </td>
+                          <td className="p-3 font-bold text-rose-600">
+                            {alert.alert_value} {alert.alert_type === "Chlorine" ? "mg/L" : alert.alert_type === "Pressure" ? "Bar" : ""}
+                          </td>
+                          <td className="p-3 text-slate-500">
+                            {alert.sent_date ? String(alert.sent_date).slice(0, 10) : "-"}
+                          </td>
+                          <td className="p-3">
+                            {isAcked ? (
+                              <Badge className="bg-emerald-50 text-emerald-700 border-emerald-300 text-[10px] font-semibold flex items-center gap-1 w-fit">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                Acknowledged
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-amber-50 text-amber-700 border-amber-300 text-[10px] font-semibold flex items-center gap-1 w-fit">
+                                <Clock className="w-3 h-3 text-amber-600" />
+                                Pending Ack
+                              </Badge>
+                            )}
+                          </td>
+                          <td className="p-3 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {!isAcked && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => acknowledgeMutation.mutate(alert)}
+                                  disabled={acknowledgeMutation.isPending}
+                                  className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm"
+                                >
+                                  <Check className="w-3.5 h-3.5 mr-1" />
+                                  Acknowledge
+                                </Button>
+                              )}
+                              <Link href={`/helpdesk/issue-reporting?scheme_id=${alert.scheme_id}`}>
+                                <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-slate-600 hover:text-slate-900">
+                                  Remark
+                                </Button>
+                              </Link>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+        </div>
 
-          <div className="p-5 space-y-4 text-xs">
-            {/* Gateway Configuration Audit Card */}
-            <div className="rounded-xl bg-slate-50 dark:bg-slate-900/60 p-3.5 border border-slate-200 dark:border-slate-800 space-y-1.5">
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="font-semibold text-slate-700 dark:text-slate-300">Gateway URL:</span>
-                <code className="text-slate-600 dark:text-slate-400 font-mono">https://pgapi.smartping.ai/fe/api/v1/send</code>
-              </div>
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="font-semibold text-slate-700 dark:text-slate-300">Sender ID (Header):</span>
-                <span className="px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-bold font-mono">MJPIOT</span>
-              </div>
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="font-semibold text-slate-700 dark:text-slate-300">PE ID (Principal Entity):</span>
-                <code className="text-slate-600 dark:text-slate-400 font-mono">1001861588684954918</code>
-              </div>
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="font-semibold text-slate-700 dark:text-slate-300">API Username:</span>
-                <code className="text-slate-600 dark:text-slate-400 font-mono">CSTECH.trans</code>
-              </div>
-              <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center gap-1.5 text-[11px] text-purple-700 dark:text-purple-300">
-                <Shield className="w-3.5 h-3.5 shrink-0 text-purple-600" />
-                <span>Backend dispatches from server IP. IP whitelisting configured in Cyfuture Smartping.</span>
-              </div>
-            </div>
-
-            {/* Recipient Mobile */}
-            <div className="space-y-1">
-              <label className="font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                <span>Recipient Mobile Number (10 digits)</span>
-                <span className="text-[10px] text-slate-400">e.g. 9876543210</span>
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-mono font-bold">+91</span>
-                <Input
-                  type="text"
-                  value={testSmsMobile}
-                  onChange={(e) => setTestSmsMobile(e.target.value)}
-                  placeholder="Enter 10-digit mobile number"
-                  className="pl-12 text-xs font-mono h-9"
-                  maxLength={12}
-                />
-              </div>
-            </div>
-
-            {/* DLT Template Selector */}
-            <div className="space-y-1">
-              <label className="font-semibold text-slate-700 dark:text-slate-300">
-                Select DLT Approved Template
-              </label>
-              <Select
-                value={testSmsTemplate}
-                onValueChange={(val: any) => {
-                  setTestSmsTemplate(val);
-                  if (val === 'PRESSURE_LOW') setTestSmsValue('0.15');
-                  else if (val === 'CHLORINE_HIGH') setTestSmsValue('0.65');
-                  else if (val === 'CHLORINE_LOW') setTestSmsValue('0.10');
-                  else if (val === 'LPCD_LOW') setTestSmsValue('38');
-                  else if (val.includes('OFFLINE')) setTestSmsValue('01-10-2026 11:30 AM');
-                }}
-              >
-                <SelectTrigger className="h-9 text-xs">
-                  <SelectValue placeholder="Select template" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="FLOW_SENSOR_OFFLINE">
-                    Flow Sensor Offline — ID: 1077293960125583218
-                  </SelectItem>
-                  <SelectItem value="PRESSURE_SENSOR_OFFLINE">
-                    Pressure Sensor Offline — ID: 1077261240124038284
-                  </SelectItem>
-                  <SelectItem value="CHLORINE_LOW">
-                    Residual Chlorine – Low (&lt; 0.2 mg/l) — ID: 1077228300124016722
-                  </SelectItem>
-                  <SelectItem value="LPCD_LOW">
-                    LPCD – Low (&lt; 55 LPCD) — ID: 1077196480123998489
-                  </SelectItem>
-                  <SelectItem value="CHLORINE_SENSOR_OFFLINE">
-                    Residual Chlorine Sensor Offline — ID: 1077170600125566322
-                  </SelectItem>
-                  <SelectItem value="PRESSURE_LOW">
-                    Pressure Sensor – Low (&lt; 0.2 bar) — ID: 1077134590125541730
-                  </SelectItem>
-                  <SelectItem value="CHLORINE_HIGH">
-                    Residual Chlorine – High (&gt; 0.5 mg/l) — ID: 1077100380123978308
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Dynamic Template Variables */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              <div className="space-y-1">
-                <label className="font-semibold text-slate-700 dark:text-slate-300 text-[11px]">
-                  Scheme Name ({'{#var#}'} 1)
-                </label>
-                <Input
-                  type="text"
-                  value={testSmsScheme}
-                  onChange={(e) => setTestSmsScheme(e.target.value)}
-                  placeholder="e.g. Dhamangaon Deshmukh"
-                  className="text-xs h-9"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="font-semibold text-slate-700 dark:text-slate-300 text-[11px]">
-                  {testSmsTemplate === 'LPCD_LOW' ? 'Village Name ({#var#} 2)' : 'Village & ESR ({#var#} 2)'}
-                </label>
-                <div className="flex gap-1.5">
-                  <Input
-                    type="text"
-                    value={testSmsVillage}
-                    onChange={(e) => setTestSmsVillage(e.target.value)}
-                    placeholder="Village"
-                    className="text-xs h-9 flex-1"
-                  />
-                  {testSmsTemplate !== 'LPCD_LOW' && (
-                    <Input
-                      type="text"
-                      value={testSmsEsr}
-                      onChange={(e) => setTestSmsEsr(e.target.value)}
-                      placeholder="ESR"
-                      className="text-xs h-9 w-20"
-                    />
-                  )}
-                </div>
-              </div>
-              <div className="space-y-1">
-                <label className="font-semibold text-slate-700 dark:text-slate-300 text-[11px]">
-                  {testSmsTemplate.includes('OFFLINE') ? 'Offline Time ({#var#} 3)' : 'Alert Value ({#var#} 3)'}
-                </label>
-                <Input
-                  type="text"
-                  value={testSmsValue}
-                  onChange={(e) => setTestSmsValue(e.target.value)}
-                  placeholder={testSmsTemplate.includes('OFFLINE') ? '01-10-2026 11:30 AM' : testSmsTemplate === 'PRESSURE_LOW' ? '0.15' : testSmsTemplate === 'LPCD_LOW' ? '38' : '0.10'}
-                  className="text-xs h-9 font-mono"
-                />
-              </div>
-            </div>
-
-            {/* Live Rendered Template Preview */}
-            <div className="space-y-1">
-              <label className="font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                <span>Exact DLT SMS Text Preview (Marathi)</span>
-                <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" /> Approved DLT Template
-                </span>
-              </label>
-              <div className="p-3 rounded-lg bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 text-xs text-slate-800 dark:text-slate-200 leading-relaxed font-sans">
-                {testSmsTemplate === 'FLOW_SENSOR_OFFLINE' && (
-                  <>सूचना: JJM MVS <strong className="text-purple-700 dark:text-purple-300">{testSmsScheme || '{scheme}'}</strong> अंतर्गत <strong className="text-purple-700 dark:text-purple-300">{testSmsVillage ? `${testSmsVillage}${testSmsEsr ? ` ${testSmsEsr}` : ''}` : '{village and esr}'}</strong> येथील Flow Sensor Offline आढळला असून Offline Date &amp; Time <strong className="text-purple-700 dark:text-purple-300">{testSmsValue || '01-10-2026 11:30 AM'}</strong> आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा</>
-                )}
-                {testSmsTemplate === 'PRESSURE_SENSOR_OFFLINE' && (
-                  <>सूचना: JJM MVS <strong className="text-purple-700 dark:text-purple-300">{testSmsScheme || '{scheme}'}</strong> अंतर्गत <strong className="text-purple-700 dark:text-purple-300">{testSmsVillage ? `${testSmsVillage}${testSmsEsr ? ` ${testSmsEsr}` : ''}` : '{village and esr}'}</strong> येथील Pressure Sensor Offline आढळला असून Offline Date &amp; Time <strong className="text-purple-700 dark:text-purple-300">{testSmsValue || '01-10-2026 11:30 AM'}</strong> आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा</>
-                )}
-                {testSmsTemplate === 'CHLORINE_LOW' && (
-                  <>सूचना: JJM MVS <strong className="text-purple-700 dark:text-purple-300">{testSmsScheme || '{scheme}'}</strong> अंतर्गत <strong className="text-purple-700 dark:text-purple-300">{testSmsVillage ? `${testSmsVillage}${testSmsEsr ? ` ${testSmsEsr}` : ''}` : '{village and esr}'}</strong> येथील वितरण व्यवस्थेत Residual Chlorine ची मात्रा 0.2 mg/l पेक्षा कमी असून सध्याची मात्रा <strong className="text-purple-700 dark:text-purple-300">{testSmsValue || '0.10'}</strong> mg/l इतकी आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा</>
-                )}
-                {testSmsTemplate === 'LPCD_LOW' && (
-                  <>सूचना: JJM MVS <strong className="text-purple-700 dark:text-purple-300">{testSmsScheme || '{scheme}'}</strong> अंतर्गत <strong className="text-purple-700 dark:text-purple-300">{testSmsVillage || '{village}'}</strong> येथील पाणीपुरवठ्याचा दर 55 LPCD पेक्षा कमी असून सध्याचा पाणीपुरवठ्याचा दर <strong className="text-purple-700 dark:text-purple-300">{testSmsValue || '38'}</strong> LPCD आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा</>
-                )}
-                {testSmsTemplate === 'CHLORINE_SENSOR_OFFLINE' && (
-                  <>सूचना: JJM MVS <strong className="text-purple-700 dark:text-purple-300">{testSmsScheme || '{scheme}'}</strong> अंतर्गत <strong className="text-purple-700 dark:text-purple-300">{testSmsVillage ? `${testSmsVillage}${testSmsEsr ? ` ${testSmsEsr}` : ''}` : '{village and esr}'}</strong> येथील Residual Chlorine Sensor Offline आढळला असून Offline Date &amp; Time <strong className="text-purple-700 dark:text-purple-300">{testSmsValue || '01-10-2026 11:30 AM'}</strong> आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा</>
-                )}
-                {testSmsTemplate === 'PRESSURE_LOW' && (
-                  <>सूचना: JJM MVS <strong className="text-purple-700 dark:text-purple-300">{testSmsScheme || '{scheme}'}</strong> अंतर्गत <strong className="text-purple-700 dark:text-purple-300">{testSmsVillage ? `${testSmsVillage}${testSmsEsr ? ` ${testSmsEsr}` : ''}` : '{village and esr}'}</strong> येथील वितरण व्यवस्थेतील Pressure Sensor नुसार पाण्याचा दाब 0.2 bar पेक्षा कमी असून सध्याचा दाब <strong className="text-purple-700 dark:text-purple-300">{testSmsValue || '0.15'}</strong> bar इतका आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा</>
-                )}
-                {testSmsTemplate === 'CHLORINE_HIGH' && (
-                  <>सूचना: JJM MVS <strong className="text-purple-700 dark:text-purple-300">{testSmsScheme || '{scheme}'}</strong> अंतर्गत <strong className="text-purple-700 dark:text-purple-300">{testSmsVillage ? `${testSmsVillage}${testSmsEsr ? ` ${testSmsEsr}` : ''}` : '{village and esr}'}</strong> येथील वितरण व्यवस्थेत Residual Chlorine ची मात्रा 0.5 mg/l पेक्षा जास्त असून सध्याची मात्रा <strong className="text-purple-700 dark:text-purple-300">{testSmsValue || '0.65'}</strong> mg/l इतकी आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा</>
-                )}
-              </div>
-            </div>
-
-            {/* Test Result Display */}
-            {testSmsResult && (
-              <div className={`p-3 rounded-xl border text-xs space-y-1.5 ${testSmsResult.success ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-300 text-emerald-900 dark:text-emerald-200' : 'bg-red-50 dark:bg-red-950/30 border-red-300 text-red-900 dark:text-red-200'}`}>
-                <div className="flex items-center gap-2 font-bold">
-                  {testSmsResult.success ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> : <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />}
-                  <span>{testSmsResult.success ? 'Gateway Dispatched Successfully' : 'Gateway Returned Response'}</span>
-                </div>
-                {testSmsResult.gatewayStatus !== undefined && (
-                  <div className="font-medium">
-                    HTTP Gateway Status: <span className="font-mono font-bold px-1.5 py-0.5 rounded bg-white/70 dark:bg-black/40">{testSmsResult.gatewayStatus}</span>
+        {/* Recent 5 Logins Activity Dialog Modal */}
+        <Dialog open={isLoginModalOpen} onOpenChange={setIsLoginModalOpen}>
+          <DialogContent className="max-w-md sm:max-w-lg p-0 overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl">
+            <DialogHeader className="p-4 pb-3 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-between gap-2 pr-6">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900">
+                    <ShieldCheck className="w-5 h-5" />
                   </div>
-                )}
-                {testSmsResult.gatewayResponse && (
-                  <div className="font-mono text-[11px] bg-white/80 dark:bg-black/50 p-2.5 rounded border break-all leading-normal">
-                    {testSmsResult.gatewayResponse}
+                  <div>
+                    <DialogTitle className="text-base font-bold text-slate-900 dark:text-white">
+                      Recent Login Activity
+                    </DialogTitle>
+                    <DialogDescription className="text-xs text-slate-500">
+                      Last 5 authenticated engineer portal sessions & access logs
+                    </DialogDescription>
                   </div>
-                )}
-                {testSmsResult.error && (
-                  <div className="text-[11px] text-red-700 dark:text-red-300 font-medium">{testSmsResult.error}</div>
-                )}
+                </div>
+                <Badge className="bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-semibold flex items-center gap-1 px-2 py-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Active Session
+                </Badge>
               </div>
-            )}
-          </div>
+            </DialogHeader>
 
-          <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
-            <span className="text-xs text-slate-500">
-              Triggers POST /api/admin/engineers/test-sms
-            </span>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setTestSmsOpen(false)}
-                className="text-xs"
-              >
-                Close
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleSendTestSms}
-                disabled={isTestingSms || !testSmsMobile}
-                className="bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold"
-              >
-                {isTestingSms ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                    Sending via Server...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-3.5 h-3.5 mr-1.5" />
-                    Send Test SMS
-                  </>
-                )}
-              </Button>
+            <div className="p-4 space-y-2.5 max-h-[60vh] overflow-y-auto">
+              {data?.recentLogins && data.recentLogins.length > 0 ? (
+                data.recentLogins.slice(0, 5).map((log, index) => {
+                  const isFirst = index === 0;
+                  return (
+                    <div
+                      key={log.id || index}
+                      className={`flex items-center justify-between p-3 rounded-lg border text-xs transition-colors ${isFirst
+                        ? "bg-blue-50/80 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900 text-slate-900 dark:text-white"
+                        : "bg-slate-50/60 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50"
+                        }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span
+                          className={`w-2 h-2 rounded-full flex-shrink-0 ${isFirst
+                            ? "bg-emerald-500 animate-pulse ring-2 ring-emerald-200 dark:ring-emerald-950"
+                            : "bg-slate-300 dark:bg-slate-600"
+                            }`}
+                        />
+                        <div className="truncate">
+                          <div className="font-semibold text-xs flex items-center gap-2">
+                            <span>{formatLoginTime(log.login_time)}</span>
+                            {isFirst && (
+                              <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200 text-[9px] px-1.5 py-0 border-none font-semibold">
+                                Current
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
+                            <span className="flex items-center gap-1">
+                              <Laptop className="w-3 h-3 text-slate-400" />
+                              {getDeviceLabel(log.user_agent)}
+                            </span>
+                            {log.ip_address && (
+                              <>
+                                <span>•</span>
+                                <span className="font-mono text-[10px]">{log.ip_address}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="text-right flex-shrink-0">
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] font-mono font-medium ${isFirst
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300"
+                            : "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400"
+                            }`}
+                        >
+                          {isFirst ? "Active Now" : log.session_duration ? `${log.session_duration}m` : "Logged Out"}
+                        </Badge>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="py-8 text-center text-xs text-slate-400">
+                  <Clock className="w-6 h-6 mx-auto mb-1 opacity-50" />
+                  No prior login records found.
+                </div>
+              )}
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+      </main>
     </div>
   );
 }
