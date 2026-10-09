@@ -204,6 +204,38 @@ export const isValidEngineerName = (rawName?: string | null): boolean => {
   return true;
 };
 
+// Helper to determine SMS delivery status rank for sorting:
+// 1 = Delivered (all SMS succeeded)
+// 2 = Failed (0 SMS succeeded)
+// 3 = Partial (some succeeded, some failed)
+// 4 = Not Dispatched / Not Sent / No SMS
+export const getSmsDeliveryStatusRank = (row: any): number => {
+  const rawSmsList = (Array.isArray(row.sms_dispatches) && row.sms_dispatches.length > 0)
+    ? row.sms_dispatches
+    : (Array.isArray(row.sms_recipients) && row.sms_recipients.length > 0 ? row.sms_recipients : []);
+
+  const smsList = (row.village_name || row.esr_name)
+    ? rawSmsList.filter((s: any) =>
+      (row.village_name && s.message_text && s.message_text.toLowerCase().includes(row.village_name.toLowerCase())) ||
+      (row.esr_name && s.message_text && s.message_text.toLowerCase().includes(row.esr_name.toLowerCase()))
+    )
+    : rawSmsList;
+
+  if (!smsList || smsList.length === 0) {
+    return 4;
+  }
+
+  const successCount = smsList.filter((s: any) => s.is_success === true || (s.is_success !== false && s.is_success !== 0 && s.is_success !== 'false')).length;
+
+  if (successCount === smsList.length) {
+    return 1; // Delivered first
+  } else if (successCount === 0) {
+    return 2; // Failed next
+  } else {
+    return 3; // Partial next
+  }
+};
+
 // Helper to determine the primary Scheme Owner from Engineers Directory
 export const getSchemeOwner = (row: AlertData) => {
   // Order: DE/AE (Civil) → DE/AE (Mech) → EE (Civil) → EE (Mech) → SE → CE (low to high)
@@ -1339,12 +1371,17 @@ export default function AlertsProgressPage() {
       return true;
     });
 
+    // Sort Real-time alerts by SMS Sent status (Delivered -> Failed -> Partial -> Others)
+    const sortedRealtimeAlerts = [...filteredRealtimeAlerts].sort(
+      (a: any, b: any) => getSmsDeliveryStatusRank(a) - getSmsDeliveryStatusRank(b)
+    );
+
     const startIdx = (realtimePage - 1) * realtimeRowsPerPage;
     const endIdx = realtimePage * realtimeRowsPerPage;
-    const totalPages = Math.ceil(filteredRealtimeAlerts.length / realtimeRowsPerPage);
-    const paginatedAlerts = filteredRealtimeAlerts.slice(startIdx, endIdx);
-    const startItem = filteredRealtimeAlerts.length > 0 ? startIdx + 1 : 0;
-    const endItem = Math.min(endIdx, filteredRealtimeAlerts.length);
+    const totalPages = Math.ceil(sortedRealtimeAlerts.length / realtimeRowsPerPage);
+    const paginatedAlerts = sortedRealtimeAlerts.slice(startIdx, endIdx);
+    const startItem = sortedRealtimeAlerts.length > 0 ? startIdx + 1 : 0;
+    const endItem = Math.min(endIdx, sortedRealtimeAlerts.length);
 
     // Calculate unique sensors, schemes, and villages for Critical Chlorine
     const criticalAlerts = allRealtimeAlerts.filter((a: any) =>
@@ -2324,7 +2361,7 @@ export default function AlertsProgressPage() {
                                       }`}>
                                       <MessageSquare className="w-2.5 h-2.5 text-current" />
                                       {isFullSuccess
-                                        ? `Sent (${successCount}/${smsRecs.length})`
+                                        ? `Delivered (${successCount}/${smsRecs.length})`
                                         : successCount > 0
                                           ? `Partial (${successCount}/${smsRecs.length})`
                                           : `Failed (${smsRecs.length})`}
@@ -3134,7 +3171,7 @@ export default function AlertsProgressPage() {
     const totalRemarks = baseData.filter(r => parseIssues(r.remarks).length > 0).length;
 
     // Filter by Scheme Search & Acknowledgement status
-    const displayData = baseData.filter((row) => {
+    const filteredRows = baseData.filter((row) => {
       if (schemeSearch.trim()) {
         const q = schemeSearch.toLowerCase().trim();
         const matches =
@@ -3159,6 +3196,11 @@ export default function AlertsProgressPage() {
       }
       return true;
     });
+
+    // Sort alerts by SMS Sent status: Delivered first -> Failed -> Partial -> Others
+    const displayData = [...filteredRows].sort(
+      (a, b) => getSmsDeliveryStatusRank(a) - getSmsDeliveryStatusRank(b)
+    );
 
     // Pagination Logic
     const startIdx = (page - 1) * rowsPerPage;
@@ -3251,18 +3293,7 @@ export default function AlertsProgressPage() {
           </div>
 
           {/* Region / Village */}
-          <div className="w-full sm:w-[180px]">
-            <label className="text-xs font-semibold text-slate-700 block mb-1">Region / Village</label>
-            <VillageFilter
-              value={villageFilter}
-              onChange={(val) => {
-                setVillageFilter(val);
-                setPage(1);
-              }}
-              showLabel={false}
-              triggerClassName="h-8 text-xs bg-white border-slate-200"
-            />
-          </div>
+
 
           {/* Date */}
           {type !== "offline" && (
