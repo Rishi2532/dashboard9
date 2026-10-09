@@ -11,6 +11,7 @@ export interface RegionSummary {
   total_villages_in_scheme?: number;
   total_villages_integrated?: number;
   fully_completed_villages?: number;
+  villages_partially_completed?: number;
   flow_meter_integrated?: number;
   rca_integrated?: number; // Added to match schema and fix TypeScript error
   pressure_transmitter_integrated?: number; // Added to match schema and fix TypeScript error
@@ -19,6 +20,7 @@ export interface RegionSummary {
   schemes_in_operation?: number; // legacy
   total_villages?: number;
   villages_operational?: number;
+  villages_fully_completed?: number;
   completed_villages?: number; // legacy
   total_esr?: number;
   esr_operational?: number;

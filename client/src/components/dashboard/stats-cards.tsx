@@ -105,6 +105,11 @@ export default function StatsCards({
   const bottomFullyCompletedVillages = isInstrumented
     ? data.villages_fully_completed || 0
     : completedVillages;
+  const bottomPartiallyCompletedVillages = isInstrumented
+    ? (data.villages_partially_completed !== undefined
+        ? data.villages_partially_completed
+        : Math.max(0, bottomVillagesIntegrated - bottomFullyCompletedVillages))
+    : Math.max(0, bottomVillagesIntegrated - bottomFullyCompletedVillages);
 
   const totalEsr = isInstrumented
     ? data.total_esr || 0
@@ -336,7 +341,7 @@ export default function StatsCards({
                     : "Partially Completed"}
                   :
                 </span>
-                <span className="font-semibold">{bottomVillagesIntegrated - bottomFullyCompletedVillages}</span>
+                <span className="font-semibold">{bottomPartiallyCompletedVillages}</span>
               </div>
               {/* <div className="flex justify-between text-sm text-amber-700 mt-1">
                 <span>Fully Completion Rate:</span>
