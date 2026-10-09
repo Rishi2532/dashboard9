@@ -206,8 +206,8 @@ export const isValidEngineerName = (rawName?: string | null): boolean => {
 
 // Helper to determine SMS delivery status rank for sorting:
 // 1 = Delivered (all SMS succeeded)
-// 2 = Failed (0 SMS succeeded)
-// 3 = Partial (some succeeded, some failed)
+// 2 = Partial (some succeeded, some failed)
+// 3 = Failed (0 SMS succeeded)
 // 4 = Not Dispatched / Not Sent / No SMS
 export const getSmsDeliveryStatusRank = (row: any): number => {
   const rawSmsList = (Array.isArray(row.sms_dispatches) && row.sms_dispatches.length > 0)
@@ -229,10 +229,10 @@ export const getSmsDeliveryStatusRank = (row: any): number => {
 
   if (successCount === smsList.length) {
     return 1; // Delivered first
-  } else if (successCount === 0) {
-    return 2; // Failed next
+  } else if (successCount > 0) {
+    return 2; // Partial next
   } else {
-    return 3; // Partial next
+    return 3; // Failed next
   }
 };
 
@@ -1371,7 +1371,7 @@ export default function AlertsProgressPage() {
       return true;
     });
 
-    // Sort Real-time alerts by SMS Sent status (Delivered -> Failed -> Partial -> Others)
+    // Sort Real-time alerts by SMS Sent status (Delivered -> Partial -> Failed -> Others)
     const sortedRealtimeAlerts = [...filteredRealtimeAlerts].sort(
       (a: any, b: any) => getSmsDeliveryStatusRank(a) - getSmsDeliveryStatusRank(b)
     );
@@ -3197,7 +3197,7 @@ export default function AlertsProgressPage() {
       return true;
     });
 
-    // Sort alerts by SMS Sent status: Delivered first -> Failed -> Partial -> Others
+    // Sort alerts by SMS Sent status: Delivered first -> Partial -> Failed -> Others
     const displayData = [...filteredRows].sort(
       (a, b) => getSmsDeliveryStatusRank(a) - getSmsDeliveryStatusRank(b)
     );
