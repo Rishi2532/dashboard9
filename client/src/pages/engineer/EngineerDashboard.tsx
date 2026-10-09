@@ -895,7 +895,7 @@ export default function EngineersHierarchyPage() {
                           </div>
                         </div>
 
-                        {/* Interactive Buttons Footer: Last 30 Logins & Actions Taken */}
+                        {/* Interactive Buttons Footer: Last 30 Logins & Required Actions */}
                         <div className="p-3 bg-slate-50 dark:bg-slate-900/80 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-2">
                           <Button
                             variant="outline"
@@ -917,7 +917,7 @@ export default function EngineersHierarchyPage() {
                             className="h-9 text-xs font-semibold bg-white dark:bg-slate-800 hover:bg-slate-100 border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1 shadow-sm"
                           >
                             <Activity className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                            <span className="truncate">Actions ({eng.actions_count})</span>
+                            <span className="truncate">Required Actions ({eng.actions_count})</span>
                           </Button>
                         </div>
                       </Card>
@@ -943,7 +943,7 @@ export default function EngineersHierarchyPage() {
                     <TableHead className="text-center">Alerts Sent</TableHead>
                     <TableHead className="text-center">SMS Sent</TableHead>
                     <TableHead className="text-center">Total Logins</TableHead>
-                    <TableHead className="text-center">Actions Taken</TableHead>
+                    <TableHead className="text-center">Required Actions</TableHead>
                     <TableHead className="text-right">Inspection</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1049,9 +1049,9 @@ export default function EngineersHierarchyPage() {
                             setActionCategoryFilter('ALL');
                           }}
                           className="h-8 px-2 text-xs text-amber-700 hover:text-amber-900 hover:bg-amber-50"
-                          title="View Actions Taken"
+                          title="View Required Actions"
                         >
-                          <Activity className="w-3.5 h-3.5 mr-1" /> Actions
+                          <Activity className="w-3.5 h-3.5 mr-1" /> Required Actions
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -1186,7 +1186,7 @@ export default function EngineersHierarchyPage() {
       </Dialog>
 
       {/* ========================================================================= */}
-      {/* ACTIONS TAKEN TIMELINE DIALOG                                             */}
+      {/* REQUIRED ACTIONS TIMELINE DIALOG                                             */}
       {/* ========================================================================= */}
       <Dialog
         open={Boolean(selectedActionsEngineer)}
@@ -1201,12 +1201,12 @@ export default function EngineersHierarchyPage() {
                     {selectedActionsEngineer?.position_title || selectedActionsEngineer?.level}
                   </Badge>
                   <Badge className="bg-amber-100 text-amber-800 text-xs">
-                    {selectedActionsEngineer?.actions_count} Operational Actions
+                    {selectedActionsEngineer?.actions_count} Required Actions
                   </Badge>
                 </div>
                 <DialogTitle className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                   <Activity className="w-5 h-5 text-amber-600" />
-                  Actions Taken: {selectedActionsEngineer?.name}
+                  Required Actions: {selectedActionsEngineer?.name}
                 </DialogTitle>
                 <DialogDescription className="text-xs text-slate-500 mt-1">
                   Audit trail of alert acknowledgements, problem resolutions, and operational updates.

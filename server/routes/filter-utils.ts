@@ -133,15 +133,16 @@ export async function getRollingWindowInfo(db: any, weekOffset: number = 0): Pro
 
 
 /**
- * Enhanced function to get filtered scheme IDs based on filterType, fullyCompleted, and agencyType.
- * Supports specialized water supply filters for Fully Instrumented Schemes.
+ * Enhanced function to get filtered scheme IDs based on filterType, fullyCompleted, agencyType, and villageFilter.
+ * Supports specialized water supply filters for Fully Instrumented Schemes and Village Completion Status.
  */
 export async function getFilteredSchemeIds(
   db: any,
   filterType: any,
   fullyCompleted: any,
   agencyType?: string | string[],
-  engineerScope?: { isEngineer: boolean; schemeIds: string[] } | null
+  engineerScope?: { isEngineer: boolean; schemeIds: string[] } | null,
+  villageFilter?: string
 ): Promise<string[] | undefined> {
   let activeFilter = filterType || (fullyCompleted === "true" ? "fully_completed" : undefined);
   
@@ -190,7 +191,7 @@ export async function getFilteredSchemeIds(
   // This logic is specifically for instrumented schemes that report 0 LPCD
   if (statusSuffix === 'no' && activeFilter !== 'commissioned' && activeFilter !== 'fully_completed') {
     // Determine base IDs to apply the LPCD=0 filter to
-    const baseIds: string[] | undefined = await getFilteredSchemeIds(db, activeFilter, fullyCompleted, targetAgencyType, engineerScope);
+    const baseIds: string[] | undefined = await getFilteredSchemeIds(db, activeFilter, fullyCompleted, targetAgencyType, engineerScope, villageFilter);
     if (!baseIds || baseIds[0] === 'NO_MATCHES') return ['NO_MATCHES'];
 
     const weekInfo = await getRollingWindowInfo(db, 0);
@@ -266,6 +267,21 @@ export async function getFilteredSchemeIds(
     }
   }
 
+  // Apply Village Completion Filter
+  if (villageFilter === "completed") {
+    conditions.push(sql`EXISTS (
+      SELECT 1 FROM village v 
+      WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
+      AND LOWER(TRIM(v.scheme_id)) = LOWER(TRIM(${schemeStatuses.scheme_id}))
+    )`);
+  } else if (villageFilter === "in_progress") {
+    conditions.push(sql`NOT EXISTS (
+      SELECT 1 FROM village v 
+      WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
+      AND LOWER(TRIM(v.scheme_id)) = LOWER(TRIM(${schemeStatuses.scheme_id}))
+    )`);
+  }
+
   // apply status suffix logic
   if (statusSuffix) {
     if (activeFilter === 'commissioned') {
@@ -278,6 +294,19 @@ export async function getFilteredSchemeIds(
          } else {
             baseConditions.push(sql`UPPER(${schemeStatuses.agency_type}) = ${targetAgencyType.toUpperCase()}`);
          }
+      }
+      if (villageFilter === "completed") {
+        baseConditions.push(sql`EXISTS (
+          SELECT 1 FROM village v 
+          WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
+          AND LOWER(TRIM(v.scheme_id)) = LOWER(TRIM(${schemeStatuses.scheme_id}))
+        )`);
+      } else if (villageFilter === "in_progress") {
+        baseConditions.push(sql`NOT EXISTS (
+          SELECT 1 FROM village v 
+          WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
+          AND LOWER(TRIM(v.scheme_id)) = LOWER(TRIM(${schemeStatuses.scheme_id}))
+        )`);
       }
       
       const baseRows = await db.select({ scheme_id: schemeStatuses.scheme_id })
@@ -337,8 +366,8 @@ export async function getFilteredSchemeIds(
 
       } else if (statusSuffix === 'partial') {
         // Partial = Total - Full - No
-        const fullIds: string[] | undefined = await getFilteredSchemeIds(db, 'commissioned_full', undefined, targetAgencyType, engineerScope);
-        const noIds: string[] | undefined = await getFilteredSchemeIds(db, 'commissioned_no', undefined, targetAgencyType, engineerScope);
+        const fullIds: string[] | undefined = await getFilteredSchemeIds(db, 'commissioned_full', undefined, targetAgencyType, engineerScope, villageFilter);
+        const noIds: string[] | undefined = await getFilteredSchemeIds(db, 'commissioned_no', undefined, targetAgencyType, engineerScope, villageFilter);
         
         const fullSet = new Set(fullIds && fullIds[0] !== 'NO_MATCHES' ? fullIds : []);
         const noSet = new Set(noIds && noIds[0] !== 'NO_MATCHES' ? noIds : []);
@@ -357,6 +386,19 @@ export async function getFilteredSchemeIds(
           } else {
              baseConditions.push(sql`UPPER(${schemeStatuses.agency_type}) = ${targetAgencyType.toUpperCase()}`);
           }
+       }
+       if (villageFilter === "completed") {
+         baseConditions.push(sql`EXISTS (
+           SELECT 1 FROM village v 
+           WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
+           AND LOWER(TRIM(v.scheme_id)) = LOWER(TRIM(${schemeStatuses.scheme_id}))
+         )`);
+       } else if (villageFilter === "in_progress") {
+         baseConditions.push(sql`NOT EXISTS (
+           SELECT 1 FROM village v 
+           WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
+           AND LOWER(TRIM(v.scheme_id)) = LOWER(TRIM(${schemeStatuses.scheme_id}))
+         )`);
        }
        
        const baseRows = await db.select({ scheme_id: schemeStatuses.scheme_id })
@@ -414,8 +456,8 @@ export async function getFilteredSchemeIds(
  
        } else if (statusSuffix === 'partial') {
          // Partial = Total IoT - (Full IoT + No IoT)
-         const fullIds: string[] | undefined = await getFilteredSchemeIds(db, 'fully_completed_full', undefined, targetAgencyType, engineerScope);
-         const noIds: string[] | undefined = await getFilteredSchemeIds(db, 'fully_completed_no', undefined, targetAgencyType, engineerScope);
+         const fullIds: string[] | undefined = await getFilteredSchemeIds(db, 'fully_completed_full', undefined, targetAgencyType, engineerScope, villageFilter);
+         const noIds: string[] | undefined = await getFilteredSchemeIds(db, 'fully_completed_no', undefined, targetAgencyType, engineerScope, villageFilter);
          
          const fullSet = new Set(fullIds && fullIds[0] !== 'NO_MATCHES' ? fullIds : []);
          const noSet = new Set(noIds && noIds[0] !== 'NO_MATCHES' ? noIds : []);
@@ -447,9 +489,23 @@ export async function getFilteredSchemeIds(
   }
   
   // If no filter is applied, we still want to apply Rule 1 for "All Schemes"
+  const allConditions: any[] = [ruleAllSchemes];
+  if (villageFilter === "completed") {
+    allConditions.push(sql`EXISTS (
+      SELECT 1 FROM village v 
+      WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
+      AND LOWER(TRIM(v.scheme_id)) = LOWER(TRIM(${schemeStatuses.scheme_id}))
+    )`);
+  } else if (villageFilter === "in_progress") {
+    allConditions.push(sql`NOT EXISTS (
+      SELECT 1 FROM village v 
+      WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
+      AND LOWER(TRIM(v.scheme_id)) = LOWER(TRIM(${schemeStatuses.scheme_id}))
+    )`);
+  }
   const allRows = await db.select({ scheme_id: schemeStatuses.scheme_id })
     .from(schemeStatuses)
-    .where(ruleAllSchemes);
+    .where(and(...allConditions));
   const allIds = Array.from(new Set<string>(allRows.map((r: any) => r.scheme_id)));
   return allIds.length > 0 ? applyScope(allIds) : ['NO_MATCHES'];
 }

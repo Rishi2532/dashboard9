@@ -14,7 +14,7 @@ router.get("/overall-region-comparison", async (req, res) => {
     const { fullyCompleted, filterType, agencyType, villageFilter } = req.query;
     const db = await getDB();
 
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string, undefined, villageFilter as string);
     let schemeIdFilter = "";
     if (filteredIds) {
       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
@@ -34,6 +34,7 @@ router.get("/overall-region-comparison", async (req, res) => {
       WHERE cs.region IS NOT NULL
       AND cs.flow_meter_connected = 'Connected'
       ${schemeIdFilter}
+      ${getVillageFilterClause(villageFilter as string, 'cs')}
       GROUP BY cs.region
       ORDER BY cs.region
     `;
@@ -61,7 +62,7 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
     const { region, fullyCompleted, filterType, agencyType, villageFilter } = req.query;
     const db = await getDB();
 
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string, undefined, villageFilter as string);
     let schemeIdFilter = "";
     if (filteredIds) {
       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
@@ -122,6 +123,7 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
       ${schemeIdFilter}
       ${regionFilter}
       ${statusFilter}
+      ${getVillageFilterClause(villageFilter as string, 'cs')}
       ORDER BY cs.region, cs.division, cs.village_name, cs.esr_name
     `;
 
@@ -145,7 +147,7 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
     const { region, fullyCompleted, filterType, agencyType, villageFilter } = req.query;
     const db = await getDB();
 
-    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
+    const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string, undefined, villageFilter as string);
     let schemeIdFilter = "";
     if (filteredIds) {
       if (filteredIds.length === 1 && filteredIds[0] === 'NO_MATCHES') {
@@ -178,7 +180,7 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
         cs.scheme_id || '' as scheme_id,
         cs.scheme_name || '' as scheme_name,
         cs.flow_meter_status || '' as status,
-        sd.population,
+        sd.population || '' as population,
         ss.agency_type || '' as agency_type
       FROM communication_status cs
       LEFT JOIN scheme_status ss ON cs.scheme_id = ss.scheme_id
@@ -193,6 +195,7 @@ router.get("/overall-region-comparison/export/:category", async (req, res) => {
       ${schemeIdFilter}
       ${regionFilter}
       ${statusFilter}
+      ${getVillageFilterClause(villageFilter as string, 'cs')}
       ORDER BY cs.region, cs.division, cs.village_name, cs.esr_name
     `;
 

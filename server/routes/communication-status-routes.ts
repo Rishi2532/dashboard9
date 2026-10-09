@@ -68,7 +68,7 @@ router.get("/overview", async (req, res) => {
 
     // Handle standard filter types (like on schemes page)
     if (filterType || fullyCompleted) {
-      const filteredSchemeIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType, scope);
+      const filteredSchemeIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType, scope, villageFilter);
       if (filteredSchemeIds) {
         if (filteredSchemeIds.includes('NO_MATCHES')) {
           conditions.push(sql`1 = 0`); // No matches
@@ -262,7 +262,7 @@ router.get("/schemes", async (req, res) => {
 
     // Handle standard filter types (like on schemes page)
     if (filterType || fullyCompleted) {
-      const filteredSchemeIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType, scope);
+      const filteredSchemeIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType, scope, villageFilter);
       if (filteredSchemeIds) {
         if (filteredSchemeIds.includes('NO_MATCHES')) {
           conditions.push(sql`1 = 0`); // No matches
@@ -680,6 +680,7 @@ router.get("/download", async (req, res) => {
     const agencyType = req.query.agencyType as string;
     const filterType = req.query.filterType as string;
     const fullyCompleted = req.query.fullyCompleted as string;
+    const villageFilter = req.query.villageFilter as string;
 
     const scope = getEngineerSchemeScope(req);
 
@@ -706,7 +707,7 @@ router.get("/download", async (req, res) => {
 
     // Handle standard filter types (like on schemes page)
     if (filterType || fullyCompleted) {
-      const filteredSchemeIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType, scope);
+      const filteredSchemeIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType, scope, villageFilter);
       if (filteredSchemeIds) {
         if (filteredSchemeIds.includes('NO_MATCHES')) {
           conditions.push(sql`1 = 0`); // No matches
