@@ -595,6 +595,7 @@ export default function AlertsProgressPage() {
     engineers: {
       name: string;
       email: string | null;
+      mobile: string | null;
       rolesList: string[];
       schemes: {
         scheme_id: string;
@@ -1416,6 +1417,7 @@ export default function AlertsProgressPage() {
     const realtimeEngineersMap = new Map<string, {
       name: string;
       email: string | null;
+      mobile: string | null;
       roles: Set<string>;
       schemes: {
         scheme_id: string;
@@ -1434,6 +1436,7 @@ export default function AlertsProgressPage() {
       const combinedRecs = recs.length > 0 ? recs : emailRecs.map((e: any) => ({
         name: e.name,
         email: e.email,
+        mobile: e.mobile || null,
         role: e.role,
         isAcknowledged: Boolean(r.is_acknowledged),
         acknowledged_at: r.acknowledged_at
@@ -1447,12 +1450,14 @@ export default function AlertsProgressPage() {
           realtimeEngineersMap.set(key, {
             name: rec.name.trim(),
             email: rec.email || null,
+            mobile: rec.mobile || null,
             roles: new Set<string>(),
             schemes: []
           });
         }
         const eng = realtimeEngineersMap.get(key)!;
         if (!eng.email && rec.email) eng.email = rec.email;
+        if (!eng.mobile && rec.mobile) eng.mobile = rec.mobile;
         if (rec.role) eng.roles.add(rec.role);
 
         const alreadyHasScheme = eng.schemes.some(s => s.scheme_id === r.scheme_id && s.village_name === r.village_name && s.esr_name === r.esr_name);
@@ -3046,6 +3051,7 @@ export default function AlertsProgressPage() {
     const engineersMap = new Map<string, {
       name: string;
       email: string | null;
+      mobile: string | null;
       roles: Set<string>;
       schemes: {
         scheme_id: string;
@@ -3067,12 +3073,14 @@ export default function AlertsProgressPage() {
           engineersMap.set(key, {
             name: rec.name.trim(),
             email: rec.email || null,
+            mobile: rec.mobile || null,
             roles: new Set<string>(),
             schemes: []
           });
         }
         const eng = engineersMap.get(key)!;
         if (!eng.email && rec.email) eng.email = rec.email;
+        if (!eng.mobile && rec.mobile) eng.mobile = rec.mobile;
         if (rec.role) eng.roles.add(rec.role);
 
         const alreadyHasScheme = eng.schemes.some(s => s.scheme_id === r.scheme_id && s.village_name === r.village_name && s.esr_name === r.esr_name);
@@ -5570,7 +5578,7 @@ export default function AlertsProgressPage() {
                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                     <input
                       type="text"
-                      placeholder="Search by name, email, role, or scheme..."
+                      placeholder="Search by name, phone, email, role, or scheme..."
                       value={engineerModalSearch}
                       onChange={(e) => setEngineerModalSearch(e.target.value)}
                       className="w-full pl-9 pr-8 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 placeholder:text-slate-400"
@@ -5622,11 +5630,12 @@ export default function AlertsProgressPage() {
                       if (q) {
                         const nameMatch = eng.name.toLowerCase().includes(q);
                         const emailMatch = eng.email ? eng.email.toLowerCase().includes(q) : false;
+                        const mobileMatch = eng.mobile ? eng.mobile.toLowerCase().includes(q) : false;
                         const roleMatch = eng.rolesList.some(r => r.toLowerCase().includes(q));
                         const schemeMatch = eng.schemes.some(s =>
                           s.scheme_name.toLowerCase().includes(q) || s.scheme_id.toLowerCase().includes(q)
                         );
-                        return nameMatch || emailMatch || roleMatch || schemeMatch;
+                        return nameMatch || emailMatch || mobileMatch || roleMatch || schemeMatch;
                       }
                       return true;
                     });
@@ -5675,17 +5684,52 @@ export default function AlertsProgressPage() {
                                 ))}
                               </div>
 
-                              {eng.email ? (
-                                <a
-                                  href={`mailto:${eng.email}`}
-                                  className="text-xs text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1.5 mt-1"
-                                >
-                                  <Mail className="h-3 w-3 shrink-0" />
-                                  <span className="truncate">{eng.email}</span>
-                                </a>
-                              ) : (
-                                <span className="text-xs text-slate-400 mt-1 italic">No email address recorded</span>
-                              )}
+                              <div className="mt-1 flex items-center gap-3 flex-wrap text-xs">
+                                {eng.mobile ? (
+                                  <div className="flex items-center gap-1">
+                                    <a
+                                      href={`tel:${eng.mobile}`}
+                                      className="text-xs text-[#0f4c81] font-semibold hover:underline flex items-center gap-1"
+                                    >
+                                      <Phone className="h-3 w-3 text-slate-400 shrink-0" />
+                                      <span className="font-mono">{eng.mobile}</span>
+                                    </a>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigator.clipboard.writeText(eng.mobile!);
+                                        setCopiedMobile(eng.mobile!);
+                                        setTimeout(() => setCopiedMobile(null), 2000);
+                                      }}
+                                      className="p-0.5 text-slate-400 hover:text-slate-600 rounded cursor-pointer"
+                                      title="Copy phone number"
+                                    >
+                                      {copiedMobile === eng.mobile ? (
+                                        <Check className="h-3 w-3 text-emerald-600" />
+                                      ) : (
+                                        <Copy className="h-3 w-3" />
+                                      )}
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-slate-400 italic">No mobile recorded</span>
+                                )}
+
+                                <span className="text-slate-200">|</span>
+
+                                {eng.email ? (
+                                  <a
+                                    href={`mailto:${eng.email}`}
+                                    className="text-xs text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1.5"
+                                  >
+                                    <Mail className="h-3 w-3 shrink-0" />
+                                    <span className="truncate">{eng.email}</span>
+                                  </a>
+                                ) : (
+                                  <span className="text-xs text-slate-400 italic">No email recorded</span>
+                                )}
+                              </div>
                             </div>
                           </div>
 
