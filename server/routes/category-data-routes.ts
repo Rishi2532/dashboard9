@@ -3,7 +3,7 @@ import { getDB } from "../db";
 import { eq, and, sql, isNotNull, ilike, inArray } from "drizzle-orm";
 import { waterSchemeData, chlorineData, pressureData, waterConsumption, schemeStatuses, villages, regions, waterSchemeDataHistory, chlorineHistory, pressureHistory } from "@shared/schema";
 import ExcelJS from "exceljs";
-import { getFilteredSchemeIds, getEngineerSchemeScope } from "./filter-utils";
+import { getFilteredSchemeIds, getEngineerSchemeScope, getVillageFilterClause } from "./filter-utils";
 
 const router = Router();
 

@@ -9,7 +9,7 @@ import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
 import pg from 'pg';
 import { sql, and, eq } from "drizzle-orm";
-import { getFilteredSchemeIds, getRollingWindowInfo, getEngineerSchemeScope } from "./filter-utils";
+import { getFilteredSchemeIds, getRollingWindowInfo, getEngineerSchemeScope, getVillageFilterClause, getSchemeVillageFilterClause } from "./filter-utils";
 
 const router = express.Router();
 

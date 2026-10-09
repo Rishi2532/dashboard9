@@ -663,4 +663,41 @@ export function getEngineerSchemeScope(req: any): {
   };
 }
 
+export function getVillageFilterClause(villageFilter?: string, prefix: string = "cs"): string {
+  if (villageFilter === "completed") {
+    return `AND EXISTS (
+      SELECT 1 FROM village v 
+      WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
+      AND LOWER(TRIM(v.village_name)) = LOWER(TRIM(${prefix}.village_name))
+      AND LOWER(TRIM(v.scheme_id)) = LOWER(TRIM(${prefix}.scheme_id))
+    )`;
+  } else if (villageFilter === "in_progress") {
+    return `AND NOT EXISTS (
+      SELECT 1 FROM village v 
+      WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
+      AND LOWER(TRIM(v.village_name)) = LOWER(TRIM(${prefix}.village_name))
+      AND LOWER(TRIM(v.scheme_id)) = LOWER(TRIM(${prefix}.scheme_id))
+    )`;
+  }
+  return "";
+}
+
+export function getSchemeVillageFilterClause(villageFilter?: string, prefix: string = "ss"): string {
+  if (villageFilter === "completed") {
+    return `AND EXISTS (
+      SELECT 1 FROM village v 
+      WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
+      AND LOWER(TRIM(v.scheme_id)) = LOWER(TRIM(${prefix}.scheme_id))
+    )`;
+  } else if (villageFilter === "in_progress") {
+    return `AND NOT EXISTS (
+      SELECT 1 FROM village v 
+      WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
+      AND LOWER(TRIM(v.scheme_id)) = LOWER(TRIM(${prefix}.scheme_id))
+    )`;
+  }
+  return "";
+}
+
+
 

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'wouter';
 import {
-  BarChart,
-  Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -507,15 +507,32 @@ export default function AlertsWeeklyPage() {
 
             <div className="h-64 mt-4">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={days} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <LineChart data={days} margin={{ top: 10, right: 15, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis dataKey="formatted_date" tick={{ fontSize: 11, fill: '#64748b' }} />
                   <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: 11, paddingTop: 10 }} />
-                  <Bar dataKey="lpcd_sms" name="SMS Dispatched" fill="#2563eb" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="lpcd_email" name="Email Alerts" fill="#93c5fd" radius={[4, 4, 0, 0]} />
-                </BarChart>
+                  <Line
+                    type="monotone"
+                    dataKey="lpcd_sms"
+                    name="SMS Dispatched"
+                    stroke="#2563eb"
+                    strokeWidth={2.5}
+                    dot={{ r: 4, fill: '#2563eb', strokeWidth: 1.5, stroke: '#ffffff' }}
+                    activeDot={{ r: 6 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="lpcd_email"
+                    name="Email Alerts"
+                    stroke="#60a5fa"
+                    strokeWidth={2.5}
+                    strokeDasharray="4 4"
+                    dot={{ r: 4, fill: '#60a5fa', strokeWidth: 1.5, stroke: '#ffffff' }}
+                    activeDot={{ r: 6 }}
+                  />
+                </LineChart>
               </ResponsiveContainer>
             </div>
           </div>
@@ -541,15 +558,32 @@ export default function AlertsWeeklyPage() {
 
             <div className="h-64 mt-4">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={days} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <LineChart data={days} margin={{ top: 10, right: 15, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis dataKey="formatted_date" tick={{ fontSize: 11, fill: '#64748b' }} />
                   <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: 11, paddingTop: 10 }} />
-                  <Bar dataKey="chlorine_sms" name="SMS Dispatched" fill="#059669" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="chlorine_email" name="Email Alerts" fill="#6ee7b7" radius={[4, 4, 0, 0]} />
-                </BarChart>
+                  <Line
+                    type="monotone"
+                    dataKey="chlorine_sms"
+                    name="SMS Dispatched"
+                    stroke="#059669"
+                    strokeWidth={2.5}
+                    dot={{ r: 4, fill: '#059669', strokeWidth: 1.5, stroke: '#ffffff' }}
+                    activeDot={{ r: 6 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="chlorine_email"
+                    name="Email Alerts"
+                    stroke="#34d399"
+                    strokeWidth={2.5}
+                    strokeDasharray="4 4"
+                    dot={{ r: 4, fill: '#34d399', strokeWidth: 1.5, stroke: '#ffffff' }}
+                    activeDot={{ r: 6 }}
+                  />
+                </LineChart>
               </ResponsiveContainer>
             </div>
           </div>
@@ -575,15 +609,32 @@ export default function AlertsWeeklyPage() {
 
             <div className="h-64 mt-4">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={days} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <LineChart data={days} margin={{ top: 10, right: 15, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis dataKey="formatted_date" tick={{ fontSize: 11, fill: '#64748b' }} />
                   <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: 11, paddingTop: 10 }} />
-                  <Bar dataKey="pressure_sms" name="SMS Dispatched" fill="#d97706" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="pressure_email" name="Email Alerts" fill="#fcd34d" radius={[4, 4, 0, 0]} />
-                </BarChart>
+                  <Line
+                    type="monotone"
+                    dataKey="pressure_sms"
+                    name="SMS Dispatched"
+                    stroke="#d97706"
+                    strokeWidth={2.5}
+                    dot={{ r: 4, fill: '#d97706', strokeWidth: 1.5, stroke: '#ffffff' }}
+                    activeDot={{ r: 6 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="pressure_email"
+                    name="Email Alerts"
+                    stroke="#fbbf24"
+                    strokeWidth={2.5}
+                    strokeDasharray="4 4"
+                    dot={{ r: 4, fill: '#fbbf24', strokeWidth: 1.5, stroke: '#ffffff' }}
+                    activeDot={{ r: 6 }}
+                  />
+                </LineChart>
               </ResponsiveContainer>
             </div>
           </div>
@@ -609,15 +660,32 @@ export default function AlertsWeeklyPage() {
 
             <div className="h-64 mt-4">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={days} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <LineChart data={days} margin={{ top: 10, right: 15, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis dataKey="formatted_date" tick={{ fontSize: 11, fill: '#64748b' }} />
                   <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: 11, paddingTop: 10 }} />
-                  <Bar dataKey="offline_sms" name="SMS Dispatched" fill="#e11d48" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="offline_email" name="Email Alerts" fill="#fda4af" radius={[4, 4, 0, 0]} />
-                </BarChart>
+                  <Line
+                    type="monotone"
+                    dataKey="offline_sms"
+                    name="SMS Dispatched"
+                    stroke="#e11d48"
+                    strokeWidth={2.5}
+                    dot={{ r: 4, fill: '#e11d48', strokeWidth: 1.5, stroke: '#ffffff' }}
+                    activeDot={{ r: 6 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="offline_email"
+                    name="Email Alerts"
+                    stroke="#fb7185"
+                    strokeWidth={2.5}
+                    strokeDasharray="4 4"
+                    dot={{ r: 4, fill: '#fb7185', strokeWidth: 1.5, stroke: '#ffffff' }}
+                    activeDot={{ r: 6 }}
+                  />
+                </LineChart>
               </ResponsiveContainer>
             </div>
           </div>

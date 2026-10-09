@@ -7,7 +7,7 @@ import { getDB } from "../db";
 import { eq, sql, and } from "drizzle-orm";
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
-import { getFilteredSchemeIds, getEngineerSchemeScope } from "./filter-utils";
+import { getFilteredSchemeIds, getEngineerSchemeScope, getVillageFilterClause } from "./filter-utils";
 
 const router = express.Router();
 

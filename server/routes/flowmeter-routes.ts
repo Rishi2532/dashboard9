@@ -2,7 +2,7 @@ import { Router } from "express";
 import { getDB } from "../db";
 import { sql } from "drizzle-orm";
 import ExcelJS from "exceljs";
-import { getFilteredSchemeIds } from "./filter-utils";
+import { getFilteredSchemeIds, getVillageFilterClause } from "./filter-utils";
 
 const router = Router();
 
@@ -11,7 +11,7 @@ const router = Router();
 // Get flowmeter statistics online/offline counts by region
 router.get("/overall-region-comparison", async (req, res) => {
   try {
-    const { fullyCompleted, filterType, agencyType } = req.query;
+    const { fullyCompleted, filterType, agencyType, villageFilter } = req.query;
     const db = await getDB();
 
     const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
@@ -58,7 +58,7 @@ router.get("/overall-region-comparison", async (req, res) => {
 router.get("/overall-region-comparison/details/:category", async (req, res) => {
   try {
     const { category } = req.params;
-    const { region, fullyCompleted, filterType, agencyType } = req.query;
+    const { region, fullyCompleted, filterType, agencyType, villageFilter } = req.query;
     const db = await getDB();
 
     const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);
@@ -142,7 +142,7 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
 router.get("/overall-region-comparison/export/:category", async (req, res) => {
   try {
     const { category } = req.params;
-    const { region, fullyCompleted, filterType, agencyType } = req.query;
+    const { region, fullyCompleted, filterType, agencyType, villageFilter } = req.query;
     const db = await getDB();
 
     const filteredIds = await getFilteredSchemeIds(db, filterType, fullyCompleted, agencyType as string);

@@ -2078,16 +2078,16 @@ export default function AlertsProgressPage() {
 
                     const alertTimeStr = row.sent_time
                       ? (() => {
-                          const parts = String(row.sent_time).split(':');
-                          if (parts.length >= 2) {
-                            let h = parseInt(parts[0], 10);
-                            const m = parts[1];
-                            const ampm = h >= 12 ? 'pm' : 'am';
-                            h = h % 12 || 12;
-                            return `${String(h).padStart(2, '0')}:${m} ${ampm}`;
-                          }
-                          return row.sent_time;
-                        })()
+                        const parts = String(row.sent_time).split(':');
+                        if (parts.length >= 2) {
+                          let h = parseInt(parts[0], 10);
+                          const m = parts[1];
+                          const ampm = h >= 12 ? 'pm' : 'am';
+                          h = h % 12 || 12;
+                          return `${String(h).padStart(2, '0')}:${m} ${ampm}`;
+                        }
+                        return row.sent_time;
+                      })()
                       : (row.created_at
                         ? new Date(row.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
                         : null);
@@ -2098,9 +2098,9 @@ export default function AlertsProgressPage() {
                       : (Array.isArray(row.sms_recipients) ? row.sms_recipients : []);
                     const smsRecs = (row.esr_name || row.village_name)
                       ? rawSmsRecs.filter((s: any) =>
-                          (row.village_name && s.message_text && s.message_text.toLowerCase().includes(row.village_name.toLowerCase())) ||
-                          (row.esr_name && s.message_text && s.message_text.toLowerCase().includes(row.esr_name.toLowerCase()))
-                        )
+                        (row.village_name && s.message_text && s.message_text.toLowerCase().includes(row.village_name.toLowerCase())) ||
+                        (row.esr_name && s.message_text && s.message_text.toLowerCase().includes(row.esr_name.toLowerCase()))
+                      )
                       : rawSmsRecs;
 
                     return (
@@ -3390,10 +3390,7 @@ export default function AlertsProgressPage() {
               <span>
                 Engineers Notified <strong className="text-[#0f4c81] font-bold text-sm ml-1">{totalEngineers} / {totalRosterEngineers || 6}</strong>
               </span>
-              <span className="text-slate-300">|</span>
-              <span className="font-bold text-[#0f4c81]">
-                {totalRosterEngineers > 0 ? `${Math.round((totalEngineers / totalRosterEngineers) * 100)}%` : '100%'} Active
-              </span>
+
               <span className="text-slate-300">|</span>
               <button
                 type="button"
@@ -4007,9 +4004,9 @@ export default function AlertsProgressPage() {
                               const rawSmsList = row.sms_dispatches!;
                               const smsList = (row.village_name || row.esr_name)
                                 ? rawSmsList.filter(s =>
-                                    (row.village_name && s.message_text && s.message_text.toLowerCase().includes(row.village_name.toLowerCase())) ||
-                                    (row.esr_name && s.message_text && s.message_text.toLowerCase().includes(row.esr_name.toLowerCase()))
-                                  )
+                                  (row.village_name && s.message_text && s.message_text.toLowerCase().includes(row.village_name.toLowerCase())) ||
+                                  (row.esr_name && s.message_text && s.message_text.toLowerCase().includes(row.esr_name.toLowerCase()))
+                                )
                                 : rawSmsList;
 
                               if (smsList.length === 0) {
@@ -4949,11 +4946,10 @@ export default function AlertsProgressPage() {
                       <button
                         type="button"
                         onClick={() => setEmailModalTab("recipients")}
-                        className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
-                          emailModalTab === "recipients"
-                            ? "bg-white text-blue-700 shadow-xs"
-                            : "text-slate-600 hover:text-slate-900"
-                        }`}
+                        className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${emailModalTab === "recipients"
+                          ? "bg-white text-blue-700 shadow-xs"
+                          : "text-slate-600 hover:text-slate-900"
+                          }`}
                       >
                         <Users className="h-3.5 w-3.5" />
                         Notified Personnel & Ack
@@ -4961,11 +4957,10 @@ export default function AlertsProgressPage() {
                       <button
                         type="button"
                         onClick={() => setEmailModalTab("email")}
-                        className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
-                          emailModalTab === "email"
-                            ? "bg-white text-blue-700 shadow-xs"
-                            : "text-slate-600 hover:text-slate-900"
-                        }`}
+                        className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${emailModalTab === "email"
+                          ? "bg-white text-blue-700 shadow-xs"
+                          : "text-slate-600 hover:text-slate-900"
+                          }`}
                       >
                         <Eye className="h-3.5 w-3.5" />
                         View Sent Email Content
@@ -5022,16 +5017,16 @@ export default function AlertsProgressPage() {
                   };
 
                   if (emailModalTab === "email") {
-                    const alertTypeTitle = selectedEngineers.row.alert_type 
+                    const alertTypeTitle = selectedEngineers.row.alert_type
                       ? (selectedEngineers.row.alert_type.charAt(0).toUpperCase() + selectedEngineers.row.alert_type.slice(1))
                       : (activeTab === 'lpcd' ? 'LPCD Deficit' : activeTab === 'chlorine' ? 'Chlorine Deficit' : activeTab === 'pressure' ? 'Pressure Deficit' : 'Sensor Offline');
 
-                    const thresholdText = activeTab === 'lpcd' 
-                      ? '55 LPCD (Minimum Standard)' 
-                      : activeTab === 'chlorine' 
-                        ? '0.20 mg/L / ppm (Minimum Standard)' 
-                        : activeTab === 'pressure' 
-                          ? '0.20 bar (Minimum Terminal Pressure)' 
+                    const thresholdText = activeTab === 'lpcd'
+                      ? '55 LPCD (Minimum Standard)'
+                      : activeTab === 'chlorine'
+                        ? '0.20 mg/L / ppm (Minimum Standard)'
+                        : activeTab === 'pressure'
+                          ? '0.20 bar (Minimum Terminal Pressure)'
                           : 'Online (Continuous Connectivity)';
 
                     return (
@@ -5115,8 +5110,8 @@ export default function AlertsProgressPage() {
                                   <td className="py-2 px-3 font-semibold text-slate-600">Recorded Metric Value</td>
                                   <td className="py-2 px-3">
                                     <span className="font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200 mr-2">
-                                      {selectedEngineers.row.current_value !== null && selectedEngineers.row.current_value !== undefined 
-                                        ? String(selectedEngineers.row.current_value) 
+                                      {selectedEngineers.row.current_value !== null && selectedEngineers.row.current_value !== undefined
+                                        ? String(selectedEngineers.row.current_value)
                                         : "Threshold Breached"}
                                     </span>
                                     <span className="text-slate-500">
@@ -5271,7 +5266,7 @@ export default function AlertsProgressPage() {
                     <DialogDescription className="text-blue-100 text-xs mt-1">
                       Scheme: <span className="font-semibold text-white">{selectedSmsModal.schemeName}</span> (ID: {selectedSmsModal.schemeId}) • {selectedSmsModal.alertType} Alert
                     </DialogDescription>
-                    
+
                     {/* Village, ESR, and Metric Value Badges */}
                     <div className="flex flex-wrap items-center gap-2 mt-2 text-xs">
                       {selectedSmsModal.villageName && (

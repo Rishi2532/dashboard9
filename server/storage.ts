@@ -71,6 +71,7 @@ import { eq, sql, and, ilike, inArray, isNotNull } from "drizzle-orm";
 import { parse } from "csv-parse";
 import { v4 as uuidv4 } from "uuid";
 import pg from "pg";
+import { getVillageFilterClause } from "./routes/filter-utils";
 
 // Declare global variables for storing updates data
 declare global {
@@ -442,7 +443,7 @@ export interface IStorage {
       offlineSince3Days: number;
     }>
   >;
-  getChlorineDayWiseBreakdown(regionName?: string, fullyCompletedSchemeIds?: Set<string>): Promise<
+  getChlorineDayWiseBreakdown(regionName?: string, fullyCompletedSchemeIds?: Set<string>, villageFilter?: string): Promise<
     Array<{
       days: number;
       offline: number;
@@ -455,6 +456,8 @@ export interface IStorage {
     metric: "offline" | "below_0_2" | "above_0_5" | "optimal_0_2_0_5",
     days: number,
     regionName?: string,
+    fullyCompletedSchemeIds?: Set<string>,
+    villageFilter?: string,
   ): Promise<
     Array<{
       region: string;
@@ -3811,7 +3814,7 @@ export class PostgresStorage implements IStorage {
     }
   }
 
-  async getChlorineDayWiseBreakdown(regionName?: string, fullyCompletedSchemeIds?: Set<string>): Promise<
+  async getChlorineDayWiseBreakdown(regionName?: string, fullyCompletedSchemeIds?: Set<string>, villageFilter?: string): Promise<
     Array<{
       days: number;
       offline: number;
@@ -3825,7 +3828,7 @@ export class PostgresStorage implements IStorage {
 
     try {
       console.log(
-        `Calculating day-wise breakdown for region: ${regionName || "all"}`,
+        `Calculating day-wise breakdown for region: ${regionName || "all"} villageFilter: ${villageFilter}`,
       );
 
       const regionFilter = regionName
@@ -3860,6 +3863,7 @@ export class PostgresStorage implements IStorage {
           WHERE cs.chlorine_connected = 'Connected'
             ${regionFilter}
             ${schemeFilter}
+            ${sql.raw(getVillageFilterClause(villageFilter, 'cs'))}
         ),
         -- Calculate consecutive days below 0.2 and above 0.5 from chlorine_history
         ranked_history AS (
@@ -4012,6 +4016,7 @@ export class PostgresStorage implements IStorage {
           )
           : sql``}
             ${schemeHistoryFilter}
+            ${sql.raw(getVillageFilterClause(villageFilter, 'ch'))}
         ),
         deduped_history AS (
           SELECT * FROM ranked_history WHERE dedup_rn = 1
@@ -4157,6 +4162,7 @@ export class PostgresStorage implements IStorage {
     days: number,
     regionName?: string,
     fullyCompletedSchemeIds?: Set<string>,
+    villageFilter?: string,
   ): Promise<
     Array<{
       region: string;
@@ -4181,7 +4187,7 @@ export class PostgresStorage implements IStorage {
 
     try {
       console.log(
-        `Fetching sensors for metric: ${metric}, days: ${days}, region: ${regionName || "all"}`,
+        `Fetching sensors for metric: ${metric}, days: ${days}, region: ${regionName || "all"} villageFilter: ${villageFilter}`,
       );
 
       const regionFilter = regionName
@@ -4231,6 +4237,7 @@ export class PostgresStorage implements IStorage {
             AND EXTRACT(DAY FROM (CURRENT_TIMESTAMP - cs.last_seen))::integer >= ${days}
             ${regionFilter}
             ${schemeFilter}
+            ${sql.raw(getVillageFilterClause(villageFilter, 'cs'))}
           ORDER BY cs.region, cs.scheme_id, cs.village_name, cs.esr_name
           LIMIT 500
         `;
@@ -4388,6 +4395,7 @@ export class PostgresStorage implements IStorage {
               AND ch.chlorine_value IS NOT NULL
               ${regionName ? sql`AND ch.region = ${regionName}` : sql``}
               ${schemeHistoryFilter}
+              ${sql.raw(getVillageFilterClause(villageFilter, 'ch'))}
           ),
           valid_history AS (
             SELECT *,
@@ -4509,11 +4517,12 @@ export class PostgresStorage implements IStorage {
     days: number,
     regionName?: string,
     fullyCompletedSchemeIds?: Set<string>,
+    villageFilter?: string,
   ) {
     await this.initialized;
     const db = await this.ensureInitialized();
     console.log(
-      `Fetching pressure sensors for metric=${metric}, days=${days}, region=${regionName}`,
+      `Fetching pressure sensors for metric=${metric}, days=${days}, region=${regionName} villageFilter=${villageFilter}`,
     );
 
     // Common filters
@@ -4568,6 +4577,7 @@ export class PostgresStorage implements IStorage {
             AND EXTRACT(DAY FROM (CURRENT_TIMESTAMP - cs.pressure_last_seen))::integer >= ${days}
             ${regionFilter}
             ${schemeFilter}
+            ${sql.raw(getVillageFilterClause(villageFilter, 'cs'))}
           ORDER BY cs.region, cs.scheme_id, cs.village_name, cs.esr_name
           LIMIT 5000
         `;
@@ -4706,6 +4716,7 @@ export class PostgresStorage implements IStorage {
             WHERE ph.pressure_value IS NOT NULL
               ${regionHistoryFilter}
               ${schemeHistoryFilter}
+              ${sql.raw(getVillageFilterClause(villageFilter, 'ph'))}
             GROUP BY 
               ph.scheme_id, 
               ph.village_name, 
@@ -4795,6 +4806,8 @@ export class PostgresStorage implements IStorage {
           )
           WHERE ss.consecutive_days >= ${days}
             ${regionFilter}
+            ${schemeFilter}
+            ${sql.raw(getVillageFilterClause(villageFilter, 'cs'))}
           ORDER BY cs.region, cs.scheme_id, cs.village_name, cs.esr_name
         `;
 
@@ -4829,7 +4842,7 @@ export class PostgresStorage implements IStorage {
   }
 
 
-  async getPressureDayWiseBreakdown(regionName?: string, fullyCompletedSchemeIds?: Set<string>): Promise<
+  async getPressureDayWiseBreakdown(regionName?: string, fullyCompletedSchemeIds?: Set<string>, villageFilter?: string): Promise<
     Array<{
       days: number;
       offline: number;
@@ -4843,7 +4856,7 @@ export class PostgresStorage implements IStorage {
 
     try {
       console.log(
-        `Calculating pressure day-wise breakdown for region: ${regionName || "all"}`,
+        `Calculating pressure day-wise breakdown for region: ${regionName || "all"} villageFilter: ${villageFilter}`,
       );
 
       const regionFilter = regionName && regionName !== "All Regions"
@@ -4886,6 +4899,7 @@ export class PostgresStorage implements IStorage {
           WHERE cs.pressure_connected = 'Connected'
             ${regionFilter}
             ${schemeFilter}
+            ${sql.raw(getVillageFilterClause(villageFilter, 'cs'))}
         ),
         raw_history AS (
           SELECT 
@@ -4912,6 +4926,7 @@ export class PostgresStorage implements IStorage {
           WHERE ph.pressure_value IS NOT NULL
             ${historyRegionFilter}
             ${historySchemeFilter}
+            ${sql.raw(getVillageFilterClause(villageFilter, 'ph'))}
             AND EXISTS (
               SELECT 1 FROM communication_status cs 
               WHERE cs.scheme_id = ph.scheme_id 
