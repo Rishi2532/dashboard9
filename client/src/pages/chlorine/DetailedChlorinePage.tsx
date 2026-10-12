@@ -1898,9 +1898,6 @@ const DetailedChlorinePage = () => {
       }
       if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
       }
       if (villageFilter !== "all") {
         params.append("villageFilter", villageFilter);
@@ -1995,6 +1992,7 @@ const DetailedChlorinePage = () => {
       "/api/chlorine/scheme-lpcd/region-comparison",
       schemeFilter,
       selectedAgencyType,
+      villageFilter,
       "v1",
     ],
     enabled:
@@ -2012,9 +2010,6 @@ const DetailedChlorinePage = () => {
       }
       if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
       }
       if (villageFilter !== "all") {
         params.append("villageFilter", villageFilter);
@@ -2101,6 +2096,8 @@ const DetailedChlorinePage = () => {
       clickedSchemeComparisonCell?.region,
       schemeFilter,
       selectedAgencyType,
+      villageFilter,
+      clickedSchemeComparisonCell?.dates?.join(","),
       "v1",
     ],
     enabled: !!clickedSchemeComparisonCell,
@@ -2121,9 +2118,6 @@ const DetailedChlorinePage = () => {
       }
       if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
       }
       if (villageFilter !== "all") {
         params.append("villageFilter", villageFilter);
@@ -16588,6 +16582,12 @@ const DetailedChlorinePage = () => {
                                       params.append(
                                         "agencyType",
                                         selectedAgencyType,
+                                      );
+                                    }
+                                    if (villageFilter !== "all") {
+                                      params.append(
+                                        "villageFilter",
+                                        villageFilter,
                                       );
                                     }
                                     window.open(

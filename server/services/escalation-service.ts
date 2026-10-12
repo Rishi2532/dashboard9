@@ -42,6 +42,12 @@ export interface SchemeEscalationItem {
   ee_escalated: boolean;
   ce_escalated: boolean;
   last_escalated_at?: string;
+  // Actual Notified Counts
+  de_sms_count: number;
+  ee_sms_count: number;
+  ce_se_sms_count: number;
+  total_email_count: number;
+  last_notified_at?: string;
 }
 
 export interface EscalationSummary {
@@ -168,6 +174,10 @@ export async function getEscalationStatus(options: {
         chief_engineer_mobile: eng?.chief_engineer_mobile || undefined,
         ee_escalated: false,
         ce_escalated: false,
+        de_sms_count: 0,
+        ee_sms_count: 0,
+        ce_se_sms_count: 0,
+        total_email_count: 0,
       });
     }
 
@@ -193,6 +203,56 @@ export async function getEscalationStatus(options: {
       item.offline_count++;
       item.offline_esrs.push({ village_name: village, esr_name: esr, days_count: days, sensors: val });
     }
+  }
+
+  // 3b. Fetch actual notified message counts from sms_alert_logs and email_alert_logs
+  try {
+    const [smsRes, emailRes] = await Promise.all([
+      db.execute(sql`
+        SELECT 
+          scheme_id,
+          COUNT(*) FILTER (WHERE engineer_name ILIKE '%Akshay Bhojane%') as de_sms_count,
+          COUNT(*) FILTER (WHERE engineer_name ILIKE '%Rishikesh Salunke%') as ee_sms_count,
+          COUNT(*) FILTER (WHERE engineer_name ILIKE '%Deepak Ingale%' OR engineer_name ILIKE '%Rishikesh Salunkhe%') as ce_se_sms_count,
+          MAX(created_at) as last_sms_sent
+        FROM sms_alert_logs
+        WHERE scheme_id IS NOT NULL
+        GROUP BY scheme_id
+      `),
+      db.execute(sql`
+        SELECT 
+          scheme_id,
+          COUNT(*) as total_email_count,
+          MAX(created_at) as last_email_sent
+        FROM email_alert_logs
+        WHERE scheme_id IS NOT NULL
+        GROUP BY scheme_id
+      `),
+    ]);
+
+    (smsRes.rows || []).forEach((r: any) => {
+      const sId = String(r.scheme_id || '').trim();
+      const item = schemeAgg.get(sId);
+      if (item) {
+        item.de_sms_count = Number(r.de_sms_count || 0);
+        item.ee_sms_count = Number(r.ee_sms_count || 0);
+        item.ce_se_sms_count = Number(r.ce_se_sms_count || 0);
+        if (r.last_sms_sent) item.last_notified_at = String(r.last_sms_sent);
+      }
+    });
+
+    (emailRes.rows || []).forEach((r: any) => {
+      const sId = String(r.scheme_id || '').trim();
+      const item = schemeAgg.get(sId);
+      if (item) {
+        item.total_email_count = Number(r.total_email_count || 0);
+        if (r.last_email_sent && (!item.last_notified_at || new Date(r.last_email_sent) > new Date(item.last_notified_at))) {
+          item.last_notified_at = String(r.last_email_sent);
+        }
+      }
+    });
+  } catch (err) {
+    console.error("Error fetching notification counts in getEscalationStatus:", err);
   }
 
   // 4. Calculate active escalation levels and flags

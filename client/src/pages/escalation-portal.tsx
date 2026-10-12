@@ -1,47 +1,27 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
-  TrendingUp,
-  AlertTriangle,
-  ShieldAlert,
-  Clock,
   Search,
   RefreshCw,
-  BellRing,
-  Users,
-  Building2,
-  CheckCircle2,
   Phone,
   Mail,
   Copy,
   Check,
-  Send,
   Eye,
   Info,
-  Calendar,
-  Layers,
-  Sparkles,
-  SlidersHorizontal,
-  X,
-  AlertCircle,
   FileSpreadsheet,
   MessageSquare,
-  CheckCheck,
-  ChevronDown,
-  ChevronUp,
+  User,
+  Shield,
+  Building2,
+  X,
+  AlertCircle,
+  FileText,
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -49,130 +29,260 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 
-interface SentAlertItem {
-  id: number;
-  channel: "sms" | "email";
-  created_at: string;
+interface SchemeEscalationItem {
   scheme_id: string;
   scheme_name: string;
-  recipient_name: string;
-  recipient_email?: string;
-  recipient_mobile?: string;
-  recipient_role: string;
-  tier: 1 | 2 | 3;
-  alert_title: string;
-  message_content: string;
-  status: string;
-  dispatch_type?: string;
+  region: string;
+  division?: string;
+  district?: string;
+  escalation_level: 1 | 2 | 3;
+  max_streak_days: number;
+  lpcd_villages_count: number;
+  lpcd_villages: Array<{ village_name: string; days_count: number; avg_val?: string }>;
+  chlorine_low_count: number;
+  chlorine_low_esrs: Array<{ village_name: string; esr_name: string; days_count: number; val?: string }>;
+  chlorine_high_count: number;
+  chlorine_high_esrs: Array<{ village_name: string; esr_name: string; days_count: number; val?: string }>;
+  pressure_low_count: number;
+  pressure_low_esrs: Array<{ village_name: string; esr_name: string; days_count: number; val?: string }>;
+  offline_count: number;
+  offline_esrs: Array<{ village_name: string; esr_name: string; days_count: number; sensors?: string }>;
+  total_issues_count: number;
+  // Engineer Contacts
+  de_ae_civil_name?: string;
+  de_ae_civil_email?: string;
+  de_ae_civil_mobile?: string;
+  ee_civil_name?: string;
+  ee_civil_email?: string;
+  ee_civil_mobile?: string;
+  se_name?: string;
+  se_email?: string;
+  se_mobile?: string;
+  chief_engineer_name?: string;
+  chief_engineer_email?: string;
+  chief_engineer_mobile?: string;
+  ee_escalated: boolean;
+  ce_escalated: boolean;
+  // Real Notified Message Counts
+  de_sms_count: number;
+  ee_sms_count: number;
+  ce_se_sms_count: number;
+  total_email_count: number;
+  last_notified_at?: string;
 }
 
-interface SentAlertsResponse {
+interface EscalationSummaryResponse {
   success: boolean;
   timestamp: string;
-  timeRange: string;
   summary: {
-    total_sent: number;
-    sms_sent: number;
-    email_sent: number;
-    tier_1_sent: number;
-    tier_2_sent: number;
-    tier_3_sent: number;
-    today_sent_count: number;
-    last_dispatched_at: string | null;
+    total_schemes_in_escalation: number;
+    level_1_count: number;
+    level_2_count: number;
+    level_3_count: number;
+    total_villages_below_55: number;
+    total_esrs_low_chlorine: number;
+    total_esrs_high_chlorine: number;
+    total_esrs_low_pressure: number;
+    total_offline_sensors: number;
   };
-  alerts: SentAlertItem[];
+  schemes: SchemeEscalationItem[];
 }
 
 export default function EscalationPortalPage() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
-  // Filters
-  const [timeRange, setTimeRange] = useState<"today" | "7days" | "30days" | "all">("today");
-  const [selectedTier, setSelectedTier] = useState<"all" | "1" | "2" | "3">("all");
-  const [selectedChannel, setSelectedChannel] = useState<"all" | "sms" | "email">("all");
+  // Active layer view: "all" | "layer1" (DE/AE Daily) | "layer2" (EE >3 Days) | "layer3" (SE & CE Weekly)
+  const [activeLayer, setActiveLayer] = useState<"all" | "layer1" | "layer2" | "layer3">("all");
   const [searchTerm, setSearchTerm] = useState("");
-  const [showMatrixRules, setShowMatrixRules] = useState(false);
 
-  // Modal inspection
-  const [inspectAlert, setInspectAlert] = useState<SentAlertItem | null>(null);
+  // Notice preview modal
+  const [previewScheme, setPreviewScheme] = useState<SchemeEscalationItem | null>(null);
+  const [previewTier, setPreviewTier] = useState<"DE" | "EE" | "CE">("DE");
+  const [previewData, setPreviewData] = useState<any>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [copiedText, setCopiedText] = useState(false);
 
-  // Dispatch modal
-  const [dispatchModalOpen, setDispatchModalOpen] = useState(false);
-  const [dispatchDryRun, setDispatchDryRun] = useState(true);
-
-  // Query actual sent alerts
-  const { data, isLoading, refetch, isFetching } = useQuery<SentAlertsResponse>({
-    queryKey: ["/api/escalation/sent-alerts", timeRange, selectedTier, selectedChannel, searchTerm],
+  // Fetch summary and schemes
+  const { data, isLoading, refetch, isFetching } = useQuery<EscalationSummaryResponse>({
+    queryKey: ["/api/escalation/summary"],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      params.set("timeRange", timeRange);
-      if (selectedTier !== "all") params.set("tier", selectedTier);
-      if (selectedChannel !== "all") params.set("channel", selectedChannel);
-      if (searchTerm.trim()) params.set("search", searchTerm.trim());
-
-      const res = await fetch(`/api/escalation/sent-alerts?${params.toString()}`);
-      if (!res.ok) throw new Error("Failed to load sent alerts");
+      const res = await fetch("/api/escalation/summary");
+      if (!res.ok) throw new Error("Failed to load escalation status");
       return res.json();
     },
   });
 
-  // Manual Trigger Mutation
-  const dispatchMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/escalation/dispatch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dryRun: dispatchDryRun }),
-      });
-      if (!res.ok) throw new Error("Dispatch failed");
-      return res.json();
-    },
-    onSuccess: (data) => {
+  const schemes = data?.schemes || [];
+
+  // Layer 1: DE / AE Civil (Daily Notice) -> All active schemes with telemetry breaches
+  const layer1Schemes = useMemo(() => {
+    return schemes.filter((s) => s.total_issues_count > 0);
+  }, [schemes]);
+
+  // Layer 2: EE Civil -> Persisting >= 3 days (sent to DE for 3 days without resolution)
+  const layer2Schemes = useMemo(() => {
+    return schemes.filter((s) => s.max_streak_days >= 3 || s.escalation_level >= 2);
+  }, [schemes]);
+
+  // Layer 3: SE & CE -> Notified Weekly for chronic issues persisting >= 7 days (1 full week)
+  const layer3Schemes = useMemo(() => {
+    return schemes.filter((s) => s.max_streak_days >= 7 || s.escalation_level === 3);
+  }, [schemes]);
+
+  // Active list filtered by search term and layer
+  const displayedSchemes = useMemo(() => {
+    let list: SchemeEscalationItem[] = [];
+    if (activeLayer === "all") list = schemes;
+    else if (activeLayer === "layer1") list = layer1Schemes;
+    else if (activeLayer === "layer2") list = layer2Schemes;
+    else if (activeLayer === "layer3") list = layer3Schemes;
+
+    if (!searchTerm.trim()) return list;
+    const term = searchTerm.toLowerCase().trim();
+    return list.filter(
+      (s) =>
+        s.scheme_name.toLowerCase().includes(term) ||
+        s.scheme_id.toLowerCase().includes(term) ||
+        (s.region && s.region.toLowerCase().includes(term)) ||
+        (s.district && s.district.toLowerCase().includes(term)) ||
+        (s.de_ae_civil_name && s.de_ae_civil_name.toLowerCase().includes(term)) ||
+        (s.ee_civil_name && s.ee_civil_name.toLowerCase().includes(term)) ||
+        (s.chief_engineer_name && s.chief_engineer_name.toLowerCase().includes(term)) ||
+        (s.se_name && s.se_name.toLowerCase().includes(term))
+    );
+  }, [activeLayer, schemes, layer1Schemes, layer2Schemes, layer3Schemes, searchTerm]);
+
+  // Totals for metrics
+  const overallTotals = useMemo(() => {
+    return schemes.reduce(
+      (acc, s) => ({
+        deSms: acc.deSms + (s.de_sms_count || 0),
+        eeSms: acc.eeSms + (s.ee_sms_count || 0),
+        ceSeSms: acc.ceSeSms + (s.ce_se_sms_count || 0),
+        totalSms: acc.totalSms + (s.de_sms_count || 0) + (s.ee_sms_count || 0) + (s.ce_se_sms_count || 0),
+        totalEmails: acc.totalEmails + (s.total_email_count || 0),
+        totalIssues: acc.totalIssues + s.total_issues_count,
+      }),
+      { deSms: 0, eeSms: 0, ceSeSms: 0, totalSms: 0, totalEmails: 0, totalIssues: 0 }
+    );
+  }, [schemes]);
+
+  const layer1Totals = useMemo(() => {
+    return layer1Schemes.reduce(
+      (acc, s) => ({
+        sms: acc.sms + (s.de_sms_count || 0),
+        emails: acc.emails + (s.total_email_count || 0),
+      }),
+      { sms: 0, emails: 0 }
+    );
+  }, [layer1Schemes]);
+
+  const layer2Totals = useMemo(() => {
+    return layer2Schemes.reduce(
+      (acc, s) => ({
+        sms: acc.sms + (s.ee_sms_count || 0),
+        emails: acc.emails + (s.total_email_count || 0),
+      }),
+      { sms: 0, emails: 0 }
+    );
+  }, [layer2Schemes]);
+
+  const layer3Totals = useMemo(() => {
+    return layer3Schemes.reduce(
+      (acc, s) => ({
+        sms: acc.sms + (s.ce_se_sms_count || 0),
+        emails: acc.emails + (s.total_email_count || 0),
+      }),
+      { sms: 0, emails: 0 }
+    );
+  }, [layer3Schemes]);
+
+  // Helper to extract unique engineers for each layer
+  const layer1Engineers = useMemo(() => {
+    const map = new Map<string, { name: string; mobile?: string; email?: string }>();
+    layer1Schemes.forEach((s) => {
+      if (s.de_ae_civil_name) {
+        map.set(s.de_ae_civil_name, {
+          name: s.de_ae_civil_name,
+          mobile: s.de_ae_civil_mobile,
+          email: s.de_ae_civil_email,
+        });
+      }
+    });
+    return Array.from(map.values());
+  }, [layer1Schemes]);
+
+  const layer2Engineers = useMemo(() => {
+    const map = new Map<string, { name: string; mobile?: string; email?: string }>();
+    layer2Schemes.forEach((s) => {
+      if (s.ee_civil_name) {
+        map.set(s.ee_civil_name, {
+          name: s.ee_civil_name,
+          mobile: s.ee_civil_mobile,
+          email: s.ee_civil_email,
+        });
+      }
+    });
+    return Array.from(map.values());
+  }, [layer2Schemes]);
+
+  const layer3Engineers = useMemo(() => {
+    const map = new Map<string, { name: string; role: string; mobile?: string; email?: string }>();
+    layer3Schemes.forEach((s) => {
+      if (s.chief_engineer_name) {
+        map.set(s.chief_engineer_name, {
+          name: s.chief_engineer_name,
+          role: "Chief Engineer (CE)",
+          mobile: s.chief_engineer_mobile,
+          email: s.chief_engineer_email,
+        });
+      }
+      if (s.se_name) {
+        map.set(s.se_name, {
+          name: s.se_name,
+          role: "Superintending Engineer (SE)",
+          mobile: s.se_mobile,
+          email: s.se_email,
+        });
+      }
+    });
+    return Array.from(map.values());
+  }, [layer3Schemes]);
+
+  // Fetch preview for selected scheme and tier
+  const openPreview = async (scheme: SchemeEscalationItem, tier: "DE" | "EE" | "CE") => {
+    setPreviewScheme(scheme);
+    setPreviewTier(tier);
+    setPreviewLoading(true);
+    setPreviewData(null);
+
+    try {
+      let url = "";
+      if (tier === "DE") url = `/api/escalation/preview-de/${scheme.scheme_id}`;
+      else if (tier === "EE") url = `/api/escalation/preview-ee/${scheme.scheme_id}`;
+      else url = `/api/escalation/preview-ce/${scheme.region || "Nagpur"}`;
+
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to load notice preview");
+      const json = await res.json();
+      setPreviewData(json);
+    } catch (err: any) {
       toast({
-        title: dispatchDryRun ? "Simulation Complete" : "Alerts Dispatched Successfully",
-        description: `Dispatched ${data.results?.ee_count || 0} Tier 2 notices & ${data.results?.ce_count || 0} Tier 3 notices.`,
-      });
-      setDispatchModalOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/escalation/sent-alerts"] });
-    },
-    onError: (err: any) => {
-      toast({
-        title: "Dispatch Failed",
-        description: err.message || "Failed to trigger alerts",
+        title: "Preview Error",
+        description: err.message || "Failed to load notification content",
         variant: "destructive",
       });
-    },
-  });
-
-  const summary = data?.summary || {
-    total_sent: 0,
-    sms_sent: 0,
-    email_sent: 0,
-    tier_1_sent: 0,
-    tier_2_sent: 0,
-    tier_3_sent: 0,
-    today_sent_count: 0,
-    last_dispatched_at: null,
+    } finally {
+      setPreviewLoading(false);
+    }
   };
-
-  const alerts = data?.alerts || [];
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedText(true);
-    toast({ title: "Copied to Clipboard", description: "Message content copied." });
+    toast({ title: "Copied to Clipboard", description: "Official notice text copied to clipboard." });
     setTimeout(() => setCopiedText(false), 2000);
   };
 
@@ -190,439 +300,464 @@ export default function EscalationPortalPage() {
 
   return (
     <DashboardLayout>
-      <div className="container mx-auto px-4 py-6 space-y-6 max-w-7xl">
+      {/* FULL WIDTH GOVERNMENT PAGE CONTAINER */}
+      <div className="w-full space-y-4 text-slate-800">
+        
         {/* ========================================================= */}
-        {/* TOP BANNER: Simple, Clean & Transparent                   */}
+        {/* FORMAL GOVERNMENT HEADER (Full Width, Simple, Authoritative) */}
         {/* ========================================================= */}
-        <div className="rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 md:p-8 shadow-xl border border-slate-800">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 px-3 py-1 text-xs font-semibold">
-                  <CheckCheck className="w-3.5 h-3.5 mr-1 text-emerald-400" />
-                  Live Dispatches Audit Log
-                </Badge>
-                <Badge variant="outline" className="text-slate-300 border-slate-700 text-xs">
-                  Smartping DLT & SMTP
-                </Badge>
+        <div className="bg-white border-y sm:border sm:rounded-lg border-slate-300 shadow-xs overflow-hidden">
+          {/* Subtle Institutional Saffron Accent Line */}
+          <div className="h-1 bg-amber-600 w-full" />
+          
+          <div className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
+                <span className="tracking-wide uppercase text-slate-900 font-bold">
+                  GOVERNMENT OF MAHARASHTRA
+                </span>
+                <span className="text-slate-300 hidden sm:inline">•</span>
+                <span className="text-blue-900 font-bold">
+                  MAHARASHTRA JEEVAN PRADHIKARAN (MJP)
+                </span>
+                <span className="text-slate-300 hidden sm:inline">•</span>
+                <span className="text-slate-600">
+                  JAL JEEVAN MISSION (HAR GHAR JAL)
+                </span>
               </div>
-              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-indigo-200 bg-clip-text text-transparent">
-                Sent Escalation Alerts
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                Three-Tier Automated Alert & Escalation Vigilance Portal
               </h1>
-              <p className="text-slate-300 text-sm md:text-base max-w-2xl leading-relaxed">
-                Live audit trail showing only alerts that have <span className="font-semibold text-white">actually been dispatched</span> to Field (Tier 1), Division (Tier 2), and Regional Apex (Tier 3) engineers.
+              <p className="text-xs sm:text-sm text-slate-600 max-w-5xl leading-relaxed">
+                Official Multi-Tier Alert Dispatch Registry:
+                <strong> Level 1 (DE/AE Civil)</strong> Daily Operational Alert (Day 1) •
+                <strong> Level 2 (EE Civil)</strong> Escalated after 3 Days without resolution •
+                <strong> Level 3 (CE & SE)</strong> Weekly Apex Review Notice for 1 full week (7+ Days) chronic persistence.
               </p>
             </div>
 
-            {/* Quick Actions & Time Selector */}
-            <div className="flex flex-wrap items-center gap-2.5">
-              <div className="bg-slate-800/80 p-1 rounded-xl border border-slate-700 flex items-center">
-                <Button
-                  size="sm"
-                  variant={timeRange === "today" ? "default" : "ghost"}
-                  onClick={() => setTimeRange("today")}
-                  className={`text-xs h-8 px-3 rounded-lg ${
-                    timeRange === "today" ? "bg-indigo-600 text-white shadow" : "text-slate-300 hover:text-white"
-                  }`}
-                >
-                  Today
-                </Button>
-                <Button
-                  size="sm"
-                  variant={timeRange === "7days" ? "default" : "ghost"}
-                  onClick={() => setTimeRange("7days")}
-                  className={`text-xs h-8 px-3 rounded-lg ${
-                    timeRange === "7days" ? "bg-indigo-600 text-white shadow" : "text-slate-300 hover:text-white"
-                  }`}
-                >
-                  Last 7 Days
-                </Button>
-                <Button
-                  size="sm"
-                  variant={timeRange === "30days" ? "default" : "ghost"}
-                  onClick={() => setTimeRange("30days")}
-                  className={`text-xs h-8 px-3 rounded-lg ${
-                    timeRange === "30days" ? "bg-indigo-600 text-white shadow" : "text-slate-300 hover:text-white"
-                  }`}
-                >
-                  30 Days
-                </Button>
-                <Button
-                  size="sm"
-                  variant={timeRange === "all" ? "default" : "ghost"}
-                  onClick={() => setTimeRange("all")}
-                  className={`text-xs h-8 px-3 rounded-lg ${
-                    timeRange === "all" ? "bg-indigo-600 text-white shadow" : "text-slate-300 hover:text-white"
-                  }`}
-                >
-                  All Time
-                </Button>
-              </div>
-
+            <div className="flex items-center gap-2 self-start lg:self-center">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => refetch()}
                 disabled={isFetching}
-                className="bg-slate-800/80 border-slate-700 text-slate-200 hover:bg-slate-700 h-8 text-xs"
+                className="h-8 text-xs border-slate-300 bg-white hover:bg-slate-50 text-slate-700"
               >
-                <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isFetching ? "animate-spin text-indigo-400" : ""}`} />
+                <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isFetching ? "animate-spin text-blue-700" : ""}`} />
                 Refresh
               </Button>
 
               <Button
                 size="sm"
-                onClick={() => setDispatchModalOpen(true)}
-                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-medium text-xs h-8 shadow-md"
+                asChild
+                className="h-8 text-xs bg-slate-800 hover:bg-slate-900 text-white font-medium shadow-xs"
               >
-                <Send className="w-3.5 h-3.5 mr-1.5" />
-                Trigger Dispatch
+                <a href="/api/escalation/export-excel" target="_blank" rel="noreferrer">
+                  <FileSpreadsheet className="w-3.5 h-3.5 mr-1.5" />
+                  Download Excel Report
+                </a>
               </Button>
             </div>
           </div>
-        </div>
 
-        {/* ========================================================= */}
-        {/* TODAY EMPTY STATE ALERT (Clarifying why 0 alerts today)    */}
-        {/* ========================================================= */}
-        {timeRange === "today" && summary.total_sent === 0 && (
-          <div className="rounded-xl bg-blue-50/90 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 p-4 shadow-sm">
-            <div className="flex items-start gap-3">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/60 rounded-lg text-blue-700 dark:text-blue-300">
-                <Info className="w-5 h-5" />
+          {/* OFFICIAL KEY METRIC STRIP (Wide, Simple, Monospace Numbers) */}
+          <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
+            <div className="border-r border-slate-200 last:border-0 pr-2">
+              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Total Schemes</div>
+              <div className="text-lg font-bold font-mono text-slate-900 mt-0.5">
+                {schemes.length} <span className="text-[11px] font-sans font-normal text-slate-500">Schemes</span>
               </div>
-              <div className="flex-1 space-y-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-blue-900 dark:text-blue-200 text-sm">
-                    No Escalation Alerts Dispatched Today
-                  </h3>
-                  <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                    Audit Clean
-                  </Badge>
-                </div>
-                <p className="text-xs text-blue-800/80 dark:text-blue-300/80">
-                  Automated daily alert dispatches are scheduled to run at <strong>10:00 AM</strong>. No alert dispatches have been executed yet today.
-                  {summary.last_dispatched_at && (
-                    <span> Last recorded dispatch occurred on <strong>{formatDate(summary.last_dispatched_at)}</strong>.</span>
-                  )}
-                </p>
-                <div className="flex items-center gap-2 pt-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setTimeRange("7days")}
-                    className="h-7 text-xs bg-white dark:bg-slate-900 border-blue-300 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50"
-                  >
-                    View Last 7 Days (Recent Dispatches)
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setTimeRange("all")}
-                    className="h-7 text-xs bg-white dark:bg-slate-900 border-blue-300 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50"
-                  >
-                    View All Time History
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => setDispatchModalOpen(true)}
-                    className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    Dispatch Now
-                  </Button>
-                </div>
+            </div>
+            <div className="border-r border-slate-200 last:border-0 pr-2">
+              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Level 1 (DE / AE Daily)</div>
+              <div className="text-lg font-bold font-mono text-blue-900 mt-0.5">
+                {layer1Schemes.length} <span className="text-[11px] font-sans font-normal text-slate-500">Active</span>
+              </div>
+            </div>
+            <div className="border-r border-slate-200 last:border-0 pr-2">
+              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Level 2 (EE &gt;3 Days)</div>
+              <div className="text-lg font-bold font-mono text-amber-900 mt-0.5">
+                {layer2Schemes.length} <span className="text-[11px] font-sans font-normal text-slate-500">Escalated</span>
+              </div>
+            </div>
+            <div className="border-r border-slate-200 last:border-0 pr-2">
+              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Level 3 (CE/SE Weekly)</div>
+              <div className="text-lg font-bold font-mono text-red-900 mt-0.5">
+                {layer3Schemes.length} <span className="text-[11px] font-sans font-normal text-slate-500">Chronic</span>
+              </div>
+            </div>
+            <div className="border-r border-slate-200 last:border-0 pr-2">
+              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Total SMS Sent</div>
+              <div className="text-lg font-bold font-mono text-slate-900 mt-0.5">
+                {overallTotals.totalSms} <span className="text-[11px] font-sans font-normal text-slate-500">SMS</span>
+              </div>
+            </div>
+            <div>
+              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Total Emails Sent</div>
+              <div className="text-lg font-bold font-mono text-slate-900 mt-0.5">
+                {overallTotals.totalEmails} <span className="text-[11px] font-sans font-normal text-slate-500">Emails</span>
               </div>
             </div>
           </div>
-        )}
-
-        {/* ========================================================= */}
-        {/* CREATIVE & SIMPLE KPI CARDS (THE NUMBERS)                 */}
-        {/* ========================================================= */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Card 1: Total Alerts Sent */}
-          <Card className="relative overflow-hidden border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-blue-500" />
-            <CardHeader className="pb-2 pt-4 px-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Total Dispatched
-                </span>
-                <span className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
-                  <BellRing className="w-4 h-4" />
-                </span>
-              </div>
-              <CardTitle className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white pt-1">
-                {summary.total_sent.toLocaleString()}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-4 pt-0">
-              <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                <span>SMS: <strong>{summary.sms_sent.toLocaleString()}</strong></span>
-                <span>•</span>
-                <span>Email: <strong>{summary.email_sent.toLocaleString()}</strong></span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Card 2: Tier 1 (Field DE/AE) */}
-          <Card className="relative overflow-hidden border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/20 dark:bg-emerald-950/10 shadow-sm hover:shadow-md transition-shadow">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-500" />
-            <CardHeader className="pb-2 pt-4 px-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                  Tier 1: Field Notice
-                </span>
-                <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 text-[10px] py-0 px-1.5">
-                  DE / AE Civil
-                </Badge>
-              </div>
-              <CardTitle className="text-3xl font-extrabold tracking-tight text-emerald-900 dark:text-emerald-100 pt-1">
-                {summary.tier_1_sent.toLocaleString()}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-4 pt-0">
-              <p className="text-xs text-emerald-700/80 dark:text-emerald-400/80">
-                Dispatched to Sub-Division & Field Civil Engineers (Akshay Bhojane & team)
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Card 3: Tier 2 (Division EE Civil) */}
-          <Card className="relative overflow-hidden border-amber-200 dark:border-amber-900/50 bg-amber-50/20 dark:bg-amber-950/10 shadow-sm hover:shadow-md transition-shadow">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500" />
-            <CardHeader className="pb-2 pt-4 px-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-amber-500" />
-                  Tier 2: Division Escalation
-                </span>
-                <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 text-[10px] py-0 px-1.5">
-                  EE Civil (&gt;3 Days)
-                </Badge>
-              </div>
-              <CardTitle className="text-3xl font-extrabold tracking-tight text-amber-900 dark:text-amber-100 pt-1">
-                {summary.tier_2_sent.toLocaleString()}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-4 pt-0">
-              <p className="text-xs text-amber-700/80 dark:text-amber-400/80">
-                Dispatched to Executive Engineers for breaches persistent &gt;3 days (Rishikesh Salunke)
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Card 4: Tier 3 (Apex Chief Engineer & SE) */}
-          <Card className="relative overflow-hidden border-rose-200 dark:border-rose-900/50 bg-rose-50/20 dark:bg-rose-950/10 shadow-sm hover:shadow-md transition-shadow">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-rose-500" />
-            <CardHeader className="pb-2 pt-4 px-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-rose-700 dark:text-rose-400 uppercase tracking-wider flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-rose-500" />
-                  Tier 3: Apex Regional
-                </span>
-                <Badge className="bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300 text-[10px] py-0 px-1.5">
-                  CE / SE (&gt;7 Days)
-                </Badge>
-              </div>
-              <CardTitle className="text-3xl font-extrabold tracking-tight text-rose-900 dark:text-rose-100 pt-1">
-                {summary.tier_3_sent.toLocaleString()}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-4 pt-0">
-              <p className="text-xs text-rose-700/80 dark:text-rose-400/80">
-                Dispatched to Chief Engineer & SE for unresolved chronic breaches &gt;7 days (Deepak Ingale)
-              </p>
-            </CardContent>
-          </Card>
         </div>
 
         {/* ========================================================= */}
-        {/* EXPANDABLE EXPLANATION OF ESCALATION RULES                */}
+        {/* 3 HIERARCHY CARDS: SIMPLE, GOVERNMENT TABLE-STYLE CARDS   */}
         {/* ========================================================= */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
-          <button
-            onClick={() => setShowMatrixRules(!showMatrixRules)}
-            className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          
+          {/* CARD 1: LAYER 1 - DE / AE Civil (Daily Notice) */}
+          <div
+            onClick={() => setActiveLayer("layer1")}
+            className={`cursor-pointer bg-white border rounded-lg p-4 transition-colors relative flex flex-col justify-between ${
+              activeLayer === "layer1"
+                ? "border-blue-900 ring-2 ring-blue-900/20 bg-blue-50/20"
+                : "border-slate-300 hover:border-slate-400"
+            }`}
           >
-            <div className="flex items-center gap-2.5">
-              <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">
-                <Layers className="w-4 h-4" />
-              </div>
-              <div>
-                <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                  How the 3-Tier Escalation Hierarchy Works
-                </span>
-                <span className="text-xs text-slate-500 dark:text-slate-400 ml-2 hidden sm:inline">
-                  (Field Notice Day 1 → EE Escalation Day &gt;3 → Chief Engineer Apex Day &gt;7)
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 text-xs text-indigo-600 dark:text-indigo-400 font-medium">
-              <span>{showMatrixRules ? "Hide Details" : "Show Rules"}</span>
-              {showMatrixRules ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </div>
-          </button>
-
-          {showMatrixRules && (
-            <div className="px-5 pb-5 pt-2 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-                <div className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-800/40">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center justify-center">1</span>
-                    <h4 className="font-semibold text-sm text-emerald-800 dark:text-emerald-300">Tier 1: Field Notice</h4>
-                  </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-400">
-                    <strong>Trigger:</strong> Any breach today in LPCD (&lt;55), Chlorine (&lt;0.2 / &gt;0.5), Pressure (&lt;7m), or Sensor Offline.
-                  </p>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                    <strong>Recipient:</strong> Deputy Engineer (DE) & Assistant Engineer (AE) Civil.
-                  </p>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                    <strong>Channel:</strong> Daily SMS in Marathi (Smartping DLT) + Daily HTML Email.
-                  </p>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded bg-blue-900 text-white font-bold text-xs flex items-center justify-center">
+                    1
+                  </span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-blue-950">
+                    Level 1: Sub-Division (DE / AE Civil)
+                  </span>
                 </div>
+                <Badge variant="outline" className="text-[10px] bg-slate-50 border-slate-300 font-semibold text-slate-700">
+                  Daily Alert (Day 1)
+                </Badge>
+              </div>
 
-                <div className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-800/40">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="w-6 h-6 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 text-xs font-bold flex items-center justify-center">2</span>
-                    <h4 className="font-semibold text-sm text-amber-800 dark:text-amber-300">Tier 2: Division Escalation</h4>
-                  </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-400">
-                    <strong>Trigger:</strong> Same breach persists unresolved for <strong>&gt;3 consecutive days</strong>.
-                  </p>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                    <strong>Recipient:</strong> Executive Engineer (EE Civil) of the Division.
-                  </p>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                    <strong>Channel:</strong> Urgent Marathi SMS + Division Escalation Notice Email.
-                  </p>
+              {/* Cadence rule note */}
+              <div className="text-[11px] text-slate-600 leading-snug">
+                <strong>Rule:</strong> Dispatched immediately on Day 1 to the Deputy Engineer when any telemetry threshold is breached (LPCD &lt;55, Low/High Chlorine, Low Pressure, or Offline).
+              </div>
+
+              {/* Dynamic Schemes in Layer 1 */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center text-[11px] font-semibold text-slate-700">
+                  <span>Active Schemes ({layer1Schemes.length}):</span>
                 </div>
-
-                <div className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-rose-200 dark:border-rose-800/40">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="w-6 h-6 rounded-full bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-bold flex items-center justify-center">3</span>
-                    <h4 className="font-semibold text-sm text-rose-800 dark:text-rose-300">Tier 3: Apex Regional</h4>
-                  </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-400">
-                    <strong>Trigger:</strong> Chronic critical breach unresolved for <strong>&gt;7 consecutive days</strong>.
-                  </p>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                    <strong>Recipient:</strong> Chief Engineer (CE) & Superintending Engineer (SE).
-                  </p>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                    <strong>Channel:</strong> Regional Digest Email + Scheme-wise Alert SMS.
-                  </p>
+                <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
+                  {layer1Schemes.map((s) => (
+                    <div
+                      key={s.scheme_id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSearchTerm(s.scheme_name);
+                      }}
+                      className="text-[11px] p-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded flex items-center justify-between"
+                      title="Click to filter table"
+                    >
+                      <span className="font-semibold text-slate-900 truncate max-w-[180px]">
+                        {s.scheme_name}
+                      </span>
+                      <span className="font-mono text-[10px] bg-white px-1.5 py-0.5 border border-slate-200 rounded font-bold text-slate-700">
+                        {s.max_streak_days} {s.max_streak_days === 1 ? "day" : "days"}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
+
+              {/* Notified Officers */}
+              <div className="border-t border-slate-200 pt-2 space-y-1 text-xs">
+                <div className="text-[11px] font-semibold text-slate-700">
+                  Designated Field Engineers:
+                </div>
+                {layer1Engineers.map((eng) => (
+                  <div key={eng.name} className="flex items-center justify-between text-[11px] text-slate-700">
+                    <span className="font-medium flex items-center gap-1">
+                      <User className="w-3 h-3 text-slate-500" />
+                      {eng.name} (DE/AE)
+                    </span>
+                    <span className="font-mono text-slate-500 text-[10px]">{eng.mobile}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Actual Notification Counts */}
+              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-600 flex items-center gap-1 text-[11px]">
+                    <MessageSquare className="w-3 h-3 text-slate-500" /> SMS Sent to DE/AE:
+                  </span>
+                  <span className="font-mono font-bold text-slate-900">{layer1Totals.sms} SMS</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600 flex items-center gap-1 text-[11px]">
+                    <Mail className="w-3 h-3 text-slate-500" /> Emails Sent:
+                  </span>
+                  <span className="font-mono font-bold text-slate-900">{layer1Totals.emails} Emails</span>
+                </div>
+              </div>
             </div>
-          )}
+
+            <div className="mt-3 pt-2 border-t border-slate-200 flex justify-between items-center text-[11px] text-blue-900 font-medium">
+              <span>{layer1Schemes.length} schemes with active breaches</span>
+              <span className="underline">View Schemes in Table →</span>
+            </div>
+          </div>
+
+          {/* CARD 2: LAYER 2 - EE Civil (Escalated After 3 Days) */}
+          <div
+            onClick={() => setActiveLayer("layer2")}
+            className={`cursor-pointer bg-white border rounded-lg p-4 transition-colors relative flex flex-col justify-between ${
+              activeLayer === "layer2"
+                ? "border-amber-700 ring-2 ring-amber-700/20 bg-amber-50/20"
+                : "border-slate-300 hover:border-slate-400"
+            }`}
+          >
+            <div className="space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded bg-amber-700 text-white font-bold text-xs flex items-center justify-center">
+                    2
+                  </span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-amber-950">
+                    Level 2: Division (EE Civil)
+                  </span>
+                </div>
+                <Badge variant="outline" className="text-[10px] bg-slate-50 border-slate-300 font-semibold text-slate-700">
+                  3-Day Escalation (&gt;3 Days)
+                </Badge>
+              </div>
+
+              {/* Cadence rule note */}
+              <div className="text-[11px] text-slate-600 leading-snug">
+                <strong>Rule:</strong> Alert sent to DE for 3 consecutive days without resolution $\rightarrow$ Automatically escalated to Executive Engineer.
+              </div>
+
+              {/* Dynamic Schemes in Layer 2 */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center text-[11px] font-semibold text-slate-700">
+                  <span>Escalated Schemes ({layer2Schemes.length}):</span>
+                </div>
+                <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
+                  {layer2Schemes.map((s) => (
+                    <div
+                      key={s.scheme_id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSearchTerm(s.scheme_name);
+                      }}
+                      className="text-[11px] p-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded flex items-center justify-between"
+                      title="Click to filter table"
+                    >
+                      <span className="font-semibold text-slate-900 truncate max-w-[180px]">
+                        {s.scheme_name}
+                      </span>
+                      <span className="font-mono text-[10px] bg-white px-1.5 py-0.5 border border-slate-200 rounded font-bold text-amber-900">
+                        {s.max_streak_days} days streak
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Notified Officers */}
+              <div className="border-t border-slate-200 pt-2 space-y-1 text-xs">
+                <div className="text-[11px] font-semibold text-slate-700">
+                  Designated Division Head:
+                </div>
+                {layer2Engineers.map((eng) => (
+                  <div key={eng.name} className="flex items-center justify-between text-[11px] text-slate-700">
+                    <span className="font-medium flex items-center gap-1">
+                      <User className="w-3 h-3 text-slate-500" />
+                      {eng.name} (EE)
+                    </span>
+                    <span className="font-mono text-slate-500 text-[10px]">{eng.mobile}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Actual Notification Counts */}
+              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-600 flex items-center gap-1 text-[11px]">
+                    <MessageSquare className="w-3 h-3 text-slate-500" /> SMS Sent to EE:
+                  </span>
+                  <span className="font-mono font-bold text-slate-900">{layer2Totals.sms} SMS</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600 flex items-center gap-1 text-[11px]">
+                    <Mail className="w-3 h-3 text-slate-500" /> Division Emails Sent:
+                  </span>
+                  <span className="font-mono font-bold text-slate-900">{layer2Totals.emails} Emails</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-3 pt-2 border-t border-slate-200 flex justify-between items-center text-[11px] text-amber-900 font-medium">
+              <span>Sent to DE 3 days without fix $\rightarrow$ EE Escalation</span>
+              <span className="underline">View Schemes in Table →</span>
+            </div>
+          </div>
+
+          {/* CARD 3: LAYER 3 - SE & CE Apex (Weekly Notice) */}
+          <div
+            onClick={() => setActiveLayer("layer3")}
+            className={`cursor-pointer bg-white border rounded-lg p-4 transition-colors relative flex flex-col justify-between ${
+              activeLayer === "layer3"
+                ? "border-red-900 ring-2 ring-red-900/20 bg-red-50/20"
+                : "border-slate-300 hover:border-slate-400"
+            }`}
+          >
+            <div className="space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded bg-red-900 text-white font-bold text-xs flex items-center justify-center">
+                    3
+                  </span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-red-950">
+                    Level 3: Apex Regional (CE & SE)
+                  </span>
+                </div>
+                <Badge variant="outline" className="text-[10px] bg-slate-50 border-slate-300 font-semibold text-slate-700">
+                  Weekly Notice (1 Wk+)
+                </Badge>
+              </div>
+
+              {/* Cadence rule note */}
+              <div className="text-[11px] text-slate-600 leading-snug">
+                <strong>Rule:</strong> Chronic issue unresolved for 1 full week (7+ days) despite DE & EE alerts $\rightarrow$ Weekly apex vigilance notice sent to Chief Engineer & Superintending Engineer.
+              </div>
+
+              {/* Dynamic Schemes in Layer 3 */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center text-[11px] font-semibold text-slate-700">
+                  <span>Chronic Schemes ({layer3Schemes.length}):</span>
+                </div>
+                <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
+                  {layer3Schemes.map((s) => (
+                    <div
+                      key={s.scheme_id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSearchTerm(s.scheme_name);
+                      }}
+                      className="text-[11px] p-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded flex items-center justify-between"
+                      title="Click to filter table"
+                    >
+                      <span className="font-semibold text-slate-900 truncate max-w-[180px]">
+                        {s.scheme_name}
+                      </span>
+                      <span className="font-mono text-[10px] bg-white px-1.5 py-0.5 border border-slate-200 rounded font-bold text-red-900">
+                        {s.max_streak_days} days (1 Wk+)
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Notified Officers */}
+              <div className="border-t border-slate-200 pt-2 space-y-1 text-xs">
+                <div className="text-[11px] font-semibold text-slate-700">
+                  Apex Regional Authorities:
+                </div>
+                {layer3Engineers.map((eng) => (
+                  <div key={eng.name} className="flex items-center justify-between text-[11px] text-slate-700">
+                    <span className="font-medium flex items-center gap-1">
+                      <User className="w-3 h-3 text-slate-500" />
+                      {eng.name} ({eng.role.includes("Chief") ? "CE" : "SE"})
+                    </span>
+                    <span className="font-mono text-slate-500 text-[10px]">{eng.mobile}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Actual Notification Counts */}
+              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-600 flex items-center gap-1 text-[11px]">
+                    <MessageSquare className="w-3 h-3 text-slate-500" /> Weekly SMS to CE & SE:
+                  </span>
+                  <span className="font-mono font-bold text-slate-900">{layer3Totals.sms} SMS</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600 flex items-center gap-1 text-[11px]">
+                    <Mail className="w-3 h-3 text-slate-500" /> Regional Digest Emails:
+                  </span>
+                  <span className="font-mono font-bold text-slate-900">{layer3Totals.emails} Emails</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-3 pt-2 border-t border-slate-200 flex justify-between items-center text-[11px] text-red-900 font-medium">
+              <span>Unimproved for 1 Week $\rightarrow$ Weekly Apex Notice</span>
+              <span className="underline">View Schemes in Table →</span>
+            </div>
+          </div>
+
         </div>
 
         {/* ========================================================= */}
-        {/* TABLE TOOLBAR: Search & Filters                           */}
+        {/* FULL-WIDTH GOVERNMENT REGISTRY DATA TABLE & TOOLBAR       */}
         {/* ========================================================= */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mr-1">
-                <SlidersHorizontal className="w-3.5 h-3.5" />
-                Filter Tier:
-              </span>
-              <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex items-center">
-                <Button
-                  size="sm"
-                  variant={selectedTier === "all" ? "default" : "ghost"}
-                  onClick={() => setSelectedTier("all")}
-                  className={`text-xs h-7 px-2.5 rounded-lg ${
-                    selectedTier === "all" ? "bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white" : "text-slate-600 dark:text-slate-300"
-                  }`}
-                >
-                  All ({summary.total_sent})
-                </Button>
-                <Button
-                  size="sm"
-                  variant={selectedTier === "1" ? "default" : "ghost"}
-                  onClick={() => setSelectedTier("1")}
-                  className={`text-xs h-7 px-2.5 rounded-lg ${
-                    selectedTier === "1" ? "bg-emerald-600 text-white shadow-sm" : "text-emerald-700 dark:text-emerald-400"
-                  }`}
-                >
-                  Tier 1 (DE/AE)
-                </Button>
-                <Button
-                  size="sm"
-                  variant={selectedTier === "2" ? "default" : "ghost"}
-                  onClick={() => setSelectedTier("2")}
-                  className={`text-xs h-7 px-2.5 rounded-lg ${
-                    selectedTier === "2" ? "bg-amber-600 text-white shadow-sm" : "text-amber-700 dark:text-amber-400"
-                  }`}
-                >
-                  Tier 2 (EE)
-                </Button>
-                <Button
-                  size="sm"
-                  variant={selectedTier === "3" ? "default" : "ghost"}
-                  onClick={() => setSelectedTier("3")}
-                  className={`text-xs h-7 px-2.5 rounded-lg ${
-                    selectedTier === "3" ? "bg-rose-600 text-white shadow-sm" : "text-rose-700 dark:text-rose-400"
-                  }`}
-                >
-                  Tier 3 (CE/SE)
-                </Button>
-              </div>
-
-              {/* Channel filter */}
-              <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex items-center ml-2">
-                <Button
-                  size="sm"
-                  variant={selectedChannel === "all" ? "default" : "ghost"}
-                  onClick={() => setSelectedChannel("all")}
-                  className={`text-xs h-7 px-2.5 rounded-lg ${
-                    selectedChannel === "all" ? "bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white" : "text-slate-600 dark:text-slate-300"
-                  }`}
-                >
-                  All Channels
-                </Button>
-                <Button
-                  size="sm"
-                  variant={selectedChannel === "sms" ? "default" : "ghost"}
-                  onClick={() => setSelectedChannel("sms")}
-                  className={`text-xs h-7 px-2.5 rounded-lg ${
-                    selectedChannel === "sms" ? "bg-blue-600 text-white shadow-sm" : "text-blue-700 dark:text-blue-400"
-                  }`}
-                >
-                  <MessageSquare className="w-3 h-3 mr-1" />
-                  SMS ({summary.sms_sent})
-                </Button>
-                <Button
-                  size="sm"
-                  variant={selectedChannel === "email" ? "default" : "ghost"}
-                  onClick={() => setSelectedChannel("email")}
-                  className={`text-xs h-7 px-2.5 rounded-lg ${
-                    selectedChannel === "email" ? "bg-indigo-600 text-white shadow-sm" : "text-indigo-700 dark:text-indigo-400"
-                  }`}
-                >
-                  <Mail className="w-3 h-3 mr-1" />
-                  Email ({summary.email_sent})
-                </Button>
-              </div>
+        <div className="bg-white border border-slate-300 rounded-lg shadow-xs overflow-hidden">
+          
+          {/* Table Toolbar */}
+          <div className="p-3 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
+            {/* Layer Filter Tabs */}
+            <div className="flex items-center gap-1 bg-white p-1 rounded border border-slate-300">
+              <button
+                onClick={() => setActiveLayer("all")}
+                className={`text-xs px-2.5 py-1 rounded font-medium transition-colors ${
+                  activeLayer === "all"
+                    ? "bg-slate-800 text-white"
+                    : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                All Schemes ({schemes.length})
+              </button>
+              <button
+                onClick={() => setActiveLayer("layer1")}
+                className={`text-xs px-2.5 py-1 rounded font-medium transition-colors ${
+                  activeLayer === "layer1"
+                    ? "bg-blue-900 text-white"
+                    : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                Level 1: DE/AE Daily ({layer1Schemes.length})
+              </button>
+              <button
+                onClick={() => setActiveLayer("layer2")}
+                className={`text-xs px-2.5 py-1 rounded font-medium transition-colors ${
+                  activeLayer === "layer2"
+                    ? "bg-amber-700 text-white"
+                    : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                Level 2: EE &gt;3 Days ({layer2Schemes.length})
+              </button>
+              <button
+                onClick={() => setActiveLayer("layer3")}
+                className={`text-xs px-2.5 py-1 rounded font-medium transition-colors ${
+                  activeLayer === "layer3"
+                    ? "bg-red-900 text-white"
+                    : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                Level 3: CE/SE Weekly ({layer3Schemes.length})
+              </button>
             </div>
 
             {/* Search Input */}
-            <div className="relative w-full md:w-72">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <div className="relative w-full md:w-80">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <Input
-                placeholder="Search scheme, engineer, issue..."
+                placeholder="Search by scheme name, ID, engineer, district..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-8 text-xs bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700"
+                className="pl-8 h-8 text-xs bg-white border-slate-300"
               />
               {searchTerm && (
                 <button
                   onClick={() => setSearchTerm("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -630,166 +765,228 @@ export default function EscalationPortalPage() {
             </div>
           </div>
 
-          {/* ========================================================= */}
-          {/* SENT ALERTS TABLE                                         */}
-          {/* ========================================================= */}
-          {isLoading ? (
-            <div className="py-16 text-center">
-              <RefreshCw className="w-8 h-8 animate-spin mx-auto text-indigo-600 mb-2" />
-              <p className="text-sm text-slate-500">Loading dispatched alerts audit log...</p>
+          {/* Active Context Banner */}
+          <div className="px-4 py-2 bg-slate-100/70 border-b border-slate-200 text-xs text-slate-700 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Info className="w-3.5 h-3.5 text-slate-500" />
+              <span>
+                {activeLayer === "layer1" && "Level 1: Daily operational notice dispatched today to Sub-Division DE/AE Akshay Bhojane (Day 1 breach)"}
+                {activeLayer === "layer2" && "Level 2: Escalated to Executive Engineer (EE) after 3 consecutive days without resolution"}
+                {activeLayer === "layer3" && "Level 3: Weekly apex notice issued to Chief Engineer (CE) & Superintending Engineer (SE) for 7+ days chronic persistence"}
+                {activeLayer === "all" && "All Schemes: Multi-tier escalation status and actual transmitted messages registry (SMS & Email Log)"}
+              </span>
             </div>
-          ) : alerts.length === 0 ? (
-            <div className="py-16 text-center space-y-3">
-              <div className="w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto text-slate-400">
-                <CheckCircle2 className="w-7 h-7 text-emerald-500" />
-              </div>
-              <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200">
-                {timeRange === "today"
-                  ? "No Alerts Sent Today"
-                  : "No Dispatched Alerts Match Your Filter"}
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-                {timeRange === "today"
-                  ? "Daily alert job runs at 10:00 AM. Since no alerts have been sent yet today, the table is empty."
-                  : "Try clearing your search query or selecting a broader time range."}
-              </p>
-              {timeRange === "today" && (
-                <div className="pt-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setTimeRange("7days")}
-                    className="text-xs"
-                  >
-                    View Last 7 Days ({summary.total_sent > 0 ? summary.total_sent : "Recent"})
-                  </Button>
-                </div>
-              )}
+            <span className="font-mono text-slate-500">
+              Showing {displayedSchemes.length} of {schemes.length} schemes
+            </span>
+          </div>
+
+          {/* Loading or Empty State */}
+          {isLoading ? (
+            <div className="py-16 text-center text-slate-500">
+              <RefreshCw className="w-6 h-6 animate-spin mx-auto text-slate-400 mb-2" />
+              <p className="text-xs">Loading official registry data...</p>
+            </div>
+          ) : displayedSchemes.length === 0 ? (
+            <div className="py-16 text-center text-slate-500 space-y-1">
+              <p className="text-sm font-semibold text-slate-700">No schemes found</p>
+              <p className="text-xs text-slate-400">There are currently no schemes matching this filter.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+            /* WIDE GOVERNMENT DATA TABLE */
+            <div className="overflow-x-auto w-full">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-semibold">
-                    <th className="py-3 px-4">Dispatched At</th>
-                    <th className="py-3 px-3">Escalation Tier</th>
-                    <th className="py-3 px-4">Scheme</th>
-                    <th className="py-3 px-4">Recipient Engineer</th>
-                    <th className="py-3 px-3">Channel & Status</th>
-                    <th className="py-3 px-4">Alert Title / Parameter</th>
-                    <th className="py-3 px-4 text-right">Action</th>
+                  <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-semibold uppercase text-[11px] tracking-wider">
+                    <th className="py-2.5 px-3 border-r border-slate-200 w-12 text-center">Sr.</th>
+                    <th className="py-2.5 px-4 border-r border-slate-200 min-w-[200px]">Scheme & Region</th>
+                    <th className="py-2.5 px-3 border-r border-slate-200 min-w-[130px]">Current Level</th>
+                    <th className="py-2.5 px-3 border-r border-slate-200 min-w-[180px]">Persistence & Cadence</th>
+                    <th className="py-2.5 px-4 border-r border-slate-200 min-w-[220px]">Designated Officer</th>
+                    <th className="py-2.5 px-3 border-r border-slate-200 min-w-[190px]">Actual Dispatches</th>
+                    <th className="py-2.5 px-3 border-r border-slate-200 min-w-[210px] text-center">Technical Breach Points</th>
+                    <th className="py-2.5 px-3 text-right w-28">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {alerts.map((alert) => {
-                    const isTier1 = alert.tier === 1;
-                    const isTier2 = alert.tier === 2;
-                    const isTier3 = alert.tier === 3;
+                <tbody className="divide-y divide-slate-200">
+                  {displayedSchemes.map((scheme, idx) => {
+                    // Determine assigned officer & tier based on activeLayer or current scheme level
+                    let targetTier: "DE" | "EE" | "CE" = "DE";
+                    let officerName = scheme.de_ae_civil_name || "Akshay Bhojane";
+                    let officerRole = "DE / AE (Civil)";
+                    let officerMobile = scheme.de_ae_civil_mobile || "5596356782";
+                    let officerEmail = scheme.de_ae_civil_email || "akshay.bhojane@cstech.ai";
+
+                    if (activeLayer === "layer2" || (activeLayer === "all" && scheme.escalation_level === 2)) {
+                      targetTier = "EE";
+                      officerName = scheme.ee_civil_name || "Rishikesh Salunke";
+                      officerRole = "Executive Engineer (EE)";
+                      officerMobile = scheme.ee_civil_mobile || "9834955236";
+                      officerEmail = scheme.ee_civil_email || "salunkerishikesh@gmail.com";
+                    } else if (activeLayer === "layer3" || (activeLayer === "all" && scheme.escalation_level === 3)) {
+                      targetTier = "CE";
+                      officerName = `${scheme.chief_engineer_name || "Deepak Ingale"} (CE) & ${scheme.se_name || "Rishikesh Salunkhe"} (SE)`;
+                      officerRole = "Chief Engineer & SE";
+                      officerMobile = `${scheme.chief_engineer_mobile || "8852634598"} / ${scheme.se_mobile || "9965253645"}`;
+                      officerEmail = scheme.chief_engineer_email || "deepal.ingale@cstech.ai";
+                    }
 
                     return (
                       <tr
-                        key={`${alert.channel}-${alert.id}`}
-                        className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
+                        key={scheme.scheme_id}
+                        className="hover:bg-slate-50 transition-colors"
                       >
-                        {/* Time */}
-                        <td className="py-3 px-4 whitespace-nowrap text-slate-500 dark:text-slate-400">
-                          <div className="flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-300">
-                            <Clock className="w-3.5 h-3.5 text-slate-400" />
-                            {formatDate(alert.created_at)}
-                          </div>
+                        {/* Sr. No. */}
+                        <td className="py-3 px-3 text-center border-r border-slate-200 font-mono text-slate-500 font-medium">
+                          {idx + 1}
                         </td>
 
-                        {/* Tier */}
-                        <td className="py-3 px-3 whitespace-nowrap">
-                          {isTier1 && (
-                            <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800 font-medium">
-                              Tier 1: Field Notice
-                            </Badge>
-                          )}
-                          {isTier2 && (
-                            <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border-amber-300 dark:border-amber-800 font-medium">
-                              Tier 2: EE Civil
-                            </Badge>
-                          )}
-                          {isTier3 && (
-                            <Badge className="bg-rose-100 text-rose-800 dark:bg-rose-950/80 dark:text-rose-300 border-rose-300 dark:border-rose-800 font-medium">
-                              Tier 3: Apex CE/SE
-                            </Badge>
-                          )}
-                        </td>
-
-                        {/* Scheme */}
-                        <td className="py-3 px-4">
-                          <div className="font-semibold text-slate-900 dark:text-white line-clamp-1">
-                            {alert.scheme_name}
+                        {/* Scheme Name & ID */}
+                        <td className="py-3 px-4 border-r border-slate-200">
+                          <div className="font-semibold text-slate-900 text-xs">
+                            {scheme.scheme_name}
                           </div>
-                          <div className="text-[11px] text-slate-400">
-                            ID: {alert.scheme_id}
-                          </div>
-                        </td>
-
-                        {/* Recipient */}
-                        <td className="py-3 px-4">
-                          <div className="font-medium text-slate-800 dark:text-slate-200">
-                            {alert.recipient_name}
-                          </div>
-                          <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                            {alert.recipient_role}
-                          </div>
-                          {alert.recipient_mobile && (
-                            <div className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
-                              <Phone className="w-2.5 h-2.5" />
-                              {alert.recipient_mobile}
-                            </div>
-                          )}
-                          {alert.recipient_email && (
-                            <div className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
-                              <Mail className="w-2.5 h-2.5" />
-                              {alert.recipient_email}
-                            </div>
-                          )}
-                        </td>
-
-                        {/* Channel & Status */}
-                        <td className="py-3 px-3 whitespace-nowrap">
-                          <div className="flex items-center gap-1.5">
-                            {alert.channel === "sms" ? (
-                              <Badge variant="outline" className="text-blue-700 bg-blue-50 dark:text-blue-300 dark:bg-blue-950 border-blue-200 text-[10px] px-2 py-0.5">
-                                <MessageSquare className="w-3 h-3 mr-1" />
-                                SMS
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-indigo-700 bg-indigo-50 dark:text-indigo-300 dark:bg-indigo-950 border-indigo-200 text-[10px] px-2 py-0.5">
-                                <Mail className="w-3 h-3 mr-1" />
-                                Email
-                              </Badge>
+                          <div className="text-[11px] text-slate-500 flex flex-wrap items-center gap-1.5 mt-0.5">
+                            <span className="font-mono text-slate-700 bg-slate-100 px-1 rounded">
+                              ID: {scheme.scheme_id}
+                            </span>
+                            <span>•</span>
+                            <span>{scheme.region} Region</span>
+                            {scheme.district && (
+                              <>
+                                <span>•</span>
+                                <span>{scheme.district}</span>
+                              </>
                             )}
-                            <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-[10px] px-1.5 py-0">
-                              {alert.status || "SENT"}
-                            </Badge>
                           </div>
                         </td>
 
-                        {/* Alert Title */}
-                        <td className="py-3 px-4">
-                          <div className="font-medium text-slate-800 dark:text-slate-200 line-clamp-1">
-                            {alert.alert_title}
-                          </div>
-                          <div className="text-[11px] text-slate-400 line-clamp-1">
-                            {alert.message_content.slice(0, 70)}...
+                        {/* Current Level */}
+                        <td className="py-3 px-3 border-r border-slate-200">
+                          {scheme.escalation_level === 3 ? (
+                            <div className="space-y-0.5">
+                              <Badge className="bg-red-800 text-white text-[10px] rounded font-bold">
+                                Level 3 (Apex)
+                              </Badge>
+                              <div className="text-[10px] text-slate-500">CE & SE Weekly Notice</div>
+                            </div>
+                          ) : scheme.escalation_level === 2 ? (
+                            <div className="space-y-0.5">
+                              <Badge className="bg-amber-700 text-white text-[10px] rounded font-bold">
+                                Level 2 (EE)
+                              </Badge>
+                              <div className="text-[10px] text-slate-500">EE Escalation Notice</div>
+                            </div>
+                          ) : (
+                            <div className="space-y-0.5">
+                              <Badge className="bg-blue-900 text-white text-[10px] rounded font-bold">
+                                Level 1 (DE)
+                              </Badge>
+                              <div className="text-[10px] text-slate-500">DE Daily Notice</div>
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Streak & Cadence */}
+                        <td className="py-3 px-3 border-r border-slate-200">
+                          <div className="space-y-0.5">
+                            <div className="font-mono font-bold text-slate-900 text-xs flex items-center gap-1">
+                              <span>{scheme.max_streak_days} Days Unresolved</span>
+                              <span className="text-[10px] text-slate-500 font-sans font-normal">
+                                ({scheme.max_streak_days}d streak)
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-slate-500">
+                              {scheme.max_streak_days >= 7 ? (
+                                <span className="text-red-700 font-medium">Over 1 Full Week (Weekly Notice)</span>
+                              ) : scheme.max_streak_days >= 3 ? (
+                                <span className="text-amber-800 font-medium">DE notified 3 days $\rightarrow$ Escalated to EE</span>
+                              ) : (
+                                <span className="text-slate-600">Daily Notice Cadence (Day 1)</span>
+                              )}
+                            </div>
                           </div>
                         </td>
 
-                        {/* Action */}
-                        <td className="py-3 px-4 text-right whitespace-nowrap">
+                        {/* Designated Officer */}
+                        <td className="py-3 px-4 border-r border-slate-200">
+                          <div className="font-semibold text-slate-900">
+                            {officerName}
+                          </div>
+                          <div className="text-[11px] text-slate-600 font-medium">
+                            {officerRole}
+                          </div>
+                          <div className="text-[10px] text-slate-500 flex items-center gap-2 mt-0.5 font-mono">
+                            <span className="flex items-center gap-0.5">
+                              <Phone className="w-2.5 h-2.5 text-slate-400" />
+                              {officerMobile}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Actual Dispatches (SMS & Emails) */}
+                        <td className="py-3 px-3 border-r border-slate-200">
+                          <div className="space-y-1 font-mono text-[11px]">
+                            <div className="flex items-center justify-between bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+                              <span className="text-slate-600 text-[10px] font-sans">DE SMS:</span>
+                              <span className="font-bold text-slate-900">{scheme.de_sms_count}</span>
+                            </div>
+                            <div className="flex items-center justify-between bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+                              <span className="text-slate-600 text-[10px] font-sans">EE SMS:</span>
+                              <span className="font-bold text-slate-900">{scheme.ee_sms_count}</span>
+                            </div>
+                            <div className="flex items-center justify-between bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+                              <span className="text-slate-600 text-[10px] font-sans">CE/SE SMS:</span>
+                              <span className="font-bold text-slate-900">{scheme.ce_se_sms_count}</span>
+                            </div>
+                            <div className="flex items-center justify-between bg-slate-100 px-2 py-0.5 rounded border border-slate-300">
+                              <span className="text-slate-700 text-[10px] font-sans font-medium">Emails:</span>
+                              <span className="font-bold text-slate-900">{scheme.total_email_count}</span>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Breach Points Breakdown */}
+                        <td className="py-3 px-3 border-r border-slate-200">
+                          <div className="space-y-1 text-center">
+                            <div className="flex flex-wrap items-center justify-center gap-1 text-[10px]">
+                              {scheme.lpcd_villages_count > 0 && (
+                                <span className="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded text-slate-800">
+                                  LPCD: <strong>{scheme.lpcd_villages_count} Villages</strong>
+                                </span>
+                              )}
+                              {scheme.chlorine_low_count > 0 && (
+                                <span className="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded text-slate-800">
+                                  Low Cl: <strong>{scheme.chlorine_low_count} ESRs</strong>
+                                </span>
+                              )}
+                              {scheme.pressure_low_count > 0 && (
+                                <span className="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded text-slate-800">
+                                  Low Press: <strong>{scheme.pressure_low_count} ESRs</strong>
+                                </span>
+                              )}
+                              {scheme.offline_count > 0 && (
+                                <span className="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded text-slate-800">
+                                  Offline: <strong>{scheme.offline_count} Sensors</strong>
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] font-mono font-bold text-slate-900">
+                              Total Issues: {scheme.total_issues_count}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Actions */}
+                        <td className="py-3 px-3 text-right">
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => setInspectAlert(alert)}
-                            className="h-7 text-xs bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
+                            onClick={() => openPreview(scheme, targetTier)}
+                            className="h-7 text-xs bg-white border-slate-300 hover:bg-slate-100 text-slate-800 shadow-2xs"
                           >
-                            <Eye className="w-3.5 h-3.5 mr-1 text-indigo-500" />
-                            View Message
+                            <Eye className="w-3.5 h-3.5 mr-1 text-slate-600" />
+                            View Notice
                           </Button>
                         </td>
                       </tr>
@@ -799,191 +996,175 @@ export default function EscalationPortalPage() {
               </table>
             </div>
           )}
+
+          {/* Table Footer */}
+          <div className="p-3 bg-slate-50 border-t border-slate-200 text-xs text-slate-600 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <div>
+              <strong>Official Note:</strong> All SMS notifications are dispatched via Smartping DLT-approved templates. Official email digests are sent via automated notification queues.
+            </div>
+            <div className="font-mono text-[11px] text-slate-500">
+              Last Data Sync: {formatDate(data?.timestamp)}
+            </div>
+          </div>
         </div>
 
         {/* ========================================================= */}
-        {/* MODAL: VIEW SENT MESSAGE PREVIEW                          */}
+        {/* MODAL: OFFICIAL NOTICE PREVIEW (Simple Govt Letterhead)   */}
         {/* ========================================================= */}
-        <Dialog open={!!inspectAlert} onOpenChange={(open) => !open && setInspectAlert(null)}>
-          <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
-            {inspectAlert && (
+        <Dialog open={!!previewScheme} onOpenChange={(open) => !open && setPreviewScheme(null)}>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-white border border-slate-300 text-slate-900 p-6">
+            {previewScheme && (
               <div className="space-y-4">
-                <DialogHeader>
+                <DialogHeader className="border-b border-slate-200 pb-3">
                   <div className="flex items-center gap-2">
-                    {inspectAlert.tier === 1 && (
-                      <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300">
-                        Tier 1: Field Notice (DE/AE)
-                      </Badge>
-                    )}
-                    {inspectAlert.tier === 2 && (
-                      <Badge className="bg-amber-100 text-amber-800 border-amber-300">
-                        Tier 2: Division Escalation (EE)
-                      </Badge>
-                    )}
-                    {inspectAlert.tier === 3 && (
-                      <Badge className="bg-rose-100 text-rose-800 border-rose-300">
-                        Tier 3: Apex Regional (CE/SE)
-                      </Badge>
-                    )}
-                    <Badge variant="outline" className="text-xs uppercase">
-                      {inspectAlert.channel === "sms" ? "📱 Smartping DLT SMS" : "✉️ SMTP Email"}
+                    <Badge
+                      variant="outline"
+                      className="border-slate-400 bg-slate-100 text-slate-800 font-bold text-xs"
+                    >
+                      {previewTier === "DE"
+                        ? "Level 1: Sub-Division DE/AE Daily Notice (Day 1)"
+                        : previewTier === "EE"
+                        ? "Level 2: Division EE Escalation Notice (>3 Days)"
+                        : "Level 3: Apex Regional CE/SE Weekly Notice (1 Week+)"}
+                    </Badge>
+                    <Badge variant="outline" className="text-xs font-mono">
+                      {previewScheme.max_streak_days} Consecutive Days Unresolved
                     </Badge>
                   </div>
-                  <DialogTitle className="text-lg font-bold text-slate-900 dark:text-white pt-2">
-                    Dispatched Message Content
+
+                  <DialogTitle className="text-base sm:text-lg font-bold text-slate-900 pt-2 flex items-center justify-between">
+                    <span>{previewScheme.scheme_name}</span>
+                    <span className="text-xs font-mono text-slate-500">ID: {previewScheme.scheme_id}</span>
                   </DialogTitle>
-                  <DialogDescription className="text-xs text-slate-500">
-                    Dispatched to {inspectAlert.recipient_name} ({inspectAlert.recipient_role}) on {formatDate(inspectAlert.created_at)}
+                  <DialogDescription className="text-xs text-slate-600">
+                    Maharashtra Jeevan Pradhikaran — Official Telemetry Alert & Escalation Notice Log
                   </DialogDescription>
                 </DialogHeader>
 
-                {/* Recipient Details Card */}
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Scheme:</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">{inspectAlert.scheme_name} ({inspectAlert.scheme_id})</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Recipient:</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">{inspectAlert.recipient_name}</span>
-                  </div>
-                  {inspectAlert.recipient_mobile && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Mobile:</span>
-                      <span className="font-mono text-slate-700 dark:text-slate-300">{inspectAlert.recipient_mobile}</span>
-                    </div>
-                  )}
-                  {inspectAlert.recipient_email && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Email:</span>
-                      <span className="font-mono text-slate-700 dark:text-slate-300">{inspectAlert.recipient_email}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Status:</span>
-                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{inspectAlert.status}</span>
-                  </div>
+                {/* Switch Tier Buttons inside Modal */}
+                <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+                  <span className="text-xs text-slate-600 font-medium">Switch Tier:</span>
+                  <Button
+                    size="sm"
+                    variant={previewTier === "DE" ? "default" : "outline"}
+                    onClick={() => openPreview(previewScheme, "DE")}
+                    className={`h-7 text-xs ${previewTier === "DE" ? "bg-slate-800 text-white" : "border-slate-300"}`}
+                  >
+                    DE / AE (Daily)
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={previewTier === "EE" ? "default" : "outline"}
+                    onClick={() => openPreview(previewScheme, "EE")}
+                    className={`h-7 text-xs ${previewTier === "EE" ? "bg-slate-800 text-white" : "border-slate-300"}`}
+                  >
+                    EE (&gt;3 Days)
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={previewTier === "CE" ? "default" : "outline"}
+                    onClick={() => openPreview(previewScheme, "CE")}
+                    className={`h-7 text-xs ${previewTier === "CE" ? "bg-slate-800 text-white" : "border-slate-300"}`}
+                  >
+                    CE / SE (Weekly)
+                  </Button>
                 </div>
 
-                {/* Message Box */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      {inspectAlert.channel === "sms" ? "Transmitted Marathi SMS Text (DLT Approved):" : "Email Message Summary:"}
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleCopy(inspectAlert.message_content)}
-                      className="h-6 text-xs text-indigo-600 hover:text-indigo-700 p-1"
-                    >
-                      {copiedText ? (
-                        <>
-                          <Check className="w-3 h-3 mr-1 text-emerald-600" />
-                          Copied
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3 h-3 mr-1" />
-                          Copy Text
-                        </>
+                {previewLoading ? (
+                  <div className="py-12 text-center text-slate-500">
+                    <RefreshCw className="w-6 h-6 animate-spin mx-auto text-slate-400 mb-2" />
+                    <p className="text-xs">Rendering official message...</p>
+                  </div>
+                ) : previewData ? (
+                  <div className="space-y-4">
+                    {/* Official Recipient Details */}
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded space-y-1 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Addressed To:</span>
+                        <span className="font-semibold text-slate-900">
+                          {previewData.recipient_name}
+                        </span>
+                      </div>
+                      {previewData.recipient_mobile && (
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">Mobile Number:</span>
+                          <span className="font-mono text-slate-800">
+                            {previewData.recipient_mobile}
+                          </span>
+                        </div>
                       )}
-                    </Button>
-                  </div>
-                  <div className="p-4 rounded-xl bg-slate-900 text-slate-100 font-sans text-xs leading-relaxed border border-slate-800 select-all whitespace-pre-wrap">
-                    {inspectAlert.message_content}
-                  </div>
-                </div>
+                      {previewData.recipient_email && (
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">Official Email:</span>
+                          <span className="font-mono text-slate-800">
+                            {previewData.recipient_email}
+                          </span>
+                        </div>
+                      )}
+                    </div>
 
-                <div className="flex justify-end pt-2">
+                    {/* Official SMS Text */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <MessageSquare className="w-3.5 h-3.5 text-slate-600" />
+                          Official SMS Notification (DLT Approved Template):
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleCopy(previewData.sms_text || "")}
+                          className="h-6 text-xs border-slate-300 bg-white hover:bg-slate-50 px-2"
+                        >
+                          {copiedText ? (
+                            <>
+                              <Check className="w-3 h-3 mr-1 text-emerald-600" />
+                              Copied
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3 mr-1 text-slate-500" />
+                              Copy SMS
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                      <div className="p-3.5 bg-slate-900 text-slate-100 font-sans text-xs leading-relaxed rounded border border-slate-800 select-all whitespace-pre-wrap font-mono">
+                        {previewData.sms_text || "SMS text not available"}
+                      </div>
+                    </div>
+
+                    {/* Email Preview Snippet */}
+                    {previewData.email_html && (
+                      <div className="space-y-1.5">
+                        <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <Mail className="w-3.5 h-3.5 text-slate-600" />
+                          Official Email Notice (HTML Preview):
+                        </span>
+                        <div className="border border-slate-300 rounded overflow-hidden max-h-56 overflow-y-auto">
+                          <iframe
+                            srcDoc={previewData.email_html}
+                            title="Email Notice Preview"
+                            className="w-full h-52 border-0"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+
+                <div className="flex justify-end pt-2 border-t border-slate-200">
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setInspectAlert(null)}
-                    className="text-xs"
+                    onClick={() => setPreviewScheme(null)}
+                    className="text-xs border-slate-300"
                   >
                     Close
                   </Button>
                 </div>
               </div>
             )}
-          </DialogContent>
-        </Dialog>
-
-        {/* ========================================================= */}
-        {/* MODAL: MANUAL TRIGGER / TEST DISPATCH                     */}
-        {/* ========================================================= */}
-        <Dialog open={dispatchModalOpen} onOpenChange={setDispatchModalOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Send className="w-5 h-5 text-indigo-600" />
-                Trigger Escalation Dispatch
-              </DialogTitle>
-              <DialogDescription className="text-xs text-slate-500">
-                Evaluate persistent failure streaks and dispatch SMS & Email notifications to Tier 2 (EE) and Tier 3 (CE) engineers.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4 py-2">
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-2">
-                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Dispatch Mode:</span>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    size="sm"
-                    type="button"
-                    variant={dispatchDryRun ? "default" : "outline"}
-                    onClick={() => setDispatchDryRun(true)}
-                    className={`text-xs h-8 ${dispatchDryRun ? "bg-indigo-600 text-white" : ""}`}
-                  >
-                    Simulation / Dry Run
-                  </Button>
-                  <Button
-                    size="sm"
-                    type="button"
-                    variant={!dispatchDryRun ? "destructive" : "outline"}
-                    onClick={() => setDispatchDryRun(false)}
-                    className={`text-xs h-8 ${!dispatchDryRun ? "bg-rose-600 text-white" : ""}`}
-                  >
-                    Live Dispatch (SMS & Email)
-                  </Button>
-                </div>
-                <p className="text-[11px] text-slate-500">
-                  {dispatchDryRun
-                    ? "Dry run logs the candidates without sending real SMS messages or emails."
-                    : "Live mode will actively transmit SMS via Smartping DLT gateway and emails via SMTP."}
-                </p>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setDispatchModalOpen(false)}
-                  className="text-xs"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => dispatchMutation.mutate()}
-                  disabled={dispatchMutation.isPending}
-                  className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
-                >
-                  {dispatchMutation.isPending ? (
-                    <>
-                      <RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                      Executing...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-3.5 h-3.5 mr-1.5" />
-                      {dispatchDryRun ? "Run Simulation" : "Send Live Alerts"}
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
           </DialogContent>
         </Dialog>
       </div>

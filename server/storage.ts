@@ -1350,7 +1350,7 @@ export class PostgresStorage implements IStorage {
       }));
     } catch (err) {
       console.error('Error fetching LPCD data for month', reportMonth, err);
-      try { await pool.end(); } catch {};
+      try { await pool.end(); } catch { };
       return [];
     }
   }
@@ -5161,9 +5161,10 @@ export class PostgresStorage implements IStorage {
 
       const query = sql`
         WITH all_schemes AS (
-          SELECT DISTINCT region, scheme_id, block
+          SELECT DISTINCT ON (scheme_id) region, scheme_id, block
           FROM scheme_status
-          WHERE 1=1 ${schemeFilter}
+          WHERE 1=1 ${schemeFilter} AND region IS NOT NULL
+          ORDER BY scheme_id, (block IS NOT NULL AND block != '' AND block != 'NA') DESC
         ),
         deduplicated AS (
           SELECT DISTINCT ON (scheme_id, data_date)
@@ -5701,12 +5702,12 @@ export class PostgresStorage implements IStorage {
       const { Pool } = pg;
       const pool = new Pool({ connectionString: process.env.DATABASE_URL });
       const client = await pool.connect();
-      
+
       try {
         const queryParams: any[] = [startDate, endDate];
         let paramIdx = 3;
         let filterSql = '';
-        
+
         if (regionFilter && regionFilter !== "all") {
           filterSql += ` AND region ILIKE $${paramIdx++}`;
           queryParams.push(regionFilter);
@@ -7310,11 +7311,11 @@ export class PostgresStorage implements IStorage {
     try {
       // Use robust matching with TRIM and LOWER
       let whereClause = sql`TRIM(LOWER(${waterConsumption.scheme_id})) = TRIM(LOWER(${schemeId}))`;
-      
+
       if (block) {
         whereClause = sql`${whereClause} AND TRIM(LOWER(${waterConsumption.block})) = TRIM(LOWER(${block}))`;
       }
-      
+
       const query = db.select().from(waterConsumption).where(whereClause);
       const result = await query;
       return result;
@@ -8237,9 +8238,9 @@ export class PostgresStorage implements IStorage {
       .groupBy(schemeStatuses.region)
       .orderBy(schemeStatuses.region);
 
-    return result.map((row: any) => ({
-      region_id: 0, // Not applicable for dynamic aggregation
-      region_name: row.region_name || "Unknown",
+    return result.map((row: any, idx: number) => ({
+      region_id: idx + 1,
+      region_name: (row.region_name || "Unknown").trim(),
       total_schemes_integrated: Number(row.total_schemes_integrated || 0),
       fully_completed_schemes: Number(row.fully_completed_schemes || 0),
       total_villages_integrated: Number(row.total_villages_integrated || 0),
@@ -8405,7 +8406,7 @@ export class PostgresStorage implements IStorage {
   async createRegion(region: InsertRegion, dataMonth?: string): Promise<Region> {
     const db = await this.ensureInitialized();
     const result = await db.insert(regions).values(region).returning();
-    
+
     // Record in history
     if (result[0]) {
       const { region_id, ...historyFields } = result[0];
@@ -8414,7 +8415,7 @@ export class PostgresStorage implements IStorage {
         data_month: dataMonth || null,
       });
     }
-    
+
     return result[0];
   }
 
@@ -8929,7 +8930,7 @@ export class PostgresStorage implements IStorage {
 
   async getSchemeById(schemeId: string): Promise<SchemeStatus | undefined> {
     const db = await this.ensureInitialized();
-    
+
     // First try exact match
     const result = await db
       .select()
@@ -8958,7 +8959,7 @@ export class PostgresStorage implements IStorage {
     block: string | null,
   ): Promise<SchemeStatus | undefined> {
     const db = await this.ensureInitialized();
-    
+
     // Try exact match first
     const result = await db
       .select()
@@ -12816,7 +12817,7 @@ export class PostgresStorage implements IStorage {
         const queryParams: any[] = [filter.startDate, filter.endDate];
         let paramIdx = 3;
         let filterSql = '';
-        
+
         if (filter.region && filter.region !== "all") {
           filterSql += ` AND p.region ILIKE $${paramIdx++}`;
           queryParams.push(filter.region);
@@ -12871,7 +12872,7 @@ export class PostgresStorage implements IStorage {
 
         const result = await client.query(rawQuery, queryParams);
         console.log(`Found ${result.rows.length} unique pressure records natively using SQL for date range ${filter.startDate} to ${filter.endDate}`);
-        
+
         return result.rows.map((row: any) => ({
           scheme_id: row.scheme_id || "",
           region: row.region || "",
@@ -13661,14 +13662,14 @@ export class PostgresStorage implements IStorage {
       const batchSize = 100;
       for (let i = 0; i < data.length; i += batchSize) {
         const batch = data.slice(i, i + batchSize);
-        
+
         for (const item of batch) {
           try {
             // Convert scheme_id to BigInt if it's not already
             // Handle potential conversion errors for non-numeric strings
             let schemeId: bigint;
             const rawSchemeId = item.scheme_id;
-            
+
             if (typeof rawSchemeId === 'bigint') {
               schemeId = rawSchemeId;
             } else if (typeof rawSchemeId === 'string' || typeof rawSchemeId === 'number') {
@@ -13683,7 +13684,7 @@ export class PostgresStorage implements IStorage {
               console.warn(`Skipping record with missing or invalid scheme_id type: ${typeof rawSchemeId}`);
               continue;
             }
-            
+
             // Check if record exists
             const existing = await db
               .select()
