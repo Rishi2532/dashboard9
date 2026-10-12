@@ -365,33 +365,36 @@ export async function runDailyAlertsJob() {
           });
         };
 
-        // EE (Civil) Mobile
-        addEngineerMobiles(sanitizeMobiles(engineer.ee_civil_mobile), engineer.ee_civil_name || "EE (Civil)", engineer.ee_civil_email);
-
-        // EE (Mech) Mobile
-        addEngineerMobiles(sanitizeMobiles(engineer.ee_mech_mobile), engineer.ee_mech_name || "EE (Mech)", engineer.ee_mech_email);
-
-        // DE/AE (Civil) Mobile
+        // 1. DAILY (Every day, 7 days/week): DE / AE (Civil) ONLY
         addEngineerMobiles(
           sanitizeMobiles(engineer.de_ae_civil_mobile || engineer.civil_engineer_mobile),
-          engineer.de_ae_civil_name || engineer.civil_engineer_name || "DE/AE (Civil)",
+          engineer.de_ae_civil_name || engineer.civil_engineer_name || "DE (Civil)",
           engineer.de_ae_civil_email || engineer.civil_engineer_email
         );
 
-        // DE/AE (Mech) Mobile
-        addEngineerMobiles(
-          sanitizeMobiles(engineer.de_ae_mech_mobile || engineer.site_supervisor_mobile || engineer.mechanical_engineer_mobile),
-          engineer.de_ae_mech_name || engineer.site_supervisor_name || engineer.mechanical_engineer_name || "DE/AE (Mech)",
-          engineer.de_ae_mech_email || engineer.site_supervisor_email || engineer.mechanical_engineer_email
-        );
-
-        // SE and Chief Engineer Mobile: Sent once a week on Monday with daily alerts; skipped Tuesday through Sunday
+        // 2. WEEKLY (Monday ONLY): EE (Civil), Superintending Engineer (SE), Chief Engineer (CE)
+        // (Skipped Tuesday through Sunday; Mechanical roles completely excluded)
         if (isMonday) {
-          // SE Mobile
-          addEngineerMobiles(sanitizeMobiles(engineer.se_mobile), engineer.se_name || "Superintending Engineer (SE)", engineer.se_email);
+          // EE (Civil) Mobile - Monday only
+          addEngineerMobiles(
+            sanitizeMobiles(engineer.ee_civil_mobile),
+            engineer.ee_civil_name || "EE (Civil)",
+            engineer.ee_civil_email
+          );
 
-          // Chief Engineer Mobile
-          addEngineerMobiles(sanitizeMobiles(engineer.chief_engineer_mobile), engineer.chief_engineer_name || "Chief Engineer", engineer.chief_engineer_email);
+          // Superintending Engineer (SE) Mobile - Monday only
+          addEngineerMobiles(
+            sanitizeMobiles(engineer.se_mobile),
+            engineer.se_name || "Superintending Engineer (SE)",
+            engineer.se_email
+          );
+
+          // Chief Engineer (CE) Mobile - Monday only
+          addEngineerMobiles(
+            sanitizeMobiles(engineer.chief_engineer_mobile),
+            engineer.chief_engineer_name || "Chief Engineer (CE)",
+            engineer.chief_engineer_email
+          );
         }
 
         // Build emailAlertLogs entries for each issue in this scheme
