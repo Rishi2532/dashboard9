@@ -61,6 +61,7 @@ import flowmeterRoutes from "./routes/flowmeter-routes";
 import alertsProgressRoutes from "./routes/alerts-progress-routes";
 import acknowledgeRoutes from "./routes/acknowledge-routes";
 import realtimeAlertsRoutes from "./routes/realtime-alerts-routes";
+import escalationRoutes from "./routes/escalation-routes";
 import { sendSingleOfflineReminderEmail, sendBatchOfflineReminderEmail } from "./services/email-service";
 import { updateSmsDeliveryStatus } from "./services/sms-service";
 // import { mqttService } from "./mqtt-service";
@@ -415,6 +416,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Mount Real-Time Live Alerts routes
   app.use("/api/realtime-alerts", realtimeAlertsRoutes);
+
+  // Mount 3-Tier Escalation Matrix routes
+  app.use("/api/escalation", escalationRoutes);
 
   // Mount Smartping SMS Webhook Callback (Public endpoint for real-time operator delivery reports)
   app.get("/api/sms/callback", async (req, res) => {

@@ -35,6 +35,7 @@ interface Alert {
   telemetry_date?: string;
   ticket_id?: string;
   token?: string;
+  streak_days?: number;
 }
 
 export function startDailyAlertsCron() {
@@ -245,6 +246,58 @@ export async function runDailyAlertsJob() {
     // Query all engineer details and filter locally
     const allEngineerDetails = await db.select().from(schemeEngineerDetails);
 
+    // Query past alert logs (up to 30 days) to compute repeat streak for each alert
+    const pastAlertsMap = new Map<string, string[]>();
+    try {
+      const pastAlertsRes: any = await db.execute(sql`
+        SELECT 
+          scheme_id, 
+          alert_type, 
+          COALESCE(NULLIF(TRIM(village_name), ''), '-') as village_name, 
+          COALESCE(NULLIF(TRIM(esr_name), ''), '-') as esr_name, 
+          ARRAY_AGG(DISTINCT sent_date::text ORDER BY sent_date::text DESC) as past_dates 
+        FROM email_alert_logs 
+        WHERE sent_date >= CURRENT_DATE - INTERVAL '30 days' 
+          AND sent_date < CURRENT_DATE
+        GROUP BY scheme_id, alert_type, COALESCE(NULLIF(TRIM(village_name), ''), '-'), COALESCE(NULLIF(TRIM(esr_name), ''), '-')
+      `);
+      (pastAlertsRes.rows || []).forEach((r: any) => {
+        const key = `${r.scheme_id}|${r.alert_type}|${r.village_name}|${r.esr_name}`.toLowerCase();
+        pastAlertsMap.set(key, r.past_dates || []);
+      });
+    } catch (pastErr) {
+      console.warn("⚠️ Could not load past alert logs for streak calculation:", pastErr);
+    }
+
+    const getAlertStreak = (alert: Alert): number => {
+      const alertType = alert.offline_issue
+        ? 'Offline'
+        : alert.chlorine_issue
+          ? (alert.chlorine_type || (parseFloat(String(alert.chlorine_value || "0").replace(/[^0-9.]/g, '')) > 0.5 ? 'High Chlorine' : 'Low Chlorine'))
+          : alert.pressure_issue
+            ? 'Low Pressure'
+            : 'Low LPCD';
+      const village = (alert.village_name && alert.village_name.trim()) ? alert.village_name.trim() : '-';
+      const esr = (alert.esr_name && alert.esr_name.trim()) ? alert.esr_name.trim() : '-';
+      const key = `${alert.scheme_id}|${alertType}|${village}|${esr}`.toLowerCase();
+
+      const pastDates = pastAlertsMap.get(key) || [];
+      // Calculate consecutive days backwards from yesterday
+      let streak = 1;
+      const today = new Date();
+      for (let i = 1; i <= 30; i++) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const dStr = d.toISOString().slice(0, 10);
+        if (pastDates.includes(dStr)) {
+          streak++;
+        } else {
+          break;
+        }
+      }
+      return streak;
+    };
+
     // We will batch insert into emailAlertLogs at the end
     const emailLogsToInsert: any[] = [];
 
@@ -257,8 +310,7 @@ export async function runDailyAlertsJob() {
     const now = new Date();
     const istTimeStr = now.toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour12: false });
     const istDayOfWeek = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Kolkata", weekday: "long" }).format(now);
-    const isMonday = istDayOfWeek.toLowerCase() === "monday";
-    console.log(`📅 Daily Alerts Dispatch Day (IST): ${istDayOfWeek} (Weekly SE/CE SMS dispatch: ${isMonday ? "ACTIVE (Monday)" : "SKIPPED (Runs Monday only)"})`);
+    console.log(`📅 Daily Alerts Dispatch Day (IST): ${istDayOfWeek}`);
 
     allEngineerDetails.forEach((engineer) => {
       let schemeAlerts: Alert[] = [];
@@ -284,10 +336,13 @@ export async function runDailyAlertsJob() {
         }
       }
 
-      // Deduplicate alerts for this engineer's scheme
+      // Deduplicate alerts for this engineer's scheme and calculate persistence streak
       const uniqueSchemeAlertsMap = new Map();
       schemeAlerts.forEach(a => {
         const key = `${a.scheme_id}-${a.village_name}-${a.esr_name}-${a.chlorine_issue}-${a.chlorine_type}-${a.pressure_issue}-${a.lpcd_issue}-${a.offline_issue}-${a.offline_sensors}`;
+        if (!a.streak_days) {
+          a.streak_days = getAlertStreak(a);
+        }
         uniqueSchemeAlertsMap.set(key, a);
       });
       schemeAlerts = Array.from(uniqueSchemeAlertsMap.values());
@@ -301,7 +356,8 @@ export async function runDailyAlertsJob() {
             .filter(e => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(e));
         };
 
-        const addEngineerEmails = (emails: string[], name: string) => {
+        const addEngineerEmails = (emails: string[], name: string, alerts: Alert[]) => {
+          if (!alerts || alerts.length === 0) return;
           emails.forEach(email => {
             if (!emailsToSend[email]) {
               emailsToSend[email] = {
@@ -315,33 +371,9 @@ export async function runDailyAlertsJob() {
                 emailsToSend[email].name = emailsToSend[email].names.join(" / ");
               }
             }
-            emailsToSend[email].alerts.push(...schemeAlerts);
+            emailsToSend[email].alerts.push(...alerts);
           });
         };
-
-        // 1. EE (Civil) - Executive Engineer
-        addEngineerEmails(sanitizeEmails(engineer.ee_civil_email), engineer.ee_civil_name || "EE (Civil)");
-
-        // 2. EE (Mech) - Executive Engineer
-        addEngineerEmails(sanitizeEmails(engineer.ee_mech_email), engineer.ee_mech_name || "EE (Mech)");
-
-        // 3. DE/AE (Civil)
-        addEngineerEmails(
-          sanitizeEmails(engineer.de_ae_civil_email || engineer.civil_engineer_email),
-          engineer.de_ae_civil_name || engineer.civil_engineer_name || "DE/AE (Civil)"
-        );
-
-        // 4. DE/AE (Mech)
-        addEngineerEmails(
-          sanitizeEmails(engineer.de_ae_mech_email || engineer.site_supervisor_email || engineer.mechanical_engineer_email),
-          engineer.de_ae_mech_name || engineer.site_supervisor_name || engineer.mechanical_engineer_name || "DE/AE (Mech)"
-        );
-
-        // 5. Superintending Engineer (SE)
-        addEngineerEmails(sanitizeEmails(engineer.se_email), engineer.se_name || "Superintending Engineer (SE)");
-
-        // 6. Chief Engineer
-        addEngineerEmails(sanitizeEmails(engineer.chief_engineer_email), engineer.chief_engineer_name || "Chief Engineer");
 
         // --- SMS Grouping ---
         const sanitizeMobiles = (raw: string | null | undefined): string[] => {
@@ -352,7 +384,8 @@ export async function runDailyAlertsJob() {
             .filter(m => m.length >= 10);
         };
 
-        const addEngineerMobiles = (mobiles: string[], name: string, email?: string) => {
+        const addEngineerMobiles = (mobiles: string[], name: string, email: string | undefined, alerts: Alert[]) => {
+          if (!alerts || alerts.length === 0) return;
           mobiles.forEach(mobile => {
             if (!smsToSend[mobile]) {
               smsToSend[mobile] = {
@@ -361,41 +394,72 @@ export async function runDailyAlertsJob() {
                 alerts: [],
               };
             }
-            smsToSend[mobile].alerts.push(...schemeAlerts);
+            smsToSend[mobile].alerts.push(...alerts);
           });
         };
 
-        // 1. DAILY (Every day, 7 days/week): DE / AE (Civil) ONLY
+        // --- Cadence Filtering ---
+        // 1. DE / AE (Civil): DAILY (all active alerts on this scheme)
+        const deCivilAlerts = schemeAlerts;
+
+        // 2. EE (Civil): EVERY 3 DAYS FOR REPEATING ALERTS (Day 3, 6, 9, 12, etc.)
+        const eeCivilAlerts = schemeAlerts.filter(a => (a.streak_days || 1) >= 3 && (a.streak_days || 1) % 3 === 0);
+
+        // 3. Superintending Engineer (SE) & Chief Engineer (CE): EVERY 7 DAYS FOR REPEATING ALERTS (Day 7, 14, 21, etc.)
+        const ceSeAlerts = schemeAlerts.filter(a => (a.streak_days || 1) >= 7 && (a.streak_days || 1) % 7 === 0);
+
+        // --- Dispatch by Role ---
+        // 1. DE/AE (Civil) - Daily Email & Daily SMS
+        addEngineerEmails(
+          sanitizeEmails(engineer.de_ae_civil_email || engineer.civil_engineer_email),
+          engineer.de_ae_civil_name || engineer.civil_engineer_name || "DE/AE (Civil)",
+          deCivilAlerts
+        );
         addEngineerMobiles(
           sanitizeMobiles(engineer.de_ae_civil_mobile || engineer.civil_engineer_mobile),
           engineer.de_ae_civil_name || engineer.civil_engineer_name || "DE (Civil)",
-          engineer.de_ae_civil_email || engineer.civil_engineer_email
+          engineer.de_ae_civil_email || engineer.civil_engineer_email,
+          deCivilAlerts
         );
 
-        // 2. WEEKLY (Monday ONLY): EE (Civil), Superintending Engineer (SE), Chief Engineer (CE)
-        // (Skipped Tuesday through Sunday; Mechanical roles completely excluded)
-        if (isMonday) {
-          // EE (Civil) Mobile - Monday only
-          addEngineerMobiles(
-            sanitizeMobiles(engineer.ee_civil_mobile),
-            engineer.ee_civil_name || "EE (Civil)",
-            engineer.ee_civil_email
-          );
+        // 2. EE (Civil) - Repeating Alerts Every 3 Days (Email & SMS)
+        addEngineerEmails(
+          sanitizeEmails(engineer.ee_civil_email),
+          engineer.ee_civil_name || "EE (Civil)",
+          eeCivilAlerts
+        );
+        addEngineerMobiles(
+          sanitizeMobiles(engineer.ee_civil_mobile),
+          engineer.ee_civil_name || "EE (Civil)",
+          engineer.ee_civil_email,
+          eeCivilAlerts
+        );
 
-          // Superintending Engineer (SE) Mobile - Monday only
-          addEngineerMobiles(
-            sanitizeMobiles(engineer.se_mobile),
-            engineer.se_name || "Superintending Engineer (SE)",
-            engineer.se_email
-          );
+        // 3. Superintending Engineer (SE) - Repeating Alerts Every 7 Days (Email & SMS)
+        addEngineerEmails(
+          sanitizeEmails(engineer.se_email),
+          engineer.se_name || "Superintending Engineer (SE)",
+          ceSeAlerts
+        );
+        addEngineerMobiles(
+          sanitizeMobiles(engineer.se_mobile),
+          engineer.se_name || "Superintending Engineer (SE)",
+          engineer.se_email,
+          ceSeAlerts
+        );
 
-          // Chief Engineer (CE) Mobile - Monday only
-          addEngineerMobiles(
-            sanitizeMobiles(engineer.chief_engineer_mobile),
-            engineer.chief_engineer_name || "Chief Engineer (CE)",
-            engineer.chief_engineer_email
-          );
-        }
+        // 4. Chief Engineer (CE) - Repeating Alerts Every 7 Days (Email & SMS)
+        addEngineerEmails(
+          sanitizeEmails(engineer.chief_engineer_email),
+          engineer.chief_engineer_name || "Chief Engineer",
+          ceSeAlerts
+        );
+        addEngineerMobiles(
+          sanitizeMobiles(engineer.chief_engineer_mobile),
+          engineer.chief_engineer_name || "Chief Engineer (CE)",
+          engineer.chief_engineer_email,
+          ceSeAlerts
+        );
 
         // Build emailAlertLogs entries for each issue in this scheme
         schemeAlerts.forEach((alert) => {

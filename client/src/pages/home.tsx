@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
@@ -571,21 +571,31 @@ export default function HomePage() {
                     icon: TrendingUp,
                     label: "Escalation Matrix",
                     color: "text-orange-600",
-                    bg: "bg-orange-50",
+                    bg: "bg-orange-50 hover:bg-orange-100/80 transition-all cursor-pointer shadow-sm hover:shadow",
+                    href: "/escalation",
                   },
-                ].map((item, i) => (
-                  <div
-                    key={i}
-                    className={`${item.bg} rounded-lg p-5 text-center border border-gray-100`}
-                  >
-                    <item.icon
-                      className={`w-6 h-6 ${item.color} mx-auto mb-2`}
-                    />
-                    <div className="text-sm font-medium text-gray-700">
-                      {item.label}
+                ].map((item: any, i) => {
+                  const content = (
+                    <div
+                      key={i}
+                      className={`${item.bg} rounded-lg p-5 text-center border border-gray-100`}
+                    >
+                      <item.icon
+                        className={`w-6 h-6 ${item.color} mx-auto mb-2`}
+                      />
+                      <div className="text-sm font-medium text-gray-700">
+                        {item.label}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                  return item.href ? (
+                    <Link key={i} href={item.href} className="block">
+                      {content}
+                    </Link>
+                  ) : (
+                    content
+                  );
+                })}
               </div>
             </div>
           </div>

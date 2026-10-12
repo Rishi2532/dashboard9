@@ -52,6 +52,7 @@ import AlertsProgressPage from "./pages/alerts-progress";
 import AlertsWeeklyPage from "./pages/alerts-weekly";
 import ESRDashboard from "./pages/ESRDashboard";
 import EngineersHierarchyPage from "./pages/admin/EngineersHierarchyPage";
+import EscalationPortalPage from "./pages/escalation-portal";
 
 import ProtectedRoute from "./components/auth/protected-route";
 import { AuthProvider } from "./hooks/use-auth";
@@ -325,6 +326,18 @@ function App() {
                     <Route path="/alerts-progress/weekly">
                       <ProtectedRoute>
                         <AlertsWeeklyPage />
+                      </ProtectedRoute>
+                    </Route>
+
+                    <Route path="/escalation">
+                      <ProtectedRoute>
+                        <EscalationPortalPage />
+                      </ProtectedRoute>
+                    </Route>
+
+                    <Route path="/escalation-portal">
+                      <ProtectedRoute>
+                        <EscalationPortalPage />
                       </ProtectedRoute>
                     </Route>
 

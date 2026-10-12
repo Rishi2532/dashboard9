@@ -167,6 +167,8 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
   }
 }
 
+export const sendMail = (params: any) => sendEmail({ from: "MahaJal IoT Alerts", ...params });
+
 export async function sendTicketCreatedEmail(
   userEmail: string,
   ticketId: string,
@@ -503,6 +505,14 @@ export async function sendDailyAlertEmail(
     }
     if (alert.lpcd_issue) issues.push(`<span style="color: #ea580c; font-weight: bold;">Low LPCD:</span> ${alert.lpcd_value} (Below 55)`);
     if (alert.offline_issue) issues.push(`<span style="color: #ea580c; font-weight: bold;">Offline:</span> ${alert.offline_sensors || 'Sensors Offline'}`);
+    if (alert.streak_days && alert.streak_days >= 3) {
+      const isChronic = alert.streak_days >= 7;
+      issues.push(
+        `<span style="display: inline-block; background-color: ${isChronic ? '#fee2e2' : '#fef3c7'}; color: ${isChronic ? '#991b1b' : '#92400e'}; border: 1px solid ${isChronic ? '#fca5a5' : '#fcd34d'}; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 11px; margin-top: 4px;">` +
+        `🚨 Repeated for ${alert.streak_days} consecutive days (${isChronic ? 'Tier 3 Chronic - CE/SE' : 'Tier 2 Escalation - EE'})` +
+        `</span>`
+      );
+    }
 
     alertsHtml += `
         <tr style="border-bottom: 1px solid #e2e8f0; background-color: ${alert.offline_issue ? '#fff7ed' : '#fffafb'};">

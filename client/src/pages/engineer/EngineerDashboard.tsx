@@ -168,6 +168,11 @@ export default function EngineerDashboard() {
   // Local state to track acknowledged alert keys for instant optimistic feedback
   const [acknowledgedAlertKeys, setAcknowledgedAlertKeys] = useState<Set<string>>(new Set());
 
+  // Clear optimistic acknowledged alert keys whenever logged-in user changes
+  useEffect(() => {
+    setAcknowledgedAlertKeys(new Set());
+  }, [user?.id, user?.email, engineerProfile?.email]);
+
   const getAlertKey = (a: any) => {
     if (a.id) return `alert-id-${a.id}`;
     if (a.ticket_id) return `ticket-${a.ticket_id}`;

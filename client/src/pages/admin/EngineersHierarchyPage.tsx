@@ -192,7 +192,6 @@ export default function EngineersHierarchyPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [tierFilter, setTierFilter] = useState<'ALL' | 'CE' | 'SE' | 'EE' | 'DE/AE'>('ALL');
   const [regionFilter, setRegionFilter] = useState<string>('ALL');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'REGISTERED' | 'ROSTER_ONLY'>('ALL');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
   // Modal States
@@ -309,10 +308,6 @@ export default function EngineersHierarchyPage() {
       // Tier filter
       if (tierFilter !== 'ALL' && eng.level !== tierFilter) return false;
 
-      // Status filter
-      if (statusFilter === 'REGISTERED' && !eng.is_registered) return false;
-      if (statusFilter === 'ROSTER_ONLY' && eng.is_registered) return false;
-
       // Region filter
       if (regionFilter !== 'ALL' && !eng.regions.includes(regionFilter)) return false;
 
@@ -333,7 +328,7 @@ export default function EngineersHierarchyPage() {
 
       return true;
     });
-  }, [engineers, tierFilter, statusFilter, regionFilter, searchTerm]);
+  }, [engineers, tierFilter, regionFilter, searchTerm]);
 
   // Group filtered engineers by Tier
   const groupedEngineers = useMemo(() => {
@@ -614,20 +609,6 @@ export default function EngineersHierarchyPage() {
                   </SelectContent>
                 </Select>
               </div>
-
-              {/* Status Filter */}
-              <div className="w-full md:w-44">
-                <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
-                  <SelectTrigger className="h-10 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-xs">
-                    <SelectValue placeholder="Account Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">All Accounts</SelectItem>
-                    <SelectItem value="REGISTERED">Registered Only</SelectItem>
-                    <SelectItem value="ROSTER_ONLY">Roster Only</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
 
             {/* Position Filter Pills */}
@@ -720,7 +701,6 @@ export default function EngineersHierarchyPage() {
                 setSearchTerm('');
                 setTierFilter('ALL');
                 setRegionFilter('ALL');
-                setStatusFilter('ALL');
               }}
               className="mt-4"
             >

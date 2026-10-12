@@ -9,30 +9,43 @@ interface RegionFilterProps {
   className?: string;
 }
 
-export default function RegionFilter({ 
-  regions, 
-  selectedRegion, 
+export default function RegionFilter({
+  regions = [],
+  selectedRegion,
   onChange,
   className
 }: RegionFilterProps) {
+  // Deduplicate and sanitize regions by name
+  const uniqueRegions = Array.from(
+    new Map(
+      (regions || [])
+        .filter((r) => r && r.region_name)
+        .map((r) => [r.region_name.trim(), { ...r, region_name: r.region_name.trim() }])
+    ).values()
+  );
+
+  const displayValue = !selectedRegion || selectedRegion === "all" ? "All Regions" : selectedRegion;
+
   return (
     <div className={className}>
       <Label htmlFor="region" className="text-xs sm:text-sm font-medium text-neutral-700">
         Filter by Region
       </Label>
-      <Select 
-        value={selectedRegion} 
+      <Select
+        value={selectedRegion}
         onValueChange={onChange}
       >
-        <SelectTrigger 
+        <SelectTrigger
           className={`mt-1 w-full h-8 sm:h-10 text-xs sm:text-sm ${selectedRegion !== 'all' ? 'region-selected' : ''}`}
         >
-          <SelectValue placeholder="All Regions" />
+          <SelectValue placeholder="All Regions">
+            {displayValue}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent className="text-xs sm:text-sm">
           <SelectItem value="all">All Regions</SelectItem>
-          {regions.map((region) => (
-            <SelectItem key={region.region_id} value={region.region_name}>
+          {uniqueRegions.map((region) => (
+            <SelectItem key={region.region_name} value={region.region_name}>
               {region.region_name}
             </SelectItem>
           ))}

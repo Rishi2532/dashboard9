@@ -1790,7 +1790,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
         {/* Scope Overview - Full width on mobile, 5/12 on desktop */}
         <div className="lg:col-span-5 flex flex-col">
-          <ScopeOverview selectedRegion={selectedRegion} />
+          <ScopeOverview selectedRegion={selectedRegion} schemeView={schemeView} />
         </div>
 
         {/* Stats Cards Area - Full width on mobile, 7/12 on desktop */}
