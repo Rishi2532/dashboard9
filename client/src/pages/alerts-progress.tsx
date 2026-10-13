@@ -169,6 +169,23 @@ const parseIssues = (rawIssues: any) => {
   return issues;
 };
 
+const getLatestIssue = (issuesList: any[]) => {
+  if (!issuesList || issuesList.length === 0) return null;
+  if (issuesList.length === 1) return issuesList[0];
+  const sorted = [...issuesList].sort((a, b) => {
+    const timeA = a.created_at ? new Date(a.created_at).getTime() : (a.timestamp ? new Date(a.timestamp).getTime() : (a.resolved_at ? new Date(a.resolved_at).getTime() : 0));
+    const timeB = b.created_at ? new Date(b.created_at).getTime() : (b.timestamp ? new Date(b.timestamp).getTime() : (b.resolved_at ? new Date(b.resolved_at).getTime() : 0));
+    if (timeA !== timeB) return timeB - timeA;
+    if (a.id && b.id) return Number(b.id) - Number(a.id);
+    return 0;
+  });
+  if (sorted[0]?.created_at || sorted[0]?.timestamp || sorted[0]?.resolved_at) {
+    return sorted[0];
+  }
+  return issuesList[issuesList.length - 1];
+};
+
+
 export interface AlertRecipient {
   role: string;
   name: string;
@@ -3214,20 +3231,24 @@ export default function AlertsProgressPage() {
     // Count remarks added
     const totalRemarks = baseData.filter(r => parseIssues(r.remarks).length > 0).length;
 
-    // All individual issues across baseData (for Excel export, counts, and dedicated table view)
+    // Latest individual issue across baseData per scheme (matches totalRemarks count)
     const allBaseIssues = baseData.flatMap((r) => {
       const issues = parseIssues(r.remarks);
-      return issues.map((issue: any) => ({
-        ...issue,
+      if (issues.length === 0) return [];
+      const latestIssue = getLatestIssue(issues);
+      if (!latestIssue) return [];
+      return [{
+        ...latestIssue,
         scheme_id: r.scheme_id,
         scheme_name: r.scheme_name || r.scheme_id,
-        village_name: issue.village_name || r.village_name || "-",
-        esr_name: issue.esr_name || r.esr_name || "-",
+        village_name: latestIssue.village_name || r.village_name || "-",
+        esr_name: latestIssue.esr_name || r.esr_name || "-",
         region: r.region || "-",
         current_value: r.current_value,
         telemetry_date: r.telemetry_date || r.current_value_date || r.created_at || r.sent_date,
+        all_scheme_issues: issues,
         parentRow: r
-      }));
+      }];
     });
 
     // Filter by Scheme Search & Acknowledgement status
@@ -3816,7 +3837,7 @@ export default function AlertsProgressPage() {
                 {ackStatusFilter === "remarks" ? "Issue Details & Remarks History" : "Alert Details"}
               </span>
               <span className="text-xs font-normal text-slate-500">
-                ({currentTotalItems} {isShowingIssuesTable ? "Issues" : unitNoun})
+                ({currentTotalItems} {isShowingIssuesTable ? "Remarks" : unitNoun})
               </span>
               {ackStatusFilter === "remarks" && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-300">
@@ -3841,7 +3862,7 @@ export default function AlertsProgressPage() {
                         : "text-slate-600 hover:text-slate-900"
                         }`}
                     >
-                      All Issues Table ({filteredIssuesList.length})
+                      Remarks List ({filteredIssuesList.length})
                     </button>
                     <button
                       type="button"
@@ -4012,17 +4033,11 @@ export default function AlertsProgressPage() {
                     <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-slate-200/80 min-w-[120px]">
                       Level / Category
                     </th>
-                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-slate-200/80 min-w-[110px]">
-                      Status
-                    </th>
                     <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-slate-200/80 min-w-[170px]">
                       Reported By & Date
                     </th>
-                    <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-slate-200/80 min-w-[240px]">
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-slate-200/80 min-w-[260px]">
                       Issue / Reason
-                    </th>
-                    <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-slate-200/80 min-w-[240px]">
-                      Remarks & Resolution
                     </th>
                     <th className="py-2.5 px-3 text-[11px] font-bold text-center min-w-[110px]">
                       Action
@@ -4032,7 +4047,6 @@ export default function AlertsProgressPage() {
                 <tbody className="divide-y divide-slate-100 text-xs">
                   {paginatedIssues.map((issue: any, idx: number) => {
                     const actualIndex = startIdx + idx + 1;
-                    const isResolved = issue.status === "Resolved" || issue.status_value === "Resolved";
                     return (
                       <tr key={`${issue.scheme_id}-${idx}`} className="hover:bg-slate-50/80 transition-colors">
                         <td className="py-2.5 px-2 text-center border-r border-slate-100 align-middle">
@@ -4077,17 +4091,6 @@ export default function AlertsProgressPage() {
                             {issue.problem_level ? `${issue.problem_level} Level` : (issue.category || "General")}
                           </span>
                         </td>
-                        <td className="py-2.5 px-3 text-center border-r border-slate-100 align-middle">
-                          <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-bold ${isResolved
-                              ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                              : "bg-red-100 text-red-800 border border-red-200"
-                              }`}
-                          >
-                            <span className={`w-1.5 h-1.5 rounded-full ${isResolved ? "bg-emerald-600" : "bg-red-600 animate-pulse"}`} />
-                            {issue.status || (isResolved ? "Resolved" : "Active")}
-                          </span>
-                        </td>
                         <td className="py-2.5 px-3 border-r border-slate-100 align-middle">
                           <div>
                             <div className="text-xs font-bold text-slate-900">
@@ -4103,34 +4106,9 @@ export default function AlertsProgressPage() {
                           </div>
                         </td>
                         <td className="py-2.5 px-3 border-r border-slate-100 align-middle">
-                          <p className="text-xs text-slate-800 font-medium leading-relaxed max-w-md">
-                            {issue.reason || issue.issue_description || "-"}
+                          <p className="text-xs text-slate-800 font-medium leading-relaxed max-w-xl">
+                            {issue.reason || issue.issue_description || issue.remarks || "-"}
                           </p>
-                        </td>
-                        <td className="py-2.5 px-3 border-r border-slate-100 align-middle">
-                          <div className="space-y-1 max-w-md">
-                            {issue.remarks && (
-                              <p className="text-[11px] text-slate-600">
-                                <strong className="text-slate-800">Remark:</strong> {issue.remarks}
-                              </p>
-                            )}
-                            {isResolved && (
-                              <div className="text-[11px] text-emerald-800 bg-emerald-50 p-1.5 rounded border border-emerald-100">
-                                <strong>Resolution:</strong> {issue.resolution_remark || "Resolved"}
-                                {issue.resolved_at && (
-                                  <span className="block text-[10px] text-emerald-600 mt-0.5">
-                                    Resolved: {new Date(issue.resolved_at).toLocaleString("en-US", {
-                                      month: "short", day: "numeric",
-                                      hour: "numeric", minute: "2-digit", hour12: true
-                                    })}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                            {!issue.remarks && !isResolved && (
-                              <span className="text-[11px] text-slate-400 italic">No additional remark</span>
-                            )}
-                          </div>
                         </td>
                         <td className="py-2.5 px-3 text-center align-middle whitespace-nowrap">
                           <button
@@ -4554,7 +4532,7 @@ export default function AlertsProgressPage() {
           {/* 8. Pagination */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-2.5 border-t border-slate-200 bg-white text-xs text-slate-600">
             <div className="font-normal text-slate-500">
-              Showing <span className="font-semibold text-slate-800">{startItem}</span> – <span className="font-semibold text-slate-800">{endItem}</span> of <span className="font-semibold text-slate-800">{currentTotalItems}</span> {isShowingIssuesTable ? "issues" : "alerts"}
+              Showing <span className="font-semibold text-slate-800">{startItem}</span> – <span className="font-semibold text-slate-800">{endItem}</span> of <span className="font-semibold text-slate-800">{currentTotalItems}</span> {isShowingIssuesTable ? "remarks" : "alerts"}
             </div>
 
             <div className="flex items-center gap-3">
