@@ -2705,7 +2705,7 @@ export default function AlertsProgressPage() {
             title="Download complete scheme engineers directory (.xlsx)"
           >
             <Users className="h-4 w-4 text-indigo-600" />
-            <span>Total Scheme Engineers ({totalRosterEngineers || 6})</span>
+            <span>Total Scheme Engineers </span>
           </Button>
         </div>
 
@@ -3497,7 +3497,7 @@ export default function AlertsProgressPage() {
               ) : (
                 <span className="flex items-center gap-1.5">
                   <Users className="h-4 w-4 text-indigo-600" />
-                  Total Scheme Engineers ({totalRosterEngineers || 6})
+                  Total Scheme Engineers
                 </span>
               )}
             </Button>
@@ -3948,7 +3948,7 @@ export default function AlertsProgressPage() {
                     <span>Ack Engineers Excel ({totalAckEngineers})</span>
                   </Button>
 
-                  <Button
+                  {/* <Button
                     size="sm"
                     variant="outline"
                     onClick={() => {
@@ -3966,7 +3966,7 @@ export default function AlertsProgressPage() {
                   >
                     <FileSpreadsheet className="h-3.5 w-3.5 text-amber-600" />
                     <span>Pending Engineers Excel ({totalPendingEngineers})</span>
-                  </Button>
+                  </Button> */}
 
                   {(ackStatusFilter !== "all" || schemeSearch || villageFilter !== "all") && (
                     <button

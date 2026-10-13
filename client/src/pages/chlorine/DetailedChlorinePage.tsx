@@ -15145,10 +15145,10 @@ const DetailedChlorinePage = () => {
                                   <button
                                     onClick={() =>
                                       setClickedComparisonCell({
-                                        category: "online-with-water",
+                                        category: "all_sensors",
                                         region: "All Regions",
                                         label:
-                                          "Online with water - All Regions",
+                                          "Sensors with data - All Regions",
                                         isLpcd: false,
                                       })
                                     }
@@ -15157,12 +15157,15 @@ const DetailedChlorinePage = () => {
                                     <span className="text-emerald-600 group-hover:scale-110 transition-transform tabular-nums">
                                       {overallComparisonData.data.reduce(
                                         (sum, r) =>
-                                          sum + (r.online_with_water || 0),
+                                          sum +
+                                          (r.below_0_2 || 0) +
+                                          (r.optimal_0_2_0_5 || 0) +
+                                          (r.above_0_5 || 0),
                                         0,
                                       )}
                                     </span>
                                     <span className="text-sm">
-                                      Online with water
+                                      Sensors with data
                                     </span>
                                   </button>
                                 </div>
@@ -15509,9 +15512,9 @@ const DetailedChlorinePage = () => {
                                       <button
                                         onClick={() =>
                                           handlePressureComparisonCellClick(
-                                            "online-with-water",
+                                            "all_sensors",
                                             "All Regions",
-                                            "Online with water - All Regions",
+                                            "Sensors with data - All Regions",
                                           )
                                         }
                                         className="flex items-center gap-2 group hover:opacity-80 transition-all font-semibold text-gray-700 dark:text-gray-300"
@@ -15519,12 +15522,15 @@ const DetailedChlorinePage = () => {
                                         <span className="text-emerald-600 group-hover:scale-110 transition-transform tabular-nums">
                                           {pressureOverallComparison.data.reduce(
                                             (sum: number, r: any) =>
-                                              sum + (r.online_with_water || 0),
+                                              sum +
+                                              (r.below_0_2 || 0) +
+                                              (r.optimal_0_2_0_7 || 0) +
+                                              (r.above_0_7 || 0),
                                             0,
                                           )}
                                         </span>
                                         <span className="text-sm">
-                                          Online with water
+                                          Sensors with data
                                         </span>
                                       </button>
                                     </div>
