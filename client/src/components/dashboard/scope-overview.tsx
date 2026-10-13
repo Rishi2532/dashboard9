@@ -168,7 +168,6 @@ export default function ScopeOverview({
     scope.totalFlowmeterScope + scope.totalRcaScope + scope.totalPtScope;
 
   const isAll = !selectedRegion || selectedRegion === "all";
-  const isInstrumented = (schemeView || "ALL").toUpperCase() === "INSTRUMENTED";
 
   return (
     <div className="flex h-full flex-col rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50/70 via-white to-indigo-50/60 p-3 sm:p-4 shadow-sm">
@@ -181,16 +180,9 @@ export default function ScopeOverview({
           </h2>
 
         </div>
-        <div className="flex flex-col items-end gap-1">
+        <div className="flex items-center gap-1">
           <span className="rounded-full bg-blue-600 px-2.5 py-0.5 text-[10px] font-semibold text-white shadow-sm">
             {isAll ? "All Regions" : selectedRegion}
-          </span>
-          <span
-            className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${isInstrumented
-              ? "bg-emerald-100 text-emerald-700"
-              : "bg-gray-100 text-gray-600"
-              }`}          >
-            {isInstrumented ? "100% Civil Completed" : "All Schemes"}
           </span>
         </div>
       </div>

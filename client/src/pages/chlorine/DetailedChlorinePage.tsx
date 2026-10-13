@@ -4052,9 +4052,6 @@ const DetailedChlorinePage = () => {
                                     <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[100px] border-r border-white/10">
                                       ESR Name
                                     </TableHead>
-                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[150px] text-center border-r border-white/10">
-                                      Remark
-                                    </TableHead>
                                     <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
                                       Status
                                     </TableHead>
@@ -4082,8 +4079,11 @@ const DetailedChlorinePage = () => {
                                     <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
                                       Dashboard
                                     </TableHead>
-                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-white !px-4 !py-3.5 w-[80px] text-center sticky right-0 bg-indigo-700">
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-white !px-4 !py-3.5 w-[80px] text-center border-r border-white/10 bg-indigo-700">
                                       Actions
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[150px] text-center">
+                                      Remark
                                     </TableHead>
                                   </TableRow>
                                 </TableHeader>
@@ -4125,14 +4125,6 @@ const DetailedChlorinePage = () => {
                                         </TableCell>
                                         <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-slate-100/80 dark:border-slate-800/60">
                                           {sensor.esr_name}
-                                        </TableCell>
-                                        <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60 max-w-[150px]">
-                                          {renderRemarkCell(
-                                            esrIssuesMap?.get(
-                                              `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
-                                            ) || [],
-                                            `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
-                                          )}
                                         </TableCell>
                                         <TableCell className="!px-4 !py-3 text-center border-r border-slate-100/80 dark:border-slate-800/60">
                                           <span
@@ -4190,7 +4182,23 @@ const DetailedChlorinePage = () => {
                                           )}
                                         </TableCell>
                                         <TableCell
-                                          className="!px-4 !py-3 text-center border-r border-slate-100/80 dark:border-slate-800/60 max-w-[150px] truncate"
+                                          className={`!px-4 !py-3 text-center ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-slate-50/60 dark:bg-slate-800/40"} border-r border-slate-100/80 dark:border-slate-800/60`}
+                                        >
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() =>
+                                              setSelectedSensor(sensor)
+                                            }
+                                            className="h-7 px-3 text-[11px] font-semibold bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-700 hover:from-indigo-100 hover:to-violet-100 dark:from-indigo-950 dark:to-violet-950 dark:text-indigo-300 dark:hover:from-indigo-900 dark:hover:to-violet-900 rounded-lg shadow-sm border border-indigo-200/50 dark:border-indigo-700/50"
+                                            data-testid={`button-view-details-${idx}`}
+                                          >
+                                            <Eye className="h-3 w-3 mr-1" />
+                                            History
+                                          </Button>
+                                        </TableCell>
+                                        <TableCell
+                                          className="!px-4 !py-3 text-center max-w-[150px] truncate"
                                           title={
                                             hasIssue
                                               ? esrIssues
@@ -4205,22 +4213,6 @@ const DetailedChlorinePage = () => {
                                             ) || [],
                                             `Remarks for ${sensor.esr_name || "ESR"}, ${sensor.village_name || "Village"}`,
                                           )}
-                                        </TableCell>
-                                        <TableCell
-                                          className={`!px-4 !py-3 text-center sticky right-0 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-slate-50/60 dark:bg-slate-800/40"} border-l border-slate-200/80 dark:border-slate-700/60`}
-                                        >
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() =>
-                                              setSelectedSensor(sensor)
-                                            }
-                                            className="h-7 px-3 text-[11px] font-semibold bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-700 hover:from-indigo-100 hover:to-violet-100 dark:from-indigo-950 dark:to-violet-950 dark:text-indigo-300 dark:hover:from-indigo-900 dark:hover:to-violet-900 rounded-lg shadow-sm border border-indigo-200/50 dark:border-indigo-700/50"
-                                            data-testid={`button-view-details-${idx}`}
-                                          >
-                                            <Eye className="h-3 w-3 mr-1" />
-                                            History
-                                          </Button>
                                         </TableCell>
                                       </TableRow>
                                     );
@@ -5207,9 +5199,6 @@ const DetailedChlorinePage = () => {
                                     <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[100px] border-r border-white/10">
                                       Village
                                     </TableHead>
-                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[150px] text-center border-r border-white/10">
-                                      Remark
-                                    </TableHead>
                                     <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
                                       Population
                                     </TableHead>
@@ -5225,10 +5214,13 @@ const DetailedChlorinePage = () => {
                                     {clickedLPCDCell.statisticType.startsWith(
                                       "below-55-",
                                     ) && (
-                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center">
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
                                         Days &lt;55
                                       </TableHead>
                                     )}
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[150px] text-center">
+                                      Remark
+                                    </TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>

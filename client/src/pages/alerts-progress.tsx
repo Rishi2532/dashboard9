@@ -2070,7 +2070,7 @@ export default function AlertsProgressPage() {
                 title="Download complete scheme engineers directory (.xlsx)"
               >
                 <Users className="h-3.5 w-3.5 text-indigo-600" />
-                <span>Total Scheme Engineers ({totalRosterEngineers || 6})</span>
+                <span>Total Scheme Engineers</span>
               </Button>
 
               {(realtimeFilter !== "all" || realtimeSearch) && (
@@ -3501,7 +3501,7 @@ export default function AlertsProgressPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5 mt-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 mt-3.5">
             {/* Card 1: Total Triggered */}
             <div
               onClick={() => setAckStatusFilter("all")}
@@ -3552,9 +3552,7 @@ export default function AlertsProgressPage() {
                   <div className="text-lg font-black text-indigo-900 font-mono leading-tight mt-0.5 truncate">
                     {emailsSentCount} Emails <span className="text-xs text-indigo-400 font-normal">•</span> {smsSentCount} SMS
                   </div>
-                  <div className="text-[10.5px] text-indigo-700 font-medium mt-0.5 leading-snug">
-                    1 email/eng ({firstKpiValue} alerts bundled)
-                  </div>
+
                 </div>
               </div>
 
@@ -3608,9 +3606,7 @@ export default function AlertsProgressPage() {
                   <div className="text-2xl font-black text-slate-900 font-mono leading-tight mt-0.5">
                     {totalAckEngineers}
                   </div>
-                  <div className="text-[11px] text-slate-500 font-medium">
-                    {totalAckEngineers} of {totalEngineers} confirmed ({Math.round((totalAckEngineers / (totalEngineers || 1)) * 100)}%)
-                  </div>
+
                 </div>
               </div>
 
@@ -3641,7 +3637,7 @@ export default function AlertsProgressPage() {
             </div>
 
             {/* Card 4: Pending Action */}
-            <div
+            {/* <div
               onClick={() => {
                 setEngineersModalData({
                   title: `Pending Acknowledgement Engineers (${totalPendingEngineers} of ${totalEngineers})`,
@@ -3692,7 +3688,7 @@ export default function AlertsProgressPage() {
                   <span>Pending Excel</span>
                 </button>
               </div>
-            </div>
+            </div> */}
 
             {/* Card 5: Action Reports */}
             <div
@@ -3702,7 +3698,7 @@ export default function AlertsProgressPage() {
                 <FileText className="h-8 w-8 text-sky-600 shrink-0" />
                 <div>
                   <div className="text-xs font-medium text-slate-700">
-                    Action Reports
+                    Field Remarks
                   </div>
                   <div className="text-2xl font-black text-slate-900 font-mono leading-tight mt-0.5">
                     {totalRemarks}
@@ -3855,7 +3851,7 @@ export default function AlertsProgressPage() {
                       Alert & Ack Status
                     </th>
                     <th className="py-2.5 px-3 text-[11px] font-bold text-center min-w-[120px]">
-                      Remarks / Action
+                      Field Remarks
                     </th>
                   </tr>
                 </thead>
@@ -4090,73 +4086,73 @@ export default function AlertsProgressPage() {
 
                             const successCount = smsList.filter(s => isSmsSuccess(s)).length;
                             const isFullSuccess = successCount === smsList.length;
-                              const latestSms = smsList[0];
-                              const smsDate = latestSms?.created_at ? new Date(latestSms.created_at) : null;
-                              const timeStr = smsDate && !isNaN(smsDate.getTime())
-                                ? smsDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
-                                : null;
+                            const latestSms = smsList[0];
+                            const smsDate = latestSms?.created_at ? new Date(latestSms.created_at) : null;
+                            const timeStr = smsDate && !isNaN(smsDate.getTime())
+                              ? smsDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
+                              : null;
 
-                              return (
-                                <div className="flex flex-col items-center gap-0.5">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border ${isFullSuccess
-                                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                            return (
+                              <div className="flex flex-col items-center gap-0.5">
+                                <div className="flex items-center gap-1.5">
+                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border ${isFullSuccess
+                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                    : successCount > 0
+                                      ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                      : 'bg-rose-50 text-rose-800 border-rose-200'
+                                    }`}>
+                                    <MessageSquare className="w-2.5 h-2.5 text-current" />
+                                    {isFullSuccess
+                                      ? `Delivered (${successCount}/${smsList.length})`
                                       : successCount > 0
-                                        ? 'bg-amber-50 text-amber-800 border-amber-200'
-                                        : 'bg-rose-50 text-rose-800 border-rose-200'
-                                      }`}>
-                                      <MessageSquare className="w-2.5 h-2.5 text-current" />
-                                      {isFullSuccess
-                                        ? `Delivered (${successCount}/${smsList.length})`
-                                        : successCount > 0
-                                          ? `Partial (${successCount}/${smsList.length})`
-                                          : `Failed (${smsList.length})`}
+                                        ? `Partial (${successCount}/${smsList.length})`
+                                        : `Failed (${smsList.length})`}
+                                  </span>
+                                  {timeStr && (
+                                    <span className="text-[10px] text-slate-500 font-normal">
+                                      {timeStr}
                                     </span>
-                                    {timeStr && (
-                                      <span className="text-[10px] text-slate-500 font-normal">
-                                        {timeStr}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <button
-                                    type="button"
-                                    className="text-[10px] font-medium text-blue-600 hover:underline cursor-pointer"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      const cleanScheme = (row.scheme_name || '').replace(/^(JJM\s+MVS\s+|JJM\s+|MVS\s+)/i, '').trim();
-                                      const val = row.current_value ?? row.alert_value ?? row.historical_value ?? '0';
-                                      const loc = [row.village_name, row.esr_name].filter(Boolean).join(' ') || (row.village_name || 'वितरण व्यवस्था');
-                                      let actualMsg = '';
-                                      if (type === 'lpcd') {
-                                        actualMsg = `सूचना: JJM MVS ${cleanScheme} अंतर्गत ${row.village_name || 'ग्राम स्तर'} येथील पाणीपुरवठ्याचा दर 55 LPCD पेक्षा कमी असून सध्याचा पाणीपुरवठ्याचा दर ${val} LPCD आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा`;
-                                      } else if (type === 'chlorine') {
-                                        actualMsg = `सूचना: JJM MVS ${cleanScheme} अंतर्गत ${loc} येथील वितरण व्यवस्थेत Residual Chlorine ची मात्रा 0.2 mg/l पेक्षा कमी असून सध्याची मात्रा ${val} mg/l इतकी आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा`;
-                                      } else if (type === 'pressure') {
-                                        actualMsg = `सूचना: JJM MVS ${cleanScheme} अंतर्गत ${loc} येथील वितरण व्यवस्थेतील Pressure Sensor नुसार पाण्याचा दाब 0.2 bar पेक्षा कमी असून सध्याचा दाब ${val} bar इतका आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा`;
-                                      } else {
-                                        const dtStr = row.sent_date ? new Date(row.sent_date).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
-                                        actualMsg = `सूचना: JJM MVS ${cleanScheme} अंतर्गत ${loc} येथील Sensor Offline आढळला असून Offline Date & Time ${dtStr} आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा`;
-                                      }
-
-                                      const foundMsg = smsList.find(s => s.message_text)?.message_text;
-
-                                      setSelectedSmsModal({
-                                        schemeName: row.scheme_name,
-                                        schemeId: row.scheme_id,
-                                        villageName: row.village_name,
-                                        esrName: row.esr_name,
-                                        alertValue: val,
-                                        dispatches: smsList,
-                                        alertType: type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : type === "pressure" ? "Pressure" : "Offline",
-                                        actualMessageText: foundMsg || actualMsg
-                                      });
-                                    }}
-                                  >
-                                    View Log
-                                  </button>
+                                  )}
                                 </div>
-                              );
-                            })()}
+                                <button
+                                  type="button"
+                                  className="text-[10px] font-medium text-blue-600 hover:underline cursor-pointer"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const cleanScheme = (row.scheme_name || '').replace(/^(JJM\s+MVS\s+|JJM\s+|MVS\s+)/i, '').trim();
+                                    const val = row.current_value ?? row.alert_value ?? row.historical_value ?? '0';
+                                    const loc = [row.village_name, row.esr_name].filter(Boolean).join(' ') || (row.village_name || 'वितरण व्यवस्था');
+                                    let actualMsg = '';
+                                    if (type === 'lpcd') {
+                                      actualMsg = `सूचना: JJM MVS ${cleanScheme} अंतर्गत ${row.village_name || 'ग्राम स्तर'} येथील पाणीपुरवठ्याचा दर 55 LPCD पेक्षा कमी असून सध्याचा पाणीपुरवठ्याचा दर ${val} LPCD आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा`;
+                                    } else if (type === 'chlorine') {
+                                      actualMsg = `सूचना: JJM MVS ${cleanScheme} अंतर्गत ${loc} येथील वितरण व्यवस्थेत Residual Chlorine ची मात्रा 0.2 mg/l पेक्षा कमी असून सध्याची मात्रा ${val} mg/l इतकी आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा`;
+                                    } else if (type === 'pressure') {
+                                      actualMsg = `सूचना: JJM MVS ${cleanScheme} अंतर्गत ${loc} येथील वितरण व्यवस्थेतील Pressure Sensor नुसार पाण्याचा दाब 0.2 bar पेक्षा कमी असून सध्याचा दाब ${val} bar इतका आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा`;
+                                    } else {
+                                      const dtStr = row.sent_date ? new Date(row.sent_date).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
+                                      actualMsg = `सूचना: JJM MVS ${cleanScheme} अंतर्गत ${loc} येथील Sensor Offline आढळला असून Offline Date & Time ${dtStr} आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा`;
+                                    }
+
+                                    const foundMsg = smsList.find(s => s.message_text)?.message_text;
+
+                                    setSelectedSmsModal({
+                                      schemeName: row.scheme_name,
+                                      schemeId: row.scheme_id,
+                                      villageName: row.village_name,
+                                      esrName: row.esr_name,
+                                      alertValue: val,
+                                      dispatches: smsList,
+                                      alertType: type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : type === "pressure" ? "Pressure" : "Offline",
+                                      actualMessageText: foundMsg || actualMsg
+                                    });
+                                  }}
+                                >
+                                  View Log
+                                </button>
+                              </div>
+                            );
+                          })()}
                         </td>
 
                         {/* 7. Alert & Ack Status - NO VIOLATED TAG! */}
