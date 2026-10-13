@@ -204,35 +204,59 @@ export const isValidEngineerName = (rawName?: string | null): boolean => {
   return true;
 };
 
-// Helper to determine SMS delivery status rank for sorting:
-// 1 = Delivered (all SMS succeeded)
-// 2 = Partial (some succeeded, some failed)
-// 3 = Failed (0 SMS succeeded)
-// 4 = Not Dispatched / Not Sent / No SMS
-export const getSmsDeliveryStatusRank = (row: any): number => {
+// Helper to check if an SMS record succeeded
+export const isSmsSuccess = (s: any): boolean => {
+  if (!s) return false;
+  if (s.is_success === true || s.is_success === 1 || s.is_success === 'true') return true;
+  if (s.is_success === false || s.is_success === 0 || s.is_success === 'false') return false;
+  if (s.gateway_status && (Number(s.gateway_status) === 200 || Number(s.gateway_status) === 1)) return true;
+  return false;
+};
+
+// Helper to extract matching SMS dispatches for a specific alert row
+export const getRowSmsList = (row: any): any[] => {
+  if (!row) return [];
   const rawSmsList = (Array.isArray(row.sms_dispatches) && row.sms_dispatches.length > 0)
     ? row.sms_dispatches
     : (Array.isArray(row.sms_recipients) && row.sms_recipients.length > 0 ? row.sms_recipients : []);
 
-  const smsList = (row.village_name || row.esr_name)
-    ? rawSmsList.filter((s: any) =>
-      (row.village_name && s.message_text && s.message_text.toLowerCase().includes(row.village_name.toLowerCase())) ||
-      (row.esr_name && s.message_text && s.message_text.toLowerCase().includes(row.esr_name.toLowerCase()))
-    )
-    : rawSmsList;
+  if (!rawSmsList || rawSmsList.length === 0) return [];
 
-  if (!smsList || smsList.length === 0) {
-    return 4;
+  if (row.village_name || row.esr_name) {
+    const vName = row.village_name ? String(row.village_name).toLowerCase().trim() : '';
+    const eName = row.esr_name ? String(row.esr_name).toLowerCase().trim() : '';
+
+    const matched = rawSmsList.filter((s: any) => {
+      const msg = s.message_text ? String(s.message_text).toLowerCase() : '';
+      return (vName && msg.includes(vName)) || (eName && msg.includes(eName));
+    });
+
+    return matched;
   }
 
-  const successCount = smsList.filter((s: any) => s.is_success === true || (s.is_success !== false && s.is_success !== 0 && s.is_success !== 'false')).length;
+  return rawSmsList;
+};
+
+// Helper to determine SMS delivery status rank for sorting based on performance:
+// 1 = Delivered (All SMS succeeded)
+// 1.5 = Partial Delivered (At least 1 SMS succeeded)
+// 2 = Failed (SMS was dispatched, but 0 succeeded)
+// 3 = Not Dispatched (No SMS dispatched for this alert)
+export const getSmsDeliveryStatusRank = (row: any): number => {
+  const smsList = getRowSmsList(row);
+
+  if (!smsList || smsList.length === 0) {
+    return 3; // Not Dispatched comes last
+  }
+
+  const successCount = smsList.filter(s => isSmsSuccess(s)).length;
 
   if (successCount === smsList.length) {
-    return 1; // Delivered first
+    return 1; // Delivered comes first
   } else if (successCount > 0) {
-    return 2; // Partial next
+    return 1.5; // Partial Delivered comes right after full Delivered
   } else {
-    return 3; // Failed next
+    return 2; // Failed comes next
   }
 };
 
@@ -1060,7 +1084,14 @@ export default function AlertsProgressPage() {
       });
     });
 
-    list.sort((a, b) => b.createdTime - a.createdTime);
+    list.sort((a, b) => {
+      const isDeliveredA = a.isSuccess === true || String(a.status || '').toLowerCase().includes('delivered');
+      const isDeliveredB = b.isSuccess === true || String(b.status || '').toLowerCase().includes('delivered');
+      const rankA = isDeliveredA ? 1 : 2;
+      const rankB = isDeliveredB ? 1 : 2;
+      if (rankA !== rankB) return rankA - rankB;
+      return (b.createdTime || 0) - (a.createdTime || 0);
+    });
     return list;
   }, [dailyDispatchesData]);
 
@@ -1371,10 +1402,16 @@ export default function AlertsProgressPage() {
       return true;
     });
 
-    // Sort Real-time alerts by SMS Sent status (Delivered -> Partial -> Failed -> Others)
-    const sortedRealtimeAlerts = [...filteredRealtimeAlerts].sort(
-      (a: any, b: any) => getSmsDeliveryStatusRank(a) - getSmsDeliveryStatusRank(b)
-    );
+    // Sort Real-time alerts based on performance: Delivered -> Failed -> Not Dispatched
+    const sortedRealtimeAlerts = [...filteredRealtimeAlerts].sort((a: any, b: any) => {
+      const rankA = getSmsDeliveryStatusRank(a);
+      const rankB = getSmsDeliveryStatusRank(b);
+      if (rankA !== rankB) return rankA - rankB;
+      const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      if (timeA !== timeB) return timeB - timeA;
+      return (a.scheme_name || '').localeCompare(b.scheme_name || '');
+    });
 
     const startIdx = (realtimePage - 1) * realtimeRowsPerPage;
     const endIdx = realtimePage * realtimeRowsPerPage;
@@ -2342,7 +2379,7 @@ export default function AlertsProgressPage() {
                         <td className="py-2.5 px-3 text-center border-r border-slate-100 align-middle whitespace-nowrap">
                           {smsRecs.length > 0 ? (
                             (() => {
-                              const successCount = smsRecs.filter((s: any) => s.is_success !== false).length;
+                              const successCount = smsRecs.filter((s: any) => isSmsSuccess(s)).length;
                               const isFullSuccess = successCount === smsRecs.length;
                               const latestSms = smsRecs[0];
                               const smsDate = latestSms?.created_at ? new Date(latestSms.created_at) : null;
@@ -2891,8 +2928,8 @@ export default function AlertsProgressPage() {
                         {/* 7. Sent Date & Status */}
                         <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
                           <div className="space-y-1 inline-flex flex-col items-center">
-                            <Badge className="bg-emerald-50 text-emerald-800 border-emerald-300 text-[10px] font-bold px-2 py-0.5">
-                              <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-600" />
+                            <Badge className={item.isSuccess ? "bg-emerald-50 text-emerald-800 border-emerald-300 text-[10px] font-bold px-2 py-0.5" : "bg-rose-50 text-rose-800 border-rose-300 text-[10px] font-bold px-2 py-0.5"}>
+                              {item.isSuccess ? <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-600" /> : <AlertCircle className="h-3 w-3 mr-1 text-rose-600" />}
                               {item.status}
                             </Badge>
                             <div className="text-[10px] text-slate-500 flex items-center justify-center gap-1">
@@ -3197,10 +3234,16 @@ export default function AlertsProgressPage() {
       return true;
     });
 
-    // Sort alerts by SMS Sent status: Delivered first -> Partial -> Failed -> Others
-    const displayData = [...filteredRows].sort(
-      (a, b) => getSmsDeliveryStatusRank(a) - getSmsDeliveryStatusRank(b)
-    );
+    // Sort alerts based on performance: Delivered -> Failed -> Not Dispatched
+    const displayData = [...filteredRows].sort((a, b) => {
+      const rankA = getSmsDeliveryStatusRank(a);
+      const rankB = getSmsDeliveryStatusRank(b);
+      if (rankA !== rankB) return rankA - rankB;
+      const timeA = a.created_at ? new Date(a.created_at).getTime() : (a.sent_date ? new Date(a.sent_date).getTime() : 0);
+      const timeB = b.created_at ? new Date(b.created_at).getTime() : (b.sent_date ? new Date(b.sent_date).getTime() : 0);
+      if (timeA !== timeB) return timeB - timeA;
+      return (a.scheme_name || '').localeCompare(b.scheme_name || '');
+    });
 
     // Pagination Logic
     const startIdx = (page - 1) * rowsPerPage;
@@ -4038,22 +4081,15 @@ export default function AlertsProgressPage() {
 
                         {/* 6. SMS Gateway */}
                         <td className="py-2.5 px-3 text-center border-r border-slate-100 align-middle whitespace-nowrap">
-                          {row.sms_dispatches && row.sms_dispatches.length > 0 ? (
-                            (() => {
-                              const rawSmsList = row.sms_dispatches!;
-                              const smsList = (row.village_name || row.esr_name)
-                                ? rawSmsList.filter(s =>
-                                  (row.village_name && s.message_text && s.message_text.toLowerCase().includes(row.village_name.toLowerCase())) ||
-                                  (row.esr_name && s.message_text && s.message_text.toLowerCase().includes(row.esr_name.toLowerCase()))
-                                )
-                                : rawSmsList;
+                          {(() => {
+                            const smsList = getRowSmsList(row);
 
-                              if (smsList.length === 0) {
-                                return <span className="text-[11px] text-slate-400 italic">Not Dispatched</span>;
-                              }
+                            if (smsList.length === 0) {
+                              return <span className="text-[11px] text-slate-400 italic">Not Dispatched</span>;
+                            }
 
-                              const successCount = smsList.filter(s => s.is_success).length;
-                              const isFullSuccess = successCount === smsList.length;
+                            const successCount = smsList.filter(s => isSmsSuccess(s)).length;
+                            const isFullSuccess = successCount === smsList.length;
                               const latestSms = smsList[0];
                               const smsDate = latestSms?.created_at ? new Date(latestSms.created_at) : null;
                               const timeStr = smsDate && !isNaN(smsDate.getTime())
@@ -4120,10 +4156,7 @@ export default function AlertsProgressPage() {
                                   </button>
                                 </div>
                               );
-                            })()
-                          ) : (
-                            <span className="text-[11px] text-slate-400 italic">Not Dispatched</span>
-                          )}
+                            })()}
                         </td>
 
                         {/* 7. Alert & Ack Status - NO VIOLATED TAG! */}
@@ -4273,18 +4306,28 @@ export default function AlertsProgressPage() {
     );
   };
 
-  // Filter rows inside the Acknowledged / Pending Modal dialog
+  // Filter and sort rows inside the Acknowledged / Pending Modal dialog based on performance
   const modalFilteredRows = useMemo(() => {
     if (!ackModalData) return [];
-    if (!modalSearch.trim()) return ackModalData.rows;
-    const q = modalSearch.toLowerCase().trim();
-    return ackModalData.rows.filter(row =>
-      (row.scheme_name && row.scheme_name.toLowerCase().includes(q)) ||
-      (row.scheme_id && row.scheme_id.toLowerCase().includes(q)) ||
-      (row.village_name && row.village_name.toLowerCase().includes(q)) ||
-      (row.esr_name && row.esr_name.toLowerCase().includes(q)) ||
-      (row.region && row.region.toLowerCase().includes(q))
-    );
+    let list = ackModalData.rows;
+    if (modalSearch.trim()) {
+      const q = modalSearch.toLowerCase().trim();
+      list = list.filter(row =>
+        (row.scheme_name && row.scheme_name.toLowerCase().includes(q)) ||
+        (row.scheme_id && row.scheme_id.toLowerCase().includes(q)) ||
+        (row.village_name && row.village_name.toLowerCase().includes(q)) ||
+        (row.esr_name && row.esr_name.toLowerCase().includes(q)) ||
+        (row.region && row.region.toLowerCase().includes(q))
+      );
+    }
+    return [...list].sort((a, b) => {
+      const rankA = getSmsDeliveryStatusRank(a);
+      const rankB = getSmsDeliveryStatusRank(b);
+      if (rankA !== rankB) return rankA - rankB;
+      const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return timeB - timeA;
+    });
   }, [ackModalData, modalSearch]);
 
   return (
