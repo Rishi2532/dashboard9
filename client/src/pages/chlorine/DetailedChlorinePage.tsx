@@ -157,12 +157,12 @@ interface DayWiseBreakdown {
 
 interface DayWiseClickedCell {
   metric:
-    | "offline"
-    | "below_0_2"
-    | "above_0_5"
-    | "optimal_0_2_0_5"
-    | "above_0_7"
-    | "optimal_0_2_0_7";
+  | "offline"
+  | "below_0_2"
+  | "above_0_5"
+  | "optimal_0_2_0_5"
+  | "above_0_7"
+  | "optimal_0_2_0_7";
   days: number;
   label: string;
 }
@@ -644,9 +644,9 @@ const DetailedChlorinePage = () => {
       }
       if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
       }
       if (villageFilter !== "all") {
         params.append("villageFilter", villageFilter);
@@ -714,9 +714,9 @@ const DetailedChlorinePage = () => {
       }
       if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
       }
       if (villageFilter !== "all") {
         params.append("villageFilter", villageFilter);
@@ -758,9 +758,9 @@ const DetailedChlorinePage = () => {
       }
       if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
       }
       if (villageFilter !== "all") {
         params.append("villageFilter", villageFilter);
@@ -785,8 +785,8 @@ const DetailedChlorinePage = () => {
         regionalStats.map((stat) => stat.region).join(","),
         schemeFilter,
         selectedAgencyType,
-      villageFilter,
-    ],
+        villageFilter,
+      ],
       enabled: regionalStats.length > 0,
       queryFn: async () => {
         const regions = regionalStats.map((stat) => stat.region);
@@ -803,14 +803,14 @@ const DetailedChlorinePage = () => {
               params.append("fullyCompleted", "true");
             }
             if (selectedAgencyType !== "ALL") {
-        params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
-      }
-      if (villageFilter !== "all") {
-        params.append("villageFilter", villageFilter);
-      }
+              params.append("agencyType", selectedAgencyType);
+              if (villageFilter !== "all") {
+                params.append("villageFilter", villageFilter);
+              }
+            }
+            if (villageFilter !== "all") {
+              params.append("villageFilter", villageFilter);
+            }
             const response = await fetch(
               `/api/chlorine/day-wise-breakdown?${params.toString()}`,
             );
@@ -872,9 +872,9 @@ const DetailedChlorinePage = () => {
       }
       if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
       }
       if (villageFilter !== "all") {
         params.append("villageFilter", villageFilter);
@@ -963,9 +963,9 @@ const DetailedChlorinePage = () => {
       }
       if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
       }
       if (villageFilter !== "all") {
         params.append("villageFilter", villageFilter);
@@ -1004,9 +1004,9 @@ const DetailedChlorinePage = () => {
       }
       if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
       }
       if (villageFilter !== "all") {
         params.append("villageFilter", villageFilter);
@@ -1035,8 +1035,8 @@ const DetailedChlorinePage = () => {
         lpcdDayWiseRegion,
         schemeFilter,
         selectedAgencyType,
-      villageFilter,
-    ],
+        villageFilter,
+      ],
       enabled: !!clickedLpcdDayWiseCell,
       queryFn: async () => {
         const params = new URLSearchParams();
@@ -1050,14 +1050,14 @@ const DetailedChlorinePage = () => {
           params.append("fullyCompleted", "true");
         }
         if (selectedAgencyType !== "ALL") {
-        params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
-      }
-      if (villageFilter !== "all") {
-        params.append("villageFilter", villageFilter);
-      }
+          params.append("agencyType", selectedAgencyType);
+          if (villageFilter !== "all") {
+            params.append("villageFilter", villageFilter);
+          }
+        }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
         const response = await fetch(
           `/api/chlorine/lpcd/day-wise-villages/${clickedLpcdDayWiseCell?.metric}/${clickedLpcdDayWiseCell?.days}?${params.toString()}`,
         );
@@ -1098,9 +1098,9 @@ const DetailedChlorinePage = () => {
       }
       if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
       }
       if (villageFilter !== "all") {
         params.append("villageFilter", villageFilter);
@@ -1127,8 +1127,8 @@ const DetailedChlorinePage = () => {
         dayWiseRegion,
         schemeFilter,
         selectedAgencyType,
-      villageFilter,
-    ],
+        villageFilter,
+      ],
       enabled: !!clickedDayWiseCell,
       queryFn: async () => {
         const params = new URLSearchParams();
@@ -1142,14 +1142,14 @@ const DetailedChlorinePage = () => {
           params.append("fullyCompleted", "true");
         }
         if (selectedAgencyType !== "ALL") {
-        params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
-      }
-      if (villageFilter !== "all") {
-        params.append("villageFilter", villageFilter);
-      }
+          params.append("agencyType", selectedAgencyType);
+          if (villageFilter !== "all") {
+            params.append("villageFilter", villageFilter);
+          }
+        }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
 
         const response = await fetch(
           `/api/chlorine/day-wise-sensors/${clickedDayWiseCell?.metric}/${clickedDayWiseCell?.days}?${params.toString()}`,
@@ -1171,8 +1171,8 @@ const DetailedChlorinePage = () => {
         divisionWiseRegion,
         schemeFilter,
         selectedAgencyType,
-      villageFilter,
-    ],
+        villageFilter,
+      ],
       queryFn: async () => {
         const params = new URLSearchParams();
         if (divisionWiseRegion && divisionWiseRegion !== "All Regions") {
@@ -1185,14 +1185,14 @@ const DetailedChlorinePage = () => {
           params.append("fullyCompleted", "true");
         }
         if (selectedAgencyType !== "ALL") {
-        params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
-      }
-      if (villageFilter !== "all") {
-        params.append("villageFilter", villageFilter);
-      }
+          params.append("agencyType", selectedAgencyType);
+          if (villageFilter !== "all") {
+            params.append("villageFilter", villageFilter);
+          }
+        }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
 
         const response = await fetch(
           `/api/category-data/division-wise-summary?${params.toString()}`,
@@ -1217,8 +1217,8 @@ const DetailedChlorinePage = () => {
         clickedDivisionCell?.metric,
         schemeFilter,
         selectedAgencyType,
-      villageFilter,
-    ],
+        villageFilter,
+      ],
       enabled: !!clickedDivisionCell,
       queryFn: async () => {
         const params = new URLSearchParams();
@@ -1237,14 +1237,14 @@ const DetailedChlorinePage = () => {
           params.append("fullyCompleted", "true");
         }
         if (selectedAgencyType !== "ALL") {
-        params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
-      }
-      if (villageFilter !== "all") {
-        params.append("villageFilter", villageFilter);
-      }
+          params.append("agencyType", selectedAgencyType);
+          if (villageFilter !== "all") {
+            params.append("villageFilter", villageFilter);
+          }
+        }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
 
         const response = await fetch(
           `/api/category-data/division-villages?${params.toString()}`,
@@ -1284,9 +1284,9 @@ const DetailedChlorinePage = () => {
       }
       if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
       }
       if (villageFilter !== "all") {
         params.append("villageFilter", villageFilter);
@@ -1338,9 +1338,9 @@ const DetailedChlorinePage = () => {
       }
       if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
       }
       if (villageFilter !== "all") {
         params.append("villageFilter", villageFilter);
@@ -1365,8 +1365,8 @@ const DetailedChlorinePage = () => {
         "/api/chlorine/overall-region-comparison",
         schemeFilter,
         selectedAgencyType,
-      villageFilter,
-    ],
+        villageFilter,
+      ],
       queryFn: async () => {
         const params = new URLSearchParams();
         if (schemeFilter !== "all") {
@@ -1376,14 +1376,14 @@ const DetailedChlorinePage = () => {
           params.append("fullyCompleted", "true");
         }
         if (selectedAgencyType !== "ALL") {
-        params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
-      }
-      if (villageFilter !== "all") {
-        params.append("villageFilter", villageFilter);
-      }
+          params.append("agencyType", selectedAgencyType);
+          if (villageFilter !== "all") {
+            params.append("villageFilter", villageFilter);
+          }
+        }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
         const queryString = params.toString();
         const url = `/api/chlorine/overall-region-comparison${queryString ? `?${queryString}` : ""}`;
         const response = await fetch(url);
@@ -1402,8 +1402,8 @@ const DetailedChlorinePage = () => {
         "/api/flowmeter/overall-region-comparison",
         schemeFilter,
         selectedAgencyType,
-      villageFilter,
-    ],
+        villageFilter,
+      ],
       queryFn: async () => {
         const params = new URLSearchParams();
         if (schemeFilter !== "all") {
@@ -1413,14 +1413,14 @@ const DetailedChlorinePage = () => {
           params.append("fullyCompleted", "true");
         }
         if (selectedAgencyType !== "ALL") {
-        params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
-      }
-      if (villageFilter !== "all") {
-        params.append("villageFilter", villageFilter);
-      }
+          params.append("agencyType", selectedAgencyType);
+          if (villageFilter !== "all") {
+            params.append("villageFilter", villageFilter);
+          }
+        }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
         const response = await fetch(
           `/api/flowmeter/overall-region-comparison?${params.toString()}`,
         );
@@ -1442,8 +1442,8 @@ const DetailedChlorinePage = () => {
         clickedFlowmeterCell?.region,
         schemeFilter,
         selectedAgencyType,
-      villageFilter,
-    ],
+        villageFilter,
+      ],
       queryFn: async () => {
         const params = new URLSearchParams();
         if (
@@ -1459,14 +1459,14 @@ const DetailedChlorinePage = () => {
           params.append("fullyCompleted", "true");
         }
         if (selectedAgencyType !== "ALL") {
-        params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
-      }
-      if (villageFilter !== "all") {
-        params.append("villageFilter", villageFilter);
-      }
+          params.append("agencyType", selectedAgencyType);
+          if (villageFilter !== "all") {
+            params.append("villageFilter", villageFilter);
+          }
+        }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
         const response = await fetch(
           `/api/flowmeter/overall-region-comparison/details/${clickedFlowmeterCell?.category}?${params.toString()}`,
         );
@@ -1489,8 +1489,8 @@ const DetailedChlorinePage = () => {
         clickedComparisonCell?.dates,
         schemeFilter,
         selectedAgencyType,
-      villageFilter,
-    ],
+        villageFilter,
+      ],
       enabled: !!clickedComparisonCell,
       queryFn: async () => {
         const params = new URLSearchParams();
@@ -1510,14 +1510,14 @@ const DetailedChlorinePage = () => {
           params.append("fullyCompleted", "true");
         }
         if (selectedAgencyType !== "ALL") {
-        params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
-      }
-      if (villageFilter !== "all") {
-        params.append("villageFilter", villageFilter);
-      }
+          params.append("agencyType", selectedAgencyType);
+          if (villageFilter !== "all") {
+            params.append("villageFilter", villageFilter);
+          }
+        }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
 
         const response = await fetch(
           `/api/chlorine/overall-region-comparison/details/${clickedComparisonCell?.category}?${params.toString()}`,
@@ -1537,8 +1537,8 @@ const DetailedChlorinePage = () => {
         "/api/chlorine/lpcd/regional-stats",
         schemeFilter,
         selectedAgencyType,
-      villageFilter,
-    ],
+        villageFilter,
+      ],
       queryFn: async () => {
         const params = new URLSearchParams();
         if (schemeFilter !== "all") {
@@ -1548,14 +1548,14 @@ const DetailedChlorinePage = () => {
           params.append("fullyCompleted", "true");
         }
         if (selectedAgencyType !== "ALL") {
-        params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
-      }
-      if (villageFilter !== "all") {
-        params.append("villageFilter", villageFilter);
-      }
+          params.append("agencyType", selectedAgencyType);
+          if (villageFilter !== "all") {
+            params.append("villageFilter", villageFilter);
+          }
+        }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
         const queryString = params.toString();
         const url = `/api/chlorine/lpcd/regional-stats${queryString ? `?${queryString}` : ""}`;
         const response = await fetch(url);
@@ -1594,9 +1594,9 @@ const DetailedChlorinePage = () => {
       }
       if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
       }
       if (villageFilter !== "all") {
         params.append("villageFilter", villageFilter);
@@ -1637,9 +1637,9 @@ const DetailedChlorinePage = () => {
       }
       if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
       }
       if (villageFilter !== "all") {
         params.append("villageFilter", villageFilter);
@@ -1666,8 +1666,8 @@ const DetailedChlorinePage = () => {
         clickedSchemeLPCDCell?.region,
         schemeFilter,
         selectedAgencyType,
-      villageFilter,
-    ],
+        villageFilter,
+      ],
       enabled: !!clickedSchemeLPCDCell,
       queryFn: async () => {
         const params = new URLSearchParams();
@@ -1684,14 +1684,14 @@ const DetailedChlorinePage = () => {
           params.append("fullyCompleted", "true");
         }
         if (selectedAgencyType !== "ALL") {
-        params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
-      }
-      if (villageFilter !== "all") {
-        params.append("villageFilter", villageFilter);
-      }
+          params.append("agencyType", selectedAgencyType);
+          if (villageFilter !== "all") {
+            params.append("villageFilter", villageFilter);
+          }
+        }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
 
         const response = await fetch(
           `/api/chlorine/scheme-lpcd/details/${clickedSchemeLPCDCell?.statisticType}?${params.toString()}`,
@@ -1738,9 +1738,9 @@ const DetailedChlorinePage = () => {
       }
       if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
       }
       if (villageFilter !== "all") {
         params.append("villageFilter", villageFilter);
@@ -1789,9 +1789,9 @@ const DetailedChlorinePage = () => {
       }
       if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
       }
       if (villageFilter !== "all") {
         params.append("villageFilter", villageFilter);
@@ -1822,8 +1822,8 @@ const DetailedChlorinePage = () => {
         schemeLpcdDayWiseRegion,
         schemeFilter,
         selectedAgencyType,
-      villageFilter,
-    ],
+        villageFilter,
+      ],
       enabled:
         mainTab === "lpcd" &&
         lpcdSubTab === "scheme" &&
@@ -1843,14 +1843,14 @@ const DetailedChlorinePage = () => {
           params.append("fullyCompleted", "true");
         }
         if (selectedAgencyType !== "ALL") {
-        params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
-      }
-      if (villageFilter !== "all") {
-        params.append("villageFilter", villageFilter);
-      }
+          params.append("agencyType", selectedAgencyType);
+          if (villageFilter !== "all") {
+            params.append("villageFilter", villageFilter);
+          }
+        }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
         const response = await fetch(
           `/api/chlorine/scheme-lpcd/day-wise-breakdown?${params.toString()}`,
         );
@@ -1957,9 +1957,9 @@ const DetailedChlorinePage = () => {
       }
       if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
       }
       if (villageFilter !== "all") {
         params.append("villageFilter", villageFilter);
@@ -2064,9 +2064,9 @@ const DetailedChlorinePage = () => {
       }
       if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
       }
       if (villageFilter !== "all") {
         params.append("villageFilter", villageFilter);
@@ -2178,9 +2178,9 @@ const DetailedChlorinePage = () => {
       }
       if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
       }
       if (villageFilter !== "all") {
         params.append("villageFilter", villageFilter);
@@ -2214,8 +2214,8 @@ const DetailedChlorinePage = () => {
         pressureDayWiseRegion,
         schemeFilter,
         selectedAgencyType,
-      villageFilter,
-    ],
+        villageFilter,
+      ],
       enabled: mainTab === "pressure" && !!pressureDayWiseRegion,
       queryFn: async () => {
         const params = new URLSearchParams();
@@ -2229,14 +2229,14 @@ const DetailedChlorinePage = () => {
           params.append("fullyCompleted", "true");
         }
         if (selectedAgencyType !== "ALL") {
-        params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
-      }
-      if (villageFilter !== "all") {
-        params.append("villageFilter", villageFilter);
-      }
+          params.append("agencyType", selectedAgencyType);
+          if (villageFilter !== "all") {
+            params.append("villageFilter", villageFilter);
+          }
+        }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
         console.log("[Pressure Day-Wise Breakdown] Filter params:", {
           schemeFilter,
           params: params.toString(),
@@ -2281,14 +2281,14 @@ const DetailedChlorinePage = () => {
             params.append("fullyCompleted", "true");
           }
           if (selectedAgencyType !== "ALL") {
-        params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
-      }
-      if (villageFilter !== "all") {
-        params.append("villageFilter", villageFilter);
-      }
+            params.append("agencyType", selectedAgencyType);
+            if (villageFilter !== "all") {
+              params.append("villageFilter", villageFilter);
+            }
+          }
+          if (villageFilter !== "all") {
+            params.append("villageFilter", villageFilter);
+          }
           const response = await fetch(
             `/api/pressure/day-wise-breakdown?${params.toString()}`,
           );
@@ -2352,9 +2352,9 @@ const DetailedChlorinePage = () => {
       }
       if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
       }
       if (villageFilter !== "all") {
         params.append("villageFilter", villageFilter);
@@ -2390,8 +2390,8 @@ const DetailedChlorinePage = () => {
         pressureDivisionWiseRegion,
         schemeFilter,
         selectedAgencyType,
-      villageFilter,
-    ],
+        villageFilter,
+      ],
       enabled: mainTab === "pressure",
       queryFn: async () => {
         const params = new URLSearchParams();
@@ -2408,14 +2408,14 @@ const DetailedChlorinePage = () => {
           params.append("fullyCompleted", "true");
         }
         if (selectedAgencyType !== "ALL") {
-        params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
-      }
-      if (villageFilter !== "all") {
-        params.append("villageFilter", villageFilter);
-      }
+          params.append("agencyType", selectedAgencyType);
+          if (villageFilter !== "all") {
+            params.append("villageFilter", villageFilter);
+          }
+        }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
         console.log("[Pressure Division Summary] Filter params:", {
           schemeFilter,
           params: params.toString(),
@@ -2469,9 +2469,9 @@ const DetailedChlorinePage = () => {
       }
       if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
       }
       if (villageFilter !== "all") {
         params.append("villageFilter", villageFilter);
@@ -2497,8 +2497,8 @@ const DetailedChlorinePage = () => {
         clickedPressureCell?.region,
         schemeFilter,
         selectedAgencyType,
-      villageFilter,
-    ],
+        villageFilter,
+      ],
       enabled: !!clickedPressureCell,
       queryFn: async () => {
         const params = new URLSearchParams();
@@ -2515,14 +2515,14 @@ const DetailedChlorinePage = () => {
           params.append("fullyCompleted", "true");
         }
         if (selectedAgencyType !== "ALL") {
-        params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
-      }
-      if (villageFilter !== "all") {
-        params.append("villageFilter", villageFilter);
-      }
+          params.append("agencyType", selectedAgencyType);
+          if (villageFilter !== "all") {
+            params.append("villageFilter", villageFilter);
+          }
+        }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
         const response = await fetch(
           `/api/pressure/details/${clickedPressureCell?.statisticType}?${params.toString()}`,
         );
@@ -2568,9 +2568,9 @@ const DetailedChlorinePage = () => {
       }
       if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
       }
       if (villageFilter !== "all") {
         params.append("villageFilter", villageFilter);
@@ -2624,9 +2624,9 @@ const DetailedChlorinePage = () => {
       }
       if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
       }
       if (villageFilter !== "all") {
         params.append("villageFilter", villageFilter);
@@ -2677,9 +2677,9 @@ const DetailedChlorinePage = () => {
       }
       if (selectedAgencyType !== "ALL") {
         params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
+        if (villageFilter !== "all") {
+          params.append("villageFilter", villageFilter);
+        }
       }
       if (villageFilter !== "all") {
         params.append("villageFilter", villageFilter);
@@ -2884,14 +2884,14 @@ const DetailedChlorinePage = () => {
       params.append("fullyCompleted", "true");
     }
     if (selectedAgencyType !== "ALL") {
-        params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
-      }
+      params.append("agencyType", selectedAgencyType);
       if (villageFilter !== "all") {
         params.append("villageFilter", villageFilter);
       }
+    }
+    if (villageFilter !== "all") {
+      params.append("villageFilter", villageFilter);
+    }
 
     const url = `/api/chlorine/lpcd/export/${clickedLPCDCell.statisticType}?${params.toString()}`;
     window.open(url, "_blank");
@@ -3021,14 +3021,14 @@ const DetailedChlorinePage = () => {
       params.append("fullyCompleted", "true");
     }
     if (selectedAgencyType !== "ALL") {
-        params.append("agencyType", selectedAgencyType);
-    if (villageFilter !== "all") {
-      params.append("villageFilter", villageFilter);
-    }
-      }
+      params.append("agencyType", selectedAgencyType);
       if (villageFilter !== "all") {
         params.append("villageFilter", villageFilter);
       }
+    }
+    if (villageFilter !== "all") {
+      params.append("villageFilter", villageFilter);
+    }
 
     const url = `/api/chlorine/export/${clickedCell.statisticType}?${params.toString()}`;
     console.log("🚀 [EXPORTING] Opening URL:", url);
@@ -3682,42 +3682,42 @@ const DetailedChlorinePage = () => {
 
               {(uiSchemeFilter === "commissioned" ||
                 uiSchemeFilter === "fully_completed") && (
-                <>
-                  <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 flex-shrink-0" />
-                  <Tabs
-                    value={waterSupplyStatus}
-                    onValueChange={setWaterSupplyStatus}
-                    className="m-0 flex-shrink-0"
-                  >
-                    <TabsList className="h-8 bg-gray-100 dark:bg-gray-800 p-0.5 border border-gray-200 dark:border-gray-700">
-                      <TabsTrigger
-                        value="All"
-                        className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-blue-600 data-[state=active]:text-white whitespace-nowrap"
-                      >
-                        All
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="Full"
-                        className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-emerald-600 data-[state=active]:text-white whitespace-nowrap"
-                      >
-                        Full Operational
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="Partial"
-                        className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-amber-500 data-[state=active]:text-white whitespace-nowrap"
-                      >
-                        Partially Operational
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="No"
-                        className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-red-500 data-[state=active]:text-white whitespace-nowrap"
-                      >
-                        Not Operational
-                      </TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-                </>
-              )}
+                  <>
+                    <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 flex-shrink-0" />
+                    <Tabs
+                      value={waterSupplyStatus}
+                      onValueChange={setWaterSupplyStatus}
+                      className="m-0 flex-shrink-0"
+                    >
+                      <TabsList className="h-8 bg-gray-100 dark:bg-gray-800 p-0.5 border border-gray-200 dark:border-gray-700">
+                        <TabsTrigger
+                          value="All"
+                          className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-blue-600 data-[state=active]:text-white whitespace-nowrap"
+                        >
+                          All
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="Full"
+                          className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-emerald-600 data-[state=active]:text-white whitespace-nowrap"
+                        >
+                          Full Operational
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="Partial"
+                          className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-amber-500 data-[state=active]:text-white whitespace-nowrap"
+                        >
+                          Partially Operational
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="No"
+                          className="px-2.5 py-1 text-xs font-medium transition-all data-[state=active]:bg-red-500 data-[state=active]:text-white whitespace-nowrap"
+                        >
+                          Not Operational
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                  </>
+                )}
 
               <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 flex-shrink-0" />
               <div className="flex-shrink-0">
@@ -3748,11 +3748,10 @@ const DetailedChlorinePage = () => {
                   setClickedCell(null);
                   setClickedLPCDCell(null);
                 }}
-                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-base transition-all ${
-                  mainTab === "lpcd"
-                    ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg scale-105"
-                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
-                }`}
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-base transition-all ${mainTab === "lpcd"
+                  ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg scale-105"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                  }`}
                 data-testid="main-tab-lpcd"
               >
                 <Home className="h-5 w-5" />
@@ -3764,11 +3763,10 @@ const DetailedChlorinePage = () => {
                   setClickedCell(null);
                   setClickedLPCDCell(null);
                 }}
-                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-base transition-all ${
-                  mainTab === "chlorine"
-                    ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg scale-105"
-                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
-                }`}
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-base transition-all ${mainTab === "chlorine"
+                  ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg scale-105"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                  }`}
                 data-testid="main-tab-chlorine"
               >
                 <Droplet className="h-5 w-5" />
@@ -3780,11 +3778,10 @@ const DetailedChlorinePage = () => {
                   setClickedCell(null);
                   setClickedLPCDCell(null);
                 }}
-                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-base transition-all ${
-                  mainTab === "pressure"
-                    ? "bg-gradient-to-r from-orange-600 to-amber-600 text-white shadow-lg scale-105"
-                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
-                }`}
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-base transition-all ${mainTab === "pressure"
+                  ? "bg-gradient-to-r from-orange-600 to-amber-600 text-white shadow-lg scale-105"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                  }`}
                 data-testid="main-tab-pressure"
               >
                 <Gauge className="h-5 w-5" />
@@ -3806,11 +3803,10 @@ const DetailedChlorinePage = () => {
                     setClickedSchemeDayWiseCell(null);
                     setClickedSchemeComparisonCell(null);
                   }}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                    lpcdSubTab === "village"
-                      ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md"
-                      : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                  }`}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-medium text-sm transition-all ${lpcdSubTab === "village"
+                    ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    }`}
                   data-testid="lpcd-sub-tab-village"
                 >
                   <Home className="h-4 w-4" />
@@ -3821,11 +3817,10 @@ const DetailedChlorinePage = () => {
                     setLpcdSubTab("scheme");
                     setClickedLPCDCell(null);
                   }}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                    lpcdSubTab === "scheme"
-                      ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md"
-                      : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                  }`}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-medium text-sm transition-all ${lpcdSubTab === "scheme"
+                    ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    }`}
                   data-testid="lpcd-sub-tab-scheme"
                 >
                   <Building2 className="h-4 w-4" />
@@ -4064,9 +4059,9 @@ const DetailedChlorinePage = () => {
                                       Water (
                                       {sensorDetails?.data?.[0]?.water_date_day7
                                         ? formatDate(
-                                            sensorDetails.data[0]
-                                              .water_date_day7,
-                                          )
+                                          sensorDetails.data[0]
+                                            .water_date_day7,
+                                        )
                                         : "N/A"}
                                       )
                                     </TableHead>
@@ -4075,9 +4070,9 @@ const DetailedChlorinePage = () => {
                                       {sensorDetails?.data?.[0]
                                         ?.chlorine_date_day_7
                                         ? formatDate(
-                                            sensorDetails.data[0]
-                                              .chlorine_date_day_7,
-                                          )
+                                          sensorDetails.data[0]
+                                            .chlorine_date_day_7,
+                                        )
                                         : "N/A"}
                                       )
                                     </TableHead>
@@ -4140,7 +4135,7 @@ const DetailedChlorinePage = () => {
                                         </TableCell>
                                         <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
                                           {sensor.water_value_day7 !== null &&
-                                          sensor.water_value_day7 !==
+                                            sensor.water_value_day7 !==
                                             undefined ? (
                                             Number(
                                               sensor.water_value_day7,
@@ -4153,7 +4148,7 @@ const DetailedChlorinePage = () => {
                                         </TableCell>
                                         <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
                                           {sensor.chlorine_value_7 !== null &&
-                                          sensor.chlorine_value_7 !==
+                                            sensor.chlorine_value_7 !==
                                             undefined ? (
                                             Number(
                                               sensor.chlorine_value_7,
@@ -4207,8 +4202,8 @@ const DetailedChlorinePage = () => {
                                           title={
                                             hasIssue
                                               ? esrIssues
-                                                  .map((i: any) => i.reason)
-                                                  .join(", ")
+                                                .map((i: any) => i.reason)
+                                                .join(", ")
                                               : "-"
                                           }
                                         >
@@ -5219,10 +5214,10 @@ const DetailedChlorinePage = () => {
                                     {clickedLPCDCell.statisticType.startsWith(
                                       "below-55-",
                                     ) && (
-                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
-                                        Days &lt;55
-                                      </TableHead>
-                                    )}
+                                        <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                          Days &lt;55
+                                        </TableHead>
+                                      )}
                                     <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[150px] text-center">
                                       Remark
                                     </TableHead>
@@ -5256,11 +5251,11 @@ const DetailedChlorinePage = () => {
                                           "N/A"}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60 truncate">
-    {item.village_name}
-  </TableCell>
-  <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
+                                        {item.village_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
                                         {item.population !== null &&
-                                        item.population !== undefined ? (
+                                          item.population !== undefined ? (
                                           Number(
                                             item.population,
                                           ).toLocaleString()
@@ -5272,7 +5267,7 @@ const DetailedChlorinePage = () => {
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium border-r border-slate-100/80 dark:border-slate-800/60">
                                         {item.lpcd_value_day7 !== null &&
-                                        item.lpcd_value_day7 !== undefined ? (
+                                          item.lpcd_value_day7 !== undefined ? (
                                           <span
                                             className={
                                               Number(item.lpcd_value_day7) >= 55
@@ -5292,7 +5287,7 @@ const DetailedChlorinePage = () => {
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
                                         {item.water_value_day7 !== null &&
-                                        item.water_value_day7 !== undefined ? (
+                                          item.water_value_day7 !== undefined ? (
                                           Number(item.water_value_day7).toFixed(
                                             2,
                                           )
@@ -5320,21 +5315,21 @@ const DetailedChlorinePage = () => {
                                         )}
                                       </TableCell>
                                       {clickedLPCDCell.statisticType.startsWith(
-    "below-55-",
-  ) && (
-    <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-bold text-rose-600 dark:text-rose-400 border-r border-slate-100/80 dark:border-slate-800/60">
-      {item.consecutive_days || "N/A"}
-    </TableCell>
-  )}
-  <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-    {renderRemarkCell(
-      villageIssuesMap?.get(
-        `${item.scheme_id}-${item.village_name}`,
-      ) || [],
-      `Remarks for ${item.village_name}`,
-    )}
-  </TableCell>
-</TableRow>
+                                        "below-55-",
+                                      ) && (
+                                          <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-bold text-rose-600 dark:text-rose-400 border-r border-slate-100/80 dark:border-slate-800/60">
+                                            {item.consecutive_days || "N/A"}
+                                          </TableCell>
+                                        )}
+                                      <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+                                        {renderRemarkCell(
+                                          villageIssuesMap?.get(
+                                            `${item.scheme_id}-${item.village_name}`,
+                                          ) || [],
+                                          `Remarks for ${item.village_name}`,
+                                        )}
+                                      </TableCell>
+                                    </TableRow>
                                   ))}
                                 </TableBody>
                               </Table>
@@ -6090,7 +6085,7 @@ const DetailedChlorinePage = () => {
                                   if (
                                     clickedSchemeLPCDCell.region &&
                                     clickedSchemeLPCDCell.region !==
-                                      "All Regions"
+                                    "All Regions"
                                   ) {
                                     params.append(
                                       "region",
@@ -6163,24 +6158,24 @@ const DetailedChlorinePage = () => {
                                       Scheme Name
                                     </TableHead>
                                     <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-    Owner
-  </TableHead>
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
-    Population
-  </TableHead>
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[70px] text-center border-r border-white/10">
-    Villages
-  </TableHead>
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
-    LPCD
-  </TableHead>
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
-    Dashboard
-  </TableHead>
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[150px] text-center">
-    Remark
-  </TableHead>
-</TableRow>
+                                      Owner
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                      Population
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[70px] text-center border-r border-white/10">
+                                      Villages
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                      LPCD
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                      Dashboard
+                                    </TableHead>
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[150px] text-center">
+                                      Remark
+                                    </TableHead>
+                                  </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                   {schemeLpcdDetails.data.map((item, idx) => (
@@ -6217,11 +6212,11 @@ const DetailedChlorinePage = () => {
                                         )}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
-    {item.owner ||
-      item.agency_type ||
-      "N/A"}
-  </TableCell>
-  <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
+                                        {item.owner ||
+                                          item.agency_type ||
+                                          "N/A"}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
                                         {item.total_population?.toLocaleString() ||
                                           "N/A"}
                                       </TableCell>
@@ -6230,13 +6225,12 @@ const DetailedChlorinePage = () => {
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center">
                                         {item.lpcd_value !== null &&
-                                        item.lpcd_value !== undefined ? (
+                                          item.lpcd_value !== undefined ? (
                                           <span
-                                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                                              item.lpcd_value > 55
-                                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300"
-                                                : "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
-                                            }`}
+                                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${item.lpcd_value > 55
+                                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300"
+                                              : "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
+                                              }`}
                                           >
                                             {Number(item.lpcd_value).toFixed(1)}
                                           </span>
@@ -6247,31 +6241,31 @@ const DetailedChlorinePage = () => {
                                         )}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center border-r border-slate-100/80 dark:border-slate-800/60">
-    {item.dashboard_url ? (
-      <a
-        href={item.dashboard_url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300 rounded text-[11px] font-medium"
-      >
-        <ExternalLink className="h-3 w-3" />
-        View
-      </a>
-    ) : (
-      <span className="text-slate-400 text-[11px]">
-        -
-      </span>
-    )}
-  </TableCell>
-  <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-    {renderRemarkCell(
-      schemeIssuesMap?.get(
-        String(item.scheme_id),
-      ) || [],
-      `Remarks for ${item.scheme_name}`,
-    )}
-  </TableCell>
-</TableRow>
+                                        {item.dashboard_url ? (
+                                          <a
+                                            href={item.dashboard_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300 rounded text-[11px] font-medium"
+                                          >
+                                            <ExternalLink className="h-3 w-3" />
+                                            View
+                                          </a>
+                                        ) : (
+                                          <span className="text-slate-400 text-[11px]">
+                                            -
+                                          </span>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+                                        {renderRemarkCell(
+                                          schemeIssuesMap?.get(
+                                            String(item.scheme_id),
+                                          ) || [],
+                                          `Remarks for ${item.scheme_name}`,
+                                        )}
+                                      </TableCell>
+                                    </TableRow>
                                   ))}
                                 </TableBody>
                               </Table>
@@ -6486,18 +6480,18 @@ const DetailedChlorinePage = () => {
                                       Pressure
                                     </TableHead>
                                     <TableHead className="!px-4 !py-2 font-bold text-orange-800 dark:text-orange-200 text-center w-[100px]">
-    Status
-  </TableHead>
-  <TableHead className="!px-4 !py-2 font-bold text-orange-800 dark:text-orange-200 text-center w-[100px]">
-    Dashboard
-  </TableHead>
-  <TableHead className="!px-4 !py-2 font-bold text-orange-800 dark:text-orange-200 text-center w-[100px] sticky right-0 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950 z-10 border-l border-orange-200/80 dark:border-orange-800/60 border-r border-orange-200/80 dark:border-orange-800/60">
-    Actions
-  </TableHead>
-  <TableHead className="!px-4 !py-2 font-bold text-orange-800 dark:text-orange-200 text-center w-[150px]">
-    Remark
-  </TableHead>
-</TableRow>
+                                      Status
+                                    </TableHead>
+                                    <TableHead className="!px-4 !py-2 font-bold text-orange-800 dark:text-orange-200 text-center w-[100px]">
+                                      Dashboard
+                                    </TableHead>
+                                    <TableHead className="!px-4 !py-2 font-bold text-orange-800 dark:text-orange-200 text-center w-[100px] sticky right-0 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950 z-10 border-l border-orange-200/80 dark:border-orange-800/60 border-r border-orange-200/80 dark:border-orange-800/60">
+                                      Actions
+                                    </TableHead>
+                                    <TableHead className="!px-4 !py-2 font-bold text-orange-800 dark:text-orange-200 text-center w-[150px]">
+                                      Remark
+                                    </TableHead>
+                                  </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                   {pressureSensorDetails.data
@@ -6521,18 +6515,18 @@ const DetailedChlorinePage = () => {
                                         </TableCell>
                                         <TableCell className="!px-4 !py-2 text-center font-mono font-bold">
                                           {item.pressure_value_7 !== null &&
-                                          item.pressure_value_7 !==
+                                            item.pressure_value_7 !==
                                             undefined ? (
                                             <span
                                               className={
                                                 Number(item.pressure_value_7) >=
                                                   0.2 &&
-                                                Number(item.pressure_value_7) <=
+                                                  Number(item.pressure_value_7) <=
                                                   0.7
                                                   ? "text-green-600"
                                                   : Number(
-                                                        item.pressure_value_7,
-                                                      ) < 0.2
+                                                    item.pressure_value_7,
+                                                  ) < 0.2
                                                     ? "text-red-600"
                                                     : "text-purple-600"
                                               }
@@ -6561,7 +6555,7 @@ const DetailedChlorinePage = () => {
                                           </Badge>
                                         </TableCell>
                                         <TableCell className="!px-4 !py-2 text-center">
-    {item.dashboard_url ? (
+                                          {item.dashboard_url ? (
                                             <a
                                               href={item.dashboard_url}
                                               target="_blank"
@@ -6584,26 +6578,26 @@ const DetailedChlorinePage = () => {
                                           className={`!px-4 !py-2 text-center sticky right-0 ${index % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-orange-50/50 dark:bg-slate-800/60"} border-l border-orange-100/80 dark:border-orange-900/60`}
                                         >
                                           <Button
-    variant="ghost"
-    size="sm"
-    onClick={() =>
-      setSelectedSensor(item)
-    }
-    className="h-7 px-3 text-[11px] font-semibold bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 hover:from-orange-100 hover:to-amber-100 dark:from-orange-950 dark:to-amber-950 dark:text-orange-300 dark:hover:from-orange-900 dark:hover:to-amber-900 rounded-lg shadow-sm border border-orange-200/50 dark:border-orange-700/50"
-  >
-    <Eye className="h-3 w-3 mr-1" />
-    History
-  </Button>
-</TableCell>
-<TableCell className="!px-4 !py-2 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-  {renderRemarkCell(
-    esrIssuesMap?.get(
-      `${item.scheme_id}-${item.village_name}-${item.esr_name}`,
-    ) || [],
-    `Remarks for ${item.esr_name}`,
-  )}
-</TableCell>
-</TableRow>
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() =>
+                                              setSelectedSensor(item)
+                                            }
+                                            className="h-7 px-3 text-[11px] font-semibold bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 hover:from-orange-100 hover:to-amber-100 dark:from-orange-950 dark:to-amber-950 dark:text-orange-300 dark:hover:from-orange-900 dark:hover:to-amber-900 rounded-lg shadow-sm border border-orange-200/50 dark:border-orange-700/50"
+                                          >
+                                            <Eye className="h-3 w-3 mr-1" />
+                                            History
+                                          </Button>
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-2 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+                                          {renderRemarkCell(
+                                            esrIssuesMap?.get(
+                                              `${item.scheme_id}-${item.village_name}-${item.esr_name}`,
+                                            ) || [],
+                                            `Remarks for ${item.esr_name}`,
+                                          )}
+                                        </TableCell>
+                                      </TableRow>
                                     ))}
                                 </TableBody>
                               </Table>
@@ -6709,11 +6703,10 @@ const DetailedChlorinePage = () => {
                             setClickedRegionComparisonCell(null);
                             setClickedLpcdRegionComparisonCell(null);
                           }}
-                          className={`px-4 py-2 rounded-md text-xs font-semibold transition-all ${
-                            dayWiseSubTab === "single-region"
-                              ? "bg-white dark:bg-gray-700 text-orange-600 dark:text-orange-400 shadow-sm"
-                              : "text-gray-600 dark:text-gray-400 hover:text-gray-800"
-                          }`}
+                          className={`px-4 py-2 rounded-md text-xs font-semibold transition-all ${dayWiseSubTab === "single-region"
+                            ? "bg-white dark:bg-gray-700 text-orange-600 dark:text-orange-400 shadow-sm"
+                            : "text-gray-600 dark:text-gray-400 hover:text-gray-800"
+                            }`}
                           data-testid="subtab-single-region"
                         >
                           <span className="flex items-center gap-1.5">
@@ -6727,11 +6720,10 @@ const DetailedChlorinePage = () => {
                             setClickedDayWiseCell(null);
                             setClickedLpcdDayWiseCell(null);
                           }}
-                          className={`px-4 py-2 rounded-md text-xs font-semibold transition-all ${
-                            dayWiseSubTab === "region-comparison"
-                              ? "bg-white dark:bg-gray-700 text-violet-600 dark:text-violet-400 shadow-sm"
-                              : "text-gray-600 dark:text-gray-400 hover:text-gray-800"
-                          }`}
+                          className={`px-4 py-2 rounded-md text-xs font-semibold transition-all ${dayWiseSubTab === "region-comparison"
+                            ? "bg-white dark:bg-gray-700 text-violet-600 dark:text-violet-400 shadow-sm"
+                            : "text-gray-600 dark:text-gray-400 hover:text-gray-800"
+                            }`}
                           data-testid="subtab-region-comparison"
                         >
                           <span className="flex items-center gap-1.5">
@@ -6751,11 +6743,10 @@ const DetailedChlorinePage = () => {
                                   setDayWiseRegion("All Regions");
                                   setClickedDayWiseCell(null);
                                 }}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
-                                  dayWiseRegion === "All Regions"
-                                    ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md"
-                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950"
-                                }`}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${dayWiseRegion === "All Regions"
+                                  ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950"
+                                  }`}
                                 data-testid="tab-daywise-all-regions"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -6770,11 +6761,10 @@ const DetailedChlorinePage = () => {
                                     setDayWiseRegion(stat.region);
                                     setClickedDayWiseCell(null);
                                   }}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
-                                    dayWiseRegion === stat.region
-                                      ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md"
-                                      : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950"
-                                  }`}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${dayWiseRegion === stat.region
+                                    ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950"
+                                    }`}
                                   data-testid={`tab-daywise-${stat.region}`}
                                 >
                                   {stat.region}
@@ -6798,11 +6788,10 @@ const DetailedChlorinePage = () => {
                                   setLpcdDayWiseRegion("All Regions");
                                   setClickedLpcdDayWiseCell(null);
                                 }}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
-                                  lpcdDayWiseRegion === "All Regions"
-                                    ? "bg-gradient-to-r from-cyan-500 to-teal-500 text-white shadow-md"
-                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950"
-                                }`}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${lpcdDayWiseRegion === "All Regions"
+                                  ? "bg-gradient-to-r from-cyan-500 to-teal-500 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950"
+                                  }`}
                                 data-testid="tab-daywise-lpcd-all"
                               >
                                 All Regions
@@ -6814,11 +6803,10 @@ const DetailedChlorinePage = () => {
                                     setLpcdDayWiseRegion(stat.region);
                                     setClickedLpcdDayWiseCell(null);
                                   }}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
-                                    lpcdDayWiseRegion === stat.region
-                                      ? "bg-gradient-to-r from-cyan-500 to-teal-500 text-white shadow-md"
-                                      : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950"
-                                  }`}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${lpcdDayWiseRegion === stat.region
+                                    ? "bg-gradient-to-r from-cyan-500 to-teal-500 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950"
+                                    }`}
                                   data-testid={`tab-daywise-lpcd-${stat.region}`}
                                 >
                                   {stat.region}
@@ -6944,11 +6932,10 @@ const DetailedChlorinePage = () => {
                                         return (
                                           <div
                                             key={row.days}
-                                            className={`grid grid-cols-[90px_1fr_1fr_1fr_1fr] gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
-                                              index % 2 === 0
-                                                ? "bg-white dark:bg-gray-900"
-                                                : "bg-gray-50/50 dark:bg-gray-800/20"
-                                            }`}
+                                            className={`grid grid-cols-[90px_1fr_1fr_1fr_1fr] gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${index % 2 === 0
+                                              ? "bg-white dark:bg-gray-900"
+                                              : "bg-gray-50/50 dark:bg-gray-800/20"
+                                              }`}
                                             data-testid={`row-day-${row.days}`}
                                           >
                                             <div className="flex items-center gap-2">
@@ -7087,7 +7074,7 @@ const DetailedChlorinePage = () => {
                                         className={`p-1.5 bg-gradient-to-br ${clickedDayWiseCell.metric === "offline" ? "from-red-500 to-red-700" : clickedDayWiseCell.metric === "optimal_0_2_0_5" ? "from-emerald-500 to-emerald-700" : "from-orange-500 to-amber-700"} rounded-lg shadow-sm`}
                                       >
                                         {clickedDayWiseCell.metric ===
-                                        "offline" ? (
+                                          "offline" ? (
                                           <WifiOff className="h-4 w-4 text-white" />
                                         ) : clickedDayWiseCell.metric ===
                                           "optimal_0_2_0_5" ? (
@@ -7199,9 +7186,9 @@ const DetailedChlorinePage = () => {
                                               Village
                                             </TableHead>
                                             <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
-    ESR Name
-  </TableHead>
-  {clickedDayWiseCell.metric !== "offline" && (
+                                              ESR Name
+                                            </TableHead>
+                                            {clickedDayWiseCell.metric !== "offline" && (
                                               <>
                                                 <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
                                                   Chlorine (mg/l)
@@ -7212,15 +7199,15 @@ const DetailedChlorinePage = () => {
                                               </>
                                             )}
                                             <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
-    {clickedDayWiseCell.metric ===
-    "offline"
-      ? "Last Seen"
-      : "Consecutive Days"}
-  </TableHead>
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5 w-[150px] text-center">
-    Remark
-  </TableHead>
-</TableRow>
+                                              {clickedDayWiseCell.metric ===
+                                                "offline"
+                                                ? "Last Seen"
+                                                : "Consecutive Days"}
+                                            </TableHead>
+                                            <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5 w-[150px] text-center">
+                                              Remark
+                                            </TableHead>
+                                          </TableRow>
                                         </TableHeader>
                                         <TableBody>
                                           {dayWiseSensors.data.map(
@@ -7251,18 +7238,18 @@ const DetailedChlorinePage = () => {
                                                   {sensor.village_name}
                                                 </TableCell>
                                                 <TableCell className="!px-3 !py-2 text-[12px]">
-    {sensor.esr_name}
-  </TableCell>
-  {clickedDayWiseCell.metric !== "offline" && (
+                                                  {sensor.esr_name}
+                                                </TableCell>
+                                                {clickedDayWiseCell.metric !== "offline" && (
                                                   <>
                                                     <TableCell className="!px-3 !py-2 text-[12px]">
                                                       {sensor.latest_chlorine_value !==
                                                         null &&
-                                                      sensor.latest_chlorine_value !==
+                                                        sensor.latest_chlorine_value !==
                                                         undefined
                                                         ? Number(
-                                                            sensor.latest_chlorine_value,
-                                                          ).toFixed(2)
+                                                          sensor.latest_chlorine_value,
+                                                        ).toFixed(2)
                                                         : "N/A"}
                                                     </TableCell>
                                                     <TableCell className="!px-3 !py-2 text-[12px]">
@@ -7272,21 +7259,21 @@ const DetailedChlorinePage = () => {
                                                   </>
                                                 )}
                                                 <TableCell className="!px-3 !py-2 text-[12px]">
-    {clickedDayWiseCell.metric ===
-    "offline"
-      ? sensor.last_seen || "N/A"
-      : sensor.consecutive_days ||
-        0}
-  </TableCell>
-  <TableCell className="!px-3 !py-2 text-[12px] max-w-[150px]">
-    {renderRemarkCell(
-      esrIssuesMap?.get(
-        `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
-      ) || [],
-      `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
-    )}
-  </TableCell>
-</TableRow>
+                                                  {clickedDayWiseCell.metric ===
+                                                    "offline"
+                                                    ? sensor.last_seen || "N/A"
+                                                    : sensor.consecutive_days ||
+                                                    0}
+                                                </TableCell>
+                                                <TableCell className="!px-3 !py-2 text-[12px] max-w-[150px]">
+                                                  {renderRemarkCell(
+                                                    esrIssuesMap?.get(
+                                                      `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
+                                                    ) || [],
+                                                    `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
+                                                  )}
+                                                </TableCell>
+                                              </TableRow>
                                             ),
                                           )}
                                         </TableBody>
@@ -7427,11 +7414,10 @@ const DetailedChlorinePage = () => {
                                         return (
                                           <div
                                             key={row.days}
-                                            className={`grid grid-cols-[90px_1fr_1fr_1fr_1fr] gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
-                                              index % 2 === 0
-                                                ? "bg-white dark:bg-gray-900"
-                                                : "bg-gray-50/50 dark:bg-gray-800/20"
-                                            }`}
+                                            className={`grid grid-cols-[90px_1fr_1fr_1fr_1fr] gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${index % 2 === 0
+                                              ? "bg-white dark:bg-gray-900"
+                                              : "bg-gray-50/50 dark:bg-gray-800/20"
+                                              }`}
                                             data-testid={`row-lpcd-day-${row.days}`}
                                           >
                                             <div className="flex items-center gap-2">
@@ -7572,11 +7558,10 @@ const DetailedChlorinePage = () => {
                                   setSchemeLpcdDayWiseRegion("All Regions");
                                   setClickedSchemeDayWiseCell(null);
                                 }}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
-                                  schemeLpcdDayWiseRegion === "All Regions"
-                                    ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md"
-                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950"
-                                }`}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${schemeLpcdDayWiseRegion === "All Regions"
+                                  ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950"
+                                  }`}
                                 data-testid="tab-daywise-scheme-lpcd-all"
                               >
                                 All Regions
@@ -7588,11 +7573,10 @@ const DetailedChlorinePage = () => {
                                     setSchemeLpcdDayWiseRegion(stat.region);
                                     setClickedSchemeDayWiseCell(null);
                                   }}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
-                                    schemeLpcdDayWiseRegion === stat.region
-                                      ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md"
-                                      : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950"
-                                  }`}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${schemeLpcdDayWiseRegion === stat.region
+                                    ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950"
+                                    }`}
                                   data-testid={`tab-daywise-scheme-lpcd-${stat.region}`}
                                 >
                                   {stat.region}
@@ -7867,11 +7851,10 @@ const DetailedChlorinePage = () => {
                                   setPressureDayWiseRegion("All Regions");
                                   setClickedPressureDayWiseCell(null);
                                 }}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
-                                  pressureDayWiseRegion === "All Regions"
-                                    ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md"
-                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950"
-                                }`}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${pressureDayWiseRegion === "All Regions"
+                                  ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950"
+                                  }`}
                                 data-testid="tab-pressure-daywise-all"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -7886,11 +7869,10 @@ const DetailedChlorinePage = () => {
                                     setPressureDayWiseRegion(stat.region);
                                     setClickedPressureDayWiseCell(null);
                                   }}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
-                                    pressureDayWiseRegion === stat.region
-                                      ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md"
-                                      : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950"
-                                  }`}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${pressureDayWiseRegion === stat.region
+                                    ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md"
+                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950"
+                                    }`}
                                   data-testid={`tab-pressure-daywise-${stat.region}`}
                                 >
                                   {stat.region}
@@ -8017,11 +7999,10 @@ const DetailedChlorinePage = () => {
                                         return (
                                           <div
                                             key={row.days}
-                                            className={`grid grid-cols-[90px_1fr_1fr_1fr_1fr] gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
-                                              index % 2 === 0
-                                                ? "bg-white dark:bg-gray-900"
-                                                : "bg-gray-50/50 dark:bg-gray-800/20"
-                                            }`}
+                                            className={`grid grid-cols-[90px_1fr_1fr_1fr_1fr] gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${index % 2 === 0
+                                              ? "bg-white dark:bg-gray-900"
+                                              : "bg-gray-50/50 dark:bg-gray-800/20"
+                                              }`}
                                             data-testid={`row-pressure-day-${row.days}`}
                                           >
                                             <div className="flex items-center gap-2">
@@ -8172,7 +8153,7 @@ const DetailedChlorinePage = () => {
                                         </div>
                                         <div className="!text-[12px] font-normal text-gray-600 dark:text-gray-400">
                                           {pressureDayWiseRegion ===
-                                          "All Regions"
+                                            "All Regions"
                                             ? "All Regions"
                                             : pressureDayWiseRegion}
                                         </div>
@@ -8185,7 +8166,7 @@ const DetailedChlorinePage = () => {
                                           if (
                                             pressureDayWiseRegion &&
                                             pressureDayWiseRegion !==
-                                              "All Regions"
+                                            "All Regions"
                                           ) {
                                             params.append(
                                               "region",
@@ -8271,8 +8252,8 @@ const DetailedChlorinePage = () => {
                                             </TableHead>
                                             <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
                                               ESR Name
-  </TableHead>
-  {clickedPressureDayWiseCell.metric !== "offline" && (
+                                            </TableHead>
+                                            {clickedPressureDayWiseCell.metric !== "offline" && (
                                               <>
                                                 <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
                                                   Pressure (bar)
@@ -8283,15 +8264,15 @@ const DetailedChlorinePage = () => {
                                               </>
                                             )}
                                             <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
-    {clickedPressureDayWiseCell.metric ===
-    "offline"
-      ? "Last Seen"
-      : "Consecutive Days"}
-  </TableHead>
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5 w-[150px] text-center">
-    Remark
-  </TableHead>
-</TableRow>
+                                              {clickedPressureDayWiseCell.metric ===
+                                                "offline"
+                                                ? "Last Seen"
+                                                : "Consecutive Days"}
+                                            </TableHead>
+                                            <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5 w-[150px] text-center">
+                                              Remark
+                                            </TableHead>
+                                          </TableRow>
                                         </TableHeader>
                                         <TableBody>
                                           {pressureDayWiseSensors.data.map(
@@ -8322,18 +8303,18 @@ const DetailedChlorinePage = () => {
                                                   {sensor.village_name}
                                                 </TableCell>
                                                 <TableCell className="!px-3 !py-2 text-[12px]">
-    {sensor.esr_name}
-  </TableCell>
-  {clickedPressureDayWiseCell.metric !== "offline" && (
+                                                  {sensor.esr_name}
+                                                </TableCell>
+                                                {clickedPressureDayWiseCell.metric !== "offline" && (
                                                   <>
                                                     <TableCell className="!px-3 !py-2 text-[12px]">
                                                       {sensor.latest_pressure_value !==
                                                         null &&
-                                                      sensor.latest_pressure_value !==
+                                                        sensor.latest_pressure_value !==
                                                         undefined
                                                         ? Number(
-                                                            sensor.latest_pressure_value,
-                                                          ).toFixed(2)
+                                                          sensor.latest_pressure_value,
+                                                        ).toFixed(2)
                                                         : "N/A"}
                                                     </TableCell>
                                                     <TableCell className="!px-3 !py-2 text-[12px]">
@@ -8343,21 +8324,21 @@ const DetailedChlorinePage = () => {
                                                   </>
                                                 )}
                                                 <TableCell className="!px-3 !py-2 text-[12px]">
-    {clickedPressureDayWiseCell.metric ===
-    "offline"
-      ? sensor.last_seen || "N/A"
-      : sensor.consecutive_days ||
-        0}
-  </TableCell>
-  <TableCell className="!px-3 !py-2 text-[12px] max-w-[150px]">
-    {renderRemarkCell(
-      esrIssuesMap?.get(
-        `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
-      ) || [],
-      `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
-    )}
-  </TableCell>
-</TableRow>
+                                                  {clickedPressureDayWiseCell.metric ===
+                                                    "offline"
+                                                    ? sensor.last_seen || "N/A"
+                                                    : sensor.consecutive_days ||
+                                                    0}
+                                                </TableCell>
+                                                <TableCell className="!px-3 !py-2 text-[12px] max-w-[150px]">
+                                                  {renderRemarkCell(
+                                                    esrIssuesMap?.get(
+                                                      `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
+                                                    ) || [],
+                                                    `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
+                                                  )}
+                                                </TableCell>
+                                              </TableRow>
                                             ),
                                           )}
                                         </TableBody>
@@ -8392,11 +8373,10 @@ const DetailedChlorinePage = () => {
                             <div className="flex flex-wrap gap-2 mb-4">
                               <button
                                 onClick={() => setComparisonCategory("offline")}
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
-                                  comparisonCategory === "offline"
-                                    ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-md"
-                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-red-300"
-                                }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${comparisonCategory === "offline"
+                                  ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-red-300"
+                                  }`}
                                 data-testid="tab-comparison-offline"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -8408,11 +8388,10 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setComparisonCategory("below_0_2")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
-                                  comparisonCategory === "below_0_2"
-                                    ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md"
-                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-orange-300"
-                                }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${comparisonCategory === "below_0_2"
+                                  ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-orange-300"
+                                  }`}
                                 data-testid="tab-comparison-below"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -8424,11 +8403,10 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setComparisonCategory("above_0_5")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
-                                  comparisonCategory === "above_0_5"
-                                    ? "bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow-md"
-                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-rose-300"
-                                }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${comparisonCategory === "above_0_5"
+                                  ? "bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-rose-300"
+                                  }`}
                                 data-testid="tab-comparison-above"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -8440,11 +8418,10 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setComparisonCategory("optimal_0_2_0_5")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
-                                  comparisonCategory === "optimal_0_2_0_5"
-                                    ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md"
-                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-emerald-300"
-                                }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${comparisonCategory === "optimal_0_2_0_5"
+                                  ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-emerald-300"
+                                  }`}
                                 data-testid="tab-comparison-optimal"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -8460,7 +8437,7 @@ const DetailedChlorinePage = () => {
                               </div>
                             ) : regionComparisonData &&
                               Object.keys(regionComparisonData.data).length >
-                                0 ? (
+                              0 ? (
                               <div className="overflow-x-auto rounded-xl border-2 border-blue-200 dark:border-blue-800 shadow-lg">
                                 <Table>
                                   <TableHeader className="sticky top-0 z-10">
@@ -8530,10 +8507,10 @@ const DetailedChlorinePage = () => {
                                               comparisonCategory === "offline"
                                                 ? "from-red-400 to-red-600"
                                                 : comparisonCategory ===
-                                                    "below_0_2"
+                                                  "below_0_2"
                                                   ? "from-orange-400 to-orange-600"
                                                   : comparisonCategory ===
-                                                      "above_0_5"
+                                                    "above_0_5"
                                                     ? "from-rose-400 to-rose-600"
                                                     : "from-emerald-400 to-emerald-600";
 
@@ -8639,7 +8616,7 @@ const DetailedChlorinePage = () => {
                                             : comparisonCategory === "below_0_2"
                                               ? "from-orange-500 to-orange-700"
                                               : comparisonCategory ===
-                                                  "above_0_5"
+                                                "above_0_5"
                                                 ? "from-rose-500 to-rose-700"
                                                 : "from-emerald-500 to-emerald-700";
 
@@ -8690,11 +8667,10 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setLpcdComparisonCategory("below_55")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
-                                  lpcdComparisonCategory === "below_55"
-                                    ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-md"
-                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-red-300"
-                                }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${lpcdComparisonCategory === "below_55"
+                                  ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-red-300"
+                                  }`}
                                 data-testid="tab-lpcd-comparison-below55"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -8706,11 +8682,10 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setLpcdComparisonCategory("above_55")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
-                                  lpcdComparisonCategory === "above_55"
-                                    ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md"
-                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-emerald-300"
-                                }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${lpcdComparisonCategory === "above_55"
+                                  ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-emerald-300"
+                                  }`}
                                 data-testid="tab-lpcd-comparison-above55"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -8722,11 +8697,10 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setLpcdComparisonCategory("with_water")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
-                                  lpcdComparisonCategory === "with_water"
-                                    ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md"
-                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-blue-300"
-                                }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${lpcdComparisonCategory === "with_water"
+                                  ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-blue-300"
+                                  }`}
                                 data-testid="tab-lpcd-comparison-withwater"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -8738,11 +8712,10 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setLpcdComparisonCategory("no_water")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
-                                  lpcdComparisonCategory === "no_water"
-                                    ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-md"
-                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-400"
-                                }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${lpcdComparisonCategory === "no_water"
+                                  ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-400"
+                                  }`}
                                 data-testid="tab-lpcd-comparison-nowater"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -8826,13 +8799,13 @@ const DetailedChlorinePage = () => {
 
                                             const colorClass =
                                               lpcdComparisonCategory ===
-                                              "below_55"
+                                                "below_55"
                                                 ? "from-red-400 to-red-600"
                                                 : lpcdComparisonCategory ===
-                                                    "above_55"
+                                                  "above_55"
                                                   ? "from-emerald-400 to-emerald-600"
                                                   : lpcdComparisonCategory ===
-                                                      "with_water"
+                                                    "with_water"
                                                     ? "from-blue-400 to-blue-600"
                                                     : "from-gray-400 to-gray-600";
 
@@ -8938,10 +8911,10 @@ const DetailedChlorinePage = () => {
                                           lpcdComparisonCategory === "below_55"
                                             ? "from-red-500 to-red-700"
                                             : lpcdComparisonCategory ===
-                                                "above_55"
+                                              "above_55"
                                               ? "from-emerald-500 to-emerald-700"
                                               : lpcdComparisonCategory ===
-                                                  "with_water"
+                                                "with_water"
                                                 ? "from-blue-500 to-blue-700"
                                                 : "from-gray-500 to-gray-700";
 
@@ -8957,18 +8930,17 @@ const DetailedChlorinePage = () => {
                                                   day: 1,
                                                   category:
                                                     lpcdComparisonCategory,
-                                                  label: `Total (All Regions) - ${
-                                                    lpcdComparisonCategory ===
+                                                  label: `Total (All Regions) - ${lpcdComparisonCategory ===
                                                     "below_55"
-                                                      ? "<55 LPCD"
+                                                    ? "<55 LPCD"
+                                                    : lpcdComparisonCategory ===
+                                                      "above_55"
+                                                      ? "≥55 LPCD"
                                                       : lpcdComparisonCategory ===
-                                                          "above_55"
-                                                        ? "≥55 LPCD"
-                                                        : lpcdComparisonCategory ===
-                                                            "with_water"
-                                                          ? "With Water"
-                                                          : "No Water"
-                                                  } - ${region}`,
+                                                        "with_water"
+                                                        ? "With Water"
+                                                        : "No Water"
+                                                    } - ${region}`,
                                                 },
                                               )
                                             }
@@ -9015,11 +8987,10 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setSchemeLpcdComparisonCategory("below_55")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
-                                  schemeLpcdComparisonCategory === "below_55"
-                                    ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-md"
-                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-red-300"
-                                }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${schemeLpcdComparisonCategory === "below_55"
+                                  ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-red-300"
+                                  }`}
                                 data-testid="tab-scheme-lpcd-comparison-below55"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -9031,11 +9002,10 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setSchemeLpcdComparisonCategory("above_55")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
-                                  schemeLpcdComparisonCategory === "above_55"
-                                    ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md"
-                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-emerald-300"
-                                }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${schemeLpcdComparisonCategory === "above_55"
+                                  ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-emerald-300"
+                                  }`}
                                 data-testid="tab-scheme-lpcd-comparison-above55"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -9047,11 +9017,10 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setSchemeLpcdComparisonCategory("with_water")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
-                                  schemeLpcdComparisonCategory === "with_water"
-                                    ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md"
-                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-blue-300"
-                                }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${schemeLpcdComparisonCategory === "with_water"
+                                  ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-blue-300"
+                                  }`}
                                 data-testid="tab-scheme-lpcd-comparison-withwater"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -9063,11 +9032,10 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setSchemeLpcdComparisonCategory("no_water")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
-                                  schemeLpcdComparisonCategory === "no_water"
-                                    ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-md"
-                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-400"
-                                }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${schemeLpcdComparisonCategory === "no_water"
+                                  ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-400"
+                                  }`}
                                 data-testid="tab-scheme-lpcd-comparison-nowater"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -9120,8 +9088,8 @@ const DetailedChlorinePage = () => {
                                             ]?.find((d) => d.days === day);
                                           return dayData
                                             ? dayData[
-                                                schemeLpcdComparisonCategory
-                                              ]
+                                            schemeLpcdComparisonCategory
+                                            ]
                                             : 0;
                                         }),
                                       );
@@ -9146,8 +9114,8 @@ const DetailedChlorinePage = () => {
                                               ]?.find((d) => d.days === day);
                                             const value = dayData
                                               ? dayData[
-                                                  schemeLpcdComparisonCategory
-                                                ]
+                                              schemeLpcdComparisonCategory
+                                              ]
                                               : 0;
                                             const barWidth =
                                               maxValueForDay > 0
@@ -9156,13 +9124,13 @@ const DetailedChlorinePage = () => {
 
                                             const colorClass =
                                               schemeLpcdComparisonCategory ===
-                                              "below_55"
+                                                "below_55"
                                                 ? "from-red-400 to-red-600"
                                                 : schemeLpcdComparisonCategory ===
-                                                    "above_55"
+                                                  "above_55"
                                                   ? "from-emerald-400 to-emerald-600"
                                                   : schemeLpcdComparisonCategory ===
-                                                      "with_water"
+                                                    "with_water"
                                                     ? "from-blue-400 to-blue-600"
                                                     : "from-gray-400 to-gray-600";
 
@@ -9274,7 +9242,7 @@ const DetailedChlorinePage = () => {
                                                 (sum, d) =>
                                                   sum +
                                                   d[
-                                                    schemeLpcdComparisonCategory
+                                                  schemeLpcdComparisonCategory
                                                   ],
                                                 0,
                                               ) || 0,
@@ -9287,13 +9255,13 @@ const DetailedChlorinePage = () => {
 
                                         const colorClass =
                                           schemeLpcdComparisonCategory ===
-                                          "below_55"
+                                            "below_55"
                                             ? "from-red-500 to-red-700"
                                             : schemeLpcdComparisonCategory ===
-                                                "above_55"
+                                              "above_55"
                                               ? "from-emerald-500 to-emerald-700"
                                               : schemeLpcdComparisonCategory ===
-                                                  "with_water"
+                                                "with_water"
                                                 ? "from-blue-500 to-blue-700"
                                                 : "from-gray-500 to-gray-700";
 
@@ -9377,7 +9345,7 @@ const DetailedChlorinePage = () => {
                                       if (
                                         clickedLpcdRegionComparisonCell.region &&
                                         clickedLpcdRegionComparisonCell.region !==
-                                          "All Regions"
+                                        "All Regions"
                                       ) {
                                         params.append(
                                           "region",
@@ -9414,7 +9382,7 @@ const DetailedChlorinePage = () => {
                                       if (
                                         clickedLpcdRegionComparisonCell.region &&
                                         clickedLpcdRegionComparisonCell.region !==
-                                          "All Regions"
+                                        "All Regions"
                                       ) {
                                         params.append(
                                           "region",
@@ -9529,15 +9497,15 @@ const DetailedChlorinePage = () => {
                                           <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-teal-100/80 dark:border-teal-900/60">
                                             {vehicle.latest_lpcd_value
                                               ? Number(
-                                                  vehicle.latest_lpcd_value,
-                                                ).toFixed(2)
+                                                vehicle.latest_lpcd_value,
+                                              ).toFixed(2)
                                               : "N/A"}
                                           </TableCell>
                                           <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-teal-100/80 dark:border-teal-900/60">
                                             {vehicle.latest_water_value
                                               ? Number(
-                                                  vehicle.latest_water_value,
-                                                ).toFixed(2)
+                                                vehicle.latest_water_value,
+                                              ).toFixed(2)
                                               : "N/A"}
                                           </TableCell>
                                           <TableCell className="!px-4 !py-3 text-center text-[12px] text-slate-600 dark:text-slate-400 border-r border-teal-100/80 dark:border-teal-900/60">
@@ -9594,11 +9562,10 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setPressureComparisonCategory("offline")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
-                                  pressureComparisonCategory === "offline"
-                                    ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-md"
-                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-400"
-                                }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${pressureComparisonCategory === "offline"
+                                  ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-400"
+                                  }`}
                                 data-testid="tab-pressure-comparison-offline"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -9610,11 +9577,10 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setPressureComparisonCategory("below_0_2")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
-                                  pressureComparisonCategory === "below_0_2"
-                                    ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-md"
-                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-red-300"
-                                }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${pressureComparisonCategory === "below_0_2"
+                                  ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-red-300"
+                                  }`}
                                 data-testid="tab-pressure-comparison-below"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -9626,11 +9592,10 @@ const DetailedChlorinePage = () => {
                                 onClick={() =>
                                   setPressureComparisonCategory("above_0_7")
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
-                                  pressureComparisonCategory === "above_0_7"
-                                    ? "bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md"
-                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-purple-300"
-                                }`}
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${pressureComparisonCategory === "above_0_7"
+                                  ? "bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-purple-300"
+                                  }`}
                                 data-testid="tab-pressure-comparison-above"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -9644,12 +9609,11 @@ const DetailedChlorinePage = () => {
                                     "optimal_0_2_0_7",
                                   )
                                 }
-                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
-                                  pressureComparisonCategory ===
+                                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${pressureComparisonCategory ===
                                   "optimal_0_2_0_7"
-                                    ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md"
-                                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-emerald-300"
-                                }`}
+                                  ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md"
+                                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-emerald-300"
+                                  }`}
                                 data-testid="tab-pressure-comparison-optimal"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -9701,8 +9665,8 @@ const DetailedChlorinePage = () => {
                                             ]?.find((d) => d.days === day);
                                           return dayData
                                             ? dayData[
-                                                pressureComparisonCategory
-                                              ]
+                                            pressureComparisonCategory
+                                            ]
                                             : 0;
                                         }),
                                       );
@@ -9726,8 +9690,8 @@ const DetailedChlorinePage = () => {
                                               ]?.find((d) => d.days === day);
                                             const value = dayData
                                               ? dayData[
-                                                  pressureComparisonCategory
-                                                ]
+                                              pressureComparisonCategory
+                                              ]
                                               : 0;
                                             const barWidth =
                                               maxValueForDay > 0
@@ -9736,13 +9700,13 @@ const DetailedChlorinePage = () => {
 
                                             const colorClass =
                                               pressureComparisonCategory ===
-                                              "offline"
+                                                "offline"
                                                 ? "from-gray-500 to-gray-700"
                                                 : pressureComparisonCategory ===
-                                                    "below_0_2"
+                                                  "below_0_2"
                                                   ? "from-red-500 to-red-700"
                                                   : pressureComparisonCategory ===
-                                                      "above_0_7"
+                                                    "above_0_7"
                                                     ? "from-purple-500 to-purple-700"
                                                     : "from-emerald-500 to-emerald-700";
 
@@ -9826,13 +9790,13 @@ const DetailedChlorinePage = () => {
 
                                         const colorClass =
                                           pressureComparisonCategory ===
-                                          "offline"
+                                            "offline"
                                             ? "from-gray-500 to-gray-700"
                                             : pressureComparisonCategory ===
-                                                "below_0_2"
+                                              "below_0_2"
                                               ? "from-red-500 to-red-700"
                                               : pressureComparisonCategory ===
-                                                  "above_0_7"
+                                                "above_0_7"
                                                 ? "from-purple-500 to-purple-700"
                                                 : "from-emerald-500 to-emerald-700";
 
@@ -9908,7 +9872,7 @@ const DetailedChlorinePage = () => {
                                 if (
                                   clickedPressureRegionComparisonCell.region &&
                                   clickedPressureRegionComparisonCell.region !==
-                                    "All Regions"
+                                  "All Regions"
                                 ) {
                                   params.append(
                                     "region",
@@ -9960,35 +9924,35 @@ const DetailedChlorinePage = () => {
                             <Skeleton className="h-10 w-full" />
                           </div>
                         ) : pressureRegionComparisonSensors &&
-  pressureRegionComparisonSensors.data.length > 0 ? (
-  <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-orange-200/60 dark:border-orange-800/60 rounded-xl m-3 shadow-sm">
-    <Table className="min-w-max">
-      <TableHeader className="sticky top-0 z-10">
-        <TableRow className="bg-orange-800 dark:bg-orange-900">
-          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-            Region
-          </TableHead>
-          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-            Division
-          </TableHead>
-          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[90px] border-r border-white/10">
-            Scheme ID
-          </TableHead>
-          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[140px] border-r border-white/10">
-            Scheme Name
-          </TableHead>
-          <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-            Owner
-          </TableHead>
-          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-            Village
-          </TableHead>
-          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-            ESR Name
-          </TableHead>
-          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
-            Status
-          </TableHead>
+                          pressureRegionComparisonSensors.data.length > 0 ? (
+                          <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-orange-200/60 dark:border-orange-800/60 rounded-xl m-3 shadow-sm">
+                            <Table className="min-w-max">
+                              <TableHeader className="sticky top-0 z-10">
+                                <TableRow className="bg-orange-800 dark:bg-orange-900">
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Region
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Division
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[90px] border-r border-white/10">
+                                    Scheme ID
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[140px] border-r border-white/10">
+                                    Scheme Name
+                                  </TableHead>
+                                  <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Owner
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Village
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    ESR Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                    Status
+                                  </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
                                     Pressure(bar)
                                   </TableHead>
@@ -9996,48 +9960,48 @@ const DetailedChlorinePage = () => {
                                     Date
                                   </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[70px] text-center">
-    Days
-  </TableHead>
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[80px] text-center border-l border-white/10 border-r border-white/10">
-    Dashboard
-  </TableHead>
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[150px] text-center">
-    Remark
-  </TableHead>
-</TableRow>
-</TableHeader>
-<TableBody>
-{pressureRegionComparisonSensors.data.map(
+                                    Days
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[80px] text-center border-l border-white/10 border-r border-white/10">
+                                    Dashboard
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[150px] text-center">
+                                    Remark
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {pressureRegionComparisonSensors.data.map(
                                   (sensor: any, idx: number) => (
                                     <TableRow
                                       key={`${sensor.scheme_id}-${sensor.village_name}-${idx}`}
                                       className={`transition-all duration-200 hover:bg-orange-50/70 dark:hover:bg-orange-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-orange-50/40 dark:bg-orange-950/20"}`}
                                       data-testid={`row-pressure-comparison-sensor-${idx}`}
->
-  <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60 font-medium">
-    {sensor.region}
-  </TableCell>
-  <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60">
-    {sensor.division}
-  </TableCell>
-  <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-orange-600 dark:text-orange-400 border-r border-orange-100/80 dark:border-orange-900/60">
-    {sensor.scheme_id}
-  </TableCell>
-  <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-orange-100/80 dark:border-orange-900/60">
-    {sensor.scheme_name}
-  </TableCell>
-  <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
-    {sensor.owner ||
-      sensor.agency_type ||
-      "N/A"}
-  </TableCell>
-  <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60">
-    {sensor.village_name}
-  </TableCell>
-  <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-orange-100/80 dark:border-orange-900/60">
-    {sensor.esr_name}
-  </TableCell>
-  <TableCell className="!px-4 !py-3 text-center border-r border-orange-100/80 dark:border-orange-900/60">
+                                    >
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60 font-medium">
+                                        {sensor.region}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.division}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-orange-600 dark:text-orange-400 border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.scheme_id}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.scheme_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
+                                        {sensor.owner ||
+                                          sensor.agency_type ||
+                                          "N/A"}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.village_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.esr_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center border-r border-orange-100/80 dark:border-orange-900/60">
                                         <span
                                           className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${sensor.pressure_status === "Online" ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60 dark:text-emerald-300 ring-1 ring-emerald-200/80 dark:ring-emerald-700/60" : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"}`}
                                         >
@@ -10046,19 +10010,18 @@ const DetailedChlorinePage = () => {
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60">
                                         {sensor.latest_pressure_value !==
-                                        null ? (
+                                          null ? (
                                           <span
-                                            className={`${
-                                              sensor.latest_pressure_value >=
-                                                0.2 &&
+                                            className={`${sensor.latest_pressure_value >=
+                                              0.2 &&
                                               sensor.latest_pressure_value <=
-                                                0.7
-                                                ? "text-emerald-600 dark:text-emerald-400"
-                                                : sensor.latest_pressure_value <
-                                                    0.2
-                                                  ? "text-red-600 dark:text-red-400"
-                                                  : "text-purple-600 dark:text-purple-400"
-                                            }`}
+                                              0.7
+                                              ? "text-emerald-600 dark:text-emerald-400"
+                                              : sensor.latest_pressure_value <
+                                                0.2
+                                                ? "text-red-600 dark:text-red-400"
+                                                : "text-purple-600 dark:text-purple-400"
+                                              }`}
                                           >
                                             {Number(
                                               sensor.latest_pressure_value,
@@ -10084,44 +10047,44 @@ const DetailedChlorinePage = () => {
                                         </span>
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center border-l border-orange-100/80 dark:border-orange-900/60 border-r border-orange-100/80 dark:border-orange-900/60">
-    {sensor.dashboard_url && (
-      <a
-        href={sensor.dashboard_url}
-        target="_blank"
-        rel="noreferrer"
-        className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors shadow-sm"
-        title="Open Dashboard"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <ExternalLink className="h-3.5 w-3.5" />
-      </a>
-    )}
-  </TableCell>
-  <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-    {renderRemarkCell(
-      esrIssuesMap?.get(
-        `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
-      ) || [],
-      `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
-    )}
-  </TableCell>
-</TableRow>
-),
-)}
-</TableBody>
-</Table>
-</div>
-) : (
-<div className="text-center py-12">
-  <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-  <p className="text-gray-500">No sensors found</p>
-</div>
-)}
-</CardContent>
-</Card>
-)}
+                                        {sensor.dashboard_url && (
+                                          <a
+                                            href={sensor.dashboard_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors shadow-sm"
+                                            title="Open Dashboard"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <ExternalLink className="h-3.5 w-3.5" />
+                                          </a>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+                                        {renderRemarkCell(
+                                          esrIssuesMap?.get(
+                                            `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
+                                          ) || [],
+                                          `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
+                                        )}
+                                      </TableCell>
+                                    </TableRow>
+                                  ),
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        ) : (
+                          <div className="text-center py-12">
+                            <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-500">No sensors found</p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
 
-{clickedDayWiseCell && (
+                  {clickedDayWiseCell && (
                     <Card className="border-0 shadow-lg rounded-xl overflow-hidden">
                       <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950 dark:to-orange-950 border-b border-amber-200 dark:border-amber-800 py-2.5">
                         <div className="flex items-center justify-between">
@@ -10217,11 +10180,11 @@ const DetailedChlorinePage = () => {
                                     Village
                                   </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-    ESR Name
-  </TableHead>
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
-    Status
-  </TableHead>
+                                    ESR Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                    Status
+                                  </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
                                     Chlorine(mg/l)
                                   </TableHead>
@@ -10232,12 +10195,12 @@ const DetailedChlorinePage = () => {
                                     Days
                                   </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[80px] text-center border-l border-white/10 border-r border-white/10">
-    Dashboard
-  </TableHead>
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[150px] text-center">
-    Remark
-  </TableHead>
-</TableRow>
+                                    Dashboard
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[150px] text-center">
+                                    Remark
+                                  </TableHead>
+                                </TableRow>
                               </TableHeader>
                               <TableBody>
                                 {dayWiseSensors.data.map((sensor, idx) => (
@@ -10268,9 +10231,9 @@ const DetailedChlorinePage = () => {
                                       {sensor.village_name}
                                     </TableCell>
                                     <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-amber-100/80 dark:border-amber-900/60">
-    {sensor.esr_name}
-  </TableCell>
-  <TableCell className="!px-4 !py-3 text-center border-r border-amber-100/80 dark:border-amber-900/60">
+                                      {sensor.esr_name}
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-center border-r border-amber-100/80 dark:border-amber-900/60">
                                       <span
                                         className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${sensor.chlorine_status === "Online" ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60 dark:text-emerald-300 ring-1 ring-emerald-200/80 dark:ring-emerald-700/60" : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"}`}
                                       >
@@ -10298,28 +10261,28 @@ const DetailedChlorinePage = () => {
                                       </span>
                                     </TableCell>
                                     <TableCell className="!px-4 !py-3 text-center border-l border-amber-100/80 dark:border-amber-900/60 border-r border-amber-100/80 dark:border-amber-900/60">
-    {sensor.dashboard_url && (
-      <a
-        href={sensor.dashboard_url}
-        target="_blank"
-        rel="noreferrer"
-        className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors shadow-sm"
-        title="Open Dashboard"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <ExternalLink className="h-3.5 w-3.5" />
-      </a>
-    )}
-  </TableCell>
-  <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-    {renderRemarkCell(
-      esrIssuesMap?.get(
-        `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
-      ) || [],
-      `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
-    )}
-  </TableCell>
-</TableRow>
+                                      {sensor.dashboard_url && (
+                                        <a
+                                          href={sensor.dashboard_url}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors shadow-sm"
+                                          title="Open Dashboard"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <ExternalLink className="h-3.5 w-3.5" />
+                                        </a>
+                                      )}
+                                    </TableCell>
+                                    <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+                                      {renderRemarkCell(
+                                        esrIssuesMap?.get(
+                                          `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
+                                        ) || [],
+                                        `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
+                                      )}
+                                    </TableCell>
+                                  </TableRow>
                                 ))}
                               </TableBody>
                             </Table>
@@ -10412,35 +10375,35 @@ const DetailedChlorinePage = () => {
                             <Skeleton className="h-10 w-full" />
                           </div>
                         ) : pressureDayWiseSensors &&
-  pressureDayWiseSensors.data.length > 0 ? (
-  <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-orange-200/60 dark:border-orange-800/60 rounded-xl m-3 shadow-sm">
-    <Table className="min-w-max">
-      <TableHeader className="sticky top-0 z-10">
-        <TableRow className="bg-orange-800 dark:bg-orange-900">
-          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-            Region
-          </TableHead>
-          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-            Division
-          </TableHead>
-          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[90px] border-r border-white/10">
-            Scheme ID
-          </TableHead>
-          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[140px] border-r border-white/10">
-            Scheme Name
-          </TableHead>
-          <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-            Owner
-          </TableHead>
-          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-            Village
-          </TableHead>
-          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-            ESR Name
-          </TableHead>
-          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
-            Status
-          </TableHead>
+                          pressureDayWiseSensors.data.length > 0 ? (
+                          <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-orange-200/60 dark:border-orange-800/60 rounded-xl m-3 shadow-sm">
+                            <Table className="min-w-max">
+                              <TableHeader className="sticky top-0 z-10">
+                                <TableRow className="bg-orange-800 dark:bg-orange-900">
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Region
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Division
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[90px] border-r border-white/10">
+                                    Scheme ID
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[140px] border-r border-white/10">
+                                    Scheme Name
+                                  </TableHead>
+                                  <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Owner
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Village
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    ESR Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                    Status
+                                  </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
                                     Pressure(bar)
                                   </TableHead>
@@ -10448,48 +10411,48 @@ const DetailedChlorinePage = () => {
                                     Date
                                   </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[70px] text-center">
-    Days
-  </TableHead>
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[80px] text-center border-l border-white/10 border-r border-white/10">
-    Dashboard
-  </TableHead>
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[150px] text-center">
-    Remark
-  </TableHead>
-</TableRow>
-</TableHeader>
-<TableBody>
-{pressureDayWiseSensors.data.map(
+                                    Days
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[80px] text-center border-l border-white/10 border-r border-white/10">
+                                    Dashboard
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[150px] text-center">
+                                    Remark
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {pressureDayWiseSensors.data.map(
                                   (sensor: any, idx: number) => (
                                     <TableRow
                                       key={`${sensor.scheme_id}-${sensor.village_name}-${idx}`}
                                       className={`transition-all duration-200 hover:bg-orange-50/70 dark:hover:bg-orange-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-orange-50/40 dark:bg-orange-950/20"}`}
                                       data-testid={`row-pressure-daywise-sensor-${idx}`}
->
-  <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60 font-medium">
-    {sensor.region}
-  </TableCell>
-  <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60">
-    {sensor.division}
-  </TableCell>
-  <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-orange-700 dark:text-orange-400 border-r border-orange-100/80 dark:border-orange-900/60">
-    {sensor.scheme_id}
-  </TableCell>
-  <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-orange-100/80 dark:border-orange-900/60">
-    {sensor.scheme_name}
-  </TableCell>
-  <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
-    {sensor.owner ||
-      sensor.agency_type ||
-      "N/A"}
-  </TableCell>
-  <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60">
-    {sensor.village_name}
-  </TableCell>
-  <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-orange-100/80 dark:border-orange-900/60">
-    {sensor.esr_name}
-  </TableCell>
-  <TableCell className="!px-4 !py-3 text-center border-r border-orange-100/80 dark:border-orange-900/60">
+                                    >
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60 font-medium">
+                                        {sensor.region}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.division}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-orange-700 dark:text-orange-400 border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.scheme_id}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.scheme_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
+                                        {sensor.owner ||
+                                          sensor.agency_type ||
+                                          "N/A"}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.village_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-orange-100/80 dark:border-orange-900/60">
+                                        {sensor.esr_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center border-r border-orange-100/80 dark:border-orange-900/60">
                                         <span
                                           className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${sensor.pressure_status === "Online" ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60 dark:text-emerald-300 ring-1 ring-emerald-200/80 dark:ring-emerald-700/60" : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"}`}
                                         >
@@ -10498,19 +10461,19 @@ const DetailedChlorinePage = () => {
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium border-r border-orange-100/80 dark:border-orange-900/60">
                                         {sensor.latest_pressure_value !==
-                                        null ? (
+                                          null ? (
                                           <span
                                             className={
                                               Number(
                                                 sensor.latest_pressure_value,
                                               ) >= 0.2 &&
-                                              Number(
-                                                sensor.latest_pressure_value,
-                                              ) <= 0.7
+                                                Number(
+                                                  sensor.latest_pressure_value,
+                                                ) <= 0.7
                                                 ? "text-green-600"
                                                 : Number(
-                                                      sensor.latest_pressure_value,
-                                                    ) < 0.2
+                                                  sensor.latest_pressure_value,
+                                                ) < 0.2
                                                   ? "text-red-600"
                                                   : "text-purple-600"
                                             }
@@ -10540,44 +10503,44 @@ const DetailedChlorinePage = () => {
                                         </span>
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center border-l border-orange-100/80 dark:border-orange-900/60 border-r border-orange-100/80 dark:border-orange-900/60">
-    {sensor.dashboard_url && (
-      <a
-        href={sensor.dashboard_url}
-        target="_blank"
-        rel="noreferrer"
-        className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors shadow-sm"
-        title="Open Dashboard"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <ExternalLink className="h-3.5 w-3.5" />
-      </a>
-    )}
-  </TableCell>
-  <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-    {renderRemarkCell(
-      esrIssuesMap?.get(
-        `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
-      ) || [],
-      `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
-    )}
-  </TableCell>
-</TableRow>
-),
-)}
-</TableBody>
-</Table>
-</div>
-) : (
-<div className="text-center py-12">
-  <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-  <p className="text-gray-500">No sensors found</p>
-</div>
-)}
-</CardContent>
-</Card>
-)}
+                                        {sensor.dashboard_url && (
+                                          <a
+                                            href={sensor.dashboard_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors shadow-sm"
+                                            title="Open Dashboard"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <ExternalLink className="h-3.5 w-3.5" />
+                                          </a>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+                                        {renderRemarkCell(
+                                          esrIssuesMap?.get(
+                                            `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
+                                          ) || [],
+                                          `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
+                                        )}
+                                      </TableCell>
+                                    </TableRow>
+                                  ),
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        ) : (
+                          <div className="text-center py-12">
+                            <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-500">No sensors found</p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
 
-{/* Region Comparison Clicked Sensor List */}
+                  {/* Region Comparison Clicked Sensor List */}
                   {clickedRegionComparisonCell && (
                     <Card className="border-0 shadow-lg rounded-xl overflow-hidden">
                       <CardHeader className="bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-950 dark:to-purple-950 border-b border-violet-200 dark:border-violet-800 py-2.5">
@@ -10680,21 +10643,21 @@ const DetailedChlorinePage = () => {
                                     Status
                                   </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
-    Chlorine
-  </TableHead>
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[90px] text-center border-r border-white/10">
-    Date
-  </TableHead>
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[70px] text-center border-r border-white/10">
-    Days
-  </TableHead>
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
-    Dashboard
-  </TableHead>
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[150px] text-center">
-    Remark
-  </TableHead>
-</TableRow>
+                                    Chlorine
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[90px] text-center border-r border-white/10">
+                                    Date
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[70px] text-center border-r border-white/10">
+                                    Days
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                    Dashboard
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[150px] text-center">
+                                    Remark
+                                  </TableHead>
+                                </TableRow>
                               </TableHeader>
                               <TableBody>
                                 {regionComparisonSensors.data.map(
@@ -10736,7 +10699,7 @@ const DetailedChlorinePage = () => {
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-violet-100/80 dark:border-violet-900/60">
                                         {sensor.latest_chlorine_value !==
-                                        null ? (
+                                          null ? (
                                           Number(
                                             sensor.latest_chlorine_value,
                                           ).toFixed(2)
@@ -10760,37 +10723,37 @@ const DetailedChlorinePage = () => {
                                         </span>
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center border-r border-violet-100/80 dark:border-violet-900/60">
-    {sensor.dashboard_url && (
-      <a
-        href={sensor.dashboard_url}
-        target="_blank"
-        rel="noreferrer"
-        className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors shadow-sm"
-        title="Open Dashboard"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <ExternalLink className="h-3.5 w-3.5" />
-      </a>
-    )}
-  </TableCell>
-  <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-    {renderRemarkCell(
-      esrIssuesMap?.get(
-        `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
-      ) || [],
-      `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
-    )}
-  </TableCell>
-</TableRow>
-),
-)}
-</TableBody>
-</Table>
-</div>
-) : (
-<div className="text-center py-12">
-  <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-  <p className="text-gray-500">No sensors found</p>
+                                        {sensor.dashboard_url && (
+                                          <a
+                                            href={sensor.dashboard_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors shadow-sm"
+                                            title="Open Dashboard"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <ExternalLink className="h-3.5 w-3.5" />
+                                          </a>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+                                        {renderRemarkCell(
+                                          esrIssuesMap?.get(
+                                            `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
+                                          ) || [],
+                                          `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
+                                        )}
+                                      </TableCell>
+                                    </TableRow>
+                                  ),
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        ) : (
+                          <div className="text-center py-12">
+                            <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-500">No sensors found</p>
                           </div>
                         )}
                       </CardContent>
@@ -10891,21 +10854,21 @@ const DetailedChlorinePage = () => {
                                     Owner
                                   </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-    Village
-  </TableHead>
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
-    LPCD
-  </TableHead>
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[70px] text-center">
-    Days
-  </TableHead>
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[80px] text-center border-l border-white/10 border-r border-white/10">
-    Dashboard
-  </TableHead>
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[150px] text-center">
-    Remark
-  </TableHead>
-</TableRow>
+                                    Village
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                    LPCD
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[70px] text-center">
+                                    Days
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[80px] text-center border-l border-white/10 border-r border-white/10">
+                                    Dashboard
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[150px] text-center">
+                                    Remark
+                                  </TableHead>
+                                </TableRow>
                               </TableHeader>
                               <TableBody>
                                 {lpcdDayWiseVillages.data.map(
@@ -10933,9 +10896,9 @@ const DetailedChlorinePage = () => {
                                           "N/A"}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-cyan-100/80 dark:border-cyan-900/60 truncate">
-    {sensor.village_name}
-  </TableCell>
-  <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-cyan-100/80 dark:border-cyan-900/60">
+                                        {sensor.village_name}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-cyan-100/80 dark:border-cyan-900/60">
                                         {sensor.latest_lpcd_value !== null ? (
                                           Number(
                                             sensor.latest_lpcd_value,
@@ -10955,32 +10918,32 @@ const DetailedChlorinePage = () => {
                                         </span>
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center border-l border-cyan-100/80 dark:border-cyan-900/60 border-r border-cyan-100/80 dark:border-cyan-900/60">
-    {(sensor as any).dashboard_url ? (
-      <a
-        href={(sensor as any).dashboard_url}
-        target="_blank"
-        rel="noreferrer"
-        className="inline-flex items-center justify-center p-1.5 text-cyan-600 hover:text-cyan-800 hover:bg-cyan-50 dark:text-cyan-400 dark:hover:text-cyan-200 dark:hover:bg-cyan-900/50 rounded-full transition-colors"
-        title="Open Dashboard"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <ExternalLink className="h-3.5 w-3.5" />
-      </a>
-    ) : (
-      <span className="text-slate-400">
-        -
-      </span>
-    )}
-  </TableCell>
-  <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-    {renderRemarkCell(
-      villageIssuesMap?.get(
-        `${sensor.scheme_id}-${sensor.village_name}`,
-      ) || [],
-      `Remarks for ${sensor.village_name}`,
-    )}
-  </TableCell>
-</TableRow>
+                                        {(sensor as any).dashboard_url ? (
+                                          <a
+                                            href={(sensor as any).dashboard_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center justify-center p-1.5 text-cyan-600 hover:text-cyan-800 hover:bg-cyan-50 dark:text-cyan-400 dark:hover:text-cyan-200 dark:hover:bg-cyan-900/50 rounded-full transition-colors"
+                                            title="Open Dashboard"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <ExternalLink className="h-3.5 w-3.5" />
+                                          </a>
+                                        ) : (
+                                          <span className="text-slate-400">
+                                            -
+                                          </span>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+                                        {renderRemarkCell(
+                                          villageIssuesMap?.get(
+                                            `${sensor.scheme_id}-${sensor.village_name}`,
+                                          ) || [],
+                                          `Remarks for ${sensor.village_name}`,
+                                        )}
+                                      </TableCell>
+                                    </TableRow>
                                   ),
                                 )}
                               </TableBody>
@@ -11094,24 +11057,24 @@ const DetailedChlorinePage = () => {
                                     Scheme Name
                                   </TableHead>
                                   <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-    Owner
-  </TableHead>
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-    Block
-  </TableHead>
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
-    LPCD
-  </TableHead>
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[70px] text-center">
-    Days
-  </TableHead>
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
-    Dashboard
-  </TableHead>
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[150px] text-center">
-    Remark
-  </TableHead>
-</TableRow>
+                                    Owner
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                    Block
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                    LPCD
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[70px] text-center">
+                                    Days
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+                                    Dashboard
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[150px] text-center">
+                                    Remark
+                                  </TableHead>
+                                </TableRow>
                               </TableHeader>
                               <TableBody>
                                 {schemeLpcdDayWiseSchemes.data.map(
@@ -11127,11 +11090,10 @@ const DetailedChlorinePage = () => {
                                     return (
                                       <TableRow
                                         key={`scheme-daywise-${scheme.scheme_id}-${idx}`}
-                                        className={`transition-all duration-200 ${
-                                          hasIssue
-                                            ? "bg-red-50 hover:bg-red-100/50 dark:bg-red-950/20 dark:hover:bg-red-950/40 border-l-4 border-l-red-500"
-                                            : `hover:bg-purple-50/70 dark:hover:bg-purple-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-indigo-50/40 dark:bg-indigo-950/20"}`
-                                        }`}
+                                        className={`transition-all duration-200 ${hasIssue
+                                          ? "bg-red-50 hover:bg-red-100/50 dark:bg-red-950/20 dark:hover:bg-red-950/40 border-l-4 border-l-red-500"
+                                          : `hover:bg-purple-50/70 dark:hover:bg-purple-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-indigo-50/40 dark:bg-indigo-950/20"}`
+                                          }`}
                                         data-testid={`row-scheme-daywise-${idx}`}
                                       >
                                         <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 font-medium">
@@ -11161,16 +11123,16 @@ const DetailedChlorinePage = () => {
                                           )}
                                         </TableCell>
                                         <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
-    {scheme.owner ||
-      scheme.agency_type ||
-      "N/A"}
-  </TableCell>
-  <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60">
+                                          {scheme.owner ||
+                                            scheme.agency_type ||
+                                            "N/A"}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60">
                                           {scheme.block}
                                         </TableCell>
                                         <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60">
                                           {scheme.latest_lpcd_value !== null &&
-                                          scheme.latest_lpcd_value !==
+                                            scheme.latest_lpcd_value !==
                                             undefined ? (
                                             Number(
                                               scheme.latest_lpcd_value,
@@ -11193,34 +11155,34 @@ const DetailedChlorinePage = () => {
                                           </span>
                                         </TableCell>
                                         <TableCell className="!px-4 !py-3 text-center border-r border-purple-100/80 dark:border-purple-900/60">
-    {scheme.dashboard_url ? (
-      <a
-        href={scheme.dashboard_url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center justify-center p-1.5 text-purple-600 hover:text-purple-800 hover:bg-purple-50 dark:text-purple-400 dark:hover:text-purple-200 dark:hover:bg-purple-900/50 rounded-full transition-colors"
-        title="Open Dashboard"
-        onClick={(e) =>
-          e.stopPropagation()
-        }
-      >
-        <ExternalLink className="h-3.5 w-3.5" />
-      </a>
-    ) : (
-      <span className="text-slate-400">
-        -
-      </span>
-    )}
-  </TableCell>
-  <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-    {renderRemarkCell(
-      schemeIssuesMap?.get(
-        String(scheme.scheme_id),
-      ) || [],
-      `Remarks for ${scheme.scheme_name}`,
-    )}
-  </TableCell>
-</TableRow>
+                                          {scheme.dashboard_url ? (
+                                            <a
+                                              href={scheme.dashboard_url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="inline-flex items-center justify-center p-1.5 text-purple-600 hover:text-purple-800 hover:bg-purple-50 dark:text-purple-400 dark:hover:text-purple-200 dark:hover:bg-purple-900/50 rounded-full transition-colors"
+                                              title="Open Dashboard"
+                                              onClick={(e) =>
+                                                e.stopPropagation()
+                                              }
+                                            >
+                                              <ExternalLink className="h-3.5 w-3.5" />
+                                            </a>
+                                          ) : (
+                                            <span className="text-slate-400">
+                                              -
+                                            </span>
+                                          )}
+                                        </TableCell>
+                                        <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+                                          {renderRemarkCell(
+                                            schemeIssuesMap?.get(
+                                              String(scheme.scheme_id),
+                                            ) || [],
+                                            `Remarks for ${scheme.scheme_name}`,
+                                          )}
+                                        </TableCell>
+                                      </TableRow>
                                     );
                                   },
                                 )}
@@ -11502,11 +11464,10 @@ const DetailedChlorinePage = () => {
                             setClickedPressureDivisionCell(null);
                             setClickedSchemeDivisionCell(null);
                           }}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
-                            divisionWiseRegion === "All Regions"
-                              ? `bg-gradient-to-r ${mainTab === "lpcd" ? "from-emerald-500 to-teal-500" : mainTab === "pressure" ? "from-orange-500 to-amber-500" : "from-blue-500 to-cyan-500"} text-white shadow-md`
-                              : `bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 ${mainTab === "lpcd" ? "hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950" : mainTab === "pressure" ? "hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950" : "hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950"}`
-                          }`}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${divisionWiseRegion === "All Regions"
+                            ? `bg-gradient-to-r ${mainTab === "lpcd" ? "from-emerald-500 to-teal-500" : mainTab === "pressure" ? "from-orange-500 to-amber-500" : "from-blue-500 to-cyan-500"} text-white shadow-md`
+                            : `bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 ${mainTab === "lpcd" ? "hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950" : mainTab === "pressure" ? "hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950" : "hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950"}`
+                            }`}
                           data-testid="tab-divisionwise-all-regions"
                         >
                           <span className="flex items-center gap-1.5">
@@ -11526,11 +11487,10 @@ const DetailedChlorinePage = () => {
                               setClickedPressureDivisionCell(null);
                               setClickedSchemeDivisionCell(null);
                             }}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
-                              divisionWiseRegion === stat.region
-                                ? `bg-gradient-to-r ${mainTab === "lpcd" ? "from-emerald-500 to-teal-500" : mainTab === "pressure" ? "from-orange-500 to-amber-500" : "from-blue-500 to-cyan-500"} text-white shadow-md`
-                                : `bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 ${mainTab === "lpcd" ? "hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950" : mainTab === "pressure" ? "hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950" : "hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950"}`
-                            }`}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${divisionWiseRegion === stat.region
+                              ? `bg-gradient-to-r ${mainTab === "lpcd" ? "from-emerald-500 to-teal-500" : mainTab === "pressure" ? "from-orange-500 to-amber-500" : "from-blue-500 to-cyan-500"} text-white shadow-md`
+                              : `bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 ${mainTab === "lpcd" ? "hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950" : mainTab === "pressure" ? "hover:border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950" : "hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950"}`
+                              }`}
                             data-testid={`tab-divisionwise-${stat.region}`}
                           >
                             {stat.region}
@@ -11658,11 +11618,10 @@ const DetailedChlorinePage = () => {
                                     return (
                                       <div
                                         key={`${division.region}-${division.division}-${index}`}
-                                        className={`grid grid-cols-[180px_1fr_1fr_1fr_1fr] gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
-                                          index % 2 === 0
-                                            ? "bg-white dark:bg-gray-900"
-                                            : "bg-gray-50/50 dark:bg-gray-800/20"
-                                        }`}
+                                        className={`grid grid-cols-[180px_1fr_1fr_1fr_1fr] gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${index % 2 === 0
+                                          ? "bg-white dark:bg-gray-900"
+                                          : "bg-gray-50/50 dark:bg-gray-800/20"
+                                          }`}
                                         data-testid={`row-division-${index}`}
                                       >
                                         <div className="flex items-center gap-1.5">
@@ -11831,7 +11790,7 @@ const DetailedChlorinePage = () => {
                                         );
                                         const region =
                                           clickedDivisionCell.region ===
-                                          "All Regions"
+                                            "All Regions"
                                             ? ""
                                             : clickedDivisionCell.region;
                                         if (region)
@@ -11971,8 +11930,8 @@ const DetailedChlorinePage = () => {
                                             >
                                               {village.lpcd_value_day7 !== null
                                                 ? Number(
-                                                    village.lpcd_value_day7,
-                                                  ).toFixed(1)
+                                                  village.lpcd_value_day7,
+                                                ).toFixed(1)
                                                 : "N/A"}
                                             </span>
                                           </TableCell>
@@ -11982,7 +11941,7 @@ const DetailedChlorinePage = () => {
                                             >
                                               {village.water_value_day7 !==
                                                 null &&
-                                              village.water_value_day7 > 0
+                                                village.water_value_day7 > 0
                                                 ? "With Water"
                                                 : "No Water"}
                                             </span>
@@ -12134,11 +12093,10 @@ const DetailedChlorinePage = () => {
                                     return (
                                       <div
                                         key={`scheme-${division.region}-${division.division}-${index}`}
-                                        className={`grid grid-cols-[180px_1fr_1fr_1fr_1fr] gap-3 px-4 py-2 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-colors ${
-                                          index % 2 === 0
-                                            ? "bg-white dark:bg-gray-900"
-                                            : "bg-gray-50/50 dark:bg-gray-800/20"
-                                        }`}
+                                        className={`grid grid-cols-[180px_1fr_1fr_1fr_1fr] gap-3 px-4 py-2 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-colors ${index % 2 === 0
+                                          ? "bg-white dark:bg-gray-900"
+                                          : "bg-gray-50/50 dark:bg-gray-800/20"
+                                          }`}
                                         data-testid={`row-scheme-division-${index}`}
                                       >
                                         <div className="flex items-center gap-1.5">
@@ -12306,7 +12264,7 @@ const DetailedChlorinePage = () => {
                                     if (
                                       clickedSchemeDivisionCell.region &&
                                       clickedSchemeDivisionCell.region !==
-                                        "All Regions"
+                                      "All Regions"
                                     ) {
                                       params.append(
                                         "region",
@@ -12441,13 +12399,12 @@ const DetailedChlorinePage = () => {
                                           </TableCell>
                                           <TableCell className="!px-4 !py-3 text-center border-r border-slate-100/80 dark:border-slate-800/60">
                                             {item.lpcd_value !== null &&
-                                            item.lpcd_value !== undefined ? (
+                                              item.lpcd_value !== undefined ? (
                                               <span
-                                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                                                  Number(item.lpcd_value) > 55
-                                                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300"
-                                                    : "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
-                                                }`}
+                                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${Number(item.lpcd_value) > 55
+                                                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300"
+                                                  : "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
+                                                  }`}
                                               >
                                                 {Number(
                                                   item.lpcd_value,
@@ -12599,11 +12556,10 @@ const DetailedChlorinePage = () => {
                                     return (
                                       <div
                                         key={`${division.region}-${division.division}-${index}`}
-                                        className={`grid grid-cols-[180px_1fr_1fr_1fr] gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
-                                          index % 2 === 0
-                                            ? "bg-white dark:bg-gray-900"
-                                            : "bg-gray-50/50 dark:bg-gray-800/20"
-                                        }`}
+                                        className={`grid grid-cols-[180px_1fr_1fr_1fr] gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${index % 2 === 0
+                                          ? "bg-white dark:bg-gray-900"
+                                          : "bg-gray-50/50 dark:bg-gray-800/20"
+                                          }`}
                                         data-testid={`row-chlorine-division-${index}`}
                                       >
                                         <div className="flex items-center gap-1.5">
@@ -12826,12 +12782,12 @@ const DetailedChlorinePage = () => {
                                     ESR Name
                                   </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-3 !py-3.5 text-center w-[100px] border-r border-white/10">
-    Chlorine (mg/l)
-  </TableHead>
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-3 !py-3.5 w-[150px] text-center">
-    Remark
-  </TableHead>
-</TableRow>
+                                    Chlorine (mg/l)
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-3 !py-3.5 w-[150px] text-center">
+                                    Remark
+                                  </TableHead>
+                                </TableRow>
                               </TableHeader>
                               <TableBody>
                                 {chlorineDivisionSensors.data.map(
@@ -12888,46 +12844,45 @@ const DetailedChlorinePage = () => {
                                         {sensor.village_name}
                                       </TableCell>
                                       <TableCell className="!px-3 !py-2.5 !text-[12px] text-slate-600 dark:text-slate-400 truncate border-r border-teal-100/80 dark:border-teal-900/60">
-    {sensor.esr_name}
-  </TableCell>
-  <TableCell className="!px-3 !py-2.5 text-center text-sm border-r border-teal-100/80 dark:border-teal-900/60">
+                                        {sensor.esr_name}
+                                      </TableCell>
+                                      <TableCell className="!px-3 !py-2.5 text-center text-sm border-r border-teal-100/80 dark:border-teal-900/60">
                                         <Badge
-                                          className={`text-[10px] ${
-                                            sensor.latest_chlorine_value !==
-                                              null &&
+                                          className={`text-[10px] ${sensor.latest_chlorine_value !==
+                                            null &&
                                             sensor.latest_chlorine_value >=
-                                              0.2 &&
+                                            0.2 &&
                                             sensor.latest_chlorine_value <= 0.5
-                                              ? "bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-400"
+                                            ? "bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-400"
+                                            : sensor.latest_chlorine_value !==
+                                              null &&
+                                              sensor.latest_chlorine_value <
+                                              0.2
+                                              ? "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-400"
                                               : sensor.latest_chlorine_value !==
-                                                    null &&
-                                                  sensor.latest_chlorine_value <
-                                                    0.2
-                                                ? "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-400"
-                                                : sensor.latest_chlorine_value !==
-                                                      null &&
-                                                    sensor.latest_chlorine_value >
-                                                      0.5
-                                                  ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-400"
-                                                  : "bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-400"
-                                          }`}
+                                                null &&
+                                                sensor.latest_chlorine_value >
+                                                0.5
+                                                ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-400"
+                                                : "bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-400"
+                                            }`}
                                         >
                                           {sensor.latest_chlorine_value !== null
-    ? Number(
-        sensor.latest_chlorine_value,
-      ).toFixed(2)
-    : "N/A"}
-</Badge>
-</TableCell>
-<TableCell className="!px-3 !py-2.5 !text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-  {renderRemarkCell(
-    esrIssuesMap?.get(
-      `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
-    ) || [],
-    `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
-  )}
-</TableCell>
-</TableRow>
+                                            ? Number(
+                                              sensor.latest_chlorine_value,
+                                            ).toFixed(2)
+                                            : "N/A"}
+                                        </Badge>
+                                      </TableCell>
+                                      <TableCell className="!px-3 !py-2.5 !text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+                                        {renderRemarkCell(
+                                          esrIssuesMap?.get(
+                                            `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
+                                          ) || [],
+                                          `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
+                                        )}
+                                      </TableCell>
+                                    </TableRow>
                                   ),
                                 )}
                               </TableBody>
@@ -13075,11 +13030,10 @@ const DetailedChlorinePage = () => {
                                     return (
                                       <div
                                         key={`${division.region}-${division.division}-${index}`}
-                                        className={`grid grid-cols-[180px_1fr_1fr_1fr] gap-3 px-4 py-2 hover:bg-orange-50 dark:hover:bg-orange-950/30 transition-colors ${
-                                          index % 2 === 0
-                                            ? "bg-white dark:bg-gray-900"
-                                            : "bg-orange-50/30 dark:bg-orange-900/10"
-                                        }`}
+                                        className={`grid grid-cols-[180px_1fr_1fr_1fr] gap-3 px-4 py-2 hover:bg-orange-50 dark:hover:bg-orange-950/30 transition-colors ${index % 2 === 0
+                                          ? "bg-white dark:bg-gray-900"
+                                          : "bg-orange-50/30 dark:bg-orange-900/10"
+                                          }`}
                                         data-testid={`row-pressure-division-${index}`}
                                       >
                                         <div className="flex items-center gap-1.5">
@@ -13109,7 +13063,7 @@ const DetailedChlorinePage = () => {
                                             className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
                                             onClick={() =>
                                               (division.sensorsOptimal || 0) >
-                                                0 &&
+                                              0 &&
                                               handlePressureDivisionCellClick(
                                                 division.division,
                                                 division.region,
@@ -13136,7 +13090,7 @@ const DetailedChlorinePage = () => {
                                             className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
                                             onClick={() =>
                                               (division.sensorsBelow02 || 0) >
-                                                0 &&
+                                              0 &&
                                               handlePressureDivisionCellClick(
                                                 division.division,
                                                 division.region,
@@ -13163,7 +13117,7 @@ const DetailedChlorinePage = () => {
                                             className="flex-1 h-4 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-all"
                                             onClick={() =>
                                               (division.sensorsAbove07 || 0) >
-                                                0 &&
+                                              0 &&
                                               handlePressureDivisionCellClick(
                                                 division.division,
                                                 division.region,
@@ -13373,30 +13327,29 @@ const DetailedChlorinePage = () => {
                                       </TableCell>
                                       <TableCell className="!px-3 !py-2.5 text-center text-sm">
                                         <Badge
-                                          className={`text-[10px] ${
-                                            sensor.latest_pressure_value !==
-                                              null &&
+                                          className={`text-[10px] ${sensor.latest_pressure_value !==
+                                            null &&
                                             sensor.latest_pressure_value >=
-                                              0.2 &&
+                                            0.2 &&
                                             sensor.latest_pressure_value <= 0.7
-                                              ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-400"
+                                            ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-400"
+                                            : sensor.latest_pressure_value !==
+                                              null &&
+                                              sensor.latest_pressure_value <
+                                              0.2
+                                              ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-400"
                                               : sensor.latest_pressure_value !==
-                                                    null &&
-                                                  sensor.latest_pressure_value <
-                                                    0.2
-                                                ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-400"
-                                                : sensor.latest_pressure_value !==
-                                                      null &&
-                                                    sensor.latest_pressure_value >
-                                                      0.7
-                                                  ? "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-400"
-                                                  : "bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-400"
-                                          }`}
+                                                null &&
+                                                sensor.latest_pressure_value >
+                                                0.7
+                                                ? "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-400"
+                                                : "bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-400"
+                                            }`}
                                         >
                                           {sensor.latest_pressure_value !== null
                                             ? Number(
-                                                sensor.latest_pressure_value,
-                                              ).toFixed(2)
+                                              sensor.latest_pressure_value,
+                                            ).toFixed(2)
                                             : "N/A"}
                                         </Badge>
                                       </TableCell>
@@ -13635,22 +13588,20 @@ const DetailedChlorinePage = () => {
                                                 dates: weeklyLpcdStats?.dates,
                                               })
                                             }
-                                            className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${
-                                              villageStats.reduce(
-                                                (sum, s) =>
-                                                  sum +
-                                                  ((s as any)[cat.key] || 0),
-                                                0,
-                                              ) > 0
-                                                ? `${
-                                                    cat.key === "no_water"
-                                                      ? "text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
-                                                      : cat.key === "below_55"
-                                                        ? "text-orange-800 dark:text-orange-200 bg-orange-100 dark:bg-orange-900/40 hover:bg-orange-200 dark:hover:bg-orange-800"
-                                                        : "text-emerald-800 dark:text-emerald-200 bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 dark:hover:bg-emerald-800"
-                                                  } cursor-pointer shadow-sm`
-                                                : "text-indigo-800 dark:text-indigo-200"
-                                            }`}
+                                            className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${villageStats.reduce(
+                                              (sum, s) =>
+                                                sum +
+                                                ((s as any)[cat.key] || 0),
+                                              0,
+                                            ) > 0
+                                              ? `${cat.key === "no_water"
+                                                ? "text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
+                                                : cat.key === "below_55"
+                                                  ? "text-orange-800 dark:text-orange-200 bg-orange-100 dark:bg-orange-900/40 hover:bg-orange-200 dark:hover:bg-orange-800"
+                                                  : "text-emerald-800 dark:text-emerald-200 bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 dark:hover:bg-emerald-800"
+                                              } cursor-pointer shadow-sm`
+                                              : "text-indigo-800 dark:text-indigo-200"
+                                              }`}
                                           >
                                             {villageStats.reduce(
                                               (sum, s) =>
@@ -13684,8 +13635,8 @@ const DetailedChlorinePage = () => {
                                           );
                                         const weeklyTotal = regionStat
                                           ? Number(regionStat.above_55 || 0) +
-                                            Number(regionStat.below_55 || 0) +
-                                            Number(regionStat.no_water || 0)
+                                          Number(regionStat.below_55 || 0) +
+                                          Number(regionStat.no_water || 0)
                                           : 0;
                                         return (
                                           <div
@@ -13994,7 +13945,7 @@ const DetailedChlorinePage = () => {
                                               <button
                                                 onClick={() =>
                                                   regionData.consistent_above_55 >
-                                                    0 &&
+                                                  0 &&
                                                   setClickedComparisonCell({
                                                     category:
                                                       "consistent_above_55",
@@ -14058,7 +14009,7 @@ const DetailedChlorinePage = () => {
                                               <button
                                                 onClick={() =>
                                                   regionData.consistent_below_55 >
-                                                    0 &&
+                                                  0 &&
                                                   setClickedComparisonCell({
                                                     category:
                                                       "consistent_below_55",
@@ -14122,7 +14073,7 @@ const DetailedChlorinePage = () => {
                                               <button
                                                 onClick={() =>
                                                   regionData.consistent_no_water >
-                                                    0 &&
+                                                  0 &&
                                                   setClickedComparisonCell({
                                                     category:
                                                       "consistent_no_water",
@@ -14370,11 +14321,10 @@ const DetailedChlorinePage = () => {
                                                         },
                                                       )
                                                     }
-                                                    className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${
-                                                      value > 0
-                                                        ? "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-900/60 cursor-pointer shadow-sm"
-                                                        : "text-gray-400 dark:text-gray-600"
-                                                    }`}
+                                                    className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${value > 0
+                                                      ? "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-900/60 cursor-pointer shadow-sm"
+                                                      : "text-gray-400 dark:text-gray-600"
+                                                      }`}
                                                   >
                                                     {value}
                                                   </button>
@@ -14398,16 +14348,15 @@ const DetailedChlorinePage = () => {
                                                   dates: weeklyLpcdStats?.dates,
                                                 })
                                               }
-                                              className={`font-bold text-[16px] px-2 py-1 rounded-md transition-all ${
-                                                schemeStats.reduce(
-                                                  (sum, s) =>
-                                                    sum +
-                                                    ((s as any)[cat.key] || 0),
-                                                  0,
-                                                ) > 0
-                                                  ? "bg-indigo-300 dark:bg-indigo-700 text-indigo-900 dark:text-indigo-100 hover:bg-indigo-400 dark:hover:bg-indigo-600 cursor-pointer"
-                                                  : "text-indigo-800 dark:text-indigo-200"
-                                              }`}
+                                              className={`font-bold text-[16px] px-2 py-1 rounded-md transition-all ${schemeStats.reduce(
+                                                (sum, s) =>
+                                                  sum +
+                                                  ((s as any)[cat.key] || 0),
+                                                0,
+                                              ) > 0
+                                                ? "bg-indigo-300 dark:bg-indigo-700 text-indigo-900 dark:text-indigo-100 hover:bg-indigo-400 dark:hover:bg-indigo-600 cursor-pointer"
+                                                : "text-indigo-800 dark:text-indigo-200"
+                                                }`}
                                             >
                                               {schemeStats.reduce(
                                                 (sum, s) =>
@@ -14447,14 +14396,14 @@ const DetailedChlorinePage = () => {
                                                 );
                                               const weeklyTotal = regionStat
                                                 ? Number(
-                                                    regionStat.above_55 || 0,
-                                                  ) +
-                                                  Number(
-                                                    regionStat.below_55 || 0,
-                                                  ) +
-                                                  Number(
-                                                    regionStat.no_water || 0,
-                                                  )
+                                                  regionStat.above_55 || 0,
+                                                ) +
+                                                Number(
+                                                  regionStat.below_55 || 0,
+                                                ) +
+                                                Number(
+                                                  regionStat.no_water || 0,
+                                                )
                                                 : 0;
                                               return (
                                                 <button
@@ -15165,7 +15114,7 @@ const DetailedChlorinePage = () => {
                                       )}
                                     </span>
                                     <span className="text-sm">
-                                      Sensors with data
+                                      Sensors with water
                                     </span>
                                   </button>
                                 </div>
@@ -15291,7 +15240,7 @@ const DetailedChlorinePage = () => {
                                             <button
                                               onClick={() =>
                                                 (regionData.below_0_2 || 0) >
-                                                  0 &&
+                                                0 &&
                                                 handlePressureComparisonCellClick(
                                                   "below_0_2",
                                                   regionData.region,
@@ -15344,7 +15293,7 @@ const DetailedChlorinePage = () => {
                                             <button
                                               onClick={() =>
                                                 (regionData.above_0_7 || 0) >
-                                                  0 &&
+                                                0 &&
                                                 handlePressureComparisonCellClick(
                                                   "above_0_7",
                                                   regionData.region,
@@ -15530,7 +15479,7 @@ const DetailedChlorinePage = () => {
                                           )}
                                         </span>
                                         <span className="text-sm">
-                                          Sensors with data
+                                          Sensors with water
                                         </span>
                                       </button>
                                     </div>
@@ -15599,7 +15548,7 @@ const DetailedChlorinePage = () => {
                                     if (
                                       clickedComparisonCell.region &&
                                       clickedComparisonCell.region !==
-                                        "All Regions"
+                                      "All Regions"
                                     )
                                       params.append(
                                         "region",
@@ -15659,14 +15608,14 @@ const DetailedChlorinePage = () => {
                               <TableHeader className="sticky top-0 z-10">
                                 <TableRow className="bg-purple-800 dark:bg-purple-900">
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[130px] border-r border-white/10">
-    Village Name
-  </TableHead>
-  {!clickedComparisonCell.isLpcd && (
-    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-      ESR Name
-    </TableHead>
-  )}
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[180px] border-r border-white/10">
+                                    Village Name
+                                  </TableHead>
+                                  {!clickedComparisonCell.isLpcd && (
+                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+                                      ESR Name
+                                    </TableHead>
+                                  )}
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[180px] border-r border-white/10">
                                     Scheme Name
                                   </TableHead>
                                   <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
@@ -15682,36 +15631,36 @@ const DetailedChlorinePage = () => {
                                     Dashboard
                                   </TableHead>
                                   {clickedComparisonCell.isLpcd ? (
-    <>
-      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 text-center w-[100px] border-r border-white/10">
-        Population
-      </TableHead>
-      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 text-center w-[80px] border-r border-white/10">
-        LPCD
-      </TableHead>
-    </>
-  ) : (
-    <>
-      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 text-center w-[100px] border-r border-white/10">
-        {clickedComparisonCell.category ===
-          "offline" ||
-        clickedComparisonCell.category ===
-          "offline-with-no-water" ||
-        clickedComparisonCell.category ===
-          "offline-with-water" ||
-        clickedComparisonCell.category ===
-          "online_no_water" ||
-        clickedComparisonCell.category ===
-          "online-with-water"
-          ? "Status"
-          : "Chlorine (mg/l)"}
-      </TableHead>
-    </>
-  )}
-  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 text-center w-[150px]">
-    Remark
-  </TableHead>
-</TableRow>
+                                    <>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 text-center w-[100px] border-r border-white/10">
+                                        Population
+                                      </TableHead>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 text-center w-[80px] border-r border-white/10">
+                                        LPCD
+                                      </TableHead>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 text-center w-[100px] border-r border-white/10">
+                                        {clickedComparisonCell.category ===
+                                          "offline" ||
+                                          clickedComparisonCell.category ===
+                                          "offline-with-no-water" ||
+                                          clickedComparisonCell.category ===
+                                          "offline-with-water" ||
+                                          clickedComparisonCell.category ===
+                                          "online_no_water" ||
+                                          clickedComparisonCell.category ===
+                                          "online-with-water"
+                                          ? "Status"
+                                          : "Chlorine (mg/l)"}
+                                      </TableHead>
+                                    </>
+                                  )}
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 text-center w-[150px]">
+                                    Remark
+                                  </TableHead>
+                                </TableRow>
                               </TableHeader>
                               <TableBody>
                                 {comparisonDetails.data.map((item, idx) => (
@@ -15721,18 +15670,18 @@ const DetailedChlorinePage = () => {
                                     data-testid={`row-comparison-${idx}`}
                                   >
                                     <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
-    {item.village_name}
-  </TableCell>
-  {!clickedComparisonCell.isLpcd && (
-    <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
-      {item.esr_name || (
-        <span className="text-slate-400">
-          N/A
-        </span>
-      )}
-    </TableCell>
-  )}
-  <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
+                                      {item.village_name}
+                                    </TableCell>
+                                    {!clickedComparisonCell.isLpcd && (
+                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
+                                        {item.esr_name || (
+                                          <span className="text-slate-400">
+                                            N/A
+                                          </span>
+                                        )}
+                                      </TableCell>
+                                    )}
+                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
                                       {item.dashboard_url ? (
                                         <a
                                           href={item.dashboard_url}
@@ -15785,8 +15734,8 @@ const DetailedChlorinePage = () => {
                                           >
                                             {item.lpcd_value !== undefined
                                               ? Number(item.lpcd_value).toFixed(
-                                                  2,
-                                                )
+                                                2,
+                                              )
                                               : "N/A"}
                                           </span>
                                         </TableCell>
@@ -15795,20 +15744,19 @@ const DetailedChlorinePage = () => {
                                       <TableCell className="!px-4 !py-3 text-center">
                                         {clickedComparisonCell.category ===
                                           "offline" ||
-                                        clickedComparisonCell.category ===
+                                          clickedComparisonCell.category ===
                                           "offline-with-no-water" ||
-                                        clickedComparisonCell.category ===
+                                          clickedComparisonCell.category ===
                                           "offline-with-water" ||
-                                        clickedComparisonCell.category ===
+                                          clickedComparisonCell.category ===
                                           "online_no_water" ||
-                                        clickedComparisonCell.category ===
+                                          clickedComparisonCell.category ===
                                           "online-with-water" ? (
                                           <span
-                                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${
-                                              String(item.chlorine_status).toLowerCase() === "online"
-                                                ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60 dark:text-emerald-300 ring-1 ring-emerald-200/80 dark:ring-emerald-700/60"
-                                                : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"
-                                            }`}
+                                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${String(item.chlorine_status).toLowerCase() === "online"
+                                              ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60 dark:text-emerald-300 ring-1 ring-emerald-200/80 dark:ring-emerald-700/60"
+                                              : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"
+                                              }`}
                                           >
                                             {item.chlorine_status || (clickedComparisonCell.category.startsWith("online") ? "Online" : "Offline")}
                                           </span>
@@ -15818,33 +15766,33 @@ const DetailedChlorinePage = () => {
                                           >
                                             {item.chlorine_value !== undefined
                                               ? Number(
-                                                  item.chlorine_value,
-                                                ).toFixed(2)
+                                                item.chlorine_value,
+                                              ).toFixed(2)
                                               : "N/A"}
                                           </span>
                                         )}
                                       </TableCell>
                                     )}
-{!clickedComparisonCell.isLpcd ? (
-  <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-    {renderRemarkCell(
-      esrIssuesMap?.get(
-        `${item.scheme_id}-${item.village_name}-${item.esr_name}`,
-      ) || [],
-      `Remarks for ${item.esr_name}, ${item.village_name}`,
-    )}
-  </TableCell>
-) : (
-  <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-    {renderRemarkCell(
-      villageIssuesMap?.get(
-        `${item.scheme_id}-${item.village_name}`,
-      ) || [],
-      `Remarks for ${item.village_name}`,
-    )}
-  </TableCell>
-)}
-</TableRow>
+                                    {!clickedComparisonCell.isLpcd ? (
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+                                        {renderRemarkCell(
+                                          esrIssuesMap?.get(
+                                            `${item.scheme_id}-${item.village_name}-${item.esr_name}`,
+                                          ) || [],
+                                          `Remarks for ${item.esr_name}, ${item.village_name}`,
+                                        )}
+                                      </TableCell>
+                                    ) : (
+                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+                                        {renderRemarkCell(
+                                          villageIssuesMap?.get(
+                                            `${item.scheme_id}-${item.village_name}`,
+                                          ) || [],
+                                          `Remarks for ${item.village_name}`,
+                                        )}
+                                      </TableCell>
+                                    )}
+                                  </TableRow>
                                 ))}
                               </TableBody>
                             </Table>
@@ -15908,7 +15856,7 @@ const DetailedChlorinePage = () => {
                                     if (
                                       clickedSchemeComparisonCell.region &&
                                       clickedSchemeComparisonCell.region !==
-                                        "All Regions"
+                                      "All Regions"
                                     ) {
                                       params.append(
                                         "region",
@@ -16023,11 +15971,10 @@ const DetailedChlorinePage = () => {
                                     return (
                                       <TableRow
                                         key={`scheme-comp-${item.scheme_id}-${idx}`}
-                                        className={`transition-all duration-200 ${
-                                          hasIssue
-                                            ? "bg-red-50 hover:bg-red-100/50 dark:bg-red-950/20 dark:hover:bg-red-950/40 border-l-4 border-l-red-500"
-                                            : `hover:bg-purple-50/70 dark:hover:bg-purple-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-indigo-50/40 dark:bg-indigo-950/20"}`
-                                        }`}
+                                        className={`transition-all duration-200 ${hasIssue
+                                          ? "bg-red-50 hover:bg-red-100/50 dark:bg-red-950/20 dark:hover:bg-red-950/40 border-l-4 border-l-red-500"
+                                          : `hover:bg-purple-50/70 dark:hover:bg-purple-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-indigo-50/40 dark:bg-indigo-950/20"}`
+                                          }`}
                                         data-testid={`row-scheme-comparison-${idx}`}
                                       >
                                         <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
@@ -16094,8 +16041,8 @@ const DetailedChlorinePage = () => {
                                           >
                                             {item.lpcd_value !== undefined
                                               ? Number(item.lpcd_value).toFixed(
-                                                  1,
-                                                )
+                                                1,
+                                              )
                                               : "N/A"}
                                           </span>
                                         </TableCell>
@@ -16104,8 +16051,8 @@ const DetailedChlorinePage = () => {
                                           title={
                                             hasIssue
                                               ? issues
-                                                  .map((i: any) => i.reason)
-                                                  .join(", ")
+                                                .map((i: any) => i.reason)
+                                                .join(", ")
                                               : "-"
                                           }
                                         >
@@ -16452,13 +16399,13 @@ const DetailedChlorinePage = () => {
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 text-center w-[100px] border-r border-white/10">
                                     {clickedPressureComparisonCell.category ===
                                       "offline" ||
-                                    clickedPressureComparisonCell.category ===
+                                      clickedPressureComparisonCell.category ===
                                       "offline-with-no-water" ||
-                                    clickedPressureComparisonCell.category ===
+                                      clickedPressureComparisonCell.category ===
                                       "offline-with-water" ||
-                                    clickedPressureComparisonCell.category ===
+                                      clickedPressureComparisonCell.category ===
                                       "online_no_water" ||
-                                    clickedPressureComparisonCell.category ===
+                                      clickedPressureComparisonCell.category ===
                                       "online-with-water"
                                       ? "Status"
                                       : "Pressure (bar)"}
@@ -16529,52 +16476,50 @@ const DetailedChlorinePage = () => {
                                       <TableCell className="!px-4 !py-3 text-center">
                                         {clickedPressureComparisonCell.category ===
                                           "offline" ||
-                                        clickedPressureComparisonCell.category ===
+                                          clickedPressureComparisonCell.category ===
                                           "offline-with-no-water" ||
-                                        clickedPressureComparisonCell.category ===
+                                          clickedPressureComparisonCell.category ===
                                           "offline-with-water" ||
-                                        clickedPressureComparisonCell.category ===
+                                          clickedPressureComparisonCell.category ===
                                           "online_no_water" ||
-                                        clickedPressureComparisonCell.category ===
+                                          clickedPressureComparisonCell.category ===
                                           "online-with-water" ? (
                                           <span
-                                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${
-                                              String(item.pressure_status).toLowerCase() === "online"
-                                                ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60 dark:text-emerald-300 ring-1 ring-emerald-200/80 dark:ring-emerald-700/60"
-                                                : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"
-                                            }`}
+                                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${String(item.pressure_status).toLowerCase() === "online"
+                                              ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60 dark:text-emerald-300 ring-1 ring-emerald-200/80 dark:ring-emerald-700/60"
+                                              : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"
+                                              }`}
                                           >
                                             {item.pressure_status || (clickedPressureComparisonCell.category.startsWith("online") ? "Online" : "Offline")}
                                           </span>
                                         ) : (
                                           <span
-                                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${
-                                              item.pressure_value !== null &&
+                                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${item.pressure_value !== null &&
                                               item.pressure_value !==
-                                                undefined &&
+                                              undefined &&
                                               item.pressure_value >= 0.2 &&
                                               item.pressure_value <= 0.7
-                                                ? "bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 dark:from-green-900/60 dark:to-emerald-900/60 dark:text-green-300 ring-1 ring-green-200/80 dark:ring-green-700/60"
+                                              ? "bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 dark:from-green-900/60 dark:to-emerald-900/60 dark:text-green-300 ring-1 ring-green-200/80 dark:ring-green-700/60"
+                                              : item.pressure_value !==
+                                                null &&
+                                                item.pressure_value !==
+                                                undefined &&
+                                                item.pressure_value < 0.2
+                                                ? "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"
                                                 : item.pressure_value !==
-                                                      null &&
-                                                    item.pressure_value !==
-                                                      undefined &&
-                                                    item.pressure_value < 0.2
-                                                  ? "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"
-                                                  : item.pressure_value !==
-                                                        null &&
-                                                      item.pressure_value !==
-                                                        undefined &&
-                                                      item.pressure_value > 0.7
-                                                    ? "bg-gradient-to-r from-purple-50 to-violet-50 text-purple-700 dark:from-purple-900/60 dark:to-violet-900/60 dark:text-purple-300 ring-1 ring-purple-200/80 dark:ring-purple-700/60"
-                                                    : "bg-gradient-to-r from-gray-50 to-slate-50 text-gray-700 dark:from-gray-800/60 dark:to-slate-800/60 dark:text-gray-300 ring-1 ring-gray-200/80 dark:ring-gray-700/60"
-                                            }`}
+                                                  null &&
+                                                  item.pressure_value !==
+                                                  undefined &&
+                                                  item.pressure_value > 0.7
+                                                  ? "bg-gradient-to-r from-purple-50 to-violet-50 text-purple-700 dark:from-purple-900/60 dark:to-violet-900/60 dark:text-purple-300 ring-1 ring-purple-200/80 dark:ring-purple-700/60"
+                                                  : "bg-gradient-to-r from-gray-50 to-slate-50 text-gray-700 dark:from-gray-800/60 dark:to-slate-800/60 dark:text-gray-300 ring-1 ring-gray-200/80 dark:ring-gray-700/60"
+                                              }`}
                                           >
                                             {item.pressure_value !== null &&
-                                            item.pressure_value !== undefined
+                                              item.pressure_value !== undefined
                                               ? Number(
-                                                  item.pressure_value,
-                                                ).toFixed(2)
+                                                item.pressure_value,
+                                              ).toFixed(2)
                                               : "N/A"}
                                           </span>
                                         )}
@@ -16713,7 +16658,7 @@ const DetailedChlorinePage = () => {
                     const dateValue =
                       mainTab === "pressure"
                         ? selectedSensor[pressureDateKey] ||
-                          selectedSensor[waterDateKey]
+                        selectedSensor[waterDateKey]
                         : selectedSensor[waterDateKey];
 
                     return (
@@ -16730,7 +16675,7 @@ const DetailedChlorinePage = () => {
                         {mainTab === "pressure" ? (
                           <TableCell className="text-center !px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
                             {selectedSensor[pressureKey] !== null &&
-                            selectedSensor[pressureKey] !== undefined ? (
+                              selectedSensor[pressureKey] !== undefined ? (
                               Number(selectedSensor[pressureKey]).toFixed(2)
                             ) : (
                               <span className="text-slate-400">N/A</span>
@@ -16740,7 +16685,7 @@ const DetailedChlorinePage = () => {
                           <>
                             <TableCell className="text-center !px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
                               {selectedSensor[waterKey] !== null &&
-                              selectedSensor[waterKey] !== undefined ? (
+                                selectedSensor[waterKey] !== undefined ? (
                                 Number(selectedSensor[waterKey]).toFixed(2)
                               ) : (
                                 <span className="text-slate-400">N/A</span>
@@ -16758,8 +16703,8 @@ const DetailedChlorinePage = () => {
                             );
                             return activeIssues.length > 0
                               ? activeIssues
-                                  .map((i: any) => i.reason)
-                                  .join(", ")
+                                .map((i: any) => i.reason)
+                                .join(", ")
                               : "-";
                           })()}
                         >
@@ -16822,11 +16767,10 @@ const DetailedChlorinePage = () => {
                         (issue: any, index: number) => (
                           <div
                             key={index}
-                            className={`bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 ${
-                              issue.status === "Resolved"
-                                ? "border-l-4 border-l-emerald-500"
-                                : "border-l-4 border-l-red-500"
-                            }`}
+                            className={`bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 ${issue.status === "Resolved"
+                              ? "border-l-4 border-l-emerald-500"
+                              : "border-l-4 border-l-red-500"
+                              }`}
                           >
                             <div className="flex justify-between items-start mb-3 gap-4">
                               <div className="flex-1">
@@ -16837,11 +16781,10 @@ const DetailedChlorinePage = () => {
                                       : issue.category || "General"}
                                   </span>
                                   <span
-                                    className={`px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider ${
-                                      issue.status === "Resolved"
-                                        ? "bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-400"
-                                        : "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-400"
-                                    }`}
+                                    className={`px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider ${issue.status === "Resolved"
+                                      ? "bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-400"
+                                      : "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-400"
+                                      }`}
                                   >
                                     {issue.status || "Active"}
                                   </span>
