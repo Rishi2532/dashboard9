@@ -274,7 +274,7 @@ export async function getFilteredSchemeIds(
       WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
       AND LOWER(TRIM(v.scheme_id)) = LOWER(TRIM(${schemeStatuses.scheme_id}))
     )`);
-  } else if (villageFilter === "in_progress") {
+  } else if (villageFilter === "in_progress" || villageFilter === "partial") {
     conditions.push(sql`NOT EXISTS (
       SELECT 1 FROM village v 
       WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
@@ -301,7 +301,7 @@ export async function getFilteredSchemeIds(
           WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
           AND LOWER(TRIM(v.scheme_id)) = LOWER(TRIM(${schemeStatuses.scheme_id}))
         )`);
-      } else if (villageFilter === "in_progress") {
+      } else if (villageFilter === "in_progress" || villageFilter === "partial") {
         baseConditions.push(sql`NOT EXISTS (
           SELECT 1 FROM village v 
           WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
@@ -727,7 +727,7 @@ export function getVillageFilterClause(villageFilter?: string, prefix: string = 
       AND LOWER(TRIM(v.village_name)) = LOWER(TRIM(${prefix}.village_name))
       AND LOWER(TRIM(v.scheme_id)) = LOWER(TRIM(${prefix}.scheme_id))
     )`;
-  } else if (villageFilter === "in_progress") {
+  } else if (villageFilter === "in_progress" || villageFilter === "partial") {
     return `AND NOT EXISTS (
       SELECT 1 FROM village v 
       WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
@@ -745,7 +745,7 @@ export function getSchemeVillageFilterClause(villageFilter?: string, prefix: str
       WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'
       AND LOWER(TRIM(v.scheme_id)) = LOWER(TRIM(${prefix}.scheme_id))
     )`;
-  } else if (villageFilter === "in_progress") {
+  } else if (villageFilter === "in_progress" || villageFilter === "partial") {
     return `AND NOT EXISTS (
       SELECT 1 FROM village v 
       WHERE LOWER(TRIM(COALESCE(v.fully_completion_village_status, ''))) = 'completed'

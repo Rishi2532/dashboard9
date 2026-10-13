@@ -4615,6 +4615,7 @@ router.get("/lpcd/regional-stats", async (req, res) => {
           FROM communication_status cs
           WHERE cs.region IS NOT NULL
           ${schemeIdFilterCS}
+          ${getVillageFilterClause(villageFilter as string, 'cs')}
           GROUP BY cs.region
         ),
         lpcd_stats AS (
@@ -4622,23 +4623,29 @@ router.get("/lpcd/regional-stats", async (req, res) => {
             ws.region,
             COUNT(DISTINCT CASE 
               WHEN ws.lpcd_value_day7 IS NOT NULL AND ws.lpcd_value_day7::numeric > 0 
-              THEN ws.scheme_id || '-' || ws.village_name || '-' || COALESCE(ws.block, '')
+              THEN LOWER(TRIM(ws.scheme_id)) || '|' || LOWER(TRIM(ws.village_name))
             END) as villages_with_water,
             COUNT(DISTINCT CASE 
               WHEN ws.lpcd_value_day7 IS NOT NULL AND ws.lpcd_value_day7::numeric >= 55 
-              THEN ws.scheme_id || '-' || ws.village_name || '-' || COALESCE(ws.block, '')
+              THEN LOWER(TRIM(ws.scheme_id)) || '|' || LOWER(TRIM(ws.village_name))
             END) as villages_above_55,
             COUNT(DISTINCT CASE 
               WHEN ws.lpcd_value_day7 IS NOT NULL AND ws.lpcd_value_day7::numeric > 0 AND ws.lpcd_value_day7::numeric < 55 
-              THEN ws.scheme_id || '-' || ws.village_name || '-' || COALESCE(ws.block, '')
+              THEN LOWER(TRIM(ws.scheme_id)) || '|' || LOWER(TRIM(ws.village_name))
             END) as villages_below_55,
             COUNT(DISTINCT CASE 
-              WHEN ws.lpcd_value_day7 IS NULL OR ws.lpcd_value_day7::numeric = 0 
-              THEN ws.scheme_id || '-' || ws.village_name || '-' || COALESCE(ws.block, '')
+              WHEN (ws.lpcd_value_day7 IS NULL OR ws.lpcd_value_day7::numeric = 0)
+                AND (LOWER(TRIM(ws.scheme_id)) || '|' || LOWER(TRIM(ws.village_name))) NOT IN (
+                  SELECT LOWER(TRIM(w2.scheme_id)) || '|' || LOWER(TRIM(w2.village_name))
+                  FROM water_scheme_data w2
+                  WHERE w2.lpcd_value_day7 IS NOT NULL AND w2.lpcd_value_day7::numeric > 0
+                )
+              THEN LOWER(TRIM(ws.scheme_id)) || '|' || LOWER(TRIM(ws.village_name))
             END) as villages_no_water
           FROM water_scheme_data ws
           WHERE ws.region IS NOT NULL
           ${schemeIdFilterWS}
+          ${getVillageFilterClause(villageFilter as string, 'ws')}
           GROUP BY ws.region
         ),
         history_parsed AS (
@@ -4664,6 +4671,7 @@ router.get("/lpcd/regional-stats", async (req, res) => {
           )
           WHERE hp_h.region IS NOT NULL AND hp_h.data_date IS NOT NULL
           ${schemeIdFilterWS.replace('ws.scheme_id', 'hp_h.scheme_id')}
+          ${getVillageFilterClause(villageFilter as string, 'ws')}
         ),
         history_ranked AS (
           SELECT 

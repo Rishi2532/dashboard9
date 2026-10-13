@@ -9,7 +9,7 @@ import {
 import { cn } from "@/lib/utils";
 import { CheckCircle2, Home, Clock } from "lucide-react";
 
-export type VillageFilterValue = "all" | "completed" | "in_progress";
+export type VillageFilterValue = "all" | "completed" | "in_progress" | "partial";
 
 export interface VillageFilterProps {
   value: VillageFilterValue;
@@ -32,6 +32,8 @@ export default function VillageFilter({
   showLabel = true,
   label = "Village Filter",
 }: VillageFilterProps) {
+  const normalizedValue = value === "partial" ? "in_progress" : value;
+
   if (variant === "toggle") {
     return (
       <div className={cn("w-full", className)}>
@@ -51,7 +53,7 @@ export default function VillageFilter({
             onClick={() => onChange("all")}
             className={cn(
               "flex-1 px-3 py-2 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-1.5",
-              value === "all"
+              normalizedValue === "all"
                 ? "bg-white text-emerald-700 shadow-sm border border-emerald-100"
                 : "text-gray-500 hover:text-gray-700",
             )}
@@ -64,26 +66,26 @@ export default function VillageFilter({
             onClick={() => onChange("completed")}
             className={cn(
               "flex-1 px-3 py-2 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-1.5",
-              value === "completed"
+              normalizedValue === "completed"
                 ? "bg-white text-emerald-700 shadow-sm border border-emerald-100"
                 : "text-gray-500 hover:text-gray-700",
             )}
           >
             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-            Fully Completed Villages
+            Fully Completed
           </button>
           <button
             type="button"
             onClick={() => onChange("in_progress")}
             className={cn(
               "flex-1 px-3 py-2 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-1.5",
-              value === "in_progress"
+              normalizedValue === "in_progress"
                 ? "bg-white text-amber-700 shadow-sm border border-amber-100"
                 : "text-gray-500 hover:text-gray-700",
             )}
           >
             <Clock className="h-3.5 w-3.5 text-amber-600" />
-            In Progress Villages
+            Partial
           </button>
         </div>
       </div>
@@ -102,12 +104,12 @@ export default function VillageFilter({
           {label}
         </p>
       )}
-      <Select value={value} onValueChange={(val) => onChange(val as VillageFilterValue)}>
+      <Select value={normalizedValue} onValueChange={(val) => onChange(val as VillageFilterValue)}>
         <SelectTrigger
           className={cn(
             "w-full bg-white border-emerald-200 h-9 text-xs focus:ring-emerald-500",
-            value === "completed" && "border-emerald-500 bg-emerald-50/40 text-emerald-800 font-semibold",
-            value === "in_progress" && "border-amber-500 bg-amber-50/40 text-amber-800 font-semibold",
+            normalizedValue === "completed" && "border-emerald-500 bg-emerald-50/40 text-emerald-800 font-semibold",
+            normalizedValue === "in_progress" && "border-amber-500 bg-amber-50/40 text-amber-800 font-semibold",
             triggerClassName,
           )}
         >
@@ -118,13 +120,13 @@ export default function VillageFilter({
           <SelectItem value="completed">
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 inline" />
-              Fully Completed Villages
+              Fully Completed
             </span>
           </SelectItem>
           <SelectItem value="in_progress">
             <span className="flex items-center gap-1.5">
               <Clock className="h-3.5 w-3.5 text-amber-600 inline" />
-              In Progress Villages
+              Partial
             </span>
           </SelectItem>
         </SelectContent>

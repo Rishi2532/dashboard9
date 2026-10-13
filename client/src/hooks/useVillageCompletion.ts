@@ -130,16 +130,16 @@ export function useVillageCompletion() {
     return !isVillageCompleted(villageName, schemeId, schemeName);
   };
 
-  // Helper to match a record against villageFilter ('all' | 'completed' | 'in_progress')
+  // Helper to match a record against villageFilter ('all' | 'completed' | 'in_progress' | 'partial')
   const matchesVillageFilter = (
-    filter: "all" | "completed" | "in_progress",
+    filter: "all" | "completed" | "in_progress" | "partial",
     villageName?: string | null,
     schemeId?: string | null,
     schemeName?: string | null,
   ): boolean => {
     if (filter === "all") return true;
     if (filter === "completed") return isVillageCompleted(villageName, schemeId, schemeName);
-    if (filter === "in_progress") return isVillageInProgress(villageName, schemeId, schemeName);
+    if (filter === "in_progress" || filter === "partial") return isVillageInProgress(villageName, schemeId, schemeName);
     return true;
   };
 
