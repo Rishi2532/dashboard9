@@ -18,6 +18,7 @@ import {
   GaugeCircle,
   History,
   Download,
+  Eye,
   Search,
   X,
   Filter,
@@ -64,7 +65,8 @@ import { useVillageCompletion } from "@/hooks/useVillageCompletion";
 import {
   downloadTotalEngineersExcel,
   downloadTabEngineersExcel,
-  downloadTabDispatchesExcel
+  downloadTabDispatchesExcel,
+  downloadRemarksExcel
 } from "@/lib/alerts-excel-export";
 
 // Define TypeScript interfaces for our data
@@ -592,7 +594,10 @@ export default function AlertsProgressPage() {
   const [activeSubTab, setActiveSubTab] = useState<"current" | "previous" | "custom">("current");
   const [customDate, setCustomDate] = useState<string>("");
   const [schemeSearch, setSchemeSearch] = useState<string>("");
-  const [ackStatusFilter, setAckStatusFilter] = useState<"all" | "acknowledged" | "pending">("all");
+  const [ackStatusFilter, setAckStatusFilter] = useState<"all" | "acknowledged" | "pending" | "remarks">("all");
+  const [remarksTableViewMode, setRemarksTableViewMode] = useState<"issues" | "schemes">("issues");
+  const [remarksModalSearch, setRemarksModalSearch] = useState<string>("");
+  const [remarksModalStatus, setRemarksModalStatus] = useState<"all" | "active" | "resolved">("all");
   const [villageFilter, setVillageFilter] = useState<VillageFilterValue>("all");
   const { isVillageCompleted } = useVillageCompletion();
   const [page, setPage] = useState(1);
@@ -609,6 +614,8 @@ export default function AlertsProgressPage() {
   const [selectedRemarkDetails, setSelectedRemarkDetails] = useState<{
     title: string;
     issues: any[];
+    isAllIssues?: boolean;
+    schemeId?: string;
   } | null>(null);
 
   const [selectedEngineers, setSelectedEngineers] = useState<{
@@ -3207,6 +3214,22 @@ export default function AlertsProgressPage() {
     // Count remarks added
     const totalRemarks = baseData.filter(r => parseIssues(r.remarks).length > 0).length;
 
+    // All individual issues across baseData (for Excel export, counts, and dedicated table view)
+    const allBaseIssues = baseData.flatMap((r) => {
+      const issues = parseIssues(r.remarks);
+      return issues.map((issue: any) => ({
+        ...issue,
+        scheme_id: r.scheme_id,
+        scheme_name: r.scheme_name || r.scheme_id,
+        village_name: issue.village_name || r.village_name || "-",
+        esr_name: issue.esr_name || r.esr_name || "-",
+        region: r.region || "-",
+        current_value: r.current_value,
+        telemetry_date: r.telemetry_date || r.current_value_date || r.created_at || r.sent_date,
+        parentRow: r
+      }));
+    });
+
     // Filter by Scheme Search & Acknowledgement status
     const filteredRows = baseData.filter((row) => {
       if (schemeSearch.trim()) {
@@ -3225,6 +3248,9 @@ export default function AlertsProgressPage() {
       if (ackStatusFilter === "pending") {
         return !getRowAckInfo(row).isFullyAcknowledged;
       }
+      if (ackStatusFilter === "remarks") {
+        return parseIssues(row.remarks).length > 0;
+      }
       if (villageFilter === "completed") {
         return isVillageCompleted(row.village_name, row.scheme_id, row.scheme_name);
       }
@@ -3233,6 +3259,29 @@ export default function AlertsProgressPage() {
       }
       return true;
     });
+
+    // Filtered issues list for the dedicated issues table (accounting for search query)
+    const filteredIssuesList = (ackStatusFilter === "remarks"
+      ? (schemeSearch.trim()
+        ? allBaseIssues.filter((issue) => {
+          const q = schemeSearch.toLowerCase().trim();
+          return (
+            (issue.scheme_name && issue.scheme_name.toLowerCase().includes(q)) ||
+            (issue.scheme_id && issue.scheme_id.toLowerCase().includes(q)) ||
+            (issue.village_name && issue.village_name.toLowerCase().includes(q)) ||
+            (issue.esr_name && issue.esr_name.toLowerCase().includes(q)) ||
+            (issue.problem_level && issue.problem_level.toLowerCase().includes(q)) ||
+            (issue.category && issue.category.toLowerCase().includes(q)) ||
+            (issue.status && issue.status.toLowerCase().includes(q)) ||
+            (issue.reason && issue.reason.toLowerCase().includes(q)) ||
+            (issue.remarks && issue.remarks.toLowerCase().includes(q)) ||
+            (issue.resolution_remark && issue.resolution_remark.toLowerCase().includes(q)) ||
+            (issue.creator_name && issue.creator_name.toLowerCase().includes(q)) ||
+            (issue.reported_by && issue.reported_by.toLowerCase().includes(q))
+          );
+        })
+        : allBaseIssues)
+      : allBaseIssues);
 
     // Sort alerts based on performance: Delivered -> Failed -> Not Dispatched
     const displayData = [...filteredRows].sort((a, b) => {
@@ -3246,12 +3295,15 @@ export default function AlertsProgressPage() {
     });
 
     // Pagination Logic
+    const isShowingIssuesTable = ackStatusFilter === "remarks" && remarksTableViewMode === "issues";
+    const currentTotalItems = isShowingIssuesTable ? filteredIssuesList.length : displayData.length;
     const startIdx = (page - 1) * rowsPerPage;
     const endIdx = page * rowsPerPage;
-    const totalPages = Math.ceil(displayData.length / rowsPerPage);
+    const totalPages = Math.ceil(currentTotalItems / rowsPerPage) || 1;
     const paginatedData = displayData.slice(startIdx, endIdx);
-    const startItem = displayData.length > 0 ? startIdx + 1 : 0;
-    const endItem = Math.min(endIdx, displayData.length);
+    const paginatedIssues = filteredIssuesList.slice(startIdx, endIdx);
+    const startItem = currentTotalItems > 0 ? startIdx + 1 : 0;
+    const endItem = Math.min(endIdx, currentTotalItems);
 
     return (
       <div className="space-y-3.5">
@@ -3690,15 +3742,34 @@ export default function AlertsProgressPage() {
               </div>
             </div> */}
 
-            {/* Card 5: Action Reports */}
+            {/* Card 5: Action Reports / Field Remarks */}
             <div
-              className="bg-[#f0f9ff] border border-sky-200 rounded p-3.5 flex flex-col justify-between hover:border-sky-300 transition-colors"
+              onClick={() => {
+                setAckStatusFilter(prev => prev === "remarks" ? "all" : "remarks");
+                setRemarksTableViewMode("issues");
+                setPage(1);
+                setTimeout(() => {
+                  document.getElementById("alerts-table-section")?.scrollIntoView({ behavior: "smooth" });
+                }, 50);
+              }}
+              className={`border rounded p-3.5 flex flex-col justify-between cursor-pointer transition-all duration-150 group relative select-none ${ackStatusFilter === "remarks"
+                ? "bg-sky-50/90 border-sky-500 ring-2 ring-sky-400/40 shadow-sm"
+                : "bg-[#f0f9ff] border-sky-200 hover:border-sky-300 hover:bg-sky-50/60"
+                }`}
+              title="Click to view Issue Details & Remarks History table below"
             >
               <div className="flex items-center gap-3">
-                <FileText className="h-8 w-8 text-sky-600 shrink-0" />
-                <div>
-                  <div className="text-xs font-medium text-slate-700">
-                    Field Remarks
+                <FileText className={`h-8 w-8 shrink-0 transition-transform group-hover:scale-105 ${ackStatusFilter === "remarks" ? "text-sky-700" : "text-sky-600"}`} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-700">
+                      Field Remarks
+                    </span>
+                    {ackStatusFilter === "remarks" && (
+                      <span className="text-[10px] font-bold text-sky-700 bg-sky-100/90 border border-sky-300 px-1.5 py-0.2 rounded">
+                        Active Filter
+                      </span>
+                    )}
                   </div>
                   <div className="text-2xl font-black text-slate-900 font-mono leading-tight mt-0.5">
                     {totalRemarks}
@@ -3708,102 +3779,208 @@ export default function AlertsProgressPage() {
                   </div>
                 </div>
               </div>
-              <div className="mt-2.5 pt-2 border-t border-sky-100/80 flex items-center justify-between">
+              <div className="mt-2.5 pt-2 border-t border-sky-100/80 flex items-center justify-between gap-1.5 flex-wrap">
                 <span className="text-[10px] text-sky-700 font-semibold">
                   {totalRemarks} Remarks Logged
                 </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      downloadRemarksExcel({
+                        tabName: type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : type === "pressure" ? "Pressure" : "Offline",
+                        tabType: type,
+                        issues: allBaseIssues,
+                        dateStr: customDate || (activeSubTab === "previous" ? yesterdayYmd : todayYmd)
+                      });
+                    }}
+                    className="inline-flex items-center gap-1 text-[10px] font-bold text-sky-800 bg-sky-100 hover:bg-sky-200 px-2 py-0.5 rounded cursor-pointer transition-colors shadow-2xs"
+                    title="Download Excel of all Field Remarks for this tab"
+                  >
+                    <Download className="h-3 w-3 text-sky-700" />
+                    <span>Remarks Excel</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         {/* 7. Alert Details Table */}
-        <div className="bg-white border border-slate-200 rounded overflow-hidden">
+        <div id="alerts-table-section" className="bg-white border border-slate-200 rounded overflow-hidden">
           {/* Table Header Bar */}
           <div className="px-4 py-3 border-b border-slate-200 bg-white flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-bold text-slate-900">
-                Alert Details
+                {ackStatusFilter === "remarks" ? "Issue Details & Remarks History" : "Alert Details"}
               </span>
               <span className="text-xs font-normal text-slate-500">
-                ({displayData.length} {unitNoun})
+                ({currentTotalItems} {isShowingIssuesTable ? "Issues" : unitNoun})
               </span>
+              {ackStatusFilter === "remarks" && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-300">
+                  <FileText className="h-3 w-3 text-sky-600" />
+                  Showing Field Remarks
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  downloadTabDispatchesExcel({
-                    tabName: type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : type === "pressure" ? "Pressure" : "Offline",
-                    tabType: type,
-                    dateStr: customDate || (activeSubTab === "previous" ? yesterdayYmd : todayYmd),
-                    engineers: notifiedEngineersList,
-                    totalAlerts: Number(firstKpiValue) || baseData.length,
-                    emailsCount: emailsSentCount,
-                    smsCount: smsSentCount,
-                    smsDispatches: tabSmsList
-                  });
-                }}
-                className="h-7 px-2.5 text-[11px] font-bold border-indigo-300 text-indigo-800 bg-indigo-50/50 hover:bg-indigo-100/70 flex items-center gap-1 cursor-pointer"
-                title="Download Excel of Email & SMS Dispatches for this tab"
-              >
-                <Mail className="h-3.5 w-3.5 text-indigo-600" />
-                <span>Dispatches Excel ({emailsSentCount})</span>
-              </Button>
+              {ackStatusFilter === "remarks" ? (
+                <>
+                  <div className="inline-flex rounded border border-slate-200 bg-slate-50 p-0.5 text-[11px] font-semibold text-slate-600">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRemarksTableViewMode("issues");
+                        setPage(1);
+                      }}
+                      className={`px-2.5 py-0.5 rounded cursor-pointer transition-colors ${remarksTableViewMode === "issues"
+                        ? "bg-white text-sky-900 shadow-2xs font-bold"
+                        : "text-slate-600 hover:text-slate-900"
+                        }`}
+                    >
+                      All Issues Table ({filteredIssuesList.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRemarksTableViewMode("schemes");
+                        setPage(1);
+                      }}
+                      className={`px-2.5 py-0.5 rounded cursor-pointer transition-colors ${remarksTableViewMode === "schemes"
+                        ? "bg-white text-sky-900 shadow-2xs font-bold"
+                        : "text-slate-600 hover:text-slate-900"
+                        }`}
+                    >
+                      Schemes with Remarks ({displayData.length})
+                    </button>
+                  </div>
 
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  downloadTabEngineersExcel({
-                    tabName: type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : type === "pressure" ? "Pressure" : "Offline",
-                    tabType: type,
-                    status: "acknowledged",
-                    engineers: notifiedEngineersList,
-                    rows: baseData,
-                    dateStr: customDate || (activeSubTab === "previous" ? yesterdayYmd : todayYmd)
-                  });
-                }}
-                className="h-7 px-2.5 text-[11px] font-bold border-emerald-300 text-emerald-800 bg-emerald-50/50 hover:bg-emerald-100/70 flex items-center gap-1 cursor-pointer"
-                title="Download Excel of all Acknowledged Engineers in this tab"
-              >
-                <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-                <span>Ack Engineers Excel ({totalAckEngineers})</span>
-              </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      downloadRemarksExcel({
+                        tabName: type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : type === "pressure" ? "Pressure" : "Offline",
+                        tabType: type,
+                        issues: allBaseIssues,
+                        dateStr: customDate || (activeSubTab === "previous" ? yesterdayYmd : todayYmd)
+                      });
+                    }}
+                    className="h-7 px-2.5 text-[11px] font-bold border-sky-300 text-sky-800 bg-sky-50/70 hover:bg-sky-100 flex items-center gap-1 cursor-pointer"
+                    title="Download Excel of all Field Remarks for this tab"
+                  >
+                    <FileSpreadsheet className="h-3.5 w-3.5 text-sky-600" />
+                    <span>Remarks Excel ({allBaseIssues.length})</span>
+                  </Button>
 
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  downloadTabEngineersExcel({
-                    tabName: type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : type === "pressure" ? "Pressure" : "Offline",
-                    tabType: type,
-                    status: "pending",
-                    engineers: notifiedEngineersList,
-                    rows: baseData,
-                    dateStr: customDate || (activeSubTab === "previous" ? yesterdayYmd : todayYmd)
-                  });
-                }}
-                className="h-7 px-2.5 text-[11px] font-bold border-amber-300 text-amber-800 bg-amber-50/50 hover:bg-amber-100/70 flex items-center gap-1 cursor-pointer"
-                title="Download Excel of all Pending Engineers in this tab"
-              >
-                <FileSpreadsheet className="h-3.5 w-3.5 text-amber-600" />
-                <span>Pending Engineers Excel ({totalPendingEngineers})</span>
-              </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setSelectedRemarkDetails({
+                        issues: allBaseIssues,
+                        title: `All Field Remarks & Reported Issues (${allBaseIssues.length} Issues across ${baseData.length} Schemes)`,
+                        isAllIssues: true
+                      });
+                    }}
+                    className="h-7 px-2.5 text-[11px] font-bold border-slate-300 text-slate-700 bg-slate-50 hover:bg-slate-100 flex items-center gap-1 cursor-pointer"
+                    title="Open all issues in a modal popup"
+                  >
+                    <Eye className="h-3.5 w-3.5 text-slate-600" />
+                    <span>Open in Modal</span>
+                  </Button>
 
-              {(ackStatusFilter !== "all" || schemeSearch || villageFilter !== "all") && (
-                <button
-                  onClick={() => {
-                    setAckStatusFilter("all");
-                    setVillageFilter("all");
-                    setSchemeSearch("");
-                  }}
-                  className="text-xs text-[#0f4c81] hover:underline font-semibold cursor-pointer ml-1"
-                >
-                  Reset Filters
-                </button>
+                  <button
+                    onClick={() => {
+                      setAckStatusFilter("all");
+                      setSchemeSearch("");
+                      setPage(1);
+                    }}
+                    className="text-xs text-sky-700 hover:text-sky-900 hover:underline font-semibold cursor-pointer ml-1"
+                  >
+                    Show All Alerts
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      downloadTabDispatchesExcel({
+                        tabName: type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : type === "pressure" ? "Pressure" : "Offline",
+                        tabType: type,
+                        dateStr: customDate || (activeSubTab === "previous" ? yesterdayYmd : todayYmd),
+                        engineers: notifiedEngineersList,
+                        totalAlerts: Number(firstKpiValue) || baseData.length,
+                        emailsCount: emailsSentCount,
+                        smsCount: smsSentCount,
+                        smsDispatches: tabSmsList
+                      });
+                    }}
+                    className="h-7 px-2.5 text-[11px] font-bold border-indigo-300 text-indigo-800 bg-indigo-50/50 hover:bg-indigo-100/70 flex items-center gap-1 cursor-pointer"
+                    title="Download Excel of Email & SMS Dispatches for this tab"
+                  >
+                    <Mail className="h-3.5 w-3.5 text-indigo-600" />
+                    <span>Dispatches Excel ({emailsSentCount})</span>
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      downloadTabEngineersExcel({
+                        tabName: type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : type === "pressure" ? "Pressure" : "Offline",
+                        tabType: type,
+                        status: "acknowledged",
+                        engineers: notifiedEngineersList,
+                        rows: baseData,
+                        dateStr: customDate || (activeSubTab === "previous" ? yesterdayYmd : todayYmd)
+                      });
+                    }}
+                    className="h-7 px-2.5 text-[11px] font-bold border-emerald-300 text-emerald-800 bg-emerald-50/50 hover:bg-emerald-100/70 flex items-center gap-1 cursor-pointer"
+                    title="Download Excel of all Acknowledged Engineers in this tab"
+                  >
+                    <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+                    <span>Ack Engineers Excel ({totalAckEngineers})</span>
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      downloadTabEngineersExcel({
+                        tabName: type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : type === "pressure" ? "Pressure" : "Offline",
+                        tabType: type,
+                        status: "pending",
+                        engineers: notifiedEngineersList,
+                        rows: baseData,
+                        dateStr: customDate || (activeSubTab === "previous" ? yesterdayYmd : todayYmd)
+                      });
+                    }}
+                    className="h-7 px-2.5 text-[11px] font-bold border-amber-300 text-amber-800 bg-amber-50/50 hover:bg-amber-100/70 flex items-center gap-1 cursor-pointer"
+                    title="Download Excel of all Pending Engineers in this tab"
+                  >
+                    <FileSpreadsheet className="h-3.5 w-3.5 text-amber-600" />
+                    <span>Pending Engineers Excel ({totalPendingEngineers})</span>
+                  </Button>
+
+                  {(ackStatusFilter !== "all" || schemeSearch || villageFilter !== "all") && (
+                    <button
+                      onClick={() => {
+                        setAckStatusFilter("all");
+                        setVillageFilter("all");
+                        setSchemeSearch("");
+                      }}
+                      className="text-xs text-[#0f4c81] hover:underline font-semibold cursor-pointer ml-1"
+                    >
+                      Reset Filters
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -3814,12 +3991,169 @@ export default function AlertsProgressPage() {
               <div className="p-16 text-center text-slate-500 font-medium text-xs">
                 Loading alerts data...
               </div>
-            ) : displayData.length === 0 ? (
+            ) : currentTotalItems === 0 ? (
               <div className="p-12 text-center text-slate-500 text-xs font-medium">
                 {baseData.length === 0
                   ? "All parameters are within normal thresholds. No active alerts reported."
-                  : "No schemes match your current search or status filter."}
+                  : ackStatusFilter === "remarks"
+                    ? "No field remarks or issues match your current search."
+                    : "No schemes match your current search or status filter."}
               </div>
+            ) : isShowingIssuesTable ? (
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-[#e8f1f8] text-[#0f4c81] border-b border-slate-200">
+                    <th className="py-2.5 px-2 text-[11px] font-bold text-center border-r border-slate-200/80 w-12">
+                      Sr. No.
+                    </th>
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-slate-200/80 min-w-[220px]">
+                      Scheme & Location Details
+                    </th>
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-slate-200/80 min-w-[120px]">
+                      Level / Category
+                    </th>
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-center border-r border-slate-200/80 min-w-[110px]">
+                      Status
+                    </th>
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-slate-200/80 min-w-[170px]">
+                      Reported By & Date
+                    </th>
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-slate-200/80 min-w-[240px]">
+                      Issue / Reason
+                    </th>
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-left border-r border-slate-200/80 min-w-[240px]">
+                      Remarks & Resolution
+                    </th>
+                    <th className="py-2.5 px-3 text-[11px] font-bold text-center min-w-[110px]">
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {paginatedIssues.map((issue: any, idx: number) => {
+                    const actualIndex = startIdx + idx + 1;
+                    const isResolved = issue.status === "Resolved" || issue.status_value === "Resolved";
+                    return (
+                      <tr key={`${issue.scheme_id}-${idx}`} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-2.5 px-2 text-center border-r border-slate-100 align-middle">
+                          <span className="text-xs font-semibold text-slate-600">{actualIndex}</span>
+                        </td>
+                        <td className="py-2.5 px-3 border-r border-slate-100 align-middle">
+                          <div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-bold text-xs text-slate-900 leading-tight">
+                                {issue.scheme_name}
+                              </span>
+                              <span className="text-[11px] text-slate-400 font-mono">
+                                (#{issue.scheme_id})
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-slate-500 font-normal mt-0.5 flex items-center gap-1.5 flex-wrap">
+                              <MapPin className="h-3 w-3 text-slate-400 shrink-0 inline" />
+                              {issue.village_name && issue.village_name !== "-" && (
+                                <span>
+                                  Village: <strong className="text-slate-800 font-semibold">{issue.village_name}</strong>
+                                </span>
+                              )}
+                              {issue.esr_name && issue.esr_name !== "-" && (
+                                <>
+                                  <span className="text-slate-300">•</span>
+                                  <span>
+                                    ESR: <strong className="text-slate-800 font-semibold">{issue.esr_name}</strong>
+                                  </span>
+                                </>
+                              )}
+                              {issue.region && issue.region !== "-" && (
+                                <>
+                                  <span className="text-slate-300">|</span>
+                                  <span>{issue.region}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-3 text-center border-r border-slate-100 align-middle">
+                          <span className="inline-block bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded text-[11px] font-bold">
+                            {issue.problem_level ? `${issue.problem_level} Level` : (issue.category || "General")}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-center border-r border-slate-100 align-middle">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-bold ${isResolved
+                              ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                              : "bg-red-100 text-red-800 border border-red-200"
+                              }`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${isResolved ? "bg-emerald-600" : "bg-red-600 animate-pulse"}`} />
+                            {issue.status || (isResolved ? "Resolved" : "Active")}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 border-r border-slate-100 align-middle">
+                          <div>
+                            <div className="text-xs font-bold text-slate-900">
+                              {issue.creator_name || issue.reported_by || "Field Engineer"}
+                            </div>
+                            <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5 whitespace-nowrap">
+                              <Clock className="h-3 w-3 text-slate-400" />
+                              {issue.created_at ? new Date(issue.created_at).toLocaleString("en-US", {
+                                month: "short", day: "numeric", year: "numeric",
+                                hour: "numeric", minute: "2-digit", hour12: true
+                              }) : "N/A"}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-3 border-r border-slate-100 align-middle">
+                          <p className="text-xs text-slate-800 font-medium leading-relaxed max-w-md">
+                            {issue.reason || issue.issue_description || "-"}
+                          </p>
+                        </td>
+                        <td className="py-2.5 px-3 border-r border-slate-100 align-middle">
+                          <div className="space-y-1 max-w-md">
+                            {issue.remarks && (
+                              <p className="text-[11px] text-slate-600">
+                                <strong className="text-slate-800">Remark:</strong> {issue.remarks}
+                              </p>
+                            )}
+                            {isResolved && (
+                              <div className="text-[11px] text-emerald-800 bg-emerald-50 p-1.5 rounded border border-emerald-100">
+                                <strong>Resolution:</strong> {issue.resolution_remark || "Resolved"}
+                                {issue.resolved_at && (
+                                  <span className="block text-[10px] text-emerald-600 mt-0.5">
+                                    Resolved: {new Date(issue.resolved_at).toLocaleString("en-US", {
+                                      month: "short", day: "numeric",
+                                      hour: "numeric", minute: "2-digit", hour12: true
+                                    })}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {!issue.remarks && !isResolved && (
+                              <span className="text-[11px] text-slate-400 italic">No additional remark</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-3 text-center align-middle whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const schemeIssues = parseIssues(issue.parentRow?.remarks || [issue]);
+                              setSelectedRemarkDetails({
+                                issues: schemeIssues.length > 0 ? schemeIssues : [issue],
+                                title: `Remarks for ${issue.esr_name || issue.village_name || issue.scheme_name}`,
+                                schemeId: issue.scheme_id
+                              });
+                            }}
+                            className="text-xs font-semibold text-[#0f4c81] hover:underline cursor-pointer inline-flex items-center gap-0.5"
+                          >
+                            View History →
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             ) : (
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -4220,7 +4554,7 @@ export default function AlertsProgressPage() {
           {/* 8. Pagination */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-2.5 border-t border-slate-200 bg-white text-xs text-slate-600">
             <div className="font-normal text-slate-500">
-              Showing <span className="font-semibold text-slate-800">{startItem}</span> – <span className="font-semibold text-slate-800">{endItem}</span> of <span className="font-semibold text-slate-800">{displayData.length}</span> alerts
+              Showing <span className="font-semibold text-slate-800">{startItem}</span> – <span className="font-semibold text-slate-800">{endItem}</span> of <span className="font-semibold text-slate-800">{currentTotalItems}</span> {isShowingIssuesTable ? "issues" : "alerts"}
             </div>
 
             <div className="flex items-center gap-3">
@@ -4905,33 +5239,127 @@ export default function AlertsProgressPage() {
               open={!!selectedRemarkDetails}
               onOpenChange={(open) => !open && setSelectedRemarkDetails(null)}
             >
-              <DialogContent className="max-w-3xl bg-white border-none shadow-2xl p-0 overflow-hidden">
+              <DialogContent className="max-w-4xl bg-white border-none shadow-2xl p-0 overflow-hidden flex flex-col max-h-[88vh]">
                 {(() => {
                   const hasActive = selectedRemarkDetails.issues.some((i: any) => i.status === 'Active');
                   const headerBg = hasActive ? "bg-rose-700" : "bg-[#0f4c81]";
+
+                  const modalFilteredIssues = selectedRemarkDetails.issues.filter((issue: any) => {
+                    if (remarksModalStatus === "active" && issue.status === "Resolved") return false;
+                    if (remarksModalStatus === "resolved" && issue.status !== "Resolved") return false;
+                    if (remarksModalSearch.trim()) {
+                      const q = remarksModalSearch.toLowerCase().trim();
+                      return (
+                        (issue.scheme_name && issue.scheme_name.toLowerCase().includes(q)) ||
+                        (issue.scheme_id && issue.scheme_id.toLowerCase().includes(q)) ||
+                        (issue.village_name && issue.village_name.toLowerCase().includes(q)) ||
+                        (issue.esr_name && issue.esr_name.toLowerCase().includes(q)) ||
+                        (issue.problem_level && issue.problem_level.toLowerCase().includes(q)) ||
+                        (issue.category && issue.category.toLowerCase().includes(q)) ||
+                        (issue.status && issue.status.toLowerCase().includes(q)) ||
+                        (issue.reason && issue.reason.toLowerCase().includes(q)) ||
+                        (issue.remarks && issue.remarks.toLowerCase().includes(q)) ||
+                        (issue.resolution_remark && issue.resolution_remark.toLowerCase().includes(q)) ||
+                        (issue.creator_name && issue.creator_name.toLowerCase().includes(q)) ||
+                        (issue.reported_by && issue.reported_by.toLowerCase().includes(q))
+                      );
+                    }
+                    return true;
+                  });
+
                   return (
                     <>
-                      <div className={`p-5 pb-4 border-b border-white/10 flex justify-between items-center ${headerBg} text-white`}>
-                        <div className="flex-1 pr-6">
+                      <div className={`p-5 pb-4 border-b border-white/10 flex flex-wrap justify-between items-center ${headerBg} text-white gap-3`}>
+                        <div className="flex-1 min-w-[240px]">
                           <DialogTitle className="text-xl font-bold flex items-center gap-3 text-white">
-                            <AlertCircle className="h-6 w-6 text-white" />
+                            <AlertCircle className="h-6 w-6 text-white shrink-0" />
                             <span className="tracking-tight text-white">Issue Details & Remarks History</span>
                           </DialogTitle>
                           <DialogDescription className="text-white/90 mt-1.5 font-medium flex items-center gap-2 text-xs">
-                            <MapPin className="h-4 w-4 text-white/70" />
+                            <MapPin className="h-4 w-4 text-white/70 shrink-0" />
                             <span>{selectedRemarkDetails.title}</span>
                           </DialogDescription>
                         </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              downloadRemarksExcel({
+                                tabName: activeTab.toUpperCase(),
+                                tabType: (activeTab as any) || "lpcd",
+                                issues: selectedRemarkDetails.issues,
+                                dateStr: customDate || (activeSubTab === "previous" ? yesterdayYmd : todayYmd)
+                              });
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold bg-white/15 hover:bg-white/25 text-white transition-colors border border-white/20 cursor-pointer"
+                            title="Export all issues to Excel"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                            <span>Export Excel</span>
+                          </button>
+                        </div>
                       </div>
 
-                      <div className="p-6 overflow-y-auto max-h-[70vh] bg-slate-50">
-                        {selectedRemarkDetails.issues.length === 0 ? (
+                      {/* Filter bar inside modal when multiple issues */}
+                      {selectedRemarkDetails.issues.length > 3 && (
+                        <div className="px-5 py-2.5 border-b border-slate-200 bg-white flex flex-wrap items-center justify-between gap-3">
+                          <div className="relative flex-1 min-w-[200px] max-w-sm">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                            <input
+                              type="text"
+                              placeholder="Search issues, schemes, reasons..."
+                              value={remarksModalSearch}
+                              onChange={(e) => setRemarksModalSearch(e.target.value)}
+                              className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded outline-none focus:border-[#0f4c81] focus:bg-white transition-colors"
+                            />
+                            {remarksModalSearch && (
+                              <button
+                                onClick={() => setRemarksModalSearch("")}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="inline-flex rounded border border-slate-200 bg-slate-50 p-0.5 text-xs font-semibold">
+                            <button
+                              type="button"
+                              onClick={() => setRemarksModalStatus("all")}
+                              className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${remarksModalStatus === "all" ? "bg-white text-slate-900 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
+                                }`}
+                            >
+                              All ({selectedRemarkDetails.issues.length})
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setRemarksModalStatus("active")}
+                              className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${remarksModalStatus === "active" ? "bg-white text-red-700 shadow-2xs font-bold" : "text-slate-600 hover:text-red-700"
+                                }`}
+                            >
+                              Active ({selectedRemarkDetails.issues.filter((i: any) => i.status !== "Resolved").length})
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setRemarksModalStatus("resolved")}
+                              className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${remarksModalStatus === "resolved" ? "bg-white text-emerald-700 shadow-2xs font-bold" : "text-slate-600 hover:text-emerald-700"
+                                }`}
+                            >
+                              Resolved ({selectedRemarkDetails.issues.filter((i: any) => i.status === "Resolved").length})
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="p-6 overflow-y-auto max-h-[60vh] bg-slate-50">
+                        {modalFilteredIssues.length === 0 ? (
                           <div className="text-center p-8 text-slate-500 border-2 border-dashed rounded-lg border-slate-200 font-medium">
-                            No issues or remarks have been reported for this scheme yet.
+                            No issues or remarks match the filter criteria.
                           </div>
                         ) : (
                           <div className="space-y-4">
-                            {selectedRemarkDetails.issues.map((issue: any, index: number) => (
+                            {modalFilteredIssues.map((issue: any, index: number) => (
                               <div
                                 key={index}
                                 className={`bg-white p-5 rounded-xl shadow-sm border border-slate-200 ${issue.status === 'Resolved'
@@ -4939,6 +5367,27 @@ export default function AlertsProgressPage() {
                                   : 'border-l-4 border-l-red-500'
                                   }`}
                               >
+                                {/* Scheme & Location Banner if aggregated */}
+                                {(issue.scheme_name || issue.village_name) && (
+                                  <div className="mb-2.5 pb-2 border-b border-slate-100 flex items-center justify-between gap-2 flex-wrap">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="font-bold text-xs text-slate-900">{issue.scheme_name}</span>
+                                      {issue.scheme_id && <span className="text-[11px] font-mono text-slate-500">(#{issue.scheme_id})</span>}
+                                      {issue.village_name && issue.village_name !== "-" && (
+                                        <>
+                                          <span className="text-slate-300">•</span>
+                                          <span className="text-xs text-slate-600">Village: <strong>{issue.village_name}</strong></span>
+                                        </>
+                                      )}
+                                      {issue.esr_name && issue.esr_name !== "-" && (
+                                        <>
+                                          <span className="text-slate-300">•</span>
+                                          <span className="text-xs text-slate-600">ESR: <strong>{issue.esr_name}</strong></span>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
                                 <div className="flex justify-between items-start mb-3 gap-4">
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-1">
@@ -4992,6 +5441,39 @@ export default function AlertsProgressPage() {
                             ))}
                           </div>
                         )}
+                      </div>
+
+                      {/* Footer */}
+                      <div className="p-3 bg-white border-t border-slate-200 flex items-center justify-between">
+                        <span className="text-xs text-slate-500 font-medium">
+                          Showing {modalFilteredIssues.length} of {selectedRemarkDetails.issues.length} {selectedRemarkDetails.issues.length === 1 ? "Issue" : "Issues"}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedRemarkDetails(null);
+                              setAckStatusFilter("remarks");
+                              setRemarksTableViewMode("issues");
+                              setTimeout(() => {
+                                document.getElementById("alerts-table-section")?.scrollIntoView({ behavior: "smooth" });
+                              }, 50);
+                            }}
+                            className="text-xs text-sky-800 bg-sky-50 border-sky-300 hover:bg-sky-100 cursor-pointer"
+                          >
+                            <FileText className="h-3.5 w-3.5 mr-1 text-sky-600" />
+                            View in Table Below
+                          </Button>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => setSelectedRemarkDetails(null)}
+                            className="bg-slate-800 hover:bg-slate-900 text-white text-xs px-4 cursor-pointer"
+                          >
+                            Close
+                          </Button>
+                        </div>
                       </div>
                     </>
                   );

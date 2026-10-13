@@ -58,8 +58,8 @@ export async function downloadTabEngineersExcel(options: TabEngineerExportOption
     status === "acknowledged"
       ? "Acknowledged Engineers"
       : status === "pending"
-      ? "Pending Acknowledgement Engineers"
-      : "All Notified Engineers";
+        ? "Pending Acknowledgement Engineers"
+        : "All Notified Engineers";
 
   const sheetName = `${tabName.slice(0, 15)} ${status === "acknowledged" ? "Ack" : status === "pending" ? "Pending" : "All"}`.slice(0, 31);
   const worksheet = workbook.addWorksheet(sheetName);
@@ -353,14 +353,14 @@ export async function downloadTabDispatchesExcel(options: TabDispatchesExportOpt
   const smsRows = smsDispatches && smsDispatches.length > 0
     ? smsDispatches
     : engineers.filter(e => !!e.mobile).map(e => ({
-        engineer_name: e.name,
-        mobile: e.mobile,
-        template_name: `${tabName} Daily Alert`,
-        message_text: `Daily ${tabName} alert notification for assigned schemes`,
-        gateway_status: "SUCCESS",
-        is_success: true,
-        sent_date: dateStr || new Date().toISOString().slice(0, 10)
-      }));
+      engineer_name: e.name,
+      mobile: e.mobile,
+      template_name: `${tabName} Daily Alert`,
+      message_text: `Daily ${tabName} alert notification for assigned schemes`,
+      gateway_status: "SUCCESS",
+      is_success: true,
+      sent_date: dateStr || new Date().toISOString().slice(0, 10)
+    }));
 
   smsRows.forEach((smsItem: any) => {
     const isSuccess = smsItem.is_success !== false && (String(smsItem.gateway_status || '').toUpperCase().includes('SUCCESS') || smsItem.is_success === true);
@@ -426,4 +426,134 @@ function styleDataRow(row: any, counter: number, ackStatus: string, ackColIndex:
     ackCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFEF3C7" } };
     ackCell.font = { name: "Calibri", size: 10, bold: true, color: { argb: "FFB45309" } };
   }
+}
+
+export interface RemarksExportOptions {
+  tabName: string;
+  tabType: "lpcd" | "chlorine" | "pressure" | "offline" | "realtime";
+  issues: any[];
+  dateStr?: string;
+}
+
+export async function downloadRemarksExcel(options: RemarksExportOptions): Promise<void> {
+  const { tabName, issues, dateStr } = options;
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "MJP Water Supply Telemetry System";
+  workbook.created = new Date();
+
+  const worksheet = workbook.addWorksheet(`${tabName.slice(0, 15)} Remarks`.slice(0, 31));
+
+  const columns = [
+    { header: "Sr No.", key: "sr_no", width: 8 },
+    { header: "Scheme ID", key: "scheme_id", width: 14 },
+    { header: "Scheme Name", key: "scheme_name", width: 32 },
+    { header: "Village Name", key: "village_name", width: 22 },
+    { header: "ESR Name", key: "esr_name", width: 20 },
+    { header: "Region", key: "region", width: 16 },
+    { header: "Division", key: "division", width: 16 },
+    { header: "Block", key: "block", width: 16 },
+    { header: "Problem Level", key: "problem_level", width: 18 },
+    { header: "Category", key: "category", width: 18 },
+    { header: "Status", key: "status", width: 14 },
+    { header: "Reported By", key: "reported_by", width: 22 },
+    { header: "Reported Date", key: "created_at", width: 22 },
+    { header: "Issue / Reason", key: "reason", width: 36 },
+    { header: "Additional Remarks", key: "remarks", width: 32 },
+    { header: "Resolution Remark", key: "resolution_remark", width: 28 },
+    { header: "Resolved At", key: "resolved_at", width: 22 }
+  ];
+
+  // Title Banner
+  worksheet.mergeCells(1, 1, 1, columns.length);
+  const titleCell = worksheet.getCell(1, 1);
+  titleCell.value = `Maharashtra Jeevan Pradhikaran - ${tabName} Field Remarks & Issue Details (${dateStr || new Date().toISOString().slice(0, 10)})`;
+  titleCell.font = { name: "Calibri", size: 12, bold: true, color: { argb: "FFFFFFFF" } };
+  titleCell.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF0284C7" }
+  };
+  titleCell.alignment = { vertical: "middle", horizontal: "center" };
+  worksheet.getRow(1).height = 32;
+
+  // Column Headers
+  worksheet.getRow(2).values = columns.map(c => c.header);
+  worksheet.getRow(2).height = 24;
+  worksheet.getRow(2).font = { name: "Calibri", size: 10, bold: true, color: { argb: "FF0F172A" } };
+  worksheet.getRow(2).eachCell((cell) => {
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE0F2FE" } };
+    cell.border = {
+      top: { style: "thin", color: { argb: "FFBAE6FD" } },
+      bottom: { style: "thin", color: { argb: "FFBAE6FD" } },
+      left: { style: "thin", color: { argb: "FFBAE6FD" } },
+      right: { style: "thin", color: { argb: "FFBAE6FD" } }
+    };
+    cell.alignment = { vertical: "middle", horizontal: "center" };
+  });
+
+  // Rows
+  issues.forEach((issue, idx) => {
+    const row = worksheet.addRow({
+      sr_no: idx + 1,
+      scheme_id: issue.scheme_id || "-",
+      scheme_name: issue.scheme_name || "-",
+      village_name: issue.village_name || "-",
+      esr_name: issue.esr_name || "-",
+      region: issue.region || "-",
+      division: issue.division || "-",
+      block: issue.block || "-",
+      problem_level: issue.problem_level || issue.category || "-",
+      category: issue.category || "-",
+      status: issue.status || "Active",
+      reported_by: issue.creator_name || issue.reported_by || "Field Engineer",
+      created_at: issue.created_at ? new Date(issue.created_at).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }) : "-",
+      reason: issue.reason || issue.issue_description || "-",
+      remarks: issue.remarks || "-",
+      resolution_remark: issue.resolution_remark || "-",
+      resolved_at: issue.resolved_at ? new Date(issue.resolved_at).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }) : "-"
+    });
+
+    row.height = 20;
+    row.font = { name: "Calibri", size: 10, color: { argb: "FF1E293B" } };
+    const bgColor = idx % 2 === 0 ? "FFF8FAFC" : "FFFFFFFF";
+    row.eachCell((cell: any, colNumber: number) => {
+      cell.border = {
+        top: { style: "thin", color: { argb: "FFE2E8F0" } },
+        bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
+        left: { style: "thin", color: { argb: "FFE2E8F0" } },
+        right: { style: "thin", color: { argb: "FFE2E8F0" } }
+      };
+      cell.alignment = { vertical: "middle" };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: bgColor } };
+      if (colNumber === 1 || colNumber === 2 || colNumber === 11) {
+        cell.alignment = { vertical: "middle", horizontal: "center" };
+      }
+    });
+
+    const statusCell = row.getCell(11);
+    if (issue.status === "Resolved") {
+      statusCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFDCFCE7" } };
+      statusCell.font = { name: "Calibri", size: 10, bold: true, color: { argb: "FF15803D" } };
+    } else {
+      statusCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFEE2E2" } };
+      statusCell.font = { name: "Calibri", size: 10, bold: true, color: { argb: "FFDC2626" } };
+    }
+  });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  });
+
+  const formattedDate = dateStr || new Date().toISOString().slice(0, 10);
+  const cleanFilename = `MJP_${tabName.replace(/\s+/g, "_")}_Field_Remarks_${formattedDate}.xlsx`;
+
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = cleanFilename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
 }

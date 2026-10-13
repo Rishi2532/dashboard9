@@ -1392,7 +1392,8 @@ router.get("/overall-region-comparison", async (req, res) => {
           cs.region,
           COUNT(DISTINCT CASE WHEN cs.pressure_connected = 'Connected' AND cs.pressure_status = 'Offline' AND (wc.water_value_day7 IS NULL OR wc.water_value_day7 = 0) THEN cs.id END) as offline_with_no_water,
           COUNT(DISTINCT CASE WHEN cs.pressure_connected = 'Connected' AND cs.pressure_status = 'Offline' AND wc.water_value_day7 > 0 THEN cs.id END) as offline_with_water,
-          COUNT(DISTINCT CASE WHEN cs.pressure_connected = 'Connected' AND cs.pressure_status = 'Offline' THEN cs.id END) as offline_count
+          COUNT(DISTINCT CASE WHEN cs.pressure_connected = 'Connected' AND cs.pressure_status = 'Offline' THEN cs.id END) as offline_count,
+          COUNT(DISTINCT CASE WHEN cs.pressure_connected = 'Connected' AND cs.pressure_status = 'Online' AND wc.water_value_day7 > 0 THEN cs.id END) as online_with_water
         FROM communication_status cs
         LEFT JOIN water_consumption wc ON (
           cs.scheme_id = wc.scheme_id AND 
@@ -1407,6 +1408,7 @@ router.get("/overall-region-comparison", async (req, res) => {
         COALESCE(oa.offline_count, 0) as offline,
         COALESCE(oa.offline_with_no_water, 0) as offline_with_no_water,
         COALESCE(oa.offline_with_water, 0) as offline_with_water,
+        COALESCE(oa.online_with_water, 0) as online_with_water,
         COUNT(CASE WHEN pa.pressure_category = 'no_data' THEN 1 END) as online_no_water,
         COUNT(CASE WHEN pa.pressure_category = 'below_0_2' THEN 1 END) as below_0_2,
         COUNT(CASE WHEN pa.pressure_category = 'optimal_0_2_0_7' THEN 1 END) as optimal_0_2_0_7,
@@ -1418,7 +1420,7 @@ router.get("/overall-region-comparison", async (req, res) => {
       FROM regions r
       LEFT JOIN pressure_analysis pa ON r.region = pa.region
       LEFT JOIN offline_analysis oa ON r.region = oa.region
-      GROUP BY r.region, oa.offline_count, oa.offline_with_no_water, oa.offline_with_water
+      GROUP BY r.region, oa.offline_count, oa.offline_with_no_water, oa.offline_with_water, oa.online_with_water
       ORDER BY r.region
     `));
 
@@ -1491,7 +1493,12 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
         categoryCondition = sql`AND cs.pressure_status = 'Offline' AND wc.water_value_day7 > 0`;
         break;
       case 'online_no_water':
+      case 'online-with-no-water':
         categoryCondition = sql`AND cs.pressure_status = 'Online' AND pd.pressure_value_7 IS NULL`;
+        break;
+      case 'online-with-water':
+      case 'online_with_water':
+        categoryCondition = sql`AND cs.pressure_status = 'Online' AND wc.water_value_day7 > 0`;
         break;
       case 'all_sensors':
         categoryCondition = sql`AND (cs.pressure_status IS NULL OR cs.pressure_status <> 'Offline') AND pd.pressure_value_7 IS NOT NULL`;
@@ -1625,7 +1632,12 @@ router.get("/overall-region-comparison/details-export/:category", async (req, re
         categoryCondition = sql`AND cs.pressure_status = 'Offline' AND wc.water_value_day7 > 0`;
         break;
       case 'online_no_water':
+      case 'online-with-no-water':
         categoryCondition = sql`AND cs.pressure_status = 'Online' AND pd.pressure_value_7 IS NULL`;
+        break;
+      case 'online-with-water':
+      case 'online_with_water':
+        categoryCondition = sql`AND cs.pressure_status = 'Online' AND wc.water_value_day7 > 0`;
         break;
       case 'all_sensors':
         categoryCondition = sql`AND (cs.pressure_status IS NULL OR cs.pressure_status <> 'Offline') AND pd.pressure_value_7 IS NOT NULL`;

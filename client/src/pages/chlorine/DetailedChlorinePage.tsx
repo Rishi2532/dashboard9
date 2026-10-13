@@ -268,6 +268,7 @@ interface RegionComparisonData {
   consistent_below_55: number;
   consistent_no_water: number;
   online_no_water?: number;
+  online_with_water?: number;
   with_water?: number;
 }
 
@@ -488,7 +489,7 @@ const DetailedChlorinePage = () => {
   } | null>(null);
 
   // LPCD sub-tab: Village or Scheme (within LPCD main tab)
-  const [lpcdSubTab, setLpcdSubTab] = useState<"village" | "scheme">("scheme");
+  const [lpcdSubTab, setLpcdSubTab] = useState<"village" | "scheme">("village");
 
   // Scheme LPCD state variables
   const [schemeLpcdRegionalRegion, setSchemeLpcdRegionalRegion] =
@@ -2432,6 +2433,10 @@ const DetailedChlorinePage = () => {
   interface PressureOverallComparison {
     region: string;
     offline: number;
+    offline_with_no_water?: number;
+    offline_with_water?: number;
+    online_no_water?: number;
+    online_with_water?: number;
     below_0_2: number;
     optimal_0_2_0_7: number;
     above_0_7: number;
@@ -3795,21 +3800,6 @@ const DetailedChlorinePage = () => {
                 </span>
                 <button
                   onClick={() => {
-                    setLpcdSubTab("scheme");
-                    setClickedLPCDCell(null);
-                  }}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                    lpcdSubTab === "scheme"
-                      ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md"
-                      : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-                  }`}
-                  data-testid="lpcd-sub-tab-scheme"
-                >
-                  <Building2 className="h-4 w-4" />
-                  Scheme LPCD
-                </button>
-                <button
-                  onClick={() => {
                     setLpcdSubTab("village");
                     setClickedSchemeLPCDCell(null);
                     setClickedSchemeDivisionCell(null);
@@ -3825,6 +3815,21 @@ const DetailedChlorinePage = () => {
                 >
                   <Home className="h-4 w-4" />
                   Village LPCD
+                </button>
+                <button
+                  onClick={() => {
+                    setLpcdSubTab("scheme");
+                    setClickedLPCDCell(null);
+                  }}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                    lpcdSubTab === "scheme"
+                      ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md"
+                      : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  }`}
+                  data-testid="lpcd-sub-tab-scheme"
+                >
+                  <Building2 className="h-4 w-4" />
+                  Scheme LPCD
                 </button>
               </div>
             )}
@@ -5251,17 +5256,9 @@ const DetailedChlorinePage = () => {
                                           "N/A"}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60 truncate">
-                                        {item.village_name}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60 max-w-[150px]">
-                                        {renderRemarkCell(
-                                          villageIssuesMap?.get(
-                                            `${item.scheme_id}-${item.village_name}`,
-                                          ) || [],
-                                          `Remarks for ${item.village_name}`,
-                                        )}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
+    {item.village_name}
+  </TableCell>
+  <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
                                         {item.population !== null &&
                                         item.population !== undefined ? (
                                           Number(
@@ -5323,13 +5320,21 @@ const DetailedChlorinePage = () => {
                                         )}
                                       </TableCell>
                                       {clickedLPCDCell.statisticType.startsWith(
-                                        "below-55-",
-                                      ) && (
-                                        <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-bold text-rose-600 dark:text-rose-400">
-                                          {item.consecutive_days || "N/A"}
-                                        </TableCell>
-                                      )}
-                                    </TableRow>
+    "below-55-",
+  ) && (
+    <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-bold text-rose-600 dark:text-rose-400 border-r border-slate-100/80 dark:border-slate-800/60">
+      {item.consecutive_days || "N/A"}
+    </TableCell>
+  )}
+  <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+    {renderRemarkCell(
+      villageIssuesMap?.get(
+        `${item.scheme_id}-${item.village_name}`,
+      ) || [],
+      `Remarks for ${item.village_name}`,
+    )}
+  </TableCell>
+</TableRow>
                                   ))}
                                 </TableBody>
                               </Table>
@@ -6158,24 +6163,24 @@ const DetailedChlorinePage = () => {
                                       Scheme Name
                                     </TableHead>
                                     <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-                                      Owner
-                                    </TableHead>
-                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[150px] text-center border-r border-white/10">
-                                      Remark
-                                    </TableHead>
-                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
-                                      Population
-                                    </TableHead>
-                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[70px] text-center border-r border-white/10">
-                                      Villages
-                                    </TableHead>
-                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
-                                      LPCD
-                                    </TableHead>
-                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center">
-                                      Dashboard
-                                    </TableHead>
-                                  </TableRow>
+    Owner
+  </TableHead>
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+    Population
+  </TableHead>
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[70px] text-center border-r border-white/10">
+    Villages
+  </TableHead>
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+    LPCD
+  </TableHead>
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+    Dashboard
+  </TableHead>
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-4 !py-3.5 w-[150px] text-center">
+    Remark
+  </TableHead>
+</TableRow>
                                 </TableHeader>
                                 <TableBody>
                                   {schemeLpcdDetails.data.map((item, idx) => (
@@ -6212,19 +6217,11 @@ const DetailedChlorinePage = () => {
                                         )}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
-                                        {item.owner ||
-                                          item.agency_type ||
-                                          "N/A"}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60 max-w-[150px]">
-                                        {renderRemarkCell(
-                                          schemeIssuesMap?.get(
-                                            String(item.scheme_id),
-                                          ) || [],
-                                          `Remarks for ${item.scheme_name}`,
-                                        )}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
+    {item.owner ||
+      item.agency_type ||
+      "N/A"}
+  </TableCell>
+  <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-800/60">
                                         {item.total_population?.toLocaleString() ||
                                           "N/A"}
                                       </TableCell>
@@ -6249,24 +6246,32 @@ const DetailedChlorinePage = () => {
                                           </span>
                                         )}
                                       </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-center">
-                                        {item.dashboard_url ? (
-                                          <a
-                                            href={item.dashboard_url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300 rounded text-[11px] font-medium"
-                                          >
-                                            <ExternalLink className="h-3 w-3" />
-                                            View
-                                          </a>
-                                        ) : (
-                                          <span className="text-slate-400 text-[11px]">
-                                            -
-                                          </span>
-                                        )}
-                                      </TableCell>
-                                    </TableRow>
+                                      <TableCell className="!px-4 !py-3 text-center border-r border-slate-100/80 dark:border-slate-800/60">
+    {item.dashboard_url ? (
+      <a
+        href={item.dashboard_url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-300 rounded text-[11px] font-medium"
+      >
+        <ExternalLink className="h-3 w-3" />
+        View
+      </a>
+    ) : (
+      <span className="text-slate-400 text-[11px]">
+        -
+      </span>
+    )}
+  </TableCell>
+  <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+    {renderRemarkCell(
+      schemeIssuesMap?.get(
+        String(item.scheme_id),
+      ) || [],
+      `Remarks for ${item.scheme_name}`,
+    )}
+  </TableCell>
+</TableRow>
                                   ))}
                                 </TableBody>
                               </Table>
@@ -6481,18 +6486,18 @@ const DetailedChlorinePage = () => {
                                       Pressure
                                     </TableHead>
                                     <TableHead className="!px-4 !py-2 font-bold text-orange-800 dark:text-orange-200 text-center w-[100px]">
-                                      Status
-                                    </TableHead>
-                                    <TableHead className="!px-4 !py-2 font-bold text-orange-800 dark:text-orange-200 text-center w-[150px]">
-                                      Remark
-                                    </TableHead>
-                                    <TableHead className="!px-4 !py-2 font-bold text-orange-800 dark:text-orange-200 text-center w-[100px]">
-                                      Dashboard
-                                    </TableHead>
-                                    <TableHead className="!px-4 !py-2 font-bold text-orange-800 dark:text-orange-200 text-center w-[100px] sticky right-0 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950 z-10 border-l border-orange-200/80 dark:border-orange-800/60">
-                                      Actions
-                                    </TableHead>
-                                  </TableRow>
+    Status
+  </TableHead>
+  <TableHead className="!px-4 !py-2 font-bold text-orange-800 dark:text-orange-200 text-center w-[100px]">
+    Dashboard
+  </TableHead>
+  <TableHead className="!px-4 !py-2 font-bold text-orange-800 dark:text-orange-200 text-center w-[100px] sticky right-0 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950 z-10 border-l border-orange-200/80 dark:border-orange-800/60 border-r border-orange-200/80 dark:border-orange-800/60">
+    Actions
+  </TableHead>
+  <TableHead className="!px-4 !py-2 font-bold text-orange-800 dark:text-orange-200 text-center w-[150px]">
+    Remark
+  </TableHead>
+</TableRow>
                                 </TableHeader>
                                 <TableBody>
                                   {pressureSensorDetails.data
@@ -6555,16 +6560,8 @@ const DetailedChlorinePage = () => {
                                             {item.pressure_status || "Unknown"}
                                           </Badge>
                                         </TableCell>
-                                        <TableCell className="!px-4 !py-2 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
-                                          {renderRemarkCell(
-                                            esrIssuesMap?.get(
-                                              `${item.scheme_id}-${item.village_name}-${item.esr_name}`,
-                                            ) || [],
-                                            `Remarks for ${item.esr_name}`,
-                                          )}
-                                        </TableCell>
                                         <TableCell className="!px-4 !py-2 text-center">
-                                          {item.dashboard_url ? (
+    {item.dashboard_url ? (
                                             <a
                                               href={item.dashboard_url}
                                               target="_blank"
@@ -6587,18 +6584,26 @@ const DetailedChlorinePage = () => {
                                           className={`!px-4 !py-2 text-center sticky right-0 ${index % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-orange-50/50 dark:bg-slate-800/60"} border-l border-orange-100/80 dark:border-orange-900/60`}
                                         >
                                           <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() =>
-                                              setSelectedSensor(item)
-                                            }
-                                            className="h-7 px-3 text-[11px] font-semibold bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 hover:from-orange-100 hover:to-amber-100 dark:from-orange-950 dark:to-amber-950 dark:text-orange-300 dark:hover:from-orange-900 dark:hover:to-amber-900 rounded-lg shadow-sm border border-orange-200/50 dark:border-orange-700/50"
-                                          >
-                                            <Eye className="h-3 w-3 mr-1" />
-                                            History
-                                          </Button>
-                                        </TableCell>
-                                      </TableRow>
+    variant="ghost"
+    size="sm"
+    onClick={() =>
+      setSelectedSensor(item)
+    }
+    className="h-7 px-3 text-[11px] font-semibold bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 hover:from-orange-100 hover:to-amber-100 dark:from-orange-950 dark:to-amber-950 dark:text-orange-300 dark:hover:from-orange-900 dark:hover:to-amber-900 rounded-lg shadow-sm border border-orange-200/50 dark:border-orange-700/50"
+  >
+    <Eye className="h-3 w-3 mr-1" />
+    History
+  </Button>
+</TableCell>
+<TableCell className="!px-4 !py-2 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+  {renderRemarkCell(
+    esrIssuesMap?.get(
+      `${item.scheme_id}-${item.village_name}-${item.esr_name}`,
+    ) || [],
+    `Remarks for ${item.esr_name}`,
+  )}
+</TableCell>
+</TableRow>
                                     ))}
                                 </TableBody>
                               </Table>
@@ -7194,13 +7199,9 @@ const DetailedChlorinePage = () => {
                                               Village
                                             </TableHead>
                                             <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
-                                              ESR Name
-                                            </TableHead>
-                                            <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5 w-[150px] text-center">
-                                              Remark
-                                            </TableHead>
-                                            {clickedDayWiseCell.metric !==
-                                              "offline" && (
+    ESR Name
+  </TableHead>
+  {clickedDayWiseCell.metric !== "offline" && (
                                               <>
                                                 <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
                                                   Chlorine (mg/l)
@@ -7211,12 +7212,15 @@ const DetailedChlorinePage = () => {
                                               </>
                                             )}
                                             <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
-                                              {clickedDayWiseCell.metric ===
-                                              "offline"
-                                                ? "Last Seen"
-                                                : "Consecutive Days"}
-                                            </TableHead>
-                                          </TableRow>
+    {clickedDayWiseCell.metric ===
+    "offline"
+      ? "Last Seen"
+      : "Consecutive Days"}
+  </TableHead>
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5 w-[150px] text-center">
+    Remark
+  </TableHead>
+</TableRow>
                                         </TableHeader>
                                         <TableBody>
                                           {dayWiseSensors.data.map(
@@ -7247,18 +7251,9 @@ const DetailedChlorinePage = () => {
                                                   {sensor.village_name}
                                                 </TableCell>
                                                 <TableCell className="!px-3 !py-2 text-[12px]">
-                                                  {sensor.esr_name}
-                                                </TableCell>
-                                                <TableCell className="!px-3 !py-2 text-[12px] max-w-[150px]">
-                                                  {renderRemarkCell(
-                                                    esrIssuesMap?.get(
-                                                      `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
-                                                    ) || [],
-                                                    `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
-                                                  )}
-                                                </TableCell>
-                                                {clickedDayWiseCell.metric !==
-                                                  "offline" && (
+    {sensor.esr_name}
+  </TableCell>
+  {clickedDayWiseCell.metric !== "offline" && (
                                                   <>
                                                     <TableCell className="!px-3 !py-2 text-[12px]">
                                                       {sensor.latest_chlorine_value !==
@@ -7277,13 +7272,21 @@ const DetailedChlorinePage = () => {
                                                   </>
                                                 )}
                                                 <TableCell className="!px-3 !py-2 text-[12px]">
-                                                  {clickedDayWiseCell.metric ===
-                                                  "offline"
-                                                    ? sensor.last_seen || "N/A"
-                                                    : sensor.consecutive_days ||
-                                                      0}
-                                                </TableCell>
-                                              </TableRow>
+    {clickedDayWiseCell.metric ===
+    "offline"
+      ? sensor.last_seen || "N/A"
+      : sensor.consecutive_days ||
+        0}
+  </TableCell>
+  <TableCell className="!px-3 !py-2 text-[12px] max-w-[150px]">
+    {renderRemarkCell(
+      esrIssuesMap?.get(
+        `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
+      ) || [],
+      `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
+    )}
+  </TableCell>
+</TableRow>
                                             ),
                                           )}
                                         </TableBody>
@@ -8268,12 +8271,8 @@ const DetailedChlorinePage = () => {
                                             </TableHead>
                                             <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
                                               ESR Name
-                                            </TableHead>
-                                            <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5 w-[150px] text-center">
-                                              Remark
-                                            </TableHead>
-                                            {clickedPressureDayWiseCell.metric !==
-                                              "offline" && (
+  </TableHead>
+  {clickedPressureDayWiseCell.metric !== "offline" && (
                                               <>
                                                 <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
                                                   Pressure (bar)
@@ -8284,12 +8283,15 @@ const DetailedChlorinePage = () => {
                                               </>
                                             )}
                                             <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5">
-                                              {clickedPressureDayWiseCell.metric ===
-                                              "offline"
-                                                ? "Last Seen"
-                                                : "Consecutive Days"}
-                                            </TableHead>
-                                          </TableRow>
+    {clickedPressureDayWiseCell.metric ===
+    "offline"
+      ? "Last Seen"
+      : "Consecutive Days"}
+  </TableHead>
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-slate-100 !px-3 !py-2.5 w-[150px] text-center">
+    Remark
+  </TableHead>
+</TableRow>
                                         </TableHeader>
                                         <TableBody>
                                           {pressureDayWiseSensors.data.map(
@@ -8320,18 +8322,9 @@ const DetailedChlorinePage = () => {
                                                   {sensor.village_name}
                                                 </TableCell>
                                                 <TableCell className="!px-3 !py-2 text-[12px]">
-                                                  {sensor.esr_name}
-                                                </TableCell>
-                                                <TableCell className="!px-3 !py-2 text-[12px] max-w-[150px]">
-                                                  {renderRemarkCell(
-                                                    esrIssuesMap?.get(
-                                                      `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
-                                                    ) || [],
-                                                    `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
-                                                  )}
-                                                </TableCell>
-                                                {clickedPressureDayWiseCell.metric !==
-                                                  "offline" && (
+    {sensor.esr_name}
+  </TableCell>
+  {clickedPressureDayWiseCell.metric !== "offline" && (
                                                   <>
                                                     <TableCell className="!px-3 !py-2 text-[12px]">
                                                       {sensor.latest_pressure_value !==
@@ -8350,13 +8343,21 @@ const DetailedChlorinePage = () => {
                                                   </>
                                                 )}
                                                 <TableCell className="!px-3 !py-2 text-[12px]">
-                                                  {clickedPressureDayWiseCell.metric ===
-                                                  "offline"
-                                                    ? sensor.last_seen || "N/A"
-                                                    : sensor.consecutive_days ||
-                                                      0}
-                                                </TableCell>
-                                              </TableRow>
+    {clickedPressureDayWiseCell.metric ===
+    "offline"
+      ? sensor.last_seen || "N/A"
+      : sensor.consecutive_days ||
+        0}
+  </TableCell>
+  <TableCell className="!px-3 !py-2 text-[12px] max-w-[150px]">
+    {renderRemarkCell(
+      esrIssuesMap?.get(
+        `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
+      ) || [],
+      `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
+    )}
+  </TableCell>
+</TableRow>
                                             ),
                                           )}
                                         </TableBody>
@@ -9959,38 +9960,35 @@ const DetailedChlorinePage = () => {
                             <Skeleton className="h-10 w-full" />
                           </div>
                         ) : pressureRegionComparisonSensors &&
-                          pressureRegionComparisonSensors.data.length > 0 ? (
-                          <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-orange-200/60 dark:border-orange-800/60 rounded-xl m-3 shadow-sm">
-                            <Table className="min-w-max">
-                              <TableHeader className="sticky top-0 z-10">
-                                <TableRow className="bg-orange-800 dark:bg-orange-900">
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-                                    Region
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-                                    Division
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[90px] border-r border-white/10">
-                                    Scheme ID
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[140px] border-r border-white/10">
-                                    Scheme Name
-                                  </TableHead>
-                                  <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-                                    Owner
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-                                    Village
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-                                    ESR Name
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[150px] text-center border-r border-white/10">
-                                    Remark
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
-                                    Status
-                                  </TableHead>
+  pressureRegionComparisonSensors.data.length > 0 ? (
+  <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-orange-200/60 dark:border-orange-800/60 rounded-xl m-3 shadow-sm">
+    <Table className="min-w-max">
+      <TableHeader className="sticky top-0 z-10">
+        <TableRow className="bg-orange-800 dark:bg-orange-900">
+          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+            Region
+          </TableHead>
+          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+            Division
+          </TableHead>
+          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[90px] border-r border-white/10">
+            Scheme ID
+          </TableHead>
+          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[140px] border-r border-white/10">
+            Scheme Name
+          </TableHead>
+          <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+            Owner
+          </TableHead>
+          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+            Village
+          </TableHead>
+          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+            ESR Name
+          </TableHead>
+          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+            Status
+          </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
                                     Pressure(bar)
                                   </TableHead>
@@ -9998,53 +9996,48 @@ const DetailedChlorinePage = () => {
                                     Date
                                   </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[70px] text-center">
-                                    Days
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[80px] text-center border-l border-white/10">
-                                    Dashboard
-                                  </TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {pressureRegionComparisonSensors.data.map(
+    Days
+  </TableHead>
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[80px] text-center border-l border-white/10 border-r border-white/10">
+    Dashboard
+  </TableHead>
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[150px] text-center">
+    Remark
+  </TableHead>
+</TableRow>
+</TableHeader>
+<TableBody>
+{pressureRegionComparisonSensors.data.map(
                                   (sensor: any, idx: number) => (
                                     <TableRow
                                       key={`${sensor.scheme_id}-${sensor.village_name}-${idx}`}
                                       className={`transition-all duration-200 hover:bg-orange-50/70 dark:hover:bg-orange-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-orange-50/40 dark:bg-orange-950/20"}`}
                                       data-testid={`row-pressure-comparison-sensor-${idx}`}
-                                    >
-                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60 font-medium">
-                                        {sensor.region}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60">
-                                        {sensor.division}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-orange-600 dark:text-orange-400 border-r border-orange-100/80 dark:border-orange-900/60">
-                                        {sensor.scheme_id}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-orange-100/80 dark:border-orange-900/60">
-                                        {sensor.scheme_name}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
-                                        {sensor.owner ||
-                                          sensor.agency_type ||
-                                          "N/A"}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60">
-                                        {sensor.village_name}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-orange-100/80 dark:border-orange-900/60">
-                                        {sensor.esr_name}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60 max-w-[150px]">
-                                        {renderRemarkCell(
-                                          esrIssuesMap?.get(
-                                            `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
-                                          ) || [],
-                                          `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
-                                        )}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-center border-r border-orange-100/80 dark:border-orange-900/60">
+>
+  <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60 font-medium">
+    {sensor.region}
+  </TableCell>
+  <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60">
+    {sensor.division}
+  </TableCell>
+  <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-orange-600 dark:text-orange-400 border-r border-orange-100/80 dark:border-orange-900/60">
+    {sensor.scheme_id}
+  </TableCell>
+  <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-orange-100/80 dark:border-orange-900/60">
+    {sensor.scheme_name}
+  </TableCell>
+  <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
+    {sensor.owner ||
+      sensor.agency_type ||
+      "N/A"}
+  </TableCell>
+  <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60">
+    {sensor.village_name}
+  </TableCell>
+  <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-orange-100/80 dark:border-orange-900/60">
+    {sensor.esr_name}
+  </TableCell>
+  <TableCell className="!px-4 !py-3 text-center border-r border-orange-100/80 dark:border-orange-900/60">
                                         <span
                                           className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${sensor.pressure_status === "Online" ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60 dark:text-emerald-300 ring-1 ring-emerald-200/80 dark:ring-emerald-700/60" : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"}`}
                                         >
@@ -10090,37 +10083,45 @@ const DetailedChlorinePage = () => {
                                             : ""}
                                         </span>
                                       </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-center border-l border-orange-100/80 dark:border-orange-900/60">
-                                        {sensor.dashboard_url && (
-                                          <a
-                                            href={sensor.dashboard_url}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors shadow-sm"
-                                            title="Open Dashboard"
-                                            onClick={(e) => e.stopPropagation()}
-                                          >
-                                            <ExternalLink className="h-3.5 w-3.5" />
-                                          </a>
-                                        )}
-                                      </TableCell>
-                                    </TableRow>
-                                  ),
-                                )}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        ) : (
-                          <div className="text-center py-12">
-                            <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                            <p className="text-gray-500">No sensors found</p>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  )}
+                                      <TableCell className="!px-4 !py-3 text-center border-l border-orange-100/80 dark:border-orange-900/60 border-r border-orange-100/80 dark:border-orange-900/60">
+    {sensor.dashboard_url && (
+      <a
+        href={sensor.dashboard_url}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors shadow-sm"
+        title="Open Dashboard"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <ExternalLink className="h-3.5 w-3.5" />
+      </a>
+    )}
+  </TableCell>
+  <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+    {renderRemarkCell(
+      esrIssuesMap?.get(
+        `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
+      ) || [],
+      `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
+    )}
+  </TableCell>
+</TableRow>
+),
+)}
+</TableBody>
+</Table>
+</div>
+) : (
+<div className="text-center py-12">
+  <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+  <p className="text-gray-500">No sensors found</p>
+</div>
+)}
+</CardContent>
+</Card>
+)}
 
-                  {clickedDayWiseCell && (
+{clickedDayWiseCell && (
                     <Card className="border-0 shadow-lg rounded-xl overflow-hidden">
                       <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950 dark:to-orange-950 border-b border-amber-200 dark:border-amber-800 py-2.5">
                         <div className="flex items-center justify-between">
@@ -10216,14 +10217,11 @@ const DetailedChlorinePage = () => {
                                     Village
                                   </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-                                    ESR Name
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[150px] text-center border-r border-white/10">
-                                    Remark
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
-                                    Status
-                                  </TableHead>
+    ESR Name
+  </TableHead>
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+    Status
+  </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
                                     Chlorine(mg/l)
                                   </TableHead>
@@ -10233,10 +10231,13 @@ const DetailedChlorinePage = () => {
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[70px] text-center">
                                     Days
                                   </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[80px] text-center border-l border-white/10">
-                                    Dashboard
-                                  </TableHead>
-                                </TableRow>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[80px] text-center border-l border-white/10 border-r border-white/10">
+    Dashboard
+  </TableHead>
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-amber-50 !px-4 !py-3.5 w-[150px] text-center">
+    Remark
+  </TableHead>
+</TableRow>
                               </TableHeader>
                               <TableBody>
                                 {dayWiseSensors.data.map((sensor, idx) => (
@@ -10267,17 +10268,9 @@ const DetailedChlorinePage = () => {
                                       {sensor.village_name}
                                     </TableCell>
                                     <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-amber-100/80 dark:border-amber-900/60">
-                                      {sensor.esr_name}
-                                    </TableCell>
-                                    <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-amber-100/80 dark:border-amber-900/60 max-w-[150px]">
-                                      {renderRemarkCell(
-                                        esrIssuesMap?.get(
-                                          `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
-                                        ) || [],
-                                        `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
-                                      )}
-                                    </TableCell>
-                                    <TableCell className="!px-4 !py-3 text-center border-r border-amber-100/80 dark:border-amber-900/60">
+    {sensor.esr_name}
+  </TableCell>
+  <TableCell className="!px-4 !py-3 text-center border-r border-amber-100/80 dark:border-amber-900/60">
                                       <span
                                         className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${sensor.chlorine_status === "Online" ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60 dark:text-emerald-300 ring-1 ring-emerald-200/80 dark:ring-emerald-700/60" : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"}`}
                                       >
@@ -10304,21 +10297,29 @@ const DetailedChlorinePage = () => {
                                         {sensor.consecutive_days > 1 ? "s" : ""}
                                       </span>
                                     </TableCell>
-                                    <TableCell className="!px-4 !py-3 text-center border-l border-amber-100/80 dark:border-amber-900/60">
-                                      {sensor.dashboard_url && (
-                                        <a
-                                          href={sensor.dashboard_url}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors shadow-sm"
-                                          title="Open Dashboard"
-                                          onClick={(e) => e.stopPropagation()}
-                                        >
-                                          <ExternalLink className="h-3.5 w-3.5" />
-                                        </a>
-                                      )}
-                                    </TableCell>
-                                  </TableRow>
+                                    <TableCell className="!px-4 !py-3 text-center border-l border-amber-100/80 dark:border-amber-900/60 border-r border-amber-100/80 dark:border-amber-900/60">
+    {sensor.dashboard_url && (
+      <a
+        href={sensor.dashboard_url}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors shadow-sm"
+        title="Open Dashboard"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <ExternalLink className="h-3.5 w-3.5" />
+      </a>
+    )}
+  </TableCell>
+  <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+    {renderRemarkCell(
+      esrIssuesMap?.get(
+        `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
+      ) || [],
+      `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
+    )}
+  </TableCell>
+</TableRow>
                                 ))}
                               </TableBody>
                             </Table>
@@ -10411,38 +10412,35 @@ const DetailedChlorinePage = () => {
                             <Skeleton className="h-10 w-full" />
                           </div>
                         ) : pressureDayWiseSensors &&
-                          pressureDayWiseSensors.data.length > 0 ? (
-                          <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-orange-200/60 dark:border-orange-800/60 rounded-xl m-3 shadow-sm">
-                            <Table className="min-w-max">
-                              <TableHeader className="sticky top-0 z-10">
-                                <TableRow className="bg-orange-800 dark:bg-orange-900">
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-                                    Region
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-                                    Division
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[90px] border-r border-white/10">
-                                    Scheme ID
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[140px] border-r border-white/10">
-                                    Scheme Name
-                                  </TableHead>
-                                  <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-                                    Owner
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-                                    Village
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-                                    ESR Name
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[150px] text-center border-r border-white/10">
-                                    Remark
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
-                                    Status
-                                  </TableHead>
+  pressureDayWiseSensors.data.length > 0 ? (
+  <div className="overflow-x-auto max-h-[450px] overflow-y-auto border border-orange-200/60 dark:border-orange-800/60 rounded-xl m-3 shadow-sm">
+    <Table className="min-w-max">
+      <TableHeader className="sticky top-0 z-10">
+        <TableRow className="bg-orange-800 dark:bg-orange-900">
+          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+            Region
+          </TableHead>
+          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+            Division
+          </TableHead>
+          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[90px] border-r border-white/10">
+            Scheme ID
+          </TableHead>
+          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[140px] border-r border-white/10">
+            Scheme Name
+          </TableHead>
+          <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+            Owner
+          </TableHead>
+          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+            Village
+          </TableHead>
+          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+            ESR Name
+          </TableHead>
+          <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+            Status
+          </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
                                     Pressure(bar)
                                   </TableHead>
@@ -10450,53 +10448,48 @@ const DetailedChlorinePage = () => {
                                     Date
                                   </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[70px] text-center">
-                                    Days
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[80px] text-center border-l border-white/10">
-                                    Dashboard
-                                  </TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {pressureDayWiseSensors.data.map(
+    Days
+  </TableHead>
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[80px] text-center border-l border-white/10 border-r border-white/10">
+    Dashboard
+  </TableHead>
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-orange-50 !px-4 !py-3.5 w-[150px] text-center">
+    Remark
+  </TableHead>
+</TableRow>
+</TableHeader>
+<TableBody>
+{pressureDayWiseSensors.data.map(
                                   (sensor: any, idx: number) => (
                                     <TableRow
                                       key={`${sensor.scheme_id}-${sensor.village_name}-${idx}`}
                                       className={`transition-all duration-200 hover:bg-orange-50/70 dark:hover:bg-orange-950/40 ${idx % 2 === 0 ? "bg-white dark:bg-slate-900/80" : "bg-orange-50/40 dark:bg-orange-950/20"}`}
                                       data-testid={`row-pressure-daywise-sensor-${idx}`}
-                                    >
-                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60 font-medium">
-                                        {sensor.region}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60">
-                                        {sensor.division}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-orange-700 dark:text-orange-400 border-r border-orange-100/80 dark:border-orange-900/60">
-                                        {sensor.scheme_id}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-orange-100/80 dark:border-orange-900/60">
-                                        {sensor.scheme_name}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
-                                        {sensor.owner ||
-                                          sensor.agency_type ||
-                                          "N/A"}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60">
-                                        {sensor.village_name}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-orange-100/80 dark:border-orange-900/60">
-                                        {sensor.esr_name}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60 max-w-[150px]">
-                                        {renderRemarkCell(
-                                          esrIssuesMap?.get(
-                                            `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
-                                          ) || [],
-                                          `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
-                                        )}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-center border-r border-orange-100/80 dark:border-orange-900/60">
+>
+  <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60 font-medium">
+    {sensor.region}
+  </TableCell>
+  <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60">
+    {sensor.division}
+  </TableCell>
+  <TableCell className="!px-4 !py-3 text-[12px] font-mono font-semibold text-orange-700 dark:text-orange-400 border-r border-orange-100/80 dark:border-orange-900/60">
+    {sensor.scheme_id}
+  </TableCell>
+  <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-orange-100/80 dark:border-orange-900/60">
+    {sensor.scheme_name}
+  </TableCell>
+  <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
+    {sensor.owner ||
+      sensor.agency_type ||
+      "N/A"}
+  </TableCell>
+  <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-orange-100/80 dark:border-orange-900/60">
+    {sensor.village_name}
+  </TableCell>
+  <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-orange-100/80 dark:border-orange-900/60">
+    {sensor.esr_name}
+  </TableCell>
+  <TableCell className="!px-4 !py-3 text-center border-r border-orange-100/80 dark:border-orange-900/60">
                                         <span
                                           className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${sensor.pressure_status === "Online" ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60 dark:text-emerald-300 ring-1 ring-emerald-200/80 dark:ring-emerald-700/60" : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"}`}
                                         >
@@ -10546,37 +10539,45 @@ const DetailedChlorinePage = () => {
                                             : ""}
                                         </span>
                                       </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-center border-l border-orange-100/80 dark:border-orange-900/60">
-                                        {sensor.dashboard_url && (
-                                          <a
-                                            href={sensor.dashboard_url}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors shadow-sm"
-                                            title="Open Dashboard"
-                                            onClick={(e) => e.stopPropagation()}
-                                          >
-                                            <ExternalLink className="h-3.5 w-3.5" />
-                                          </a>
-                                        )}
-                                      </TableCell>
-                                    </TableRow>
-                                  ),
-                                )}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        ) : (
-                          <div className="text-center py-12">
-                            <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                            <p className="text-gray-500">No sensors found</p>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  )}
+                                      <TableCell className="!px-4 !py-3 text-center border-l border-orange-100/80 dark:border-orange-900/60 border-r border-orange-100/80 dark:border-orange-900/60">
+    {sensor.dashboard_url && (
+      <a
+        href={sensor.dashboard_url}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors shadow-sm"
+        title="Open Dashboard"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <ExternalLink className="h-3.5 w-3.5" />
+      </a>
+    )}
+  </TableCell>
+  <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+    {renderRemarkCell(
+      esrIssuesMap?.get(
+        `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
+      ) || [],
+      `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
+    )}
+  </TableCell>
+</TableRow>
+),
+)}
+</TableBody>
+</Table>
+</div>
+) : (
+<div className="text-center py-12">
+  <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+  <p className="text-gray-500">No sensors found</p>
+</div>
+)}
+</CardContent>
+</Card>
+)}
 
-                  {/* Region Comparison Clicked Sensor List */}
+{/* Region Comparison Clicked Sensor List */}
                   {clickedRegionComparisonCell && (
                     <Card className="border-0 shadow-lg rounded-xl overflow-hidden">
                       <CardHeader className="bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-950 dark:to-purple-950 border-b border-violet-200 dark:border-violet-800 py-2.5">
@@ -10679,21 +10680,21 @@ const DetailedChlorinePage = () => {
                                     Status
                                   </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
-                                    Chlorine
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[150px] text-center border-r border-white/10">
-                                    Remark
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[90px] text-center border-r border-white/10">
-                                    Date
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[70px] text-center border-r border-white/10">
-                                    Days
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[80px] text-center">
-                                    Dashboard
-                                  </TableHead>
-                                </TableRow>
+    Chlorine
+  </TableHead>
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[90px] text-center border-r border-white/10">
+    Date
+  </TableHead>
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[70px] text-center border-r border-white/10">
+    Days
+  </TableHead>
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+    Dashboard
+  </TableHead>
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-violet-50 !px-4 !py-3.5 w-[150px] text-center">
+    Remark
+  </TableHead>
+</TableRow>
                               </TableHeader>
                               <TableBody>
                                 {regionComparisonSensors.data.map(
@@ -10745,14 +10746,6 @@ const DetailedChlorinePage = () => {
                                           </span>
                                         )}
                                       </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-violet-100/80 dark:border-violet-900/60 max-w-[150px]">
-                                        {renderRemarkCell(
-                                          esrIssuesMap?.get(
-                                            `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
-                                          ) || [],
-                                          `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
-                                        )}
-                                      </TableCell>
                                       <TableCell className="!px-4 !py-3 text-center text-[12px] text-slate-600 dark:text-slate-400 border-r border-violet-100/80 dark:border-violet-900/60">
                                         {formatDate(
                                           sensor.latest_chlorine_date,
@@ -10766,30 +10759,38 @@ const DetailedChlorinePage = () => {
                                             : ""}
                                         </span>
                                       </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-center">
-                                        {sensor.dashboard_url && (
-                                          <a
-                                            href={sensor.dashboard_url}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors shadow-sm"
-                                            title="Open Dashboard"
-                                            onClick={(e) => e.stopPropagation()}
-                                          >
-                                            <ExternalLink className="h-3.5 w-3.5" />
-                                          </a>
-                                        )}
-                                      </TableCell>
-                                    </TableRow>
-                                  ),
-                                )}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        ) : (
-                          <div className="text-center py-12">
-                            <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                            <p className="text-gray-500">No sensors found</p>
+                                      <TableCell className="!px-4 !py-3 text-center border-r border-violet-100/80 dark:border-violet-900/60">
+    {sensor.dashboard_url && (
+      <a
+        href={sensor.dashboard_url}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center justify-center p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors shadow-sm"
+        title="Open Dashboard"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <ExternalLink className="h-3.5 w-3.5" />
+      </a>
+    )}
+  </TableCell>
+  <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+    {renderRemarkCell(
+      esrIssuesMap?.get(
+        `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
+      ) || [],
+      `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
+    )}
+  </TableCell>
+</TableRow>
+),
+)}
+</TableBody>
+</Table>
+</div>
+) : (
+<div className="text-center py-12">
+  <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+  <p className="text-gray-500">No sensors found</p>
                           </div>
                         )}
                       </CardContent>
@@ -10890,21 +10891,21 @@ const DetailedChlorinePage = () => {
                                     Owner
                                   </TableHead>
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-                                    Village
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[150px] text-center border-r border-white/10">
-                                    Remark
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
-                                    LPCD
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[70px] text-center">
-                                    Days
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[80px] text-center border-l border-white/10">
-                                    Dashboard
-                                  </TableHead>
-                                </TableRow>
+    Village
+  </TableHead>
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+    LPCD
+  </TableHead>
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[70px] text-center">
+    Days
+  </TableHead>
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[80px] text-center border-l border-white/10 border-r border-white/10">
+    Dashboard
+  </TableHead>
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-cyan-50 !px-4 !py-3.5 w-[150px] text-center">
+    Remark
+  </TableHead>
+</TableRow>
                               </TableHeader>
                               <TableBody>
                                 {lpcdDayWiseVillages.data.map(
@@ -10932,17 +10933,9 @@ const DetailedChlorinePage = () => {
                                           "N/A"}
                                       </TableCell>
                                       <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-cyan-100/80 dark:border-cyan-900/60 truncate">
-                                        {sensor.village_name}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-cyan-100/80 dark:border-cyan-900/60 max-w-[150px]">
-                                        {renderRemarkCell(
-                                          villageIssuesMap?.get(
-                                            `${sensor.scheme_id}-${sensor.village_name}`,
-                                          ) || [],
-                                          `Remarks for ${sensor.village_name}`,
-                                        )}
-                                      </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-cyan-100/80 dark:border-cyan-900/60">
+    {sensor.village_name}
+  </TableCell>
+  <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-cyan-100/80 dark:border-cyan-900/60">
                                         {sensor.latest_lpcd_value !== null ? (
                                           Number(
                                             sensor.latest_lpcd_value,
@@ -10961,25 +10954,33 @@ const DetailedChlorinePage = () => {
                                             : ""}
                                         </span>
                                       </TableCell>
-                                      <TableCell className="!px-4 !py-3 text-center border-l border-cyan-100/80 dark:border-cyan-900/60">
-                                        {(sensor as any).dashboard_url ? (
-                                          <a
-                                            href={(sensor as any).dashboard_url}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="inline-flex items-center justify-center p-1.5 text-cyan-600 hover:text-cyan-800 hover:bg-cyan-50 dark:text-cyan-400 dark:hover:text-cyan-200 dark:hover:bg-cyan-900/50 rounded-full transition-colors"
-                                            title="Open Dashboard"
-                                            onClick={(e) => e.stopPropagation()}
-                                          >
-                                            <ExternalLink className="h-3.5 w-3.5" />
-                                          </a>
-                                        ) : (
-                                          <span className="text-slate-400">
-                                            -
-                                          </span>
-                                        )}
-                                      </TableCell>
-                                    </TableRow>
+                                      <TableCell className="!px-4 !py-3 text-center border-l border-cyan-100/80 dark:border-cyan-900/60 border-r border-cyan-100/80 dark:border-cyan-900/60">
+    {(sensor as any).dashboard_url ? (
+      <a
+        href={(sensor as any).dashboard_url}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center justify-center p-1.5 text-cyan-600 hover:text-cyan-800 hover:bg-cyan-50 dark:text-cyan-400 dark:hover:text-cyan-200 dark:hover:bg-cyan-900/50 rounded-full transition-colors"
+        title="Open Dashboard"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <ExternalLink className="h-3.5 w-3.5" />
+      </a>
+    ) : (
+      <span className="text-slate-400">
+        -
+      </span>
+    )}
+  </TableCell>
+  <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+    {renderRemarkCell(
+      villageIssuesMap?.get(
+        `${sensor.scheme_id}-${sensor.village_name}`,
+      ) || [],
+      `Remarks for ${sensor.village_name}`,
+    )}
+  </TableCell>
+</TableRow>
                                   ),
                                 )}
                               </TableBody>
@@ -11093,24 +11094,24 @@ const DetailedChlorinePage = () => {
                                     Scheme Name
                                   </TableHead>
                                   <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-                                    Owner
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[150px] text-center border-r border-white/10">
-                                    Remark
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-                                    Block
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
-                                    LPCD
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[70px] text-center">
-                                    Days
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[80px] text-center">
-                                    Dashboard
-                                  </TableHead>
-                                </TableRow>
+    Owner
+  </TableHead>
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+    Block
+  </TableHead>
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+    LPCD
+  </TableHead>
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[70px] text-center">
+    Days
+  </TableHead>
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[80px] text-center border-r border-white/10">
+    Dashboard
+  </TableHead>
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[150px] text-center">
+    Remark
+  </TableHead>
+</TableRow>
                               </TableHeader>
                               <TableBody>
                                 {schemeLpcdDayWiseSchemes.data.map(
@@ -11160,19 +11161,11 @@ const DetailedChlorinePage = () => {
                                           )}
                                         </TableCell>
                                         <TableCell className="!px-4 !py-3 text-[12px] text-center text-slate-700 dark:text-slate-300 border-r border-slate-100/80 dark:border-slate-900/60 font-medium truncate max-w-[150px]">
-                                          {scheme.owner ||
-                                            scheme.agency_type ||
-                                            "N/A"}
-                                        </TableCell>
-                                        <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 max-w-[150px]">
-                                          {renderRemarkCell(
-                                            schemeIssuesMap?.get(
-                                              String(scheme.scheme_id),
-                                            ) || [],
-                                            `Remarks for ${scheme.scheme_name}`,
-                                          )}
-                                        </TableCell>
-                                        <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60">
+    {scheme.owner ||
+      scheme.agency_type ||
+      "N/A"}
+  </TableCell>
+  <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60">
                                           {scheme.block}
                                         </TableCell>
                                         <TableCell className="!px-4 !py-3 text-center text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60">
@@ -11199,27 +11192,35 @@ const DetailedChlorinePage = () => {
                                               : ""}
                                           </span>
                                         </TableCell>
-                                        <TableCell className="!px-4 !py-3 text-center">
-                                          {scheme.dashboard_url ? (
-                                            <a
-                                              href={scheme.dashboard_url}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="inline-flex items-center justify-center p-1.5 text-purple-600 hover:text-purple-800 hover:bg-purple-50 dark:text-purple-400 dark:hover:text-purple-200 dark:hover:bg-purple-900/50 rounded-full transition-colors"
-                                              title="Open Dashboard"
-                                              onClick={(e) =>
-                                                e.stopPropagation()
-                                              }
-                                            >
-                                              <ExternalLink className="h-3.5 w-3.5" />
-                                            </a>
-                                          ) : (
-                                            <span className="text-slate-400">
-                                              -
-                                            </span>
-                                          )}
-                                        </TableCell>
-                                      </TableRow>
+                                        <TableCell className="!px-4 !py-3 text-center border-r border-purple-100/80 dark:border-purple-900/60">
+    {scheme.dashboard_url ? (
+      <a
+        href={scheme.dashboard_url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center justify-center p-1.5 text-purple-600 hover:text-purple-800 hover:bg-purple-50 dark:text-purple-400 dark:hover:text-purple-200 dark:hover:bg-purple-900/50 rounded-full transition-colors"
+        title="Open Dashboard"
+        onClick={(e) =>
+          e.stopPropagation()
+        }
+      >
+        <ExternalLink className="h-3.5 w-3.5" />
+      </a>
+    ) : (
+      <span className="text-slate-400">
+        -
+      </span>
+    )}
+  </TableCell>
+  <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+    {renderRemarkCell(
+      schemeIssuesMap?.get(
+        String(scheme.scheme_id),
+      ) || [],
+      `Remarks for ${scheme.scheme_name}`,
+    )}
+  </TableCell>
+</TableRow>
                                     );
                                   },
                                 )}
@@ -12824,13 +12825,13 @@ const DetailedChlorinePage = () => {
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-3 !py-3.5 w-[100px] border-r border-white/10">
                                     ESR Name
                                   </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-3 !py-3.5 w-[150px] text-center border-r border-white/10">
-                                    Remark
-                                  </TableHead>
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-3 !py-3.5 text-center w-[100px]">
-                                    Chlorine (mg/l)
-                                  </TableHead>
-                                </TableRow>
+                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-3 !py-3.5 text-center w-[100px] border-r border-white/10">
+    Chlorine (mg/l)
+  </TableHead>
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-teal-50 !px-3 !py-3.5 w-[150px] text-center">
+    Remark
+  </TableHead>
+</TableRow>
                               </TableHeader>
                               <TableBody>
                                 {chlorineDivisionSensors.data.map(
@@ -12887,17 +12888,9 @@ const DetailedChlorinePage = () => {
                                         {sensor.village_name}
                                       </TableCell>
                                       <TableCell className="!px-3 !py-2.5 !text-[12px] text-slate-600 dark:text-slate-400 truncate border-r border-teal-100/80 dark:border-teal-900/60">
-                                        {sensor.esr_name}
-                                      </TableCell>
-                                      <TableCell className="!px-3 !py-2.5 !text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-teal-100/80 dark:border-teal-900/60 max-w-[150px]">
-                                        {renderRemarkCell(
-                                          esrIssuesMap?.get(
-                                            `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
-                                          ) || [],
-                                          `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
-                                        )}
-                                      </TableCell>
-                                      <TableCell className="!px-3 !py-2.5 text-center text-sm">
+    {sensor.esr_name}
+  </TableCell>
+  <TableCell className="!px-3 !py-2.5 text-center text-sm border-r border-teal-100/80 dark:border-teal-900/60">
                                         <Badge
                                           className={`text-[10px] ${
                                             sensor.latest_chlorine_value !==
@@ -12920,13 +12913,21 @@ const DetailedChlorinePage = () => {
                                           }`}
                                         >
                                           {sensor.latest_chlorine_value !== null
-                                            ? Number(
-                                                sensor.latest_chlorine_value,
-                                              ).toFixed(2)
-                                            : "N/A"}
-                                        </Badge>
-                                      </TableCell>
-                                    </TableRow>
+    ? Number(
+        sensor.latest_chlorine_value,
+      ).toFixed(2)
+    : "N/A"}
+</Badge>
+</TableCell>
+<TableCell className="!px-3 !py-2.5 !text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+  {renderRemarkCell(
+    esrIssuesMap?.get(
+      `${sensor.scheme_id}-${sensor.village_name}-${sensor.esr_name}`,
+    ) || [],
+    `Remarks for ${sensor.esr_name}, ${sensor.village_name}`,
+  )}
+</TableCell>
+</TableRow>
                                   ),
                                 )}
                               </TableBody>
@@ -13739,216 +13740,6 @@ const DetailedChlorinePage = () => {
                                           </button>
                                         );
                                       })()}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="h-4"></div>
-
-                              {/* Flowmeter Statistics Table */}
-                              <div className="rounded-xl border-2 border-indigo-200 dark:border-indigo-800 overflow-hidden shadow-sm">
-                                <div className="bg-gradient-to-r from-indigo-600 to-blue-600 px-4 py-2.5 flex items-center gap-2">
-                                  <Activity className="h-4 w-4 text-white" />
-                                  <span className="text-white font-semibold text-sm tracking-wide">
-                                    FLOWMETER STATISTICS
-                                  </span>
-                                </div>
-
-                                {/* Header Row */}
-                                <div
-                                  className="grid border-b-2 border-indigo-200 dark:border-indigo-800"
-                                  style={{
-                                    gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
-                                  }}
-                                >
-                                  <div className="bg-indigo-50 dark:bg-indigo-950 px-3 py-3 font-semibold text-[16px] text-indigo-800 dark:text-indigo-200 border-r-2 border-indigo-200 dark:border-indigo-800 flex items-center">
-                                    Status
-                                  </div>
-                                  {overallComparisonData.data.map(
-                                    (regionData) => (
-                                      <div
-                                        key={`flow-header-${regionData.region}`}
-                                        className="bg-indigo-50 dark:bg-indigo-950 px-2 py-3 text-center font-bold text-[16px] text-indigo-800 dark:text-indigo-200 border-r border-indigo-200 dark:border-indigo-800"
-                                      >
-                                        {regionData.region}
-                                      </div>
-                                    ),
-                                  )}
-                                  <div className="bg-indigo-100 dark:bg-indigo-900 px-2 py-3 text-center font-bold text-xs text-indigo-900 dark:text-indigo-100">
-                                    TOTAL
-                                  </div>
-                                </div>
-
-                                <div className="bg-white dark:bg-gray-900">
-                                  {/* Online Row */}
-                                  <div
-                                    className="grid border-b border-indigo-100 dark:border-indigo-900 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30 transition-colors"
-                                    style={{
-                                      gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
-                                    }}
-                                  >
-                                    <div className="px-3 py-2.5 text-[14px] font-medium text-gray-600 dark:text-gray-400 border-r-2 border-indigo-200 dark:border-indigo-800 flex items-center pl-6">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-2"></span>
-                                      Online
-                                    </div>
-                                    {overallComparisonData.data.map(
-                                      (regionData) => {
-                                        const stat = flowmeterStats?.data.find(
-                                          (s) => s.region === regionData.region,
-                                        );
-                                        const val = stat?.online || 0;
-                                        return (
-                                          <div
-                                            key={`flow-online-${regionData.region}`}
-                                            className="px-2 py-2.5 flex items-center justify-center border-r border-indigo-100 dark:border-indigo-900"
-                                          >
-                                            <button
-                                              onClick={() =>
-                                                val > 0 &&
-                                                setClickedFlowmeterCell({
-                                                  category: "online",
-                                                  region: regionData.region,
-                                                  label: `Online Flowmeters - ${regionData.region}`,
-                                                })
-                                              }
-                                              className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${val > 0 ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200" : "text-gray-400"}`}
-                                            >
-                                              {val}
-                                            </button>
-                                          </div>
-                                        );
-                                      },
-                                    )}
-                                    <div className="px-2 py-2.5 flex items-center justify-center bg-indigo-50/50 dark:bg-indigo-950/30">
-                                      <button
-                                        onClick={() => {
-                                          const total =
-                                            flowmeterStats?.data.reduce(
-                                              (sum, s) => sum + (s.online || 0),
-                                              0,
-                                            ) || 0;
-                                          total > 0 &&
-                                            setClickedFlowmeterCell({
-                                              category: "online",
-                                              region: "All Regions",
-                                              label:
-                                                "Online Flowmeters - All Regions",
-                                            });
-                                        }}
-                                        className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-emerald-200 text-emerald-800"
-                                      >
-                                        {flowmeterStats?.data.reduce(
-                                          (sum, s) => sum + (s.online || 0),
-                                          0,
-                                        ) || 0}
-                                      </button>
-                                    </div>
-                                  </div>
-
-                                  {/* Offline Row */}
-                                  <div
-                                    className="grid border-b-2 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30 transition-colors"
-                                    style={{
-                                      gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
-                                    }}
-                                  >
-                                    <div className="px-3 py-2.5 text-[14px] font-medium text-gray-600 dark:text-gray-400 border-r-2 border-indigo-200 dark:border-indigo-800 flex items-center pl-6">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-red-400 mr-2"></span>
-                                      Offline
-                                    </div>
-                                    {overallComparisonData.data.map(
-                                      (regionData) => {
-                                        const stat = flowmeterStats?.data.find(
-                                          (s) => s.region === regionData.region,
-                                        );
-                                        const val = stat?.offline || 0;
-                                        return (
-                                          <div
-                                            key={`flow-offline-${regionData.region}`}
-                                            className="px-2 py-2.5 flex items-center justify-center border-r border-indigo-100 dark:border-indigo-900"
-                                          >
-                                            <button
-                                              onClick={() =>
-                                                val > 0 &&
-                                                setClickedFlowmeterCell({
-                                                  category: "offline",
-                                                  region: regionData.region,
-                                                  label: `Offline Flowmeters - ${regionData.region}`,
-                                                })
-                                              }
-                                              className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${val > 0 ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 hover:bg-red-200" : "text-gray-400"}`}
-                                            >
-                                              {val}
-                                            </button>
-                                          </div>
-                                        );
-                                      },
-                                    )}
-                                    <div className="px-2 py-2.5 flex items-center justify-center bg-indigo-50/50 dark:bg-indigo-950/30">
-                                      <button
-                                        onClick={() => {
-                                          const total =
-                                            flowmeterStats?.data.reduce(
-                                              (sum, s) =>
-                                                sum + (s.offline || 0),
-                                              0,
-                                            ) || 0;
-                                          total > 0 &&
-                                            setClickedFlowmeterCell({
-                                              category: "offline",
-                                              region: "All Regions",
-                                              label:
-                                                "Offline Flowmeters - All Regions",
-                                            });
-                                        }}
-                                        className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-red-200 text-red-800"
-                                      >
-                                        {flowmeterStats?.data.reduce(
-                                          (sum, s) => sum + (s.offline || 0),
-                                          0,
-                                        ) || 0}
-                                      </button>
-                                    </div>
-                                  </div>
-
-                                  {/* Flowmeter TOTAL Row */}
-                                  <div
-                                    className="grid bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/50 dark:to-blue-950/50 border-b-2 border-indigo-200 dark:border-indigo-800"
-                                    style={{
-                                      gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
-                                    }}
-                                  >
-                                    <div className="px-3 py-2.5 text-xl font-bold text-indigo-700 dark:text-indigo-300 border-r-2 border-indigo-200 dark:border-indigo-800 flex items-center pl-2">
-                                      <span className="w-2 h-2 rounded-full bg-indigo-400 mr-2"></span>
-                                      Total
-                                    </div>
-                                    {overallComparisonData.data.map(
-                                      (regionData) => {
-                                        const stat = flowmeterStats?.data.find(
-                                          (s) => s.region === regionData.region,
-                                        );
-                                        const total =
-                                          (stat?.online || 0) +
-                                          (stat?.offline || 0);
-                                        return (
-                                          <div
-                                            key={`flow-total-${regionData.region}`}
-                                            className="px-2 py-2.5 flex items-center justify-center border-r border-indigo-200 dark:border-indigo-800 font-bold text-[16px]"
-                                          >
-                                            {total}
-                                          </div>
-                                        );
-                                      },
-                                    )}
-                                    <div className="px-2 py-2.5 flex items-center justify-center bg-indigo-100/50 dark:bg-indigo-950/50 font-bold text-[16px]">
-                                      {flowmeterStats?.data.reduce(
-                                        (sum, s) =>
-                                          sum +
-                                          (s.online || 0) +
-                                          (s.offline || 0),
-                                        0,
-                                      ) || 0}
                                     </div>
                                   </div>
                                 </div>
@@ -15278,254 +15069,6 @@ const DetailedChlorinePage = () => {
                                   </div>
                                 </div>
 
-                                {/* 7-Day Consistent Section Header */}
-                                <div className="bg-cyan-100 dark:bg-cyan-900/50 px-4 py-1.5 border-b-2 border-cyan-200 dark:border-cyan-800">
-                                  <span className="!text-[12px] font-bold text-cyan-700 dark:text-cyan-300 uppercase tracking-wider">
-                                    7-Day Consistent
-                                  </span>
-                                </div>
-
-                                {/* Consistent <0.2 mg/l Row */}
-                                <div
-                                  className="grid border-b border-cyan-100 dark:border-cyan-900 hover:bg-cyan-50/50 dark:hover:bg-cyan-950/30 transition-colors"
-                                  style={{
-                                    gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
-                                  }}
-                                >
-                                  <div className="px-3 py-2.5 text-xs font-medium text-gray-600 dark:text-gray-400 border-r-2 border-cyan-200 dark:border-cyan-800 flex items-center pl-6">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 mr-2"></span>
-                                    &lt;0.2 mg/l
-                                  </div>
-                                  {overallComparisonData.data.map(
-                                    (regionData, idx) => (
-                                      <div
-                                        key={`cons-below-${regionData.region}`}
-                                        className="px-2 py-2.5 flex items-center justify-center border-r border-cyan-100 dark:border-cyan-900"
-                                      >
-                                        <button
-                                          onClick={() =>
-                                            regionData.consistent_below_0_2 >
-                                              0 &&
-                                            setClickedComparisonCell({
-                                              category: "consistent_below_0_2",
-                                              region: regionData.region,
-                                              label: `Consistent <0.2 mg/l (7 days) - ${regionData.region}`,
-                                              isLpcd: false,
-                                            })
-                                          }
-                                          className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${regionData.consistent_below_0_2 > 0 ? "bg-red-100 dark:bg-red-900/40 text-dark-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
-                                          data-testid={`btn-cons-below-${regionData.region}`}
-                                        >
-                                          {regionData.consistent_below_0_2}
-                                        </button>
-                                      </div>
-                                    ),
-                                  )}
-                                  <div className="px-2 py-2.5 flex items-center justify-center bg-cyan-50/50 dark:bg-cyan-950/30">
-                                    <button
-                                      onClick={() =>
-                                        setClickedComparisonCell({
-                                          category: "consistent_below_0_2",
-                                          region: "All Regions",
-                                          label:
-                                            "Consistent <0.2 mg/l (7 days) - All Regions",
-                                          isLpcd: false,
-                                        })
-                                      }
-                                      className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-red-200 dark:bg-red-800 text-dark-800 dark:text-red-200 hover:bg-red-300 dark:hover:bg-red-700 transition-colors"
-                                    >
-                                      {overallComparisonData.data.reduce(
-                                        (sum, r) =>
-                                          sum + r.consistent_below_0_2,
-                                        0,
-                                      )}
-                                    </button>
-                                  </div>
-                                </div>
-
-                                {/* Consistent 0.2-0.5 mg/l Row */}
-                                <div
-                                  className="grid border-b border-cyan-100 dark:border-cyan-900 hover:bg-cyan-50/50 dark:hover:bg-cyan-950/30 transition-colors"
-                                  style={{
-                                    gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
-                                  }}
-                                >
-                                  <div className="px-3 py-2.5 text-xs font-medium text-gray-600 dark:text-gray-400 border-r-2 border-cyan-200 dark:border-cyan-800 flex items-center pl-6">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 mr-2"></span>
-                                    0.2-0.5 mg/l
-                                  </div>
-                                  {overallComparisonData.data.map(
-                                    (regionData, idx) => (
-                                      <div
-                                        key={`cons-optimal-${regionData.region}`}
-                                        className="px-2 py-2.5 flex items-center justify-center border-r border-cyan-100 dark:border-cyan-900"
-                                      >
-                                        <button
-                                          onClick={() =>
-                                            regionData.consistent_optimal > 0 &&
-                                            setClickedComparisonCell({
-                                              category: "consistent_optimal",
-                                              region: regionData.region,
-                                              label: `Consistent 0.2-0.5 mg/l (7 days) - ${regionData.region}`,
-                                              isLpcd: false,
-                                            })
-                                          }
-                                          className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${regionData.consistent_optimal > 0 ? "bg-green-100 dark:bg-green-900/40 text-dark-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
-                                          data-testid={`btn-cons-optimal-${regionData.region}`}
-                                        >
-                                          {regionData.consistent_optimal}
-                                        </button>
-                                      </div>
-                                    ),
-                                  )}
-                                  <div className="px-2 py-2.5 flex items-center justify-center bg-cyan-50/50 dark:bg-cyan-950/30">
-                                    <button
-                                      onClick={() =>
-                                        setClickedComparisonCell({
-                                          category: "consistent_optimal",
-                                          region: "All Regions",
-                                          label:
-                                            "Consistent 0.2-0.5 mg/l (7 days) - All Regions",
-                                          isLpcd: false,
-                                        })
-                                      }
-                                      className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-green-200 dark:bg-green-800 text-dark-800 dark:text-green-200 hover:bg-green-300 dark:hover:bg-green-700 transition-colors"
-                                    >
-                                      {overallComparisonData.data.reduce(
-                                        (sum, r) => sum + r.consistent_optimal,
-                                        0,
-                                      )}
-                                    </button>
-                                  </div>
-                                </div>
-
-                                {/* Consistent >0.5 mg/l Row */}
-                                <div
-                                  className="grid border-b-2 border-cyan-200 dark:border-cyan-800 hover:bg-cyan-50/50 dark:hover:bg-cyan-950/30 transition-colors"
-                                  style={{
-                                    gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
-                                  }}
-                                >
-                                  <div className="px-3 py-2.5 text-xs font-medium text-gray-600 dark:text-gray-400 border-r-2 border-cyan-200 dark:border-cyan-800 flex items-center pl-6">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mr-2"></span>
-                                    &gt;0.5 mg/l
-                                  </div>
-                                  {overallComparisonData.data.map(
-                                    (regionData, idx) => (
-                                      <div
-                                        key={`cons-above-${regionData.region}`}
-                                        className="px-2 py-2.5 flex items-center justify-center border-r border-cyan-100 dark:border-cyan-900"
-                                      >
-                                        <button
-                                          onClick={() =>
-                                            regionData.consistent_above_0_5 >
-                                              0 &&
-                                            setClickedComparisonCell({
-                                              category: "consistent_above_0_5",
-                                              region: regionData.region,
-                                              label: `Consistent >0.5 mg/l (7 days) - ${regionData.region}`,
-                                              isLpcd: false,
-                                            })
-                                          }
-                                          className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${regionData.consistent_above_0_5 > 0 ? "bg-blue-100 dark:bg-blue-900/40 text-dark-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
-                                          data-testid={`btn-cons-above-${regionData.region}`}
-                                        >
-                                          {regionData.consistent_above_0_5}
-                                        </button>
-                                      </div>
-                                    ),
-                                  )}
-                                  <div className="px-2 py-2.5 flex items-center justify-center bg-cyan-50/50 dark:bg-cyan-950/30">
-                                    <button
-                                      onClick={() =>
-                                        setClickedComparisonCell({
-                                          category: "consistent_above_0_5",
-                                          region: "All Regions",
-                                          label:
-                                            "Consistent >0.5 mg/l (7 days) - All Regions",
-                                          isLpcd: false,
-                                        })
-                                      }
-                                      className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-blue-200 dark:bg-blue-800 text-dark-800 dark:text-blue-200 hover:bg-blue-300 dark:hover:bg-blue-700 transition-colors"
-                                    >
-                                      {overallComparisonData.data.reduce(
-                                        (sum, r) =>
-                                          sum + r.consistent_above_0_5,
-                                        0,
-                                      )}
-                                    </button>
-                                  </div>
-                                </div>
-
-                                {/* 7-Day Consistent TOTAL Row */}
-                                <div
-                                  className="grid bg-gradient-to-r from-cyan-100 to-blue-100 dark:from-cyan-900/50 dark:to-blue-900/50"
-                                  style={{
-                                    gridTemplateColumns: `180px repeat(${overallComparisonData.data.length + 1}, 1fr)`,
-                                  }}
-                                >
-                                  <div className="px-3 py-2.5 text-[14px] font-bold text-cyan-800 dark:text-cyan-200 border-r-2 border-cyan-200 dark:border-cyan-800 flex items-center">
-                                    <span className="w-2 h-2 rounded-full bg-cyan-500 mr-2"></span>
-                                    7-Day Consistent Total
-                                  </div>
-                                  {overallComparisonData.data.map(
-                                    (regionData, idx) => {
-                                      const consistentTotal =
-                                        regionData.consistent_below_0_2 +
-                                        regionData.consistent_optimal +
-                                        regionData.consistent_above_0_5;
-                                      return (
-                                        <div
-                                          key={`chlorine-consistent-total-${regionData.region}`}
-                                          className="px-2 py-2.5 flex items-center justify-center border-r border-cyan-200 dark:border-cyan-800"
-                                        >
-                                          <button
-                                            onClick={() =>
-                                              consistentTotal > 0 &&
-                                              setClickedComparisonCell({
-                                                category: "consistent_all",
-                                                region: regionData.region,
-                                                label: `7-Day Consistent Total - ${regionData.region}`,
-                                                isLpcd: false,
-                                              })
-                                            }
-                                            className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${
-                                              consistentTotal > 0
-                                                ? "bg-cyan-200 dark:bg-cyan-800 text-dark-800 dark:text-cyan-200 hover:bg-cyan-300 dark:hover:bg-cyan-700 cursor-pointer"
-                                                : "text-gray-400 dark:text-gray-600"
-                                            }`}
-                                          >
-                                            {consistentTotal}
-                                          </button>
-                                        </div>
-                                      );
-                                    },
-                                  )}
-                                  <div className="px-2 py-2.5 flex items-center justify-center bg-cyan-200/50 dark:bg-cyan-800/50">
-                                    <button
-                                      onClick={() =>
-                                        setClickedComparisonCell({
-                                          category: "consistent_all",
-                                          region: "All Regions",
-                                          label:
-                                            "7-Day Consistent Total - All Regions",
-                                          isLpcd: false,
-                                        })
-                                      }
-                                      className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-cyan-300 dark:bg-cyan-700 text-dark-900 dark:text-cyan-100 hover:bg-cyan-400 dark:hover:bg-cyan-600 transition-colors"
-                                    >
-                                      {overallComparisonData.data.reduce(
-                                        (sum, r) =>
-                                          sum +
-                                          r.consistent_below_0_2 +
-                                          r.consistent_optimal +
-                                          r.consistent_above_0_5,
-                                        0,
-                                      )}
-                                    </button>
-                                  </div>
-                                </div>
-
                                 <div className="mt-4 flex flex-wrap items-center justify-center gap-6 py-3 px-4 bg-cyan-50/30 dark:bg-cyan-950/20 rounded-xl border border-cyan-100 dark:border-cyan-900/50 shadow-sm">
                                   <button
                                     onClick={() =>
@@ -15596,6 +15139,30 @@ const DetailedChlorinePage = () => {
                                     </span>
                                     <span className="text-sm">
                                       Online with no water
+                                    </span>
+                                  </button>
+                                  <div className="w-px h-4 bg-cyan-200 dark:bg-cyan-800 hidden sm:block"></div>
+                                  <button
+                                    onClick={() =>
+                                      setClickedComparisonCell({
+                                        category: "online-with-water",
+                                        region: "All Regions",
+                                        label:
+                                          "Online with water - All Regions",
+                                        isLpcd: false,
+                                      })
+                                    }
+                                    className="flex items-center gap-2 group hover:opacity-80 transition-all font-semibold text-gray-700 dark:text-gray-300"
+                                  >
+                                    <span className="text-emerald-600 group-hover:scale-110 transition-transform tabular-nums">
+                                      {overallComparisonData.data.reduce(
+                                        (sum, r) =>
+                                          sum + (r.online_with_water || 0),
+                                        0,
+                                      )}
+                                    </span>
+                                    <span className="text-sm">
+                                      Online with water
                                     </span>
                                   </button>
                                 </div>
@@ -15871,316 +15438,96 @@ const DetailedChlorinePage = () => {
                                       </div>
                                     </div>
 
-                                    {/* 7-Day Consistent Section Header */}
-                                    <div className="bg-orange-100 dark:bg-orange-900/50 px-4 py-1.5 border-b-2 border-orange-200 dark:border-orange-800">
-                                      <span className="!text-[12px] font-bold text-orange-700 dark:text-orange-300 uppercase tracking-wider">
-                                        7-Day Consistent
-                                      </span>
-                                    </div>
-
-                                    {/* Consistent <0.2 bar Row */}
-                                    <div
-                                      className="grid border-b border-orange-100 dark:border-orange-900 hover:bg-orange-50/50 dark:hover:bg-orange-950/30 transition-colors"
-                                      style={{
-                                        gridTemplateColumns: `180px repeat(${pressureOverallComparison.data.length + 1}, 1fr)`,
-                                      }}
-                                    >
-                                      <div className="px-3 py-2.5 text-[14px] font-medium text-gray-600 dark:text-gray-400 border-r-2 border-orange-200 dark:border-orange-800 flex items-center pl-6">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-red-400 mr-2"></span>
-                                        &lt;0.2 bar
-                                      </div>
-                                      {pressureOverallComparison.data.map(
-                                        (regionData: any) => (
-                                          <div
-                                            key={`cons-below-${regionData.region}`}
-                                            className="px-2 py-2.5 flex items-center justify-center border-r border-orange-100 dark:border-orange-900"
-                                          >
-                                            <button
-                                              onClick={() =>
-                                                (regionData.consistent_below_0_2 ||
-                                                  0) > 0 &&
-                                                handlePressureComparisonCellClick(
-                                                  "consistent_below_0_2",
-                                                  regionData.region,
-                                                  `Consistent <0.2 bar (7 days) - ${regionData.region}`,
-                                                )
-                                              }
-                                              className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${(regionData.consistent_below_0_2 || 0) > 0 ? "bg-red-100 dark:bg-red-900/40 text-gray-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
-                                              data-testid={`btn-pressure-cons-below-${regionData.region}`}
-                                            >
-                                              {regionData.consistent_below_0_2 ||
-                                                0}
-                                            </button>
-                                          </div>
-                                        ),
-                                      )}
-                                      <div className="px-2 py-2.5 flex items-center justify-center bg-orange-50/50 dark:bg-orange-950/30">
-                                        <button
-                                          onClick={() =>
-                                            handlePressureComparisonCellClick(
-                                              "consistent_below_0_2",
-                                              "All Regions",
-                                              "Consistent Pressure <0.2 bar (7 days) - All Regions",
-                                            )
-                                          }
-                                          className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-red-200 dark:bg-red-800 text-gray-800 dark:text-red-200 hover:bg-red-300 dark:hover:bg-red-700 transition-colors"
-                                        >
+                                    <div className="mt-4 flex flex-wrap items-center justify-center gap-6 py-3 px-4 bg-orange-50/30 dark:bg-orange-950/20 rounded-xl border border-orange-100 dark:border-orange-900/50 shadow-sm">
+                                      <button
+                                        onClick={() =>
+                                          handlePressureComparisonCellClick(
+                                            "offline-with-no-water",
+                                            "All Regions",
+                                            "Offline with no water - All Regions",
+                                          )
+                                        }
+                                        className="flex items-center gap-2 group hover:opacity-80 transition-all font-semibold text-gray-700 dark:text-gray-300"
+                                      >
+                                        <span className="text-red-500 group-hover:scale-110 transition-transform tabular-nums">
                                           {pressureOverallComparison.data.reduce(
                                             (sum: number, r: any) =>
                                               sum +
-                                              (r.consistent_below_0_2 || 0),
+                                              (r.offline_with_no_water || 0),
                                             0,
                                           )}
-                                        </button>
-                                      </div>
-                                    </div>
-
-                                    {/* Consistent 0.2-0.7 bar (Optimal) Row */}
-                                    <div
-                                      className="grid border-b border-orange-100 dark:border-orange-900 hover:bg-orange-50/50 dark:hover:bg-orange-950/30 transition-colors"
-                                      style={{
-                                        gridTemplateColumns: `180px repeat(${pressureOverallComparison.data.length + 1}, 1fr)`,
-                                      }}
-                                    >
-                                      <div className="px-3 py-2.5 text-[14px] font-medium text-gray-600 dark:text-gray-400 border-r-2 border-orange-200 dark:border-orange-800 flex items-center pl-6">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-green-400 mr-2"></span>
-                                        0.2-0.7 bar
-                                      </div>
-                                      {pressureOverallComparison.data.map(
-                                        (regionData: any) => (
-                                          <div
-                                            key={`cons-optimal-${regionData.region}`}
-                                            className="px-2 py-2.5 flex items-center justify-center border-r border-orange-100 dark:border-orange-900"
-                                          >
-                                            <button
-                                              onClick={() =>
-                                                (regionData.consistent_optimal ||
-                                                  0) > 0 &&
-                                                handlePressureComparisonCellClick(
-                                                  "consistent_optimal",
-                                                  regionData.region,
-                                                  `Consistent 0.2-0.7 bar (7 days) - ${regionData.region}`,
-                                                )
-                                              }
-                                              className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${(regionData.consistent_optimal || 0) > 0 ? "bg-green-100 dark:bg-green-900/40 text-gray-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
-                                              data-testid={`btn-pressure-cons-optimal-${regionData.region}`}
-                                            >
-                                              {regionData.consistent_optimal ||
-                                                0}
-                                            </button>
-                                          </div>
-                                        ),
-                                      )}
-                                      <div className="px-2 py-2.5 flex items-center justify-center bg-orange-50/50 dark:bg-orange-950/30">
-                                        <button
-                                          onClick={() =>
-                                            handlePressureComparisonCellClick(
-                                              "consistent_optimal",
-                                              "All Regions",
-                                              "Consistent Optimal Pressure (0.2-0.7 bar) (7 days) - All Regions",
-                                            )
-                                          }
-                                          className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-green-200 dark:bg-green-800 text-gray-800 dark:text-green-200 hover:bg-green-300 dark:hover:bg-green-700 transition-colors"
-                                        >
+                                        </span>
+                                        <span className="text-sm">
+                                          Offline with no water
+                                        </span>
+                                      </button>
+                                      <div className="w-px h-4 bg-orange-200 dark:bg-orange-800 hidden sm:block"></div>
+                                      <button
+                                        onClick={() =>
+                                          handlePressureComparisonCellClick(
+                                            "offline-with-water",
+                                            "All Regions",
+                                            "Offline with water (Data Loss) - All Regions",
+                                          )
+                                        }
+                                        className="flex items-center gap-2 group hover:opacity-80 transition-all font-semibold text-gray-700 dark:text-gray-300"
+                                      >
+                                        <span className="text-red-600 group-hover:scale-110 transition-transform tabular-nums">
                                           {pressureOverallComparison.data.reduce(
                                             (sum: number, r: any) =>
-                                              sum + (r.consistent_optimal || 0),
+                                              sum + (r.offline_with_water || 0),
                                             0,
                                           )}
-                                        </button>
-                                      </div>
-                                    </div>
-
-                                    {/* Consistent >0.7 bar Row */}
-                                    <div
-                                      className="grid border-b-2 border-orange-200 dark:border-orange-800 hover:bg-orange-50/50 dark:hover:bg-orange-950/30 transition-colors"
-                                      style={{
-                                        gridTemplateColumns: `180px repeat(${pressureOverallComparison.data.length + 1}, 1fr)`,
-                                      }}
-                                    >
-                                      <div className="px-3 py-2.5 text-[14px] font-medium text-gray-600 dark:text-gray-400 border-r-2 border-orange-200 dark:border-orange-800 flex items-center pl-6">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-purple-400 mr-2"></span>
-                                        &gt;0.7 bar
-                                      </div>
-                                      {pressureOverallComparison.data.map(
-                                        (regionData: any) => (
-                                          <div
-                                            key={`cons-above-${regionData.region}`}
-                                            className="px-2 py-2.5 flex items-center justify-center border-r border-orange-100 dark:border-orange-900"
-                                          >
-                                            <button
-                                              onClick={() =>
-                                                (regionData.consistent_above_0_7 ||
-                                                  0) > 0 &&
-                                                handlePressureComparisonCellClick(
-                                                  "consistent_above_0_7",
-                                                  regionData.region,
-                                                  `Consistent >0.7 bar (7 days) - ${regionData.region}`,
-                                                )
-                                              }
-                                              className={`min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold transition-all ${(regionData.consistent_above_0_7 || 0) > 0 ? "bg-purple-100 dark:bg-gray-900/40 text-purple-700 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/60 cursor-pointer shadow-sm" : "text-gray-400 dark:text-gray-600"}`}
-                                              data-testid={`btn-pressure-cons-above-${regionData.region}`}
-                                            >
-                                              {regionData.consistent_above_0_7 ||
-                                                0}
-                                            </button>
-                                          </div>
-                                        ),
-                                      )}
-                                      <div className="px-2 py-2.5 flex items-center justify-center bg-orange-50/50 dark:bg-orange-950/30">
-                                        <button
-                                          onClick={() =>
-                                            handlePressureComparisonCellClick(
-                                              "consistent_above_0_7",
-                                              "All Regions",
-                                              "Consistent Pressure >0.7 bar (7 days) - All Regions",
-                                            )
-                                          }
-                                          className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-purple-200 dark:bg-purple-800 text-gray-800 dark:text-purple-200 hover:bg-purple-300 dark:hover:bg-purple-700 transition-colors"
-                                        >
+                                        </span>
+                                        <span className="text-sm">
+                                          Offline with water (Data Loss)
+                                        </span>
+                                      </button>
+                                      <div className="w-px h-4 bg-orange-200 dark:bg-orange-800 hidden sm:block"></div>
+                                      <button
+                                        onClick={() =>
+                                          handlePressureComparisonCellClick(
+                                            "online_no_water",
+                                            "All Regions",
+                                            "Online with no water - All Regions",
+                                          )
+                                        }
+                                        className="flex items-center gap-2 group hover:opacity-80 transition-all font-semibold text-gray-700 dark:text-gray-300"
+                                      >
+                                        <span className="text-gray-500 group-hover:scale-110 transition-transform tabular-nums">
                                           {pressureOverallComparison.data.reduce(
                                             (sum: number, r: any) =>
-                                              sum +
-                                              (r.consistent_above_0_7 || 0),
+                                              sum + (r.online_no_water || 0),
                                             0,
                                           )}
-                                        </button>
-                                      </div>
-                                    </div>
-
-                                    {/* 7-Day Consistent TOTAL Row */}
-                                    <div
-                                      className="grid bg-gradient-to-r from-orange-100 to-amber-100 dark:from-orange-900/50 dark:to-amber-900/50"
-                                      style={{
-                                        gridTemplateColumns: `180px repeat(${pressureOverallComparison.data.length + 1}, 1fr)`,
-                                      }}
-                                    >
-                                      <div className="px-3 py-2.5 text-[14px] font-bold text-orange-800 dark:text-orange-200 border-r-2 border-orange-200 dark:border-orange-800 flex items-center">
-                                        <span className="w-2 h-2 rounded-full bg-orange-500 mr-2"></span>
-                                        7-Day Consistent Total
-                                      </div>
-                                      {pressureOverallComparison.data.map(
-                                        (regionData: any) => {
-                                          const consistentTotal =
-                                            (regionData.consistent_below_0_2 ||
-                                              0) +
-                                            (regionData.consistent_optimal ||
-                                              0) +
-                                            (regionData.consistent_above_0_7 ||
-                                              0);
-                                          return (
-                                            <div
-                                              key={`pressure-consistent-total-${regionData.region}`}
-                                              className="px-2 py-2.5 flex items-center justify-center border-r border-orange-200 dark:border-orange-800"
-                                            >
-                                              <button
-                                                onClick={() =>
-                                                  handlePressureComparisonCellClick(
-                                                    "consistent_all",
-                                                    regionData.region,
-                                                    `7-Day Consistent Total - ${regionData.region}`,
-                                                  )
-                                                }
-                                                className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-orange-200 dark:bg-orange-800 text-orange-800 dark:text-orange-200 hover:bg-orange-300 dark:hover:bg-orange-700 transition-colors"
-                                                data-testid={`text-pressure-7day-total-${regionData.region}`}
-                                              >
-                                                {consistentTotal}
-                                              </button>
-                                            </div>
-                                          );
-                                        },
-                                      )}
-                                      <div className="px-2 py-2.5 flex items-center justify-center bg-orange-200/50 dark:bg-orange-800/50">
-                                        <button
-                                          onClick={() =>
-                                            handlePressureComparisonCellClick(
-                                              "consistent_all",
-                                              "All Regions",
-                                              "7-Day Consistent Total - All Regions",
-                                            )
-                                          }
-                                          className="min-w-[40px] px-2 py-1 rounded-md text-[16px] font-bold bg-orange-300 dark:bg-orange-700 text-gray-900 dark:text-orange-100 hover:bg-orange-400 dark:hover:bg-orange-600 transition-colors"
-                                          data-testid="text-pressure-7day-total-all"
-                                        >
+                                        </span>
+                                        <span className="text-sm">
+                                          Online with no water
+                                        </span>
+                                      </button>
+                                      <div className="w-px h-4 bg-orange-200 dark:bg-orange-800 hidden sm:block"></div>
+                                      <button
+                                        onClick={() =>
+                                          handlePressureComparisonCellClick(
+                                            "online-with-water",
+                                            "All Regions",
+                                            "Online with water - All Regions",
+                                          )
+                                        }
+                                        className="flex items-center gap-2 group hover:opacity-80 transition-all font-semibold text-gray-700 dark:text-gray-300"
+                                      >
+                                        <span className="text-emerald-600 group-hover:scale-110 transition-transform tabular-nums">
                                           {pressureOverallComparison.data.reduce(
                                             (sum: number, r: any) =>
-                                              sum +
-                                              (r.consistent_below_0_2 || 0) +
-                                              (r.consistent_optimal || 0) +
-                                              (r.consistent_above_0_7 || 0),
+                                              sum + (r.online_with_water || 0),
                                             0,
                                           )}
-                                        </button>
-                                      </div>
+                                        </span>
+                                        <span className="text-sm">
+                                          Online with water
+                                        </span>
+                                      </button>
                                     </div>
-                                  </div>
-                                  <div className="mt-4 flex flex-wrap items-center justify-center gap-6 py-3 px-4 bg-orange-50/30 dark:bg-orange-950/20 rounded-xl border border-orange-100 dark:border-orange-900/50 shadow-sm">
-                                    <button
-                                      onClick={() =>
-                                        handlePressureComparisonCellClick(
-                                          "offline-with-no-water",
-                                          "All Regions",
-                                          "Offline with no water - All Regions",
-                                        )
-                                      }
-                                      className="flex items-center gap-2 group hover:opacity-80 transition-all font-semibold text-gray-700 dark:text-gray-300"
-                                    >
-                                      <span className="text-red-500 group-hover:scale-110 transition-transform tabular-nums">
-                                        {pressureOverallComparison.data.reduce(
-                                          (sum: number, r: any) =>
-                                            sum +
-                                            (r.offline_with_no_water || 0),
-                                          0,
-                                        )}
-                                      </span>
-                                      <span className="text-sm">
-                                        Offline with no water
-                                      </span>
-                                    </button>
-                                    <div className="w-px h-4 bg-orange-200 dark:bg-orange-800 hidden sm:block"></div>
-                                    <button
-                                      onClick={() =>
-                                        handlePressureComparisonCellClick(
-                                          "offline-with-water",
-                                          "All Regions",
-                                          "Offline with water (Data Loss) - All Regions",
-                                        )
-                                      }
-                                      className="flex items-center gap-2 group hover:opacity-80 transition-all font-semibold text-gray-700 dark:text-gray-300"
-                                    >
-                                      <span className="text-red-600 group-hover:scale-110 transition-transform tabular-nums">
-                                        {pressureOverallComparison.data.reduce(
-                                          (sum: number, r: any) =>
-                                            sum + (r.offline_with_water || 0),
-                                          0,
-                                        )}
-                                      </span>
-                                      <span className="text-sm">
-                                        Offline with water (Data Loss)
-                                      </span>
-                                    </button>
-                                    <div className="w-px h-4 bg-orange-200 dark:bg-orange-800 hidden sm:block"></div>
-                                    <button
-                                      onClick={() =>
-                                        handlePressureComparisonCellClick(
-                                          "online_no_water",
-                                          "All Regions",
-                                          "Online with no water - All Regions",
-                                        )
-                                      }
-                                      className="flex items-center gap-2 group hover:opacity-80 transition-all font-semibold text-gray-700 dark:text-gray-300"
-                                    >
-                                      <span className="text-gray-500 group-hover:scale-110 transition-transform tabular-nums">
-                                        {pressureOverallComparison.data.reduce(
-                                          (sum: number, r: any) =>
-                                            sum + (r.online_no_water || 0),
-                                          0,
-                                        )}
-                                      </span>
-                                      <span className="text-sm">
-                                        Online with no water
-                                      </span>
-                                    </button>
                                   </div>
                                 </>
                               ) : (
@@ -16306,24 +15653,14 @@ const DetailedChlorinePage = () => {
                               <TableHeader className="sticky top-0 z-10">
                                 <TableRow className="bg-purple-800 dark:bg-purple-900">
                                   <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[130px] border-r border-white/10">
-                                    Village Name
-                                  </TableHead>
-                                  {!clickedComparisonCell.isLpcd && (
-                                    <>
-                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
-                                        ESR Name
-                                      </TableHead>
-                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[150px] text-center border-r border-white/10">
-                                        Remark
-                                      </TableHead>
-                                    </>
-                                  )}
-                                  {clickedComparisonCell.isLpcd && (
-                                    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[150px] text-center border-r border-white/10">
-                                      Remark
-                                    </TableHead>
-                                  )}
-                                  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[180px] border-r border-white/10">
+    Village Name
+  </TableHead>
+  {!clickedComparisonCell.isLpcd && (
+    <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
+      ESR Name
+    </TableHead>
+  )}
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[180px] border-r border-white/10">
                                     Scheme Name
                                   </TableHead>
                                   <TableHead className="text-center font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 w-[100px] border-r border-white/10">
@@ -16339,29 +15676,36 @@ const DetailedChlorinePage = () => {
                                     Dashboard
                                   </TableHead>
                                   {clickedComparisonCell.isLpcd ? (
-                                    <>
-                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 text-center w-[100px] border-r border-white/10">
-                                        Population
-                                      </TableHead>
-                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 text-center w-[80px]">
-                                        LPCD
-                                      </TableHead>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 text-center w-[100px]">
-                                        {clickedComparisonCell.category ===
-                                          "offline" ||
-                                        clickedComparisonCell.category ===
-                                          "offline-with-no-water" ||
-                                        clickedComparisonCell.category ===
-                                          "offline-with-water"
-                                          ? "Status"
-                                          : "Chlorine (mg/l)"}
-                                      </TableHead>
-                                    </>
-                                  )}
-                                </TableRow>
+    <>
+      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 text-center w-[100px] border-r border-white/10">
+        Population
+      </TableHead>
+      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 text-center w-[80px] border-r border-white/10">
+        LPCD
+      </TableHead>
+    </>
+  ) : (
+    <>
+      <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 text-center w-[100px] border-r border-white/10">
+        {clickedComparisonCell.category ===
+          "offline" ||
+        clickedComparisonCell.category ===
+          "offline-with-no-water" ||
+        clickedComparisonCell.category ===
+          "offline-with-water" ||
+        clickedComparisonCell.category ===
+          "online_no_water" ||
+        clickedComparisonCell.category ===
+          "online-with-water"
+          ? "Status"
+          : "Chlorine (mg/l)"}
+      </TableHead>
+    </>
+  )}
+  <TableHead className="font-semibold text-[11px] uppercase tracking-wider text-purple-50 !px-4 !py-3.5 text-center w-[150px]">
+    Remark
+  </TableHead>
+</TableRow>
                               </TableHeader>
                               <TableBody>
                                 {comparisonDetails.data.map((item, idx) => (
@@ -16371,38 +15715,18 @@ const DetailedChlorinePage = () => {
                                     data-testid={`row-comparison-${idx}`}
                                   >
                                     <TableCell className="!px-4 !py-3 text-[12px] font-semibold text-slate-800 dark:text-slate-200 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
-                                      {item.village_name}
-                                    </TableCell>
-                                    {!clickedComparisonCell.isLpcd && (
-                                      <>
-                                        <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
-                                          {item.esr_name || (
-                                            <span className="text-slate-400">
-                                              N/A
-                                            </span>
-                                          )}
-                                        </TableCell>
-                                        <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 max-w-[150px]">
-                                          {renderRemarkCell(
-                                            esrIssuesMap?.get(
-                                              `${item.scheme_id}-${item.village_name}-${item.esr_name}`,
-                                            ) || [],
-                                            `Remarks for ${item.esr_name}, ${item.village_name}`,
-                                          )}
-                                        </TableCell>
-                                      </>
-                                    )}
-                                    {clickedComparisonCell.isLpcd && (
-                                      <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 max-w-[150px]">
-                                        {renderRemarkCell(
-                                          villageIssuesMap?.get(
-                                            `${item.scheme_id}-${item.village_name}`,
-                                          ) || [],
-                                          `Remarks for ${item.village_name}`,
-                                        )}
-                                      </TableCell>
-                                    )}
-                                    <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
+    {item.village_name}
+  </TableCell>
+  {!clickedComparisonCell.isLpcd && (
+    <TableCell className="!px-4 !py-3 text-[12px] text-slate-600 dark:text-slate-400 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
+      {item.esr_name || (
+        <span className="text-slate-400">
+          N/A
+        </span>
+      )}
+    </TableCell>
+  )}
+  <TableCell className="!px-4 !py-3 text-[12px] text-slate-700 dark:text-slate-300 border-r border-purple-100/80 dark:border-purple-900/60 truncate">
                                       {item.dashboard_url ? (
                                         <a
                                           href={item.dashboard_url}
@@ -16468,9 +15792,19 @@ const DetailedChlorinePage = () => {
                                         clickedComparisonCell.category ===
                                           "offline-with-no-water" ||
                                         clickedComparisonCell.category ===
-                                          "offline-with-water" ? (
-                                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60">
-                                            {item.chlorine_status}
+                                          "offline-with-water" ||
+                                        clickedComparisonCell.category ===
+                                          "online_no_water" ||
+                                        clickedComparisonCell.category ===
+                                          "online-with-water" ? (
+                                          <span
+                                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${
+                                              String(item.chlorine_status).toLowerCase() === "online"
+                                                ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60 dark:text-emerald-300 ring-1 ring-emerald-200/80 dark:ring-emerald-700/60"
+                                                : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"
+                                            }`}
+                                          >
+                                            {item.chlorine_status || (clickedComparisonCell.category.startsWith("online") ? "Online" : "Offline")}
                                           </span>
                                         ) : (
                                           <span
@@ -16485,7 +15819,26 @@ const DetailedChlorinePage = () => {
                                         )}
                                       </TableCell>
                                     )}
-                                  </TableRow>
+{!clickedComparisonCell.isLpcd ? (
+  <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+    {renderRemarkCell(
+      esrIssuesMap?.get(
+        `${item.scheme_id}-${item.village_name}-${item.esr_name}`,
+      ) || [],
+      `Remarks for ${item.esr_name}, ${item.village_name}`,
+    )}
+  </TableCell>
+) : (
+  <TableCell className="!px-4 !py-3 text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">
+    {renderRemarkCell(
+      villageIssuesMap?.get(
+        `${item.scheme_id}-${item.village_name}`,
+      ) || [],
+      `Remarks for ${item.village_name}`,
+    )}
+  </TableCell>
+)}
+</TableRow>
                                 ))}
                               </TableBody>
                             </Table>
@@ -17096,7 +16449,11 @@ const DetailedChlorinePage = () => {
                                     clickedPressureComparisonCell.category ===
                                       "offline-with-no-water" ||
                                     clickedPressureComparisonCell.category ===
-                                      "offline-with-water"
+                                      "offline-with-water" ||
+                                    clickedPressureComparisonCell.category ===
+                                      "online_no_water" ||
+                                    clickedPressureComparisonCell.category ===
+                                      "online-with-water"
                                       ? "Status"
                                       : "Pressure (bar)"}
                                   </TableHead>
@@ -17169,9 +16526,19 @@ const DetailedChlorinePage = () => {
                                         clickedPressureComparisonCell.category ===
                                           "offline-with-no-water" ||
                                         clickedPressureComparisonCell.category ===
-                                          "offline-with-water" ? (
-                                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60">
-                                            Offline
+                                          "offline-with-water" ||
+                                        clickedPressureComparisonCell.category ===
+                                          "online_no_water" ||
+                                        clickedPressureComparisonCell.category ===
+                                          "online-with-water" ? (
+                                          <span
+                                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shadow-sm ${
+                                              String(item.pressure_status).toLowerCase() === "online"
+                                                ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 dark:from-emerald-900/60 dark:to-green-900/60 dark:text-emerald-300 ring-1 ring-emerald-200/80 dark:ring-emerald-700/60"
+                                                : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 dark:from-red-900/60 dark:to-rose-900/60 dark:text-red-300 ring-1 ring-red-200/80 dark:ring-red-700/60"
+                                            }`}
+                                          >
+                                            {item.pressure_status || (clickedPressureComparisonCell.category.startsWith("online") ? "Online" : "Offline")}
                                           </span>
                                         ) : (
                                           <span
