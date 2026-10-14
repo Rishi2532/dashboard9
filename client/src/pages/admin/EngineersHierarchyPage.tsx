@@ -341,7 +341,7 @@ export default function EngineersHierarchyPage() {
         rank: 1,
         level: 'CE' as const,
         title: 'Chief Engineer (CE)',
-        subtitle: 'Apex Regional & Zonal Leadership',
+        subtitle: 'Regional & Zonal Leadership',
         badgeColor: 'from-purple-600 to-indigo-700 text-white',
         borderAccent: 'border-purple-200 dark:border-purple-900',
         items: ceList,

@@ -111,7 +111,8 @@ export default function SchemeTable({
   const filteredSchemes = schemesArray.filter((scheme) => {
     const matchesNameSearch =
       searchTerm === "" ||
-      scheme.scheme_name.toLowerCase().includes(searchTerm.toLowerCase());
+      (scheme.scheme_name &&
+        scheme.scheme_name.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const matchesIdSearch =
       schemeIdSearch === "" ||

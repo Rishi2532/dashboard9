@@ -115,6 +115,15 @@ export const DLT_TEMPLATES = {
       return `सूचना: JJM MVS ${scheme} अंतर्गत ${vAndE} येथील वितरण व्यवस्थेत Residual Chlorine ची मात्रा 0.5 mg/l पेक्षा जास्त असून सध्याची मात्रा ${val} mg/l इतकी आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा`;
     },
   },
+  ESCALATION_EE_CE: {
+    templateId: "1077030110068762585",
+    contentId: "1077030110068762585",
+    name: "JJM MVS Escalation (EE 3 Days & CE 7 Days)",
+    render: (scheme: string, days: number | string, lpcdVillagesCount: number | string, otherIssues?: string) => {
+      const extra = otherIssues ? otherIssues : "इतर तांत्रिक बाबी सुरळीत आहेत";
+      return `सूचना: JJM MVS ${scheme} अंतर्गत मागील ${days} दिवसांपासून 55 LPCD पेक्षा कमी पाणीपुरवठा असलेली ${lpcdVillagesCount} गावे आहेत. तसेच, ${extra}. कृपया तपासणी करून त्वरित आवश्यक कार्यवाही करावी. – मजीप्रा`;
+    },
+  },
 };
 
 /**

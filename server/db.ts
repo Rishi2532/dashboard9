@@ -483,6 +483,42 @@ export async function initializeDatabase() {
       console.log("Default admin user created successfully");
     }
 
+    // Ensure default Member Secretary (MS) admin user exists
+    const msUsers = await db
+      .select()
+      .from(users)
+      .where(eq(users.username, "member_secretary"))
+      .execute();
+    if (msUsers.length === 0) {
+      console.log("Creating default Member Secretary (MS) admin user...");
+      await db.insert(users).values({
+        username: "member_secretary",
+        password: "ms@123",
+        name: "Member Secretary (MS)",
+        role: "admin",
+        email: "ms.mjp@gov.in",
+      });
+      console.log("Default Member Secretary user created successfully");
+    }
+
+    // Ensure default Principal Secretary (PS) admin user exists
+    const psUsers = await db
+      .select()
+      .from(users)
+      .where(eq(users.username, "principal_secretary"))
+      .execute();
+    if (psUsers.length === 0) {
+      console.log("Creating default Principal Secretary (PS) admin user...");
+      await db.insert(users).values({
+        username: "principal_secretary",
+        password: "ps@123",
+        name: "Principal Secretary (PS)",
+        role: "admin",
+        email: "ps.wss@maharashtra.gov.in",
+      });
+      console.log("Default Principal Secretary user created successfully");
+    }
+
     // Skip sample data insertion for schema update
     if (false && regionsCount === 0) {
       console.log("Initializing database with sample data...");

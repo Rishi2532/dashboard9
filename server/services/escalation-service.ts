@@ -1,6 +1,6 @@
 import { getDB } from "../db";
-import { sql } from "drizzle-orm";
-import { schemeEngineerDetails } from "../../shared/schema";
+import { sql, eq } from "drizzle-orm";
+import { schemeEngineerDetails, users, emailAlertLogs } from "../../shared/schema";
 import { sendSmartpingDLTSMS, normalizeIndianMobile, logSmsAlert } from "./sms-service";
 import { sendMail } from "./email-service";
 
@@ -11,7 +11,7 @@ export interface SchemeEscalationItem {
   division?: string;
   district?: string;
   // Highest active escalation level
-  escalation_level: 1 | 2 | 3;
+  escalation_level: 1 | 2 | 3 | 4 | 5;
   max_streak_days: number;
   // Breakdown of persistent issues
   lpcd_villages_count: number;
@@ -38,14 +38,24 @@ export interface SchemeEscalationItem {
   chief_engineer_name?: string;
   chief_engineer_email?: string;
   chief_engineer_mobile?: string;
+  ms_name?: string;
+  ms_email?: string;
+  ms_mobile?: string;
+  ps_name?: string;
+  ps_email?: string;
+  ps_mobile?: string;
   // Dispatch / Status Tracking
   ee_escalated: boolean;
   ce_escalated: boolean;
+  ms_escalated: boolean;
+  ps_escalated: boolean;
   last_escalated_at?: string;
   // Actual Notified Counts
   de_sms_count: number;
   ee_sms_count: number;
   ce_se_sms_count: number;
+  ms_sms_count: number;
+  ps_sms_count: number;
   total_email_count: number;
   last_notified_at?: string;
 }
@@ -54,7 +64,9 @@ export interface EscalationSummary {
   total_schemes_in_escalation: number;
   level_1_count: number; // 1-2 days (DE/AE Civil)
   level_2_count: number; // 3-6 days (EE Civil Escalated)
-  level_3_count: number; // 7+ days (CE Apex Escalated)
+  level_3_count: number; // 7-9 days (CE & SE Escalated)
+  level_4_count: number; // 10-14 days (Member Secretary MS Escalated)
+  level_5_count: number; // 15+ days (Principal Secretary PS Escalated)
   total_villages_below_55: number;
   total_esrs_low_chlorine: number;
   total_esrs_high_chlorine: number;
@@ -65,6 +77,8 @@ export interface EscalationSummary {
     level_1: number;
     level_2: number;
     level_3: number;
+    level_4: number;
+    level_5: number;
     schemes: string[];
   }>;
 }
@@ -73,7 +87,7 @@ export interface EscalationSummary {
  * Computes the real-time escalation status across all schemes.
  * - Level 1: Issue active for 1 to 2 days (DE/AE Civil)
  * - Level 2: Issue persists for 3 to 6 consecutive days (EE Civil Escalation)
- * - Level 3: Issue persists for 7+ consecutive days (CE Apex Regional Escalation)
+ * - Level 3: Issue persists for 7+ consecutive days (CE & SE Regional Escalation)
  */
 export async function getEscalationStatus(options: {
   daysLookback?: number;
@@ -174,9 +188,13 @@ export async function getEscalationStatus(options: {
         chief_engineer_mobile: eng?.chief_engineer_mobile || undefined,
         ee_escalated: false,
         ce_escalated: false,
+        ms_escalated: false,
+        ps_escalated: false,
         de_sms_count: 0,
         ee_sms_count: 0,
         ce_se_sms_count: 0,
+        ms_sms_count: 0,
+        ps_sms_count: 0,
         total_email_count: 0,
       });
     }
@@ -214,6 +232,8 @@ export async function getEscalationStatus(options: {
           COUNT(*) FILTER (WHERE engineer_name ILIKE '%Akshay Bhojane%') as de_sms_count,
           COUNT(*) FILTER (WHERE engineer_name ILIKE '%Rishikesh Salunke%') as ee_sms_count,
           COUNT(*) FILTER (WHERE engineer_name ILIKE '%Deepak Ingale%' OR engineer_name ILIKE '%Rishikesh Salunkhe%') as ce_se_sms_count,
+          COUNT(*) FILTER (WHERE engineer_name ILIKE '%Member Secretary%' OR engineer_name ILIKE '%MS%') as ms_sms_count,
+          COUNT(*) FILTER (WHERE engineer_name ILIKE '%Principal Secretary%' OR engineer_name ILIKE '%PS%') as ps_sms_count,
           MAX(created_at) as last_sms_sent
         FROM sms_alert_logs
         WHERE scheme_id IS NOT NULL
@@ -237,6 +257,8 @@ export async function getEscalationStatus(options: {
         item.de_sms_count = Number(r.de_sms_count || 0);
         item.ee_sms_count = Number(r.ee_sms_count || 0);
         item.ce_se_sms_count = Number(r.ce_se_sms_count || 0);
+        item.ms_sms_count = Number(r.ms_sms_count || 0);
+        item.ps_sms_count = Number(r.ps_sms_count || 0);
         if (r.last_sms_sent) item.last_notified_at = String(r.last_sms_sent);
       }
     });
@@ -257,23 +279,41 @@ export async function getEscalationStatus(options: {
 
   // 4. Calculate active escalation levels and flags
   const schemesList = Array.from(schemeAgg.values()).map(s => {
-    if (s.max_streak_days >= 7) {
+    if (s.max_streak_days >= 15) {
+      s.escalation_level = 5;
+      s.ee_escalated = true;
+      s.ce_escalated = true;
+      s.ms_escalated = true;
+      s.ps_escalated = true;
+    } else if (s.max_streak_days >= 10) {
+      s.escalation_level = 4;
+      s.ee_escalated = true;
+      s.ce_escalated = true;
+      s.ms_escalated = true;
+      s.ps_escalated = false;
+    } else if (s.max_streak_days >= 7) {
       s.escalation_level = 3;
       s.ee_escalated = true;
       s.ce_escalated = true;
+      s.ms_escalated = false;
+      s.ps_escalated = false;
     } else if (s.max_streak_days >= 3) {
       s.escalation_level = 2;
       s.ee_escalated = true;
       s.ce_escalated = false;
+      s.ms_escalated = false;
+      s.ps_escalated = false;
     } else {
       s.escalation_level = 1;
       s.ee_escalated = false;
       s.ce_escalated = false;
+      s.ms_escalated = false;
+      s.ps_escalated = false;
     }
     return s;
   });
 
-  // Sort: Level 3 first, then Level 2, then Level 1, then by streak desc
+  // Sort: Level 5 first, then Level 4, Level 3, Level 2, Level 1, then by streak desc
   schemesList.sort((a, b) => {
     if (b.escalation_level !== a.escalation_level) {
       return b.escalation_level - a.escalation_level;
@@ -287,6 +327,8 @@ export async function getEscalationStatus(options: {
     level_1_count: schemesList.filter(s => s.escalation_level === 1).length,
     level_2_count: schemesList.filter(s => s.escalation_level === 2).length,
     level_3_count: schemesList.filter(s => s.escalation_level === 3).length,
+    level_4_count: schemesList.filter(s => s.escalation_level === 4).length,
+    level_5_count: schemesList.filter(s => s.escalation_level === 5).length,
     total_villages_below_55: schemesList.reduce((acc, s) => acc + s.lpcd_villages_count, 0),
     total_esrs_low_chlorine: schemesList.reduce((acc, s) => acc + s.chlorine_low_count, 0),
     total_esrs_high_chlorine: schemesList.reduce((acc, s) => acc + s.chlorine_high_count, 0),
@@ -303,6 +345,8 @@ export async function getEscalationStatus(options: {
         level_1: 0,
         level_2: 0,
         level_3: 0,
+        level_4: 0,
+        level_5: 0,
         schemes: [],
       };
     }
@@ -311,6 +355,8 @@ export async function getEscalationStatus(options: {
     if (s.escalation_level === 1) r.level_1++;
     else if (s.escalation_level === 2) r.level_2++;
     else if (s.escalation_level === 3) r.level_3++;
+    else if (s.escalation_level === 4) r.level_4++;
+    else if (s.escalation_level === 5) r.level_5++;
     r.schemes.push(s.scheme_id);
   });
 
@@ -318,14 +364,33 @@ export async function getEscalationStatus(options: {
 }
 
 /**
- * Builds the scheme-wise SMS text for Deputy Engineer (DE), Executive Engineer (EE Civil), or Chief Engineer (CE)
+ * Builds the scheme-wise SMS text for Deputy Engineer (DE), Executive Engineer (EE Civil), Chief Engineer (CE), or Member Secretary (MS)
+ * 
+ * Note: Level 2 (EE) and Level 3 (CE) use approved Airtel DLT Template ID: 1077030110068762585:
+ * सूचना: JJM MVS {#alphanumeric#} अंतर्गत मागील {#numeric#} दिवसांपासून 55 LPCD पेक्षा कमी पाणीपुरवठा असलेली {#numeric#} गावे आहेत. तसेच, {#alphanumeric#}. कृपया तपासणी करून त्वरित आवश्यक कार्यवाही करावी. – मजीप्रा
  */
-export function renderSchemeEscalationSMS(scheme: SchemeEscalationItem, recipientRole: 'DE' | 'EE' | 'CE'): string {
-  const levelText = recipientRole === 'CE'
-    ? 'स्तर ३ (CE Apex Escalation)'
-    : recipientRole === 'EE'
-      ? 'स्तर २ (EE Civil Escalation)'
-      : 'स्तर १ (DE/AE Daily Notice)';
+export function renderSchemeEscalationSMS(scheme: SchemeEscalationItem, recipientRole: 'DE' | 'EE' | 'CE' | 'MS' | 'PS'): string {
+  // EE (after 3 days) and CE (after 7 days) approved Airtel DLT template (Template ID: 1077030110068762585)
+  if (recipientRole === 'EE' || recipientRole === 'CE') {
+    const days = recipientRole === 'EE' ? 3 : 7;
+    const extraParts: string[] = [];
+    if (scheme.chlorine_low_count > 0) extraParts.push(`${scheme.chlorine_low_count} ESR कमी क्लोरीन`);
+    if (scheme.chlorine_high_count > 0) extraParts.push(`${scheme.chlorine_high_count} ESR जास्त क्लोरीन`);
+    if (scheme.pressure_low_count > 0) extraParts.push(`${scheme.pressure_low_count} ESR कमी दाब`);
+    if (scheme.offline_count > 0) extraParts.push(`${scheme.offline_count} सेन्सर ऑफलाइन`);
+
+    const otherIssues = extraParts.length > 0
+      ? `${extraParts.join(', ')} त्रुटी आढळल्या आहेत`
+      : 'इतर तांत्रिक बाबी सुरळीत आहेत';
+
+    return `सूचना: JJM MVS ${scheme.scheme_name} अंतर्गत मागील ${days} दिवसांपासून 55 LPCD पेक्षा कमी पाणीपुरवठा असलेली ${scheme.lpcd_villages_count} गावे आहेत. तसेच, ${otherIssues}. कृपया तपासणी करून त्वरित आवश्यक कार्यवाही करावी. – मजीप्रा`;
+  }
+
+  const levelText = recipientRole === 'PS'
+    ? 'स्तर ५ (PS Principal Secretary Escalation)'
+    : recipientRole === 'MS'
+    ? 'स्तर ४ (MS Member Secretary Escalation)'
+    : 'स्तर १ (DE/AE Daily Notice)';
   const days = scheme.max_streak_days;
   
   const parts: string[] = [];
@@ -341,7 +406,7 @@ export function renderSchemeEscalationSMS(scheme: SchemeEscalationItem, recipien
     return `सूचना (${levelText}): JJM MVS योजना ${scheme.scheme_name} (ID: ${scheme.scheme_id}) मध्ये आज खालील त्रुटी आढळल्या आहेत: ${issuesSummary}. कृपया प्रत्यक्ष जागेवर जाऊन त्वरित निवारण करावे. – मजीप्रा`;
   }
 
-  // Crisp Marathi format compliant with telecom guidelines
+  // Fallback for MS (every 10 days) and PS (15+ days persistent)
   return `सूचना (${levelText}): JJM MVS योजना ${scheme.scheme_name} (ID: ${scheme.scheme_id}) मध्ये सलग ${days} दिवसांपासून खालील त्रुटी कायम आहेत: ${issuesSummary}. कृपया प्राधान्याने कार्यवाही करावी. – मजीप्रा`;
 }
 
@@ -609,7 +674,7 @@ export function renderEeSchemeEscalationEmail(scheme: SchemeEscalationItem): { s
  * Builds ONE consolidated regional HTML Email for Chief Engineer (CE) covering ALL 7-day persistent schemes in that region
  */
 export function renderCeRegionalConsolidatedEmail(region: string, schemes: SchemeEscalationItem[]): { subject: string; html: string } {
-  const subject = `🚨 [Level 3 Apex Escalation] Chronic Non-Compliance Digest: ${region} Region (${schemes.length} Schemes Over 7+ Days)`;
+  const subject = `🚨 [Level 3 Escalation] Unresolved Issues Summary: ${region} Region (${schemes.length} Schemes Over 7+ Days)`;
 
   const totalVillages = schemes.reduce((acc, s) => acc + s.lpcd_villages_count, 0);
   const totalCl = schemes.reduce((acc, s) => acc + s.chlorine_low_count + s.chlorine_high_count, 0);
@@ -647,7 +712,7 @@ export function renderCeRegionalConsolidatedEmail(region: string, schemes: Schem
     <body>
       <div class="card">
         <div class="header">
-          <h1>🚨 Chief Engineer — Level 3 Apex Escalation Digest</h1>
+          <h1>🚨 Chief Engineer — Level 3 Weekly Escalation Summary</h1>
           <p>Region: <strong>${region}</strong> | Comprehensive Weekly Unresolved Summary</p>
           <span class="badge">7+ Consecutive Days of Chronic Breach</span>
         </div>
@@ -704,7 +769,7 @@ export function renderCeRegionalConsolidatedEmail(region: string, schemes: Schem
         </div>
         <div class="footer">
           Jal Jeevan Mission IoT Cell — Maharashtra Jeevan Pradhikaran (MJP)<br>
-          Apex Escalation Matrix Monitoring System
+          Escalation Matrix Monitoring System
         </div>
       </div>
     </body>
@@ -715,9 +780,349 @@ export function renderCeRegionalConsolidatedEmail(region: string, schemes: Schem
 }
 
 /**
+ * Builds the scheme-wise HTML Email for Member Secretary (MS) - Level 4 Escalation
+ */
+export function renderMsSchemeEscalationEmail(scheme: SchemeEscalationItem): { subject: string; html: string } {
+  const subject = `🚨 [Level 4 Escalation - 10+ Days Unresolved] Scheme: ${scheme.scheme_name} (${scheme.scheme_id})`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b; }
+        .card { max-width: 720px; margin: 0 auto; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); border: 1px solid #cbd5e1; overflow: hidden; }
+        .header { background: linear-gradient(135deg, #581c87 0%, #3b0764 100%); color: #ffffff; padding: 26px 30px; text-align: left; }
+        .header h1 { margin: 0 0 6px 0; font-size: 21px; font-weight: 700; letter-spacing: -0.02em; }
+        .header p { margin: 0; font-size: 13.5px; opacity: 0.95; }
+        .badge { display: inline-block; background: rgba(255,255,255,0.22); color: #fff; padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 700; margin-top: 10px; text-transform: uppercase; }
+        .content { padding: 26px 30px; }
+        .scheme-meta { background: #faf5ff; border: 1px solid #e9d5ff; padding: 14px 18px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; line-height: 1.6; }
+        .kpi-row { display: flex; gap: 12px; margin-bottom: 24px; }
+        .kpi-box { flex: 1; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #e2e8f0; background: #f8fafc; }
+        .kpi-num { font-size: 20px; font-weight: 700; color: #6b21a8; }
+        .kpi-label { font-size: 10.5px; color: #64748b; font-weight: 600; text-transform: uppercase; margin-top: 2px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12.5px; }
+        th { background: #f8fafc; padding: 10px 12px; text-align: left; color: #475569; font-weight: 600; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+        .footer { background: #f8fafc; padding: 16px 24px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+        .alert-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+        .tag-lpcd { background: #fee2e2; color: #991b1b; }
+        .tag-cl { background: #fef3c7; color: #92400e; }
+        .tag-pr { background: #e0f2fe; color: #075985; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="header">
+          <h1>🚨 Member Secretary (MS) — Level 4 Escalation Notice</h1>
+          <p>Critical non-compliance persisting for <strong>${scheme.max_streak_days} consecutive days</strong> across multi-tier alerts</p>
+          <span class="badge">Level 4 Escalation • ${scheme.max_streak_days} Days Unresolved</span>
+        </div>
+        <div class="content">
+          <div class="scheme-meta">
+            <strong>Scheme:</strong> ${scheme.scheme_name} (ID: ${scheme.scheme_id})<br>
+            <strong>Region:</strong> ${scheme.region} &nbsp;|&nbsp; <strong>Division:</strong> ${scheme.division || 'N/A'}<br>
+            <strong>Executive Engineer (EE Civil):</strong> ${scheme.ee_civil_name || 'N/A'} (${scheme.ee_civil_mobile || 'N/A'})<br>
+            <strong>Chief Engineer (CE):</strong> ${scheme.chief_engineer_name || 'N/A'} (${scheme.chief_engineer_mobile || 'N/A'})<br>
+            <strong>Superintending Engineer (SE):</strong> ${scheme.se_name || 'N/A'} (${scheme.se_mobile || 'N/A'})
+          </div>
+
+          <div class="kpi-row">
+            <div class="kpi-box">
+              <div class="kpi-num">${scheme.lpcd_villages_count}</div>
+              <div class="kpi-label">Villages &lt; 55 LPCD</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-num">${scheme.chlorine_low_count}</div>
+              <div class="kpi-label">ESRs Low Cl</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-num">${scheme.chlorine_high_count}</div>
+              <div class="kpi-label">ESRs High Cl</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-num">${scheme.pressure_low_count}</div>
+              <div class="kpi-label">ESRs Low Press</div>
+            </div>
+          </div>
+
+          <h3 style="font-size: 14px; margin: 18px 0 8px 0; color: #0f172a;">Persistent Defect Breakdown</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Location</th>
+                <th>Issue Type</th>
+                <th>Active Streak</th>
+                <th>Recorded Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${scheme.lpcd_villages.map(v => `
+                <tr>
+                  <td><strong>${v.village_name}</strong> (Village)</td>
+                  <td><span class="alert-tag tag-lpcd">Low LPCD (&lt;55)</span></td>
+                  <td>${v.days_count} Days</td>
+                  <td>${v.avg_val ? `${v.avg_val} LPCD` : '&lt;55 LPCD'}</td>
+                </tr>
+              `).join('')}
+              ${scheme.chlorine_low_esrs.map(c => `
+                <tr>
+                  <td>${c.village_name} - <strong>${c.esr_name}</strong></td>
+                  <td><span class="alert-tag tag-cl">Low Chlorine (&lt;0.2)</span></td>
+                  <td>${c.days_count} Days</td>
+                  <td>${c.val ? `${c.val} mg/L` : '&lt;0.2 mg/L'}</td>
+                </tr>
+              `).join('')}
+              ${scheme.chlorine_high_esrs.map(c => `
+                <tr>
+                  <td>${c.village_name} - <strong>${c.esr_name}</strong></td>
+                  <td><span class="alert-tag tag-cl">High Chlorine (&gt;0.5)</span></td>
+                  <td>${c.days_count} Days</td>
+                  <td>${c.val ? `${c.val} mg/L` : '&gt;0.5 mg/L'}</td>
+                </tr>
+              `).join('')}
+              ${scheme.pressure_low_esrs.map(p => `
+                <tr>
+                  <td>${p.village_name} - <strong>${p.esr_name}</strong></td>
+                  <td><span class="alert-tag tag-pr">Low Pressure (&lt;0.2)</span></td>
+                  <td>${p.days_count} Days</td>
+                  <td>${p.val ? `${p.val} bar` : '&lt;0.2 bar'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <p style="margin-top: 24px; font-size: 13px; color: #64748b; line-height: 1.5;">
+            Escalation Note: This scheme has exceeded 14 consecutive days of unresolved issues despite Sub-Division (DE), Division (EE), and Regional (CE/SE) alerts. Direct administrative review by the Member Secretary is initiated.
+          </p>
+        </div>
+        <div class="footer">
+          Jal Jeevan Mission IoT Cell — Maharashtra Jeevan Pradhikaran (MJP)<br>
+          Escalation Matrix Monitoring System
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return { subject, html };
+}
+
+/**
+ * Builds the scheme-wise HTML Email for Principal Secretary (PS) - Level 5 Escalation
+ */
+export function renderPsSchemeEscalationEmail(scheme: SchemeEscalationItem): { subject: string; html: string } {
+  const subject = `🚨 [Level 5 Escalation - 15+ Days Persistent] Scheme: ${scheme.scheme_name} (${scheme.scheme_id})`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b; }
+        .card { max-width: 720px; margin: 0 auto; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); border: 1px solid #cbd5e1; overflow: hidden; }
+        .header { background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); color: #ffffff; padding: 26px 30px; text-align: left; }
+        .header h1 { margin: 0 0 6px 0; font-size: 21px; font-weight: 700; letter-spacing: -0.02em; }
+        .header p { margin: 0; font-size: 13.5px; opacity: 0.95; }
+        .badge { display: inline-block; background: rgba(255,255,255,0.22); color: #fff; padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 700; margin-top: 10px; text-transform: uppercase; }
+        .content { padding: 26px 30px; }
+        .scheme-meta { background: #eef2ff; border: 1px solid #c7d2fe; padding: 14px 18px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; line-height: 1.6; }
+        .kpi-row { display: flex; gap: 12px; margin-bottom: 24px; }
+        .kpi-box { flex: 1; padding: 12px; border-radius: 8px; text-align: center; border: 1px solid #e2e8f0; background: #f8fafc; }
+        .kpi-num { font-size: 20px; font-weight: 700; color: #3730a3; }
+        .kpi-label { font-size: 10.5px; color: #64748b; font-weight: 600; text-transform: uppercase; margin-top: 2px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12.5px; }
+        th { background: #f8fafc; padding: 10px 12px; text-align: left; color: #475569; font-weight: 600; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+        .footer { background: #f8fafc; padding: 16px 24px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+        .alert-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+        .tag-lpcd { background: #fee2e2; color: #991b1b; }
+        .tag-cl { background: #fef3c7; color: #92400e; }
+        .tag-pr { background: #e0f2fe; color: #075985; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="header">
+          <h1>🚨 Principal Secretary (PS) — Level 5 Escalation Notice</h1>
+          <p>Critical non-compliance persisting for <strong>${scheme.max_streak_days} consecutive days (15+ Days Persisting)</strong></p>
+          <span class="badge">Level 5 Escalation • ${scheme.max_streak_days} Days Unresolved</span>
+        </div>
+        <div class="content">
+          <div class="scheme-meta">
+            <strong>Scheme:</strong> ${scheme.scheme_name} (ID: ${scheme.scheme_id})<br>
+            <strong>Region:</strong> ${scheme.region} &nbsp;|&nbsp; <strong>Division:</strong> ${scheme.division || 'N/A'}<br>
+            <strong>Executive Engineer (EE Civil):</strong> ${scheme.ee_civil_name || 'N/A'} (${scheme.ee_civil_mobile || 'N/A'})<br>
+            <strong>Chief Engineer (CE):</strong> ${scheme.chief_engineer_name || 'N/A'} (${scheme.chief_engineer_mobile || 'N/A'})<br>
+            <strong>Superintending Engineer (SE):</strong> ${scheme.se_name || 'N/A'} (${scheme.se_mobile || 'N/A'})<br>
+            <strong>Member Secretary (MS):</strong> Member Secretary, MJP (ms.mjp@gov.in)
+          </div>
+
+          <div class="kpi-row">
+            <div class="kpi-box">
+              <div class="kpi-num">${scheme.max_streak_days}d</div>
+              <div class="kpi-label">Active Streak</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-num">${scheme.lpcd_villages_count}</div>
+              <div class="kpi-label">Villages &lt; 55 LPCD</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-num">${scheme.chlorine_low_count + scheme.chlorine_high_count}</div>
+              <div class="kpi-label">Chlorine Defects</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-num">${scheme.offline_count}</div>
+              <div class="kpi-label">Offline Sensors</div>
+            </div>
+          </div>
+
+          <h3 style="font-size: 14px; margin: 0 0 8px 0; color: #1e293b;">Persistent Non-Compliance Breakdown</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Village / Component</th>
+                <th>Issue Category</th>
+                <th>Consecutive Days</th>
+                <th>Last Sensor Reading</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${scheme.lpcd_villages.map(v => `
+                <tr>
+                  <td><strong>${v.village_name}</strong></td>
+                  <td><span class="alert-tag tag-lpcd">Low LPCD (&lt;55)</span></td>
+                  <td>${v.days_count} Days</td>
+                  <td>${v.avg_val ? `${v.avg_val} LPCD` : '&lt;55 LPCD'}</td>
+                </tr>
+              `).join('')}
+              ${scheme.chlorine_low_esrs.map(c => `
+                <tr>
+                  <td>${c.village_name} - <strong>${c.esr_name}</strong></td>
+                  <td><span class="alert-tag tag-cl">Low Chlorine (&lt;0.2)</span></td>
+                  <td>${c.days_count} Days</td>
+                  <td>${c.val ? `${c.val} mg/L` : '&lt;0.2 mg/L'}</td>
+                </tr>
+              `).join('')}
+              ${scheme.chlorine_high_esrs.map(c => `
+                <tr>
+                  <td>${c.village_name} - <strong>${c.esr_name}</strong></td>
+                  <td><span class="alert-tag tag-cl">High Chlorine (&gt;0.5)</span></td>
+                  <td>${c.days_count} Days</td>
+                  <td>${c.val ? `${c.val} mg/L` : '&gt;0.5 mg/L'}</td>
+                </tr>
+              `).join('')}
+              ${scheme.pressure_low_esrs.map(p => `
+                <tr>
+                  <td>${p.village_name} - <strong>${p.esr_name}</strong></td>
+                  <td><span class="alert-tag tag-pr">Low Pressure (&lt;0.2)</span></td>
+                  <td>${p.days_count} Days</td>
+                  <td>${p.val ? `${p.val} bar` : '&lt;0.2 bar'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <p style="margin-top: 24px; font-size: 13px; color: #64748b; line-height: 1.5;">
+            Escalation Note: This scheme has persisted for 15+ consecutive days without resolution across frontline, division, regional, and Member Secretary levels. Escalated directly to Principal Secretary (PS), Water Supply and Sanitation Department.
+          </p>
+        </div>
+        <div class="footer">
+          Water Supply & Sanitation Department, Government of Maharashtra • High-Level Escalation Matrix
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return { subject, html };
+}
+
+
+/**
+ * Fetches configured Executive Contacts for Member Secretary (MS) and Principal Secretary (PS).
+ * Priority: Environment Variables -> DB users table -> Default fallbacks.
+ */
+export async function getExecutiveContacts(): Promise<{
+  ms: { name: string; email: string; mobile: string };
+  ps: { name: string; email: string; mobile: string };
+}> {
+  try {
+    const db = await getDB();
+    const [msUser, psUser] = await Promise.all([
+      db.select().from(users).where(eq(users.username, "member_secretary")).limit(1),
+      db.select().from(users).where(eq(users.username, "principal_secretary")).limit(1),
+    ]);
+
+    return {
+      ms: {
+        name: process.env.MS_NAME || msUser[0]?.name || "Member Secretary (MS)",
+        email: process.env.MS_EMAIL || msUser[0]?.email || "ms.mjp@gov.in",
+        mobile: process.env.MS_MOBILE || msUser[0]?.phone || "9820000000",
+      },
+      ps: {
+        name: process.env.PS_NAME || psUser[0]?.name || "Principal Secretary (PS)",
+        email: process.env.PS_EMAIL || psUser[0]?.email || "ps.wss@maharashtra.gov.in",
+        mobile: process.env.PS_MOBILE || psUser[0]?.phone || "9821000000",
+      },
+    };
+  } catch (err) {
+    console.error("Error in getExecutiveContacts:", err);
+    return {
+      ms: {
+        name: process.env.MS_NAME || "Member Secretary (MS)",
+        email: process.env.MS_EMAIL || "ms.mjp@gov.in",
+        mobile: process.env.MS_MOBILE || "9820000000",
+      },
+      ps: {
+        name: process.env.PS_NAME || "Principal Secretary (PS)",
+        email: process.env.PS_EMAIL || "ps.wss@maharashtra.gov.in",
+        mobile: process.env.PS_MOBILE || "9821000000",
+      },
+    };
+  }
+}
+
+/**
+ * Updates configured Executive Contacts for Member Secretary (MS) and Principal Secretary (PS) in the users table.
+ */
+export async function updateExecutiveContacts(data: {
+  ms?: { name?: string; email?: string; mobile?: string };
+  ps?: { name?: string; email?: string; mobile?: string };
+}): Promise<void> {
+  const db = await getDB();
+  if (data.ms) {
+    const updatePayload: Record<string, any> = {};
+    if (data.ms.name) updatePayload.name = data.ms.name.trim();
+    if (data.ms.email) updatePayload.email = data.ms.email.trim().toLowerCase();
+    if (data.ms.mobile) updatePayload.phone = data.ms.mobile.trim();
+
+    if (Object.keys(updatePayload).length > 0) {
+      await db.update(users).set(updatePayload).where(eq(users.username, "member_secretary"));
+    }
+  }
+
+  if (data.ps) {
+    const updatePayload: Record<string, any> = {};
+    if (data.ps.name) updatePayload.name = data.ps.name.trim();
+    if (data.ps.email) updatePayload.email = data.ps.email.trim().toLowerCase();
+    if (data.ps.mobile) updatePayload.phone = data.ps.mobile.trim();
+
+    if (Object.keys(updatePayload).length > 0) {
+      await db.update(users).set(updatePayload).where(eq(users.username, "principal_secretary"));
+    }
+  }
+}
+
+/**
  * Dispatches Escalations:
- * - Level 2 (EE Civil): Scheme-wise Email & Scheme-wise SMS
- * - Level 3 (Chief Engineer): ONE consolidated Regional Email + Scheme-wise SMS
+ * - Level 2 (EE Civil): Scheme-wise Email & Scheme-wise SMS (3+ days unresolved)
+ * - Level 3 (Chief Engineer): Consolidated Regional Email + Scheme-wise SMS (7+ days unresolved)
+ * - Level 4 (Member Secretary): Scheme-wise Email & SMS for all schemes unresolved for 10+ days (dispatched every 10 days)
+ * - Level 5 (Principal Secretary): Scheme-wise Email & SMS for all persistent schemes unresolved for 15+ days
  */
 export async function executeEscalationDispatch(options: {
   dryRun?: boolean;
@@ -729,9 +1134,14 @@ export async function executeEscalationDispatch(options: {
   ee_sms_sent: number;
   ce_emails_sent: number;
   ce_sms_sent: number;
+  ms_emails_sent: number;
+  ms_sms_sent: number;
+  ps_emails_sent: number;
+  ps_sms_sent: number;
   logs: string[];
 }> {
   const { schemes } = await getEscalationStatus({ region: options.region });
+  const execContacts = await getExecutiveContacts();
   const logs: string[] = [];
   const result = {
     success: true,
@@ -739,6 +1149,10 @@ export async function executeEscalationDispatch(options: {
     ee_sms_sent: 0,
     ce_emails_sent: 0,
     ce_sms_sent: 0,
+    ms_emails_sent: 0,
+    ms_sms_sent: 0,
+    ps_emails_sent: 0,
+    ps_sms_sent: 0,
     logs,
   };
 
@@ -770,6 +1184,22 @@ export async function executeEscalationDispatch(options: {
             html: emailPayload.html,
           });
           result.ee_emails_sent++;
+          try {
+            const db = await getDB();
+            await db.insert(emailAlertLogs).values({
+              scheme_id: scheme.scheme_id,
+              scheme_name: scheme.scheme_name,
+              region: scheme.region,
+              alert_type: 'Escalation Level 2 (EE)',
+              alert_value: `${scheme.max_streak_days} Days Unresolved`,
+              ee_civil_name: scheme.ee_civil_name,
+              ee_civil_email: eeEmail,
+              ticket_id: `ESC-EE-${scheme.scheme_id}-${Date.now()}`,
+              dispatch_type: 'escalation_level2',
+            });
+          } catch (logErr) {
+            console.error("Failed to insert EE email alert log:", logErr);
+          }
           logs.push(`✅ [EE Email Sent] ${scheme.scheme_name} -> ${eeEmail}`);
         } catch (err: any) {
           logs.push(`❌ [EE Email Failed] ${scheme.scheme_name} (${eeEmail}): ${err.message}`);
@@ -788,7 +1218,7 @@ export async function executeEscalationDispatch(options: {
           const smsRes = await sendSmartpingDLTSMS({
             mobile: eeMobile,
             text: smsText,
-            dltContentId: '1077196480123998489', // Use general DLT or registered escalation template
+            dltContentId: '1077030110068762585', // Approved Airtel DLT Escalation Template ID (EE - 3 Days)
           });
           if (smsRes.success) result.ee_sms_sent++;
           await logSmsAlert({
@@ -797,8 +1227,8 @@ export async function executeEscalationDispatch(options: {
             engineer_email: eeEmail,
             scheme_id: scheme.scheme_id,
             scheme_name: scheme.scheme_name,
-            template_id: 'LEVEL_2_ESCALATION_EE',
-            template_name: 'Level 2 Escalation EE Civil',
+            template_id: '1077030110068762585',
+            template_name: 'Level 2 Escalation EE Civil (3 Days)',
             message_text: smsText,
             gateway_status: smsRes.status,
             gateway_response: smsRes.response,
@@ -844,6 +1274,22 @@ export async function executeEscalationDispatch(options: {
             html: emailPayload.html,
           });
           result.ce_emails_sent++;
+          try {
+            const db = await getDB();
+            await db.insert(emailAlertLogs).values({
+              scheme_id: firstScheme.scheme_id,
+              scheme_name: `${region} Consolidated (${regSchemes.length} Schemes)`,
+              region: region,
+              alert_type: 'Escalation Level 3 (CE)',
+              alert_value: '7+ Days Regional Digest',
+              chief_engineer_name: firstScheme.chief_engineer_name,
+              chief_engineer_email: ceEmail,
+              ticket_id: `ESC-CE-${region}-${Date.now()}`,
+              dispatch_type: 'escalation_level3',
+            });
+          } catch (logErr) {
+            console.error("Failed to insert CE email alert log:", logErr);
+          }
           logs.push(`✅ [CE Consolidated Email Sent] ${region} (${regSchemes.length} schemes) -> ${ceEmail}`);
         } catch (err: any) {
           logs.push(`❌ [CE Email Failed] ${region} (${ceEmail}): ${err.message}`);
@@ -863,7 +1309,7 @@ export async function executeEscalationDispatch(options: {
             const smsRes = await sendSmartpingDLTSMS({
               mobile: ceMobile,
               text: smsText,
-              dltContentId: '1077196480123998489',
+              dltContentId: '1077030110068762585', // Approved Airtel DLT Escalation Template ID (CE - 7 Days)
             });
             if (smsRes.success) result.ce_sms_sent++;
             await logSmsAlert({
@@ -872,8 +1318,8 @@ export async function executeEscalationDispatch(options: {
               engineer_email: ceEmail,
               scheme_id: scheme.scheme_id,
               scheme_name: scheme.scheme_name,
-              template_id: 'LEVEL_3_ESCALATION_CE',
-              template_name: 'Level 3 Escalation CE',
+              template_id: '1077030110068762585',
+              template_name: 'Level 3 Escalation CE (7 Days)',
               message_text: smsText,
               gateway_status: smsRes.status,
               gateway_response: smsRes.response,
@@ -892,6 +1338,178 @@ export async function executeEscalationDispatch(options: {
     }
   }
 
+  // --- 3. Level 4 Escalations to Member Secretary (MS) (10+ days unresolved) ---
+  const level4Schemes = targetSchemes.filter(s => s.max_streak_days >= 10);
+  logs.push(`📊 Found ${level4Schemes.length} schemes for Member Secretary (MS) Escalation (>= 10 days unresolved).`);
+
+  if (level4Schemes.length > 0) {
+    const msEmail = execContacts.ms.email;
+    const msMobile = execContacts.ms.mobile;
+
+    // Send Scheme-wise Email to MS
+    if (msEmail) {
+      for (const scheme of level4Schemes) {
+        const emailPayload = renderMsSchemeEscalationEmail(scheme);
+        if (!dryRun) {
+          try {
+            await sendMail({
+              to: msEmail,
+              subject: emailPayload.subject,
+              html: emailPayload.html,
+            });
+            result.ms_emails_sent++;
+            try {
+              const db = await getDB();
+              await db.insert(emailAlertLogs).values({
+                scheme_id: scheme.scheme_id,
+                scheme_name: scheme.scheme_name,
+                region: scheme.region,
+                alert_type: 'Escalation Level 4 (MS)',
+                alert_value: `${scheme.max_streak_days} Days Unresolved`,
+                member_secretary_name: execContacts.ms.name,
+                member_secretary_email: msEmail,
+                civil_engineer_name: execContacts.ms.name,
+                civil_engineer_email: msEmail,
+                ticket_id: `ESC-MS-${scheme.scheme_id}-${Date.now()}`,
+                dispatch_type: 'escalation_level4',
+              });
+            } catch (logErr) {
+              console.error("Failed to insert MS email alert log:", logErr);
+            }
+            logs.push(`✅ [MS Email Sent] ${scheme.scheme_name} -> ${msEmail}`);
+          } catch (err: any) {
+            logs.push(`❌ [MS Email Failed] ${scheme.scheme_name} (${msEmail}): ${err.message}`);
+          }
+        } else {
+          result.ms_emails_sent++;
+          logs.push(`[Dry Run MS Email] Would send to ${msEmail} for scheme ${scheme.scheme_id}`);
+        }
+      }
+    }
+
+    // Send Scheme-wise SMS to MS
+    if (msMobile && msMobile !== "Head Office") {
+      for (const scheme of level4Schemes) {
+        const smsText = renderSchemeEscalationSMS(scheme, 'MS');
+        if (!dryRun) {
+          try {
+            const smsRes = await sendSmartpingDLTSMS({
+              mobile: msMobile,
+              text: smsText,
+            });
+            if (smsRes.success) result.ms_sms_sent++;
+            await logSmsAlert({
+              mobile: msMobile,
+              engineer_name: execContacts.ms.name,
+              engineer_email: msEmail,
+              scheme_id: scheme.scheme_id,
+              scheme_name: scheme.scheme_name,
+              template_id: 'MS_ESCALATION_10D',
+              template_name: 'Level 4 Escalation Member Secretary (10 Days)',
+              message_text: smsText,
+              gateway_status: smsRes.status,
+              gateway_response: smsRes.response,
+              is_success: smsRes.success,
+              dispatch_type: 'escalation_level4',
+            });
+            logs.push(`✅ [MS SMS Sent] ${scheme.scheme_name} -> ${msMobile}`);
+          } catch (err: any) {
+            logs.push(`❌ [MS SMS Failed] ${scheme.scheme_name} (${msMobile}): ${err.message}`);
+          }
+        } else {
+          result.ms_sms_sent++;
+          logs.push(`[Dry Run MS SMS] Would send to ${msMobile} for scheme ${scheme.scheme_id}`);
+        }
+      }
+    }
+  }
+
+  // --- 4. Level 5 Escalations to Principal Secretary (PS) (15+ days unresolved) ---
+  const level5Schemes = targetSchemes.filter(s => s.max_streak_days >= 15);
+  logs.push(`📊 Found ${level5Schemes.length} schemes for Principal Secretary (PS) Escalation (>= 15 days unresolved).`);
+
+  if (level5Schemes.length > 0) {
+    const psEmail = execContacts.ps.email;
+    const psMobile = execContacts.ps.mobile;
+
+    // Send Scheme-wise Email to PS
+    if (psEmail) {
+      for (const scheme of level5Schemes) {
+        const emailPayload = renderPsSchemeEscalationEmail(scheme);
+        if (!dryRun) {
+          try {
+            await sendMail({
+              to: psEmail,
+              subject: emailPayload.subject,
+              html: emailPayload.html,
+            });
+            result.ps_emails_sent++;
+            try {
+              const db = await getDB();
+              await db.insert(emailAlertLogs).values({
+                scheme_id: scheme.scheme_id,
+                scheme_name: scheme.scheme_name,
+                region: scheme.region,
+                alert_type: 'Escalation Level 5 (PS)',
+                alert_value: `${scheme.max_streak_days} Days Unresolved`,
+                principal_secretary_name: execContacts.ps.name,
+                principal_secretary_email: psEmail,
+                chief_engineer_name: execContacts.ps.name,
+                chief_engineer_email: psEmail,
+                ticket_id: `ESC-PS-${scheme.scheme_id}-${Date.now()}`,
+                dispatch_type: 'escalation_level5',
+              });
+            } catch (logErr) {
+              console.error("Failed to insert PS email alert log:", logErr);
+            }
+            logs.push(`✅ [PS Email Sent] ${scheme.scheme_name} -> ${psEmail}`);
+          } catch (err: any) {
+            logs.push(`❌ [PS Email Failed] ${scheme.scheme_name} (${psEmail}): ${err.message}`);
+          }
+        } else {
+          result.ps_emails_sent++;
+          logs.push(`[Dry Run PS Email] Would send to ${psEmail} for scheme ${scheme.scheme_id}`);
+        }
+      }
+    }
+
+    // Send Scheme-wise SMS to PS
+    if (psMobile && psMobile !== "Secretariat") {
+      for (const scheme of level5Schemes) {
+        const smsText = renderSchemeEscalationSMS(scheme, 'PS');
+        if (!dryRun) {
+          try {
+            const smsRes = await sendSmartpingDLTSMS({
+              mobile: psMobile,
+              text: smsText,
+            });
+            if (smsRes.success) result.ps_sms_sent++;
+            await logSmsAlert({
+              mobile: psMobile,
+              engineer_name: execContacts.ps.name,
+              engineer_email: psEmail,
+              scheme_id: scheme.scheme_id,
+              scheme_name: scheme.scheme_name,
+              template_id: 'PS_ESCALATION_15D',
+              template_name: 'Level 5 Escalation Principal Secretary (15 Days)',
+              message_text: smsText,
+              gateway_status: smsRes.status,
+              gateway_response: smsRes.response,
+              is_success: smsRes.success,
+              dispatch_type: 'escalation_level5',
+            });
+            logs.push(`✅ [PS SMS Sent] ${scheme.scheme_name} -> ${psMobile}`);
+          } catch (err: any) {
+            logs.push(`❌ [PS SMS Failed] ${scheme.scheme_name} (${psMobile}): ${err.message}`);
+          }
+        } else {
+          result.ps_sms_sent++;
+          logs.push(`[Dry Run PS SMS] Would send to ${psMobile} for scheme ${scheme.scheme_id}`);
+        }
+      }
+    }
+  }
+
   return result;
 }
 
@@ -905,7 +1523,7 @@ export interface SentAlertItem {
   recipient_email?: string;
   recipient_mobile?: string;
   recipient_role: string;
-  tier: 1 | 2 | 3;
+  tier: 1 | 2 | 3 | 4 | 5;
   alert_title: string;
   message_content: string;
   status: string;
@@ -921,6 +1539,8 @@ export interface SentAlertsResponse {
     tier_1_sent: number;
     tier_2_sent: number;
     tier_3_sent: number;
+    tier_4_sent: number;
+    tier_5_sent: number;
     today_sent_count: number;
     last_dispatched_at: string | null;
   };
@@ -929,7 +1549,7 @@ export interface SentAlertsResponse {
 
 export async function getSentEscalationAlerts(options: {
   timeRange?: 'today' | 'yesterday' | '7days' | '30days' | 'all';
-  tier?: 'all' | '1' | '2' | '3';
+  tier?: 'all' | '1' | '2' | '3' | '4' | '5';
   channel?: 'all' | 'sms' | 'email';
   search?: string;
   limit?: number;
@@ -978,6 +1598,8 @@ export async function getSentEscalationAlerts(options: {
         s.engineer_email AS recipient_email,
         s.mobile AS recipient_mobile,
         CASE 
+          WHEN s.engineer_name ILIKE '%Principal Secretary%' OR s.dispatch_type = 'escalation_level5' THEN 'Principal Secretary'
+          WHEN s.engineer_name ILIKE '%Member Secretary%' OR s.dispatch_type = 'escalation_level4' THEN 'Member Secretary'
           WHEN s.engineer_name ILIKE '%Deepak Ingale%' OR s.engineer_name ILIKE '%Chief Engineer%' OR s.template_id = 'LEVEL_3_ESCALATION_CE' THEN 'Chief Engineer'
           WHEN s.engineer_name ILIKE '%Rishikesh Salunkhe%' THEN 'Superintending Engineer'
           WHEN s.engineer_name ILIKE '%Rishikesh Salunke%' OR s.template_id = 'LEVEL_2_ESCALATION_EE' THEN 'Executive Engineer (Civil)'
@@ -985,6 +1607,8 @@ export async function getSentEscalationAlerts(options: {
           ELSE 'Field Engineer'
         END AS recipient_role,
         CASE 
+          WHEN s.engineer_name ILIKE '%Principal Secretary%' OR s.dispatch_type = 'escalation_level5' THEN 5
+          WHEN s.engineer_name ILIKE '%Member Secretary%' OR s.dispatch_type = 'escalation_level4' THEN 4
           WHEN s.engineer_name ILIKE '%Deepak Ingale%' OR s.engineer_name ILIKE '%Chief Engineer%' OR s.template_id = 'LEVEL_3_ESCALATION_CE' THEN 3
           WHEN s.engineer_name ILIKE '%Rishikesh Salunkhe%' THEN 3
           WHEN s.engineer_name ILIKE '%Rishikesh Salunke%' OR s.template_id = 'LEVEL_2_ESCALATION_EE' THEN 2
@@ -1009,11 +1633,15 @@ export async function getSentEscalationAlerts(options: {
         COALESCE(e.civil_engineer_email, e.ee_civil_email, e.chief_engineer_email, 'Email') AS recipient_email,
         NULL AS recipient_mobile,
         CASE 
+          WHEN e.dispatch_type = 'escalation_level5' OR e.alert_type ILIKE '%Level 5%' THEN 'Principal Secretary'
+          WHEN e.dispatch_type = 'escalation_level4' OR e.alert_type ILIKE '%Level 4%' THEN 'Member Secretary'
           WHEN e.chief_engineer_email IS NOT NULL AND e.chief_engineer_email != '' THEN 'Chief Engineer'
           WHEN e.ee_civil_email IS NOT NULL AND e.ee_civil_email != '' THEN 'Executive Engineer (Civil)'
           ELSE 'Deputy Engineer (Civil)'
         END AS recipient_role,
         CASE 
+          WHEN e.dispatch_type = 'escalation_level5' OR e.alert_type ILIKE '%Level 5%' THEN 5
+          WHEN e.dispatch_type = 'escalation_level4' OR e.alert_type ILIKE '%Level 4%' THEN 4
           WHEN e.chief_engineer_email IS NOT NULL AND e.chief_engineer_email != '' THEN 3
           WHEN e.ee_civil_email IS NOT NULL AND e.ee_civil_email != '' THEN 2
           ELSE 1
@@ -1035,6 +1663,8 @@ export async function getSentEscalationAlerts(options: {
       COUNT(*) FILTER (WHERE tier = 1) AS tier_1_sent,
       COUNT(*) FILTER (WHERE tier = 2) AS tier_2_sent,
       COUNT(*) FILTER (WHERE tier = 3) AS tier_3_sent,
+      COUNT(*) FILTER (WHERE tier = 4) AS tier_4_sent,
+      COUNT(*) FILTER (WHERE tier = 5) AS tier_5_sent,
       (SELECT COUNT(*) FROM combined_alerts WHERE created_at >= CURRENT_DATE) AS today_sent_count,
       MAX(created_at) AS last_dispatched_at
     FROM combined_alerts

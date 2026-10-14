@@ -179,6 +179,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ALTER TABLE email_alert_logs ADD COLUMN IF NOT EXISTS se_email VARCHAR(255);
       ALTER TABLE email_alert_logs ADD COLUMN IF NOT EXISTS chief_engineer_name VARCHAR(255);
       ALTER TABLE email_alert_logs ADD COLUMN IF NOT EXISTS chief_engineer_email VARCHAR(255);
+      ALTER TABLE email_alert_logs ADD COLUMN IF NOT EXISTS member_secretary_name VARCHAR(255);
+      ALTER TABLE email_alert_logs ADD COLUMN IF NOT EXISTS member_secretary_email VARCHAR(255);
+      ALTER TABLE email_alert_logs ADD COLUMN IF NOT EXISTS principal_secretary_name VARCHAR(255);
+      ALTER TABLE email_alert_logs ADD COLUMN IF NOT EXISTS principal_secretary_email VARCHAR(255);
+
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS member_secretary_name VARCHAR(255);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS member_secretary_mobile VARCHAR(20);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS member_secretary_email VARCHAR(255);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS principal_secretary_name VARCHAR(255);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS principal_secretary_mobile VARCHAR(20);
+      ALTER TABLE scheme_engineer_details ADD COLUMN IF NOT EXISTS principal_secretary_email VARCHAR(255);
 
       -- Ensure email_delivery_failures audit table
       CREATE TABLE IF NOT EXISTS email_delivery_failures (

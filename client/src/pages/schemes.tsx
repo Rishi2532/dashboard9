@@ -58,6 +58,7 @@ export default function Schemes() {
       selectedSubdivision,
       selectedAgencyType,
       schemeFilter,
+      waterSupplyStatus,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -69,8 +70,13 @@ export default function Schemes() {
       if (selectedAgencyType !== "ALL")
         params.set("agencyType", selectedAgencyType);
 
-      if (schemeFilter !== "all") {
-        params.append("filterType", schemeFilter);
+      const effectiveFilterType =
+        schemeFilter === "commissioned" && waterSupplyStatus !== "All"
+          ? `commissioned_${waterSupplyStatus.toLowerCase()}`
+          : schemeFilter;
+
+      if (effectiveFilterType !== "all") {
+        params.append("filterType", effectiveFilterType);
       }
       if (schemeFilter === "fully_completed") {
         params.append("fullyCompleted", "true");
@@ -241,11 +247,20 @@ export default function Schemes() {
 
     // Apply Water Supply Status filter independently for ANY category
     if (waterSupplyStatus !== "All") {
+      const target = waterSupplyStatus.trim().toLowerCase();
       filtered = filtered.filter((scheme) => {
-        const status = schemeStatusMap.get(scheme.scheme_id);
-        if (!status) return false;
-        const wss = String(status.water_supply_status || "").trim().toLowerCase();
-        return wss === waterSupplyStatus.toLowerCase();
+        if (!scheme) return false;
+        const wss = String(scheme.water_supply_status || "").trim().toLowerCase();
+        if (target === "full") {
+          return wss === "full" || wss === "fully operational";
+        }
+        if (target === "partial") {
+          return wss === "partial" || wss === "partially operational";
+        }
+        if (target === "no") {
+          return wss === "no" || wss === "not operational" || wss === "non operational";
+        }
+        return wss === target;
       });
     }
 

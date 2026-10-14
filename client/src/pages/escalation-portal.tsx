@@ -37,7 +37,7 @@ interface SchemeEscalationItem {
   region: string;
   division?: string;
   district?: string;
-  escalation_level: 1 | 2 | 3;
+  escalation_level: 1 | 2 | 3 | 4 | 5;
   max_streak_days: number;
   lpcd_villages_count: number;
   lpcd_villages: Array<{ village_name: string; days_count: number; avg_val?: string }>;
@@ -63,12 +63,22 @@ interface SchemeEscalationItem {
   chief_engineer_name?: string;
   chief_engineer_email?: string;
   chief_engineer_mobile?: string;
+  ms_name?: string;
+  ms_email?: string;
+  ms_mobile?: string;
+  ps_name?: string;
+  ps_email?: string;
+  ps_mobile?: string;
   ee_escalated: boolean;
   ce_escalated: boolean;
+  ms_escalated?: boolean;
+  ps_escalated?: boolean;
   // Real Notified Message Counts
   de_sms_count: number;
   ee_sms_count: number;
   ce_se_sms_count: number;
+  ms_sms_count?: number;
+  ps_sms_count?: number;
   total_email_count: number;
   last_notified_at?: string;
 }
@@ -81,6 +91,8 @@ interface EscalationSummaryResponse {
     level_1_count: number;
     level_2_count: number;
     level_3_count: number;
+    level_4_count?: number;
+    level_5_count?: number;
     total_villages_below_55: number;
     total_esrs_low_chlorine: number;
     total_esrs_high_chlorine: number;
@@ -93,16 +105,71 @@ interface EscalationSummaryResponse {
 export default function EscalationPortalPage() {
   const { toast } = useToast();
 
-  // Active layer view: "all" | "layer1" (DE/AE Daily) | "layer2" (EE >3 Days) | "layer3" (SE & CE Weekly)
-  const [activeLayer, setActiveLayer] = useState<"all" | "layer1" | "layer2" | "layer3">("all");
+  // Active layer view: "all" | "layer1" (DE/AE Daily) | "layer2" (EE >3 Days) | "layer3" (SE & CE Weekly) | "layer4" (MS 10+ Days) | "layer5" (PS 15+ Days)
+  const [activeLayer, setActiveLayer] = useState<"all" | "layer1" | "layer2" | "layer3" | "layer4" | "layer5">("all");
   const [searchTerm, setSearchTerm] = useState("");
 
   // Notice preview modal
   const [previewScheme, setPreviewScheme] = useState<SchemeEscalationItem | null>(null);
-  const [previewTier, setPreviewTier] = useState<"DE" | "EE" | "CE">("DE");
+  const [previewTier, setPreviewTier] = useState<"DE" | "EE" | "CE" | "MS" | "PS">("DE");
   const [previewData, setPreviewData] = useState<any>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [copiedText, setCopiedText] = useState(false);
+
+  // Executive contacts modal state (MS & PS)
+  const [execModalOpen, setExecModalOpen] = useState(false);
+  const [execContacts, setExecContacts] = useState({
+    ms: { name: "Member Secretary (MS)", email: "ms.mjp@gov.in", mobile: "9820000000" },
+    ps: { name: "Principal Secretary (PS)", email: "ps.wss@maharashtra.gov.in", mobile: "9821000000" },
+  });
+  const [execLoading, setExecLoading] = useState(false);
+  const [execSaving, setExecSaving] = useState(false);
+
+  const openExecutiveModal = async () => {
+    setExecModalOpen(true);
+    setExecLoading(true);
+    try {
+      const res = await fetch("/api/escalation/executive-contacts");
+      if (!res.ok) throw new Error("Failed to load contacts");
+      const json = await res.json();
+      if (json.contacts) {
+        setExecContacts(json.contacts);
+      }
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to fetch executive contacts",
+        variant: "destructive",
+      });
+    } finally {
+      setExecLoading(false);
+    }
+  };
+
+  const saveExecutiveContacts = async () => {
+    setExecSaving(true);
+    try {
+      const res = await fetch("/api/escalation/executive-contacts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(execContacts),
+      });
+      if (!res.ok) throw new Error("Failed to save contacts");
+      toast({
+        title: "Saved",
+        description: "Executive contacts updated successfully",
+      });
+      setExecModalOpen(false);
+    } catch (err: any) {
+      toast({
+        title: "Save Error",
+        description: err.message || "Could not save executive contacts",
+        variant: "destructive",
+      });
+    } finally {
+      setExecSaving(false);
+    }
+  };
 
   // Fetch summary and schemes
   const { data, isLoading, refetch, isFetching } = useQuery<EscalationSummaryResponse>({
@@ -128,7 +195,17 @@ export default function EscalationPortalPage() {
 
   // Layer 3: SE & CE -> Notified Weekly for chronic issues persisting >= 7 days (1 full week)
   const layer3Schemes = useMemo(() => {
-    return schemes.filter((s) => s.max_streak_days >= 7 || s.escalation_level === 3);
+    return schemes.filter((s) => s.max_streak_days >= 7 || s.escalation_level >= 3);
+  }, [schemes]);
+
+  // Layer 4: MS (Member Secretary) -> Notified every 10 days for persistent issues >= 10 days
+  const layer4Schemes = useMemo(() => {
+    return schemes.filter((s) => s.max_streak_days >= 10 || s.escalation_level >= 4);
+  }, [schemes]);
+
+  // Layer 5: PS (Principal Secretary) -> Notified after 15 days if issues persist
+  const layer5Schemes = useMemo(() => {
+    return schemes.filter((s) => s.max_streak_days >= 15 || s.escalation_level === 5);
   }, [schemes]);
 
   // Active list filtered by search term and layer
@@ -138,6 +215,8 @@ export default function EscalationPortalPage() {
     else if (activeLayer === "layer1") list = layer1Schemes;
     else if (activeLayer === "layer2") list = layer2Schemes;
     else if (activeLayer === "layer3") list = layer3Schemes;
+    else if (activeLayer === "layer4") list = layer4Schemes;
+    else if (activeLayer === "layer5") list = layer5Schemes;
 
     if (!searchTerm.trim()) return list;
     const term = searchTerm.toLowerCase().trim();
@@ -152,7 +231,7 @@ export default function EscalationPortalPage() {
         (s.chief_engineer_name && s.chief_engineer_name.toLowerCase().includes(term)) ||
         (s.se_name && s.se_name.toLowerCase().includes(term))
     );
-  }, [activeLayer, schemes, layer1Schemes, layer2Schemes, layer3Schemes, searchTerm]);
+  }, [activeLayer, schemes, layer1Schemes, layer2Schemes, layer3Schemes, layer4Schemes, layer5Schemes, searchTerm]);
 
   // Totals for metrics
   const overallTotals = useMemo(() => {
@@ -198,6 +277,26 @@ export default function EscalationPortalPage() {
       { sms: 0, emails: 0 }
     );
   }, [layer3Schemes]);
+
+  const layer4Totals = useMemo(() => {
+    return layer4Schemes.reduce(
+      (acc, s) => ({
+        sms: acc.sms + (s.ms_sms_count || s.ce_se_sms_count || 0),
+        emails: acc.emails + (s.total_email_count || 0),
+      }),
+      { sms: 0, emails: 0 }
+    );
+  }, [layer4Schemes]);
+
+  const layer5Totals = useMemo(() => {
+    return layer5Schemes.reduce(
+      (acc, s) => ({
+        sms: acc.sms + (s.ps_sms_count || s.ms_sms_count || s.ce_se_sms_count || 0),
+        emails: acc.emails + (s.total_email_count || 0),
+      }),
+      { sms: 0, emails: 0 }
+    );
+  }, [layer5Schemes]);
 
   // Helper to extract unique engineers for each layer
   const layer1Engineers = useMemo(() => {
@@ -252,7 +351,7 @@ export default function EscalationPortalPage() {
   }, [layer3Schemes]);
 
   // Fetch preview for selected scheme and tier
-  const openPreview = async (scheme: SchemeEscalationItem, tier: "DE" | "EE" | "CE") => {
+  const openPreview = async (scheme: SchemeEscalationItem, tier: "DE" | "EE" | "CE" | "MS" | "PS") => {
     setPreviewScheme(scheme);
     setPreviewTier(tier);
     setPreviewLoading(true);
@@ -262,7 +361,9 @@ export default function EscalationPortalPage() {
       let url = "";
       if (tier === "DE") url = `/api/escalation/preview-de/${scheme.scheme_id}`;
       else if (tier === "EE") url = `/api/escalation/preview-ee/${scheme.scheme_id}`;
-      else url = `/api/escalation/preview-ce/${scheme.region || "Nagpur"}`;
+      else if (tier === "CE") url = `/api/escalation/preview-ce/${encodeURIComponent(scheme.region || "Nagpur")}?schemeId=${encodeURIComponent(scheme.scheme_id)}`;
+      else if (tier === "MS") url = `/api/escalation/preview-ms/${scheme.scheme_id}`;
+      else url = `/api/escalation/preview-ps/${scheme.scheme_id}`;
 
       const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to load notice preview");
@@ -326,17 +427,28 @@ export default function EscalationPortalPage() {
                 </span>
               </div>
               <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-                Three-Tier Automated Alert & Escalation Vigilance Portal
+                Automated Alert & Escalation Portal
               </h1>
               <p className="text-xs sm:text-sm text-slate-600 max-w-5xl leading-relaxed">
-                Official Multi-Tier Alert Dispatch Registry:
+                Official Alert & Escalation Registry:
                 <strong> Level 1 (DE/AE Civil)</strong> Daily Operational Alert (Day 1) •
                 <strong> Level 2 (EE Civil)</strong> Escalated after 3 Days without resolution •
-                <strong> Level 3 (CE & SE)</strong> Weekly Apex Review Notice for 1 full week (7+ Days) chronic persistence.
+                <strong> Level 3 (CE & SE)</strong> Weekly Review Notice for issues pending 7+ Days •
+                <strong> Level 4 (MS)</strong> Direct Notice to Member Secretary for issues pending 15+ Days.
               </p>
             </div>
 
-            <div className="flex items-center gap-2 self-start lg:self-center">
+            <div className="flex items-center gap-2 self-start lg:self-center flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={openExecutiveModal}
+                className="h-8 text-xs border-purple-300 bg-purple-50 hover:bg-purple-100 text-purple-900 font-semibold"
+              >
+                <User className="w-3.5 h-3.5 mr-1.5 text-purple-700" />
+                Configure MS & PS Details
+              </Button>
+
               <Button
                 variant="outline"
                 size="sm"
@@ -362,333 +474,305 @@ export default function EscalationPortalPage() {
           </div>
 
           {/* OFFICIAL KEY METRIC STRIP (Wide, Simple, Monospace Numbers) */}
-          <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
+          <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 text-xs">
             <div className="border-r border-slate-200 last:border-0 pr-2">
               <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Total Schemes</div>
               <div className="text-lg font-bold font-mono text-slate-900 mt-0.5">
-                {schemes.length} <span className="text-[11px] font-sans font-normal text-slate-500">Schemes</span>
+                {schemes.length}
               </div>
             </div>
             <div className="border-r border-slate-200 last:border-0 pr-2">
-              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Level 1 (DE / AE Daily)</div>
+              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Level 1 (Day 1)</div>
               <div className="text-lg font-bold font-mono text-blue-900 mt-0.5">
-                {layer1Schemes.length} <span className="text-[11px] font-sans font-normal text-slate-500">Active</span>
+                {layer1Schemes.length}
               </div>
             </div>
             <div className="border-r border-slate-200 last:border-0 pr-2">
-              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Level 2 (EE &gt;3 Days)</div>
+              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Level 2 (3+ Days)</div>
               <div className="text-lg font-bold font-mono text-amber-900 mt-0.5">
-                {layer2Schemes.length} <span className="text-[11px] font-sans font-normal text-slate-500">Escalated</span>
+                {layer2Schemes.length}
               </div>
             </div>
             <div className="border-r border-slate-200 last:border-0 pr-2">
-              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Level 3 (CE/SE Weekly)</div>
+              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Level 3 (7+ Days)</div>
               <div className="text-lg font-bold font-mono text-red-900 mt-0.5">
-                {layer3Schemes.length} <span className="text-[11px] font-sans font-normal text-slate-500">Chronic</span>
+                {layer3Schemes.length}
               </div>
             </div>
             <div className="border-r border-slate-200 last:border-0 pr-2">
-              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Total SMS Sent</div>
+              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Level 4 (10+ Days)</div>
+              <div className="text-lg font-bold font-mono text-purple-900 mt-0.5">
+                {layer4Schemes.length}
+              </div>
+            </div>
+            <div className="border-r border-slate-200 last:border-0 pr-2">
+              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Level 5 (15+ Days)</div>
+              <div className="text-lg font-bold font-mono text-indigo-950 mt-0.5">
+                {layer5Schemes.length}
+              </div>
+            </div>
+            <div className="border-r border-slate-200 last:border-0 pr-2">
+              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Total SMS</div>
               <div className="text-lg font-bold font-mono text-slate-900 mt-0.5">
-                {overallTotals.totalSms} <span className="text-[11px] font-sans font-normal text-slate-500">SMS</span>
+                {overallTotals.totalSms}
               </div>
             </div>
             <div>
-              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Total Emails Sent</div>
+              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Total Emails</div>
               <div className="text-lg font-bold font-mono text-slate-900 mt-0.5">
-                {overallTotals.totalEmails} <span className="text-[11px] font-sans font-normal text-slate-500">Emails</span>
+                {overallTotals.totalEmails}
               </div>
             </div>
           </div>
         </div>
 
         {/* ========================================================= */}
-        {/* 3 HIERARCHY CARDS: SIMPLE, GOVERNMENT TABLE-STYLE CARDS   */}
+        {/* 5 HIERARCHY CARDS: HORIZONTAL, CLEAN GOVERNMENT CARDS      */}
         {/* ========================================================= */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5">
           
-          {/* CARD 1: LAYER 1 - DE / AE Civil (Daily Notice) */}
+          {/* CARD 1: LEVEL 1 - DE / AE */}
           <div
-            onClick={() => setActiveLayer("layer1")}
-            className={`cursor-pointer bg-white border rounded-lg p-4 transition-colors relative flex flex-col justify-between ${
+            onClick={() => setActiveLayer(activeLayer === "layer1" ? "all" : "layer1")}
+            className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${
               activeLayer === "layer1"
-                ? "border-blue-900 ring-2 ring-blue-900/20 bg-blue-50/20"
-                : "border-slate-300 hover:border-slate-400"
+                ? "border-blue-900 ring-2 ring-blue-900/30 bg-blue-50/30"
+                : "border-slate-300 hover:border-blue-400"
             }`}
           >
             <div className="space-y-3">
               <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded bg-blue-900 text-white font-bold text-xs flex items-center justify-center">
-                    1
-                  </span>
-                  <span className="text-xs font-bold uppercase tracking-wider text-blue-950">
-                    Level 1: Sub-Division (DE / AE Civil)
-                  </span>
-                </div>
+                <span className="text-xs font-bold uppercase tracking-wider text-blue-950">
+                  Level 1 • DE / AE
+                </span>
                 <Badge variant="outline" className="text-[10px] bg-slate-50 border-slate-300 font-semibold text-slate-700">
-                  Daily Alert (Day 1)
+                  Day 1
                 </Badge>
               </div>
 
-              {/* Cadence rule note */}
-              <div className="text-[11px] text-slate-600 leading-snug">
-                <strong>Rule:</strong> Dispatched immediately on Day 1 to the Deputy Engineer when any telemetry threshold is breached (LPCD &lt;55, Low/High Chlorine, Low Pressure, or Offline).
-              </div>
-
-              {/* Dynamic Schemes in Layer 1 */}
-              <div className="space-y-1.5">
-                <div className="flex justify-between items-center text-[11px] font-semibold text-slate-700">
-                  <span>Active Schemes ({layer1Schemes.length}):</span>
+              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-600 font-medium">Schemes</span>
+                  <span className="font-bold font-mono text-blue-950 text-base">{layer1Schemes.length}</span>
                 </div>
-                <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
-                  {layer1Schemes.map((s) => (
-                    <div
-                      key={s.scheme_id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSearchTerm(s.scheme_name);
-                      }}
-                      className="text-[11px] p-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded flex items-center justify-between"
-                      title="Click to filter table"
-                    >
-                      <span className="font-semibold text-slate-900 truncate max-w-[180px]">
-                        {s.scheme_name}
-                      </span>
-                      <span className="font-mono text-[10px] bg-white px-1.5 py-0.5 border border-slate-200 rounded font-bold text-slate-700">
-                        {s.max_streak_days} {s.max_streak_days === 1 ? "day" : "days"}
-                      </span>
-                    </div>
-                  ))}
+                <div className="flex justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200 font-mono">
+                  <span>{layer1Totals.sms} SMS</span>
+                  <span>{layer1Totals.emails} Emails</span>
                 </div>
               </div>
 
-              {/* Notified Officers */}
-              <div className="border-t border-slate-200 pt-2 space-y-1 text-xs">
-                <div className="text-[11px] font-semibold text-slate-700">
-                  Designated Field Engineers:
-                </div>
-                {layer1Engineers.map((eng) => (
-                  <div key={eng.name} className="flex items-center justify-between text-[11px] text-slate-700">
-                    <span className="font-medium flex items-center gap-1">
-                      <User className="w-3 h-3 text-slate-500" />
-                      {eng.name} (DE/AE)
-                    </span>
-                    <span className="font-mono text-slate-500 text-[10px]">{eng.mobile}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Actual Notification Counts */}
-              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-slate-600 flex items-center gap-1 text-[11px]">
-                    <MessageSquare className="w-3 h-3 text-slate-500" /> SMS Sent to DE/AE:
-                  </span>
-                  <span className="font-mono font-bold text-slate-900">{layer1Totals.sms} SMS</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600 flex items-center gap-1 text-[11px]">
-                    <Mail className="w-3 h-3 text-slate-500" /> Emails Sent:
-                  </span>
-                  <span className="font-mono font-bold text-slate-900">{layer1Totals.emails} Emails</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-3 pt-2 border-t border-slate-200 flex justify-between items-center text-[11px] text-blue-900 font-medium">
-              <span>{layer1Schemes.length} schemes with active breaches</span>
-              <span className="underline">View Schemes in Table →</span>
+              <a
+                href="/api/escalation/export-excel?level=1"
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="block"
+              >
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full h-7 text-[11px] font-semibold flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 border-slate-300 text-slate-700 shadow-2xs"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                  Download Excel
+                </Button>
+              </a>
             </div>
           </div>
 
-          {/* CARD 2: LAYER 2 - EE Civil (Escalated After 3 Days) */}
+          {/* CARD 2: LEVEL 2 - EE */}
           <div
-            onClick={() => setActiveLayer("layer2")}
-            className={`cursor-pointer bg-white border rounded-lg p-4 transition-colors relative flex flex-col justify-between ${
+            onClick={() => setActiveLayer(activeLayer === "layer2" ? "all" : "layer2")}
+            className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${
               activeLayer === "layer2"
-                ? "border-amber-700 ring-2 ring-amber-700/20 bg-amber-50/20"
-                : "border-slate-300 hover:border-slate-400"
+                ? "border-amber-700 ring-2 ring-amber-700/30 bg-amber-50/30"
+                : "border-slate-300 hover:border-amber-400"
             }`}
           >
             <div className="space-y-3">
               <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded bg-amber-700 text-white font-bold text-xs flex items-center justify-center">
-                    2
-                  </span>
-                  <span className="text-xs font-bold uppercase tracking-wider text-amber-950">
-                    Level 2: Division (EE Civil)
-                  </span>
-                </div>
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-950">
+                  Level 2 • EE
+                </span>
                 <Badge variant="outline" className="text-[10px] bg-slate-50 border-slate-300 font-semibold text-slate-700">
-                  3-Day Escalation (&gt;3 Days)
+                  3+ Days
                 </Badge>
               </div>
 
-              {/* Cadence rule note */}
-              <div className="text-[11px] text-slate-600 leading-snug">
-                <strong>Rule:</strong> Alert sent to DE for 3 consecutive days without resolution $\rightarrow$ Automatically escalated to Executive Engineer.
-              </div>
-
-              {/* Dynamic Schemes in Layer 2 */}
-              <div className="space-y-1.5">
-                <div className="flex justify-between items-center text-[11px] font-semibold text-slate-700">
-                  <span>Escalated Schemes ({layer2Schemes.length}):</span>
+              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-600 font-medium">Schemes</span>
+                  <span className="font-bold font-mono text-amber-900 text-base">{layer2Schemes.length}</span>
                 </div>
-                <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
-                  {layer2Schemes.map((s) => (
-                    <div
-                      key={s.scheme_id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSearchTerm(s.scheme_name);
-                      }}
-                      className="text-[11px] p-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded flex items-center justify-between"
-                      title="Click to filter table"
-                    >
-                      <span className="font-semibold text-slate-900 truncate max-w-[180px]">
-                        {s.scheme_name}
-                      </span>
-                      <span className="font-mono text-[10px] bg-white px-1.5 py-0.5 border border-slate-200 rounded font-bold text-amber-900">
-                        {s.max_streak_days} days streak
-                      </span>
-                    </div>
-                  ))}
+                <div className="flex justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200 font-mono">
+                  <span>{layer2Totals.sms} SMS</span>
+                  <span>{layer2Totals.emails} Emails</span>
                 </div>
               </div>
 
-              {/* Notified Officers */}
-              <div className="border-t border-slate-200 pt-2 space-y-1 text-xs">
-                <div className="text-[11px] font-semibold text-slate-700">
-                  Designated Division Head:
-                </div>
-                {layer2Engineers.map((eng) => (
-                  <div key={eng.name} className="flex items-center justify-between text-[11px] text-slate-700">
-                    <span className="font-medium flex items-center gap-1">
-                      <User className="w-3 h-3 text-slate-500" />
-                      {eng.name} (EE)
-                    </span>
-                    <span className="font-mono text-slate-500 text-[10px]">{eng.mobile}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Actual Notification Counts */}
-              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-slate-600 flex items-center gap-1 text-[11px]">
-                    <MessageSquare className="w-3 h-3 text-slate-500" /> SMS Sent to EE:
-                  </span>
-                  <span className="font-mono font-bold text-slate-900">{layer2Totals.sms} SMS</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600 flex items-center gap-1 text-[11px]">
-                    <Mail className="w-3 h-3 text-slate-500" /> Division Emails Sent:
-                  </span>
-                  <span className="font-mono font-bold text-slate-900">{layer2Totals.emails} Emails</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-3 pt-2 border-t border-slate-200 flex justify-between items-center text-[11px] text-amber-900 font-medium">
-              <span>Sent to DE 3 days without fix $\rightarrow$ EE Escalation</span>
-              <span className="underline">View Schemes in Table →</span>
+              <a
+                href="/api/escalation/export-excel?level=2"
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="block"
+              >
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full h-7 text-[11px] font-semibold flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 border-slate-300 text-slate-700 shadow-2xs"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                  Download Excel
+                </Button>
+              </a>
             </div>
           </div>
 
-          {/* CARD 3: LAYER 3 - SE & CE Apex (Weekly Notice) */}
+          {/* CARD 3: LEVEL 3 - CE & SE */}
           <div
-            onClick={() => setActiveLayer("layer3")}
-            className={`cursor-pointer bg-white border rounded-lg p-4 transition-colors relative flex flex-col justify-between ${
+            onClick={() => setActiveLayer(activeLayer === "layer3" ? "all" : "layer3")}
+            className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${
               activeLayer === "layer3"
-                ? "border-red-900 ring-2 ring-red-900/20 bg-red-50/20"
-                : "border-slate-300 hover:border-slate-400"
+                ? "border-red-900 ring-2 ring-red-900/30 bg-red-50/30"
+                : "border-slate-300 hover:border-red-400"
             }`}
           >
             <div className="space-y-3">
               <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded bg-red-900 text-white font-bold text-xs flex items-center justify-center">
-                    3
-                  </span>
-                  <span className="text-xs font-bold uppercase tracking-wider text-red-950">
-                    Level 3: Apex Regional (CE & SE)
-                  </span>
-                </div>
+                <span className="text-xs font-bold uppercase tracking-wider text-red-950">
+                  Level 3 • CE & SE
+                </span>
                 <Badge variant="outline" className="text-[10px] bg-slate-50 border-slate-300 font-semibold text-slate-700">
-                  Weekly Notice (1 Wk+)
+                  7+ Days
                 </Badge>
               </div>
 
-              {/* Cadence rule note */}
-              <div className="text-[11px] text-slate-600 leading-snug">
-                <strong>Rule:</strong> Chronic issue unresolved for 1 full week (7+ days) despite DE & EE alerts $\rightarrow$ Weekly apex vigilance notice sent to Chief Engineer & Superintending Engineer.
-              </div>
-
-              {/* Dynamic Schemes in Layer 3 */}
-              <div className="space-y-1.5">
-                <div className="flex justify-between items-center text-[11px] font-semibold text-slate-700">
-                  <span>Chronic Schemes ({layer3Schemes.length}):</span>
+              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-600 font-medium">Schemes</span>
+                  <span className="font-bold font-mono text-red-900 text-base">{layer3Schemes.length}</span>
                 </div>
-                <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
-                  {layer3Schemes.map((s) => (
-                    <div
-                      key={s.scheme_id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSearchTerm(s.scheme_name);
-                      }}
-                      className="text-[11px] p-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded flex items-center justify-between"
-                      title="Click to filter table"
-                    >
-                      <span className="font-semibold text-slate-900 truncate max-w-[180px]">
-                        {s.scheme_name}
-                      </span>
-                      <span className="font-mono text-[10px] bg-white px-1.5 py-0.5 border border-slate-200 rounded font-bold text-red-900">
-                        {s.max_streak_days} days (1 Wk+)
-                      </span>
-                    </div>
-                  ))}
+                <div className="flex justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200 font-mono">
+                  <span>{layer3Totals.sms} SMS</span>
+                  <span>{layer3Totals.emails} Emails</span>
                 </div>
               </div>
 
-              {/* Notified Officers */}
-              <div className="border-t border-slate-200 pt-2 space-y-1 text-xs">
-                <div className="text-[11px] font-semibold text-slate-700">
-                  Apex Regional Authorities:
-                </div>
-                {layer3Engineers.map((eng) => (
-                  <div key={eng.name} className="flex items-center justify-between text-[11px] text-slate-700">
-                    <span className="font-medium flex items-center gap-1">
-                      <User className="w-3 h-3 text-slate-500" />
-                      {eng.name} ({eng.role.includes("Chief") ? "CE" : "SE"})
-                    </span>
-                    <span className="font-mono text-slate-500 text-[10px]">{eng.mobile}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Actual Notification Counts */}
-              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-slate-600 flex items-center gap-1 text-[11px]">
-                    <MessageSquare className="w-3 h-3 text-slate-500" /> Weekly SMS to CE & SE:
-                  </span>
-                  <span className="font-mono font-bold text-slate-900">{layer3Totals.sms} SMS</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600 flex items-center gap-1 text-[11px]">
-                    <Mail className="w-3 h-3 text-slate-500" /> Regional Digest Emails:
-                  </span>
-                  <span className="font-mono font-bold text-slate-900">{layer3Totals.emails} Emails</span>
-                </div>
-              </div>
+              <a
+                href="/api/escalation/export-excel?level=3"
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="block"
+              >
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full h-7 text-[11px] font-semibold flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 border-slate-300 text-slate-700 shadow-2xs"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                  Download Excel
+                </Button>
+              </a>
             </div>
+          </div>
 
-            <div className="mt-3 pt-2 border-t border-slate-200 flex justify-between items-center text-[11px] text-red-900 font-medium">
-              <span>Unimproved for 1 Week $\rightarrow$ Weekly Apex Notice</span>
-              <span className="underline">View Schemes in Table →</span>
+          {/* CARD 4: LEVEL 4 - MS */}
+          <div
+            onClick={() => setActiveLayer(activeLayer === "layer4" ? "all" : "layer4")}
+            className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${
+              activeLayer === "layer4"
+                ? "border-purple-900 ring-2 ring-purple-900/30 bg-purple-50/30"
+                : "border-slate-300 hover:border-purple-400"
+            }`}
+          >
+            <div className="space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-purple-950">
+                  Level 4 • MS
+                </span>
+                <Badge variant="outline" className="text-[10px] bg-purple-50 border-purple-300 font-bold text-purple-900">
+                  10+ Days
+                </Badge>
+              </div>
+
+              <div className="bg-purple-50/50 p-2.5 rounded border border-purple-200 space-y-1">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-600 font-medium">Schemes</span>
+                  <span className="font-bold font-mono text-purple-950 text-base">{layer4Schemes.length}</span>
+                </div>
+                <div className="flex justify-between text-[11px] text-purple-900 pt-1 border-t border-purple-200/80 font-mono">
+                  <span>{layer4Totals.sms} SMS</span>
+                  <span>{layer4Totals.emails} Emails</span>
+                </div>
+              </div>
+
+              <a
+                href="/api/escalation/export-excel?level=4"
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="block"
+              >
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full h-7 text-[11px] font-semibold flex items-center justify-center gap-1.5 bg-purple-50 hover:bg-purple-100 border-purple-300 text-purple-950 shadow-2xs"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-purple-700" />
+                  Download Excel
+                </Button>
+              </a>
+            </div>
+          </div>
+
+          {/* CARD 5: LEVEL 5 - PS */}
+          <div
+            onClick={() => setActiveLayer(activeLayer === "layer5" ? "all" : "layer5")}
+            className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${
+              activeLayer === "layer5"
+                ? "border-indigo-950 ring-2 ring-indigo-950/30 bg-indigo-50/30"
+                : "border-slate-300 hover:border-indigo-400"
+            }`}
+          >
+            <div className="space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-indigo-950">
+                  Level 5 • PS
+                </span>
+                <Badge variant="outline" className="text-[10px] bg-indigo-50 border-indigo-300 font-bold text-indigo-950">
+                  15+ Days
+                </Badge>
+              </div>
+
+              <div className="bg-indigo-50/50 p-2.5 rounded border border-indigo-200 space-y-1">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-600 font-medium">Schemes</span>
+                  <span className="font-bold font-mono text-indigo-950 text-base">{layer5Schemes.length}</span>
+                </div>
+                <div className="flex justify-between text-[11px] text-indigo-950 pt-1 border-t border-indigo-200/80 font-mono">
+                  <span>{layer5Totals.sms} SMS</span>
+                  <span>{layer5Totals.emails} Emails</span>
+                </div>
+              </div>
+
+              <a
+                href="/api/escalation/export-excel?level=5"
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="block"
+              >
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full h-7 text-[11px] font-semibold flex items-center justify-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 border-indigo-300 text-indigo-950 shadow-2xs"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-indigo-700" />
+                  Download Excel
+                </Button>
+              </a>
             </div>
           </div>
 
@@ -702,7 +786,7 @@ export default function EscalationPortalPage() {
           {/* Table Toolbar */}
           <div className="p-3 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
             {/* Layer Filter Tabs */}
-            <div className="flex items-center gap-1 bg-white p-1 rounded border border-slate-300">
+            <div className="flex items-center gap-1 bg-white p-1 rounded border border-slate-300 flex-wrap">
               <button
                 onClick={() => setActiveLayer("all")}
                 className={`text-xs px-2.5 py-1 rounded font-medium transition-colors ${
@@ -721,7 +805,7 @@ export default function EscalationPortalPage() {
                     : "text-slate-600 hover:bg-slate-100"
                 }`}
               >
-                Level 1: DE/AE Daily ({layer1Schemes.length})
+                Level 1: DE / AE ({layer1Schemes.length})
               </button>
               <button
                 onClick={() => setActiveLayer("layer2")}
@@ -731,7 +815,7 @@ export default function EscalationPortalPage() {
                     : "text-slate-600 hover:bg-slate-100"
                 }`}
               >
-                Level 2: EE &gt;3 Days ({layer2Schemes.length})
+                Level 2: EE ({layer2Schemes.length})
               </button>
               <button
                 onClick={() => setActiveLayer("layer3")}
@@ -741,7 +825,27 @@ export default function EscalationPortalPage() {
                     : "text-slate-600 hover:bg-slate-100"
                 }`}
               >
-                Level 3: CE/SE Weekly ({layer3Schemes.length})
+                Level 3: CE & SE ({layer3Schemes.length})
+              </button>
+              <button
+                onClick={() => setActiveLayer("layer4")}
+                className={`text-xs px-2.5 py-1 rounded font-medium transition-colors ${
+                  activeLayer === "layer4"
+                    ? "bg-purple-900 text-white"
+                    : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                Level 4: MS ({layer4Schemes.length})
+              </button>
+              <button
+                onClick={() => setActiveLayer("layer5")}
+                className={`text-xs px-2.5 py-1 rounded font-medium transition-colors ${
+                  activeLayer === "layer5"
+                    ? "bg-indigo-950 text-white"
+                    : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                Level 5: PS ({layer5Schemes.length})
               </button>
             </div>
 
@@ -770,10 +874,12 @@ export default function EscalationPortalPage() {
             <div className="flex items-center gap-2">
               <Info className="w-3.5 h-3.5 text-slate-500" />
               <span>
-                {activeLayer === "layer1" && "Level 1: Daily operational notice dispatched today to Sub-Division DE/AE Akshay Bhojane (Day 1 breach)"}
+                {activeLayer === "layer1" && "Level 1: Daily notice sent today to DE/AE Akshay Bhojane (Day 1 issue)"}
                 {activeLayer === "layer2" && "Level 2: Escalated to Executive Engineer (EE) after 3 consecutive days without resolution"}
-                {activeLayer === "layer3" && "Level 3: Weekly apex notice issued to Chief Engineer (CE) & Superintending Engineer (SE) for 7+ days chronic persistence"}
-                {activeLayer === "all" && "All Schemes: Multi-tier escalation status and actual transmitted messages registry (SMS & Email Log)"}
+                {activeLayer === "layer3" && "Level 3: Weekly notice sent to Chief Engineer (CE) & Superintending Engineer (SE) for issues pending 7+ days"}
+                {activeLayer === "layer4" && "Level 4: Notice sent to Member Secretary (MS), MJP every 10 days for persistent issues (10+ days)"}
+                {activeLayer === "layer5" && "Level 5: Notice sent to Principal Secretary (PS) after 15 days if issues persist (15+ days)"}
+                {activeLayer === "all" && "All Schemes: Multi-tier escalation status and message log (SMS & Email)"}
               </span>
             </div>
             <span className="font-mono text-slate-500">
@@ -797,38 +903,50 @@ export default function EscalationPortalPage() {
             <div className="overflow-x-auto w-full">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-semibold uppercase text-[11px] tracking-wider">
+                  <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-semibold uppercase text-[11px] tracking-wider text-center">
                     <th className="py-2.5 px-3 border-r border-slate-200 w-12 text-center">Sr.</th>
-                    <th className="py-2.5 px-4 border-r border-slate-200 min-w-[200px]">Scheme & Region</th>
-                    <th className="py-2.5 px-3 border-r border-slate-200 min-w-[130px]">Current Level</th>
-                    <th className="py-2.5 px-3 border-r border-slate-200 min-w-[180px]">Persistence & Cadence</th>
-                    <th className="py-2.5 px-4 border-r border-slate-200 min-w-[220px]">Designated Officer</th>
-                    <th className="py-2.5 px-3 border-r border-slate-200 min-w-[190px]">Actual Dispatches</th>
-                    <th className="py-2.5 px-3 border-r border-slate-200 min-w-[210px] text-center">Technical Breach Points</th>
-                    <th className="py-2.5 px-3 text-right w-28">Action</th>
+                    <th className="py-2.5 px-4 border-r border-slate-200 min-w-[200px] text-center">Scheme & Region</th>
+                    <th className="py-2.5 px-3 border-r border-slate-200 min-w-[130px] text-center">Current Level</th>
+                    <th className="py-2.5 px-3 border-r border-slate-200 min-w-[180px] text-center">Days Unresolved</th>
+                    <th className="py-2.5 px-4 border-r border-slate-200 min-w-[220px] text-center">Designated Officer</th>
+                    <th className="py-2.5 px-3 border-r border-slate-200 min-w-[190px] text-center">Actual Dispatches</th>
+                    <th className="py-2.5 px-3 border-r border-slate-200 min-w-[210px] text-center">Active Issues</th>
+                    <th className="py-2.5 px-3 text-center w-28">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {displayedSchemes.map((scheme, idx) => {
                     // Determine assigned officer & tier based on activeLayer or current scheme level
-                    let targetTier: "DE" | "EE" | "CE" = "DE";
+                    let targetTier: "DE" | "EE" | "CE" | "MS" | "PS" = "DE";
                     let officerName = scheme.de_ae_civil_name || "Akshay Bhojane";
                     let officerRole = "DE / AE (Civil)";
                     let officerMobile = scheme.de_ae_civil_mobile || "5596356782";
                     let officerEmail = scheme.de_ae_civil_email || "akshay.bhojane@cstech.ai";
 
-                    if (activeLayer === "layer2" || (activeLayer === "all" && scheme.escalation_level === 2)) {
-                      targetTier = "EE";
-                      officerName = scheme.ee_civil_name || "Rishikesh Salunke";
-                      officerRole = "Executive Engineer (EE)";
-                      officerMobile = scheme.ee_civil_mobile || "9834955236";
-                      officerEmail = scheme.ee_civil_email || "salunkerishikesh@gmail.com";
+                    if (activeLayer === "layer5" || (activeLayer === "all" && scheme.escalation_level === 5)) {
+                      targetTier = "PS";
+                      officerName = "Principal Secretary (PS)";
+                      officerRole = "Principal Secretary, WSS";
+                      officerMobile = "Secretariat";
+                      officerEmail = "ps.wss@maharashtra.gov.in";
+                    } else if (activeLayer === "layer4" || (activeLayer === "all" && scheme.escalation_level === 4)) {
+                      targetTier = "MS";
+                      officerName = "Member Secretary (MS)";
+                      officerRole = "Member Secretary, MJP";
+                      officerMobile = "Head Office";
+                      officerEmail = "ms.mjp@gov.in";
                     } else if (activeLayer === "layer3" || (activeLayer === "all" && scheme.escalation_level === 3)) {
                       targetTier = "CE";
                       officerName = `${scheme.chief_engineer_name || "Deepak Ingale"} (CE) & ${scheme.se_name || "Rishikesh Salunkhe"} (SE)`;
                       officerRole = "Chief Engineer & SE";
                       officerMobile = `${scheme.chief_engineer_mobile || "8852634598"} / ${scheme.se_mobile || "9965253645"}`;
                       officerEmail = scheme.chief_engineer_email || "deepal.ingale@cstech.ai";
+                    } else if (activeLayer === "layer2" || (activeLayer === "all" && scheme.escalation_level === 2)) {
+                      targetTier = "EE";
+                      officerName = scheme.ee_civil_name || "Rishikesh Salunke";
+                      officerRole = "Executive Engineer (EE)";
+                      officerMobile = scheme.ee_civil_mobile || "9834955236";
+                      officerEmail = scheme.ee_civil_email || "salunkerishikesh@gmail.com";
                     }
 
                     return (
@@ -863,10 +981,24 @@ export default function EscalationPortalPage() {
 
                         {/* Current Level */}
                         <td className="py-3 px-3 border-r border-slate-200">
-                          {scheme.escalation_level === 3 ? (
+                          {scheme.escalation_level === 5 ? (
+                            <div className="space-y-0.5">
+                              <Badge className="bg-indigo-950 text-white text-[10px] rounded font-bold">
+                                Level 5 (PS)
+                              </Badge>
+                              <div className="text-[10px] text-indigo-950 font-semibold">15+ Days Notice</div>
+                            </div>
+                          ) : scheme.escalation_level === 4 ? (
+                            <div className="space-y-0.5">
+                              <Badge className="bg-purple-900 text-white text-[10px] rounded font-bold">
+                                Level 4 (MS)
+                              </Badge>
+                              <div className="text-[10px] text-purple-900 font-semibold">10+ Days Notice</div>
+                            </div>
+                          ) : scheme.escalation_level === 3 ? (
                             <div className="space-y-0.5">
                               <Badge className="bg-red-800 text-white text-[10px] rounded font-bold">
-                                Level 3 (Apex)
+                                Level 3 (CE & SE)
                               </Badge>
                               <div className="text-[10px] text-slate-500">CE & SE Weekly Notice</div>
                             </div>
@@ -887,7 +1019,7 @@ export default function EscalationPortalPage() {
                           )}
                         </td>
 
-                        {/* Streak & Cadence */}
+                        {/* Days Unresolved */}
                         <td className="py-3 px-3 border-r border-slate-200">
                           <div className="space-y-0.5">
                             <div className="font-mono font-bold text-slate-900 text-xs flex items-center gap-1">
@@ -897,12 +1029,16 @@ export default function EscalationPortalPage() {
                               </span>
                             </div>
                             <div className="text-[10px] text-slate-500">
-                              {scheme.max_streak_days >= 7 ? (
-                                <span className="text-red-700 font-medium">Over 1 Full Week (Weekly Notice)</span>
+                              {scheme.max_streak_days >= 15 ? (
+                                <span className="text-indigo-950 font-bold">15+ Days (Escalated to PS)</span>
+                              ) : scheme.max_streak_days >= 10 ? (
+                                <span className="text-purple-900 font-bold">10+ Days (Escalated to MS)</span>
+                              ) : scheme.max_streak_days >= 7 ? (
+                                <span className="text-red-700 font-medium">7+ Days (Escalated to CE & SE)</span>
                               ) : scheme.max_streak_days >= 3 ? (
-                                <span className="text-amber-800 font-medium">DE notified 3 days $\rightarrow$ Escalated to EE</span>
+                                <span className="text-amber-800 font-medium">3+ Days (Escalated to EE)</span>
                               ) : (
-                                <span className="text-slate-600">Daily Notice Cadence (Day 1)</span>
+                                <span className="text-slate-600">Day 1 (Sent to DE / AE)</span>
                               )}
                             </div>
                           </div>
@@ -939,6 +1075,12 @@ export default function EscalationPortalPage() {
                               <span className="text-slate-600 text-[10px] font-sans">CE/SE SMS:</span>
                               <span className="font-bold text-slate-900">{scheme.ce_se_sms_count}</span>
                             </div>
+                            {scheme.ms_sms_count > 0 && (
+                              <div className="flex items-center justify-between bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+                                <span className="text-purple-900 text-[10px] font-sans font-semibold">MS SMS:</span>
+                                <span className="font-bold text-purple-900">{scheme.ms_sms_count}</span>
+                              </div>
+                            )}
                             <div className="flex items-center justify-between bg-slate-100 px-2 py-0.5 rounded border border-slate-300">
                               <span className="text-slate-700 text-[10px] font-sans font-medium">Emails:</span>
                               <span className="font-bold text-slate-900">{scheme.total_email_count}</span>
@@ -978,7 +1120,7 @@ export default function EscalationPortalPage() {
                         </td>
 
                         {/* Actions */}
-                        <td className="py-3 px-3 text-right">
+                        <td className="py-3 px-3 text-center">
                           <Button
                             size="sm"
                             variant="outline"
@@ -1022,10 +1164,14 @@ export default function EscalationPortalPage() {
                       className="border-slate-400 bg-slate-100 text-slate-800 font-bold text-xs"
                     >
                       {previewTier === "DE"
-                        ? "Level 1: Sub-Division DE/AE Daily Notice (Day 1)"
+                        ? "Level 1: DE/AE Daily Notice (Day 1)"
                         : previewTier === "EE"
-                        ? "Level 2: Division EE Escalation Notice (>3 Days)"
-                        : "Level 3: Apex Regional CE/SE Weekly Notice (1 Week+)"}
+                        ? "Level 2: EE Escalation Notice (>3 Days)"
+                        : previewTier === "CE"
+                        ? "Level 3: CE & SE Weekly Notice (7+ Days)"
+                        : previewTier === "MS"
+                        ? "Level 4: Member Secretary (MS) Notice (10+ Days)"
+                        : "Level 5: Principal Secretary (PS) Notice (15+ Days)"}
                     </Badge>
                     <Badge variant="outline" className="text-xs font-mono">
                       {previewScheme.max_streak_days} Consecutive Days Unresolved
@@ -1042,7 +1188,7 @@ export default function EscalationPortalPage() {
                 </DialogHeader>
 
                 {/* Switch Tier Buttons inside Modal */}
-                <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+                <div className="flex items-center gap-2 border-b border-slate-200 pb-2 flex-wrap">
                   <span className="text-xs text-slate-600 font-medium">Switch Tier:</span>
                   <Button
                     size="sm"
@@ -1067,6 +1213,22 @@ export default function EscalationPortalPage() {
                     className={`h-7 text-xs ${previewTier === "CE" ? "bg-slate-800 text-white" : "border-slate-300"}`}
                   >
                     CE / SE (Weekly)
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={previewTier === "MS" ? "default" : "outline"}
+                    onClick={() => openPreview(previewScheme, "MS")}
+                    className={`h-7 text-xs ${previewTier === "MS" ? "bg-purple-900 text-white" : "border-slate-300"}`}
+                  >
+                    MS (10+ Days)
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={previewTier === "PS" ? "default" : "outline"}
+                    onClick={() => openPreview(previewScheme, "PS")}
+                    className={`h-7 text-xs ${previewTier === "PS" ? "bg-indigo-950 text-white" : "border-slate-300"}`}
+                  >
+                    PS (15+ Days)
                   </Button>
                 </div>
 
@@ -1161,6 +1323,136 @@ export default function EscalationPortalPage() {
                     className="text-xs border-slate-300"
                   >
                     Close
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* ========================================================= */}
+        {/* MODAL: EXECUTIVE CONTACTS CONFIGURATION (MS & PS)         */}
+        {/* ========================================================= */}
+        <Dialog open={execModalOpen} onOpenChange={setExecModalOpen}>
+          <DialogContent className="max-w-xl bg-white border border-slate-300 text-slate-900 p-6">
+            <DialogHeader className="border-b border-slate-200 pb-3">
+              <div className="flex items-center gap-2">
+                <Badge className="bg-purple-900 text-white font-bold text-xs">Level 4 (MS)</Badge>
+                <Badge className="bg-indigo-950 text-white font-bold text-xs">Level 5 (PS)</Badge>
+              </div>
+              <DialogTitle className="text-base sm:text-lg font-bold text-slate-900 pt-1">
+                Executive Authority Contact Details
+              </DialogTitle>
+              <DialogDescription className="text-xs text-slate-600">
+                Update the official mobile numbers and email addresses for Member Secretary (notified for all schemes after 10 days) and Principal Secretary (notified after 15 days).
+              </DialogDescription>
+            </DialogHeader>
+
+            {execLoading ? (
+              <div className="py-8 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+                <RefreshCw className="w-4 h-4 animate-spin text-purple-700" />
+                Loading current details...
+              </div>
+            ) : (
+              <div className="space-y-4 pt-2">
+                {/* SECTION 1: MEMBER SECRETARY */}
+                <div className="p-3.5 bg-purple-50/60 rounded-lg border border-purple-200 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-purple-950 uppercase tracking-wide">
+                      Level 4 • Member Secretary (MS)
+                    </span>
+                    <Badge variant="outline" className="text-[10px] bg-white border-purple-300 text-purple-900">
+                      Receives Notice After 10 Days
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <label className="text-[11px] text-slate-600 font-medium block mb-1">Full Name</label>
+                      <Input
+                        value={execContacts.ms.name}
+                        onChange={(e) => setExecContacts({ ...execContacts, ms: { ...execContacts.ms, name: e.target.value } })}
+                        placeholder="Member Secretary (MS)"
+                        className="h-8 text-xs bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-slate-600 font-medium block mb-1">Mobile (for SMS)</label>
+                      <Input
+                        value={execContacts.ms.mobile}
+                        onChange={(e) => setExecContacts({ ...execContacts, ms: { ...execContacts.ms, mobile: e.target.value } })}
+                        placeholder="98XXXXXXXX"
+                        className="h-8 text-xs bg-white font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-slate-600 font-medium block mb-1">Email (for Alerts)</label>
+                      <Input
+                        value={execContacts.ms.email}
+                        onChange={(e) => setExecContacts({ ...execContacts, ms: { ...execContacts.ms, email: e.target.value } })}
+                        placeholder="ms.mjp@gov.in"
+                        className="h-8 text-xs bg-white font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* SECTION 2: PRINCIPAL SECRETARY */}
+                <div className="p-3.5 bg-indigo-50/60 rounded-lg border border-indigo-200 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-indigo-950 uppercase tracking-wide">
+                      Level 5 • Principal Secretary (PS)
+                    </span>
+                    <Badge variant="outline" className="text-[10px] bg-white border-indigo-300 text-indigo-950">
+                      Receives Notice After 15 Days
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <label className="text-[11px] text-slate-600 font-medium block mb-1">Full Name</label>
+                      <Input
+                        value={execContacts.ps.name}
+                        onChange={(e) => setExecContacts({ ...execContacts, ps: { ...execContacts.ps, name: e.target.value } })}
+                        placeholder="Principal Secretary (PS)"
+                        className="h-8 text-xs bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-slate-600 font-medium block mb-1">Mobile (for SMS)</label>
+                      <Input
+                        value={execContacts.ps.mobile}
+                        onChange={(e) => setExecContacts({ ...execContacts, ps: { ...execContacts.ps, mobile: e.target.value } })}
+                        placeholder="98XXXXXXXX"
+                        className="h-8 text-xs bg-white font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-slate-600 font-medium block mb-1">Email (for Alerts)</label>
+                      <Input
+                        value={execContacts.ps.email}
+                        onChange={(e) => setExecContacts({ ...execContacts, ps: { ...execContacts.ps, email: e.target.value } })}
+                        placeholder="ps.wss@maharashtra.gov.in"
+                        className="h-8 text-xs bg-white font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setExecModalOpen(false)}
+                    className="h-8 text-xs border-slate-300"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={saveExecutiveContacts}
+                    disabled={execSaving}
+                    className="h-8 text-xs bg-purple-900 hover:bg-purple-950 text-white font-semibold"
+                  >
+                    {execSaving ? "Saving..." : "Save Contact Details"}
                   </Button>
                 </div>
               </div>

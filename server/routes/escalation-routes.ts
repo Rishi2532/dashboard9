@@ -5,8 +5,12 @@ import {
   renderDeSchemeDailyEmail,
   renderEeSchemeEscalationEmail,
   renderCeRegionalConsolidatedEmail,
+  renderMsSchemeEscalationEmail,
+  renderPsSchemeEscalationEmail,
   executeEscalationDispatch,
   getSentEscalationAlerts,
+  getExecutiveContacts,
+  updateExecutiveContacts,
 } from "../services/escalation-service";
 import ExcelJS from "exceljs";
 
@@ -78,7 +82,7 @@ router.get("/schemes", async (req: Request, res: Response) => {
     const { summary, schemes } = await getEscalationStatus({ region });
 
     let filtered = schemes;
-    if (level && [1, 2, 3].includes(level)) {
+    if (level && [1, 2, 3, 4, 5].includes(level)) {
       filtered = filtered.filter((s) => s.escalation_level === level);
     }
     if (search) {
@@ -207,6 +211,10 @@ router.get("/preview-ce/:region", async (req: Request, res: Response) => {
       return res.status(404).json({ error: `No Level 3 (7+ days chronic) schemes found in ${region} region` });
     }
 
+    const schemeId = req.query.schemeId ? String(req.query.schemeId).trim() : null;
+    let targetScheme = schemeId ? schemes.find((s) => s.scheme_id === schemeId) : null;
+    if (!targetScheme) targetScheme = level3Schemes[0];
+
     const firstScheme = level3Schemes[0];
     const email = renderCeRegionalConsolidatedEmail(region, level3Schemes);
     const smsList = level3Schemes.map((s) => ({
@@ -230,11 +238,95 @@ router.get("/preview-ce/:region", async (req: Request, res: Response) => {
       recipient_mobile: firstScheme.chief_engineer_mobile || "N/A",
       email_subject: email.subject,
       email_html: email.html,
-      sms_text: smsList[0]?.sms_text || "",
+      sms_text: targetScheme ? renderSchemeEscalationSMS(targetScheme, "CE") : (smsList[0]?.sms_text || ""),
       sms_list: smsList,
     });
   } catch (error: any) {
     console.error("Error in preview-ce:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/escalation/preview-ms/:schemeId
+ * Returns preview of the Level 4 Member Secretary (MS) escalation notice
+ */
+router.get("/preview-ms/:schemeId", async (req: Request, res: Response) => {
+  try {
+    const schemeId = String(req.params.schemeId).trim();
+    const { schemes } = await getEscalationStatus();
+    const scheme = schemes.find((s) => s.scheme_id === schemeId);
+
+    if (!scheme) {
+      return res.status(404).json({ error: `Scheme ${schemeId} not found in escalation records` });
+    }
+
+    const email = renderMsSchemeEscalationEmail(scheme);
+    const sms = renderSchemeEscalationSMS(scheme, "MS");
+
+    res.json({
+      success: true,
+      scheme_id: scheme.scheme_id,
+      scheme_name: scheme.scheme_name,
+      streak_days: scheme.max_streak_days,
+      recipient: {
+        name: "Member Secretary (MS)",
+        role: "Member Secretary, Maharashtra Jeevan Pradhikaran",
+        email: "ms.mjp@gov.in",
+        mobile: "Head Office",
+        office: "MJP Head Office, Mumbai",
+      },
+      recipient_name: "Member Secretary (MS)",
+      recipient_email: "ms.mjp@gov.in",
+      recipient_mobile: "Head Office",
+      email_subject: email.subject,
+      email_html: email.html,
+      sms_text: sms,
+    });
+  } catch (error: any) {
+    console.error("Error in preview-ms:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/escalation/preview-ps/:schemeId
+ * Returns preview of the Level 5 Principal Secretary (PS) escalation notice
+ */
+router.get("/preview-ps/:schemeId", async (req: Request, res: Response) => {
+  try {
+    const schemeId = String(req.params.schemeId).trim();
+    const { schemes } = await getEscalationStatus();
+    const scheme = schemes.find((s) => s.scheme_id === schemeId);
+
+    if (!scheme) {
+      return res.status(404).json({ error: `Scheme ${schemeId} not found in escalation records` });
+    }
+
+    const email = renderPsSchemeEscalationEmail(scheme);
+    const sms = renderSchemeEscalationSMS(scheme, "PS");
+
+    res.json({
+      success: true,
+      scheme_id: scheme.scheme_id,
+      scheme_name: scheme.scheme_name,
+      streak_days: scheme.max_streak_days,
+      recipient: {
+        name: "Principal Secretary (PS)",
+        role: "Principal Secretary, Water Supply & Sanitation Department, Maharashtra",
+        email: "ps.wss@maharashtra.gov.in",
+        mobile: "Secretariat",
+        office: "Mantralaya, Mumbai",
+      },
+      recipient_name: "Principal Secretary (PS)",
+      recipient_email: "ps.wss@maharashtra.gov.in",
+      recipient_mobile: "Secretariat",
+      email_subject: email.subject,
+      email_html: email.html,
+      sms_text: sms,
+    });
+  } catch (error: any) {
+    console.error("Error in preview-ps:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -257,6 +349,8 @@ const handleDispatch = async (req: Request, res: Response) => {
       results: {
         ee_count: result.ee_emails_sent + result.ee_sms_sent,
         ce_count: result.ce_emails_sent + result.ce_sms_sent,
+        ms_count: result.ms_emails_sent + result.ms_sms_sent,
+        ps_count: result.ps_emails_sent + result.ps_sms_sent,
       },
     });
   } catch (error: any) {
@@ -269,24 +363,61 @@ router.post("/dispatch", handleDispatch);
 router.post("/trigger-now", handleDispatch);
 
 /**
+ * GET /api/escalation/executive-contacts
+ * Returns current configured contact details for Member Secretary (MS) and Principal Secretary (PS)
+ */
+router.get("/executive-contacts", async (req: Request, res: Response) => {
+  try {
+    const contacts = await getExecutiveContacts();
+    res.json({ success: true, contacts });
+  } catch (error: any) {
+    console.error("Error fetching executive contacts:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch executive contacts" });
+  }
+});
+
+/**
+ * POST /api/escalation/executive-contacts
+ * Updates contact details for Member Secretary (MS) and Principal Secretary (PS)
+ */
+router.post("/executive-contacts", async (req: Request, res: Response) => {
+  try {
+    const { ms, ps } = req.body;
+    await updateExecutiveContacts({ ms, ps });
+    const updated = await getExecutiveContacts();
+    res.json({ success: true, message: "Executive contacts updated successfully", contacts: updated });
+  } catch (error: any) {
+    console.error("Error updating executive contacts:", error);
+    res.status(500).json({ error: error.message || "Failed to update executive contacts" });
+  }
+});
+
+/**
  * GET /api/escalation/export-excel
  * Exports the full Escalation Matrix into a styled Excel workbook
  */
 router.get("/export-excel", async (req: Request, res: Response) => {
   try {
     const region = req.query.region ? String(req.query.region) : undefined;
+    const levelFilter = req.query.level ? parseInt(String(req.query.level), 10) : undefined;
     const { summary, schemes } = await getEscalationStatus({ region });
+
+    let exportSchemes = schemes;
+    if (levelFilter && [1, 2, 3, 4, 5].includes(levelFilter)) {
+      exportSchemes = schemes.filter((s) => s.escalation_level === levelFilter);
+    }
 
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "MJP JJM IoT Cell";
     workbook.created = new Date();
 
-    const sheet = workbook.addWorksheet("Escalation Matrix", {
+    const sheetName = levelFilter ? `Level ${levelFilter} Escalation` : "Escalation Matrix";
+    const sheet = workbook.addWorksheet(sheetName, {
       views: [{ showGridLines: true }],
     });
 
     // Branded Header
-    sheet.mergeCells("A1:N1");
+    sheet.mergeCells("A1:O1");
     const titleCell = sheet.getCell("A1");
     titleCell.value = "MAHARASHTRA JEEVAN PRADHIKARAN - JAL JEEVAN MISSION";
     titleCell.font = { name: "Arial", size: 14, bold: true, color: { argb: "FFFFFFFF" } };
@@ -294,9 +425,12 @@ router.get("/export-excel", async (req: Request, res: Response) => {
     titleCell.alignment = { horizontal: "center", vertical: "middle" };
     sheet.getRow(1).height = 32;
 
-    sheet.mergeCells("A2:N2");
+    sheet.mergeCells("A2:O2");
     const subCell = sheet.getCell("A2");
-    subCell.value = `3-Tier Alerts Escalation Matrix (Report Generated: ${new Date().toLocaleDateString("en-IN")})`;
+    const levelSubTitle = levelFilter
+      ? `Level ${levelFilter} Alert Escalation Registry (${exportSchemes.length} Schemes)`
+      : "4-Tier Alerts Escalation Matrix (DE / EE / CE & SE / Member Secretary)";
+    subCell.value = `${levelSubTitle} — (Report Generated: ${new Date().toLocaleDateString("en-IN")})`;
     subCell.font = { name: "Arial", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
     subCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } };
     subCell.alignment = { horizontal: "center", vertical: "middle" };
@@ -317,7 +451,8 @@ router.get("/export-excel", async (req: Request, res: Response) => {
       "Offline Sensors",
       "DE / AE (Civil)",
       "EE (Civil)",
-      "Chief Engineer",
+      "Chief Engineer (CE)",
+      "Member Secretary (MS)",
     ];
 
     const headerRow = sheet.addRow(headers);
@@ -328,10 +463,14 @@ router.get("/export-excel", async (req: Request, res: Response) => {
       cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
     });
 
-    schemes.forEach((s) => {
+    exportSchemes.forEach((s) => {
       const levelLabel =
-        s.escalation_level === 3
-          ? "Level 3 - CE (7+ Days)"
+        s.escalation_level === 5
+          ? "Level 5 - PS (15+ Days)"
+          : s.escalation_level === 4
+          ? "Level 4 - MS (10-14 Days)"
+          : s.escalation_level === 3
+          ? "Level 3 - CE/SE (7-9 Days)"
           : s.escalation_level === 2
           ? "Level 2 - EE (3-6 Days)"
           : "Level 1 - DE (1-2 Days)";
@@ -351,13 +490,24 @@ router.get("/export-excel", async (req: Request, res: Response) => {
         s.de_ae_civil_name ? `${s.de_ae_civil_name} (${s.de_ae_civil_mobile || "N/A"})` : "-",
         s.ee_civil_name ? `${s.ee_civil_name} (${s.ee_civil_mobile || "N/A"})` : "-",
         s.chief_engineer_name ? `${s.chief_engineer_name} (${s.chief_engineer_mobile || "N/A"})` : "-",
+        s.escalation_level === 5
+          ? "Principal Secretary (PS) Escalated"
+          : s.escalation_level === 4
+          ? "Member Secretary (MS) Escalated"
+          : "-",
       ]);
 
       row.height = 22;
 
       // Color-code the level cell
       const levelCell = row.getCell(5);
-      if (s.escalation_level === 3) {
+      if (s.escalation_level === 5) {
+        levelCell.font = { bold: true, color: { argb: "FF1E1B4B" } };
+        levelCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE0E7FF" } };
+      } else if (s.escalation_level === 4) {
+        levelCell.font = { bold: true, color: { argb: "FF581C87" } };
+        levelCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3E8FF" } };
+      } else if (s.escalation_level === 3) {
         levelCell.font = { bold: true, color: { argb: "FF991B1B" } };
         levelCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFEE2E2" } };
       } else if (s.escalation_level === 2) {

@@ -1439,6 +1439,14 @@ export const schemeEngineerDetails = pgTable("scheme_engineer_details", {
   chief_engineer_name: varchar("chief_engineer_name", { length: 255 }),
   chief_engineer_mobile: varchar("chief_engineer_mobile", { length: 20 }),
   chief_engineer_email: varchar("chief_engineer_email", { length: 255 }),
+  // Member Secretary (MS)
+  member_secretary_name: varchar("member_secretary_name", { length: 255 }),
+  member_secretary_mobile: varchar("member_secretary_mobile", { length: 20 }),
+  member_secretary_email: varchar("member_secretary_email", { length: 255 }),
+  // Principal Secretary (PS)
+  principal_secretary_name: varchar("principal_secretary_name", { length: 255 }),
+  principal_secretary_mobile: varchar("principal_secretary_mobile", { length: 20 }),
+  principal_secretary_email: varchar("principal_secretary_email", { length: 255 }),
 });
 
 export const insertSchemeEngineerDetailsSchema = createInsertSchema(schemeEngineerDetails).omit({
@@ -1476,6 +1484,10 @@ export const emailAlertLogs = pgTable("email_alert_logs", {
   se_email: varchar("se_email", { length: 255 }),
   chief_engineer_name: varchar("chief_engineer_name", { length: 255 }),
   chief_engineer_email: varchar("chief_engineer_email", { length: 255 }),
+  member_secretary_name: varchar("member_secretary_name", { length: 255 }),
+  member_secretary_email: varchar("member_secretary_email", { length: 255 }),
+  principal_secretary_name: varchar("principal_secretary_name", { length: 255 }),
+  principal_secretary_email: varchar("principal_secretary_email", { length: 255 }),
   sent_date: date("sent_date").defaultNow().notNull(), // e.g. '2026-06-02'
   sent_time: time("sent_time").defaultNow().notNull(), // e.g. '14:55:00'
   ticket_id: varchar("ticket_id", { length: 100 }).unique(),

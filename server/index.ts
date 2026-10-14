@@ -101,7 +101,7 @@ app.use((req, res, next) => {
   if (process.env.NODE_ENV === "production") {
     res.setHeader("X-Frame-Options", "SAMEORIGIN");
   }
-  res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; frame-ancestors 'self' http://localhost:8081; connect-src 'self' https://dashboard1.mahajaliot.in;");
+  res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; frame-ancestors 'self' http://localhost:8081; connect-src 'self' https://mahajaliot.in https://*.mahajaliot.in https://dashboard1.mahajaliot.in;");
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), usb=(), fullscreen=(self)");
