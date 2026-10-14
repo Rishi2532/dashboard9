@@ -609,7 +609,7 @@ export default function Schemes() {
           scheme.agency_type === "ZP"
             ? "ZP"
             : (scheme.agency ||
-               (scheme.region ? getAgencyByRegion(scheme.region) : "Not Specified")),
+              (scheme.region ? getAgencyByRegion(scheme.region) : "Not Specified")),
         "Total Villages": scheme.number_of_village || 0,
         "Villages Integrated": scheme.total_villages_integrated || 0,
         "Villages Completed": scheme.fully_completed_villages || 0,

@@ -404,26 +404,10 @@ export async function sendSmartpingDLTSMS(params: {
   }
 }
 
-/**
- * Logs an SMS alert dispatch into the sms_alert_logs database table
- */
-export async function logSmsAlert(data: {
-  mobile: string;
-  engineer_name?: string;
-  engineer_email?: string;
-  scheme_id?: string;
-  scheme_name?: string;
-  template_id?: string;
-  template_name?: string;
-  message_text?: string;
-  gateway_status?: number;
-  gateway_response?: string;
-  is_success?: boolean;
-  dispatch_type?: string;
-  telemetry_date?: string;
-  transaction_id?: string;
-  delivery_status?: string;
-}) {
+let isSmsTableInitialized = false;
+
+export async function ensureSmsAlertLogsTable() {
+  if (isSmsTableInitialized) return;
   try {
     const db = await getDB();
     await db.execute(sql`
@@ -447,7 +431,7 @@ export async function logSmsAlert(data: {
         delivery_description TEXT,
         delivered_date VARCHAR(50),
         delivery_checked_at TIMESTAMP WITH TIME ZONE,
-        sent_date DATE DEFAULT CURRENT_DATE,
+        sent_date DATE DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
       CREATE INDEX IF NOT EXISTS idx_sms_alert_logs_mobile ON sms_alert_logs(mobile);
@@ -456,6 +440,35 @@ export async function logSmsAlert(data: {
       CREATE INDEX IF NOT EXISTS idx_sms_alert_logs_txid ON sms_alert_logs(transaction_id);
       CREATE INDEX IF NOT EXISTS idx_sms_alert_logs_delivery_status ON sms_alert_logs(delivery_status);
     `);
+    isSmsTableInitialized = true;
+  } catch (err: any) {
+    console.warn("⚠️ Error initializing sms_alert_logs table schema:", err?.message || err);
+  }
+}
+
+/**
+ * Logs an SMS alert dispatch into the sms_alert_logs database table
+ */
+export async function logSmsAlert(data: {
+  mobile: string;
+  engineer_name?: string;
+  engineer_email?: string;
+  scheme_id?: string;
+  scheme_name?: string;
+  template_id?: string;
+  template_name?: string;
+  message_text?: string;
+  gateway_status?: number;
+  gateway_response?: string;
+  is_success?: boolean;
+  dispatch_type?: string;
+  telemetry_date?: string;
+  transaction_id?: string;
+  delivery_status?: string;
+}) {
+  try {
+    await ensureSmsAlertLogsTable();
+    const db = await getDB();
 
     // Extract transactionId if not provided directly
     let txId = data.transaction_id;

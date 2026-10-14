@@ -12,9 +12,57 @@ import {
   getExecutiveContacts,
   updateExecutiveContacts,
 } from "../services/escalation-service";
+import {
+  getDailyAlertsCronStatus,
+  hasAlertsBeenSentToday,
+  triggerDailyJobIfNotSentToday,
+  runDailyAlertsJob,
+} from "../cron/daily-alerts";
 import ExcelJS from "exceljs";
 
 const router = Router();
+
+/**
+ * GET /api/escalation/cron-status
+ * Returns current status of the 11:00 AM Daily Alerts Cron Scheduler
+ */
+router.get("/cron-status", async (req: Request, res: Response) => {
+  try {
+    const status = getDailyAlertsCronStatus();
+    const sentToday = await hasAlertsBeenSentToday(status.currentDateIST);
+    res.json({
+      success: true,
+      ...status,
+      alreadySentToday: sentToday,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to get cron status" });
+  }
+});
+
+/**
+ * POST /api/escalation/trigger-daily-alerts
+ * Triggers the 11:00 AM daily alerts dispatch immediately on demand
+ */
+router.post("/trigger-daily-alerts", async (req: Request, res: Response) => {
+  try {
+    const force = req.body?.force === true;
+    if (force) {
+      await runDailyAlertsJob();
+      return res.json({ success: true, message: "Daily alerts job triggered (force mode)" });
+    }
+    const triggered = await triggerDailyJobIfNotSentToday("admin-portal-api");
+    res.json({
+      success: true,
+      triggered,
+      message: triggered
+        ? "Daily alerts job initiated successfully"
+        : "Daily alerts already sent today or currently in progress",
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to trigger daily alerts" });
+  }
+});
 
 /**
  * GET /api/escalation/sent-alerts
