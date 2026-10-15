@@ -174,6 +174,7 @@ export default function EngineerDashboard() {
   }, [user?.id, user?.email, engineerProfile?.email]);
 
   const getAlertKey = (a: any) => {
+    if (a.ack_id) return `ack-${a.ack_id}`;
     if (a.id) return `alert-id-${a.id}`;
     if (a.ticket_id) return `ticket-${a.ticket_id}`;
     return `alert-${a.scheme_id}-${a.alert_type}-${a.esr_name || ''}-${a.village_name || ''}-${a.sent_date ? String(a.sent_date).slice(0, 10) : ''}-${a.alert_value || ''}`;
@@ -296,7 +297,7 @@ export default function EngineerDashboard() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          alert_id: alert.id,
+          alert_id: alert.ack_id || alert.id,
           ticket_id: alert.ticket_id,
           esr_name: alert.esr_name,
           scheme_id: alert.scheme_id,
@@ -1210,6 +1211,7 @@ export default function EngineerDashboard() {
                         Boolean(alert.is_acknowledged) ||
                         Boolean(alert.acknowledged) ||
                         Boolean(alert.acknowledged_at) ||
+                        Boolean(alert.is_ack) ||
                         acknowledgedAlertKeys.has(alertKey);
                       return (
                         <tr key={alert.id || idx} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">

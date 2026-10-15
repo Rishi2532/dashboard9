@@ -3652,12 +3652,15 @@ export default function AlertsProgressPage() {
             {/* Card 2: Dispatched Alerts (Email & SMS) */}
             <div
               onClick={() => {
+                const targetEngs = dispatchedEngineersList.length > 0 
+                  ? dispatchedEngineersList 
+                  : notifiedEngineersList.filter(e => e.isDispatched);
                 setEngineersModalData({
                   title: `Dispatched Alerts Recipient Engineers (${emailsSentCount} Emails Dispatched)`,
-                  engineers: notifiedEngineersList
+                  engineers: targetEngs.length > 0 ? targetEngs : notifiedEngineersList.filter(e => e.ackCount > 0)
                 });
                 setEngineerModalSearch("");
-                setEngineerFilterTab("notified");
+                setEngineerFilterTab("all");
               }}
               className="bg-[#eef2ff] border border-indigo-200 rounded p-3.5 flex flex-col justify-between hover:border-indigo-300 transition-colors group relative cursor-pointer"
               title={`Consolidated Daily Dispatch: Click to view list of ${emailsSentCount} notified engineers for ${type === "lpcd" ? "LPCD" : type} alerts`}
@@ -3685,11 +3688,14 @@ export default function AlertsProgressPage() {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
+                    const targetEngs = dispatchedEngineersList.length > 0 
+                      ? dispatchedEngineersList 
+                      : notifiedEngineersList.filter(e => e.isDispatched);
                     downloadTabDispatchesExcel({
                       tabName: type === "lpcd" ? "LPCD" : type === "chlorine" ? "Chlorine" : type === "pressure" ? "Pressure" : "Offline",
                       tabType: type,
                       dateStr: customDate || (activeSubTab === "previous" ? yesterdayYmd : todayYmd),
-                      engineers: notifiedEngineersList,
+                      engineers: targetEngs.length > 0 ? targetEngs : notifiedEngineersList.filter(e => e.ackCount > 0),
                       totalAlerts: Number(firstKpiValue) || baseData.length,
                       emailsCount: emailsSentCount,
                       smsCount: smsSentCount,
@@ -3708,9 +3714,12 @@ export default function AlertsProgressPage() {
             {/* Card 3: Engineers Acknowledged */}
             <div
               onClick={() => {
+                const targetEngs = dispatchedEngineersList.length > 0 
+                  ? dispatchedEngineersList 
+                  : notifiedEngineersList.filter(e => e.isDispatched);
                 setEngineersModalData({
                   title: `Acknowledged Engineers (${totalAckEngineers} of ${totalEngineers})`,
-                  engineers: notifiedEngineersList
+                  engineers: targetEngs.length > 0 ? targetEngs : notifiedEngineersList
                 });
                 setEngineerModalSearch("");
                 setEngineerFilterTab("acknowledged");

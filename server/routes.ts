@@ -1464,14 +1464,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 6. Fetch Recent alerts and total alerts count with acknowledgement status
       const alertsRes: any = await db.execute(sql`
         SELECT a.id, a.scheme_id, a.scheme_name, a.region, a.village_name, a.esr_name, a.alert_type, a.alert_value, a.sent_date, a.sent_time, a.ticket_id,
-               ea.acknowledged_at, ea.engineer_name as acknowledged_by,
-               (ea.acknowledged_at IS NOT NULL) as is_acknowledged,
+               ea.id as ack_id, ea.token as ack_token, ea.acknowledged_at, ea.engineer_name as acknowledged_by,
+               (COALESCE(ea.is_ack, false) = true OR ea.acknowledged_at IS NOT NULL) as is_acknowledged,
                rem.vendor_name as reminder_vendor_name,
                rem.vendor_email as reminder_vendor_email,
                rem.sent_at as reminder_sent_at
         FROM email_alert_logs a
         LEFT JOIN LATERAL (
-          SELECT ea.acknowledged_at, ea.engineer_name
+          SELECT ea.id, ea.token, ea.acknowledged_at, ea.engineer_name, ea.is_ack
           FROM email_acknowledgements ea
           WHERE (
             -- 1. Exact alert match by alert_id
@@ -1487,13 +1487,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 OR (ea.alert_type IN ('LPCD', 'Low LPCD') AND a.alert_type IN ('LPCD', 'Low LPCD'))
                 OR (ea.alert_type IN ('Chlorine', 'Low Chlorine', 'High Chlorine') AND a.alert_type IN ('Chlorine', 'Low Chlorine', 'High Chlorine'))
               )
-              AND ea.sent_date::date = a.sent_date::date 
+              AND (ea.sent_date::date = a.sent_date::date OR (ea.sent_date AT TIME ZONE 'Asia/Kolkata')::date = a.sent_date::date OR ea.created_at::date = a.sent_date::date)
               AND COALESCE(NULLIF(TRIM(ea.esr_name), '-'), '') = COALESCE(NULLIF(TRIM(a.esr_name), '-'), '')
             )
           )
-          AND ea.acknowledged_at IS NOT NULL
           ${!isAdmin && userEmail ? sql`AND LOWER(TRIM(ea.engineer_email)) = ${userEmail}` : sql``}
-          ORDER BY ea.acknowledged_at DESC
+          ORDER BY (ea.acknowledged_at IS NOT NULL OR ea.is_ack = true) DESC, ea.id DESC
           LIMIT 1
         ) ea ON true
         LEFT JOIN LATERAL (
@@ -1507,8 +1506,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ORDER BY r.sent_at DESC
           LIMIT 1
         ) rem ON true
-        WHERE a.scheme_id IN (${sql.raw(idPlaceholders)}) AND a.alert_type NOT IN ('Water', 'Zero Water Supply')
-        ORDER BY a.id DESC LIMIT 200
+        WHERE a.scheme_id IN (${sql.raw(idPlaceholders)}) 
+          AND a.alert_type NOT IN ('Water', 'Zero Water Supply')
+          ${!isAdmin && userEmail ? sql`AND (ea.id IS NOT NULL OR a.civil_engineer_email ILIKE ${'%' + userEmail + '%'} OR a.ee_civil_email ILIKE ${'%' + userEmail + '%'} OR a.se_email ILIKE ${'%' + userEmail + '%'} OR a.chief_engineer_email ILIKE ${'%' + userEmail + '%'})` : sql``}
+        ORDER BY a.sent_date DESC, a.id DESC LIMIT 200
       `);
 
       const totalAlertsRes: any = await db.execute(sql`

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Search,
@@ -216,10 +216,11 @@ export default function EscalationPortalPage() {
 
   // Active layer view: "layer1" (DE/AE Daily) | "layer2" (EE >3 Days) | "layer3" (SE & CE Weekly) | "layer4" (Head - MJP) | "layer5" (Head - WSSD)
   const [activeLayer, setActiveLayer] = useState<"layer1" | "layer2" | "layer3" | "layer4" | "layer5">("layer1");
-  const [activeCategory, setActiveCategory] = useState<"lpcd" | "chlorine" | "pressure" | "offline">("lpcd");
+  const [activeCategory, setActiveCategory] = useState<"all" | "lpcd" | "chlorine" | "pressure" | "offline">("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 15;
+  const tableSectionRef = useRef<HTMLDivElement>(null);
 
   // Notice preview modal
   const [previewScheme, setPreviewScheme] = useState<SchemeEscalationItem | null>(null);
@@ -654,12 +655,18 @@ export default function EscalationPortalPage() {
     return list;
   }, [activeSchemes, activeLayer, execContacts]);
 
+  // Total alerts for the current level
+  const totalLevelAlerts = useMemo(() => {
+    return lpcdAlerts.length + chlorineAlerts.length + pressureAlerts.length + offlineAlerts.length;
+  }, [lpcdAlerts, chlorineAlerts, pressureAlerts, offlineAlerts]);
+
   // Selected Category alerts list
   const currentCategoryAlerts = useMemo(() => {
     if (activeCategory === "chlorine") return chlorineAlerts;
     if (activeCategory === "pressure") return pressureAlerts;
     if (activeCategory === "offline") return offlineAlerts;
-    return lpcdAlerts;
+    if (activeCategory === "lpcd") return lpcdAlerts;
+    return [...lpcdAlerts, ...chlorineAlerts, ...pressureAlerts, ...offlineAlerts];
   }, [activeCategory, lpcdAlerts, chlorineAlerts, pressureAlerts, offlineAlerts]);
 
   // Filtered by Search Term
@@ -692,7 +699,8 @@ export default function EscalationPortalPage() {
       "Scheme Name",
       "Region",
       "District",
-      activeCategory === "lpcd" ? "Village Name" : "ESR / Village Name",
+      "Category",
+      activeCategory === "lpcd" ? "Village Name" : "Location (Village / ESR)",
       "Alert Title",
       "Recorded Value",
       "Days Unresolved",
@@ -709,6 +717,7 @@ export default function EscalationPortalPage() {
       `"${item.scheme_name.replace(/"/g, '""')}"`,
       `"${item.region}"`,
       `"${item.district || ''}"`,
+      `"${(item.category || '').toUpperCase()}"`,
       `"${(item.esr_name && item.esr_name !== '-' ? `${item.esr_name} (${item.village_name})` : item.village_name).replace(/"/g, '""')}"`,
       `"${item.alert_title}"`,
       `"${item.parameter_value}"`,
@@ -968,7 +977,12 @@ export default function EscalationPortalPage() {
 
           {/* CARD 1: LEVEL 1 - DE / AE */}
           <div
-            onClick={() => { setActiveLayer("layer1"); setPage(1); }}
+            onClick={() => {
+              setActiveLayer("layer1");
+              setActiveCategory("all");
+              setPage(1);
+              tableSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
             className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${activeLayer === "layer1"
               ? "border-blue-900 ring-2 ring-blue-900/30 bg-blue-50/30"
               : "border-slate-300 hover:border-blue-400"
@@ -1022,7 +1036,12 @@ export default function EscalationPortalPage() {
 
           {/* CARD 2: LEVEL 2 - EE */}
           <div
-            onClick={() => { setActiveLayer("layer2"); setPage(1); }}
+            onClick={() => {
+              setActiveLayer("layer2");
+              setActiveCategory("all");
+              setPage(1);
+              tableSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
             className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${activeLayer === "layer2"
               ? "border-amber-700 ring-2 ring-amber-700/30 bg-amber-50/30"
               : "border-slate-300 hover:border-amber-400"
@@ -1076,7 +1095,12 @@ export default function EscalationPortalPage() {
 
           {/* CARD 3: LEVEL 3 - CE & SE */}
           <div
-            onClick={() => { setActiveLayer("layer3"); setPage(1); }}
+            onClick={() => {
+              setActiveLayer("layer3");
+              setActiveCategory("all");
+              setPage(1);
+              tableSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
             className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${activeLayer === "layer3"
               ? "border-red-900 ring-2 ring-red-900/30 bg-red-50/30"
               : "border-slate-300 hover:border-red-400"
@@ -1130,7 +1154,12 @@ export default function EscalationPortalPage() {
 
           {/* CARD 4: LEVEL 4 - HEAD - MJP */}
           <div
-            onClick={() => { setActiveLayer("layer4"); setPage(1); }}
+            onClick={() => {
+              setActiveLayer("layer4");
+              setActiveCategory("all");
+              setPage(1);
+              tableSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
             className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${activeLayer === "layer4"
               ? "border-purple-900 ring-2 ring-purple-900/30 bg-purple-50/30"
               : "border-slate-300 hover:border-purple-400"
@@ -1184,7 +1213,12 @@ export default function EscalationPortalPage() {
 
           {/* CARD 5: LEVEL 5 - HEAD - WSSD */}
           <div
-            onClick={() => { setActiveLayer("layer5"); setPage(1); }}
+            onClick={() => {
+              setActiveLayer("layer5");
+              setActiveCategory("all");
+              setPage(1);
+              tableSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
             className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${activeLayer === "layer5"
               ? "border-indigo-950 ring-2 ring-indigo-950/30 bg-indigo-50/30"
               : "border-slate-300 hover:border-indigo-400"
@@ -1243,17 +1277,31 @@ export default function EscalationPortalPage() {
         {/* ========================================================= */}
         <div className="space-y-2">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
                 Alert Categories for {activeLayer === "layer1" ? "Level 1 (DE / AE)" : activeLayer === "layer2" ? "Level 2 (EE)" : activeLayer === "layer3" ? "Level 3 (CE & SE)" : activeLayer === "layer4" ? "Level 4 (Head - MJP)" : "Level 5 (Head - WSSD)"}
               </span>
               <Badge variant="outline" className="text-[10px] font-mono bg-white">
-                {activeSchemes.length} Schemes Escalated
+                {activeSchemes.length} Schemes • {totalLevelAlerts} Issues
               </Badge>
             </div>
-            <span className="text-[11px] text-slate-500">
-              Click any category card below to view the detailed villages / ESRs list
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveCategory("all");
+                  setPage(1);
+                  tableSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+                className={`px-3 py-1 rounded text-xs font-bold transition-all cursor-pointer ${
+                  activeCategory === "all"
+                    ? "bg-slate-900 text-white shadow-xs"
+                    : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                View All {totalLevelAlerts} Issues &darr;
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -1458,7 +1506,7 @@ export default function EscalationPortalPage() {
         {/* ========================================================= */}
         {/* DETAILED VILLAGE / ESR REGISTRY DATA TABLE                */}
         {/* ========================================================= */}
-        <div className="bg-white border border-slate-300 rounded-lg shadow-xs overflow-hidden">
+        <div ref={tableSectionRef} className="bg-white border border-slate-300 rounded-lg shadow-xs overflow-hidden scroll-mt-6">
 
           {/* Table Toolbar */}
           <div className="p-3 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -1467,9 +1515,53 @@ export default function EscalationPortalPage() {
                 {activeLayer === "layer1" ? "Level 1: DE / AE" : activeLayer === "layer2" ? "Level 2: EE" : activeLayer === "layer3" ? "Level 3: CE & SE" : activeLayer === "layer4" ? "Level 4: Head - MJP" : "Level 5: Head - WSSD"}
               </span>
               <span className="text-slate-400">•</span>
-              <Badge variant="secondary" className="text-xs font-bold">
-                {activeCategory === "lpcd" ? "Village LPCD Alerts" : activeCategory === "chlorine" ? "Residual Chlorine" : activeCategory === "pressure" ? "Pressure Monitoring" : "Offline Sensors"} ({filteredCategoryAlerts.length})
-              </Badge>
+              <div className="flex items-center gap-1 bg-slate-200/70 p-0.5 rounded-lg text-xs font-medium flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => { setActiveCategory("all"); setPage(1); }}
+                  className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${
+                    activeCategory === "all" ? "bg-white text-slate-900 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  All ({totalLevelAlerts})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setActiveCategory("lpcd"); setPage(1); }}
+                  className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${
+                    activeCategory === "lpcd" ? "bg-white text-blue-900 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  LPCD ({lpcdAlerts.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setActiveCategory("chlorine"); setPage(1); }}
+                  className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${
+                    activeCategory === "chlorine" ? "bg-white text-teal-900 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  Chlorine ({chlorineAlerts.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setActiveCategory("pressure"); setPage(1); }}
+                  className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${
+                    activeCategory === "pressure" ? "bg-white text-indigo-900 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  Pressure ({pressureAlerts.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setActiveCategory("offline"); setPage(1); }}
+                  className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${
+                    activeCategory === "offline" ? "bg-white text-slate-900 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  Offline ({offlineAlerts.length})
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center gap-2 w-full md:w-auto">
@@ -1521,7 +1613,7 @@ export default function EscalationPortalPage() {
                   <tr className="bg-slate-100/75 border-b border-slate-300 text-[11px] font-bold text-slate-700 uppercase tracking-wider">
                     <th className="py-2.5 px-3 w-10 text-center">Sr.</th>
                     <th className="py-2.5 px-3">Scheme & Region</th>
-                    <th className="py-2.5 px-3">{activeCategory === "lpcd" ? "Village Name" : "ESR / Village"}</th>
+                    <th className="py-2.5 px-3">{activeCategory === "lpcd" ? "Village Name" : activeCategory === "all" ? "Location (Village / ESR)" : "ESR / Village"}</th>
                     <th className="py-2.5 px-3">Alert & Value</th>
                     <th className="py-2.5 px-3 text-center">Unresolved Streak</th>
                     <th className="py-2.5 px-3 text-center border-l border-slate-200">Email Sent</th>
@@ -1549,10 +1641,13 @@ export default function EscalationPortalPage() {
                           </div>
                         </td>
                         <td className="py-3 px-3">
-                          {activeCategory === "lpcd" ? (
-                            <span className="font-semibold text-blue-950 bg-blue-50/80 border border-blue-200 px-2 py-0.5 rounded text-xs">
-                              {item.village_name}
-                            </span>
+                          {item.category === "lpcd" ? (
+                            <div>
+                              <span className="font-semibold text-blue-950 bg-blue-50/80 border border-blue-200 px-2 py-0.5 rounded text-xs">
+                                {item.village_name}
+                              </span>
+                              <div className="text-[10px] text-slate-500 mt-0.5">Village Level</div>
+                            </div>
                           ) : (
                             <div>
                               <div className="font-semibold text-slate-900 text-xs">
@@ -1567,7 +1662,23 @@ export default function EscalationPortalPage() {
                           )}
                         </td>
                         <td className="py-3 px-3">
-                          <div className="font-semibold text-slate-900 text-xs">{item.alert_title}</div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-semibold text-slate-900 text-xs">{item.alert_title}</span>
+                            <Badge
+                              variant="outline"
+                              className={`text-[9px] px-1 py-0 font-bold ${
+                                item.category === "lpcd"
+                                  ? "bg-blue-50 text-blue-700 border-blue-200"
+                                  : item.category === "chlorine"
+                                    ? "bg-teal-50 text-teal-700 border-teal-200"
+                                    : item.category === "pressure"
+                                      ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                      : "bg-slate-100 text-slate-700 border-slate-200"
+                              }`}
+                            >
+                              {item.category.toUpperCase()}
+                            </Badge>
+                          </div>
                           <div className="text-[11px] font-mono font-bold text-amber-800 mt-0.5">
                             Value: {item.parameter_value}
                           </div>

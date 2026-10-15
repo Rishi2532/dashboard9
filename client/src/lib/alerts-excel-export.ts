@@ -286,7 +286,9 @@ export async function downloadTabDispatchesExcel(options: TabDispatchesExportOpt
   });
 
   let emailSr = 1;
-  engineers.filter(e => !!e.email).forEach((eng: any) => {
+  const dispatchedEngs = engineers.filter((e: any) => e.isDispatched);
+  const targetEngineers = dispatchedEngs.length > 0 ? dispatchedEngs : engineers.filter((e: any) => !!e.email);
+  targetEngineers.filter((e: any) => !!e.email).forEach((eng: any) => {
     const isAck = Boolean(eng.isAcknowledged);
     const schemesList = eng.schemes || [];
     const schemeNames = Array.from(new Set(schemesList.map((s: any) => s.scheme_name).filter(Boolean))).join(", ") || "-";

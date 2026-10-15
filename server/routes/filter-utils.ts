@@ -657,6 +657,52 @@ export async function getEngineerAssignedSchemes(
   // Deduplicate by scheme_id
   const uniqueMap = new Map();
   assigned.forEach((item) => uniqueMap.set(item.scheme_id, item));
+
+  // Also include any schemes where alerts were actually dispatched to this engineer in email_acknowledgements
+  if (userEmails.length > 0) {
+    try {
+      const emailPlaceholders = userEmails.map(e => `'${e.replace(/'/g, "''")}'`).join(',');
+      const ackSchemesRes: any = await db.execute(sql.raw(`
+        SELECT DISTINCT ea.scheme_id, 
+               COALESCE(s.scheme_name, ea.scheme_id) as scheme_name,
+               s.region, s.circle, s.division,
+               ea.engineer_name, ea.engineer_email
+        FROM email_acknowledgements ea
+        LEFT JOIN scheme_status s ON s.scheme_id = ea.scheme_id
+        WHERE LOWER(TRIM(ea.engineer_email)) IN (${emailPlaceholders})
+      `));
+      const ackRows = ackSchemesRes.rows || ackSchemesRes;
+      for (const row of ackRows) {
+        if (row.scheme_id && !uniqueMap.has(row.scheme_id)) {
+          uniqueMap.set(row.scheme_id, {
+            scheme_id: row.scheme_id,
+            scheme_name: row.scheme_name || row.scheme_id,
+            region: row.region,
+            district: null,
+            division: row.division,
+            engineer_role: "Assigned Engineer",
+            engineer_name: row.engineer_name || user.name || "",
+            engineer_email: row.engineer_email || user.email || "",
+            engineer_phone: userPhone || "",
+          });
+          if (!engineerProfile) {
+            engineerProfile = {
+              name: user.name || row.engineer_name || user.username || "Engineer",
+              email: user.email || row.engineer_email || "",
+              phone: user.phone || "",
+              role: "Assigned Engineer",
+              region: row.region,
+              district: null,
+              division: row.division,
+            };
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Error matching schemes from email_acknowledgements:", e);
+    }
+  }
+
   const uniqueAssigned = Array.from(uniqueMap.values());
 
   const assignedSchemeIds = uniqueAssigned.length > 0 

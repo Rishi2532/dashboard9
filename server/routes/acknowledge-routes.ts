@@ -161,7 +161,7 @@ router.post('/', async (req: Request, res: Response) => {
     let checkRes;
     if (parsedAlertId) {
       checkRes = await client.query(
-        `SELECT id, acknowledged_at FROM email_acknowledgements WHERE alert_id = $1 AND LOWER(TRIM(engineer_email)) = $2`,
+        `SELECT id, acknowledged_at FROM email_acknowledgements WHERE (id = $1 OR alert_id = $1) AND LOWER(TRIM(engineer_email)) = $2`,
         [parsedAlertId, email]
       );
     }
@@ -182,7 +182,7 @@ router.post('/', async (req: Request, res: Response) => {
                OR (alert_type IN ('LPCD', 'Low LPCD') AND $2 IN ('LPCD', 'Low LPCD'))
                OR (alert_type IN ('Chlorine', 'Low Chlorine', 'High Chlorine') AND $2 IN ('Chlorine', 'Low Chlorine', 'High Chlorine'))
              )
-             AND sent_date = $3 AND TRIM(esr_name) = $4
+             AND (sent_date = $3 OR created_at::date = $3) AND TRIM(esr_name) = $4
              AND LOWER(TRIM(engineer_email)) = $5`,
           [scheme_id, alert_type, date, cleanEsr, email]
         );
@@ -196,7 +196,7 @@ router.post('/', async (req: Request, res: Response) => {
                OR (alert_type IN ('LPCD', 'Low LPCD') AND $2 IN ('LPCD', 'Low LPCD'))
                OR (alert_type IN ('Chlorine', 'Low Chlorine', 'High Chlorine') AND $2 IN ('Chlorine', 'Low Chlorine', 'High Chlorine'))
              )
-             AND sent_date = $3 AND (esr_name IS NULL OR TRIM(esr_name) = '' OR TRIM(esr_name) = '-')
+             AND (sent_date = $3 OR created_at::date = $3) AND (esr_name IS NULL OR TRIM(esr_name) = '' OR TRIM(esr_name) = '-')
              AND LOWER(TRIM(engineer_email)) = $4`,
           [scheme_id, alert_type, date, email]
         );
@@ -209,6 +209,7 @@ router.post('/', async (req: Request, res: Response) => {
       const updateRes = await client.query(
         `UPDATE email_acknowledgements 
          SET acknowledged_at = NOW(), 
+             is_ack = true,
              engineer_name = COALESCE($1, engineer_name), 
              engineer_email = COALESCE($2, engineer_email),
              alert_id = COALESCE($3, alert_id),
@@ -222,8 +223,8 @@ router.post('/', async (req: Request, res: Response) => {
     } else {
       const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
       const insertRes = await client.query(
-        `INSERT INTO email_acknowledgements (token, scheme_id, alert_type, alert_id, ticket_id, esr_name, engineer_email, engineer_name, sent_date, acknowledged_at, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+        `INSERT INTO email_acknowledgements (token, scheme_id, alert_type, alert_id, ticket_id, esr_name, engineer_email, engineer_name, sent_date, acknowledged_at, is_ack, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), true, NOW())
          RETURNING acknowledged_at`,
         [token, scheme_id, alert_type, parsedAlertId, ticket_id || null, cleanEsr, email, name, date]
       );
