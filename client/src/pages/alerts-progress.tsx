@@ -3256,17 +3256,7 @@ export default function AlertsProgressPage() {
     // Count real dispatched engineers strictly sourced from email_acknowledgements
     const dispatchedEngineersList = notifiedEngineersList.filter(e => e.isDispatched);
     const notifiedOfficersCount = dispatchedEngineersList.length || notifiedEngineersList.filter(e => e.ackCount > 0).length || (baseData.some(r => r.acknowledgements?.length) ? 1 : 0);
-
-    // Count real unique email inboxes/addresses dispatched via SMTP
-    const dispatchedEmailSet = new Set<string>();
-    baseData.forEach(r => {
-      (r.acknowledgements || []).forEach((a: any) => {
-        if (a.engineer_email) dispatchedEmailSet.add(a.engineer_email.toLowerCase().trim());
-      });
-    });
-    const emailsSentCount = dispatchedEmailSet.size > 0 
-      ? dispatchedEmailSet.size 
-      : (baseData.some(r => r.acknowledgements?.length) ? 1 : 0);
+    const emailsSentCount = notifiedOfficersCount;
 
     const totalEngineers = dispatchedEngineersList.length > 0 ? dispatchedEngineersList.length : totalRosterEngineers;
     const totalAckEngineers = notifiedEngineersList.filter(e => e.isAcknowledged).length;
@@ -3708,8 +3698,8 @@ export default function AlertsProgressPage() {
               </div>
 
               <div className="mt-2.5 pt-2 border-t border-indigo-100/80 flex items-center justify-between gap-1">
-                <span className="text-[9.5px] text-indigo-800 font-semibold truncate" title={`${emailsSentCount} emails sent bundling ${notifiedOfficersCount} assigned officers across schemes`}>
-                  Consolidated Dispatch ({notifiedOfficersCount} Officers • {emailsSentCount} Emails)
+                <span className="text-[9.5px] text-indigo-800 font-semibold truncate" title={`1 consolidated email sent per engineer bundling all their assigned schemes`}>
+                  Consolidated Dispatch ({emailsSentCount} Officers)
                 </span>
                 <button
                   type="button"

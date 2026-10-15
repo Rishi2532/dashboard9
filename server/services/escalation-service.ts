@@ -567,7 +567,7 @@ export async function getEscalationStatus(options: {
             WHEN ea.alert_type ILIKE '%pressure%' THEN 'pressure'
             ELSE 'offline'
           END as category,
-          COUNT(DISTINCT LOWER(TRIM(ea.engineer_email))) as email_count
+          COUNT(DISTINCT LOWER(TRIM(ea.engineer_name))) as email_count
         FROM email_acknowledgements ea
         WHERE ea.sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
         GROUP BY ea.sent_date::text, 
@@ -667,15 +667,15 @@ export async function getEscalationStatus(options: {
 
     (emailStatsRes.rows || []).forEach((r: any) => {
       const isToday = r.sent_date === todayStr;
-      const email = String(r.engineer_email || '').toLowerCase().trim();
+      const recipient = String(r.engineer_name || r.engineer_email || '').toLowerCase().trim();
       const tier: 'de' | 'ee' | 'se' | 'ce' | 'ms' | 'ps' = (r.tier as any) || 'de';
 
-      if (email) {
-        last7DaysUniqueEmails.add(email);
-        last7DaysUniqueByTier[tier]?.add(email);
+      if (recipient) {
+        last7DaysUniqueEmails.add(recipient);
+        last7DaysUniqueByTier[tier]?.add(recipient);
         if (isToday) {
-          todayUniqueEmails.add(email);
-          todayUniqueByTier[tier]?.add(email);
+          todayUniqueEmails.add(recipient);
+          todayUniqueByTier[tier]?.add(recipient);
         }
       }
     });

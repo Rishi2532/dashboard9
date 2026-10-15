@@ -557,22 +557,22 @@ export default function EscalationPortalPage() {
       const aTier = Number(a.tier);
       if (aTier === activeTierNumber) {
         if (a.channel === "email") {
-          const emailAddr = (a.recipient_email || a.officer_email || a.engineer_email || "").toLowerCase().trim();
+          const officerKey = (a.recipient_name || a.officer_name || a.recipient_email || "").toLowerCase().trim();
           const sid = String(a.scheme_id || "").trim();
           if (a.is_lpcd || (a.categories && a.categories.includes("lpcd"))) {
-            if (emailAddr) lpcdEmailSet.add(emailAddr);
+            if (officerKey) lpcdEmailSet.add(officerKey);
             if (sid) lpcdSchemesSet.add(sid);
           }
           if (a.is_chlorine || (a.categories && a.categories.includes("chlorine"))) {
-            if (emailAddr) chlorineEmailSet.add(emailAddr);
+            if (officerKey) chlorineEmailSet.add(officerKey);
             if (sid) chlorineSchemesSet.add(sid);
           }
           if (a.is_pressure || (a.categories && a.categories.includes("pressure"))) {
-            if (emailAddr) pressureEmailSet.add(emailAddr);
+            if (officerKey) pressureEmailSet.add(officerKey);
             if (sid) pressureSchemesSet.add(sid);
           }
           if (a.is_offline || (a.categories && a.categories.includes("offline"))) {
-            if (emailAddr) offlineEmailSet.add(emailAddr);
+            if (officerKey) offlineEmailSet.add(officerKey);
             if (sid) offlineSchemesSet.add(sid);
           }
         } else if (a.channel === "sms") {
