@@ -3255,18 +3255,25 @@ export default function AlertsProgressPage() {
     const totalRosterEngineers = notifiedEngineersList.length;
     // Count real dispatched engineers strictly sourced from email_acknowledgements
     const dispatchedEngineersList = notifiedEngineersList.filter(e => e.isDispatched);
-    const emailsSentCount = dispatchedEngineersList.length > 0 
-      ? dispatchedEngineersList.length 
-      : (notifiedEngineersList.filter(e => e.ackCount > 0).length || (baseData.some(r => r.acknowledgements?.length) ? 1 : 0));
+    const notifiedOfficersCount = dispatchedEngineersList.length || notifiedEngineersList.filter(e => e.ackCount > 0).length || (baseData.some(r => r.acknowledgements?.length) ? 1 : 0);
+
+    // Count real unique email inboxes/addresses dispatched via SMTP
+    const dispatchedEmailSet = new Set<string>();
+    baseData.forEach(r => {
+      (r.acknowledgements || []).forEach((a: any) => {
+        if (a.engineer_email) dispatchedEmailSet.add(a.engineer_email.toLowerCase().trim());
+      });
+    });
+    const emailsSentCount = dispatchedEmailSet.size > 0 
+      ? dispatchedEmailSet.size 
+      : (baseData.some(r => r.acknowledgements?.length) ? 1 : 0);
 
     const totalEngineers = dispatchedEngineersList.length > 0 ? dispatchedEngineersList.length : totalRosterEngineers;
     const totalAckEngineers = notifiedEngineersList.filter(e => e.isAcknowledged).length;
     const totalPendingEngineers = (dispatchedEngineersList.length > 0 ? dispatchedEngineersList : notifiedEngineersList).filter(e => !e.isAcknowledged).length;
 
     // Actually notified engineers count from email_acknowledgements
-    const actuallyNotifiedCount = dispatchedEngineersList.length > 0 
-      ? dispatchedEngineersList.length 
-      : (notifiedEngineersList.filter(e => e.ackCount > 0).length || (baseData.some(r => r.acknowledgements?.length) ? 1 : 0));
+    const actuallyNotifiedCount = notifiedOfficersCount;
 
     // 2. SMS: Count ONLY successfully delivered SMS
     const tabSmsMap = new Map<string, any>();
@@ -3701,8 +3708,8 @@ export default function AlertsProgressPage() {
               </div>
 
               <div className="mt-2.5 pt-2 border-t border-indigo-100/80 flex items-center justify-between gap-1">
-                <span className="text-[9.5px] text-indigo-800 font-semibold truncate" title={`1 consolidated email sent per person bundling all ${firstKpiValue} alerts`}>
-                  Consolidated Dispatch ({emailsSentCount} Recipients)
+                <span className="text-[9.5px] text-indigo-800 font-semibold truncate" title={`${emailsSentCount} emails sent bundling ${notifiedOfficersCount} assigned officers across schemes`}>
+                  Consolidated Dispatch ({notifiedOfficersCount} Officers • {emailsSentCount} Emails)
                 </span>
                 <button
                   type="button"

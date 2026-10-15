@@ -535,12 +535,18 @@ export default function EscalationPortalPage() {
     return 5;
   }, [activeLayer]);
 
-  // Real-time calculation of emails & SMS sent to the CURRENT LEVEL per category
+  // Real-time calculation of actual unique emails & SMS sent to the CURRENT LEVEL per category
   const levelCategoryDispatches = useMemo(() => {
-    let lpcdEmails = 0;
-    let chlorineEmails = 0;
-    let pressureEmails = 0;
-    let offlineEmails = 0;
+    const lpcdEmailSet = new Set<string>();
+    const chlorineEmailSet = new Set<string>();
+    const pressureEmailSet = new Set<string>();
+    const offlineEmailSet = new Set<string>();
+
+    const lpcdSchemesSet = new Set<string>();
+    const chlorineSchemesSet = new Set<string>();
+    const pressureSchemesSet = new Set<string>();
+    const offlineSchemesSet = new Set<string>();
+
     let lpcdSms = 0;
     let chlorineSms = 0;
     let pressureSms = 0;
@@ -551,10 +557,24 @@ export default function EscalationPortalPage() {
       const aTier = Number(a.tier);
       if (aTier === activeTierNumber) {
         if (a.channel === "email") {
-          if (a.is_lpcd || (a.categories && a.categories.includes("lpcd"))) lpcdEmails++;
-          if (a.is_chlorine || (a.categories && a.categories.includes("chlorine"))) chlorineEmails++;
-          if (a.is_pressure || (a.categories && a.categories.includes("pressure"))) pressureEmails++;
-          if (a.is_offline || (a.categories && a.categories.includes("offline"))) offlineEmails++;
+          const emailAddr = (a.recipient_email || a.officer_email || a.engineer_email || "").toLowerCase().trim();
+          const sid = String(a.scheme_id || "").trim();
+          if (a.is_lpcd || (a.categories && a.categories.includes("lpcd"))) {
+            if (emailAddr) lpcdEmailSet.add(emailAddr);
+            if (sid) lpcdSchemesSet.add(sid);
+          }
+          if (a.is_chlorine || (a.categories && a.categories.includes("chlorine"))) {
+            if (emailAddr) chlorineEmailSet.add(emailAddr);
+            if (sid) chlorineSchemesSet.add(sid);
+          }
+          if (a.is_pressure || (a.categories && a.categories.includes("pressure"))) {
+            if (emailAddr) pressureEmailSet.add(emailAddr);
+            if (sid) pressureSchemesSet.add(sid);
+          }
+          if (a.is_offline || (a.categories && a.categories.includes("offline"))) {
+            if (emailAddr) offlineEmailSet.add(emailAddr);
+            if (sid) offlineSchemesSet.add(sid);
+          }
         } else if (a.channel === "sms") {
           const isDelivered = a.status === "DELIVERED" || a.status === "SUCCESS";
           if (isDelivered) {
@@ -568,10 +588,10 @@ export default function EscalationPortalPage() {
     });
 
     return {
-      lpcd: { emails: lpcdEmails, sms: lpcdSms },
-      chlorine: { emails: chlorineEmails, sms: chlorineSms },
-      pressure: { emails: pressureEmails, sms: pressureSms },
-      offline: { emails: offlineEmails, sms: offlineSms },
+      lpcd: { emails: lpcdEmailSet.size, schemes: lpcdSchemesSet.size, sms: lpcdSms },
+      chlorine: { emails: chlorineEmailSet.size, schemes: chlorineSchemesSet.size, sms: chlorineSms },
+      pressure: { emails: pressureEmailSet.size, schemes: pressureSchemesSet.size, sms: pressureSms },
+      offline: { emails: offlineEmailSet.size, schemes: offlineSchemesSet.size, sms: offlineSms },
     };
   }, [sentAlertsData, activeTierNumber]);
 
