@@ -354,6 +354,12 @@ export async function getEscalationStatus(options: {
       ms_sms: 0,
       ps_emails: 0,
       ps_sms: 0,
+      categories: {
+        lpcd: { emails: 0, sms: 0 },
+        chlorine: { emails: 0, sms: 0 },
+        pressure: { emails: 0, sms: 0 },
+        offline: { emails: 0, sms: 0 },
+      },
     },
     last_7_days: {
       total_emails: 0,
@@ -368,6 +374,12 @@ export async function getEscalationStatus(options: {
       ms_sms: 0,
       ps_emails: 0,
       ps_sms: 0,
+      categories: {
+        lpcd: { emails: 0, sms: 0 },
+        chlorine: { emails: 0, sms: 0 },
+        pressure: { emails: 0, sms: 0 },
+        offline: { emails: 0, sms: 0 },
+      },
     },
   };
 
@@ -379,7 +391,7 @@ export async function getEscalationStatus(options: {
       day: "2-digit",
     }).format(new Date());
 
-    const [emailStatsRes, smsStatsRes] = await Promise.all([
+    const [emailStatsRes, smsStatsRes, engineerRosterRes, categoryEmailStatsRes, categorySmsStatsRes] = await Promise.all([
       db.execute(sql`
         SELECT 
           sent_date::text as sent_date,
@@ -399,6 +411,65 @@ export async function getEscalationStatus(options: {
         WHERE sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
           AND (is_success = true OR gateway_status = 200)
         GROUP BY sent_date, LOWER(TRIM(engineer_name)), mobile
+      `),
+      db.execute(sql`
+        SELECT 
+          LOWER(TRIM(de_ae_civil_email)) as de_civil_email,
+          LOWER(TRIM(de_ae_mech_email)) as de_mech_email,
+          LOWER(TRIM(ee_civil_email)) as ee_civil_email,
+          LOWER(TRIM(ee_mech_email)) as ee_mech_email,
+          LOWER(TRIM(se_email)) as se_email,
+          LOWER(TRIM(chief_engineer_email)) as chief_engineer_email,
+          LOWER(TRIM(member_secretary_email)) as member_secretary_email,
+          LOWER(TRIM(principal_secretary_email)) as principal_secretary_email,
+          REGEXP_REPLACE(COALESCE(de_ae_civil_mobile, ''), '[^0-9]', '', 'g') as de_civil_mobile,
+          REGEXP_REPLACE(COALESCE(de_ae_mech_mobile, ''), '[^0-9]', '', 'g') as de_mech_mobile,
+          REGEXP_REPLACE(COALESCE(ee_civil_mobile, ''), '[^0-9]', '', 'g') as ee_civil_mobile,
+          REGEXP_REPLACE(COALESCE(ee_mech_mobile, ''), '[^0-9]', '', 'g') as ee_mech_mobile,
+          REGEXP_REPLACE(COALESCE(se_mobile, ''), '[^0-9]', '', 'g') as se_mobile,
+          REGEXP_REPLACE(COALESCE(chief_engineer_mobile, ''), '[^0-9]', '', 'g') as chief_engineer_mobile
+        FROM scheme_engineer_details
+      `),
+      db.execute(sql`
+        SELECT 
+          sent_date::text as sent_date,
+          CASE 
+            WHEN alert_type ILIKE '%lpcd%' THEN 'lpcd'
+            WHEN alert_type ILIKE '%chlorine%' THEN 'chlorine'
+            WHEN alert_type ILIKE '%pressure%' THEN 'pressure'
+            ELSE 'offline'
+          END as category,
+          COUNT(DISTINCT LOWER(TRIM(engineer_email))) as email_count
+        FROM email_acknowledgements
+        WHERE sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
+        GROUP BY sent_date, 
+          CASE 
+            WHEN alert_type ILIKE '%lpcd%' THEN 'lpcd'
+            WHEN alert_type ILIKE '%chlorine%' THEN 'chlorine'
+            WHEN alert_type ILIKE '%pressure%' THEN 'pressure'
+            ELSE 'offline'
+          END
+      `),
+      db.execute(sql`
+        SELECT 
+          sent_date::text as sent_date,
+          CASE 
+            WHEN template_name ILIKE '%lpcd%' THEN 'lpcd'
+            WHEN template_name ILIKE '%chlorine%' THEN 'chlorine'
+            WHEN template_name ILIKE '%pressure%' THEN 'pressure'
+            ELSE 'offline'
+          END as category,
+          COUNT(*) as sms_count
+        FROM sms_alert_logs
+        WHERE sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
+          AND (is_success = true OR gateway_status = 200)
+        GROUP BY sent_date, 
+          CASE 
+            WHEN template_name ILIKE '%lpcd%' THEN 'lpcd'
+            WHEN template_name ILIKE '%chlorine%' THEN 'chlorine'
+            WHEN template_name ILIKE '%pressure%' THEN 'pressure'
+            ELSE 'offline'
+          END
       `)
     ]);
 
@@ -406,19 +477,47 @@ export async function getEscalationStatus(options: {
     const msEmail = (execContacts.ms.email || '').toLowerCase().trim();
     const psEmail = (execContacts.ps.email || '').toLowerCase().trim();
 
+    const eeEmailsSet = new Set<string>();
+    const ceSeEmailsSet = new Set<string>();
+    const msEmailsSet = new Set<string>();
+    const psEmailsSet = new Set<string>();
+    const deEmailsSet = new Set<string>();
+
+    const eeMobilesSet = new Set<string>();
+    const ceSeMobilesSet = new Set<string>();
+    const deMobilesSet = new Set<string>();
+
+    (engineerRosterRes.rows || []).forEach((row: any) => {
+      if (row.ee_civil_email) eeEmailsSet.add(row.ee_civil_email);
+      if (row.ee_mech_email) eeEmailsSet.add(row.ee_mech_email);
+      if (row.se_email) ceSeEmailsSet.add(row.se_email);
+      if (row.chief_engineer_email) ceSeEmailsSet.add(row.chief_engineer_email);
+      if (row.member_secretary_email) msEmailsSet.add(row.member_secretary_email);
+      if (row.principal_secretary_email) psEmailsSet.add(row.principal_secretary_email);
+      if (row.de_civil_email) deEmailsSet.add(row.de_civil_email);
+      if (row.de_mech_email) deEmailsSet.add(row.de_mech_email);
+
+      if (row.ee_civil_mobile) eeMobilesSet.add(row.ee_civil_mobile);
+      if (row.ee_mech_mobile) eeMobilesSet.add(row.ee_mech_mobile);
+      if (row.se_mobile) ceSeMobilesSet.add(row.se_mobile);
+      if (row.chief_engineer_mobile) ceSeMobilesSet.add(row.chief_engineer_mobile);
+      if (row.de_civil_mobile) deMobilesSet.add(row.de_civil_mobile);
+      if (row.de_mech_mobile) deMobilesSet.add(row.de_mech_mobile);
+    });
+
     (emailStatsRes.rows || []).forEach((r: any) => {
       const isToday = r.sent_date === todayStr;
-      const email = String(r.engineer_email || '');
-      const name = String(r.engineer_name || '');
+      const email = String(r.engineer_email || '').toLowerCase().trim();
+      const name = String(r.engineer_name || '').toLowerCase();
 
       let tier: 'de' | 'ee' | 'ce_se' | 'ms' | 'ps' = 'de';
-      if (email === psEmail || name.includes('principal secretary') || name.includes('ps')) {
+      if (email === psEmail || psEmailsSet.has(email) || name.includes('principal secretary') || name.includes('ps') || email.includes('ps.')) {
         tier = 'ps';
-      } else if (email === msEmail || name.includes('member secretary') || name.includes('ms')) {
+      } else if (email === msEmail || msEmailsSet.has(email) || name.includes('member secretary') || name.includes('ms') || email.includes('ms.')) {
         tier = 'ms';
-      } else if (name.includes('deepak ingale') || name.includes('chief engineer') || name.includes('superintending') || email.includes('deepal.ingale') || email.includes('salunke2001')) {
+      } else if (ceSeEmailsSet.has(email) || name.includes('deepak ingale') || name.includes('chief engineer') || name.includes('superintending') || email.includes('deepal.ingale') || email.includes('salunke2001')) {
         tier = 'ce_se';
-      } else if (name.includes('rishikesh salunke') || name.includes('executive engineer') || email.includes('salunkerishikesh') || email.includes('rishikesh.salunke')) {
+      } else if (eeEmailsSet.has(email) || name.includes('rishikesh salunke') || name.includes('executive engineer') || email.includes('salunkerishikesh') || email.includes('rishikesh.salunke')) {
         tier = 'ee';
       } else {
         tier = 'de';
@@ -435,16 +534,17 @@ export async function getEscalationStatus(options: {
     (smsStatsRes.rows || []).forEach((r: any) => {
       const isToday = r.sent_date === todayStr;
       const count = Number(r.sms_count || 0);
-      const name = String(r.engineer_name || '');
+      const name = String(r.engineer_name || '').toLowerCase();
+      const cleanMobile = String(r.mobile || '').replace(/[^0-9]/g, '');
 
       let tier: 'de' | 'ee' | 'ce_se' | 'ms' | 'ps' = 'de';
       if (name.includes('principal secretary') || name.includes('ps')) {
         tier = 'ps';
       } else if (name.includes('member secretary') || name.includes('ms')) {
         tier = 'ms';
-      } else if (name.includes('deepak ingale') || name.includes('chief engineer') || name.includes('superintending') || name.includes('salunkhe')) {
+      } else if (ceSeMobilesSet.has(cleanMobile) || name.includes('deepak ingale') || name.includes('chief engineer') || name.includes('superintending') || name.includes('salunkhe')) {
         tier = 'ce_se';
-      } else if (name.includes('rishikesh salunke') || name.includes('executive engineer')) {
+      } else if (eeMobilesSet.has(cleanMobile) || name.includes('rishikesh salunke') || name.includes('executive engineer')) {
         tier = 'ee';
       } else {
         tier = 'de';
@@ -455,6 +555,29 @@ export async function getEscalationStatus(options: {
       if (isToday) {
         dispatches.today.total_sms += count;
         dispatches.today[`${tier}_sms`] += count;
+      }
+    });
+
+    // Populate category breakdown
+    (categoryEmailStatsRes.rows || []).forEach((r: any) => {
+      const cat = r.category as 'lpcd' | 'chlorine' | 'pressure' | 'offline';
+      const count = Number(r.email_count || 0);
+      if (dispatches.last_7_days.categories[cat]) {
+        dispatches.last_7_days.categories[cat].emails += count;
+      }
+      if (r.sent_date === todayStr && dispatches.today.categories[cat]) {
+        dispatches.today.categories[cat].emails = count;
+      }
+    });
+
+    (categorySmsStatsRes.rows || []).forEach((r: any) => {
+      const cat = r.category as 'lpcd' | 'chlorine' | 'pressure' | 'offline';
+      const count = Number(r.sms_count || 0);
+      if (dispatches.last_7_days.categories[cat]) {
+        dispatches.last_7_days.categories[cat].sms += count;
+      }
+      if (r.sent_date === todayStr && dispatches.today.categories[cat]) {
+        dispatches.today.categories[cat].sms = count;
       }
     });
   } catch (dispErr) {
@@ -1714,6 +1837,11 @@ export interface SentAlertItem {
   message_content: string;
   status: string;
   dispatch_type?: string;
+  is_lpcd?: boolean;
+  is_chlorine?: boolean;
+  is_pressure?: boolean;
+  is_offline?: boolean;
+  categories?: string[];
 }
 
 export interface SentAlertsResponse {
@@ -1743,6 +1871,12 @@ export interface SentAlertsResponse {
       ms_sms: number;
       ps_sms: number;
     };
+    category_breakdown?: {
+      lpcd_emails: number;
+      chlorine_emails: number;
+      pressure_emails: number;
+      offline_emails: number;
+    };
   };
   alerts: SentAlertItem[];
 }
@@ -1752,6 +1886,7 @@ export async function getSentEscalationAlerts(options: {
   date?: string;
   tier?: 'all' | '1' | '2' | '3' | '4' | '5';
   channel?: 'all' | 'sms' | 'email';
+  category?: 'all' | 'lpcd' | 'chlorine' | 'pressure' | 'offline';
   search?: string;
   limit?: number;
   offset?: number;
@@ -1782,6 +1917,12 @@ export async function getSentEscalationAlerts(options: {
   }
   if (options.tier && options.tier !== 'all') {
     whereClauses.push(`tier = ${parseInt(options.tier, 10)}`);
+  }
+  if (options.category && options.category !== 'all') {
+    if (options.category === 'lpcd') whereClauses.push(`is_lpcd = true`);
+    else if (options.category === 'chlorine') whereClauses.push(`is_chlorine = true`);
+    else if (options.category === 'pressure') whereClauses.push(`is_pressure = true`);
+    else if (options.category === 'offline') whereClauses.push(`is_offline = true`);
   }
   if (options.search && options.search.trim()) {
     const s = options.search.trim().replace(/'/g, "''");
@@ -1826,7 +1967,19 @@ export async function getSentEscalationAlerts(options: {
         s.template_name AS alert_title,
         s.message_text AS message_content,
         COALESCE(s.delivery_status, CASE WHEN s.is_success THEN 'DELIVERED' ELSE 'FAILED' END) AS status,
-        s.dispatch_type
+        s.dispatch_type,
+        (s.template_name ILIKE '%lpcd%') AS is_lpcd,
+        (s.template_name ILIKE '%chlorine%') AS is_chlorine,
+        (s.template_name ILIKE '%pressure%') AS is_pressure,
+        (s.template_name ILIKE '%offline%') AS is_offline,
+        ARRAY[
+          CASE 
+            WHEN s.template_name ILIKE '%lpcd%' THEN 'lpcd'
+            WHEN s.template_name ILIKE '%chlorine%' THEN 'chlorine'
+            WHEN s.template_name ILIKE '%pressure%' THEN 'pressure'
+            ELSE 'offline'
+          END
+        ] AS categories
       FROM sms_alert_logs s
 
       UNION ALL
@@ -1846,30 +1999,42 @@ export async function getSentEscalationAlerts(options: {
         ea.engineer_email AS recipient_email,
         NULL AS recipient_mobile,
         CASE 
-          WHEN ea.engineer_name ILIKE '%Principal Secretary%' OR ea.engineer_email ILIKE '%ps.%' THEN 'Principal Secretary (PS)'
-          WHEN ea.engineer_name ILIKE '%Member Secretary%' OR ea.engineer_email ILIKE '%ms.%' THEN 'Member Secretary (MS)'
-          WHEN ea.engineer_name ILIKE '%Deepak Ingale%' OR ea.engineer_name ILIKE '%Chief Engineer%' THEN 'Chief Engineer (CE)'
-          WHEN ea.engineer_name ILIKE '%Rishikesh Salunkhe%' OR ea.engineer_email ILIKE '%rishikeshsalunke2001%' THEN 'Superintending Engineer (SE)'
-          WHEN ea.engineer_name ILIKE '%Rishikesh Salunke%' OR ea.engineer_email ILIKE '%salunkerishikesh%' THEN 'Executive Engineer (EE Civil)'
-          WHEN ea.engineer_name ILIKE '%Rushikesh Salunke%' OR ea.engineer_email ILIKE '%rushikeshsalunkhe33%' THEN 'Executive Engineer (EE Mech)'
-          WHEN ea.engineer_name ILIKE '%Rushikesh Salunkhe%' OR ea.engineer_email ILIKE '%rishikesh.salunke@cstech.ai' THEN 'Deputy Engineer (DE Mech)'
+          WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(sed.principal_secretary_email, ''))) OR ea.engineer_name ILIKE '%Principal Secretary%' OR ea.engineer_email ILIKE '%ps.%' THEN 'Principal Secretary (PS)'
+          WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(sed.member_secretary_email, ''))) OR ea.engineer_name ILIKE '%Member Secretary%' OR ea.engineer_email ILIKE '%ms.%' THEN 'Member Secretary (MS)'
+          WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(sed.chief_engineer_email, ''))) OR ea.engineer_name ILIKE '%Chief Engineer%' OR ea.engineer_name ILIKE '%Deepak Ingale%' THEN 'Chief Engineer (CE)'
+          WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(sed.se_email, ''))) OR ea.engineer_name ILIKE '%Superintending%' OR ea.engineer_name ILIKE '%Rishikesh Salunkhe%' THEN 'Superintending Engineer (SE)'
+          WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(sed.ee_civil_email, ''))) OR ea.engineer_name ILIKE '%Executive Engineer (Civil)%' OR ea.engineer_name ILIKE '%EE (Civil)%' OR ea.engineer_name ILIKE '%Rishikesh Salunke%' THEN 'Executive Engineer (EE Civil)'
+          WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(sed.ee_mech_email, ''))) OR ea.engineer_name ILIKE '%Executive Engineer (Mech)%' OR ea.engineer_name ILIKE '%EE (Mech)%' OR ea.engineer_name ILIKE '%Rushikesh Salunke%' THEN 'Executive Engineer (EE Mech)'
+          WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(sed.de_ae_mech_email, ''))) OR ea.engineer_name ILIKE '%DE/AE (Mech)%' OR ea.engineer_name ILIKE '%Rushikesh Salunkhe%' THEN 'Deputy Engineer (DE Mech)'
           ELSE 'Deputy Engineer (DE Civil)'
         END AS recipient_role,
         CASE 
-          WHEN ea.engineer_name ILIKE '%Principal Secretary%' OR ea.engineer_email ILIKE '%ps.%' THEN 5
-          WHEN ea.engineer_name ILIKE '%Member Secretary%' OR ea.engineer_email ILIKE '%ms.%' THEN 4
-          WHEN ea.engineer_name ILIKE '%Deepak Ingale%' OR ea.engineer_name ILIKE '%Chief Engineer%' THEN 3
-          WHEN ea.engineer_name ILIKE '%Rishikesh Salunkhe%' OR ea.engineer_email ILIKE '%rishikeshsalunke2001%' THEN 3
-          WHEN ea.engineer_name ILIKE '%Rishikesh Salunke%' OR ea.engineer_email ILIKE '%salunkerishikesh%' THEN 2
-          WHEN ea.engineer_name ILIKE '%Rushikesh Salunke%' OR ea.engineer_email ILIKE '%rushikeshsalunkhe33%' THEN 2
+          WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(sed.principal_secretary_email, ''))) OR ea.engineer_name ILIKE '%Principal Secretary%' OR ea.engineer_email ILIKE '%ps.%' THEN 5
+          WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(sed.member_secretary_email, ''))) OR ea.engineer_name ILIKE '%Member Secretary%' OR ea.engineer_email ILIKE '%ms.%' THEN 4
+          WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(sed.chief_engineer_email, ''))) OR LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(sed.se_email, ''))) OR ea.engineer_name ILIKE '%Chief Engineer%' OR ea.engineer_name ILIKE '%Superintending%' OR ea.engineer_name ILIKE '%Deepak Ingale%' OR ea.engineer_name ILIKE '%Rishikesh Salunkhe%' THEN 3
+          WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(sed.ee_civil_email, ''))) OR LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(sed.ee_mech_email, ''))) OR ea.engineer_name ILIKE '%Executive Engineer%' OR ea.engineer_name ILIKE '%Rishikesh Salunke%' OR ea.engineer_name ILIKE '%Rushikesh Salunke%' THEN 2
           ELSE 1
         END AS tier,
-        CONCAT('Daily Alert Digest (', GREATEST(COUNT(*)/2, 1), ' Issues)') AS alert_title,
-        CONCAT('Consolidated alert digest containing ', GREATEST(COUNT(*)/2, 1), ' unresolved telemetry alerts.') AS message_content,
+        CONCAT('Daily Alert Digest (', GREATEST(COUNT(*)/2, 1), ' Issues • ', array_to_string(array_agg(DISTINCT ea.alert_type), ', '), ')') AS alert_title,
+        CONCAT('Consolidated alert digest containing ', GREATEST(COUNT(*)/2, 1), ' unresolved telemetry alerts across ', array_to_string(array_agg(DISTINCT ea.alert_type), ', '), '.') AS message_content,
         'DELIVERED' AS status,
-        'daily' AS dispatch_type
+        'daily' AS dispatch_type,
+        bool_or(ea.alert_type ILIKE '%lpcd%') AS is_lpcd,
+        bool_or(ea.alert_type ILIKE '%chlorine%') AS is_chlorine,
+        bool_or(ea.alert_type ILIKE '%pressure%') AS is_pressure,
+        bool_or(ea.alert_type ILIKE '%offline%') AS is_offline,
+        array_agg(DISTINCT 
+          CASE 
+            WHEN ea.alert_type ILIKE '%lpcd%' THEN 'lpcd'
+            WHEN ea.alert_type ILIKE '%chlorine%' THEN 'chlorine'
+            WHEN ea.alert_type ILIKE '%pressure%' THEN 'pressure'
+            ELSE 'offline'
+          END
+        ) AS categories
       FROM email_acknowledgements ea
-      GROUP BY ea.sent_date, ea.scheme_id, ea.engineer_name, ea.engineer_email
+      LEFT JOIN scheme_engineer_details sed ON ea.scheme_id = sed.scheme_id
+      GROUP BY ea.sent_date, ea.scheme_id, ea.engineer_name, ea.engineer_email,
+               sed.principal_secretary_email, sed.member_secretary_email, sed.chief_engineer_email, sed.se_email, sed.ee_civil_email, sed.ee_mech_email, sed.de_ae_mech_email
 
       UNION ALL
 
@@ -1913,7 +2078,19 @@ export async function getSentEscalationAlerts(options: {
         e.alert_type AS alert_title,
         e.alert_value AS message_content,
         'DELIVERED' AS status,
-        e.dispatch_type
+        e.dispatch_type,
+        (e.alert_type ILIKE '%lpcd%') AS is_lpcd,
+        (e.alert_type ILIKE '%chlorine%') AS is_chlorine,
+        (e.alert_type ILIKE '%pressure%') AS is_pressure,
+        (e.alert_type ILIKE '%offline%') AS is_offline,
+        ARRAY[
+          CASE 
+            WHEN e.alert_type ILIKE '%lpcd%' THEN 'lpcd'
+            WHEN e.alert_type ILIKE '%chlorine%' THEN 'chlorine'
+            WHEN e.alert_type ILIKE '%pressure%' THEN 'pressure'
+            ELSE 'offline'
+          END
+        ] AS categories
       FROM email_alert_logs e
       WHERE e.dispatch_type LIKE 'escalation_%'
     )
@@ -1942,6 +2119,10 @@ export async function getSentEscalationAlerts(options: {
       COUNT(*) FILTER (WHERE channel = 'sms' AND tier = 3 AND recipient_role ILIKE '%Chief Engineer%') AS ce_sms,
       COUNT(*) FILTER (WHERE channel = 'sms' AND tier = 4) AS ms_sms,
       COUNT(*) FILTER (WHERE channel = 'sms' AND tier = 5) AS ps_sms,
+      COUNT(*) FILTER (WHERE channel = 'email' AND is_lpcd = true) AS lpcd_emails,
+      COUNT(*) FILTER (WHERE channel = 'email' AND is_chlorine = true) AS chlorine_emails,
+      COUNT(*) FILTER (WHERE channel = 'email' AND is_pressure = true) AS pressure_emails,
+      COUNT(*) FILTER (WHERE channel = 'email' AND is_offline = true) AS offline_emails,
       (SELECT COUNT(*) FROM combined_alerts WHERE (sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date OR created_at >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date)) AS today_sent_count,
       MAX(created_at) AS last_dispatched_at
     FROM combined_alerts
@@ -1990,6 +2171,12 @@ export async function getSentEscalationAlerts(options: {
         ms_sms: Number(rawSummary.ms_sms || 0),
         ps_sms: Number(rawSummary.ps_sms || 0),
       },
+      category_breakdown: {
+        lpcd_emails: Number(rawSummary.lpcd_emails || 0),
+        chlorine_emails: Number(rawSummary.chlorine_emails || 0),
+        pressure_emails: Number(rawSummary.pressure_emails || 0),
+        offline_emails: Number(rawSummary.offline_emails || 0),
+      },
     },
     alerts: (rowsRes.rows || []).map((r: any) => ({
       id: Number(r.id),
@@ -2006,6 +2193,11 @@ export async function getSentEscalationAlerts(options: {
       message_content: String(r.message_content),
       status: String(r.status),
       dispatch_type: r.dispatch_type || undefined,
+      is_lpcd: Boolean(r.is_lpcd),
+      is_chlorine: Boolean(r.is_chlorine),
+      is_pressure: Boolean(r.is_pressure),
+      is_offline: Boolean(r.is_offline),
+      categories: Array.isArray(r.categories) ? r.categories : [],
     })),
   };
 }

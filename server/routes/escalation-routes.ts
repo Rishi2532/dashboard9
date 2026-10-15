@@ -74,6 +74,7 @@ router.get("/sent-alerts", async (req: Request, res: Response) => {
     const date = req.query.date ? String(req.query.date) : undefined;
     const tier = (req.query.tier as any) || "all";
     const channel = (req.query.channel as any) || "all";
+    const category = (req.query.category as any) || "all";
     const search = req.query.search ? String(req.query.search) : undefined;
     const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 100;
     const offset = req.query.offset ? parseInt(String(req.query.offset), 10) : 0;
@@ -83,6 +84,7 @@ router.get("/sent-alerts", async (req: Request, res: Response) => {
       date,
       tier,
       channel,
+      category,
       search,
       limit,
       offset,

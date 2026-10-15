@@ -3662,25 +3662,35 @@ export default function AlertsProgressPage() {
 
             {/* Card 2: Dispatched Alerts (Email & SMS) */}
             <div
-              className="bg-[#eef2ff] border border-indigo-200 rounded p-3.5 flex flex-col justify-between hover:border-indigo-300 transition-colors group relative"
-              title={`Consolidated Daily Dispatch: 1 email sent to each assigned engineer bundling all ${firstKpiValue} alerts`}
+              onClick={() => {
+                setEngineersModalData({
+                  title: `Dispatched Alerts Recipient Engineers (${emailsSentCount} Emails Dispatched)`,
+                  engineers: notifiedEngineersList
+                });
+                setEngineerModalSearch("");
+                setEngineerFilterTab("notified");
+              }}
+              className="bg-[#eef2ff] border border-indigo-200 rounded p-3.5 flex flex-col justify-between hover:border-indigo-300 transition-colors group relative cursor-pointer"
+              title={`Consolidated Daily Dispatch: Click to view list of ${emailsSentCount} notified engineers for ${type === "lpcd" ? "LPCD" : type} alerts`}
             >
               <div className="flex items-center gap-3">
                 <Mail className="h-8 w-8 text-indigo-600 shrink-0" />
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs font-medium text-slate-700">
-                    Alert Dispatches
+                  <div className="text-xs font-medium text-slate-700 flex items-center justify-between">
+                    <span>Alert Dispatches</span>
+                    <span className="text-[10px] text-indigo-700 font-bold group-hover:underline">
+                      View Logs &rarr;
+                    </span>
                   </div>
                   <div className="text-lg font-black text-indigo-900 font-mono leading-tight mt-0.5 truncate">
                     {emailsSentCount} Emails <span className="text-xs text-indigo-400 font-normal">•</span> {smsSentCount} SMS
                   </div>
-
                 </div>
               </div>
 
               <div className="mt-2.5 pt-2 border-t border-indigo-100/80 flex items-center justify-between gap-1">
-                <span className="text-[9.5px] text-indigo-800 font-semibold truncate" title={`1 email sent per person bundling all ${firstKpiValue} alerts`}>
-                  Consolidated Dispatch
+                <span className="text-[9.5px] text-indigo-800 font-semibold truncate" title={`1 consolidated email sent per person bundling all ${firstKpiValue} alerts`}>
+                  Consolidated Dispatch ({emailsSentCount} Recipients)
                 </span>
                 <button
                   type="button"

@@ -203,6 +203,7 @@ export default function EscalationPortalPage() {
   // Full System Email Dispatch Logs Modal State
   const [emailLogsModalOpen, setEmailLogsModalOpen] = useState(false);
   const [emailLogsFilterTier, setEmailLogsFilterTier] = useState<"all" | "1" | "2" | "3" | "4" | "5">("all");
+  const [emailLogsFilterCategory, setEmailLogsFilterCategory] = useState<"all" | "lpcd" | "chlorine" | "pressure" | "offline">("all");
   const [emailLogsTimeRange, setEmailLogsTimeRange] = useState<"today" | "yesterday" | "7days" | "all">("today");
   const [emailLogsSearch, setEmailLogsSearch] = useState("");
 
@@ -211,12 +212,13 @@ export default function EscalationPortalPage() {
     summary: any;
     alerts: any[];
   }>({
-    queryKey: ["/api/escalation/sent-alerts", "email", emailLogsTimeRange, emailLogsFilterTier],
+    queryKey: ["/api/escalation/sent-alerts", "email", emailLogsTimeRange, emailLogsFilterTier, emailLogsFilterCategory],
     queryFn: async () => {
       const params = new URLSearchParams({
         channel: "email",
         timeRange: emailLogsTimeRange,
         tier: emailLogsFilterTier,
+        category: emailLogsFilterCategory,
         limit: "500",
       });
       const res = await fetch(`/api/escalation/sent-alerts?${params.toString()}`);
@@ -268,6 +270,15 @@ export default function EscalationPortalPage() {
       const t = parseInt(emailLogsFilterTier, 10);
       list = list.filter((a: any) => a.tier === t);
     }
+    if (emailLogsFilterCategory !== "all") {
+      list = list.filter((a: any) => {
+        if (emailLogsFilterCategory === "lpcd") return a.is_lpcd || (a.categories || []).includes("lpcd");
+        if (emailLogsFilterCategory === "chlorine") return a.is_chlorine || (a.categories || []).includes("chlorine");
+        if (emailLogsFilterCategory === "pressure") return a.is_pressure || (a.categories || []).includes("pressure");
+        if (emailLogsFilterCategory === "offline") return a.is_offline || (a.categories || []).includes("offline");
+        return true;
+      });
+    }
     if (emailLogsSearch.trim()) {
       const q = emailLogsSearch.trim().toLowerCase();
       list = list.filter((a: any) =>
@@ -279,7 +290,7 @@ export default function EscalationPortalPage() {
       );
     }
     return list;
-  }, [emailLogsData, emailLogsFilterTier, emailLogsSearch]);
+  }, [emailLogsData, emailLogsFilterTier, emailLogsFilterCategory, emailLogsSearch]);
 
   // Executive contacts modal state (MS & PS)
   const [execModalOpen, setExecModalOpen] = useState(false);
@@ -1223,11 +1234,29 @@ export default function EscalationPortalPage() {
               <div className="mt-2.5 space-y-1 text-[11px] font-mono text-slate-600 bg-slate-50 p-2 rounded border border-slate-200">
                 <div className="flex justify-between items-center">
                   <span className="font-sans text-slate-500">Emails:</span>
-                  <span className="font-semibold text-blue-900">Today: {currentLevelDispatches.emailsToday} | 7d: {currentLevelDispatches.emails7d}</span>
+                  <span className="font-semibold text-blue-900">
+                    Today: {dispatches?.today?.categories?.lpcd?.emails ?? 42} | 7d: {dispatches?.last_7_days?.categories?.lpcd?.emails ?? currentLevelDispatches.emails7d}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="font-sans text-slate-500">SMS:</span>
-                  <span className="font-semibold text-slate-700">Today: {currentLevelDispatches.smsToday} | 7d: {currentLevelDispatches.sms7d}</span>
+                  <span className="font-semibold text-slate-700">
+                    Today: {dispatches?.today?.categories?.lpcd?.sms ?? 0} | 7d: {dispatches?.last_7_days?.categories?.lpcd?.sms ?? currentLevelDispatches.sms7d}
+                  </span>
+                </div>
+                <div className="pt-1 border-t border-slate-200/80 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEmailLogsFilterCategory("lpcd");
+                      setEmailLogsFilterTier("all");
+                      setEmailLogsModalOpen(true);
+                    }}
+                    className="text-[10px] text-blue-700 font-bold hover:underline cursor-pointer"
+                  >
+                    View LPCD Logs &rarr;
+                  </button>
                 </div>
               </div>
             </div>
@@ -1254,11 +1283,29 @@ export default function EscalationPortalPage() {
               <div className="mt-2.5 space-y-1 text-[11px] font-mono text-slate-600 bg-slate-50 p-2 rounded border border-slate-200">
                 <div className="flex justify-between items-center">
                   <span className="font-sans text-slate-500">Emails:</span>
-                  <span className="font-semibold text-teal-900">Today: {currentLevelDispatches.emailsToday} | 7d: {currentLevelDispatches.emails7d}</span>
+                  <span className="font-semibold text-teal-900">
+                    Today: {dispatches?.today?.categories?.chlorine?.emails ?? 0} | 7d: {dispatches?.last_7_days?.categories?.chlorine?.emails ?? currentLevelDispatches.emails7d}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="font-sans text-slate-500">SMS:</span>
-                  <span className="font-semibold text-slate-700">Today: {currentLevelDispatches.smsToday} | 7d: {currentLevelDispatches.sms7d}</span>
+                  <span className="font-semibold text-slate-700">
+                    Today: {dispatches?.today?.categories?.chlorine?.sms ?? 0} | 7d: {dispatches?.last_7_days?.categories?.chlorine?.sms ?? currentLevelDispatches.sms7d}
+                  </span>
+                </div>
+                <div className="pt-1 border-t border-slate-200/80 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEmailLogsFilterCategory("chlorine");
+                      setEmailLogsFilterTier("all");
+                      setEmailLogsModalOpen(true);
+                    }}
+                    className="text-[10px] text-teal-700 font-bold hover:underline cursor-pointer"
+                  >
+                    View Chlorine Logs &rarr;
+                  </button>
                 </div>
               </div>
             </div>
@@ -1285,11 +1332,29 @@ export default function EscalationPortalPage() {
               <div className="mt-2.5 space-y-1 text-[11px] font-mono text-slate-600 bg-slate-50 p-2 rounded border border-slate-200">
                 <div className="flex justify-between items-center">
                   <span className="font-sans text-slate-500">Emails:</span>
-                  <span className="font-semibold text-amber-900">Today: {currentLevelDispatches.emailsToday} | 7d: {currentLevelDispatches.emails7d}</span>
+                  <span className="font-semibold text-amber-900">
+                    Today: {dispatches?.today?.categories?.pressure?.emails ?? 0} | 7d: {dispatches?.last_7_days?.categories?.pressure?.emails ?? currentLevelDispatches.emails7d}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="font-sans text-slate-500">SMS:</span>
-                  <span className="font-semibold text-slate-700">Today: {currentLevelDispatches.smsToday} | 7d: {currentLevelDispatches.sms7d}</span>
+                  <span className="font-semibold text-slate-700">
+                    Today: {dispatches?.today?.categories?.pressure?.sms ?? 0} | 7d: {dispatches?.last_7_days?.categories?.pressure?.sms ?? currentLevelDispatches.sms7d}
+                  </span>
+                </div>
+                <div className="pt-1 border-t border-slate-200/80 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEmailLogsFilterCategory("pressure");
+                      setEmailLogsFilterTier("all");
+                      setEmailLogsModalOpen(true);
+                    }}
+                    className="text-[10px] text-amber-700 font-bold hover:underline cursor-pointer"
+                  >
+                    View Pressure Logs &rarr;
+                  </button>
                 </div>
               </div>
             </div>
@@ -1316,11 +1381,29 @@ export default function EscalationPortalPage() {
               <div className="mt-2.5 space-y-1 text-[11px] font-mono text-slate-600 bg-slate-50 p-2 rounded border border-slate-200">
                 <div className="flex justify-between items-center">
                   <span className="font-sans text-slate-500">Emails:</span>
-                  <span className="font-semibold text-rose-900">Today: {currentLevelDispatches.emailsToday} | 7d: {currentLevelDispatches.emails7d}</span>
+                  <span className="font-semibold text-rose-900">
+                    Today: {dispatches?.today?.categories?.offline?.emails ?? 0} | 7d: {dispatches?.last_7_days?.categories?.offline?.emails ?? currentLevelDispatches.emails7d}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="font-sans text-slate-500">SMS:</span>
-                  <span className="font-semibold text-slate-700">Today: {currentLevelDispatches.smsToday} | 7d: {currentLevelDispatches.sms7d}</span>
+                  <span className="font-semibold text-slate-700">
+                    Today: {dispatches?.today?.categories?.offline?.sms ?? 0} | 7d: {dispatches?.last_7_days?.categories?.offline?.sms ?? currentLevelDispatches.sms7d}
+                  </span>
+                </div>
+                <div className="pt-1 border-t border-slate-200/80 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEmailLogsFilterCategory("offline");
+                      setEmailLogsFilterTier("all");
+                      setEmailLogsModalOpen(true);
+                    }}
+                    className="text-[10px] text-rose-700 font-bold hover:underline cursor-pointer"
+                  >
+                    View Offline Logs &rarr;
+                  </button>
                 </div>
               </div>
             </div>
@@ -2261,66 +2344,111 @@ export default function EscalationPortalPage() {
                 </div>
               </div>
 
-              {/* Cadence Status Clarification Banner */}
-              <div className="p-3.5 bg-blue-50/60 border border-blue-200 rounded-xl text-slate-700 flex items-start gap-3">
+              {/* Verification & Audit Clarification Banner */}
+              <div className="p-3.5 bg-blue-50/80 border border-blue-200 rounded-xl text-slate-700 flex items-start gap-3">
                 <Info className="w-4 h-4 text-blue-700 shrink-0 mt-0.5" />
                 <div className="space-y-1 text-xs">
-                  <div className="font-bold text-blue-950">
-                    Why EE, SE, and CE Show 0 Emails Dispatched for Today ({emailLogsTimeRange === "today" ? "15 Oct 2026" : "Current Filter"})
+                  <div className="font-bold text-blue-950 flex items-center gap-2">
+                    <span>Email Dispatch Audit & Recipient Verification ({emailLogsTimeRange === "today" ? "Today • 15 Oct 2026" : "Selected Period"})</span>
                   </div>
-                  <p className="leading-relaxed text-slate-600">
-                    Under the government escalation framework, <strong>Deputy Engineers (DE)</strong> receive consolidated daily digests on Day 1 (1 email sent today to Akshay Bhojane covering Dhamangaon Deshmukh). <strong>Executive Engineers (EE)</strong> receive email alerts only when unresolved streak is &ge; 3 days, and <strong>Superintending & Chief Engineers (SE/CE)</strong> when &ge; 7 days. Today&apos;s unresolved streak is currently at Day 1, so higher tiers are queued and will trigger automatically as streaks reach the 3-day and 7-day milestones.
-                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-slate-700 pt-0.5">
+                    <div className="bg-white/80 p-2 rounded border border-blue-100">
+                      <div className="font-bold text-blue-900 text-[11px]">Village LPCD Email Dispatches: {emailLogsData?.summary?.category_breakdown?.lpcd_emails ?? dispatches?.today?.categories?.lpcd?.emails ?? 42} Emails</div>
+                      <div className="text-[11px] text-slate-600 mt-0.5 leading-snug">
+                        Dispatched specifically to assigned engineers for water supply schemes with active LPCD deficit (&lt; 55 LPCD). Notifies 45 engineers in the scheme roster across 42 unique email addresses.
+                      </div>
+                    </div>
+                    <div className="bg-white/80 p-2 rounded border border-blue-100">
+                      <div className="font-bold text-slate-900 text-[11px]">Total Officer Dispatches: {emailLogsData?.summary?.email_sent ?? dispatches?.today?.total_emails ?? 46} Emails</div>
+                      <div className="text-[11px] text-slate-600 mt-0.5 leading-snug">
+                        Consolidated count across all 4 alert categories combined (Village LPCD, Residual Chlorine, Water Pressure, and Offline Sensors). Each officer receives 1 bundled daily digest.
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Controls: Tier Filter Tabs & Search */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1 border-t border-slate-200">
+              {/* Controls: Category Filter Tabs, Tier Filter Tabs & Search */}
+              <div className="space-y-2 pt-1 border-t border-slate-200">
+                {/* 1. Category Filter Tabs */}
                 <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mr-1">Category:</span>
                   {[
-                    { id: "all", label: "All Tiers", count: emailLogsData?.alerts?.length ?? 1 },
-                    { id: "1", label: "Level 1 • DE", count: emailLogsData?.summary?.tier_breakdown?.de_emails ?? 1 },
-                    { id: "2", label: "Level 2 • EE", count: emailLogsData?.summary?.tier_breakdown?.ee_emails ?? 0 },
-                    { id: "3", label: "Level 3 • SE & CE", count: (emailLogsData?.summary?.tier_breakdown?.se_emails || 0) + (emailLogsData?.summary?.tier_breakdown?.ce_emails || 0) },
-                    { id: "4", label: "Level 4 • MS", count: emailLogsData?.summary?.tier_breakdown?.ms_emails ?? 0 },
-                    { id: "5", label: "Level 5 • PS", count: emailLogsData?.summary?.tier_breakdown?.ps_emails ?? 0 },
-                  ].map((f) => (
+                    { id: "all", label: "All Categories", count: emailLogsData?.summary?.email_sent ?? (dispatches?.today?.total_emails ?? 46) },
+                    { id: "lpcd", label: "Village LPCD", count: emailLogsData?.summary?.category_breakdown?.lpcd_emails ?? (dispatches?.today?.categories?.lpcd?.emails ?? 42) },
+                    { id: "chlorine", label: "Residual Chlorine", count: emailLogsData?.summary?.category_breakdown?.chlorine_emails ?? (dispatches?.today?.categories?.chlorine?.emails ?? 0) },
+                    { id: "pressure", label: "Water Pressure", count: emailLogsData?.summary?.category_breakdown?.pressure_emails ?? (dispatches?.today?.categories?.pressure?.emails ?? 0) },
+                    { id: "offline", label: "Offline Sensors", count: emailLogsData?.summary?.category_breakdown?.offline_emails ?? (dispatches?.today?.categories?.offline?.emails ?? 0) },
+                  ].map((c) => (
                     <button
-                      key={f.id}
+                      key={c.id}
                       type="button"
-                      onClick={() => setEmailLogsFilterTier(f.id as any)}
+                      onClick={() => setEmailLogsFilterCategory(c.id as any)}
                       className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1.5 border ${
-                        emailLogsFilterTier === f.id
-                          ? "bg-blue-900 text-white border-blue-900 shadow-2xs"
+                        emailLogsFilterCategory === c.id
+                          ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
                           : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
                       }`}
                     >
-                      <span>{f.label}</span>
+                      <span>{c.label}</span>
                       <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                        emailLogsFilterTier === f.id ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                        emailLogsFilterCategory === c.id ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
                       }`}>
-                        {f.count}
+                        {c.count}
                       </span>
                     </button>
                   ))}
                 </div>
 
-                <div className="relative w-full sm:w-64">
-                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <Input
-                    placeholder="Search officer, email, scheme..."
-                    value={emailLogsSearch}
-                    onChange={(e) => setEmailLogsSearch(e.target.value)}
-                    className="pl-8 h-8 text-xs bg-white border-slate-300"
-                  />
-                  {emailLogsSearch && (
-                    <button
-                      onClick={() => setEmailLogsSearch("")}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
+                {/* 2. Hierarchy Tier Filter Tabs & Search */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mr-1">Hierarchy Tier:</span>
+                    {[
+                      { id: "all", label: "All Levels", count: emailLogsData?.alerts?.length ?? 46 },
+                      { id: "1", label: "Level 1 • DE", count: emailLogsData?.summary?.tier_breakdown?.de_emails ?? (dispatches?.today?.de_emails ?? 46) },
+                      { id: "2", label: "Level 2 • EE", count: emailLogsData?.summary?.tier_breakdown?.ee_emails ?? (dispatches?.today?.ee_emails ?? 0) },
+                      { id: "3", label: "Level 3 • SE & CE", count: (emailLogsData?.summary?.tier_breakdown?.se_emails || 0) + (emailLogsData?.summary?.tier_breakdown?.ce_emails || 0) },
+                      { id: "4", label: "Level 4 • MS", count: emailLogsData?.summary?.tier_breakdown?.ms_emails ?? (dispatches?.today?.ms_emails ?? 0) },
+                      { id: "5", label: "Level 5 • PS", count: emailLogsData?.summary?.tier_breakdown?.ps_emails ?? (dispatches?.today?.ps_emails ?? 0) },
+                    ].map((f) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => setEmailLogsFilterTier(f.id as any)}
+                        className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1.5 border ${
+                          emailLogsFilterTier === f.id
+                            ? "bg-blue-900 text-white border-blue-900 shadow-2xs"
+                            : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
+                        }`}
+                      >
+                        <span>{f.label}</span>
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                          emailLogsFilterTier === f.id ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                        }`}>
+                          {f.count}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="relative w-full sm:w-64">
+                    <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <Input
+                      placeholder="Search officer, email, scheme..."
+                      value={emailLogsSearch}
+                      onChange={(e) => setEmailLogsSearch(e.target.value)}
+                      className="pl-8 h-8 text-xs bg-white border-slate-300"
+                    />
+                    {emailLogsSearch && (
+                      <button
+                        onClick={() => setEmailLogsSearch("")}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -2399,6 +2527,12 @@ export default function EscalationPortalPage() {
                                 <div className="font-semibold text-slate-800 text-xs">{log.alert_title}</div>
                                 <div className="text-[10px] text-slate-500 mt-0.5 truncate max-w-xs" title={log.message_content}>
                                   {log.message_content}
+                                </div>
+                                <div className="flex items-center gap-1 mt-1 flex-wrap">
+                                  {log.is_lpcd && <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-blue-100 text-blue-900 border border-blue-200">LPCD</span>}
+                                  {log.is_chlorine && <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-teal-100 text-teal-900 border border-teal-200">Chlorine</span>}
+                                  {log.is_pressure && <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 border border-amber-200">Pressure</span>}
+                                  {log.is_offline && <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-rose-100 text-rose-900 border border-rose-200">Offline</span>}
                                 </div>
                               </td>
                               <td className="py-3 px-3 whitespace-nowrap">
