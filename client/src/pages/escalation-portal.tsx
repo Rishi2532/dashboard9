@@ -270,14 +270,21 @@ export default function EscalationPortalPage() {
     refetchInterval: 15000,
   });
 
-  // Fetch actual sent alerts history for today
+  // Fetch actual sent alerts history for today (fetching email and sms in parallel so high SMS volume never drops emails)
   const { data: sentAlertsData } = useQuery<{ alerts: any[]; summary: any }>({
     queryKey: ["/api/escalation/sent-alerts", "today"],
     queryFn: async () => {
       try {
-        const res = await fetch("/api/escalation/sent-alerts?timeRange=today&limit=500");
-        if (!res.ok) return { alerts: [], summary: {} };
-        return res.json();
+        const [emailRes, smsRes] = await Promise.all([
+          fetch("/api/escalation/sent-alerts?timeRange=today&channel=email&limit=1000"),
+          fetch("/api/escalation/sent-alerts?timeRange=today&channel=sms&limit=2000"),
+        ]);
+        const emailJson = emailRes.ok ? await emailRes.json() : { alerts: [], summary: {} };
+        const smsJson = smsRes.ok ? await smsRes.json() : { alerts: [], summary: {} };
+        return {
+          alerts: [...(emailJson.alerts || []), ...(smsJson.alerts || [])],
+          summary: emailJson.summary || smsJson.summary || {},
+        };
       } catch {
         return { alerts: [], summary: {} };
       }
@@ -549,10 +556,13 @@ export default function EscalationPortalPage() {
           if (a.is_pressure || (a.categories && a.categories.includes("pressure"))) pressureEmails++;
           if (a.is_offline || (a.categories && a.categories.includes("offline"))) offlineEmails++;
         } else if (a.channel === "sms") {
-          if (a.is_lpcd || (a.categories && a.categories.includes("lpcd"))) lpcdSms++;
-          if (a.is_chlorine || (a.categories && a.categories.includes("chlorine"))) chlorineSms++;
-          if (a.is_pressure || (a.categories && a.categories.includes("pressure"))) pressureSms++;
-          if (a.is_offline || (a.categories && a.categories.includes("offline"))) offlineSms++;
+          const isDelivered = a.status === "DELIVERED" || a.status === "SUCCESS";
+          if (isDelivered) {
+            if (a.is_lpcd || (a.categories && a.categories.includes("lpcd"))) lpcdSms++;
+            if (a.is_chlorine || (a.categories && a.categories.includes("chlorine"))) chlorineSms++;
+            if (a.is_pressure || (a.categories && a.categories.includes("pressure"))) pressureSms++;
+            if (a.is_offline || (a.categories && a.categories.includes("offline"))) offlineSms++;
+          }
         }
       }
     });

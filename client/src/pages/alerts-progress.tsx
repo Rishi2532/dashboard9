@@ -421,9 +421,18 @@ export const getRowRecipients = (row: AlertData) => {
       const aEmail = a.engineer_email ? a.engineer_email.toLowerCase().trim() : '';
       const aName = a.engineer_name ? a.engineer_name.toLowerCase().trim() : '';
 
-      // 1. If both records have an email address, require strict exact email match
+      // 1. If both records have an email address, require exact email match AND name/role match
       if (targetEmail && aEmail) {
-        return targetEmail === aEmail;
+        if (targetEmail !== aEmail) return false;
+        if (targetName && aName) {
+          const tN = targetName.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const aN = aName.toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (aN.includes(tN) || tN.includes(aN) || aN.includes('deae') || aN.includes('civil') || aN.includes('field') || aN.includes('engineer')) {
+            return true;
+          }
+          return false;
+        }
+        return true;
       }
 
       // 2. Fallback to name match ONLY if email address is absent on one of the records
@@ -445,12 +454,15 @@ export const getRowRecipients = (row: AlertData) => {
   // Order: DE/AE (Civil) → DE/AE (Mech) → EE (Civil) → EE (Mech) → SE → CE (low to high)
 
   // 1. DE/AE (Civil)
-  if (isValidEngineerName(row.de_ae_civil_name)) {
-    const name = row.de_ae_civil_name!.trim();
-    const { isAck, acknowledged_at, isDispatched } = checkAck(row.de_ae_civil_email || null, name);
+  const deCivilName = isValidEngineerName(row.de_ae_civil_name)
+    ? row.de_ae_civil_name!.trim()
+    : (row.de_ae_civil_email ? "DE/AE (Civil)" : null);
+
+  if (deCivilName) {
+    const { isAck, acknowledged_at, isDispatched } = checkAck(row.de_ae_civil_email || null, deCivilName);
     recipients.push({
       role: "DE/AE (Civil)",
-      name,
+      name: deCivilName,
       email: row.de_ae_civil_email || null,
       mobile: row.de_ae_civil_mobile?.trim() || null,
       isAcknowledged: isAck,

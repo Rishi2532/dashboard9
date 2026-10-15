@@ -454,9 +454,12 @@ export async function getEscalationStatus(options: {
           CASE 
             WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.principal_secretary_email), ''))) THEN 'ps'
             WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.member_secretary_email), ''))) THEN 'ms'
-            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.chief_engineer_email), ''))) THEN 'ce'
-            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.se_email), ''))) THEN 'se'
-            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_civil_email), ''))) OR LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_mech_email), ''))) THEN 'ee'
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.chief_engineer_email), '')))
+                 AND LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.chief_engineer_name), ''))) THEN 'ce'
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.se_email), ''))) 
+                 AND LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.se_name), ''))) THEN 'se'
+            WHEN (LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_civil_email), ''))) OR LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_mech_email), ''))))
+                 AND (LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.ee_civil_name), ''))) OR LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.ee_mech_name), '')))) THEN 'ee'
             ELSE 'de'
           END as tier
         FROM email_acknowledgements ea
@@ -2076,7 +2079,7 @@ export async function getSentEscalationAlerts(options: {
 } = {}): Promise<SentAlertsResponse> {
   const db = await getDB();
   const timeRange = options.timeRange || 'today';
-  const limit = Math.min(Math.max(options.limit || 50, 1), 500);
+  const limit = Math.min(Math.max(options.limit || 50, 1), 5000);
   const offset = Math.max(options.offset || 0, 0);
 
   let dateFilter = '';
@@ -2201,17 +2204,23 @@ export async function getSentEscalationAlerts(options: {
           CASE 
             WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.principal_secretary_email), ''))) THEN 5
             WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.member_secretary_email), ''))) THEN 4
-            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.chief_engineer_email), ''))) THEN 3
-            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.se_email), ''))) THEN 3
-            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_civil_email), ''))) OR LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_mech_email), ''))) THEN 2
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.chief_engineer_email), '')))
+                 AND LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.chief_engineer_name), ''))) THEN 3
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.se_email), ''))) 
+                 AND LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.se_name), ''))) THEN 3
+            WHEN (LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_civil_email), ''))) OR LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_mech_email), ''))))
+                 AND (LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.ee_civil_name), ''))) OR LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.ee_mech_name), '')))) THEN 2
             ELSE 1
           END AS role_tier,
           CASE 
             WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.principal_secretary_email), ''))) THEN 'Principal Secretary (PS)'
             WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.member_secretary_email), ''))) THEN 'Member Secretary (MS)'
-            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.chief_engineer_email), ''))) THEN 'Chief Engineer (CE)'
-            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.se_email), ''))) THEN 'Superintending Engineer (SE)'
-            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_civil_email), ''))) OR LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_mech_email), ''))) THEN 'Executive Engineer (EE)'
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.chief_engineer_email), '')))
+                 AND LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.chief_engineer_name), ''))) THEN 'Chief Engineer (CE)'
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.se_email), ''))) 
+                 AND LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.se_name), ''))) THEN 'Superintending Engineer (SE)'
+            WHEN (LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_civil_email), ''))) OR LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_mech_email), ''))))
+                 AND (LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.ee_civil_name), ''))) OR LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.ee_mech_name), '')))) THEN 'Executive Engineer (EE)'
             ELSE 'Deputy Engineer (DE Civil)'
           END AS role_name,
           COUNT(*) AS issue_count,

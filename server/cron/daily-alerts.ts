@@ -590,6 +590,10 @@ export async function runDailyAlertsJob() {
 
         const addEngineerEmails = (emails: string[], name: string, alerts: Alert[]) => {
           if (!alerts || alerts.length === 0) return;
+          const taggedAlerts = alerts.map(a => ({
+            ...a,
+            assignedEngineerName: name,
+          }));
           emails.forEach(email => {
             if (!emailsToSend[email]) {
               emailsToSend[email] = {
@@ -603,7 +607,7 @@ export async function runDailyAlertsJob() {
                 emailsToSend[email].name = emailsToSend[email].names.join(" / ");
               }
             }
-            emailsToSend[email].alerts.push(...alerts);
+            emailsToSend[email].alerts.push(...taggedAlerts);
           });
         };
 
@@ -829,21 +833,17 @@ export async function runDailyAlertsJob() {
           const itemToken = generateAcknowledgeToken();
           alert.token = itemToken;
 
-          const recipientsForEmail = emailsToSend[email]?.names?.length > 0 
-            ? emailsToSend[email].names 
-            : [name];
+          const engName = (alert as any).assignedEngineerName || name;
 
-          for (const engName of recipientsForEmail) {
-            await db.execute(sql`
-              INSERT INTO email_acknowledgements (token, scheme_id, alert_type, esr_name, engineer_email, engineer_name, sent_date)
-              VALUES (${itemToken}, ${alert.scheme_id}, ${alertType}, ${alert.esr_name || null}, ${email}, ${engName}, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date)
-            `);
+          await db.execute(sql`
+            INSERT INTO email_acknowledgements (token, scheme_id, alert_type, esr_name, engineer_email, engineer_name, sent_date)
+            VALUES (${itemToken}, ${alert.scheme_id}, ${alertType}, ${alert.esr_name || null}, ${email}, ${engName}, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date)
+          `);
 
-            await db.execute(sql`
-              INSERT INTO email_acknowledgements (token, scheme_id, alert_type, esr_name, engineer_email, engineer_name, sent_date)
-              VALUES (${masterToken}, ${alert.scheme_id}, ${alertType}, ${alert.esr_name || null}, ${email}, ${engName}, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date)
-            `);
-          }
+          await db.execute(sql`
+            INSERT INTO email_acknowledgements (token, scheme_id, alert_type, esr_name, engineer_email, engineer_name, sent_date)
+            VALUES (${masterToken}, ${alert.scheme_id}, ${alertType}, ${alert.esr_name || null}, ${email}, ${engName}, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date)
+          `);
         }
       } catch (tokenErr) {
         console.warn("Could not insert email acknowledgement token:", tokenErr);
