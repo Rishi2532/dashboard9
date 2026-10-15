@@ -2207,20 +2207,29 @@ router.get('/daily-dispatches', async (req, res) => {
       // 1. Fetch Daily Email Alert Dispatches (strictly exclude Real-Time alerts)
       const emailsQuery = `
         SELECT 
-          id, scheme_id, scheme_name, region, village_name, esr_name, 
-          alert_type, alert_value, ticket_id, sent_time, telemetry_date, created_at,
-          TO_CHAR(sent_date, 'YYYY-MM-DD') as sent_date,
-          ee_civil_name, ee_civil_email,
-          ee_mech_name, ee_mech_email,
-          de_ae_civil_name, de_ae_civil_email,
-          de_ae_mech_name, de_ae_mech_email,
-          se_name, se_email,
-          chief_engineer_name, chief_engineer_email
-        FROM email_alert_logs
-        WHERE (ticket_id NOT LIKE 'TKT-RT-%' OR ticket_id IS NULL)
-          AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
+          e.id, e.scheme_id, e.scheme_name, e.region, e.village_name, e.esr_name, 
+          e.alert_type, e.alert_value, e.ticket_id, e.sent_time, e.telemetry_date, e.created_at,
+          TO_CHAR(e.sent_date, 'YYYY-MM-DD') as sent_date,
+          e.ee_civil_name, e.ee_civil_email,
+          e.ee_mech_name, e.ee_mech_email,
+          e.de_ae_civil_name, e.de_ae_civil_email,
+          e.de_ae_mech_name, e.de_ae_mech_email,
+          e.se_name, e.se_email,
+          e.chief_engineer_name, e.chief_engineer_email,
+          COALESCE(
+            (
+              SELECT json_agg(DISTINCT jsonb_build_object('name', ea.engineer_name, 'email', LOWER(TRIM(ea.engineer_email))))
+              FROM email_acknowledgements ea
+              WHERE ea.scheme_id = e.scheme_id 
+                AND ea.sent_date = e.sent_date
+            ),
+            '[]'::json
+          ) as actual_recipients
+        FROM email_alert_logs e
+        WHERE (e.ticket_id NOT LIKE 'TKT-RT-%' OR e.ticket_id IS NULL)
+          AND (e.dispatch_type = 'daily' OR e.dispatch_type IS NULL)
           AND ${dateFilter}
-        ORDER BY created_at DESC
+        ORDER BY e.created_at DESC
       `;
       const emailsResult = await client.query(emailsQuery, queryParams);
 

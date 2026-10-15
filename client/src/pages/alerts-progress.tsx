@@ -535,10 +535,16 @@ export const getRowRecipients = (row: AlertData) => {
 
 // Helper to determine acknowledgement info for a row
 export const getRowAckInfo = (row: AlertData) => {
-  const recipients = getRowRecipients(row);
-  // Email recipients are those who actually received the email
-  const emailRecipients = recipients.filter(r => !!r.email);
-  const activeRecipients = emailRecipients.length > 0 ? emailRecipients : recipients;
+  const allDirectoryRecipients = getRowRecipients(row);
+  const acks = row.acknowledgements || [];
+  const sentEmailsSet = new Set(acks.map((a: any) => a.engineer_email?.toLowerCase().trim()).filter(Boolean));
+
+  // Actual email recipients are ONLY those engineers who have a dispatch record in acknowledgements
+  const emailRecipients = sentEmailsSet.size > 0
+    ? allDirectoryRecipients.filter(r => r.email && sentEmailsSet.has(r.email.toLowerCase().trim()))
+    : allDirectoryRecipients.filter(r => r.role.includes("DE") || r.role.includes("Civil"));
+
+  const activeRecipients = emailRecipients.length > 0 ? emailRecipients : allDirectoryRecipients;
 
   const ackCount = activeRecipients.filter(r => r.isAcknowledged).length;
   const totalRequired = activeRecipients.length;
@@ -1028,13 +1034,31 @@ export default function AlertsProgressPage() {
 
     // 1. Process Emails
     (dailyDispatchesData?.emails || []).forEach((e: any) => {
+      const actualRecipients = e.actual_recipients || [];
+      const actualEmailsSet = new Set(actualRecipients.map((r: any) => r.email?.toLowerCase().trim()).filter(Boolean));
+
       const recs: { role: string; name: string; contact: string }[] = [];
-      if (isValidEngineerName(e.ee_civil_name)) recs.push({ role: "EE (Civil)", name: e.ee_civil_name!.trim(), contact: e.ee_civil_email || '' });
-      if (isValidEngineerName(e.ee_mech_name)) recs.push({ role: "EE (Mech)", name: e.ee_mech_name!.trim(), contact: e.ee_mech_email || '' });
-      if (isValidEngineerName(e.de_ae_civil_name)) recs.push({ role: "DE/AE (Civil)", name: e.de_ae_civil_name!.trim(), contact: e.de_ae_civil_email || '' });
-      if (isValidEngineerName(e.de_ae_mech_name)) recs.push({ role: "DE/AE (Mech)", name: e.de_ae_mech_name!.trim(), contact: e.de_ae_mech_email || '' });
-      if (isValidEngineerName(e.se_name)) recs.push({ role: "SE", name: e.se_name!.trim(), contact: e.se_email || '' });
-      if (isValidEngineerName(e.chief_engineer_name)) recs.push({ role: "CE", name: e.chief_engineer_name!.trim(), contact: e.chief_engineer_email || '' });
+      const checkAndAdd = (name: string | null | undefined, email: string | null | undefined, role: string) => {
+        if (!isValidEngineerName(name)) return;
+        const cleanEmail = email ? email.toLowerCase().trim() : '';
+        // If we have actual dispatch records from email_acknowledgements, only include engineers actually sent the email
+        if (actualEmailsSet.size > 0 && cleanEmail && !actualEmailsSet.has(cleanEmail)) return;
+        recs.push({ role, name: name!.trim(), contact: email || '' });
+      };
+
+      // Order of escalation priority
+      checkAndAdd(e.de_ae_civil_name, e.de_ae_civil_email, "DE/AE (Civil)");
+      checkAndAdd(e.de_ae_mech_name, e.de_ae_mech_email, "DE/AE (Mech)");
+      checkAndAdd(e.ee_civil_name, e.ee_civil_email, "EE (Civil)");
+      checkAndAdd(e.ee_mech_name, e.ee_mech_email, "EE (Mech)");
+      checkAndAdd(e.se_name, e.se_email, "SE");
+      checkAndAdd(e.chief_engineer_name, e.chief_engineer_email, "CE");
+
+      // If all were filtered out by cadence, fallback to DE/AE Civil or first valid
+      if (recs.length === 0) {
+        if (isValidEngineerName(e.de_ae_civil_name)) recs.push({ role: "DE/AE (Civil)", name: e.de_ae_civil_name!.trim(), contact: e.de_ae_civil_email || '' });
+        else if (isValidEngineerName(e.ee_civil_name)) recs.push({ role: "EE (Civil)", name: e.ee_civil_name!.trim(), contact: e.ee_civil_email || '' });
+      }
 
       const primary = recs[0] || { role: "Field Officer", name: "Scheme Engineers", contact: "" };
       const createdDate = e.created_at ? new Date(e.created_at) : null;
