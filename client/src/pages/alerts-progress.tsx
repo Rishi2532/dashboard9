@@ -534,16 +534,9 @@ export const getRowRecipients = (row: AlertData) => {
 
 // Helper to determine acknowledgement info for a row
 export const getRowAckInfo = (row: AlertData) => {
-  const allDirectoryRecipients = getRowRecipients(row);
-  const acks = row.acknowledgements || [];
-  const sentEmailsSet = new Set(acks.map((a: any) => a.engineer_email?.toLowerCase().trim()).filter(Boolean));
-
-  // Actual email recipients are ONLY those engineers who have a dispatch record in acknowledgements
-  const emailRecipients = sentEmailsSet.size > 0
-    ? allDirectoryRecipients.filter(r => r.email && sentEmailsSet.has(r.email.toLowerCase().trim()))
-    : allDirectoryRecipients.filter(r => r.role.includes("DE") || r.role.includes("Civil"));
-
-  const activeRecipients = emailRecipients.length > 0 ? emailRecipients : allDirectoryRecipients;
+  const recipients = getRowRecipients(row);
+  const emailRecipients = recipients.filter(r => !!r.email);
+  const activeRecipients = emailRecipients.length > 0 ? emailRecipients : recipients;
 
   const ackCount = activeRecipients.filter(r => r.isAcknowledged).length;
   const totalRequired = activeRecipients.length;
@@ -1033,15 +1026,9 @@ export default function AlertsProgressPage() {
 
     // 1. Process Emails
     (dailyDispatchesData?.emails || []).forEach((e: any) => {
-      const actualRecipients = e.actual_recipients || [];
-      const actualEmailsSet = new Set(actualRecipients.map((r: any) => r.email?.toLowerCase().trim()).filter(Boolean));
-
       const recs: { role: string; name: string; contact: string }[] = [];
       const checkAndAdd = (name: string | null | undefined, email: string | null | undefined, role: string) => {
         if (!isValidEngineerName(name)) return;
-        const cleanEmail = email ? email.toLowerCase().trim() : '';
-        // If we have actual dispatch records from email_acknowledgements, only include engineers actually sent the email
-        if (actualEmailsSet.size > 0 && cleanEmail && !actualEmailsSet.has(cleanEmail)) return;
         recs.push({ role, name: name!.trim(), contact: email || '' });
       };
 
@@ -3235,24 +3222,8 @@ export default function AlertsProgressPage() {
     const totalAckEngineers = notifiedEngineersList.filter(e => e.isAcknowledged).length;
     const totalPendingEngineers = notifiedEngineersList.filter(e => !e.isAcknowledged).length;
 
-    // Dispatches calculation for this tab
-    // 1. Emails: Count unique engineers who were actually dispatched an email for this tab
-    const dispatchedEmailsSet = new Set<string>();
-    baseData.forEach(r => {
-      if (Array.isArray(r.acknowledgements)) {
-        r.acknowledgements.forEach((a: any) => {
-          if (a.engineer_email) {
-            dispatchedEmailsSet.add(a.engineer_email.toLowerCase().trim());
-          }
-        });
-      }
-    });
-
-    const emailsSentCount = dispatchedEmailsSet.size > 0
-      ? dispatchedEmailsSet.size
-      : (baseData.some(r => Array.isArray(r.acknowledgements) && r.acknowledgements.length > 0)
-          ? 0
-          : (notifiedEngineersList.some(e => e.schemes.some(s => s.isAcknowledged)) ? notifiedEngineersList.filter(e => e.schemes.some(s => s.isAcknowledged)).length : 1));
+    // Dispatches calculation for this tab strictly sourced from email_alert_logs
+    const emailsSentCount = notifiedEngineersList.filter(e => !!e.email).length;
 
     // 2. SMS: Count ONLY successfully delivered SMS
     const tabSmsMap = new Map<string, any>();
@@ -3272,10 +3243,8 @@ export default function AlertsProgressPage() {
     const tabSmsList = Array.from(tabSmsMap.values());
     const smsSentCount = tabSmsList.length;
 
-    // Actually notified engineers count (those who were dispatched an email or successful SMS)
-    const actuallyNotifiedCount = dispatchedEmailsSet.size > 0
-      ? notifiedEngineersList.filter(e => (e.email && dispatchedEmailsSet.has(e.email.toLowerCase().trim())) || (e.mobile && tabSmsList.some(s => s.mobile === e.mobile))).length || dispatchedEmailsSet.size
-      : totalEngineers;
+    // Actually notified engineers count from email_alert_logs
+    const actuallyNotifiedCount = totalEngineers;
 
     // Count remarks added
     const totalRemarks = baseData.filter(r => parseIssues(r.remarks).length > 0).length;

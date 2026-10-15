@@ -1280,7 +1280,7 @@ export default function EscalationPortalPage() {
                 <div className="flex justify-between items-center">
                   <span className="font-sans text-slate-500">Emails:</span>
                   <span className="font-semibold text-blue-900">
-                    Today: {dispatches?.today?.categories?.lpcd?.emails ?? 42} | 7d: {dispatches?.last_7_days?.categories?.lpcd?.emails ?? currentLevelDispatches.emails7d}
+                    Today: {dispatches?.today?.categories?.lpcd?.emails ?? 0} | 7d: {dispatches?.last_7_days?.categories?.lpcd?.emails ?? currentLevelDispatches.emails7d}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">

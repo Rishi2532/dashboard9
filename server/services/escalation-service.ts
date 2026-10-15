@@ -296,20 +296,35 @@ export async function getEscalationStatus(options: {
       }
 
       if (alertType.includes('lpcd')) {
-        item.lpcd_villages_count++;
-        item.lpcd_villages.push({ village_name: village, days_count: days, avg_val: val });
+        const villageKey = village.trim().toLowerCase();
+        if (!item.lpcd_villages.some(v => v.village_name.trim().toLowerCase() === villageKey)) {
+          item.lpcd_villages_count++;
+          item.lpcd_villages.push({ village_name: village, days_count: days, avg_val: val });
+        }
       } else if (alertType.includes('high chlorine') || alertType.includes('chlorine high')) {
-        item.chlorine_high_count++;
-        item.chlorine_high_esrs.push({ village_name: village, esr_name: esr, days_count: days, val });
+        const esrKey = `${village.trim().toLowerCase()}__${esr.trim().toLowerCase()}`;
+        if (!item.chlorine_high_esrs.some(e => `${e.village_name.trim().toLowerCase()}__${e.esr_name.trim().toLowerCase()}` === esrKey)) {
+          item.chlorine_high_count++;
+          item.chlorine_high_esrs.push({ village_name: village, esr_name: esr, days_count: days, val });
+        }
       } else if (alertType.includes('chlorine') || alertType.includes('low chlorine')) {
-        item.chlorine_low_count++;
-        item.chlorine_low_esrs.push({ village_name: village, esr_name: esr, days_count: days, val });
+        const esrKey = `${village.trim().toLowerCase()}__${esr.trim().toLowerCase()}`;
+        if (!item.chlorine_low_esrs.some(e => `${e.village_name.trim().toLowerCase()}__${e.esr_name.trim().toLowerCase()}` === esrKey)) {
+          item.chlorine_low_count++;
+          item.chlorine_low_esrs.push({ village_name: village, esr_name: esr, days_count: days, val });
+        }
       } else if (alertType.includes('pressure')) {
-        item.pressure_low_count++;
-        item.pressure_low_esrs.push({ village_name: village, esr_name: esr, days_count: days, val });
+        const esrKey = `${village.trim().toLowerCase()}__${esr.trim().toLowerCase()}`;
+        if (!item.pressure_low_esrs.some(e => `${e.village_name.trim().toLowerCase()}__${e.esr_name.trim().toLowerCase()}` === esrKey)) {
+          item.pressure_low_count++;
+          item.pressure_low_esrs.push({ village_name: village, esr_name: esr, days_count: days, val });
+        }
       } else if (alertType.includes('offline')) {
-        item.offline_count++;
-        item.offline_esrs.push({ village_name: village, esr_name: esr, days_count: days, sensors: val });
+        const esrKey = `${village.trim().toLowerCase()}__${esr.trim().toLowerCase()}`;
+        if (!item.offline_esrs.some(e => `${e.village_name.trim().toLowerCase()}__${e.esr_name.trim().toLowerCase()}` === esrKey)) {
+          item.offline_count++;
+          item.offline_esrs.push({ village_name: village, esr_name: esr, days_count: days, sensors: val });
+        }
       }
     }
   }
@@ -430,29 +445,37 @@ export async function getEscalationStatus(options: {
 
     const [emailStatsRes, smsStatsRes, engineerRosterRes, categoryEmailStatsRes, categorySmsStatsRes] = await Promise.all([
       db.execute(sql`
-        -- 1. Actual dispatches to engineers from email_acknowledgements (grouped per recipient per day)
+        -- 1. Actual dispatches to officers from email_alert_logs (grouped per recipient per tier per day)
         SELECT 
           sub.sent_date,
           sub.scheme_id,
           sub.engineer_email,
           sub.engineer_name,
-          CASE 
-            WHEN EXISTS (SELECT 1 FROM scheme_engineer_details sed WHERE LOWER(sed.principal_secretary_email) LIKE '%' || sub.engineer_email || '%') OR sub.engineer_name ILIKE '%Principal Secretary%' OR sub.engineer_email ILIKE '%ps.%' THEN 'ps'
-            WHEN EXISTS (SELECT 1 FROM scheme_engineer_details sed WHERE LOWER(sed.member_secretary_email) LIKE '%' || sub.engineer_email || '%') OR sub.engineer_name ILIKE '%Member Secretary%' OR sub.engineer_email ILIKE '%ms.%' THEN 'ms'
-            WHEN EXISTS (SELECT 1 FROM scheme_engineer_details sed WHERE LOWER(sed.chief_engineer_email) LIKE '%' || sub.engineer_email || '%') OR sub.engineer_name ILIKE '%Chief Engineer%' OR sub.engineer_name ILIKE '%Deepak Ingale%' OR sub.engineer_email ILIKE '%ce.%' THEN 'ce'
-            WHEN EXISTS (SELECT 1 FROM scheme_engineer_details sed WHERE LOWER(sed.se_email) LIKE '%' || sub.engineer_email || '%') OR sub.engineer_name ILIKE '%Superintending%' OR sub.engineer_name ILIKE '%Salunkhe%' OR sub.engineer_email ILIKE '%se.%' OR sub.engineer_email ILIKE '%salunke2001%' THEN 'se'
-            WHEN EXISTS (SELECT 1 FROM scheme_engineer_details sed WHERE LOWER(sed.ee_civil_email) LIKE '%' || sub.engineer_email || '%' OR LOWER(sed.ee_mech_email) LIKE '%' || sub.engineer_email || '%') OR sub.engineer_name ILIKE '%Executive Engineer%' OR sub.engineer_name ILIKE '%EE %' OR sub.engineer_name ILIKE '%Rishikesh Salunke%' OR sub.engineer_name ILIKE '%Rushikesh Salunke%' OR sub.engineer_email ILIKE '%ee.%' THEN 'ee'
-            ELSE 'de'
-          END as tier
+          sub.tier
         FROM (
           SELECT 
-            ea.sent_date::text as sent_date,
-            MAX(ea.scheme_id) as scheme_id,
-            LOWER(TRIM(ea.engineer_email)) as engineer_email,
-            MAX(ea.engineer_name) as engineer_name
-          FROM email_acknowledgements ea
-          WHERE ea.sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
-          GROUP BY ea.sent_date::text, LOWER(TRIM(ea.engineer_email))
+            e.sent_date::text as sent_date,
+            MAX(e.scheme_id) as scheme_id,
+            officer.recipient_email as engineer_email,
+            MAX(officer.recipient_name) as engineer_name,
+            officer.tier
+          FROM email_alert_logs e
+          CROSS JOIN LATERAL (
+            VALUES 
+              (COALESCE(e.de_ae_civil_name, 'Deputy Engineer (Civil)'), LOWER(TRIM(e.de_ae_civil_email)), 'de'),
+              (COALESCE(e.de_ae_mech_name, 'Deputy Engineer (Mech)'), LOWER(TRIM(e.de_ae_mech_email)), 'de'),
+              (COALESCE(e.ee_civil_name, 'Executive Engineer (Civil)'), LOWER(TRIM(e.ee_civil_email)), 'ee'),
+              (COALESCE(e.ee_mech_name, 'Executive Engineer (Mech)'), LOWER(TRIM(e.ee_mech_email)), 'ee'),
+              (COALESCE(e.se_name, 'Superintending Engineer'), LOWER(TRIM(e.se_email)), 'se'),
+              (COALESCE(e.chief_engineer_name, 'Chief Engineer'), LOWER(TRIM(e.chief_engineer_email)), 'ce'),
+              (COALESCE(e.member_secretary_name, 'Member Secretary (MS)'), LOWER(TRIM(e.member_secretary_email)), 'ms'),
+              (COALESCE(e.principal_secretary_name, 'Principal Secretary (PS)'), LOWER(TRIM(e.principal_secretary_email)), 'ps')
+          ) AS officer(recipient_name, recipient_email, tier)
+          WHERE officer.recipient_email IS NOT NULL AND officer.recipient_email != ''
+            AND e.sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
+            AND (e.ticket_id NOT LIKE 'TKT-RT-%' OR e.ticket_id IS NULL)
+            AND (e.dispatch_type = 'daily' OR e.dispatch_type IS NULL)
+          GROUP BY e.sent_date::text, officer.recipient_email, officer.tier
         ) sub
 
         UNION ALL
@@ -527,26 +550,57 @@ export async function getEscalationStatus(options: {
           REGEXP_REPLACE(COALESCE(se_mobile, ''), '[^0-9]', '', 'g') as se_mobile,
           REGEXP_REPLACE(COALESCE(chief_engineer_mobile, ''), '[^0-9]', '', 'g') as chief_engineer_mobile
         FROM scheme_engineer_details
+        UNION ALL
+        SELECT 
+          LOWER(TRIM(de_ae_civil_email)) as de_civil_email,
+          LOWER(TRIM(de_ae_mech_email)) as de_mech_email,
+          LOWER(TRIM(ee_civil_email)) as ee_civil_email,
+          LOWER(TRIM(ee_mech_email)) as ee_mech_email,
+          LOWER(TRIM(se_email)) as se_email,
+          LOWER(TRIM(chief_engineer_email)) as chief_engineer_email,
+          LOWER(TRIM(member_secretary_email)) as member_secretary_email,
+          LOWER(TRIM(principal_secretary_email)) as principal_secretary_email,
+          NULL as de_civil_mobile,
+          NULL as de_mech_mobile,
+          NULL as ee_civil_mobile,
+          NULL as ee_mech_mobile,
+          NULL as se_mobile,
+          NULL as chief_engineer_mobile
+        FROM email_alert_logs
+        WHERE sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '14 days'
       `),
       db.execute(sql`
         SELECT 
           sent_date::text as sent_date,
-          CASE 
-            WHEN alert_type ILIKE '%lpcd%' THEN 'lpcd'
-            WHEN alert_type ILIKE '%chlorine%' THEN 'chlorine'
-            WHEN alert_type ILIKE '%pressure%' THEN 'pressure'
-            ELSE 'offline'
-          END as category,
-          COUNT(DISTINCT LOWER(TRIM(engineer_email))) as email_count
-        FROM email_acknowledgements
-        WHERE sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
-        GROUP BY sent_date, 
-          CASE 
-            WHEN alert_type ILIKE '%lpcd%' THEN 'lpcd'
-            WHEN alert_type ILIKE '%chlorine%' THEN 'chlorine'
-            WHEN alert_type ILIKE '%pressure%' THEN 'pressure'
-            ELSE 'offline'
-          END
+          category,
+          COUNT(DISTINCT engineer_email) as email_count
+        FROM (
+          SELECT 
+            e.sent_date,
+            CASE 
+              WHEN e.alert_type ILIKE '%lpcd%' THEN 'lpcd'
+              WHEN e.alert_type ILIKE '%chlorine%' THEN 'chlorine'
+              WHEN e.alert_type ILIKE '%pressure%' THEN 'pressure'
+              ELSE 'offline'
+            END as category,
+            officer.recipient_email as engineer_email
+          FROM email_alert_logs e
+          CROSS JOIN LATERAL (
+            VALUES 
+              (LOWER(TRIM(e.de_ae_civil_email))),
+              (LOWER(TRIM(e.de_ae_mech_email))),
+              (LOWER(TRIM(e.ee_civil_email))),
+              (LOWER(TRIM(e.ee_mech_email))),
+              (LOWER(TRIM(e.se_email))),
+              (LOWER(TRIM(e.chief_engineer_email))),
+              (LOWER(TRIM(e.member_secretary_email))),
+              (LOWER(TRIM(e.principal_secretary_email)))
+          ) AS officer(recipient_email)
+          WHERE officer.recipient_email IS NOT NULL AND officer.recipient_email != ''
+            AND e.sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
+            AND (e.ticket_id NOT LIKE 'TKT-RT-%' OR e.ticket_id IS NULL)
+        ) cat_sub
+        GROUP BY sent_date, category
       `),
       db.execute(sql`
         SELECT 
@@ -615,50 +669,58 @@ export async function getEscalationStatus(options: {
       if (row.chief_engineer_mobile) { ceMobilesSet.add(row.chief_engineer_mobile); ceSeMobilesSet.add(row.chief_engineer_mobile); }
     });
 
+    const todayUniqueEmails = new Set<string>();
+    const last7DaysUniqueEmails = new Set<string>();
+
+    const todayUniqueByTier: Record<string, Set<string>> = {
+      de: new Set(),
+      ee: new Set(),
+      se: new Set(),
+      ce: new Set(),
+      ms: new Set(),
+      ps: new Set(),
+    };
+    const last7DaysUniqueByTier: Record<string, Set<string>> = {
+      de: new Set(),
+      ee: new Set(),
+      se: new Set(),
+      ce: new Set(),
+      ms: new Set(),
+      ps: new Set(),
+    };
+
     (emailStatsRes.rows || []).forEach((r: any) => {
       const isToday = r.sent_date === todayStr;
       const email = String(r.engineer_email || '').toLowerCase().trim();
-      const name = String(r.engineer_name || '').toLowerCase();
+      const tier: 'de' | 'ee' | 'se' | 'ce' | 'ms' | 'ps' = (r.tier as any) || 'de';
 
-      let tier: 'de' | 'ee' | 'se' | 'ce' | 'ms' | 'ps' = (r.tier as any) || 'de';
-      if (email === psEmail || psEmailsSet.has(email) || name.includes('principal secretary') || name.includes('ps') || email.includes('ps.')) {
-        tier = 'ps';
-      } else if (email === msEmail || msEmailsSet.has(email) || name.includes('member secretary') || name.includes('ms') || email.includes('ms.')) {
-        tier = 'ms';
-      } else if (tier === 'ce' || ceEmailsSet.has(email) || name.includes('deepak ingale') || name.includes('chief engineer') || email.includes('ce.')) {
-        tier = 'ce';
-      } else if (tier === 'se' || seEmailsSet.has(email) || name.includes('superintending') || name.includes('salunkhe') || email.includes('se.') || email.includes('salunke2001')) {
-        tier = 'se';
-      } else if (tier === 'ee' || eeEmailsSet.has(email) || name.includes('rishikesh salunke') || name.includes('executive engineer') || email.includes('ee.') || email.includes('salunkerishikesh') || email.includes('rishikesh.salunke')) {
-        tier = 'ee';
-      } else {
-        tier = 'de';
-      }
-
-      dispatches.last_7_days.total_emails += 1;
-      if (tier === 'se') {
-        dispatches.last_7_days.se_emails += 1;
-        dispatches.last_7_days.ce_se_emails += 1;
-      } else if (tier === 'ce') {
-        dispatches.last_7_days.ce_emails += 1;
-        dispatches.last_7_days.ce_se_emails += 1;
-      } else {
-        (dispatches.last_7_days as any)[`${tier}_emails`] += 1;
-      }
-
-      if (isToday) {
-        dispatches.today.total_emails += 1;
-        if (tier === 'se') {
-          dispatches.today.se_emails += 1;
-          dispatches.today.ce_se_emails += 1;
-        } else if (tier === 'ce') {
-          dispatches.today.ce_emails += 1;
-          dispatches.today.ce_se_emails += 1;
-        } else {
-          (dispatches.today as any)[`${tier}_emails`] += 1;
+      if (email) {
+        last7DaysUniqueEmails.add(email);
+        last7DaysUniqueByTier[tier]?.add(email);
+        if (isToday) {
+          todayUniqueEmails.add(email);
+          todayUniqueByTier[tier]?.add(email);
         }
       }
     });
+
+    dispatches.today.total_emails = todayUniqueEmails.size;
+    dispatches.today.de_emails = todayUniqueByTier.de.size;
+    dispatches.today.ee_emails = todayUniqueByTier.ee.size;
+    dispatches.today.se_emails = todayUniqueByTier.se.size;
+    dispatches.today.ce_emails = todayUniqueByTier.ce.size;
+    dispatches.today.ce_se_emails = todayUniqueByTier.se.size + todayUniqueByTier.ce.size;
+    dispatches.today.ms_emails = todayUniqueByTier.ms.size;
+    dispatches.today.ps_emails = todayUniqueByTier.ps.size;
+
+    dispatches.last_7_days.total_emails = last7DaysUniqueEmails.size;
+    dispatches.last_7_days.de_emails = last7DaysUniqueByTier.de.size;
+    dispatches.last_7_days.ee_emails = last7DaysUniqueByTier.ee.size;
+    dispatches.last_7_days.se_emails = last7DaysUniqueByTier.se.size;
+    dispatches.last_7_days.ce_emails = last7DaysUniqueByTier.ce.size;
+    dispatches.last_7_days.ce_se_emails = last7DaysUniqueByTier.se.size + last7DaysUniqueByTier.ce.size;
+    dispatches.last_7_days.ms_emails = last7DaysUniqueByTier.ms.size;
+    dispatches.last_7_days.ps_emails = last7DaysUniqueByTier.ps.size;
 
     (smsStatsRes.rows || []).forEach((r: any) => {
       const isToday = r.sent_date === todayStr;
@@ -2132,7 +2194,7 @@ export async function getSentEscalationAlerts(options: {
 
       UNION ALL
 
-      -- 2. Actual Daily Emails Dispatched to Engineers from email_acknowledgements
+      -- 2. Actual Daily Emails Dispatched to Officers from email_alert_logs
       SELECT 
         sub.id,
         'email' AS channel,
@@ -2143,21 +2205,8 @@ export async function getSentEscalationAlerts(options: {
         sub.recipient_name,
         sub.recipient_email,
         NULL AS recipient_mobile,
-        CASE 
-          WHEN EXISTS (SELECT 1 FROM scheme_engineer_details sed WHERE LOWER(sed.principal_secretary_email) LIKE '%' || sub.recipient_email || '%') OR sub.recipient_name ILIKE '%Principal Secretary%' OR sub.recipient_email ILIKE '%ps.%' THEN 'Principal Secretary (PS)'
-          WHEN EXISTS (SELECT 1 FROM scheme_engineer_details sed WHERE LOWER(sed.member_secretary_email) LIKE '%' || sub.recipient_email || '%') OR sub.recipient_name ILIKE '%Member Secretary%' OR sub.recipient_email ILIKE '%ms.%' THEN 'Member Secretary (MS)'
-          WHEN EXISTS (SELECT 1 FROM scheme_engineer_details sed WHERE LOWER(sed.chief_engineer_email) LIKE '%' || sub.recipient_email || '%') OR sub.recipient_name ILIKE '%Chief Engineer%' OR sub.recipient_name ILIKE '%Deepak Ingale%' OR sub.recipient_email ILIKE '%ce.%' THEN 'Chief Engineer (CE)'
-          WHEN EXISTS (SELECT 1 FROM scheme_engineer_details sed WHERE LOWER(sed.se_email) LIKE '%' || sub.recipient_email || '%') OR sub.recipient_name ILIKE '%Superintending%' OR sub.recipient_name ILIKE '%Salunkhe%' OR sub.recipient_email ILIKE '%se.%' OR sub.recipient_email ILIKE '%salunke2001%' THEN 'Superintending Engineer (SE)'
-          WHEN EXISTS (SELECT 1 FROM scheme_engineer_details sed WHERE LOWER(sed.ee_civil_email) LIKE '%' || sub.recipient_email || '%' OR LOWER(sed.ee_mech_email) LIKE '%' || sub.recipient_email || '%') OR sub.recipient_name ILIKE '%Executive Engineer%' OR sub.recipient_name ILIKE '%EE %' OR sub.recipient_name ILIKE '%Rishikesh Salunke%' OR sub.recipient_name ILIKE '%Rushikesh Salunke%' OR sub.recipient_email ILIKE '%ee.%' THEN 'Executive Engineer (EE Civil)'
-          ELSE 'Deputy Engineer (DE Civil)'
-        END AS recipient_role,
-        CASE 
-          WHEN EXISTS (SELECT 1 FROM scheme_engineer_details sed WHERE LOWER(sed.principal_secretary_email) LIKE '%' || sub.recipient_email || '%') OR sub.recipient_name ILIKE '%Principal Secretary%' OR sub.recipient_email ILIKE '%ps.%' THEN 5
-          WHEN EXISTS (SELECT 1 FROM scheme_engineer_details sed WHERE LOWER(sed.member_secretary_email) LIKE '%' || sub.recipient_email || '%') OR sub.recipient_name ILIKE '%Member Secretary%' OR sub.recipient_email ILIKE '%ms.%' THEN 4
-          WHEN EXISTS (SELECT 1 FROM scheme_engineer_details sed WHERE LOWER(sed.chief_engineer_email) LIKE '%' || sub.recipient_email || '%') OR EXISTS (SELECT 1 FROM scheme_engineer_details sed WHERE LOWER(sed.se_email) LIKE '%' || sub.recipient_email || '%') OR sub.recipient_name ILIKE '%Chief Engineer%' OR sub.recipient_name ILIKE '%Superintending%' OR sub.recipient_name ILIKE '%Deepak Ingale%' OR sub.recipient_name ILIKE '%Salunkhe%' OR sub.recipient_email ILIKE '%ce.%' OR sub.recipient_email ILIKE '%se.%' OR sub.recipient_email ILIKE '%salunke2001%' THEN 3
-          WHEN EXISTS (SELECT 1 FROM scheme_engineer_details sed WHERE LOWER(sed.ee_civil_email) LIKE '%' || sub.recipient_email || '%' OR LOWER(sed.ee_mech_email) LIKE '%' || sub.recipient_email || '%') OR sub.recipient_name ILIKE '%Executive Engineer%' OR sub.recipient_name ILIKE '%EE %' OR sub.recipient_name ILIKE '%Rishikesh Salunke%' OR sub.recipient_name ILIKE '%Rushikesh Salunke%' OR sub.recipient_email ILIKE '%ee.%' THEN 2
-          ELSE 1
-        END AS tier,
+        sub.role_name AS recipient_role,
+        sub.role_tier AS tier,
         CONCAT('Daily Alert Digest (', GREATEST(sub.issue_count/2, 1), ' Issues • ', sub.alert_types, ')') AS alert_title,
         CONCAT('Consolidated alert digest containing ', GREATEST(sub.issue_count/2, 1), ' unresolved telemetry alerts across ', sub.alert_types, '.') AS message_content,
         'DELIVERED' AS status,
@@ -2169,33 +2218,45 @@ export async function getSentEscalationAlerts(options: {
         sub.categories
       FROM (
         SELECT 
-          MIN(ea.id)::text AS id,
-          MIN(ea.created_at) AS created_at,
-          ea.sent_date::date AS sent_date,
-          COALESCE(MAX(ea.scheme_id), 'MJP-SCHEME') AS scheme_id,
-          COALESCE(
-            (SELECT scheme_name FROM email_alert_logs WHERE scheme_id = MAX(ea.scheme_id) AND scheme_name IS NOT NULL LIMIT 1),
-            MAX(ea.scheme_id),
-            'Maharashtra Jeevan Pradhikaran'
-          ) AS scheme_name,
-          COALESCE(MAX(ea.engineer_name), 'Engineer') AS recipient_name,
-          LOWER(TRIM(ea.engineer_email)) AS recipient_email,
+          MIN(e.id)::text AS id,
+          MIN(e.created_at) AS created_at,
+          e.sent_date::date AS sent_date,
+          COALESCE(MAX(e.scheme_id), 'MJP-SCHEME') AS scheme_id,
+          COALESCE(MAX(e.scheme_name), MAX(e.scheme_id), 'Maharashtra Jeevan Pradhikaran') AS scheme_name,
+          officer.recipient_name,
+          officer.recipient_email,
+          officer.role_tier,
+          officer.role_name,
           COUNT(*) AS issue_count,
-          string_agg(DISTINCT ea.alert_type, ', ') AS alert_types,
-          bool_or(ea.alert_type ILIKE '%lpcd%') AS is_lpcd,
-          bool_or(ea.alert_type ILIKE '%chlorine%') AS is_chlorine,
-          bool_or(ea.alert_type ILIKE '%pressure%') AS is_pressure,
-          bool_or(ea.alert_type ILIKE '%offline%') AS is_offline,
+          string_agg(DISTINCT e.alert_type, ', ') AS alert_types,
+          bool_or(e.alert_type ILIKE '%lpcd%') AS is_lpcd,
+          bool_or(e.alert_type ILIKE '%chlorine%') AS is_chlorine,
+          bool_or(e.alert_type ILIKE '%pressure%') AS is_pressure,
+          bool_or(e.alert_type ILIKE '%offline%') AS is_offline,
           array_agg(DISTINCT 
             CASE 
-              WHEN ea.alert_type ILIKE '%lpcd%' THEN 'lpcd'
-              WHEN ea.alert_type ILIKE '%chlorine%' THEN 'chlorine'
-              WHEN ea.alert_type ILIKE '%pressure%' THEN 'pressure'
+              WHEN e.alert_type ILIKE '%lpcd%' THEN 'lpcd'
+              WHEN e.alert_type ILIKE '%chlorine%' THEN 'chlorine'
+              WHEN e.alert_type ILIKE '%pressure%' THEN 'pressure'
               ELSE 'offline'
             END
           ) AS categories
-        FROM email_acknowledgements ea
-        GROUP BY ea.sent_date::date, LOWER(TRIM(ea.engineer_email))
+        FROM email_alert_logs e
+        CROSS JOIN LATERAL (
+          VALUES 
+            (COALESCE(e.de_ae_civil_name, 'Deputy Engineer (Civil)'), LOWER(TRIM(e.de_ae_civil_email)), 1, 'Deputy Engineer (DE Civil)'),
+            (COALESCE(e.de_ae_mech_name, 'Deputy Engineer (Mech)'), LOWER(TRIM(e.de_ae_mech_email)), 1, 'Deputy Engineer (DE Mech)'),
+            (COALESCE(e.ee_civil_name, 'Executive Engineer (Civil)'), LOWER(TRIM(e.ee_civil_email)), 2, 'Executive Engineer (EE Civil)'),
+            (COALESCE(e.ee_mech_name, 'Executive Engineer (Mech)'), LOWER(TRIM(e.ee_mech_email)), 2, 'Executive Engineer (EE Mech)'),
+            (COALESCE(e.se_name, 'Superintending Engineer'), LOWER(TRIM(e.se_email)), 3, 'Superintending Engineer (SE)'),
+            (COALESCE(e.chief_engineer_name, 'Chief Engineer'), LOWER(TRIM(e.chief_engineer_email)), 3, 'Chief Engineer (CE)'),
+            (COALESCE(e.member_secretary_name, 'Member Secretary (MS)'), LOWER(TRIM(e.member_secretary_email)), 4, 'Member Secretary (MS)'),
+            (COALESCE(e.principal_secretary_name, 'Principal Secretary (PS)'), LOWER(TRIM(e.principal_secretary_email)), 5, 'Principal Secretary (PS)')
+        ) AS officer(recipient_name, recipient_email, role_tier, role_name)
+        WHERE officer.recipient_email IS NOT NULL AND officer.recipient_email != ''
+          AND (e.ticket_id NOT LIKE 'TKT-RT-%' OR e.ticket_id IS NULL)
+          AND (e.dispatch_type = 'daily' OR e.dispatch_type IS NULL)
+        GROUP BY e.sent_date::date, officer.recipient_email, officer.recipient_name, officer.role_tier, officer.role_name
       ) sub
 
       UNION ALL
