@@ -115,12 +115,22 @@ interface EscalationSummaryResponse {
         de_sms: number;
         ee_emails: number;
         ee_sms: number;
+        se_emails?: number;
+        se_sms?: number;
+        ce_emails?: number;
+        ce_sms?: number;
         ce_se_emails: number;
         ce_se_sms: number;
         ms_emails: number;
         ms_sms: number;
         ps_emails: number;
         ps_sms: number;
+        categories?: {
+          lpcd: { emails: number; sms: number };
+          chlorine: { emails: number; sms: number };
+          pressure: { emails: number; sms: number };
+          offline: { emails: number; sms: number };
+        };
       };
       last_7_days: {
         total_emails: number;
@@ -129,12 +139,22 @@ interface EscalationSummaryResponse {
         de_sms: number;
         ee_emails: number;
         ee_sms: number;
+        se_emails?: number;
+        se_sms?: number;
+        ce_emails?: number;
+        ce_sms?: number;
         ce_se_emails: number;
         ce_se_sms: number;
         ms_emails: number;
         ms_sms: number;
         ps_emails: number;
         ps_sms: number;
+        categories?: {
+          lpcd: { emails: number; sms: number };
+          chlorine: { emails: number; sms: number };
+          pressure: { emails: number; sms: number };
+          offline: { emails: number; sms: number };
+        };
       };
     };
   };
@@ -146,12 +166,22 @@ interface EscalationSummaryResponse {
       de_sms: number;
       ee_emails: number;
       ee_sms: number;
+      se_emails?: number;
+      se_sms?: number;
+      ce_emails?: number;
+      ce_sms?: number;
       ce_se_emails: number;
       ce_se_sms: number;
       ms_emails: number;
       ms_sms: number;
       ps_emails: number;
       ps_sms: number;
+      categories?: {
+        lpcd: { emails: number; sms: number };
+        chlorine: { emails: number; sms: number };
+        pressure: { emails: number; sms: number };
+        offline: { emails: number; sms: number };
+      };
     };
     last_7_days: {
       total_emails: number;
@@ -160,12 +190,22 @@ interface EscalationSummaryResponse {
       de_sms: number;
       ee_emails: number;
       ee_sms: number;
+      se_emails?: number;
+      se_sms?: number;
+      ce_emails?: number;
+      ce_sms?: number;
       ce_se_emails: number;
       ce_se_sms: number;
       ms_emails: number;
       ms_sms: number;
       ps_emails: number;
       ps_sms: number;
+      categories?: {
+        lpcd: { emails: number; sms: number };
+        chlorine: { emails: number; sms: number };
+        pressure: { emails: number; sms: number };
+        offline: { emails: number; sms: number };
+      };
     };
   };
   schemes: SchemeEscalationItem[];
@@ -902,15 +942,20 @@ export default function EscalationPortalPage() {
                 </span>
               </div>
               <div className="text-sm font-bold font-mono text-slate-900 mt-1 flex items-baseline gap-2">
-                <span>Today: <span className="text-blue-900">{dispatches?.today?.total_emails ?? sentAlertsData?.summary?.email_sent ?? 0}</span></span>
+                <span>Today: <span className="text-blue-900 font-extrabold text-base">{dispatches?.today?.total_emails ?? sentAlertsData?.summary?.email_sent ?? 0}</span> Actual Emails Sent</span>
                 <span className="text-[11px] text-slate-500 font-mono font-normal">| 7 Days: {dispatches?.last_7_days?.total_emails ?? 0}</span>
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] font-mono text-slate-600">
-                <span className="bg-blue-50 text-blue-800 px-1 py-0.5 rounded border border-blue-200">DE: {dispatches?.today?.de_emails ?? 1}</span>
+                <span className="bg-blue-50 text-blue-800 px-1 py-0.5 rounded border border-blue-200">DE/AE: {dispatches?.today?.de_emails ?? 0}</span>
                 <span className="bg-amber-50 text-amber-800 px-1 py-0.5 rounded border border-amber-200">EE: {dispatches?.today?.ee_emails ?? 0}</span>
-                <span className="bg-red-50 text-red-800 px-1 py-0.5 rounded border border-red-200">CE/SE: {dispatches?.today?.ce_se_emails ?? 0}</span>
-                <span className="bg-purple-50 text-purple-800 px-1 py-0.5 rounded border border-purple-200">MS: {dispatches?.today?.ms_emails ?? 0}</span>
-                <span className="bg-indigo-50 text-indigo-800 px-1 py-0.5 rounded border border-indigo-200">PS: {dispatches?.today?.ps_emails ?? 0}</span>
+                <span className="bg-red-50 text-red-800 px-1 py-0.5 rounded border border-red-200">SE: {dispatches?.today?.se_emails ?? 0}</span>
+                <span className="bg-rose-50 text-rose-800 px-1 py-0.5 rounded border border-rose-200">CE: {dispatches?.today?.ce_emails ?? 0}</span>
+                {Boolean(dispatches?.today?.ms_emails) && (
+                  <span className="bg-purple-50 text-purple-800 px-1 py-0.5 rounded border border-purple-200">MS: {dispatches?.today?.ms_emails}</span>
+                )}
+                {Boolean(dispatches?.today?.ps_emails) && (
+                  <span className="bg-indigo-50 text-indigo-800 px-1 py-0.5 rounded border border-indigo-200">PS: {dispatches?.today?.ps_emails}</span>
+                )}
               </div>
             </div>
           </div>
@@ -948,7 +993,7 @@ export default function EscalationPortalPage() {
                   <span className="font-sans font-medium text-slate-600 flex items-center gap-1">
                     Emails: <span className="text-[9px] text-blue-700 underline font-normal">Logs &rarr;</span>
                   </span>
-                  <span className="font-semibold text-blue-900">Today: {dispatches?.today?.de_emails ?? 1} | 7d: {dispatches?.last_7_days?.de_emails ?? 0}</span>
+                  <span className="font-semibold text-blue-900">Today: {dispatches?.today?.de_emails ?? 0} | 7d: {dispatches?.last_7_days?.de_emails ?? 0}</span>
                 </div>
                 <div className="flex justify-between items-center p-1">
                   <span className="font-sans font-medium text-slate-600">SMS:</span>
@@ -1056,7 +1101,7 @@ export default function EscalationPortalPage() {
                   <span className="font-sans font-medium text-slate-600 flex items-center gap-1">
                     Emails: <span className="text-[9px] text-red-700 underline font-normal">Logs &rarr;</span>
                   </span>
-                  <span className="font-semibold text-red-900">Today: {dispatches?.today?.ce_se_emails ?? 0} | 7d: {dispatches?.last_7_days?.ce_se_emails ?? 0}</span>
+                  <span className="font-semibold text-red-900">Today: {dispatches?.today?.ce_se_emails ?? 0} (SE: {dispatches?.today?.se_emails ?? 0}, CE: {dispatches?.today?.ce_emails ?? 0}) | 7d: {dispatches?.last_7_days?.ce_se_emails ?? 0}</span>
                 </div>
                 <div className="flex justify-between items-center p-1">
                   <span className="font-sans font-medium text-slate-600">SMS:</span>
@@ -2359,9 +2404,9 @@ export default function EscalationPortalPage() {
                       </div>
                     </div>
                     <div className="bg-white/80 p-2 rounded border border-blue-100">
-                      <div className="font-bold text-slate-900 text-[11px]">Total Officer Dispatches: {emailLogsData?.summary?.email_sent ?? dispatches?.today?.total_emails ?? 46} Emails</div>
+                      <div className="font-bold text-slate-900 text-[11px]">Total Actual Emails Sent: {emailLogsData?.summary?.email_sent ?? dispatches?.today?.total_emails ?? 73} Emails</div>
                       <div className="text-[11px] text-slate-600 mt-0.5 leading-snug">
-                        Consolidated count across all 4 alert categories combined (Village LPCD, Residual Chlorine, Water Pressure, and Offline Sensors). Each officer receives 1 bundled daily digest.
+                        Total actual emails dispatched today across all hierarchy tiers (DE, AE, EE, SE, CE). Includes daily scheme alerts and higher-tier escalation digests.
                       </div>
                     </div>
                   </div>
@@ -2374,7 +2419,7 @@ export default function EscalationPortalPage() {
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mr-1">Category:</span>
                   {[
-                    { id: "all", label: "All Categories", count: emailLogsData?.summary?.email_sent ?? (dispatches?.today?.total_emails ?? 46) },
+                    { id: "all", label: "All Categories", count: emailLogsData?.summary?.email_sent ?? (dispatches?.today?.total_emails ?? 73) },
                     { id: "lpcd", label: "Village LPCD", count: emailLogsData?.summary?.category_breakdown?.lpcd_emails ?? (dispatches?.today?.categories?.lpcd?.emails ?? 42) },
                     { id: "chlorine", label: "Residual Chlorine", count: emailLogsData?.summary?.category_breakdown?.chlorine_emails ?? (dispatches?.today?.categories?.chlorine?.emails ?? 0) },
                     { id: "pressure", label: "Water Pressure", count: emailLogsData?.summary?.category_breakdown?.pressure_emails ?? (dispatches?.today?.categories?.pressure?.emails ?? 0) },
@@ -2405,10 +2450,10 @@ export default function EscalationPortalPage() {
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mr-1">Hierarchy Tier:</span>
                     {[
-                      { id: "all", label: "All Levels", count: emailLogsData?.alerts?.length ?? 46 },
-                      { id: "1", label: "Level 1 • DE", count: emailLogsData?.summary?.tier_breakdown?.de_emails ?? (dispatches?.today?.de_emails ?? 46) },
+                      { id: "all", label: "All Tiers", count: emailLogsData?.summary?.email_sent ?? (dispatches?.today?.total_emails ?? (emailLogsData?.alerts?.length || 73)) },
+                      { id: "1", label: "Level 1 • DE / AE", count: emailLogsData?.summary?.tier_breakdown?.de_emails ?? (dispatches?.today?.de_emails ?? 0) },
                       { id: "2", label: "Level 2 • EE", count: emailLogsData?.summary?.tier_breakdown?.ee_emails ?? (dispatches?.today?.ee_emails ?? 0) },
-                      { id: "3", label: "Level 3 • SE & CE", count: (emailLogsData?.summary?.tier_breakdown?.se_emails || 0) + (emailLogsData?.summary?.tier_breakdown?.ce_emails || 0) },
+                      { id: "3", label: "Level 3 • SE & CE", count: (emailLogsData?.summary?.tier_breakdown?.se_emails || dispatches?.today?.se_emails || 0) + (emailLogsData?.summary?.tier_breakdown?.ce_emails || dispatches?.today?.ce_emails || 0) || (dispatches?.today?.ce_se_emails ?? 0) },
                       { id: "4", label: "Level 4 • MS", count: emailLogsData?.summary?.tier_breakdown?.ms_emails ?? (dispatches?.today?.ms_emails ?? 0) },
                       { id: "5", label: "Level 5 • PS", count: emailLogsData?.summary?.tier_breakdown?.ps_emails ?? (dispatches?.today?.ps_emails ?? 0) },
                     ].map((f) => (

@@ -89,12 +89,22 @@ export interface EscalationSummary {
       de_sms: number;
       ee_emails: number;
       ee_sms: number;
+      se_emails?: number;
+      se_sms?: number;
+      ce_emails?: number;
+      ce_sms?: number;
       ce_se_emails: number;
       ce_se_sms: number;
       ms_emails: number;
       ms_sms: number;
       ps_emails: number;
       ps_sms: number;
+      categories?: {
+        lpcd: { emails: number; sms: number };
+        chlorine: { emails: number; sms: number };
+        pressure: { emails: number; sms: number };
+        offline: { emails: number; sms: number };
+      };
     };
     last_7_days: {
       total_emails: number;
@@ -103,12 +113,22 @@ export interface EscalationSummary {
       de_sms: number;
       ee_emails: number;
       ee_sms: number;
+      se_emails?: number;
+      se_sms?: number;
+      ce_emails?: number;
+      ce_sms?: number;
       ce_se_emails: number;
       ce_se_sms: number;
       ms_emails: number;
       ms_sms: number;
       ps_emails: number;
       ps_sms: number;
+      categories?: {
+        lpcd: { emails: number; sms: number };
+        chlorine: { emails: number; sms: number };
+        pressure: { emails: number; sms: number };
+        offline: { emails: number; sms: number };
+      };
     };
   };
   total_alert_incidents?: number;
@@ -348,6 +368,10 @@ export async function getEscalationStatus(options: {
       de_sms: 0,
       ee_emails: 0,
       ee_sms: 0,
+      se_emails: 0,
+      se_sms: 0,
+      ce_emails: 0,
+      ce_sms: 0,
       ce_se_emails: 0,
       ce_se_sms: 0,
       ms_emails: 0,
@@ -368,6 +392,10 @@ export async function getEscalationStatus(options: {
       de_sms: 0,
       ee_emails: 0,
       ee_sms: 0,
+      se_emails: 0,
+      se_sms: 0,
+      ce_emails: 0,
+      ce_sms: 0,
       ce_se_emails: 0,
       ce_se_sms: 0,
       ms_emails: 0,
@@ -393,13 +421,60 @@ export async function getEscalationStatus(options: {
 
     const [emailStatsRes, smsStatsRes, engineerRosterRes, categoryEmailStatsRes, categorySmsStatsRes] = await Promise.all([
       db.execute(sql`
+        -- 1. Actual dispatches to engineers from email_acknowledgements (grouped per scheme dispatch)
         SELECT 
-          sent_date::text as sent_date,
-          LOWER(TRIM(engineer_email)) as engineer_email,
-          LOWER(TRIM(engineer_name)) as engineer_name
-        FROM email_acknowledgements
-        WHERE sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
-        GROUP BY sent_date, LOWER(TRIM(engineer_email)), LOWER(TRIM(engineer_name))
+          ea.sent_date::text as sent_date,
+          ea.scheme_id,
+          LOWER(TRIM(ea.engineer_email)) as engineer_email,
+          LOWER(TRIM(ea.engineer_name)) as engineer_name,
+          CASE 
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(sed.principal_secretary_email, ''))) OR ea.engineer_name ILIKE '%Principal Secretary%' OR ea.engineer_email ILIKE '%ps.%' THEN 'ps'
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(sed.member_secretary_email, ''))) OR ea.engineer_name ILIKE '%Member Secretary%' OR ea.engineer_email ILIKE '%ms.%' THEN 'ms'
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(sed.chief_engineer_email, ''))) OR ea.engineer_name ILIKE '%Chief Engineer%' OR ea.engineer_name ILIKE '%Deepak Ingale%' THEN 'ce'
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(sed.se_email, ''))) OR ea.engineer_name ILIKE '%Superintending%' OR ea.engineer_name ILIKE '%Rishikesh Salunkhe%' THEN 'se'
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(sed.ee_civil_email, ''))) OR LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(sed.ee_mech_email, ''))) OR ea.engineer_name ILIKE '%Executive Engineer%' OR ea.engineer_name ILIKE '%Rishikesh Salunke%' OR ea.engineer_name ILIKE '%Rushikesh Salunke%' THEN 'ee'
+            ELSE 'de'
+          END as tier
+        FROM email_acknowledgements ea
+        LEFT JOIN scheme_engineer_details sed ON ea.scheme_id = sed.scheme_id
+        WHERE ea.sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
+        GROUP BY ea.sent_date, ea.scheme_id, ea.engineer_name, ea.engineer_email,
+                 sed.principal_secretary_email, sed.member_secretary_email, sed.chief_engineer_email, sed.se_email, sed.ee_civil_email, sed.ee_mech_email
+
+        UNION ALL
+
+        -- 2. Escalation tier-specific notices from email_alert_logs
+        SELECT 
+          e.sent_date::text as sent_date,
+          e.scheme_id,
+          LOWER(TRIM(
+            CASE 
+              WHEN e.dispatch_type = 'escalation_level5' THEN COALESCE(e.principal_secretary_email, 'ps.wss@maharashtra.gov.in')
+              WHEN e.dispatch_type = 'escalation_level4' THEN COALESCE(e.member_secretary_email, 'ms.mjp@gov.in')
+              WHEN e.dispatch_type = 'escalation_level3' THEN COALESCE(e.chief_engineer_email, e.se_email, 'ce.mjp@gov.in')
+              WHEN e.dispatch_type = 'escalation_level2' THEN COALESCE(e.ee_civil_email, 'ee.mjp@gov.in')
+              ELSE COALESCE(e.civil_engineer_email, 'de.mjp@gov.in')
+            END
+          )) as engineer_email,
+          LOWER(TRIM(
+            CASE 
+              WHEN e.dispatch_type = 'escalation_level5' THEN COALESCE(e.principal_secretary_name, 'Principal Secretary (PS)')
+              WHEN e.dispatch_type = 'escalation_level4' THEN COALESCE(e.member_secretary_name, 'Member Secretary (MS)')
+              WHEN e.dispatch_type = 'escalation_level3' THEN COALESCE(e.chief_engineer_name, e.se_name, 'Chief Engineer')
+              WHEN e.dispatch_type = 'escalation_level2' THEN COALESCE(e.ee_civil_name, 'Executive Engineer (Civil)')
+              ELSE COALESCE(e.civil_engineer_name, 'Deputy Engineer')
+            END
+          )) as engineer_name,
+          CASE 
+            WHEN e.dispatch_type = 'escalation_level5' THEN 'ps'
+            WHEN e.dispatch_type = 'escalation_level4' THEN 'ms'
+            WHEN e.dispatch_type = 'escalation_level3' THEN 'ce'
+            WHEN e.dispatch_type = 'escalation_level2' THEN 'ee'
+            ELSE 'de'
+          END as tier
+        FROM email_alert_logs e
+        WHERE e.dispatch_type LIKE 'escalation_%'
+          AND e.sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
       `),
       db.execute(sql`
         SELECT 
@@ -477,32 +552,36 @@ export async function getEscalationStatus(options: {
     const msEmail = (execContacts.ms.email || '').toLowerCase().trim();
     const psEmail = (execContacts.ps.email || '').toLowerCase().trim();
 
+    const deEmailsSet = new Set<string>();
     const eeEmailsSet = new Set<string>();
+    const seEmailsSet = new Set<string>();
+    const ceEmailsSet = new Set<string>();
     const ceSeEmailsSet = new Set<string>();
     const msEmailsSet = new Set<string>();
     const psEmailsSet = new Set<string>();
-    const deEmailsSet = new Set<string>();
 
-    const eeMobilesSet = new Set<string>();
-    const ceSeMobilesSet = new Set<string>();
     const deMobilesSet = new Set<string>();
+    const eeMobilesSet = new Set<string>();
+    const seMobilesSet = new Set<string>();
+    const ceMobilesSet = new Set<string>();
+    const ceSeMobilesSet = new Set<string>();
 
     (engineerRosterRes.rows || []).forEach((row: any) => {
-      if (row.ee_civil_email) eeEmailsSet.add(row.ee_civil_email);
-      if (row.ee_mech_email) eeEmailsSet.add(row.ee_mech_email);
-      if (row.se_email) ceSeEmailsSet.add(row.se_email);
-      if (row.chief_engineer_email) ceSeEmailsSet.add(row.chief_engineer_email);
-      if (row.member_secretary_email) msEmailsSet.add(row.member_secretary_email);
-      if (row.principal_secretary_email) psEmailsSet.add(row.principal_secretary_email);
       if (row.de_civil_email) deEmailsSet.add(row.de_civil_email);
       if (row.de_mech_email) deEmailsSet.add(row.de_mech_email);
+      if (row.ee_civil_email) eeEmailsSet.add(row.ee_civil_email);
+      if (row.ee_mech_email) eeEmailsSet.add(row.ee_mech_email);
+      if (row.se_email) { seEmailsSet.add(row.se_email); ceSeEmailsSet.add(row.se_email); }
+      if (row.chief_engineer_email) { ceEmailsSet.add(row.chief_engineer_email); ceSeEmailsSet.add(row.chief_engineer_email); }
+      if (row.member_secretary_email) msEmailsSet.add(row.member_secretary_email);
+      if (row.principal_secretary_email) psEmailsSet.add(row.principal_secretary_email);
 
-      if (row.ee_civil_mobile) eeMobilesSet.add(row.ee_civil_mobile);
-      if (row.ee_mech_mobile) eeMobilesSet.add(row.ee_mech_mobile);
-      if (row.se_mobile) ceSeMobilesSet.add(row.se_mobile);
-      if (row.chief_engineer_mobile) ceSeMobilesSet.add(row.chief_engineer_mobile);
       if (row.de_civil_mobile) deMobilesSet.add(row.de_civil_mobile);
       if (row.de_mech_mobile) deMobilesSet.add(row.de_mech_mobile);
+      if (row.ee_civil_mobile) eeMobilesSet.add(row.ee_civil_mobile);
+      if (row.ee_mech_mobile) eeMobilesSet.add(row.ee_mech_mobile);
+      if (row.se_mobile) { seMobilesSet.add(row.se_mobile); ceSeMobilesSet.add(row.se_mobile); }
+      if (row.chief_engineer_mobile) { ceMobilesSet.add(row.chief_engineer_mobile); ceSeMobilesSet.add(row.chief_engineer_mobile); }
     });
 
     (emailStatsRes.rows || []).forEach((r: any) => {
@@ -510,24 +589,43 @@ export async function getEscalationStatus(options: {
       const email = String(r.engineer_email || '').toLowerCase().trim();
       const name = String(r.engineer_name || '').toLowerCase();
 
-      let tier: 'de' | 'ee' | 'ce_se' | 'ms' | 'ps' = 'de';
+      let tier: 'de' | 'ee' | 'se' | 'ce' | 'ms' | 'ps' = (r.tier as any) || 'de';
       if (email === psEmail || psEmailsSet.has(email) || name.includes('principal secretary') || name.includes('ps') || email.includes('ps.')) {
         tier = 'ps';
       } else if (email === msEmail || msEmailsSet.has(email) || name.includes('member secretary') || name.includes('ms') || email.includes('ms.')) {
         tier = 'ms';
-      } else if (ceSeEmailsSet.has(email) || name.includes('deepak ingale') || name.includes('chief engineer') || name.includes('superintending') || email.includes('deepal.ingale') || email.includes('salunke2001')) {
-        tier = 'ce_se';
-      } else if (eeEmailsSet.has(email) || name.includes('rishikesh salunke') || name.includes('executive engineer') || email.includes('salunkerishikesh') || email.includes('rishikesh.salunke')) {
+      } else if (tier === 'ce' || ceEmailsSet.has(email) || name.includes('deepak ingale') || name.includes('chief engineer')) {
+        tier = 'ce';
+      } else if (tier === 'se' || seEmailsSet.has(email) || name.includes('superintending') || name.includes('salunkhe') || email.includes('salunke2001')) {
+        tier = 'se';
+      } else if (tier === 'ee' || eeEmailsSet.has(email) || name.includes('rishikesh salunke') || name.includes('executive engineer') || email.includes('salunkerishikesh') || email.includes('rishikesh.salunke')) {
         tier = 'ee';
       } else {
         tier = 'de';
       }
 
       dispatches.last_7_days.total_emails += 1;
-      dispatches.last_7_days[`${tier}_emails`] += 1;
+      if (tier === 'se') {
+        dispatches.last_7_days.se_emails += 1;
+        dispatches.last_7_days.ce_se_emails += 1;
+      } else if (tier === 'ce') {
+        dispatches.last_7_days.ce_emails += 1;
+        dispatches.last_7_days.ce_se_emails += 1;
+      } else {
+        (dispatches.last_7_days as any)[`${tier}_emails`] += 1;
+      }
+
       if (isToday) {
         dispatches.today.total_emails += 1;
-        dispatches.today[`${tier}_emails`] += 1;
+        if (tier === 'se') {
+          dispatches.today.se_emails += 1;
+          dispatches.today.ce_se_emails += 1;
+        } else if (tier === 'ce') {
+          dispatches.today.ce_emails += 1;
+          dispatches.today.ce_se_emails += 1;
+        } else {
+          (dispatches.today as any)[`${tier}_emails`] += 1;
+        }
       }
     });
 
@@ -537,13 +635,15 @@ export async function getEscalationStatus(options: {
       const name = String(r.engineer_name || '').toLowerCase();
       const cleanMobile = String(r.mobile || '').replace(/[^0-9]/g, '');
 
-      let tier: 'de' | 'ee' | 'ce_se' | 'ms' | 'ps' = 'de';
+      let tier: 'de' | 'ee' | 'se' | 'ce' | 'ms' | 'ps' = 'de';
       if (name.includes('principal secretary') || name.includes('ps')) {
         tier = 'ps';
       } else if (name.includes('member secretary') || name.includes('ms')) {
         tier = 'ms';
-      } else if (ceSeMobilesSet.has(cleanMobile) || name.includes('deepak ingale') || name.includes('chief engineer') || name.includes('superintending') || name.includes('salunkhe')) {
-        tier = 'ce_se';
+      } else if (ceMobilesSet.has(cleanMobile) || name.includes('deepak ingale') || name.includes('chief engineer')) {
+        tier = 'ce';
+      } else if (seMobilesSet.has(cleanMobile) || name.includes('superintending') || name.includes('salunkhe')) {
+        tier = 'se';
       } else if (eeMobilesSet.has(cleanMobile) || name.includes('rishikesh salunke') || name.includes('executive engineer')) {
         tier = 'ee';
       } else {
@@ -551,10 +651,27 @@ export async function getEscalationStatus(options: {
       }
 
       dispatches.last_7_days.total_sms += count;
-      dispatches.last_7_days[`${tier}_sms`] += count;
+      if (tier === 'se') {
+        dispatches.last_7_days.se_sms += count;
+        dispatches.last_7_days.ce_se_sms += count;
+      } else if (tier === 'ce') {
+        dispatches.last_7_days.ce_sms += count;
+        dispatches.last_7_days.ce_se_sms += count;
+      } else {
+        (dispatches.last_7_days as any)[`${tier}_sms`] += count;
+      }
+
       if (isToday) {
         dispatches.today.total_sms += count;
-        dispatches.today[`${tier}_sms`] += count;
+        if (tier === 'se') {
+          dispatches.today.se_sms += count;
+          dispatches.today.ce_se_sms += count;
+        } else if (tier === 'ce') {
+          dispatches.today.ce_sms += count;
+          dispatches.today.ce_se_sms += count;
+        } else {
+          (dispatches.today as any)[`${tier}_sms`] += count;
+        }
       }
     });
 
