@@ -98,6 +98,37 @@ interface EscalationSummaryResponse {
     total_esrs_high_chlorine: number;
     total_esrs_low_pressure: number;
     total_offline_sensors: number;
+    total_alert_incidents?: number;
+    dispatches?: {
+      today: {
+        total_emails: number;
+        total_sms: number;
+        de_emails: number;
+        de_sms: number;
+        ee_emails: number;
+        ee_sms: number;
+        ce_se_emails: number;
+        ce_se_sms: number;
+        ms_emails: number;
+        ms_sms: number;
+        ps_emails: number;
+        ps_sms: number;
+      };
+      last_7_days: {
+        total_emails: number;
+        total_sms: number;
+        de_emails: number;
+        de_sms: number;
+        ee_emails: number;
+        ee_sms: number;
+        ce_se_emails: number;
+        ce_se_sms: number;
+        ms_emails: number;
+        ms_sms: number;
+        ps_emails: number;
+        ps_sms: number;
+      };
+    };
   };
   schemes: SchemeEscalationItem[];
 }
@@ -504,24 +535,28 @@ export default function EscalationPortalPage() {
               <div className="text-lg font-bold font-mono text-purple-900 mt-0.5">
                 {layer4Schemes.length}
               </div>
+              <div className="text-[10px] text-purple-700 font-semibold uppercase tracking-tight">Unresolved Schemes</div>
             </div>
             <div className="border-r border-slate-200 last:border-0 pr-2">
               <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Level 5 (15+ Days)</div>
               <div className="text-lg font-bold font-mono text-indigo-950 mt-0.5">
                 {layer5Schemes.length}
               </div>
+              <div className="text-[10px] text-indigo-700 font-semibold uppercase tracking-tight">Unresolved Schemes</div>
             </div>
             <div className="border-r border-slate-200 last:border-0 pr-2">
-              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Total SMS</div>
-              <div className="text-lg font-bold font-mono text-slate-900 mt-0.5">
-                {overallTotals.totalSms}
+              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Total SMS Sent</div>
+              <div className="text-sm font-bold font-mono text-slate-900 mt-0.5">
+                Today: {dispatches?.today?.total_sms ?? 0}
               </div>
+              <div className="text-[10px] text-slate-500 font-mono">7 Days: {dispatches?.last_7_days?.total_sms ?? 0}</div>
             </div>
             <div>
-              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Total Emails</div>
-              <div className="text-lg font-bold font-mono text-slate-900 mt-0.5">
-                {overallTotals.totalEmails}
+              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Total Emails Sent</div>
+              <div className="text-sm font-bold font-mono text-slate-900 mt-0.5">
+                Today: {dispatches?.today?.total_emails ?? 0}
               </div>
+              <div className="text-[10px] text-slate-500 font-mono">7 Days: {dispatches?.last_7_days?.total_emails ?? 0}</div>
             </div>
           </div>
         </div>
@@ -550,14 +585,20 @@ export default function EscalationPortalPage() {
                 </Badge>
               </div>
 
-              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1">
+              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1.5">
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-600 font-medium">Schemes</span>
+                  <span className="text-slate-600 font-medium">Active Schemes</span>
                   <span className="font-bold font-mono text-blue-950 text-base">{layer1Schemes.length}</span>
                 </div>
-                <div className="flex justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200 font-mono">
-                  <span>{layer1Totals.sms} SMS</span>
-                  <span>{layer1Totals.emails} Emails</span>
+                <div className="pt-1.5 border-t border-slate-200 text-[11px] space-y-1 font-mono text-slate-600">
+                  <div className="flex justify-between">
+                    <span>Emails:</span>
+                    <span className="font-semibold text-blue-900">Today: {dispatches?.today?.de_emails ?? 0} | 7d: {dispatches?.last_7_days?.de_emails ?? 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>SMS:</span>
+                    <span className="font-semibold text-slate-700">Today: {dispatches?.today?.de_sms ?? 0} | 7d: {dispatches?.last_7_days?.de_sms ?? 0}</span>
+                  </div>
                 </div>
               </div>
 
@@ -599,14 +640,20 @@ export default function EscalationPortalPage() {
                 </Badge>
               </div>
 
-              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1">
+              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1.5">
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-600 font-medium">Schemes</span>
+                  <span className="text-slate-600 font-medium">Pending 3+ Days</span>
                   <span className="font-bold font-mono text-amber-900 text-base">{layer2Schemes.length}</span>
                 </div>
-                <div className="flex justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200 font-mono">
-                  <span>{layer2Totals.sms} SMS</span>
-                  <span>{layer2Totals.emails} Emails</span>
+                <div className="pt-1.5 border-t border-slate-200 text-[11px] space-y-1 font-mono text-slate-600">
+                  <div className="flex justify-between">
+                    <span>Emails:</span>
+                    <span className="font-semibold text-amber-900">Today: {dispatches?.today?.ee_emails ?? 0} | 7d: {dispatches?.last_7_days?.ee_emails ?? 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>SMS:</span>
+                    <span className="font-semibold text-slate-700">Today: {dispatches?.today?.ee_sms ?? 0} | 7d: {dispatches?.last_7_days?.ee_sms ?? 0}</span>
+                  </div>
                 </div>
               </div>
 
@@ -648,14 +695,20 @@ export default function EscalationPortalPage() {
                 </Badge>
               </div>
 
-              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1">
+              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1.5">
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-600 font-medium">Schemes</span>
+                  <span className="text-slate-600 font-medium">Pending 7+ Days</span>
                   <span className="font-bold font-mono text-red-900 text-base">{layer3Schemes.length}</span>
                 </div>
-                <div className="flex justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200 font-mono">
-                  <span>{layer3Totals.sms} SMS</span>
-                  <span>{layer3Totals.emails} Emails</span>
+                <div className="pt-1.5 border-t border-slate-200 text-[11px] space-y-1 font-mono text-slate-600">
+                  <div className="flex justify-between">
+                    <span>Emails:</span>
+                    <span className="font-semibold text-red-900">Today: {dispatches?.today?.ce_se_emails ?? 0} | 7d: {dispatches?.last_7_days?.ce_se_emails ?? 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>SMS:</span>
+                    <span className="font-semibold text-slate-700">Today: {dispatches?.today?.ce_se_sms ?? 0} | 7d: {dispatches?.last_7_days?.ce_se_sms ?? 0}</span>
+                  </div>
                 </div>
               </div>
 
@@ -697,14 +750,20 @@ export default function EscalationPortalPage() {
                 </Badge>
               </div>
 
-              <div className="bg-purple-50/50 p-2.5 rounded border border-purple-200 space-y-1">
+              <div className="bg-purple-50/50 p-2.5 rounded border border-purple-200 space-y-1.5">
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-600 font-medium">Schemes</span>
-                  <span className="font-bold font-mono text-purple-950 text-base">{layer4Schemes.length}</span>
+                  <span className="text-purple-950 font-semibold">Unresolved (10+ Days)</span>
+                  <span className="font-bold font-mono text-purple-950 text-base">{layer4Schemes.length} Schemes</span>
                 </div>
-                <div className="flex justify-between text-[11px] text-purple-900 pt-1 border-t border-purple-200/80 font-mono">
-                  <span>{layer4Totals.sms} SMS</span>
-                  <span>{layer4Totals.emails} Emails</span>
+                <div className="pt-1.5 border-t border-purple-200/80 text-[11px] space-y-1 font-mono text-purple-950">
+                  <div className="flex justify-between">
+                    <span>Emails:</span>
+                    <span className="font-semibold text-purple-900">Today: {dispatches?.today?.ms_emails ?? 0} | 7d: {dispatches?.last_7_days?.ms_emails ?? 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>SMS:</span>
+                    <span className="font-semibold text-slate-700">Today: {dispatches?.today?.ms_sms ?? 0} | 7d: {dispatches?.last_7_days?.ms_sms ?? 0}</span>
+                  </div>
                 </div>
               </div>
 
@@ -746,14 +805,20 @@ export default function EscalationPortalPage() {
                 </Badge>
               </div>
 
-              <div className="bg-indigo-50/50 p-2.5 rounded border border-indigo-200 space-y-1">
+              <div className="bg-indigo-50/50 p-2.5 rounded border border-indigo-200 space-y-1.5">
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-600 font-medium">Schemes</span>
-                  <span className="font-bold font-mono text-indigo-950 text-base">{layer5Schemes.length}</span>
+                  <span className="text-indigo-950 font-semibold">Unresolved (15+ Days)</span>
+                  <span className="font-bold font-mono text-indigo-950 text-base">{layer5Schemes.length} Schemes</span>
                 </div>
-                <div className="flex justify-between text-[11px] text-indigo-950 pt-1 border-t border-indigo-200/80 font-mono">
-                  <span>{layer5Totals.sms} SMS</span>
-                  <span>{layer5Totals.emails} Emails</span>
+                <div className="pt-1.5 border-t border-indigo-200/80 text-[11px] space-y-1 font-mono text-indigo-950">
+                  <div className="flex justify-between">
+                    <span>Emails:</span>
+                    <span className="font-semibold text-indigo-900">Today: {dispatches?.today?.ps_emails ?? 0} | 7d: {dispatches?.last_7_days?.ps_emails ?? 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>SMS:</span>
+                    <span className="font-semibold text-slate-700">Today: {dispatches?.today?.ps_sms ?? 0} | 7d: {dispatches?.last_7_days?.ps_sms ?? 0}</span>
+                  </div>
                 </div>
               </div>
 

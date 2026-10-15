@@ -81,6 +81,37 @@ export interface EscalationSummary {
     level_5: number;
     schemes: string[];
   }>;
+  dispatches?: {
+    today: {
+      total_emails: number;
+      total_sms: number;
+      de_emails: number;
+      de_sms: number;
+      ee_emails: number;
+      ee_sms: number;
+      ce_se_emails: number;
+      ce_se_sms: number;
+      ms_emails: number;
+      ms_sms: number;
+      ps_emails: number;
+      ps_sms: number;
+    };
+    last_7_days: {
+      total_emails: number;
+      total_sms: number;
+      de_emails: number;
+      de_sms: number;
+      ee_emails: number;
+      ee_sms: number;
+      ce_se_emails: number;
+      ce_se_sms: number;
+      ms_emails: number;
+      ms_sms: number;
+      ps_emails: number;
+      ps_sms: number;
+    };
+  };
+  total_alert_incidents?: number;
 }
 
 /**
@@ -277,6 +308,127 @@ export async function getEscalationStatus(options: {
     console.error("Error fetching notification counts in getEscalationStatus:", err);
   }
 
+  // 3c. Query actual dispatches for Today and Last 7 Days from email_acknowledgements & sms_alert_logs
+  const dispatches = {
+    today: {
+      total_emails: 0,
+      total_sms: 0,
+      de_emails: 0,
+      de_sms: 0,
+      ee_emails: 0,
+      ee_sms: 0,
+      ce_se_emails: 0,
+      ce_se_sms: 0,
+      ms_emails: 0,
+      ms_sms: 0,
+      ps_emails: 0,
+      ps_sms: 0,
+    },
+    last_7_days: {
+      total_emails: 0,
+      total_sms: 0,
+      de_emails: 0,
+      de_sms: 0,
+      ee_emails: 0,
+      ee_sms: 0,
+      ce_se_emails: 0,
+      ce_se_sms: 0,
+      ms_emails: 0,
+      ms_sms: 0,
+      ps_emails: 0,
+      ps_sms: 0,
+    },
+  };
+
+  try {
+    const todayStr = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+
+    const [emailStatsRes, smsStatsRes] = await Promise.all([
+      db.execute(sql`
+        SELECT 
+          sent_date::text as sent_date,
+          LOWER(TRIM(engineer_email)) as engineer_email,
+          LOWER(TRIM(engineer_name)) as engineer_name
+        FROM email_acknowledgements
+        WHERE sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
+        GROUP BY sent_date, LOWER(TRIM(engineer_email)), LOWER(TRIM(engineer_name))
+      `),
+      db.execute(sql`
+        SELECT 
+          sent_date::text as sent_date,
+          LOWER(TRIM(engineer_name)) as engineer_name,
+          mobile,
+          COUNT(*) as sms_count
+        FROM sms_alert_logs
+        WHERE sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
+        GROUP BY sent_date, LOWER(TRIM(engineer_name)), mobile
+      `)
+    ]);
+
+    const execContacts = await getExecutiveContacts();
+    const msEmail = (execContacts.ms.email || '').toLowerCase().trim();
+    const psEmail = (execContacts.ps.email || '').toLowerCase().trim();
+
+    (emailStatsRes.rows || []).forEach((r: any) => {
+      const isToday = r.sent_date === todayStr;
+      const email = String(r.engineer_email || '');
+      const name = String(r.engineer_name || '');
+
+      let tier: 'de' | 'ee' | 'ce_se' | 'ms' | 'ps' = 'de';
+      if (email === psEmail || name.includes('principal secretary') || name.includes('ps')) {
+        tier = 'ps';
+      } else if (email === msEmail || name.includes('member secretary') || name.includes('ms')) {
+        tier = 'ms';
+      } else if (name.includes('deepak ingale') || name.includes('chief engineer') || name.includes('superintending') || email.includes('deepal.ingale') || email.includes('salunke2001')) {
+        tier = 'ce_se';
+      } else if (name.includes('rishikesh salunke') || name.includes('executive engineer') || email.includes('salunkerishikesh') || email.includes('rishikesh.salunke')) {
+        tier = 'ee';
+      } else {
+        tier = 'de';
+      }
+
+      dispatches.last_7_days.total_emails += 1;
+      dispatches.last_7_days[`${tier}_emails`] += 1;
+      if (isToday) {
+        dispatches.today.total_emails += 1;
+        dispatches.today[`${tier}_emails`] += 1;
+      }
+    });
+
+    (smsStatsRes.rows || []).forEach((r: any) => {
+      const isToday = r.sent_date === todayStr;
+      const count = Number(r.sms_count || 0);
+      const name = String(r.engineer_name || '');
+
+      let tier: 'de' | 'ee' | 'ce_se' | 'ms' | 'ps' = 'de';
+      if (name.includes('principal secretary') || name.includes('ps')) {
+        tier = 'ps';
+      } else if (name.includes('member secretary') || name.includes('ms')) {
+        tier = 'ms';
+      } else if (name.includes('deepak ingale') || name.includes('chief engineer') || name.includes('superintending') || name.includes('salunkhe')) {
+        tier = 'ce_se';
+      } else if (name.includes('rishikesh salunke') || name.includes('executive engineer')) {
+        tier = 'ee';
+      } else {
+        tier = 'de';
+      }
+
+      dispatches.last_7_days.total_sms += count;
+      dispatches.last_7_days[`${tier}_sms`] += count;
+      if (isToday) {
+        dispatches.today.total_sms += count;
+        dispatches.today[`${tier}_sms`] += count;
+      }
+    });
+  } catch (dispErr) {
+    console.error("Error computing dispatch metrics in getEscalationStatus:", dispErr);
+  }
+
   // 4. Calculate active escalation levels and flags
   const schemesList = Array.from(schemeAgg.values()).map(s => {
     if (s.max_streak_days >= 15) {
@@ -334,6 +486,8 @@ export async function getEscalationStatus(options: {
     total_esrs_high_chlorine: schemesList.reduce((acc, s) => acc + s.chlorine_high_count, 0),
     total_esrs_low_pressure: schemesList.reduce((acc, s) => acc + s.pressure_low_count, 0),
     total_offline_sensors: schemesList.reduce((acc, s) => acc + s.offline_count, 0),
+    total_alert_incidents: schemesList.reduce((acc, s) => acc + (s.total_email_count || 0), 0),
+    dispatches,
     regional_breakdown: {},
   };
 
