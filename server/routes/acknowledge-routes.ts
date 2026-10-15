@@ -221,14 +221,9 @@ router.post('/', async (req: Request, res: Response) => {
       );
       ackTime = updateRes.rows[0]?.acknowledged_at || new Date();
     } else {
-      const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
-      const insertRes = await client.query(
-        `INSERT INTO email_acknowledgements (token, scheme_id, alert_type, alert_id, ticket_id, esr_name, engineer_email, engineer_name, sent_date, acknowledged_at, is_ack, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), true, NOW())
-         RETURNING acknowledged_at`,
-        [token, scheme_id, alert_type, parsedAlertId, ticket_id || null, cleanEsr, email, name, date]
-      );
-      ackTime = insertRes.rows[0]?.acknowledged_at || new Date();
+      return res.status(403).json({
+        error: 'No email alert dispatch was found for your email address for this scheme/alert. Acknowledgement is strictly permitted only when an alert email has been sent to you.'
+      });
     }
 
     res.json({
@@ -329,6 +324,7 @@ router.post('/batch', async (req: Request, res: Response) => {
         await client.query(
           `UPDATE email_acknowledgements 
            SET acknowledged_at = NOW(), 
+               is_ack = true,
                engineer_name = COALESCE($1, engineer_name), 
                engineer_email = COALESCE($2, engineer_email),
                alert_id = COALESCE($3, alert_id),
@@ -337,15 +333,8 @@ router.post('/batch', async (req: Request, res: Response) => {
            WHERE id = ANY($6::int[])`,
           [name, email, parsedAlertId, ticket_id || null, cleanEsr, ackRowIds]
         );
-      } else {
-        const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
-        await client.query(
-          `INSERT INTO email_acknowledgements (token, scheme_id, alert_type, alert_id, ticket_id, esr_name, engineer_email, engineer_name, sent_date, acknowledged_at, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())`,
-          [token, scheme_id, alert_type, parsedAlertId, ticket_id || null, cleanEsr, email, name, date]
-        );
+        acknowledgedCount++;
       }
-      acknowledgedCount++;
     }
 
     await client.query('COMMIT');

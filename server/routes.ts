@@ -1466,12 +1466,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         SELECT a.id, a.scheme_id, a.scheme_name, a.region, a.village_name, a.esr_name, a.alert_type, a.alert_value, a.sent_date, a.sent_time, a.ticket_id,
                ea.id as ack_id, ea.token as ack_token, ea.acknowledged_at, ea.engineer_name as acknowledged_by,
                (COALESCE(ea.is_ack, false) = true OR ea.acknowledged_at IS NOT NULL) as is_acknowledged,
+               (ea.id IS NOT NULL) as email_dispatched,
+               ea.sent_date as email_sent_date,
+               CASE 
+                 WHEN ${isAdmin} = true THEN (ea.id IS NOT NULL)
+                 -- MS and PS: NO acknowledgement permitted
+                 WHEN LOWER(TRIM(${userEmail})) = LOWER(TRIM(COALESCE(sch.member_secretary_email, ''))) 
+                   OR LOWER(TRIM(${userEmail})) = LOWER(TRIM(COALESCE(sch.principal_secretary_email, ''))) THEN false
+                 -- SE and CE: Valid for 7 days from dispatch date
+                 WHEN LOWER(TRIM(${userEmail})) = LOWER(TRIM(COALESCE(sch.chief_engineer_email, ''))) 
+                   OR LOWER(TRIM(${userEmail})) = LOWER(TRIM(COALESCE(sch.se_email, ''))) THEN 
+                     (ea.id IS NOT NULL AND (ea.sent_date >= CURRENT_DATE - INTERVAL '6 days' OR ea.created_at::date >= CURRENT_DATE - INTERVAL '6 days'))
+                 -- EE: Valid for 3 days from dispatch date
+                 WHEN LOWER(TRIM(${userEmail})) = LOWER(TRIM(COALESCE(sch.ee_civil_email, ''))) 
+                   OR LOWER(TRIM(${userEmail})) = LOWER(TRIM(COALESCE(sch.ee_mech_email, ''))) THEN 
+                     (ea.id IS NOT NULL AND (ea.sent_date >= CURRENT_DATE - INTERVAL '2 days' OR ea.created_at::date >= CURRENT_DATE - INTERVAL '2 days'))
+                 -- DE / AE: Valid strictly for 1 day (today)
+                 ELSE 
+                   (ea.id IS NOT NULL AND (ea.sent_date = CURRENT_DATE OR ea.created_at::date = CURRENT_DATE))
+               END as can_acknowledge,
                rem.vendor_name as reminder_vendor_name,
                rem.vendor_email as reminder_vendor_email,
                rem.sent_at as reminder_sent_at
         FROM email_alert_logs a
+        LEFT JOIN scheme_engineer_details sch ON sch.scheme_id = a.scheme_id
         LEFT JOIN LATERAL (
-          SELECT ea.id, ea.token, ea.acknowledged_at, ea.engineer_name, ea.is_ack
+          SELECT ea.id, ea.token, ea.acknowledged_at, ea.engineer_name, ea.is_ack, ea.sent_date, ea.created_at
           FROM email_acknowledgements ea
           WHERE (
             -- 1. Exact alert match by alert_id

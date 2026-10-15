@@ -534,6 +534,14 @@ export const getRowRecipients = (row: AlertData) => {
     });
   }
 
+  // If actual email dispatches exist for this alert, strictly show only the personnel who were dispatched an email
+  if (row.acknowledgements && row.acknowledgements.length > 0) {
+    const dispatched = recipients.filter(r => r.isDispatched);
+    if (dispatched.length > 0) {
+      return dispatched;
+    }
+  }
+
   return recipients;
 };
 
