@@ -540,8 +540,13 @@ table th {
   color: var(--text-primary) !important;
   border-bottom: 2px solid var(--border-color) !important;
   position: relative !important;
-  text-align: left !important;
+  text-align: left;
   transition: all 0.3s ease !important;
+}
+
+.escalation-table th,
+.escalation-table thead th {
+  text-align: center !important;
 }
 
 table th::after {

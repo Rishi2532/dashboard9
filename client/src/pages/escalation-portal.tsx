@@ -901,17 +901,17 @@ export default function EscalationPortalPage() {
           ) : (
             /* WIDE GOVERNMENT DATA TABLE */
             <div className="overflow-x-auto w-full">
-              <table className="w-full text-left text-xs border-collapse">
+              <table className="w-full escalation-table text-xs border-collapse">
                 <thead>
-                  <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-semibold uppercase text-[11px] tracking-wider text-center">
-                    <th className="py-2.5 px-3 border-r border-slate-200 w-12 text-center">Sr.</th>
-                    <th className="py-2.5 px-4 border-r border-slate-200 min-w-[200px] text-center">Scheme & Region</th>
-                    <th className="py-2.5 px-3 border-r border-slate-200 min-w-[130px] text-center">Current Level</th>
-                    <th className="py-2.5 px-3 border-r border-slate-200 min-w-[180px] text-center">Days Unresolved</th>
-                    <th className="py-2.5 px-4 border-r border-slate-200 min-w-[220px] text-center">Designated Officer</th>
-                    <th className="py-2.5 px-3 border-r border-slate-200 min-w-[190px] text-center">Actual Dispatches</th>
-                    <th className="py-2.5 px-3 border-r border-slate-200 min-w-[210px] text-center">Active Issues</th>
-                    <th className="py-2.5 px-3 text-center w-28">Action</th>
+                  <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-semibold uppercase text-[11px] tracking-wider !text-center">
+                    <th style={{ textAlign: "center" }} className="py-2.5 px-3 border-r border-slate-200 w-12 !text-center">Sr.</th>
+                    <th style={{ textAlign: "center" }} className="py-2.5 px-4 border-r border-slate-200 min-w-[200px] !text-center">Scheme & Region</th>
+                    <th style={{ textAlign: "center" }} className="py-2.5 px-3 border-r border-slate-200 min-w-[130px] !text-center">Current Level</th>
+                    <th style={{ textAlign: "center" }} className="py-2.5 px-3 border-r border-slate-200 min-w-[180px] !text-center">Days Unresolved</th>
+                    <th style={{ textAlign: "center" }} className="py-2.5 px-4 border-r border-slate-200 min-w-[220px] !text-center">Designated Officer</th>
+                    <th style={{ textAlign: "center" }} className="py-2.5 px-3 border-r border-slate-200 min-w-[190px] !text-center">Actual Dispatches</th>
+                    <th style={{ textAlign: "center" }} className="py-2.5 px-3 border-r border-slate-200 min-w-[210px] !text-center">Active Issues</th>
+                    <th style={{ textAlign: "center" }} className="py-2.5 px-3 !text-center w-28">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
