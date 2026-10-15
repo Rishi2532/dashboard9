@@ -587,8 +587,8 @@ export const getRowAckInfo = (row: AlertData) => {
         });
       });
     } else if (row.is_acknowledged) {
-      const fallbackName = row.ee_civil_name || (recipients[0]?.name) || "Assigned Engineer";
-      const fallbackEmail = row.ee_civil_email || (recipients[0]?.email) || "";
+      const fallbackName = row.ee_civil_name || (activeRecipients[0]?.name) || "Assigned Engineer";
+      const fallbackEmail = row.ee_civil_email || (activeRecipients[0]?.email) || "";
       const fallbackAt = row.acknowledged_at || (row.acknowledgements && row.acknowledgements[0]?.acknowledged_at) || "";
       acksList.push({
         name: fallbackName,
@@ -604,7 +604,7 @@ export const getRowAckInfo = (row: AlertData) => {
     ackCount: Math.max(ackCount, validAcks.length, isAcknowledged ? 1 : 0),
     totalRequired,
     acksList,
-    recipients
+    recipients: activeRecipients
   };
 };
 
