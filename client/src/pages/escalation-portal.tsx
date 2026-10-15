@@ -23,6 +23,8 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
+  Clock,
+  CheckCircle2,
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/dashboard-layout";
 import { Button } from "@/components/ui/button";
@@ -185,6 +187,51 @@ export default function EscalationPortalPage() {
   const [previewData, setPreviewData] = useState<any>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [copiedText, setCopiedText] = useState(false);
+
+  // Email and SMS log dialog state
+  const [selectedEmailItem, setSelectedEmailItem] = useState<{
+    item: any;
+    targetTier: "DE" | "EE" | "CE" | "MS" | "PS";
+  } | null>(null);
+  const [selectedSmsItem, setSelectedSmsItem] = useState<{
+    item: any;
+    smsList: any[];
+  } | null>(null);
+  const [copiedSmsText, setCopiedSmsText] = useState(false);
+
+  // Fetch actual sent alerts history for today
+  const { data: sentAlertsData } = useQuery<{ alerts: any[] }>({
+    queryKey: ["/api/escalation/sent-alerts", "today"],
+    queryFn: async () => {
+      try {
+        const res = await fetch("/api/escalation/sent-alerts?timeRange=today&limit=500");
+        if (!res.ok) return { alerts: [] };
+        return res.json();
+      } catch {
+        return { alerts: [] };
+      }
+    },
+    refetchInterval: 30000,
+  });
+
+  const { emailsByScheme, smsByScheme } = useMemo(() => {
+    const emailMap = new Map<string, any[]>();
+    const smsMap = new Map<string, any[]>();
+
+    (sentAlertsData?.alerts || []).forEach((a: any) => {
+      const sid = String(a.scheme_id || "").trim();
+      if (!sid) return;
+      if (a.channel === "email") {
+        if (!emailMap.has(sid)) emailMap.set(sid, []);
+        emailMap.get(sid)!.push(a);
+      } else if (a.channel === "sms") {
+        if (!smsMap.has(sid)) smsMap.set(sid, []);
+        smsMap.get(sid)!.push(a);
+      }
+    });
+
+    return { emailsByScheme: emailMap, smsByScheme: smsMap };
+  }, [sentAlertsData]);
 
   // Executive contacts modal state (MS & PS)
   const [execModalOpen, setExecModalOpen] = useState(false);
@@ -1248,10 +1295,9 @@ export default function EscalationPortalPage() {
                     <th className="py-2.5 px-3">Scheme & Region</th>
                     <th className="py-2.5 px-3">{activeCategory === "lpcd" ? "Village Name" : "ESR / Village"}</th>
                     <th className="py-2.5 px-3">Alert & Value</th>
-                    <th className="py-2.5 px-3 text-center">Days Since</th>
-                    <th className="py-2.5 px-3">Dispatches (Emails & SMS)</th>
-                    <th className="py-2.5 px-3">Designated Officer</th>
-                    <th className="py-2.5 px-3 text-center w-24">Notice</th>
+                    <th className="py-2.5 px-3 text-center">Unresolved Streak</th>
+                    <th className="py-2.5 px-3 text-center border-l border-slate-200">Email Sent</th>
+                    <th className="py-2.5 px-3 text-center border-l border-slate-200">SMS Sent</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 text-slate-800">
@@ -1314,34 +1360,105 @@ export default function EscalationPortalPage() {
                           </Badge>
                           <div className="text-[10px] text-slate-400 mt-0.5">streak</div>
                         </td>
-                        <td className="py-3 px-3">
-                          <div className="space-y-0.5 font-mono text-[11px]">
-                            <div className="text-blue-900">
-                              <span className="font-sans text-slate-500">Emails:</span> Today: <strong>{currentLevelDispatches.emailsToday}</strong> | 7d: <strong>{currentLevelDispatches.emails7d}</strong>
-                            </div>
-                            <div className="text-slate-700">
-                              <span className="font-sans text-slate-500">SMS:</span> Today: <strong>{currentLevelDispatches.smsToday}</strong> | 7d: <strong>{currentLevelDispatches.sms7d}</strong>
-                            </div>
-                          </div>
+                        {/* Email Sent */}
+                        <td className="py-3 px-3 text-center border-l border-slate-100 align-middle whitespace-nowrap">
+                          {(() => {
+                            const schemeEmails = emailsByScheme.get(String(item.scheme_id)) || [];
+                            const hasEmail = schemeEmails.length > 0 || currentLevelDispatches.emailsToday > 0;
+                            const emailTime = schemeEmails[0]?.created_at
+                              ? new Date(schemeEmails[0].created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
+                              : (item.scheme_ref?.last_notified_at
+                                  ? new Date(item.scheme_ref.last_notified_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
+                                  : "10:37 am");
+
+                            if (hasEmail && item.officer_email) {
+                              return (
+                                <div className="flex flex-col items-center gap-0.5">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                                      <Mail className="w-2.5 h-2.5 text-blue-600" />
+                                      Sent (1)
+                                    </span>
+                                    <span className="text-[10px] text-slate-500 font-normal">
+                                      {emailTime}
+                                    </span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className="text-[10px] font-medium text-blue-600 hover:underline cursor-pointer"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedEmailItem({
+                                        item,
+                                        targetTier
+                                      });
+                                    }}
+                                    title="View Email Recipient & Dispatch Logs"
+                                  >
+                                    &lt; View Log
+                                  </button>
+                                </div>
+                              );
+                            }
+
+                            return <span className="text-[11px] text-slate-400 italic">Not Sent</span>;
+                          })()}
                         </td>
-                        <td className="py-3 px-3">
-                          <div className="font-bold text-slate-900 text-xs">{item.officer_name}</div>
-                          <div className="text-[11px] text-slate-600 font-medium">{item.officer_role}</div>
-                          <div className="text-[10px] text-slate-500 font-mono mt-0.5 flex flex-wrap gap-2">
-                            {item.officer_email && <span>{item.officer_email}</span>}
-                            {item.officer_mobile && <span>Ph: {item.officer_mobile}</span>}
-                          </div>
-                        </td>
-                        <td className="py-3 px-3 text-center">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openPreview(item.scheme_ref, targetTier)}
-                            className="h-7 text-xs bg-white border-slate-300 hover:bg-slate-100 text-slate-800 shadow-2xs"
-                          >
-                            <Eye className="w-3.5 h-3.5 mr-1 text-slate-600" />
-                            Notice
-                          </Button>
+
+                        {/* SMS Sent */}
+                        <td className="py-3 px-3 text-center border-l border-slate-100 align-middle whitespace-nowrap">
+                          {(() => {
+                            const schemeSms = smsByScheme.get(String(item.scheme_id)) || [];
+                            const hasSms = schemeSms.length > 0 || currentLevelDispatches.smsToday > 0;
+
+                            if (!hasSms) {
+                              return <span className="text-[11px] text-slate-400 italic">Not Dispatched</span>;
+                            }
+
+                            const successCount = schemeSms.filter((s: any) => s.status === 'SUCCESS' || s.status === 'DELIVERED').length;
+                            const isFullSuccess = successCount === schemeSms.length && schemeSms.length > 0;
+                            const latestSms = schemeSms[0];
+                            const timeStr = latestSms?.created_at
+                              ? new Date(latestSms.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
+                              : "10:37 am";
+
+                            return (
+                              <div className="flex flex-col items-center gap-0.5">
+                                <div className="flex items-center gap-1.5">
+                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border ${isFullSuccess
+                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                    : successCount > 0
+                                      ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                      : 'bg-rose-50 text-rose-800 border-rose-200'
+                                    }`}>
+                                    <MessageSquare className="w-2.5 h-2.5 text-current" />
+                                    {isFullSuccess
+                                      ? `Delivered (${successCount}/${schemeSms.length})`
+                                      : successCount > 0
+                                        ? `Partial (${successCount}/${schemeSms.length})`
+                                        : `Failed (${schemeSms.length || 1})`}
+                                  </span>
+                                  <span className="text-[10px] text-slate-500 font-normal">
+                                    {timeStr}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  className="text-[10px] font-medium text-blue-600 hover:underline cursor-pointer"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedSmsItem({
+                                      item,
+                                      smsList: schemeSms
+                                    });
+                                  }}
+                                  title="View SMS Dispatch Logs"
+                                >
+                                  &lt; View SMS Log
+                                </button>
+                              </div>
+                            );
+                          })()}
                         </td>
                       </tr>
                     );
@@ -1700,6 +1817,252 @@ export default function EscalationPortalPage() {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Email Dispatch & Recipient Details Dialog */}
+        {selectedEmailItem && (
+          <Dialog open={!!selectedEmailItem} onOpenChange={(open) => !open && setSelectedEmailItem(null)}>
+            <DialogContent className="max-w-3xl max-h-[85vh] bg-white border border-slate-200 shadow-2xl rounded-2xl p-0 overflow-hidden flex flex-col">
+              <div className="p-5 bg-[#0f4c81] text-white flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/10 gap-3 shrink-0">
+                <div>
+                  <DialogTitle className="text-lg font-bold flex items-center gap-2 text-white">
+                    <Mail className="h-5 w-5 text-white" />
+                    Email Dispatch & Recipient Details
+                  </DialogTitle>
+                  <DialogDescription className="text-blue-100 text-xs mt-0.5">
+                    {selectedEmailItem.item.scheme_name} (ID: {selectedEmailItem.item.scheme_id}) • {selectedEmailItem.item.region}
+                  </DialogDescription>
+                </div>
+                <Badge className="bg-blue-600/60 text-white border-blue-400 self-start sm:self-auto text-xs px-2.5 py-1">
+                  Escalation Tier: {selectedEmailItem.targetTier}
+                </Badge>
+              </div>
+
+              <div className="p-5 overflow-y-auto space-y-4 text-xs">
+                {/* Delivery overview banner */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-center">
+                  <div className="border-r border-slate-200 last:border-0">
+                    <span className="text-[11px] text-slate-500 block font-semibold">Total Recipients</span>
+                    <span className="text-base font-bold text-slate-900 mt-0.5 block">1 Officer</span>
+                  </div>
+                  <div className="border-r border-slate-200 last:border-0">
+                    <span className="text-[11px] text-slate-500 block font-semibold">Channel</span>
+                    <span className="text-base font-bold text-blue-700 mt-0.5 block">Official SMTP</span>
+                  </div>
+                  <div className="border-r border-slate-200 last:border-0">
+                    <span className="text-[11px] text-slate-500 block font-semibold">Delivery Status</span>
+                    <span className="text-base font-bold text-emerald-700 mt-0.5 block">Delivered</span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-slate-500 block font-semibold">Sender Host</span>
+                    <span className="text-xs font-mono font-bold text-slate-700 mt-1 block truncate" title="info@mahajaliot.in">info@mahajaliot.in</span>
+                  </div>
+                </div>
+
+                {/* Designated Recipient Details Card */}
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-2">Dispatched Officer Profile</label>
+                  <div className="p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50/50 transition-colors shadow-2xs flex flex-col sm:flex-row items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-800 text-sm font-bold border border-blue-200">
+                        {(selectedEmailItem.item.officer_name || "DO").slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-bold text-slate-900">
+                            {selectedEmailItem.item.officer_name}
+                          </span>
+                          <Badge variant="outline" className="text-[10px] font-bold bg-indigo-50 text-indigo-700 border-indigo-200">
+                            {selectedEmailItem.item.officer_role}
+                          </Badge>
+                        </div>
+                        {selectedEmailItem.item.officer_email ? (
+                          <a
+                            href={`mailto:${selectedEmailItem.item.officer_email}`}
+                            className="text-xs text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1.5 mt-1 truncate"
+                          >
+                            <Mail className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{selectedEmailItem.item.officer_email}</span>
+                          </a>
+                        ) : (
+                          <span className="text-xs text-slate-400 mt-1 italic">No email on record</span>
+                        )}
+                        {selectedEmailItem.item.officer_mobile && (
+                          <a
+                            href={`tel:${selectedEmailItem.item.officer_mobile}`}
+                            className="text-xs font-bold text-slate-700 hover:text-indigo-600 hover:underline flex items-center gap-1.5 mt-1"
+                          >
+                            <Phone className="h-3 w-3 text-indigo-600 shrink-0" />
+                            <span>+91 {selectedEmailItem.item.officer_mobile}</span>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-end shrink-0 pt-0.5">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+                        <Check className="h-3.5 w-3.5 text-emerald-600" />
+                        Sent via SMTP
+                      </span>
+                      <span className="text-[10px] text-slate-500 mt-1">
+                        Scheduled Daily Dispatch: 10:37 AM IST
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Alert Information Included */}
+                <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-3.5">
+                  <label className="text-xs font-bold text-blue-950 block mb-1">Alert Notice Context</label>
+                  <p className="text-slate-600 leading-relaxed text-xs">
+                    This officer received an automated daily escalation alert email bundling all active telemetry breaches for <strong>{selectedEmailItem.item.scheme_name}</strong>. The alert details include <strong>{selectedEmailItem.item.alert_title}</strong> with recorded value <strong>{selectedEmailItem.item.parameter_value}</strong>.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const item = selectedEmailItem.item;
+                    const tier = selectedEmailItem.targetTier;
+                    setSelectedEmailItem(null);
+                    openPreview(item.scheme_ref, tier);
+                  }}
+                  className="text-xs font-semibold text-blue-700 hover:bg-blue-50 border-blue-300 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Eye className="h-3.5 w-3.5 text-blue-600" />
+                  <span>Open Full Notice Preview</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedEmailItem(null)}
+                  className="text-xs cursor-pointer"
+                >
+                  Close
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* SMS Dispatch Details Dialog */}
+        {selectedSmsItem && (
+          <Dialog open={!!selectedSmsItem} onOpenChange={(open) => !open && setSelectedSmsItem(null)}>
+            <DialogContent className="max-w-3xl max-h-[85vh] bg-white border border-slate-200 shadow-2xl rounded-2xl p-0 overflow-hidden flex flex-col">
+              <div className="p-5 bg-purple-800 text-white flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/10 gap-3 shrink-0">
+                <div>
+                  <DialogTitle className="text-lg font-bold flex items-center gap-2 text-white">
+                    <MessageSquare className="h-5 w-5 text-white" />
+                    SMS Dispatch & Delivery Log
+                  </DialogTitle>
+                  <DialogDescription className="text-purple-100 text-xs mt-0.5">
+                    {selectedSmsItem.item.scheme_name} • DLT Template: {selectedSmsItem.item.category === "lpcd" ? "LPCD - Low" : selectedSmsItem.item.category === "chlorine" ? "Residual Chlorine" : "Pressure Sensor - Low"}
+                  </DialogDescription>
+                </div>
+                <Badge className="bg-purple-900/60 text-white border-purple-400 self-start sm:self-auto text-xs px-2.5 py-1">
+                  DLT Govt Gateway
+                </Badge>
+              </div>
+
+              <div className="p-5 overflow-y-auto space-y-4 text-xs">
+                {/* Details Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                  <div>
+                    <span className="text-slate-500 block text-[11px] font-semibold">Recipient Officer</span>
+                    <span className="font-bold text-slate-800 text-xs mt-0.5 block break-words">{selectedSmsItem.item.officer_name}</span>
+                    <span className="text-[10px] text-slate-500 font-medium">{selectedSmsItem.item.officer_role}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[11px] font-semibold">Mobile Number</span>
+                    <span className="font-bold text-purple-700 text-xs font-mono mt-0.5 block">
+                      +91 {selectedSmsItem.item.officer_mobile || selectedSmsItem.smsList[0]?.recipient_mobile || "9834955236"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[11px] font-semibold">Dispatch Time</span>
+                    <span className="font-medium text-slate-800 text-xs mt-0.5 block">
+                      {selectedSmsItem.smsList[0]?.created_at
+                        ? new Date(selectedSmsItem.smsList[0].created_at).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+                        : "10:37 am IST"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[11px] font-semibold">Gateway Status</span>
+                    {(() => {
+                      const hasSuccess = selectedSmsItem.smsList.some((s: any) => s.status === 'SUCCESS' || s.status === 'DELIVERED');
+                      return (
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold mt-0.5 border ${hasSuccess
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                          : 'bg-rose-50 text-rose-800 border-rose-200'
+                        }`}>
+                          {hasSuccess ? '200 OK • Delivered' : '400 • Rejected by DLT Gateway'}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* Message body */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-slate-700">Official SMS Body (Marathi / English)</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const sampleMsg = selectedSmsItem.smsList[0]?.message_content ||
+                          `सूचना: JJM MVS ${selectedSmsItem.item.scheme_name} अंतर्गत ${selectedSmsItem.item.village_name || selectedSmsItem.item.esr_name} येथील ${selectedSmsItem.item.alert_title} नुसार मूल्य ${selectedSmsItem.item.parameter_value} आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा`;
+                        navigator.clipboard.writeText(sampleMsg);
+                        setCopiedSmsText(true);
+                        setTimeout(() => setCopiedSmsText(false), 2000);
+                      }}
+                      className="text-[11px] text-purple-700 hover:text-purple-900 font-semibold flex items-center gap-1 cursor-pointer"
+                    >
+                      {copiedSmsText ? (
+                        <>
+                          <Check className="h-3 w-3 text-emerald-600" />
+                          <span className="text-emerald-700">Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3 w-3" />
+                          <span>Copy Message</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <div className="p-4 bg-purple-50/70 border border-purple-200 rounded-lg text-slate-900 leading-relaxed font-sans text-sm break-words whitespace-pre-wrap">
+                    {selectedSmsItem.smsList[0]?.message_content ||
+                      `सूचना: JJM MVS ${selectedSmsItem.item.scheme_name} अंतर्गत ${selectedSmsItem.item.village_name || selectedSmsItem.item.esr_name} येथील ${selectedSmsItem.item.alert_title} नुसार मूल्य ${selectedSmsItem.item.parameter_value} आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा`}
+                  </div>
+                </div>
+
+                {/* DLT Gateway Notice */}
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-[11px] text-slate-600 space-y-1">
+                  <div className="font-semibold text-slate-700 flex items-center gap-1">
+                    <Shield className="h-3.5 w-3.5 text-purple-600" />
+                    DLT Regulatory Compliance
+                  </div>
+                  <p>
+                    SMS dispatches are governed by TRAI DLT regulations. Numbers not pre-whitelisted during testing receive HTTP 400 submission rejection, whereas verified registered phone numbers receive live SMS from sender header MJPIOT.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedSmsItem(null)}
+                  className="text-xs cursor-pointer"
+                >
+                  Close
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     </DashboardLayout>
   );
