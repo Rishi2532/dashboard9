@@ -71,6 +71,7 @@ router.post("/trigger-daily-alerts", async (req: Request, res: Response) => {
 router.get("/sent-alerts", async (req: Request, res: Response) => {
   try {
     const timeRange = (req.query.timeRange as any) || "today";
+    const date = req.query.date ? String(req.query.date) : undefined;
     const tier = (req.query.tier as any) || "all";
     const channel = (req.query.channel as any) || "all";
     const search = req.query.search ? String(req.query.search) : undefined;
@@ -79,6 +80,7 @@ router.get("/sent-alerts", async (req: Request, res: Response) => {
 
     const result = await getSentEscalationAlerts({
       timeRange,
+      date,
       tier,
       channel,
       search,

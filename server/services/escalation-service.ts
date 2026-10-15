@@ -1729,12 +1729,27 @@ export interface SentAlertsResponse {
     tier_5_sent: number;
     today_sent_count: number;
     last_dispatched_at: string | null;
+    tier_breakdown?: {
+      de_emails: number;
+      ee_emails: number;
+      se_emails: number;
+      ce_emails: number;
+      ms_emails: number;
+      ps_emails: number;
+      de_sms: number;
+      ee_sms: number;
+      se_sms: number;
+      ce_sms: number;
+      ms_sms: number;
+      ps_sms: number;
+    };
   };
   alerts: SentAlertItem[];
 }
 
 export async function getSentEscalationAlerts(options: {
   timeRange?: 'today' | 'yesterday' | '7days' | '30days' | 'all';
+  date?: string;
   tier?: 'all' | '1' | '2' | '3' | '4' | '5';
   channel?: 'all' | 'sms' | 'email';
   search?: string;
@@ -1747,14 +1762,17 @@ export async function getSentEscalationAlerts(options: {
   const offset = Math.max(options.offset || 0, 0);
 
   let dateFilter = '';
-  if (timeRange === 'today') {
-    dateFilter = "created_at >= CURRENT_DATE";
+  if (options.date && options.date.trim()) {
+    const d = options.date.trim().replace(/'/g, "''");
+    dateFilter = `sent_date = '${d}'::date`;
+  } else if (timeRange === 'today') {
+    dateFilter = "(sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date OR created_at >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date)";
   } else if (timeRange === 'yesterday') {
-    dateFilter = "created_at >= CURRENT_DATE - INTERVAL '1 day' AND created_at < CURRENT_DATE";
+    dateFilter = "(sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '1 day' OR (created_at >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '1 day' AND created_at < (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date))";
   } else if (timeRange === '7days') {
-    dateFilter = "created_at >= CURRENT_DATE - INTERVAL '7 days'";
+    dateFilter = "(sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days' OR created_at >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days')";
   } else if (timeRange === '30days') {
-    dateFilter = "created_at >= CURRENT_DATE - INTERVAL '30 days'";
+    dateFilter = "(sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '30 days' OR created_at >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '30 days')";
   }
 
   const whereClauses: string[] = [];
@@ -1767,29 +1785,33 @@ export async function getSentEscalationAlerts(options: {
   }
   if (options.search && options.search.trim()) {
     const s = options.search.trim().replace(/'/g, "''");
-    whereClauses.push(`(scheme_name ILIKE '%${s}%' OR scheme_id ILIKE '%${s}%' OR recipient_name ILIKE '%${s}%' OR alert_title ILIKE '%${s}%')`);
+    whereClauses.push(`(scheme_name ILIKE '%${s}%' OR scheme_id ILIKE '%${s}%' OR recipient_name ILIKE '%${s}%' OR alert_title ILIKE '%${s}%' OR recipient_email ILIKE '%${s}%')`);
   }
 
   const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
   const baseCte = `
     WITH combined_alerts AS (
+      -- 1. Actual SMS Alerts Logged
       SELECT 
-        s.id,
+        s.id::text,
         'sms' AS channel,
         s.created_at,
+        s.sent_date::date AS sent_date,
         s.scheme_id,
         s.scheme_name,
         COALESCE(s.engineer_name, 'Engineer') AS recipient_name,
         s.engineer_email AS recipient_email,
         s.mobile AS recipient_mobile,
         CASE 
-          WHEN s.engineer_name ILIKE '%Principal Secretary%' OR s.dispatch_type = 'escalation_level5' THEN 'Principal Secretary'
-          WHEN s.engineer_name ILIKE '%Member Secretary%' OR s.dispatch_type = 'escalation_level4' THEN 'Member Secretary'
-          WHEN s.engineer_name ILIKE '%Deepak Ingale%' OR s.engineer_name ILIKE '%Chief Engineer%' OR s.template_id = 'LEVEL_3_ESCALATION_CE' THEN 'Chief Engineer'
-          WHEN s.engineer_name ILIKE '%Rishikesh Salunkhe%' THEN 'Superintending Engineer'
-          WHEN s.engineer_name ILIKE '%Rishikesh Salunke%' OR s.template_id = 'LEVEL_2_ESCALATION_EE' THEN 'Executive Engineer (Civil)'
-          WHEN s.engineer_name ILIKE '%Akshay Bhojane%' THEN 'Deputy Engineer (Civil)'
+          WHEN s.engineer_name ILIKE '%Principal Secretary%' OR s.dispatch_type = 'escalation_level5' THEN 'Principal Secretary (PS)'
+          WHEN s.engineer_name ILIKE '%Member Secretary%' OR s.dispatch_type = 'escalation_level4' THEN 'Member Secretary (MS)'
+          WHEN s.engineer_name ILIKE '%Deepak Ingale%' OR s.engineer_name ILIKE '%Chief Engineer%' OR s.template_id = 'LEVEL_3_ESCALATION_CE' THEN 'Chief Engineer (CE)'
+          WHEN s.engineer_name ILIKE '%Rishikesh Salunkhe%' THEN 'Superintending Engineer (SE)'
+          WHEN s.engineer_name ILIKE '%Rishikesh Salunke%' OR s.template_id = 'LEVEL_2_ESCALATION_EE' THEN 'Executive Engineer (EE Civil)'
+          WHEN s.engineer_name ILIKE '%Rushikesh Salunke%' THEN 'Executive Engineer (EE Mech)'
+          WHEN s.engineer_name ILIKE '%Akshay Bhojane%' THEN 'Deputy Engineer (DE Civil)'
+          WHEN s.engineer_name ILIKE '%Rushikesh Salunkhe%' THEN 'Deputy Engineer (DE Mech)'
           ELSE 'Field Engineer'
         END AS recipient_role,
         CASE 
@@ -1798,7 +1820,7 @@ export async function getSentEscalationAlerts(options: {
           WHEN s.engineer_name ILIKE '%Deepak Ingale%' OR s.engineer_name ILIKE '%Chief Engineer%' OR s.template_id = 'LEVEL_3_ESCALATION_CE' THEN 3
           WHEN s.engineer_name ILIKE '%Rishikesh Salunkhe%' THEN 3
           WHEN s.engineer_name ILIKE '%Rishikesh Salunke%' OR s.template_id = 'LEVEL_2_ESCALATION_EE' THEN 2
-          WHEN s.engineer_name ILIKE '%Akshay Bhojane%' THEN 1
+          WHEN s.engineer_name ILIKE '%Rushikesh Salunke%' THEN 2
           ELSE 1
         END AS tier,
         s.template_name AS alert_title,
@@ -1809,38 +1831,91 @@ export async function getSentEscalationAlerts(options: {
 
       UNION ALL
 
+      -- 2. Actual Daily Emails Dispatched to Engineers from email_acknowledgements
       SELECT 
-        e.id,
+        MIN(ea.id)::text AS id,
         'email' AS channel,
-        e.created_at,
-        e.scheme_id,
-        e.scheme_name,
-        COALESCE(e.civil_engineer_name, e.ee_civil_name, e.chief_engineer_name, 'Engineer') AS recipient_name,
-        COALESCE(e.civil_engineer_email, e.ee_civil_email, e.chief_engineer_email, 'Email') AS recipient_email,
+        MIN(ea.created_at) AS created_at,
+        ea.sent_date::date AS sent_date,
+        ea.scheme_id,
+        COALESCE(
+          (SELECT scheme_name FROM email_alert_logs WHERE scheme_id = ea.scheme_id AND scheme_name IS NOT NULL LIMIT 1),
+          ea.scheme_id
+        ) AS scheme_name,
+        ea.engineer_name AS recipient_name,
+        ea.engineer_email AS recipient_email,
         NULL AS recipient_mobile,
         CASE 
-          WHEN e.dispatch_type = 'escalation_level5' OR e.alert_type ILIKE '%Level 5%' THEN 'Principal Secretary'
-          WHEN e.dispatch_type = 'escalation_level4' OR e.alert_type ILIKE '%Level 4%' THEN 'Member Secretary'
-          WHEN e.civil_engineer_email IS NOT NULL AND e.civil_engineer_email != '' THEN 'Deputy Engineer (Civil)'
-          WHEN e.ee_civil_email IS NOT NULL AND e.ee_civil_email != '' THEN 'Executive Engineer (Civil)'
-          WHEN e.se_email IS NOT NULL AND e.se_email != '' THEN 'Superintending Engineer (SE)'
-          WHEN e.chief_engineer_email IS NOT NULL AND e.chief_engineer_email != '' THEN 'Chief Engineer'
-          ELSE 'Field Engineer'
+          WHEN ea.engineer_name ILIKE '%Principal Secretary%' OR ea.engineer_email ILIKE '%ps.%' THEN 'Principal Secretary (PS)'
+          WHEN ea.engineer_name ILIKE '%Member Secretary%' OR ea.engineer_email ILIKE '%ms.%' THEN 'Member Secretary (MS)'
+          WHEN ea.engineer_name ILIKE '%Deepak Ingale%' OR ea.engineer_name ILIKE '%Chief Engineer%' THEN 'Chief Engineer (CE)'
+          WHEN ea.engineer_name ILIKE '%Rishikesh Salunkhe%' OR ea.engineer_email ILIKE '%rishikeshsalunke2001%' THEN 'Superintending Engineer (SE)'
+          WHEN ea.engineer_name ILIKE '%Rishikesh Salunke%' OR ea.engineer_email ILIKE '%salunkerishikesh%' THEN 'Executive Engineer (EE Civil)'
+          WHEN ea.engineer_name ILIKE '%Rushikesh Salunke%' OR ea.engineer_email ILIKE '%rushikeshsalunkhe33%' THEN 'Executive Engineer (EE Mech)'
+          WHEN ea.engineer_name ILIKE '%Rushikesh Salunkhe%' OR ea.engineer_email ILIKE '%rishikesh.salunke@cstech.ai' THEN 'Deputy Engineer (DE Mech)'
+          ELSE 'Deputy Engineer (DE Civil)'
         END AS recipient_role,
         CASE 
-          WHEN e.dispatch_type = 'escalation_level5' OR e.alert_type ILIKE '%Level 5%' THEN 5
-          WHEN e.dispatch_type = 'escalation_level4' OR e.alert_type ILIKE '%Level 4%' THEN 4
-          WHEN e.civil_engineer_email IS NOT NULL AND e.civil_engineer_email != '' THEN 1
-          WHEN e.ee_civil_email IS NOT NULL AND e.ee_civil_email != '' THEN 2
-          WHEN e.se_email IS NOT NULL AND e.se_email != '' THEN 3
-          WHEN e.chief_engineer_email IS NOT NULL AND e.chief_engineer_email != '' THEN 3
+          WHEN ea.engineer_name ILIKE '%Principal Secretary%' OR ea.engineer_email ILIKE '%ps.%' THEN 5
+          WHEN ea.engineer_name ILIKE '%Member Secretary%' OR ea.engineer_email ILIKE '%ms.%' THEN 4
+          WHEN ea.engineer_name ILIKE '%Deepak Ingale%' OR ea.engineer_name ILIKE '%Chief Engineer%' THEN 3
+          WHEN ea.engineer_name ILIKE '%Rishikesh Salunkhe%' OR ea.engineer_email ILIKE '%rishikeshsalunke2001%' THEN 3
+          WHEN ea.engineer_name ILIKE '%Rishikesh Salunke%' OR ea.engineer_email ILIKE '%salunkerishikesh%' THEN 2
+          WHEN ea.engineer_name ILIKE '%Rushikesh Salunke%' OR ea.engineer_email ILIKE '%rushikeshsalunkhe33%' THEN 2
           ELSE 1
         END AS tier,
-        CONCAT(e.alert_type, ' - ', e.alert_value) AS alert_title,
-        CONCAT('Ticket: ', e.ticket_id, ' | Village: ', e.village_name, ' | ESR: ', e.esr_name, ' | Issue: ', e.alert_type, ' (', e.alert_value, ')') AS message_content,
+        CONCAT('Daily Alert Digest (', GREATEST(COUNT(*)/2, 1), ' Issues)') AS alert_title,
+        CONCAT('Consolidated alert digest containing ', GREATEST(COUNT(*)/2, 1), ' unresolved telemetry alerts.') AS message_content,
+        'DELIVERED' AS status,
+        'daily' AS dispatch_type
+      FROM email_acknowledgements ea
+      GROUP BY ea.sent_date, ea.scheme_id, ea.engineer_name, ea.engineer_email
+
+      UNION ALL
+
+      -- 3. Escalation Tier Specific Emails from email_alert_logs
+      SELECT 
+        e.id::text,
+        'email' AS channel,
+        e.created_at,
+        e.sent_date::date AS sent_date,
+        e.scheme_id,
+        e.scheme_name,
+        CASE 
+          WHEN e.dispatch_type = 'escalation_level5' THEN COALESCE(e.principal_secretary_name, 'Principal Secretary (PS)')
+          WHEN e.dispatch_type = 'escalation_level4' THEN COALESCE(e.member_secretary_name, 'Member Secretary (MS)')
+          WHEN e.dispatch_type = 'escalation_level3' THEN COALESCE(e.chief_engineer_name, e.se_name, 'Chief Engineer')
+          WHEN e.dispatch_type = 'escalation_level2' THEN COALESCE(e.ee_civil_name, 'Executive Engineer (Civil)')
+          ELSE COALESCE(e.civil_engineer_name, 'Deputy Engineer')
+        END AS recipient_name,
+        CASE 
+          WHEN e.dispatch_type = 'escalation_level5' THEN COALESCE(e.principal_secretary_email, 'ps.wss@maharashtra.gov.in')
+          WHEN e.dispatch_type = 'escalation_level4' THEN COALESCE(e.member_secretary_email, 'ms.mjp@gov.in')
+          WHEN e.dispatch_type = 'escalation_level3' THEN COALESCE(e.chief_engineer_email, e.se_email, 'ce.mjp@gov.in')
+          WHEN e.dispatch_type = 'escalation_level2' THEN COALESCE(e.ee_civil_email, 'ee.mjp@gov.in')
+          ELSE COALESCE(e.civil_engineer_email, 'de.mjp@gov.in')
+        END AS recipient_email,
+        NULL AS recipient_mobile,
+        CASE 
+          WHEN e.dispatch_type = 'escalation_level5' THEN 'Principal Secretary (PS)'
+          WHEN e.dispatch_type = 'escalation_level4' THEN 'Member Secretary (MS)'
+          WHEN e.dispatch_type = 'escalation_level3' THEN 'Chief Engineer (CE)'
+          WHEN e.dispatch_type = 'escalation_level2' THEN 'Executive Engineer (EE Civil)'
+          ELSE 'Deputy Engineer (DE Civil)'
+        END AS recipient_role,
+        CASE 
+          WHEN e.dispatch_type = 'escalation_level5' THEN 5
+          WHEN e.dispatch_type = 'escalation_level4' THEN 4
+          WHEN e.dispatch_type = 'escalation_level3' THEN 3
+          WHEN e.dispatch_type = 'escalation_level2' THEN 2
+          ELSE 1
+        END AS tier,
+        e.alert_type AS alert_title,
+        e.alert_value AS message_content,
         'DELIVERED' AS status,
         e.dispatch_type
       FROM email_alert_logs e
+      WHERE e.dispatch_type LIKE 'escalation_%'
     )
   `;
 
@@ -1855,7 +1930,19 @@ export async function getSentEscalationAlerts(options: {
       COUNT(*) FILTER (WHERE tier = 3) AS tier_3_sent,
       COUNT(*) FILTER (WHERE tier = 4) AS tier_4_sent,
       COUNT(*) FILTER (WHERE tier = 5) AS tier_5_sent,
-      (SELECT COUNT(*) FROM combined_alerts WHERE created_at >= CURRENT_DATE) AS today_sent_count,
+      COUNT(*) FILTER (WHERE channel = 'email' AND tier = 1) AS de_emails,
+      COUNT(*) FILTER (WHERE channel = 'email' AND tier = 2) AS ee_emails,
+      COUNT(*) FILTER (WHERE channel = 'email' AND tier = 3 AND recipient_role ILIKE '%Superintending%') AS se_emails,
+      COUNT(*) FILTER (WHERE channel = 'email' AND tier = 3 AND recipient_role ILIKE '%Chief Engineer%') AS ce_emails,
+      COUNT(*) FILTER (WHERE channel = 'email' AND tier = 4) AS ms_emails,
+      COUNT(*) FILTER (WHERE channel = 'email' AND tier = 5) AS ps_emails,
+      COUNT(*) FILTER (WHERE channel = 'sms' AND tier = 1) AS de_sms,
+      COUNT(*) FILTER (WHERE channel = 'sms' AND tier = 2) AS ee_sms,
+      COUNT(*) FILTER (WHERE channel = 'sms' AND tier = 3 AND recipient_role ILIKE '%Superintending%') AS se_sms,
+      COUNT(*) FILTER (WHERE channel = 'sms' AND tier = 3 AND recipient_role ILIKE '%Chief Engineer%') AS ce_sms,
+      COUNT(*) FILTER (WHERE channel = 'sms' AND tier = 4) AS ms_sms,
+      COUNT(*) FILTER (WHERE channel = 'sms' AND tier = 5) AS ps_sms,
+      (SELECT COUNT(*) FROM combined_alerts WHERE (sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date OR created_at >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date)) AS today_sent_count,
       MAX(created_at) AS last_dispatched_at
     FROM combined_alerts
     ${whereSql};
@@ -1885,8 +1972,24 @@ export async function getSentEscalationAlerts(options: {
       tier_1_sent: Number(rawSummary.tier_1_sent || 0),
       tier_2_sent: Number(rawSummary.tier_2_sent || 0),
       tier_3_sent: Number(rawSummary.tier_3_sent || 0),
+      tier_4_sent: Number(rawSummary.tier_4_sent || 0),
+      tier_5_sent: Number(rawSummary.tier_5_sent || 0),
       today_sent_count: Number(rawSummary.today_sent_count || 0),
       last_dispatched_at: rawSummary.last_dispatched_at || null,
+      tier_breakdown: {
+        de_emails: Number(rawSummary.de_emails || 0),
+        ee_emails: Number(rawSummary.ee_emails || 0),
+        se_emails: Number(rawSummary.se_emails || 0),
+        ce_emails: Number(rawSummary.ce_emails || 0),
+        ms_emails: Number(rawSummary.ms_emails || 0),
+        ps_emails: Number(rawSummary.ps_emails || 0),
+        de_sms: Number(rawSummary.de_sms || 0),
+        ee_sms: Number(rawSummary.ee_sms || 0),
+        se_sms: Number(rawSummary.se_sms || 0),
+        ce_sms: Number(rawSummary.ce_sms || 0),
+        ms_sms: Number(rawSummary.ms_sms || 0),
+        ps_sms: Number(rawSummary.ps_sms || 0),
+      },
     },
     alerts: (rowsRes.rows || []).map((r: any) => ({
       id: Number(r.id),
@@ -1898,7 +2001,7 @@ export async function getSentEscalationAlerts(options: {
       recipient_email: r.recipient_email || undefined,
       recipient_mobile: r.recipient_mobile || undefined,
       recipient_role: String(r.recipient_role),
-      tier: Number(r.tier) as 1 | 2 | 3,
+      tier: Number(r.tier) as 1 | 2 | 3 | 4 | 5,
       alert_title: String(r.alert_title),
       message_content: String(r.message_content),
       status: String(r.status),
