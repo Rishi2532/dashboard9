@@ -176,7 +176,29 @@ export async function getEscalationStatus(options: {
     const schemeName = String(row.scheme_name || schemeId).trim();
     const region = String(row.region || 'Maharashtra').replace(/^\uFEFF/, '').trim();
     const alertType = String(row.alert_type || '').toLowerCase();
-    const days = Number(row.active_days_count) || 1;
+    
+    // Compute unbroken consecutive days matching daily-alerts streak logic
+    const datesSeen: string[] = row.dates_seen || [];
+    const today = new Date();
+    const formatIST = (d: Date) => new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(d);
+    const hasToday = datesSeen.includes(formatIST(today));
+    let consecutivePastDays = 0;
+    for (let i = 1; i <= 30; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dStr = formatIST(d);
+      if (datesSeen.includes(dStr)) {
+        consecutivePastDays++;
+      } else {
+        break;
+      }
+    }
+    const days = hasToday ? (1 + consecutivePastDays) : (consecutivePastDays > 0 ? consecutivePastDays : 1);
     const village = String(row.village_name || '-');
     const esr = String(row.esr_name || '-');
     const val = String(row.latest_val || '');
