@@ -192,6 +192,7 @@ export interface AlertRecipient {
   mobile: string | null;
   isAcknowledged: boolean;
   acknowledged_at: string | null;
+  isDispatched?: boolean;
 }
 
 export type RecipientInfo = AlertRecipient;
@@ -403,16 +404,13 @@ export const getRowRecipients = (row: AlertData) => {
 
   const checkAck = (email: string | null, name: string | null) => {
     if (!row.acknowledgements || row.acknowledgements.length === 0) {
-      return { isAck: false, acknowledged_at: null };
+      return { isAck: false, acknowledged_at: null, isDispatched: false };
     }
 
     const targetEmail = email ? email.toLowerCase().trim() : '';
     const targetName = name ? name.toLowerCase().trim() : '';
 
     const match = row.acknowledgements.find((a: any) => {
-      if (!a.acknowledged_at) return false;
-
-      // PostgreSQL SQL join already guarantees row.acknowledgements belongs strictly to this alert's date.
       // Extra safety check if both records have explicit sent_date strings:
       if (a.sent_date && row.sent_date) {
         const aDate = String(a.sent_date).split('T')[0];
@@ -437,7 +435,8 @@ export const getRowRecipients = (row: AlertData) => {
     });
 
     return {
-      isAck: !!match,
+      isDispatched: !!match,
+      isAck: !!(match && match.acknowledged_at),
       acknowledged_at: match?.acknowledged_at || null
     };
   };
@@ -448,84 +447,90 @@ export const getRowRecipients = (row: AlertData) => {
   // 1. DE/AE (Civil)
   if (isValidEngineerName(row.de_ae_civil_name)) {
     const name = row.de_ae_civil_name!.trim();
-    const { isAck, acknowledged_at } = checkAck(row.de_ae_civil_email || null, name);
+    const { isAck, acknowledged_at, isDispatched } = checkAck(row.de_ae_civil_email || null, name);
     recipients.push({
       role: "DE/AE (Civil)",
       name,
       email: row.de_ae_civil_email || null,
       mobile: row.de_ae_civil_mobile?.trim() || null,
       isAcknowledged: isAck,
-      acknowledged_at
+      acknowledged_at,
+      isDispatched
     });
   }
 
   // 2. DE/AE (Mech)
   if (isValidEngineerName(row.de_ae_mech_name)) {
     const name = row.de_ae_mech_name!.trim();
-    const { isAck, acknowledged_at } = checkAck(row.de_ae_mech_email || null, name);
+    const { isAck, acknowledged_at, isDispatched } = checkAck(row.de_ae_mech_email || null, name);
     recipients.push({
       role: "DE/AE (Mech)",
       name,
       email: row.de_ae_mech_email || null,
       mobile: row.de_ae_mech_mobile?.trim() || null,
       isAcknowledged: isAck,
-      acknowledged_at
+      acknowledged_at,
+      isDispatched
     });
   }
 
   // 3. Executive Engineer (Civil)
   if (isValidEngineerName(row.ee_civil_name)) {
     const name = row.ee_civil_name!.trim();
-    const { isAck, acknowledged_at } = checkAck(row.ee_civil_email || null, name);
+    const { isAck, acknowledged_at, isDispatched } = checkAck(row.ee_civil_email || null, name);
     recipients.push({
       role: "Executive Engineer (Civil)",
       name,
       email: row.ee_civil_email || null,
       mobile: row.ee_civil_mobile?.trim() || null,
       isAcknowledged: isAck,
-      acknowledged_at
+      acknowledged_at,
+      isDispatched
     });
   }
 
   // 4. Executive Engineer (Mech)
   if (isValidEngineerName(row.ee_mech_name)) {
     const name = row.ee_mech_name!.trim();
-    const { isAck, acknowledged_at } = checkAck(row.ee_mech_email || null, name);
+    const { isAck, acknowledged_at, isDispatched } = checkAck(row.ee_mech_email || null, name);
     recipients.push({
       role: "Executive Engineer (Mech)",
       name,
       email: row.ee_mech_email || null,
       mobile: row.ee_mech_mobile?.trim() || null,
       isAcknowledged: isAck,
-      acknowledged_at
+      acknowledged_at,
+      isDispatched
     });
   }
 
   // 5. Superintending Engineer (SE)
   if (isValidEngineerName(row.se_name)) {
     const name = row.se_name!.trim();
-    const { isAck, acknowledged_at } = checkAck(row.se_email || null, name);
+    const { isAck, acknowledged_at, isDispatched } = checkAck(row.se_email || null, name);
     recipients.push({
       role: "Superintending Engineer (SE)",
       name,
       email: row.se_email || null,
       mobile: row.se_mobile?.trim() || null,
       isAcknowledged: isAck,
-      acknowledged_at
+      acknowledged_at,
+      isDispatched
     });
   }
 
   // 6. Chief Engineer
   if (isValidEngineerName(row.chief_engineer_name)) {
     const name = row.chief_engineer_name!.trim();
-    const { isAck, acknowledged_at } = checkAck(row.chief_engineer_email || null, name);
+    const { isAck, acknowledged_at, isDispatched } = checkAck(row.chief_engineer_email || null, name);
     recipients.push({
       role: "Chief Engineer",
       name,
       email: row.chief_engineer_email || null,
       mobile: row.chief_engineer_mobile?.trim() || null,
       isAcknowledged: isAck,
-      acknowledged_at
+      acknowledged_at,
+      isDispatched
     });
   }
 
@@ -1032,18 +1037,20 @@ export default function AlertsProgressPage() {
         recs.push({ role, name: name!.trim(), contact: email || '' });
       };
 
-      // Order of escalation priority
-      checkAndAdd(e.de_ae_civil_name, e.de_ae_civil_email, "DE/AE (Civil)");
-      checkAndAdd(e.de_ae_mech_name, e.de_ae_mech_email, "DE/AE (Mech)");
-      checkAndAdd(e.ee_civil_name, e.ee_civil_email, "EE (Civil)");
-      checkAndAdd(e.ee_mech_name, e.ee_mech_email, "EE (Mech)");
-      checkAndAdd(e.se_name, e.se_email, "SE");
-      checkAndAdd(e.chief_engineer_name, e.chief_engineer_email, "CE");
-
-      // If all were filtered out by cadence, fallback to DE/AE Civil or first valid
-      if (recs.length === 0) {
-        if (isValidEngineerName(e.de_ae_civil_name)) recs.push({ role: "DE/AE (Civil)", name: e.de_ae_civil_name!.trim(), contact: e.de_ae_civil_email || '' });
-        else if (isValidEngineerName(e.ee_civil_name)) recs.push({ role: "EE (Civil)", name: e.ee_civil_name!.trim(), contact: e.ee_civil_email || '' });
+      if (e.engineer_name) {
+        recs.push({
+          role: e.engineer_role || "Designated Engineer",
+          name: e.engineer_name.trim(),
+          contact: e.engineer_email || ""
+        });
+      } else {
+        // Order of escalation priority
+        checkAndAdd(e.de_ae_civil_name, e.de_ae_civil_email, "DE/AE (Civil)");
+        checkAndAdd(e.de_ae_mech_name, e.de_ae_mech_email, "DE/AE (Mech)");
+        checkAndAdd(e.ee_civil_name, e.ee_civil_email, "EE (Civil)");
+        checkAndAdd(e.ee_mech_name, e.ee_mech_email, "EE (Mech)");
+        checkAndAdd(e.se_name, e.se_email, "SE");
+        checkAndAdd(e.chief_engineer_name, e.chief_engineer_email, "CE");
       }
 
       const primary = recs[0] || { role: "Field Officer", name: "Scheme Engineers", contact: "" };
@@ -1065,11 +1072,11 @@ export default function AlertsProgressPage() {
         esrName: e.esr_name || "-",
         alertType: e.alert_type || "Daily Alert",
         ticketId: e.ticket_id || null,
-        recipientName: primary.name,
-        recipientRole: primary.role,
-        recipientContact: primary.contact,
+        recipientName: e.engineer_name || primary.name,
+        recipientRole: e.engineer_role || primary.role,
+        recipientContact: e.engineer_email || primary.contact,
         recipientsList: recs,
-        alertValue: e.alert_value !== null && e.alert_value !== undefined ? String(e.alert_value) : "-",
+        alertValue: e.alert_count ? `${e.alert_count} Alerts Bundled (${e.alert_type || ''})` : (e.alert_value !== null && e.alert_value !== undefined ? String(e.alert_value) : "-"),
         rawItem: e,
         status: "Delivered",
         isSuccess: true,
@@ -2374,7 +2381,11 @@ export default function AlertsProgressPage() {
                                 ? emailDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
                                 : null;
                             }
-                            const emailRecipientsCount = ackInfo.recipients.filter(r => !!r.email).length || (emailRecs.length > 0 ? emailRecs.length : (ackInfo.recipients.length || 1));
+                            const dispatchedRecs = ackInfo.recipients.filter(r => r.isDispatched);
+                            const hasAcks = Array.isArray(row.acknowledgements) && row.acknowledgements.length > 0;
+                            const emailRecipientsCount = dispatchedRecs.length > 0 
+                              ? dispatchedRecs.length 
+                              : (hasAcks ? row.acknowledgements.length : 1);
 
                             if (isSent) {
                               return (
@@ -3199,7 +3210,8 @@ export default function AlertsProgressPage() {
             village_name: r.village_name,
             esr_name: r.esr_name,
             isAcknowledged: rec.isAcknowledged,
-            acknowledged_at: rec.acknowledged_at
+            acknowledged_at: rec.acknowledged_at,
+            isDispatched: rec.isDispatched
           });
         }
       });
@@ -3207,6 +3219,7 @@ export default function AlertsProgressPage() {
 
     const notifiedEngineersList = Array.from(engineersMap.values()).map(eng => {
       const ackCount = eng.schemes.filter(s => s.isAcknowledged).length;
+      const isDispatched = eng.schemes.some(s => (s as any).isDispatched);
       return {
         ...eng,
         rolesList: Array.from(eng.roles),
@@ -3214,16 +3227,26 @@ export default function AlertsProgressPage() {
         ackCount,
         pendingCount: eng.schemes.length - ackCount,
         isAcknowledged: ackCount > 0,
-        isFullyAcknowledged: eng.schemes.length > 0 && ackCount === eng.schemes.length
+        isFullyAcknowledged: eng.schemes.length > 0 && ackCount === eng.schemes.length,
+        isDispatched
       };
     });
 
-    const totalEngineers = notifiedEngineersList.length;
-    const totalAckEngineers = notifiedEngineersList.filter(e => e.isAcknowledged).length;
-    const totalPendingEngineers = notifiedEngineersList.filter(e => !e.isAcknowledged).length;
+    const totalRosterEngineers = notifiedEngineersList.length;
+    // Count real dispatched engineers strictly sourced from email_acknowledgements
+    const dispatchedEngineersList = notifiedEngineersList.filter(e => e.isDispatched);
+    const emailsSentCount = dispatchedEngineersList.length > 0 
+      ? dispatchedEngineersList.length 
+      : (notifiedEngineersList.filter(e => e.ackCount > 0).length || (baseData.some(r => r.acknowledgements?.length) ? 1 : 0));
 
-    // Dispatches calculation for this tab strictly sourced from email_alert_logs
-    const emailsSentCount = notifiedEngineersList.filter(e => !!e.email).length;
+    const totalEngineers = dispatchedEngineersList.length > 0 ? dispatchedEngineersList.length : totalRosterEngineers;
+    const totalAckEngineers = notifiedEngineersList.filter(e => e.isAcknowledged).length;
+    const totalPendingEngineers = (dispatchedEngineersList.length > 0 ? dispatchedEngineersList : notifiedEngineersList).filter(e => !e.isAcknowledged).length;
+
+    // Actually notified engineers count from email_acknowledgements
+    const actuallyNotifiedCount = dispatchedEngineersList.length > 0 
+      ? dispatchedEngineersList.length 
+      : (notifiedEngineersList.filter(e => e.ackCount > 0).length || (baseData.some(r => r.acknowledgements?.length) ? 1 : 0));
 
     // 2. SMS: Count ONLY successfully delivered SMS
     const tabSmsMap = new Map<string, any>();
@@ -3242,9 +3265,6 @@ export default function AlertsProgressPage() {
     });
     const tabSmsList = Array.from(tabSmsMap.values());
     const smsSentCount = tabSmsList.length;
-
-    // Actually notified engineers count from email_alert_logs
-    const actuallyNotifiedCount = totalEngineers;
 
     // Count remarks added
     const totalRemarks = baseData.filter(r => parseIssues(r.remarks).length > 0).length;
@@ -4380,7 +4400,11 @@ export default function AlertsProgressPage() {
                                 ? emailDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
                                 : null;
                             }
-                            const emailRecipientsCount = ackInfo.recipients.filter(r => !!r.email).length || ackInfo.recipients.length;
+                            const dispatchedRecs = ackInfo.recipients.filter(r => r.isDispatched);
+                            const hasAcks = Array.isArray(row.acknowledgements) && row.acknowledgements.length > 0;
+                            const emailRecipientsCount = dispatchedRecs.length > 0 
+                              ? dispatchedRecs.length 
+                              : (hasAcks ? row.acknowledgements.length : 1);
 
                             if (isSent) {
                               return (

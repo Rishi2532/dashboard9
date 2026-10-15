@@ -2204,32 +2204,36 @@ router.get('/daily-dispatches', async (req, res) => {
 
     const client = await pool.connect();
     try {
-      // 1. Fetch Daily Email Alert Dispatches (strictly exclude Real-Time alerts)
+      // 1. Fetch Daily Email Alert Dispatches from email_acknowledgements (actual real emails sent)
+      const dateFilterAck = dateFilter.replace(/\bsent_date\b/g, 'ea.sent_date');
       const emailsQuery = `
         SELECT 
-          e.id, e.scheme_id, e.scheme_name, e.region, e.village_name, e.esr_name, 
-          e.alert_type, e.alert_value, e.ticket_id, e.sent_time, e.telemetry_date, e.created_at,
-          TO_CHAR(e.sent_date, 'YYYY-MM-DD') as sent_date,
-          e.ee_civil_name, e.ee_civil_email,
-          e.ee_mech_name, e.ee_mech_email,
-          e.de_ae_civil_name, e.de_ae_civil_email,
-          e.de_ae_mech_name, e.de_ae_mech_email,
-          e.se_name, e.se_email,
-          e.chief_engineer_name, e.chief_engineer_email,
-          COALESCE(
-            (
-              SELECT json_agg(DISTINCT jsonb_build_object('name', ea.engineer_name, 'email', LOWER(TRIM(ea.engineer_email))))
-              FROM email_acknowledgements ea
-              WHERE ea.scheme_id = e.scheme_id 
-                AND ea.sent_date = e.sent_date
-            ),
-            '[]'::json
-          ) as actual_recipients
-        FROM email_alert_logs e
-        WHERE (e.ticket_id NOT LIKE 'TKT-RT-%' OR e.ticket_id IS NULL)
-          AND (e.dispatch_type = 'daily' OR e.dispatch_type IS NULL)
-          AND ${dateFilter}
-        ORDER BY e.created_at DESC
+          MIN(ea.id) as id,
+          ea.scheme_id,
+          COALESCE(MAX(s.scheme), MAX(ea.scheme_id), 'MVS Scheme') as scheme_name,
+          MAX(s.region) as region,
+          string_agg(DISTINCT ea.alert_type, ', ') as alert_type,
+          COUNT(*) as alert_count,
+          MAX(ea.engineer_name) as engineer_name,
+          LOWER(TRIM(ea.engineer_email)) as engineer_email,
+          CASE 
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.principal_secretary_email), ''))) THEN 'Principal Secretary (PS)'
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.member_secretary_email), ''))) THEN 'Member Secretary (MS)'
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.chief_engineer_email), ''))) THEN 'Chief Engineer (CE)'
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.se_email), ''))) THEN 'Superintending Engineer (SE)'
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_civil_email), ''))) OR LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_mech_email), ''))) THEN 'Executive Engineer (Civil)'
+            ELSE 'Deputy Engineer (DE Civil)'
+          END as engineer_role,
+          MIN(ea.created_at) as created_at,
+          TO_CHAR(ea.sent_date, 'YYYY-MM-DD') as sent_date,
+          BOOL_OR(ea.acknowledged_at IS NOT NULL) as is_acknowledged,
+          MAX(ea.acknowledged_at) as acknowledged_at,
+          json_agg(DISTINCT jsonb_build_object('name', ea.engineer_name, 'email', LOWER(TRIM(ea.engineer_email)))) as actual_recipients
+        FROM email_acknowledgements ea
+        LEFT JOIN scheme_engineer_details s ON s.scheme_id = ea.scheme_id
+        WHERE ${dateFilterAck}
+        GROUP BY ea.sent_date, LOWER(TRIM(ea.engineer_email)), ea.scheme_id
+        ORDER BY MIN(ea.created_at) DESC
       `;
       const emailsResult = await client.query(emailsQuery, queryParams);
 
@@ -2263,7 +2267,7 @@ router.get('/daily-dispatches', async (req, res) => {
       res.json({
         summary: {
           totalEmails: emails.length,
-          actualEmailsSent: uniqueEmailSchemes, // 1 consolidated email per scheme
+          actualEmailsSent: emails.length, // 1 consolidated email per engineer
           totalSms: sms.length,
           totalDispatches: emails.length + sms.length,
           schemesCount: allUniqueSchemes,

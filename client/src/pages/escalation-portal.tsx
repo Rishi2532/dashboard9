@@ -942,7 +942,7 @@ export default function EscalationPortalPage() {
                 </span>
               </div>
               <div className="text-sm font-bold font-mono text-slate-900 mt-1 flex items-baseline gap-2">
-                <span>Today: <span className="text-blue-900 font-extrabold text-base">{dispatches?.today?.total_emails ?? sentAlertsData?.summary?.email_sent ?? 0}</span> Actual Emails Sent</span>
+                <span>Today: <span className="text-blue-900 font-extrabold text-base">{dispatches?.today?.total_emails ?? sentAlertsData?.summary?.email_sent ?? 0}</span> Emails Sent</span>
                 <span className="text-[11px] text-slate-500 font-mono font-normal">| 7 Days: {dispatches?.last_7_days?.total_emails ?? 0}</span>
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] font-mono text-slate-600">
@@ -1596,8 +1596,8 @@ export default function EscalationPortalPage() {
                             const emailTime = schemeEmails[0]?.created_at
                               ? new Date(schemeEmails[0].created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
                               : (item.scheme_ref?.last_notified_at
-                                  ? new Date(item.scheme_ref.last_notified_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
-                                  : "10:37 am");
+                                ? new Date(item.scheme_ref.last_notified_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
+                                : "10:37 am");
 
                             if (hasEmail && item.officer_email) {
                               return (
@@ -2224,7 +2224,7 @@ export default function EscalationPortalPage() {
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold mt-0.5 border ${hasSuccess
                           ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                           : 'bg-rose-50 text-rose-800 border-rose-200'
-                        }`}>
+                          }`}>
                           {hasSuccess ? '200 OK • Delivered' : '400 • Rejected by DLT Gateway'}
                         </span>
                       );
@@ -2324,11 +2324,10 @@ export default function EscalationPortalPage() {
                     key={t.id}
                     type="button"
                     onClick={() => setEmailLogsTimeRange(t.id as any)}
-                    className={`px-2.5 py-1 text-xs font-semibold rounded transition-all cursor-pointer ${
-                      emailLogsTimeRange === t.id
-                        ? "bg-white text-blue-950 shadow-xs"
-                        : "text-blue-100 hover:text-white hover:bg-white/10"
-                    }`}
+                    className={`px-2.5 py-1 text-xs font-semibold rounded transition-all cursor-pointer ${emailLogsTimeRange === t.id
+                      ? "bg-white text-blue-950 shadow-xs"
+                      : "text-blue-100 hover:text-white hover:bg-white/10"
+                      }`}
                   >
                     {t.label}
                   </button>
@@ -2429,16 +2428,14 @@ export default function EscalationPortalPage() {
                       key={c.id}
                       type="button"
                       onClick={() => setEmailLogsFilterCategory(c.id as any)}
-                      className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1.5 border ${
-                        emailLogsFilterCategory === c.id
-                          ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
-                          : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
-                      }`}
+                      className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1.5 border ${emailLogsFilterCategory === c.id
+                        ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
+                        : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
+                        }`}
                     >
                       <span>{c.label}</span>
-                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                        emailLogsFilterCategory === c.id ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
-                      }`}>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${emailLogsFilterCategory === c.id ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                        }`}>
                         {c.count}
                       </span>
                     </button>
@@ -2461,16 +2458,14 @@ export default function EscalationPortalPage() {
                         key={f.id}
                         type="button"
                         onClick={() => setEmailLogsFilterTier(f.id as any)}
-                        className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1.5 border ${
-                          emailLogsFilterTier === f.id
-                            ? "bg-blue-900 text-white border-blue-900 shadow-2xs"
-                            : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
-                        }`}
+                        className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1.5 border ${emailLogsFilterTier === f.id
+                          ? "bg-blue-900 text-white border-blue-900 shadow-2xs"
+                          : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
+                          }`}
                       >
                         <span>{f.label}</span>
-                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                          emailLogsFilterTier === f.id ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
-                        }`}>
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${emailLogsFilterTier === f.id ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                          }`}>
                           {f.count}
                         </span>
                       </button>

@@ -445,38 +445,24 @@ export async function getEscalationStatus(options: {
 
     const [emailStatsRes, smsStatsRes, engineerRosterRes, categoryEmailStatsRes, categorySmsStatsRes] = await Promise.all([
       db.execute(sql`
-        -- 1. Actual dispatches to officers from email_alert_logs (grouped per recipient per tier per day)
+        -- 1. Actual dispatches to officers from email_acknowledgements (grouped per recipient per tier per day)
         SELECT 
-          sub.sent_date,
-          sub.scheme_id,
-          sub.engineer_email,
-          sub.engineer_name,
-          sub.tier
-        FROM (
-          SELECT 
-            e.sent_date::text as sent_date,
-            MAX(e.scheme_id) as scheme_id,
-            officer.recipient_email as engineer_email,
-            MAX(officer.recipient_name) as engineer_name,
-            officer.tier
-          FROM email_alert_logs e
-          CROSS JOIN LATERAL (
-            VALUES 
-              (COALESCE(e.de_ae_civil_name, 'Deputy Engineer (Civil)'), LOWER(TRIM(e.de_ae_civil_email)), 'de'),
-              (COALESCE(e.de_ae_mech_name, 'Deputy Engineer (Mech)'), LOWER(TRIM(e.de_ae_mech_email)), 'de'),
-              (COALESCE(e.ee_civil_name, 'Executive Engineer (Civil)'), LOWER(TRIM(e.ee_civil_email)), 'ee'),
-              (COALESCE(e.ee_mech_name, 'Executive Engineer (Mech)'), LOWER(TRIM(e.ee_mech_email)), 'ee'),
-              (COALESCE(e.se_name, 'Superintending Engineer'), LOWER(TRIM(e.se_email)), 'se'),
-              (COALESCE(e.chief_engineer_name, 'Chief Engineer'), LOWER(TRIM(e.chief_engineer_email)), 'ce'),
-              (COALESCE(e.member_secretary_name, 'Member Secretary (MS)'), LOWER(TRIM(e.member_secretary_email)), 'ms'),
-              (COALESCE(e.principal_secretary_name, 'Principal Secretary (PS)'), LOWER(TRIM(e.principal_secretary_email)), 'ps')
-          ) AS officer(recipient_name, recipient_email, tier)
-          WHERE officer.recipient_email IS NOT NULL AND officer.recipient_email != ''
-            AND e.sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
-            AND (e.ticket_id NOT LIKE 'TKT-RT-%' OR e.ticket_id IS NULL)
-            AND (e.dispatch_type = 'daily' OR e.dispatch_type IS NULL)
-          GROUP BY e.sent_date::text, officer.recipient_email, officer.tier
-        ) sub
+          ea.sent_date::text as sent_date,
+          ea.scheme_id,
+          LOWER(TRIM(ea.engineer_email)) as engineer_email,
+          MAX(ea.engineer_name) as engineer_name,
+          CASE 
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.principal_secretary_email), ''))) THEN 'ps'
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.member_secretary_email), ''))) THEN 'ms'
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.chief_engineer_email), ''))) THEN 'ce'
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.se_email), ''))) THEN 'se'
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_civil_email), ''))) OR LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_mech_email), ''))) THEN 'ee'
+            ELSE 'de'
+          END as tier
+        FROM email_acknowledgements ea
+        LEFT JOIN scheme_engineer_details s ON s.scheme_id = ea.scheme_id
+        WHERE ea.sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
+        GROUP BY ea.sent_date::text, ea.scheme_id, LOWER(TRIM(ea.engineer_email))
 
         UNION ALL
 
@@ -571,36 +557,23 @@ export async function getEscalationStatus(options: {
       `),
       db.execute(sql`
         SELECT 
-          sent_date::text as sent_date,
-          category,
-          COUNT(DISTINCT engineer_email) as email_count
-        FROM (
-          SELECT 
-            e.sent_date,
-            CASE 
-              WHEN e.alert_type ILIKE '%lpcd%' THEN 'lpcd'
-              WHEN e.alert_type ILIKE '%chlorine%' THEN 'chlorine'
-              WHEN e.alert_type ILIKE '%pressure%' THEN 'pressure'
-              ELSE 'offline'
-            END as category,
-            officer.recipient_email as engineer_email
-          FROM email_alert_logs e
-          CROSS JOIN LATERAL (
-            VALUES 
-              (LOWER(TRIM(e.de_ae_civil_email))),
-              (LOWER(TRIM(e.de_ae_mech_email))),
-              (LOWER(TRIM(e.ee_civil_email))),
-              (LOWER(TRIM(e.ee_mech_email))),
-              (LOWER(TRIM(e.se_email))),
-              (LOWER(TRIM(e.chief_engineer_email))),
-              (LOWER(TRIM(e.member_secretary_email))),
-              (LOWER(TRIM(e.principal_secretary_email)))
-          ) AS officer(recipient_email)
-          WHERE officer.recipient_email IS NOT NULL AND officer.recipient_email != ''
-            AND e.sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
-            AND (e.ticket_id NOT LIKE 'TKT-RT-%' OR e.ticket_id IS NULL)
-        ) cat_sub
-        GROUP BY sent_date, category
+          ea.sent_date::text as sent_date,
+          CASE 
+            WHEN ea.alert_type ILIKE '%lpcd%' THEN 'lpcd'
+            WHEN ea.alert_type ILIKE '%chlorine%' THEN 'chlorine'
+            WHEN ea.alert_type ILIKE '%pressure%' THEN 'pressure'
+            ELSE 'offline'
+          END as category,
+          COUNT(DISTINCT LOWER(TRIM(ea.engineer_email))) as email_count
+        FROM email_acknowledgements ea
+        WHERE ea.sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
+        GROUP BY ea.sent_date::text, 
+          CASE 
+            WHEN ea.alert_type ILIKE '%lpcd%' THEN 'lpcd'
+            WHEN ea.alert_type ILIKE '%chlorine%' THEN 'chlorine'
+            WHEN ea.alert_type ILIKE '%pressure%' THEN 'pressure'
+            ELSE 'offline'
+          END
       `),
       db.execute(sql`
         SELECT 
@@ -2207,8 +2180,8 @@ export async function getSentEscalationAlerts(options: {
         NULL AS recipient_mobile,
         sub.role_name AS recipient_role,
         sub.role_tier AS tier,
-        CONCAT('Daily Alert Digest (', GREATEST(sub.issue_count/2, 1), ' Issues • ', sub.alert_types, ')') AS alert_title,
-        CONCAT('Consolidated alert digest containing ', GREATEST(sub.issue_count/2, 1), ' unresolved telemetry alerts across ', sub.alert_types, '.') AS message_content,
+        CONCAT('Daily Alert Digest (', sub.issue_count, ' Issues • ', sub.alert_types, ')') AS alert_title,
+        CONCAT('Consolidated alert digest containing ', sub.issue_count, ' unresolved telemetry alerts across ', sub.alert_types, '.') AS message_content,
         'DELIVERED' AS status,
         'daily' AS dispatch_type,
         sub.is_lpcd,
@@ -2218,45 +2191,46 @@ export async function getSentEscalationAlerts(options: {
         sub.categories
       FROM (
         SELECT 
-          MIN(e.id)::text AS id,
-          MIN(e.created_at) AS created_at,
-          e.sent_date::date AS sent_date,
-          COALESCE(MAX(e.scheme_id), 'MJP-SCHEME') AS scheme_id,
-          COALESCE(MAX(e.scheme_name), MAX(e.scheme_id), 'Maharashtra Jeevan Pradhikaran') AS scheme_name,
-          officer.recipient_name,
-          officer.recipient_email,
-          officer.role_tier,
-          officer.role_name,
+          MIN(ea.id)::text AS id,
+          MIN(ea.created_at) AS created_at,
+          ea.sent_date::date AS sent_date,
+          COALESCE(ea.scheme_id, 'MJP-SCHEME') AS scheme_id,
+          COALESCE(MAX(s.scheme), MAX(ea.scheme_id), 'Maharashtra Jeevan Pradhikaran') AS scheme_name,
+          MAX(ea.engineer_name) AS recipient_name,
+          LOWER(TRIM(ea.engineer_email)) AS recipient_email,
+          CASE 
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.principal_secretary_email), ''))) THEN 5
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.member_secretary_email), ''))) THEN 4
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.chief_engineer_email), ''))) THEN 3
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.se_email), ''))) THEN 3
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_civil_email), ''))) OR LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_mech_email), ''))) THEN 2
+            ELSE 1
+          END AS role_tier,
+          CASE 
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.principal_secretary_email), ''))) THEN 'Principal Secretary (PS)'
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.member_secretary_email), ''))) THEN 'Member Secretary (MS)'
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.chief_engineer_email), ''))) THEN 'Chief Engineer (CE)'
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.se_email), ''))) THEN 'Superintending Engineer (SE)'
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_civil_email), ''))) OR LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_mech_email), ''))) THEN 'Executive Engineer (EE)'
+            ELSE 'Deputy Engineer (DE Civil)'
+          END AS role_name,
           COUNT(*) AS issue_count,
-          string_agg(DISTINCT e.alert_type, ', ') AS alert_types,
-          bool_or(e.alert_type ILIKE '%lpcd%') AS is_lpcd,
-          bool_or(e.alert_type ILIKE '%chlorine%') AS is_chlorine,
-          bool_or(e.alert_type ILIKE '%pressure%') AS is_pressure,
-          bool_or(e.alert_type ILIKE '%offline%') AS is_offline,
+          string_agg(DISTINCT ea.alert_type, ', ') AS alert_types,
+          bool_or(ea.alert_type ILIKE '%lpcd%') AS is_lpcd,
+          bool_or(ea.alert_type ILIKE '%chlorine%') AS is_chlorine,
+          bool_or(ea.alert_type ILIKE '%pressure%') AS is_pressure,
+          bool_or(ea.alert_type ILIKE '%offline%') AS is_offline,
           array_agg(DISTINCT 
             CASE 
-              WHEN e.alert_type ILIKE '%lpcd%' THEN 'lpcd'
-              WHEN e.alert_type ILIKE '%chlorine%' THEN 'chlorine'
-              WHEN e.alert_type ILIKE '%pressure%' THEN 'pressure'
+              WHEN ea.alert_type ILIKE '%lpcd%' THEN 'lpcd'
+              WHEN ea.alert_type ILIKE '%chlorine%' THEN 'chlorine'
+              WHEN ea.alert_type ILIKE '%pressure%' THEN 'pressure'
               ELSE 'offline'
             END
           ) AS categories
-        FROM email_alert_logs e
-        CROSS JOIN LATERAL (
-          VALUES 
-            (COALESCE(e.de_ae_civil_name, 'Deputy Engineer (Civil)'), LOWER(TRIM(e.de_ae_civil_email)), 1, 'Deputy Engineer (DE Civil)'),
-            (COALESCE(e.de_ae_mech_name, 'Deputy Engineer (Mech)'), LOWER(TRIM(e.de_ae_mech_email)), 1, 'Deputy Engineer (DE Mech)'),
-            (COALESCE(e.ee_civil_name, 'Executive Engineer (Civil)'), LOWER(TRIM(e.ee_civil_email)), 2, 'Executive Engineer (EE Civil)'),
-            (COALESCE(e.ee_mech_name, 'Executive Engineer (Mech)'), LOWER(TRIM(e.ee_mech_email)), 2, 'Executive Engineer (EE Mech)'),
-            (COALESCE(e.se_name, 'Superintending Engineer'), LOWER(TRIM(e.se_email)), 3, 'Superintending Engineer (SE)'),
-            (COALESCE(e.chief_engineer_name, 'Chief Engineer'), LOWER(TRIM(e.chief_engineer_email)), 3, 'Chief Engineer (CE)'),
-            (COALESCE(e.member_secretary_name, 'Member Secretary (MS)'), LOWER(TRIM(e.member_secretary_email)), 4, 'Member Secretary (MS)'),
-            (COALESCE(e.principal_secretary_name, 'Principal Secretary (PS)'), LOWER(TRIM(e.principal_secretary_email)), 5, 'Principal Secretary (PS)')
-        ) AS officer(recipient_name, recipient_email, role_tier, role_name)
-        WHERE officer.recipient_email IS NOT NULL AND officer.recipient_email != ''
-          AND (e.ticket_id NOT LIKE 'TKT-RT-%' OR e.ticket_id IS NULL)
-          AND (e.dispatch_type = 'daily' OR e.dispatch_type IS NULL)
-        GROUP BY e.sent_date::date, officer.recipient_email, officer.recipient_name, officer.role_tier, officer.role_name
+        FROM email_acknowledgements ea
+        LEFT JOIN scheme_engineer_details s ON s.scheme_id = ea.scheme_id
+        GROUP BY ea.sent_date::date, LOWER(TRIM(ea.engineer_email)), ea.scheme_id
       ) sub
 
       UNION ALL
@@ -2322,31 +2296,31 @@ export async function getSentEscalationAlerts(options: {
   const summaryQuery = `
     ${baseCte}
     SELECT 
-      COUNT(*) AS total_sent,
-      COUNT(*) FILTER (WHERE channel = 'sms') AS sms_sent,
+      COUNT(*) FILTER (WHERE channel = 'email' OR status = 'DELIVERED') AS total_sent,
+      COUNT(*) FILTER (WHERE channel = 'sms' AND status = 'DELIVERED') AS sms_sent,
       COUNT(*) FILTER (WHERE channel = 'email') AS email_sent,
-      COUNT(*) FILTER (WHERE tier = 1) AS tier_1_sent,
-      COUNT(*) FILTER (WHERE tier = 2) AS tier_2_sent,
-      COUNT(*) FILTER (WHERE tier = 3) AS tier_3_sent,
-      COUNT(*) FILTER (WHERE tier = 4) AS tier_4_sent,
-      COUNT(*) FILTER (WHERE tier = 5) AS tier_5_sent,
+      COUNT(*) FILTER (WHERE tier = 1 AND (channel = 'email' OR status = 'DELIVERED')) AS tier_1_sent,
+      COUNT(*) FILTER (WHERE tier = 2 AND (channel = 'email' OR status = 'DELIVERED')) AS tier_2_sent,
+      COUNT(*) FILTER (WHERE tier = 3 AND (channel = 'email' OR status = 'DELIVERED')) AS tier_3_sent,
+      COUNT(*) FILTER (WHERE tier = 4 AND (channel = 'email' OR status = 'DELIVERED')) AS tier_4_sent,
+      COUNT(*) FILTER (WHERE tier = 5 AND (channel = 'email' OR status = 'DELIVERED')) AS tier_5_sent,
       COUNT(*) FILTER (WHERE channel = 'email' AND tier = 1) AS de_emails,
       COUNT(*) FILTER (WHERE channel = 'email' AND tier = 2) AS ee_emails,
       COUNT(*) FILTER (WHERE channel = 'email' AND tier = 3 AND recipient_role ILIKE '%Superintending%') AS se_emails,
       COUNT(*) FILTER (WHERE channel = 'email' AND tier = 3 AND recipient_role ILIKE '%Chief Engineer%') AS ce_emails,
       COUNT(*) FILTER (WHERE channel = 'email' AND tier = 4) AS ms_emails,
       COUNT(*) FILTER (WHERE channel = 'email' AND tier = 5) AS ps_emails,
-      COUNT(*) FILTER (WHERE channel = 'sms' AND tier = 1) AS de_sms,
-      COUNT(*) FILTER (WHERE channel = 'sms' AND tier = 2) AS ee_sms,
-      COUNT(*) FILTER (WHERE channel = 'sms' AND tier = 3 AND recipient_role ILIKE '%Superintending%') AS se_sms,
-      COUNT(*) FILTER (WHERE channel = 'sms' AND tier = 3 AND recipient_role ILIKE '%Chief Engineer%') AS ce_sms,
-      COUNT(*) FILTER (WHERE channel = 'sms' AND tier = 4) AS ms_sms,
-      COUNT(*) FILTER (WHERE channel = 'sms' AND tier = 5) AS ps_sms,
+      COUNT(*) FILTER (WHERE channel = 'sms' AND tier = 1 AND status = 'DELIVERED') AS de_sms,
+      COUNT(*) FILTER (WHERE channel = 'sms' AND tier = 2 AND status = 'DELIVERED') AS ee_sms,
+      COUNT(*) FILTER (WHERE channel = 'sms' AND tier = 3 AND recipient_role ILIKE '%Superintending%' AND status = 'DELIVERED') AS se_sms,
+      COUNT(*) FILTER (WHERE channel = 'sms' AND tier = 3 AND recipient_role ILIKE '%Chief Engineer%' AND status = 'DELIVERED') AS ce_sms,
+      COUNT(*) FILTER (WHERE channel = 'sms' AND tier = 4 AND status = 'DELIVERED') AS ms_sms,
+      COUNT(*) FILTER (WHERE channel = 'sms' AND tier = 5 AND status = 'DELIVERED') AS ps_sms,
       COUNT(*) FILTER (WHERE channel = 'email' AND is_lpcd = true) AS lpcd_emails,
       COUNT(*) FILTER (WHERE channel = 'email' AND is_chlorine = true) AS chlorine_emails,
       COUNT(*) FILTER (WHERE channel = 'email' AND is_pressure = true) AS pressure_emails,
       COUNT(*) FILTER (WHERE channel = 'email' AND is_offline = true) AS offline_emails,
-      (SELECT COUNT(*) FROM combined_alerts WHERE (sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date OR created_at >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date)) AS today_sent_count,
+      (SELECT COUNT(*) FROM combined_alerts WHERE (channel = 'email' OR status = 'DELIVERED') AND (sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date OR created_at >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date)) AS today_sent_count,
       MAX(created_at) AS last_dispatched_at
     FROM combined_alerts
     ${whereSql};
