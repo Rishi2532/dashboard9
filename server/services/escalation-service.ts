@@ -1635,15 +1635,19 @@ export async function getSentEscalationAlerts(options: {
         CASE 
           WHEN e.dispatch_type = 'escalation_level5' OR e.alert_type ILIKE '%Level 5%' THEN 'Principal Secretary'
           WHEN e.dispatch_type = 'escalation_level4' OR e.alert_type ILIKE '%Level 4%' THEN 'Member Secretary'
-          WHEN e.chief_engineer_email IS NOT NULL AND e.chief_engineer_email != '' THEN 'Chief Engineer'
+          WHEN e.civil_engineer_email IS NOT NULL AND e.civil_engineer_email != '' THEN 'Deputy Engineer (Civil)'
           WHEN e.ee_civil_email IS NOT NULL AND e.ee_civil_email != '' THEN 'Executive Engineer (Civil)'
-          ELSE 'Deputy Engineer (Civil)'
+          WHEN e.se_email IS NOT NULL AND e.se_email != '' THEN 'Superintending Engineer (SE)'
+          WHEN e.chief_engineer_email IS NOT NULL AND e.chief_engineer_email != '' THEN 'Chief Engineer'
+          ELSE 'Field Engineer'
         END AS recipient_role,
         CASE 
           WHEN e.dispatch_type = 'escalation_level5' OR e.alert_type ILIKE '%Level 5%' THEN 5
           WHEN e.dispatch_type = 'escalation_level4' OR e.alert_type ILIKE '%Level 4%' THEN 4
-          WHEN e.chief_engineer_email IS NOT NULL AND e.chief_engineer_email != '' THEN 3
+          WHEN e.civil_engineer_email IS NOT NULL AND e.civil_engineer_email != '' THEN 1
           WHEN e.ee_civil_email IS NOT NULL AND e.ee_civil_email != '' THEN 2
+          WHEN e.se_email IS NOT NULL AND e.se_email != '' THEN 3
+          WHEN e.chief_engineer_email IS NOT NULL AND e.chief_engineer_email != '' THEN 3
           ELSE 1
         END AS tier,
         CONCAT(e.alert_type, ' - ', e.alert_value) AS alert_title,
