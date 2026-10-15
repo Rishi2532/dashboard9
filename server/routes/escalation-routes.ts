@@ -109,6 +109,7 @@ router.get("/summary", async (req: Request, res: Response) => {
       success: true,
       timestamp: new Date().toISOString(),
       summary,
+      dispatches: summary.dispatches,
       schemes,
     });
   } catch (error: any) {

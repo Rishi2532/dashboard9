@@ -3236,11 +3236,32 @@ export default function AlertsProgressPage() {
     const totalPendingEngineers = notifiedEngineersList.filter(e => !e.isAcknowledged).length;
 
     // Dispatches calculation for this tab
-    const emailsSentCount = notifiedEngineersList.filter(e => !!e.email).length;
+    // 1. Emails: Count unique engineers who were actually dispatched an email for this tab
+    const dispatchedEmailsSet = new Set<string>();
+    baseData.forEach(r => {
+      if (Array.isArray(r.acknowledgements)) {
+        r.acknowledgements.forEach((a: any) => {
+          if (a.engineer_email) {
+            dispatchedEmailsSet.add(a.engineer_email.toLowerCase().trim());
+          }
+        });
+      }
+    });
+
+    const emailsSentCount = dispatchedEmailsSet.size > 0
+      ? dispatchedEmailsSet.size
+      : (baseData.some(r => Array.isArray(r.acknowledgements) && r.acknowledgements.length > 0)
+          ? 0
+          : (notifiedEngineersList.some(e => e.schemes.some(s => s.isAcknowledged)) ? notifiedEngineersList.filter(e => e.schemes.some(s => s.isAcknowledged)).length : 1));
+
+    // 2. SMS: Count ONLY successfully delivered SMS
     const tabSmsMap = new Map<string, any>();
     baseData.forEach(r => {
       if (Array.isArray(r.sms_dispatches)) {
         r.sms_dispatches.forEach((s: any) => {
+          const isSuccess = s.is_success === true || String(s.gateway_status) === "200" || s.gateway_status === 200;
+          if (!isSuccess) return; // Only count successfully delivered SMS
+
           const sKey = s.id ? `id-${s.id}` : `${s.mobile}-${s.message_text || ''}-${s.created_at || s.sent_date || ''}`;
           if (!tabSmsMap.has(sKey)) {
             tabSmsMap.set(sKey, s);
@@ -3250,6 +3271,11 @@ export default function AlertsProgressPage() {
     });
     const tabSmsList = Array.from(tabSmsMap.values());
     const smsSentCount = tabSmsList.length;
+
+    // Actually notified engineers count (those who were dispatched an email or successful SMS)
+    const actuallyNotifiedCount = dispatchedEmailsSet.size > 0
+      ? notifiedEngineersList.filter(e => (e.email && dispatchedEmailsSet.has(e.email.toLowerCase().trim())) || (e.mobile && tabSmsList.some(s => s.mobile === e.mobile))).length || dispatchedEmailsSet.size
+      : totalEngineers;
 
     // Count remarks added
     const totalRemarks = baseData.filter(r => parseIssues(r.remarks).length > 0).length;
@@ -3566,7 +3592,7 @@ export default function AlertsProgressPage() {
 
             <div className="flex items-center gap-2.5 text-xs text-slate-600 flex-wrap">
               <span>
-                Engineers Notified <strong className="text-[#0f4c81] font-bold text-sm ml-1">{totalEngineers} / {totalRosterEngineers || 6}</strong>
+                Engineers Notified <strong className="text-[#0f4c81] font-bold text-sm ml-1">{actuallyNotifiedCount} / {totalRosterEngineers || totalEngineers || 6}</strong>
               </span>
 
               <span className="text-slate-300">|</span>

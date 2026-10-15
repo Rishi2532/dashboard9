@@ -17,6 +17,12 @@ import {
   X,
   AlertCircle,
   FileText,
+  Waves,
+  Droplets,
+  GaugeCircle,
+  AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/dashboard-layout";
 import { Button } from "@/components/ui/button";
@@ -130,15 +136,48 @@ interface EscalationSummaryResponse {
       };
     };
   };
+  dispatches?: {
+    today: {
+      total_emails: number;
+      total_sms: number;
+      de_emails: number;
+      de_sms: number;
+      ee_emails: number;
+      ee_sms: number;
+      ce_se_emails: number;
+      ce_se_sms: number;
+      ms_emails: number;
+      ms_sms: number;
+      ps_emails: number;
+      ps_sms: number;
+    };
+    last_7_days: {
+      total_emails: number;
+      total_sms: number;
+      de_emails: number;
+      de_sms: number;
+      ee_emails: number;
+      ee_sms: number;
+      ce_se_emails: number;
+      ce_se_sms: number;
+      ms_emails: number;
+      ms_sms: number;
+      ps_emails: number;
+      ps_sms: number;
+    };
+  };
   schemes: SchemeEscalationItem[];
 }
 
 export default function EscalationPortalPage() {
   const { toast } = useToast();
 
-  // Active layer view: "all" | "layer1" (DE/AE Daily) | "layer2" (EE >3 Days) | "layer3" (SE & CE Weekly) | "layer4" (MS 10+ Days) | "layer5" (PS 15+ Days)
-  const [activeLayer, setActiveLayer] = useState<"all" | "layer1" | "layer2" | "layer3" | "layer4" | "layer5">("all");
+  // Active layer view: "layer1" (DE/AE Daily) | "layer2" (EE >3 Days) | "layer3" (SE & CE Weekly) | "layer4" (Head - MJP) | "layer5" (Head - WSSD)
+  const [activeLayer, setActiveLayer] = useState<"layer1" | "layer2" | "layer3" | "layer4" | "layer5">("layer1");
+  const [activeCategory, setActiveCategory] = useState<"lpcd" | "chlorine" | "pressure" | "offline">("lpcd");
   const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 15;
 
   // Notice preview modal
   const [previewScheme, setPreviewScheme] = useState<SchemeEscalationItem | null>(null);
@@ -213,7 +252,7 @@ export default function EscalationPortalPage() {
   });
 
   const schemes = data?.schemes || [];
-  const dispatches = data?.dispatches;
+  const dispatches = data?.summary?.dispatches || data?.dispatches;
 
   // Layer 1: DE / AE Civil (Daily Notice) -> All active schemes with telemetry breaches
   const layer1Schemes = useMemo(() => {
@@ -240,95 +279,311 @@ export default function EscalationPortalPage() {
     return schemes.filter((s) => s.max_streak_days >= 15 || s.escalation_level === 5);
   }, [schemes]);
 
-  // Active list filtered by search term and layer
-  const displayedSchemes = useMemo(() => {
-    let list: SchemeEscalationItem[] = [];
-    if (activeLayer === "all") list = schemes;
-    else if (activeLayer === "layer1") list = layer1Schemes;
-    else if (activeLayer === "layer2") list = layer2Schemes;
-    else if (activeLayer === "layer3") list = layer3Schemes;
-    else if (activeLayer === "layer4") list = layer4Schemes;
-    else if (activeLayer === "layer5") list = layer5Schemes;
+  // Helper to extract officer for scheme and active layer
+  const getOfficerForLevel = (s: SchemeEscalationItem, layer: string) => {
+    if (layer === "layer5") {
+      return {
+        name: execContacts.ps.name || "Principal Secretary (PS)",
+        role: "Head - WSSD (Secretariat)",
+        email: execContacts.ps.email || "ps.wss@maharashtra.gov.in",
+        mobile: execContacts.ps.mobile || "Secretariat",
+      };
+    }
+    if (layer === "layer4") {
+      return {
+        name: execContacts.ms.name || "Member Secretary (MS)",
+        role: "Head - MJP (Head Office)",
+        email: execContacts.ms.email || "ms.mjp@gov.in",
+        mobile: execContacts.ms.mobile || "Head Office",
+      };
+    }
+    if (layer === "layer3") {
+      return {
+        name: `${s.chief_engineer_name || "Deepak Ingale"} (CE) & ${s.se_name || "Rishikesh Salunkhe"} (SE)`,
+        role: "Chief Engineer & Superintending Engineer",
+        email: s.chief_engineer_email || "deepal.ingale@cstech.ai",
+        mobile: `${s.chief_engineer_mobile || "8852634598"} / ${s.se_mobile || "9965253645"}`,
+      };
+    }
+    if (layer === "layer2") {
+      return {
+        name: s.ee_civil_name || "Rishikesh Salunke",
+        role: "Executive Engineer (Civil)",
+        email: s.ee_civil_email || "salunkerishikesh@gmail.com",
+        mobile: s.ee_civil_mobile || "9834955236",
+      };
+    }
+    return {
+      name: s.de_ae_civil_name || "Akshay Bhojane",
+      role: "Deputy Engineer / Assistant Engineer (Civil)",
+      email: s.de_ae_civil_email || "akshay.bhojane@cstech.ai",
+      mobile: s.de_ae_civil_mobile || "5596356782",
+    };
+  };
 
-    if (!searchTerm.trim()) return list;
+  const activeSchemes = useMemo(() => {
+    if (activeLayer === "layer1") return layer1Schemes;
+    if (activeLayer === "layer2") return layer2Schemes;
+    if (activeLayer === "layer3") return layer3Schemes;
+    if (activeLayer === "layer4") return layer4Schemes;
+    if (activeLayer === "layer5") return layer5Schemes;
+    return layer1Schemes;
+  }, [activeLayer, layer1Schemes, layer2Schemes, layer3Schemes, layer4Schemes, layer5Schemes]);
+
+  // Current level dispatches
+  const currentLevelDispatches = useMemo(() => {
+    if (activeLayer === "layer5") {
+      return {
+        emailsToday: dispatches?.today?.ps_emails ?? 0,
+        emails7d: dispatches?.last_7_days?.ps_emails ?? 0,
+        smsToday: dispatches?.today?.ps_sms ?? 0,
+        sms7d: dispatches?.last_7_days?.ps_sms ?? 0,
+      };
+    }
+    if (activeLayer === "layer4") {
+      return {
+        emailsToday: dispatches?.today?.ms_emails ?? 0,
+        emails7d: dispatches?.last_7_days?.ms_emails ?? 0,
+        smsToday: dispatches?.today?.ms_sms ?? 0,
+        sms7d: dispatches?.last_7_days?.ms_sms ?? 0,
+      };
+    }
+    if (activeLayer === "layer3") {
+      return {
+        emailsToday: dispatches?.today?.ce_se_emails ?? 0,
+        emails7d: dispatches?.last_7_days?.ce_se_emails ?? 0,
+        smsToday: dispatches?.today?.ce_se_sms ?? 0,
+        sms7d: dispatches?.last_7_days?.ce_se_sms ?? 0,
+      };
+    }
+    if (activeLayer === "layer2") {
+      return {
+        emailsToday: dispatches?.today?.ee_emails ?? 0,
+        emails7d: dispatches?.last_7_days?.ee_emails ?? 0,
+        smsToday: dispatches?.today?.ee_sms ?? 0,
+        sms7d: dispatches?.last_7_days?.ee_sms ?? 0,
+      };
+    }
+    return {
+      emailsToday: dispatches?.today?.de_emails ?? 0,
+      emails7d: dispatches?.last_7_days?.de_emails ?? 0,
+      smsToday: dispatches?.today?.de_sms ?? 0,
+      sms7d: dispatches?.last_7_days?.de_sms ?? 0,
+    };
+  }, [activeLayer, dispatches]);
+
+  // 1. LPCD items
+  const lpcdAlerts = useMemo(() => {
+    const list: any[] = [];
+    activeSchemes.forEach(s => {
+      (s.lpcd_villages || []).forEach(v => {
+        const off = getOfficerForLevel(s, activeLayer);
+        list.push({
+          id: `${s.scheme_id}-lpcd-${v.village_name}`,
+          scheme_id: s.scheme_id,
+          scheme_name: s.scheme_name,
+          region: s.region,
+          district: s.district,
+          village_name: v.village_name || "-",
+          esr_name: "-",
+          alert_title: "Low LPCD (< 55 LPCD)",
+          category: "lpcd",
+          parameter_value: v.avg_val ? `${v.avg_val} LPCD` : "< 55 LPCD",
+          days_since: v.days_count || s.max_streak_days || 1,
+          officer_name: off.name,
+          officer_role: off.role,
+          officer_email: off.email,
+          officer_mobile: off.mobile,
+          scheme_ref: s,
+        });
+      });
+    });
+    return list;
+  }, [activeSchemes, activeLayer, execContacts]);
+
+  // 2. Chlorine items
+  const chlorineAlerts = useMemo(() => {
+    const list: any[] = [];
+    activeSchemes.forEach(s => {
+      const off = getOfficerForLevel(s, activeLayer);
+      (s.chlorine_low_esrs || []).forEach(c => {
+        list.push({
+          id: `${s.scheme_id}-cl-low-${c.esr_name}-${c.village_name}`,
+          scheme_id: s.scheme_id,
+          scheme_name: s.scheme_name,
+          region: s.region,
+          district: s.district,
+          village_name: c.village_name || "-",
+          esr_name: c.esr_name || "-",
+          alert_title: "Low Residual Chlorine (< 0.20 mg/L)",
+          category: "chlorine",
+          parameter_value: c.val ? `${c.val} mg/L` : "< 0.20 mg/L",
+          days_since: c.days_count || s.max_streak_days || 1,
+          officer_name: off.name,
+          officer_role: off.role,
+          officer_email: off.email,
+          officer_mobile: off.mobile,
+          scheme_ref: s,
+        });
+      });
+      (s.chlorine_high_esrs || []).forEach(c => {
+        list.push({
+          id: `${s.scheme_id}-cl-high-${c.esr_name}-${c.village_name}`,
+          scheme_id: s.scheme_id,
+          scheme_name: s.scheme_name,
+          region: s.region,
+          district: s.district,
+          village_name: c.village_name || "-",
+          esr_name: c.esr_name || "-",
+          alert_title: "High Residual Chlorine (> 0.50 mg/L)",
+          category: "chlorine",
+          parameter_value: c.val ? `${c.val} mg/L` : "> 0.50 mg/L",
+          days_since: c.days_count || s.max_streak_days || 1,
+          officer_name: off.name,
+          officer_role: off.role,
+          officer_email: off.email,
+          officer_mobile: off.mobile,
+          scheme_ref: s,
+        });
+      });
+    });
+    return list;
+  }, [activeSchemes, activeLayer, execContacts]);
+
+  // 3. Pressure items
+  const pressureAlerts = useMemo(() => {
+    const list: any[] = [];
+    activeSchemes.forEach(s => {
+      const off = getOfficerForLevel(s, activeLayer);
+      (s.pressure_low_esrs || []).forEach(p => {
+        list.push({
+          id: `${s.scheme_id}-pressure-${p.esr_name}-${p.village_name}`,
+          scheme_id: s.scheme_id,
+          scheme_name: s.scheme_name,
+          region: s.region,
+          district: s.district,
+          village_name: p.village_name || "-",
+          esr_name: p.esr_name || "-",
+          alert_title: "Low Terminal Pressure (< 0.20 Bar)",
+          category: "pressure",
+          parameter_value: p.val ? `${p.val} Bar` : "< 0.20 Bar",
+          days_since: p.days_count || s.max_streak_days || 1,
+          officer_name: off.name,
+          officer_role: off.role,
+          officer_email: off.email,
+          officer_mobile: off.mobile,
+          scheme_ref: s,
+        });
+      });
+    });
+    return list;
+  }, [activeSchemes, activeLayer, execContacts]);
+
+  // 4. Offline items
+  const offlineAlerts = useMemo(() => {
+    const list: any[] = [];
+    activeSchemes.forEach(s => {
+      const off = getOfficerForLevel(s, activeLayer);
+      (s.offline_esrs || []).forEach(o => {
+        list.push({
+          id: `${s.scheme_id}-offline-${o.esr_name}-${o.village_name}`,
+          scheme_id: s.scheme_id,
+          scheme_name: s.scheme_name,
+          region: s.region,
+          district: s.district,
+          village_name: o.village_name || "-",
+          esr_name: o.esr_name || "-",
+          alert_title: "Offline Sensor / Communication Failure",
+          category: "offline",
+          parameter_value: o.sensors ? `${o.sensors}` : "No Telemetry",
+          days_since: o.days_count || s.max_streak_days || 1,
+          officer_name: off.name,
+          officer_role: off.role,
+          officer_email: off.email,
+          officer_mobile: off.mobile,
+          scheme_ref: s,
+        });
+      });
+    });
+    return list;
+  }, [activeSchemes, activeLayer, execContacts]);
+
+  // Selected Category alerts list
+  const currentCategoryAlerts = useMemo(() => {
+    if (activeCategory === "chlorine") return chlorineAlerts;
+    if (activeCategory === "pressure") return pressureAlerts;
+    if (activeCategory === "offline") return offlineAlerts;
+    return lpcdAlerts;
+  }, [activeCategory, lpcdAlerts, chlorineAlerts, pressureAlerts, offlineAlerts]);
+
+  // Filtered by Search Term
+  const filteredCategoryAlerts = useMemo(() => {
+    if (!searchTerm.trim()) return currentCategoryAlerts;
     const term = searchTerm.toLowerCase().trim();
-    return list.filter(
-      (s) =>
-        s.scheme_name.toLowerCase().includes(term) ||
-        s.scheme_id.toLowerCase().includes(term) ||
-        (s.region && s.region.toLowerCase().includes(term)) ||
-        (s.district && s.district.toLowerCase().includes(term)) ||
-        (s.de_ae_civil_name && s.de_ae_civil_name.toLowerCase().includes(term)) ||
-        (s.ee_civil_name && s.ee_civil_name.toLowerCase().includes(term)) ||
-        (s.chief_engineer_name && s.chief_engineer_name.toLowerCase().includes(term)) ||
-        (s.se_name && s.se_name.toLowerCase().includes(term))
+    return currentCategoryAlerts.filter(item =>
+      item.scheme_name.toLowerCase().includes(term) ||
+      item.scheme_id.toLowerCase().includes(term) ||
+      item.village_name.toLowerCase().includes(term) ||
+      (item.esr_name && item.esr_name.toLowerCase().includes(term)) ||
+      item.region.toLowerCase().includes(term) ||
+      (item.district && item.district.toLowerCase().includes(term)) ||
+      item.officer_name.toLowerCase().includes(term)
     );
-  }, [activeLayer, schemes, layer1Schemes, layer2Schemes, layer3Schemes, layer4Schemes, layer5Schemes, searchTerm]);
+  }, [currentCategoryAlerts, searchTerm]);
 
-  // Totals for metrics
-  const overallTotals = useMemo(() => {
-    return schemes.reduce(
-      (acc, s) => ({
-        deSms: acc.deSms + (s.de_sms_count || 0),
-        eeSms: acc.eeSms + (s.ee_sms_count || 0),
-        ceSeSms: acc.ceSeSms + (s.ce_se_sms_count || 0),
-        totalSms: acc.totalSms + (s.de_sms_count || 0) + (s.ee_sms_count || 0) + (s.ce_se_sms_count || 0),
-        totalEmails: acc.totalEmails + (s.total_email_count || 0),
-        totalIssues: acc.totalIssues + s.total_issues_count,
-      }),
-      { deSms: 0, eeSms: 0, ceSeSms: 0, totalSms: 0, totalEmails: 0, totalIssues: 0 }
-    );
-  }, [schemes]);
+  // Paginated items
+  const paginatedCategoryAlerts = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredCategoryAlerts.slice(start, start + pageSize);
+  }, [filteredCategoryAlerts, page, pageSize]);
 
-  const layer1Totals = useMemo(() => {
-    return layer1Schemes.reduce(
-      (acc, s) => ({
-        sms: acc.sms + (s.de_sms_count || 0),
-        emails: acc.emails + (s.total_email_count || 0),
-      }),
-      { sms: 0, emails: 0 }
-    );
-  }, [layer1Schemes]);
-
-  const layer2Totals = useMemo(() => {
-    return layer2Schemes.reduce(
-      (acc, s) => ({
-        sms: acc.sms + (s.ee_sms_count || 0),
-        emails: acc.emails + (s.total_email_count || 0),
-      }),
-      { sms: 0, emails: 0 }
-    );
-  }, [layer2Schemes]);
-
-  const layer3Totals = useMemo(() => {
-    return layer3Schemes.reduce(
-      (acc, s) => ({
-        sms: acc.sms + (s.ce_se_sms_count || 0),
-        emails: acc.emails + (s.total_email_count || 0),
-      }),
-      { sms: 0, emails: 0 }
-    );
-  }, [layer3Schemes]);
-
-  const layer4Totals = useMemo(() => {
-    return layer4Schemes.reduce(
-      (acc, s) => ({
-        sms: acc.sms + (s.ms_sms_count || s.ce_se_sms_count || 0),
-        emails: acc.emails + (s.total_email_count || 0),
-      }),
-      { sms: 0, emails: 0 }
-    );
-  }, [layer4Schemes]);
-
-  const layer5Totals = useMemo(() => {
-    return layer5Schemes.reduce(
-      (acc, s) => ({
-        sms: acc.sms + (s.ps_sms_count || s.ms_sms_count || s.ce_se_sms_count || 0),
-        emails: acc.emails + (s.total_email_count || 0),
-      }),
-      { sms: 0, emails: 0 }
-    );
-  }, [layer5Schemes]);
+  // Export to CSV function
+  const exportCurrentTableToCSV = () => {
+    if (filteredCategoryAlerts.length === 0) return;
+    const headers = [
+      "Sr",
+      "Scheme ID",
+      "Scheme Name",
+      "Region",
+      "District",
+      activeCategory === "lpcd" ? "Village Name" : "ESR / Village Name",
+      "Alert Title",
+      "Recorded Value",
+      "Days Unresolved",
+      "Emails Dispatched",
+      "SMS Dispatched",
+      "Officer Name",
+      "Officer Role",
+      "Officer Email",
+      "Officer Mobile"
+    ];
+    const rows = filteredCategoryAlerts.map((item, idx) => [
+      idx + 1,
+      item.scheme_id,
+      `"${item.scheme_name.replace(/"/g, '""')}"`,
+      `"${item.region}"`,
+      `"${item.district || ''}"`,
+      `"${(item.esr_name && item.esr_name !== '-' ? `${item.esr_name} (${item.village_name})` : item.village_name).replace(/"/g, '""')}"`,
+      `"${item.alert_title}"`,
+      `"${item.parameter_value}"`,
+      item.days_since,
+      `"Today: ${currentLevelDispatches.emailsToday} | 7d: ${currentLevelDispatches.emails7d}"`,
+      `"Today: ${currentLevelDispatches.smsToday} | 7d: ${currentLevelDispatches.sms7d}"`,
+      `"${item.officer_name}"`,
+      `"${item.officer_role}"`,
+      `"${item.officer_email}"`,
+      `"${item.officer_mobile}"`
+    ]);
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `escalation_${activeLayer}_${activeCategory}_alerts.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   // Helper to extract unique engineers for each layer
   const layer1Engineers = useMemo(() => {
@@ -435,14 +690,14 @@ export default function EscalationPortalPage() {
     <DashboardLayout>
       {/* FULL WIDTH GOVERNMENT PAGE CONTAINER */}
       <div className="w-full space-y-4 text-slate-800">
-        
+
         {/* ========================================================= */}
         {/* FORMAL GOVERNMENT HEADER (Full Width, Simple, Authoritative) */}
         {/* ========================================================= */}
         <div className="bg-white border-y sm:border sm:rounded-lg border-slate-300 shadow-xs overflow-hidden">
           {/* Subtle Institutional Saffron Accent Line */}
           <div className="h-1 bg-amber-600 w-full" />
-          
+
           <div className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
@@ -461,17 +716,20 @@ export default function EscalationPortalPage() {
               <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
                 Automated Alert & Escalation Portal
               </h1>
+
               <p className="text-xs sm:text-sm text-slate-600 max-w-5xl leading-relaxed">
-                Official Alert & Escalation Registry:
-                <strong> Level 1 (DE/AE Civil)</strong> Daily Operational Alert (Day 1) •
-                <strong> Level 2 (EE Civil)</strong> Escalated after 3 Days without resolution •
-                <strong> Level 3 (CE & SE)</strong> Weekly Review Notice for issues pending 7+ Days •
-                <strong> Level 4 (MS)</strong> Direct Notice to Member Secretary for issues pending 15+ Days.
+                Official Alert &amp; Escalation Registry:{" "}
+                <strong>Level 1 (DE/AE Civil):</strong> Daily operational alert from Day 1 •{" "}
+                <strong>Level 2 (EE Civil):</strong> Escalation if the issue persists for 3+ days •{" "}
+                <strong>Level 3 (CE &amp; SE):</strong> Escalation if the issue persists for 7+ days •{" "}
+                <strong>Level 4 (Head - MJP):</strong>  Escalation to the MJP Head if the issue persists for 10+ days •{" "}
+                <strong>Level 5 (Head - WSSD):</strong> Final escalation if the issue persists for 15+ days to WSSD Head.
               </p>
+
             </div>
 
             <div className="flex items-center gap-2 self-start lg:self-center flex-wrap">
-              <Button
+              {/* <Button
                 variant="outline"
                 size="sm"
                 onClick={openExecutiveModal}
@@ -479,7 +737,7 @@ export default function EscalationPortalPage() {
               >
                 <User className="w-3.5 h-3.5 mr-1.5 text-purple-700" />
                 Configure MS & PS Details
-              </Button>
+              </Button> */}
 
               <Button
                 variant="outline"
@@ -505,76 +763,43 @@ export default function EscalationPortalPage() {
             </div>
           </div>
 
-          {/* OFFICIAL KEY METRIC STRIP (Wide, Simple, Monospace Numbers) */}
-          <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 text-xs">
-            <div className="border-r border-slate-200 last:border-0 pr-2">
+          {/* OFFICIAL KEY METRIC STRIP (Only Total Schemes, Total SMS, Total Emails) */}
+          <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div className="sm:border-r border-slate-200 pr-2">
               <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Total Schemes</div>
-              <div className="text-lg font-bold font-mono text-slate-900 mt-0.5">
-                {schemes.length}
+              <div className="text-xl font-bold font-mono text-slate-900 mt-0.5">
+                {schemes.length}/41
               </div>
             </div>
-            <div className="border-r border-slate-200 last:border-0 pr-2">
-              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Level 1 (Day 1)</div>
-              <div className="text-lg font-bold font-mono text-blue-900 mt-0.5">
-                {layer1Schemes.length}
-              </div>
-            </div>
-            <div className="border-r border-slate-200 last:border-0 pr-2">
-              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Level 2 (3+ Days)</div>
-              <div className="text-lg font-bold font-mono text-amber-900 mt-0.5">
-                {layer2Schemes.length}
-              </div>
-            </div>
-            <div className="border-r border-slate-200 last:border-0 pr-2">
-              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Level 3 (7+ Days)</div>
-              <div className="text-lg font-bold font-mono text-red-900 mt-0.5">
-                {layer3Schemes.length}
-              </div>
-            </div>
-            <div className="border-r border-slate-200 last:border-0 pr-2">
-              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Level 4 (10+ Days)</div>
-              <div className="text-lg font-bold font-mono text-purple-900 mt-0.5">
-                {layer4Schemes.length}
-              </div>
-              <div className="text-[10px] text-purple-700 font-semibold uppercase tracking-tight">Unresolved Schemes</div>
-            </div>
-            <div className="border-r border-slate-200 last:border-0 pr-2">
-              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Level 5 (15+ Days)</div>
-              <div className="text-lg font-bold font-mono text-indigo-950 mt-0.5">
-                {layer5Schemes.length}
-              </div>
-              <div className="text-[10px] text-indigo-700 font-semibold uppercase tracking-tight">Unresolved Schemes</div>
-            </div>
-            <div className="border-r border-slate-200 last:border-0 pr-2">
+            <div className="sm:border-r border-slate-200 pr-2">
               <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Total SMS Sent</div>
               <div className="text-sm font-bold font-mono text-slate-900 mt-0.5">
                 Today: {dispatches?.today?.total_sms ?? 0}
               </div>
-              <div className="text-[10px] text-slate-500 font-mono">7 Days: {dispatches?.last_7_days?.total_sms ?? 0}</div>
+              <div className="text-[11px] text-slate-500 font-mono">7 Days: {dispatches?.last_7_days?.total_sms ?? 0}</div>
             </div>
             <div>
               <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Total Emails Sent</div>
               <div className="text-sm font-bold font-mono text-slate-900 mt-0.5">
                 Today: {dispatches?.today?.total_emails ?? 0}
               </div>
-              <div className="text-[10px] text-slate-500 font-mono">7 Days: {dispatches?.last_7_days?.total_emails ?? 0}</div>
+              <div className="text-[11px] text-slate-500 font-mono">7 Days: {dispatches?.last_7_days?.total_emails ?? 0}</div>
             </div>
           </div>
         </div>
 
         {/* ========================================================= */}
-        {/* 5 HIERARCHY CARDS: HORIZONTAL, CLEAN GOVERNMENT CARDS      */}
+        {/* 5 HIERARCHY CARDS                                         */}
         {/* ========================================================= */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5">
-          
+
           {/* CARD 1: LEVEL 1 - DE / AE */}
           <div
-            onClick={() => setActiveLayer(activeLayer === "layer1" ? "all" : "layer1")}
-            className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${
-              activeLayer === "layer1"
-                ? "border-blue-900 ring-2 ring-blue-900/30 bg-blue-50/30"
-                : "border-slate-300 hover:border-blue-400"
-            }`}
+            onClick={() => { setActiveLayer("layer1"); setPage(1); }}
+            className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${activeLayer === "layer1"
+              ? "border-blue-900 ring-2 ring-blue-900/30 bg-blue-50/30"
+              : "border-slate-300 hover:border-blue-400"
+              }`}
           >
             <div className="space-y-3">
               <div className="flex items-center justify-between border-b border-slate-200 pb-2">
@@ -586,20 +811,14 @@ export default function EscalationPortalPage() {
                 </Badge>
               </div>
 
-              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1.5">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-600 font-medium">Active Schemes</span>
-                  <span className="font-bold font-mono text-blue-950 text-base">{layer1Schemes.length}</span>
+              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1 text-[11px] font-mono text-slate-600">
+                <div className="flex justify-between items-center">
+                  <span className="font-sans font-medium text-slate-600">Emails:</span>
+                  <span className="font-semibold text-blue-900">Today: {dispatches?.today?.de_emails ?? 0} | 7d: {dispatches?.last_7_days?.de_emails ?? 0}</span>
                 </div>
-                <div className="pt-1.5 border-t border-slate-200 text-[11px] space-y-1 font-mono text-slate-600">
-                  <div className="flex justify-between">
-                    <span>Emails:</span>
-                    <span className="font-semibold text-blue-900">Today: {dispatches?.today?.de_emails ?? 0} | 7d: {dispatches?.last_7_days?.de_emails ?? 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>SMS:</span>
-                    <span className="font-semibold text-slate-700">Today: {dispatches?.today?.de_sms ?? 0} | 7d: {dispatches?.last_7_days?.de_sms ?? 0}</span>
-                  </div>
+                <div className="flex justify-between items-center">
+                  <span className="font-sans font-medium text-slate-600">SMS:</span>
+                  <span className="font-semibold text-slate-700">Today: {dispatches?.today?.de_sms ?? 0} | 7d: {dispatches?.last_7_days?.de_sms ?? 0}</span>
                 </div>
               </div>
 
@@ -624,12 +843,11 @@ export default function EscalationPortalPage() {
 
           {/* CARD 2: LEVEL 2 - EE */}
           <div
-            onClick={() => setActiveLayer(activeLayer === "layer2" ? "all" : "layer2")}
-            className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${
-              activeLayer === "layer2"
-                ? "border-amber-700 ring-2 ring-amber-700/30 bg-amber-50/30"
-                : "border-slate-300 hover:border-amber-400"
-            }`}
+            onClick={() => { setActiveLayer("layer2"); setPage(1); }}
+            className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${activeLayer === "layer2"
+              ? "border-amber-700 ring-2 ring-amber-700/30 bg-amber-50/30"
+              : "border-slate-300 hover:border-amber-400"
+              }`}
           >
             <div className="space-y-3">
               <div className="flex items-center justify-between border-b border-slate-200 pb-2">
@@ -641,20 +859,14 @@ export default function EscalationPortalPage() {
                 </Badge>
               </div>
 
-              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1.5">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-600 font-medium">Pending 3+ Days</span>
-                  <span className="font-bold font-mono text-amber-900 text-base">{layer2Schemes.length}</span>
+              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1 text-[11px] font-mono text-slate-600">
+                <div className="flex justify-between items-center">
+                  <span className="font-sans font-medium text-slate-600">Emails:</span>
+                  <span className="font-semibold text-amber-900">Today: {dispatches?.today?.ee_emails ?? 0} | 7d: {dispatches?.last_7_days?.ee_emails ?? 0}</span>
                 </div>
-                <div className="pt-1.5 border-t border-slate-200 text-[11px] space-y-1 font-mono text-slate-600">
-                  <div className="flex justify-between">
-                    <span>Emails:</span>
-                    <span className="font-semibold text-amber-900">Today: {dispatches?.today?.ee_emails ?? 0} | 7d: {dispatches?.last_7_days?.ee_emails ?? 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>SMS:</span>
-                    <span className="font-semibold text-slate-700">Today: {dispatches?.today?.ee_sms ?? 0} | 7d: {dispatches?.last_7_days?.ee_sms ?? 0}</span>
-                  </div>
+                <div className="flex justify-between items-center">
+                  <span className="font-sans font-medium text-slate-600">SMS:</span>
+                  <span className="font-semibold text-slate-700">Today: {dispatches?.today?.ee_sms ?? 0} | 7d: {dispatches?.last_7_days?.ee_sms ?? 0}</span>
                 </div>
               </div>
 
@@ -679,12 +891,11 @@ export default function EscalationPortalPage() {
 
           {/* CARD 3: LEVEL 3 - CE & SE */}
           <div
-            onClick={() => setActiveLayer(activeLayer === "layer3" ? "all" : "layer3")}
-            className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${
-              activeLayer === "layer3"
-                ? "border-red-900 ring-2 ring-red-900/30 bg-red-50/30"
-                : "border-slate-300 hover:border-red-400"
-            }`}
+            onClick={() => { setActiveLayer("layer3"); setPage(1); }}
+            className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${activeLayer === "layer3"
+              ? "border-red-900 ring-2 ring-red-900/30 bg-red-50/30"
+              : "border-slate-300 hover:border-red-400"
+              }`}
           >
             <div className="space-y-3">
               <div className="flex items-center justify-between border-b border-slate-200 pb-2">
@@ -696,20 +907,14 @@ export default function EscalationPortalPage() {
                 </Badge>
               </div>
 
-              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1.5">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-600 font-medium">Pending 7+ Days</span>
-                  <span className="font-bold font-mono text-red-900 text-base">{layer3Schemes.length}</span>
+              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1 text-[11px] font-mono text-slate-600">
+                <div className="flex justify-between items-center">
+                  <span className="font-sans font-medium text-slate-600">Emails:</span>
+                  <span className="font-semibold text-red-900">Today: {dispatches?.today?.ce_se_emails ?? 0} | 7d: {dispatches?.last_7_days?.ce_se_emails ?? 0}</span>
                 </div>
-                <div className="pt-1.5 border-t border-slate-200 text-[11px] space-y-1 font-mono text-slate-600">
-                  <div className="flex justify-between">
-                    <span>Emails:</span>
-                    <span className="font-semibold text-red-900">Today: {dispatches?.today?.ce_se_emails ?? 0} | 7d: {dispatches?.last_7_days?.ce_se_emails ?? 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>SMS:</span>
-                    <span className="font-semibold text-slate-700">Today: {dispatches?.today?.ce_se_sms ?? 0} | 7d: {dispatches?.last_7_days?.ce_se_sms ?? 0}</span>
-                  </div>
+                <div className="flex justify-between items-center">
+                  <span className="font-sans font-medium text-slate-600">SMS:</span>
+                  <span className="font-semibold text-slate-700">Today: {dispatches?.today?.ce_se_sms ?? 0} | 7d: {dispatches?.last_7_days?.ce_se_sms ?? 0}</span>
                 </div>
               </div>
 
@@ -732,39 +937,32 @@ export default function EscalationPortalPage() {
             </div>
           </div>
 
-          {/* CARD 4: LEVEL 4 - MS */}
+          {/* CARD 4: LEVEL 4 - HEAD - MJP */}
           <div
-            onClick={() => setActiveLayer(activeLayer === "layer4" ? "all" : "layer4")}
-            className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${
-              activeLayer === "layer4"
-                ? "border-purple-900 ring-2 ring-purple-900/30 bg-purple-50/30"
-                : "border-slate-300 hover:border-purple-400"
-            }`}
+            onClick={() => { setActiveLayer("layer4"); setPage(1); }}
+            className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${activeLayer === "layer4"
+              ? "border-purple-900 ring-2 ring-purple-900/30 bg-purple-50/30"
+              : "border-slate-300 hover:border-purple-400"
+              }`}
           >
             <div className="space-y-3">
               <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-purple-950">
-                  Level 4 • MS
+                  Level 4 • Head - MJP
                 </span>
                 <Badge variant="outline" className="text-[10px] bg-purple-50 border-purple-300 font-bold text-purple-900">
                   10+ Days
                 </Badge>
               </div>
 
-              <div className="bg-purple-50/50 p-2.5 rounded border border-purple-200 space-y-1.5">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-purple-950 font-semibold">Unresolved (10+ Days)</span>
-                  <span className="font-bold font-mono text-purple-950 text-base">{layer4Schemes.length} Schemes</span>
+              <div className="bg-purple-50/50 p-2.5 rounded border border-purple-200 space-y-1 text-[11px] font-mono text-purple-950">
+                <div className="flex justify-between items-center">
+                  <span className="font-sans font-medium text-purple-900">Emails:</span>
+                  <span className="font-semibold text-purple-900">Today: {dispatches?.today?.ms_emails ?? 0} | 7d: {dispatches?.last_7_days?.ms_emails ?? 0}</span>
                 </div>
-                <div className="pt-1.5 border-t border-purple-200/80 text-[11px] space-y-1 font-mono text-purple-950">
-                  <div className="flex justify-between">
-                    <span>Emails:</span>
-                    <span className="font-semibold text-purple-900">Today: {dispatches?.today?.ms_emails ?? 0} | 7d: {dispatches?.last_7_days?.ms_emails ?? 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>SMS:</span>
-                    <span className="font-semibold text-slate-700">Today: {dispatches?.today?.ms_sms ?? 0} | 7d: {dispatches?.last_7_days?.ms_sms ?? 0}</span>
-                  </div>
+                <div className="flex justify-between items-center">
+                  <span className="font-sans font-medium text-slate-700">SMS:</span>
+                  <span className="font-semibold text-slate-700">Today: {dispatches?.today?.ms_sms ?? 0} | 7d: {dispatches?.last_7_days?.ms_sms ?? 0}</span>
                 </div>
               </div>
 
@@ -787,39 +985,32 @@ export default function EscalationPortalPage() {
             </div>
           </div>
 
-          {/* CARD 5: LEVEL 5 - PS */}
+          {/* CARD 5: LEVEL 5 - HEAD - WSSD */}
           <div
-            onClick={() => setActiveLayer(activeLayer === "layer5" ? "all" : "layer5")}
-            className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${
-              activeLayer === "layer5"
-                ? "border-indigo-950 ring-2 ring-indigo-950/30 bg-indigo-50/30"
-                : "border-slate-300 hover:border-indigo-400"
-            }`}
+            onClick={() => { setActiveLayer("layer5"); setPage(1); }}
+            className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${activeLayer === "layer5"
+              ? "border-indigo-950 ring-2 ring-indigo-950/30 bg-indigo-50/30"
+              : "border-slate-300 hover:border-indigo-400"
+              }`}
           >
             <div className="space-y-3">
               <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-indigo-950">
-                  Level 5 • PS
+                  Level 5 • Head - WSSD
                 </span>
                 <Badge variant="outline" className="text-[10px] bg-indigo-50 border-indigo-300 font-bold text-indigo-950">
                   15+ Days
                 </Badge>
               </div>
 
-              <div className="bg-indigo-50/50 p-2.5 rounded border border-indigo-200 space-y-1.5">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-indigo-950 font-semibold">Unresolved (15+ Days)</span>
-                  <span className="font-bold font-mono text-indigo-950 text-base">{layer5Schemes.length} Schemes</span>
+              <div className="bg-indigo-50/50 p-2.5 rounded border border-indigo-200 space-y-1 text-[11px] font-mono text-indigo-950">
+                <div className="flex justify-between items-center">
+                  <span className="font-sans font-medium text-indigo-900">Emails:</span>
+                  <span className="font-semibold text-indigo-900">Today: {dispatches?.today?.ps_emails ?? 0} | 7d: {dispatches?.last_7_days?.ps_emails ?? 0}</span>
                 </div>
-                <div className="pt-1.5 border-t border-indigo-200/80 text-[11px] space-y-1 font-mono text-indigo-950">
-                  <div className="flex justify-between">
-                    <span>Emails:</span>
-                    <span className="font-semibold text-indigo-900">Today: {dispatches?.today?.ps_emails ?? 0} | 7d: {dispatches?.last_7_days?.ps_emails ?? 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>SMS:</span>
-                    <span className="font-semibold text-slate-700">Today: {dispatches?.today?.ps_sms ?? 0} | 7d: {dispatches?.last_7_days?.ps_sms ?? 0}</span>
-                  </div>
+                <div className="flex justify-between items-center">
+                  <span className="font-sans font-medium text-slate-700">SMS:</span>
+                  <span className="font-semibold text-slate-700">Today: {dispatches?.today?.ps_sms ?? 0} | 7d: {dispatches?.last_7_days?.ps_sms ?? 0}</span>
                 </div>
               </div>
 
@@ -845,356 +1036,311 @@ export default function EscalationPortalPage() {
         </div>
 
         {/* ========================================================= */}
-        {/* FULL-WIDTH GOVERNMENT REGISTRY DATA TABLE & TOOLBAR       */}
+        {/* ALERT CATEGORY CARDS (Village LPCD, Chlorine, Pressure, Offline) */}
         {/* ========================================================= */}
-        <div className="bg-white border border-slate-300 rounded-lg shadow-xs overflow-hidden">
-          
-          {/* Table Toolbar */}
-          <div className="p-3 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
-            {/* Layer Filter Tabs */}
-            <div className="flex items-center gap-1 bg-white p-1 rounded border border-slate-300 flex-wrap">
-              <button
-                onClick={() => setActiveLayer("all")}
-                className={`text-xs px-2.5 py-1 rounded font-medium transition-colors ${
-                  activeLayer === "all"
-                    ? "bg-slate-800 text-white"
-                    : "text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                All Schemes ({schemes.length})
-              </button>
-              <button
-                onClick={() => setActiveLayer("layer1")}
-                className={`text-xs px-2.5 py-1 rounded font-medium transition-colors ${
-                  activeLayer === "layer1"
-                    ? "bg-blue-900 text-white"
-                    : "text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                Level 1: DE / AE ({layer1Schemes.length})
-              </button>
-              <button
-                onClick={() => setActiveLayer("layer2")}
-                className={`text-xs px-2.5 py-1 rounded font-medium transition-colors ${
-                  activeLayer === "layer2"
-                    ? "bg-amber-700 text-white"
-                    : "text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                Level 2: EE ({layer2Schemes.length})
-              </button>
-              <button
-                onClick={() => setActiveLayer("layer3")}
-                className={`text-xs px-2.5 py-1 rounded font-medium transition-colors ${
-                  activeLayer === "layer3"
-                    ? "bg-red-900 text-white"
-                    : "text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                Level 3: CE & SE ({layer3Schemes.length})
-              </button>
-              <button
-                onClick={() => setActiveLayer("layer4")}
-                className={`text-xs px-2.5 py-1 rounded font-medium transition-colors ${
-                  activeLayer === "layer4"
-                    ? "bg-purple-900 text-white"
-                    : "text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                Level 4: MS ({layer4Schemes.length})
-              </button>
-              <button
-                onClick={() => setActiveLayer("layer5")}
-                className={`text-xs px-2.5 py-1 rounded font-medium transition-colors ${
-                  activeLayer === "layer5"
-                    ? "bg-indigo-950 text-white"
-                    : "text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                Level 5: PS ({layer5Schemes.length})
-              </button>
-            </div>
-
-            {/* Search Input */}
-            <div className="relative w-full md:w-80">
-              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <Input
-                placeholder="Search by scheme name, ID, engineer, district..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8 h-8 text-xs bg-white border-slate-300"
-              />
-              {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Active Context Banner */}
-          <div className="px-4 py-2 bg-slate-100/70 border-b border-slate-200 text-xs text-slate-700 flex items-center justify-between">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
-              <Info className="w-3.5 h-3.5 text-slate-500" />
-              <span>
-                {activeLayer === "layer1" && "Level 1: Daily notice sent today to DE/AE Akshay Bhojane (Day 1 issue)"}
-                {activeLayer === "layer2" && "Level 2: Escalated to Executive Engineer (EE) after 3 consecutive days without resolution"}
-                {activeLayer === "layer3" && "Level 3: Weekly notice sent to Chief Engineer (CE) & Superintending Engineer (SE) for issues pending 7+ days"}
-                {activeLayer === "layer4" && "Level 4: Notice sent to Member Secretary (MS), MJP every 10 days for persistent issues (10+ days)"}
-                {activeLayer === "layer5" && "Level 5: Notice sent to Principal Secretary (PS) after 15 days if issues persist (15+ days)"}
-                {activeLayer === "all" && "All Schemes: Multi-tier escalation status and message log (SMS & Email)"}
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                Alert Categories for {activeLayer === "layer1" ? "Level 1 (DE / AE)" : activeLayer === "layer2" ? "Level 2 (EE)" : activeLayer === "layer3" ? "Level 3 (CE & SE)" : activeLayer === "layer4" ? "Level 4 (Head - MJP)" : "Level 5 (Head - WSSD)"}
               </span>
+              <Badge variant="outline" className="text-[10px] font-mono bg-white">
+                {activeSchemes.length} Schemes Escalated
+              </Badge>
             </div>
-            <span className="font-mono text-slate-500">
-              Showing {displayedSchemes.length} of {schemes.length} schemes
+            <span className="text-[11px] text-slate-500">
+              Click any category card below to view the detailed villages / ESRs list
             </span>
           </div>
 
-          {/* Loading or Empty State */}
-          {isLoading ? (
-            <div className="py-16 text-center text-slate-500">
-              <RefreshCw className="w-6 h-6 animate-spin mx-auto text-slate-400 mb-2" />
-              <p className="text-xs">Loading official registry data...</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Category 1: Village LPCD */}
+            <div
+              onClick={() => { setActiveCategory("lpcd"); setPage(1); }}
+              className={`cursor-pointer bg-white border rounded-lg p-3 transition-all shadow-2xs hover:shadow-xs ${activeCategory === "lpcd"
+                ? "border-blue-700 ring-2 ring-blue-700/30 bg-blue-50/20"
+                : "border-slate-300 hover:border-blue-400"
+                }`}
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded bg-blue-100 flex items-center justify-center text-blue-800">
+                    <Waves className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="text-xs font-bold text-blue-950">Village LPCD</span>
+                </div>
+                <Badge variant="secondary" className="font-mono text-xs font-bold bg-blue-100 text-blue-900 border-none">
+                  {lpcdAlerts.length} Villages
+                </Badge>
+              </div>
+              <div className="mt-2.5 space-y-1 text-[11px] font-mono text-slate-600 bg-slate-50 p-2 rounded border border-slate-200">
+                <div className="flex justify-between items-center">
+                  <span className="font-sans text-slate-500">Emails:</span>
+                  <span className="font-semibold text-blue-900">Today: {currentLevelDispatches.emailsToday} | 7d: {currentLevelDispatches.emails7d}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="font-sans text-slate-500">SMS:</span>
+                  <span className="font-semibold text-slate-700">Today: {currentLevelDispatches.smsToday} | 7d: {currentLevelDispatches.sms7d}</span>
+                </div>
+              </div>
             </div>
-          ) : displayedSchemes.length === 0 ? (
-            <div className="py-16 text-center text-slate-500 space-y-1">
-              <p className="text-sm font-semibold text-slate-700">No schemes found</p>
-              <p className="text-xs text-slate-400">There are currently no schemes matching this filter.</p>
+
+            {/* Category 2: Residual Chlorine */}
+            <div
+              onClick={() => { setActiveCategory("chlorine"); setPage(1); }}
+              className={`cursor-pointer bg-white border rounded-lg p-3 transition-all shadow-2xs hover:shadow-xs ${activeCategory === "chlorine"
+                ? "border-teal-700 ring-2 ring-teal-700/30 bg-teal-50/20"
+                : "border-slate-300 hover:border-teal-400"
+                }`}
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded bg-teal-100 flex items-center justify-center text-teal-800">
+                    <Droplets className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="text-xs font-bold text-teal-950">Residual Chlorine</span>
+                </div>
+                <Badge variant="secondary" className="font-mono text-xs font-bold bg-teal-100 text-teal-900 border-none">
+                  {chlorineAlerts.length} ESRs
+                </Badge>
+              </div>
+              <div className="mt-2.5 space-y-1 text-[11px] font-mono text-slate-600 bg-slate-50 p-2 rounded border border-slate-200">
+                <div className="flex justify-between items-center">
+                  <span className="font-sans text-slate-500">Emails:</span>
+                  <span className="font-semibold text-teal-900">Today: {currentLevelDispatches.emailsToday} | 7d: {currentLevelDispatches.emails7d}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="font-sans text-slate-500">SMS:</span>
+                  <span className="font-semibold text-slate-700">Today: {currentLevelDispatches.smsToday} | 7d: {currentLevelDispatches.sms7d}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Category 3: Pressure Monitoring */}
+            <div
+              onClick={() => { setActiveCategory("pressure"); setPage(1); }}
+              className={`cursor-pointer bg-white border rounded-lg p-3 transition-all shadow-2xs hover:shadow-xs ${activeCategory === "pressure"
+                ? "border-amber-700 ring-2 ring-amber-700/30 bg-amber-50/20"
+                : "border-slate-300 hover:border-amber-400"
+                }`}
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded bg-amber-100 flex items-center justify-center text-amber-800">
+                    <GaugeCircle className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="text-xs font-bold text-amber-950">Water Pressure</span>
+                </div>
+                <Badge variant="secondary" className="font-mono text-xs font-bold bg-amber-100 text-amber-900 border-none">
+                  {pressureAlerts.length} ESRs
+                </Badge>
+              </div>
+              <div className="mt-2.5 space-y-1 text-[11px] font-mono text-slate-600 bg-slate-50 p-2 rounded border border-slate-200">
+                <div className="flex justify-between items-center">
+                  <span className="font-sans text-slate-500">Emails:</span>
+                  <span className="font-semibold text-amber-900">Today: {currentLevelDispatches.emailsToday} | 7d: {currentLevelDispatches.emails7d}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="font-sans text-slate-500">SMS:</span>
+                  <span className="font-semibold text-slate-700">Today: {currentLevelDispatches.smsToday} | 7d: {currentLevelDispatches.sms7d}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Category 4: Offline Sensors */}
+            <div
+              onClick={() => { setActiveCategory("offline"); setPage(1); }}
+              className={`cursor-pointer bg-white border rounded-lg p-3 transition-all shadow-2xs hover:shadow-xs ${activeCategory === "offline"
+                ? "border-rose-700 ring-2 ring-rose-700/30 bg-rose-50/20"
+                : "border-slate-300 hover:border-rose-400"
+                }`}
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded bg-rose-100 flex items-center justify-center text-rose-800">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="text-xs font-bold text-rose-950">Offline Sensors</span>
+                </div>
+                <Badge variant="secondary" className="font-mono text-xs font-bold bg-rose-100 text-rose-900 border-none">
+                  {offlineAlerts.length} ESRs
+                </Badge>
+              </div>
+              <div className="mt-2.5 space-y-1 text-[11px] font-mono text-slate-600 bg-slate-50 p-2 rounded border border-slate-200">
+                <div className="flex justify-between items-center">
+                  <span className="font-sans text-slate-500">Emails:</span>
+                  <span className="font-semibold text-rose-900">Today: {currentLevelDispatches.emailsToday} | 7d: {currentLevelDispatches.emails7d}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="font-sans text-slate-500">SMS:</span>
+                  <span className="font-semibold text-slate-700">Today: {currentLevelDispatches.smsToday} | 7d: {currentLevelDispatches.sms7d}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ========================================================= */}
+        {/* DETAILED VILLAGE / ESR REGISTRY DATA TABLE                */}
+        {/* ========================================================= */}
+        <div className="bg-white border border-slate-300 rounded-lg shadow-xs overflow-hidden">
+
+          {/* Table Toolbar */}
+          <div className="p-3 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                {activeLayer === "layer1" ? "Level 1: DE / AE" : activeLayer === "layer2" ? "Level 2: EE" : activeLayer === "layer3" ? "Level 3: CE & SE" : activeLayer === "layer4" ? "Level 4: Head - MJP" : "Level 5: Head - WSSD"}
+              </span>
+              <span className="text-slate-400">•</span>
+              <Badge variant="secondary" className="text-xs font-bold">
+                {activeCategory === "lpcd" ? "Village LPCD Alerts" : activeCategory === "chlorine" ? "Residual Chlorine" : activeCategory === "pressure" ? "Pressure Monitoring" : "Offline Sensors"} ({filteredCategoryAlerts.length})
+              </Badge>
+            </div>
+
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              {/* Search Input */}
+              <div className="relative w-full md:w-80">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Input
+                  placeholder="Search village, ESR, scheme, officer..."
+                  value={searchTerm}
+                  onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                  className="pl-8 h-8 text-xs bg-white border-slate-300"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => { setSearchTerm(""); setPage(1); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Export CSV Button */}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={exportCurrentTableToCSV}
+                className="h-8 text-xs font-medium border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center gap-1.5 shrink-0"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                Export CSV
+              </Button>
+            </div>
+          </div>
+
+          {/* Table Content */}
+          {filteredCategoryAlerts.length === 0 ? (
+            <div className="p-12 text-center text-slate-500 text-sm">
+              <Check className="w-8 h-8 mx-auto text-emerald-600 mb-2" />
+              <div className="font-semibold text-slate-800">No Active Alerts Found</div>
+              <div className="text-xs text-slate-500 mt-1">
+                No telemetry alerts found for this category in the current escalation tier.
+              </div>
             </div>
           ) : (
-            /* WIDE GOVERNMENT DATA TABLE */
-            <div className="overflow-x-auto w-full">
-              <table className="w-full escalation-table text-xs border-collapse">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-semibold uppercase text-[11px] tracking-wider !text-center">
-                    <th style={{ textAlign: "center" }} className="py-2.5 px-3 border-r border-slate-200 w-12 !text-center">Sr.</th>
-                    <th style={{ textAlign: "center" }} className="py-2.5 px-4 border-r border-slate-200 min-w-[200px] !text-center">Scheme & Region</th>
-                    <th style={{ textAlign: "center" }} className="py-2.5 px-3 border-r border-slate-200 min-w-[130px] !text-center">Current Level</th>
-                    <th style={{ textAlign: "center" }} className="py-2.5 px-3 border-r border-slate-200 min-w-[180px] !text-center">Days Unresolved</th>
-                    <th style={{ textAlign: "center" }} className="py-2.5 px-4 border-r border-slate-200 min-w-[220px] !text-center">Designated Officer</th>
-                    <th style={{ textAlign: "center" }} className="py-2.5 px-3 border-r border-slate-200 min-w-[190px] !text-center">Actual Dispatches</th>
-                    <th style={{ textAlign: "center" }} className="py-2.5 px-3 border-r border-slate-200 min-w-[210px] !text-center">Active Issues</th>
-                    <th style={{ textAlign: "center" }} className="py-2.5 px-3 !text-center w-28">Action</th>
+                  <tr className="bg-slate-100/75 border-b border-slate-300 text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                    <th className="py-2.5 px-3 w-10 text-center">Sr.</th>
+                    <th className="py-2.5 px-3">Scheme & Region</th>
+                    <th className="py-2.5 px-3">{activeCategory === "lpcd" ? "Village Name" : "ESR / Village"}</th>
+                    <th className="py-2.5 px-3">Alert & Value</th>
+                    <th className="py-2.5 px-3 text-center">Days Since</th>
+                    <th className="py-2.5 px-3">Dispatches (Emails & SMS)</th>
+                    <th className="py-2.5 px-3">Designated Officer</th>
+                    <th className="py-2.5 px-3 text-center w-24">Notice</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {displayedSchemes.map((scheme, idx) => {
-                    // Determine assigned officer & tier based on activeLayer or current scheme level
-                    let targetTier: "DE" | "EE" | "CE" | "MS" | "PS" = "DE";
-                    let officerName = scheme.de_ae_civil_name || "Akshay Bhojane";
-                    let officerRole = "DE / AE (Civil)";
-                    let officerMobile = scheme.de_ae_civil_mobile || "5596356782";
-                    let officerEmail = scheme.de_ae_civil_email || "akshay.bhojane@cstech.ai";
-
-                    if (activeLayer === "layer5" || (activeLayer === "all" && scheme.escalation_level === 5)) {
-                      targetTier = "PS";
-                      officerName = "Principal Secretary (PS)";
-                      officerRole = "Principal Secretary, WSS";
-                      officerMobile = "Secretariat";
-                      officerEmail = "ps.wss@maharashtra.gov.in";
-                    } else if (activeLayer === "layer4" || (activeLayer === "all" && scheme.escalation_level === 4)) {
-                      targetTier = "MS";
-                      officerName = "Member Secretary (MS)";
-                      officerRole = "Member Secretary, MJP";
-                      officerMobile = "Head Office";
-                      officerEmail = "ms.mjp@gov.in";
-                    } else if (activeLayer === "layer3" || (activeLayer === "all" && scheme.escalation_level === 3)) {
-                      targetTier = "CE";
-                      officerName = `${scheme.chief_engineer_name || "Deepak Ingale"} (CE) & ${scheme.se_name || "Rishikesh Salunkhe"} (SE)`;
-                      officerRole = "Chief Engineer & SE";
-                      officerMobile = `${scheme.chief_engineer_mobile || "8852634598"} / ${scheme.se_mobile || "9965253645"}`;
-                      officerEmail = scheme.chief_engineer_email || "deepal.ingale@cstech.ai";
-                    } else if (activeLayer === "layer2" || (activeLayer === "all" && scheme.escalation_level === 2)) {
-                      targetTier = "EE";
-                      officerName = scheme.ee_civil_name || "Rishikesh Salunke";
-                      officerRole = "Executive Engineer (EE)";
-                      officerMobile = scheme.ee_civil_mobile || "9834955236";
-                      officerEmail = scheme.ee_civil_email || "salunkerishikesh@gmail.com";
-                    }
-
+                <tbody className="divide-y divide-slate-200 text-slate-800">
+                  {paginatedCategoryAlerts.map((item, idx) => {
+                    const sr = (page - 1) * pageSize + idx + 1;
+                    const targetTier = activeLayer === "layer1" ? "DE" : activeLayer === "layer2" ? "EE" : activeLayer === "layer3" ? "CE" : activeLayer === "layer4" ? "MS" : "PS";
                     return (
-                      <tr
-                        key={scheme.scheme_id}
-                        className="hover:bg-slate-50 transition-colors"
-                      >
-                        {/* Sr. No. */}
-                        <td className="py-3 px-3 text-center border-r border-slate-200 font-mono text-slate-500 font-medium">
-                          {idx + 1}
+                      <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-3 px-3 text-center font-mono text-[11px] text-slate-500 font-semibold">
+                          {sr}
                         </td>
-
-                        {/* Scheme Name & ID */}
-                        <td className="py-3 px-4 border-r border-slate-200">
-                          <div className="font-semibold text-slate-900 text-xs">
-                            {scheme.scheme_name}
-                          </div>
-                          <div className="text-[11px] text-slate-500 flex flex-wrap items-center gap-1.5 mt-0.5">
-                            <span className="font-mono text-slate-700 bg-slate-100 px-1 rounded">
-                              ID: {scheme.scheme_id}
+                        <td className="py-3 px-3">
+                          <div className="font-bold text-slate-900 text-xs">{item.scheme_name}</div>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="font-mono text-[10px] text-slate-500 bg-slate-100 px-1 rounded border border-slate-200">
+                              {item.scheme_id}
                             </span>
-                            <span>•</span>
-                            <span>{scheme.region} Region</span>
-                            {scheme.district && (
-                              <>
-                                <span>•</span>
-                                <span>{scheme.district}</span>
-                              </>
-                            )}
+                            <span className="text-[11px] text-slate-500">
+                              {item.region} {item.district ? `• ${item.district}` : ""}
+                            </span>
                           </div>
                         </td>
-
-                        {/* Current Level */}
-                        <td className="py-3 px-3 border-r border-slate-200">
-                          {scheme.escalation_level === 5 ? (
-                            <div className="space-y-0.5">
-                              <Badge className="bg-indigo-950 text-white text-[10px] rounded font-bold">
-                                Level 5 (PS)
-                              </Badge>
-                              <div className="text-[10px] text-indigo-950 font-semibold">15+ Days Notice</div>
-                            </div>
-                          ) : scheme.escalation_level === 4 ? (
-                            <div className="space-y-0.5">
-                              <Badge className="bg-purple-900 text-white text-[10px] rounded font-bold">
-                                Level 4 (MS)
-                              </Badge>
-                              <div className="text-[10px] text-purple-900 font-semibold">10+ Days Notice</div>
-                            </div>
-                          ) : scheme.escalation_level === 3 ? (
-                            <div className="space-y-0.5">
-                              <Badge className="bg-red-800 text-white text-[10px] rounded font-bold">
-                                Level 3 (CE & SE)
-                              </Badge>
-                              <div className="text-[10px] text-slate-500">CE & SE Weekly Notice</div>
-                            </div>
-                          ) : scheme.escalation_level === 2 ? (
-                            <div className="space-y-0.5">
-                              <Badge className="bg-amber-700 text-white text-[10px] rounded font-bold">
-                                Level 2 (EE)
-                              </Badge>
-                              <div className="text-[10px] text-slate-500">EE Escalation Notice</div>
-                            </div>
+                        <td className="py-3 px-3">
+                          {activeCategory === "lpcd" ? (
+                            <span className="font-semibold text-blue-950 bg-blue-50/80 border border-blue-200 px-2 py-0.5 rounded text-xs">
+                              {item.village_name}
+                            </span>
                           ) : (
-                            <div className="space-y-0.5">
-                              <Badge className="bg-blue-900 text-white text-[10px] rounded font-bold">
-                                Level 1 (DE)
-                              </Badge>
-                              <div className="text-[10px] text-slate-500">DE Daily Notice</div>
+                            <div>
+                              <div className="font-semibold text-slate-900 text-xs">
+                                {item.esr_name !== "-" ? item.esr_name : item.village_name}
+                              </div>
+                              {item.esr_name !== "-" && item.village_name !== "-" && (
+                                <div className="text-[10px] text-slate-500 mt-0.5">
+                                  Village: {item.village_name}
+                                </div>
+                              )}
                             </div>
                           )}
                         </td>
-
-                        {/* Days Unresolved */}
-                        <td className="py-3 px-3 border-r border-slate-200">
-                          <div className="space-y-0.5">
-                            <div className="font-mono font-bold text-slate-900 text-xs flex items-center gap-1">
-                              <span>{scheme.max_streak_days} Days Unresolved</span>
-                              <span className="text-[10px] text-slate-500 font-sans font-normal">
-                                ({scheme.max_streak_days}d streak)
-                              </span>
+                        <td className="py-3 px-3">
+                          <div className="font-semibold text-slate-900 text-xs">{item.alert_title}</div>
+                          <div className="text-[11px] font-mono font-bold text-amber-800 mt-0.5">
+                            Value: {item.parameter_value}
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          <Badge
+                            variant="outline"
+                            className={`font-mono text-xs font-bold ${item.days_since >= 15
+                              ? "bg-red-50 text-red-800 border-red-300"
+                              : item.days_since >= 10
+                                ? "bg-purple-50 text-purple-800 border-purple-300"
+                                : item.days_since >= 7
+                                  ? "bg-amber-50 text-amber-800 border-amber-300"
+                                  : "bg-blue-50 text-blue-800 border-blue-300"
+                              }`}
+                          >
+                            {item.days_since} Days
+                          </Badge>
+                          <div className="text-[10px] text-slate-400 mt-0.5">streak</div>
+                        </td>
+                        <td className="py-3 px-3">
+                          <div className="space-y-0.5 font-mono text-[11px]">
+                            <div className="text-blue-900">
+                              <span className="font-sans text-slate-500">Emails:</span> Today: <strong>{currentLevelDispatches.emailsToday}</strong> | 7d: <strong>{currentLevelDispatches.emails7d}</strong>
                             </div>
-                            <div className="text-[10px] text-slate-500">
-                              {scheme.max_streak_days >= 15 ? (
-                                <span className="text-indigo-950 font-bold">15+ Days (Escalated to PS)</span>
-                              ) : scheme.max_streak_days >= 10 ? (
-                                <span className="text-purple-900 font-bold">10+ Days (Escalated to MS)</span>
-                              ) : scheme.max_streak_days >= 7 ? (
-                                <span className="text-red-700 font-medium">7+ Days (Escalated to CE & SE)</span>
-                              ) : scheme.max_streak_days >= 3 ? (
-                                <span className="text-amber-800 font-medium">3+ Days (Escalated to EE)</span>
-                              ) : (
-                                <span className="text-slate-600">Day 1 (Sent to DE / AE)</span>
-                              )}
+                            <div className="text-slate-700">
+                              <span className="font-sans text-slate-500">SMS:</span> Today: <strong>{currentLevelDispatches.smsToday}</strong> | 7d: <strong>{currentLevelDispatches.sms7d}</strong>
                             </div>
                           </div>
                         </td>
-
-                        {/* Designated Officer */}
-                        <td className="py-3 px-4 border-r border-slate-200">
-                          <div className="font-semibold text-slate-900">
-                            {officerName}
-                          </div>
-                          <div className="text-[11px] text-slate-600 font-medium">
-                            {officerRole}
-                          </div>
-                          <div className="text-[10px] text-slate-500 flex items-center gap-2 mt-0.5 font-mono">
-                            <span className="flex items-center gap-0.5">
-                              <Phone className="w-2.5 h-2.5 text-slate-400" />
-                              {officerMobile}
-                            </span>
+                        <td className="py-3 px-3">
+                          <div className="font-bold text-slate-900 text-xs">{item.officer_name}</div>
+                          <div className="text-[11px] text-slate-600 font-medium">{item.officer_role}</div>
+                          <div className="text-[10px] text-slate-500 font-mono mt-0.5 flex flex-wrap gap-2">
+                            {item.officer_email && <span>{item.officer_email}</span>}
+                            {item.officer_mobile && <span>Ph: {item.officer_mobile}</span>}
                           </div>
                         </td>
-
-                        {/* Actual Dispatches (SMS & Emails) */}
-                        <td className="py-3 px-3 border-r border-slate-200">
-                          <div className="space-y-1 font-mono text-[11px]">
-                            <div className="flex items-center justify-between bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
-                              <span className="text-slate-600 text-[10px] font-sans">DE SMS:</span>
-                              <span className="font-bold text-slate-900">{scheme.de_sms_count}</span>
-                            </div>
-                            <div className="flex items-center justify-between bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
-                              <span className="text-slate-600 text-[10px] font-sans">EE SMS:</span>
-                              <span className="font-bold text-slate-900">{scheme.ee_sms_count}</span>
-                            </div>
-                            <div className="flex items-center justify-between bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
-                              <span className="text-slate-600 text-[10px] font-sans">CE/SE SMS:</span>
-                              <span className="font-bold text-slate-900">{scheme.ce_se_sms_count}</span>
-                            </div>
-                            {scheme.ms_sms_count > 0 && (
-                              <div className="flex items-center justify-between bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
-                                <span className="text-purple-900 text-[10px] font-sans font-semibold">MS SMS:</span>
-                                <span className="font-bold text-purple-900">{scheme.ms_sms_count}</span>
-                              </div>
-                            )}
-                            <div className="flex items-center justify-between bg-slate-100 px-2 py-0.5 rounded border border-slate-300">
-                              <span className="text-slate-700 text-[10px] font-sans font-medium">Emails:</span>
-                              <span className="font-bold text-slate-900">{scheme.total_email_count}</span>
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Breach Points Breakdown */}
-                        <td className="py-3 px-3 border-r border-slate-200">
-                          <div className="space-y-1 text-center">
-                            <div className="flex flex-wrap items-center justify-center gap-1 text-[10px]">
-                              {scheme.lpcd_villages_count > 0 && (
-                                <span className="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded text-slate-800">
-                                  LPCD: <strong>{scheme.lpcd_villages_count} Villages</strong>
-                                </span>
-                              )}
-                              {scheme.chlorine_low_count > 0 && (
-                                <span className="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded text-slate-800">
-                                  Low Cl: <strong>{scheme.chlorine_low_count} ESRs</strong>
-                                </span>
-                              )}
-                              {scheme.pressure_low_count > 0 && (
-                                <span className="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded text-slate-800">
-                                  Low Press: <strong>{scheme.pressure_low_count} ESRs</strong>
-                                </span>
-                              )}
-                              {scheme.offline_count > 0 && (
-                                <span className="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded text-slate-800">
-                                  Offline: <strong>{scheme.offline_count} Sensors</strong>
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[11px] font-mono font-bold text-slate-900">
-                              Total Issues: {scheme.total_issues_count}
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Actions */}
                         <td className="py-3 px-3 text-center">
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => openPreview(scheme, targetTier)}
+                            onClick={() => openPreview(item.scheme_ref, targetTier)}
                             className="h-7 text-xs bg-white border-slate-300 hover:bg-slate-100 text-slate-800 shadow-2xs"
                           >
                             <Eye className="w-3.5 h-3.5 mr-1 text-slate-600" />
-                            View Notice
+                            Notice
                           </Button>
                         </td>
                       </tr>
@@ -1205,11 +1351,40 @@ export default function EscalationPortalPage() {
             </div>
           )}
 
-          {/* Table Footer */}
-          <div className="p-3 bg-slate-50 border-t border-slate-200 text-xs text-slate-600 flex flex-col sm:flex-row items-center justify-between gap-2">
-            <div>
-              <strong>Official Note:</strong> All SMS notifications are dispatched via Smartping DLT-approved templates. Official email digests are sent via automated notification queues.
+          {/* Table Pagination & Footer */}
+          <div className="p-3 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
+            <div className="font-mono text-[11px]">
+              Showing {filteredCategoryAlerts.length > 0 ? (page - 1) * pageSize + 1 : 0} to{" "}
+              {Math.min(page * pageSize, filteredCategoryAlerts.length)} of {filteredCategoryAlerts.length} items
             </div>
+
+            {/* Pagination Controls */}
+            {filteredCategoryAlerts.length > pageSize && (
+              <div className="flex items-center gap-1.5">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={page <= 1}
+                  onClick={() => setPage(p => Math.max(p - 1, 1))}
+                  className="h-7 px-2 text-xs border-slate-300"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5 mr-0.5" /> Previous
+                </Button>
+                <span className="text-xs font-mono font-semibold px-2">
+                  Page {page} of {Math.ceil(filteredCategoryAlerts.length / pageSize)}
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={page >= Math.ceil(filteredCategoryAlerts.length / pageSize)}
+                  onClick={() => setPage(p => p + 1)}
+                  className="h-7 px-2 text-xs border-slate-300"
+                >
+                  Next <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+                </Button>
+              </div>
+            )}
+
             <div className="font-mono text-[11px] text-slate-500">
               Last Data Sync: {formatDate(data?.timestamp)}
             </div>
@@ -1232,12 +1407,12 @@ export default function EscalationPortalPage() {
                       {previewTier === "DE"
                         ? "Level 1: DE/AE Daily Notice (Day 1)"
                         : previewTier === "EE"
-                        ? "Level 2: EE Escalation Notice (>3 Days)"
-                        : previewTier === "CE"
-                        ? "Level 3: CE & SE Weekly Notice (7+ Days)"
-                        : previewTier === "MS"
-                        ? "Level 4: Member Secretary (MS) Notice (10+ Days)"
-                        : "Level 5: Principal Secretary (PS) Notice (15+ Days)"}
+                          ? "Level 2: EE Escalation Notice (>3 Days)"
+                          : previewTier === "CE"
+                            ? "Level 3: CE & SE Weekly Notice (7+ Days)"
+                            : previewTier === "MS"
+                              ? "Level 4: Member Secretary (MS) Notice (10+ Days)"
+                              : "Level 5: Principal Secretary (PS) Notice (15+ Days)"}
                     </Badge>
                     <Badge variant="outline" className="text-xs font-mono">
                       {previewScheme.max_streak_days} Consecutive Days Unresolved

@@ -152,7 +152,7 @@ export async function getEscalationStatus(options: {
       COALESCE(NULLIF(TRIM(esr_name), ''), '-') as esr_name,
       alert_type,
       COUNT(DISTINCT sent_date) as active_days_count,
-      ARRAY_AGG(DISTINCT sent_date::text ORDER BY sent_date::text DESC) as dates_seen,
+      ARRAY_AGG(DISTINCT (sent_date::date)::text ORDER BY (sent_date::date)::text DESC) as dates_seen,
       MAX(alert_value) as latest_val
     FROM email_alert_logs
     WHERE sent_date >= CURRENT_DATE - (${daysLookback} * INTERVAL '1 day')
@@ -178,14 +178,23 @@ export async function getEscalationStatus(options: {
     const alertType = String(row.alert_type || '').toLowerCase();
     
     // Compute unbroken consecutive days matching daily-alerts streak logic
-    const datesSeen: string[] = row.dates_seen || [];
-    const today = new Date();
     const formatIST = (d: Date) => new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Asia/Kolkata',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit'
     }).format(d);
+
+    const rawDatesSeen: any[] = row.dates_seen || [];
+    const datesSeen: string[] = rawDatesSeen.map((d: any) => {
+      if (!d) return '';
+      if (d instanceof Date) {
+        return formatIST(d);
+      }
+      return String(d).split('T')[0].split(' ')[0].trim();
+    }).filter(Boolean);
+
+    const today = new Date();
     const hasToday = datesSeen.includes(formatIST(today));
     let consecutivePastDays = 0;
     for (let i = 1; i <= 30; i++) {
@@ -282,11 +291,11 @@ export async function getEscalationStatus(options: {
       db.execute(sql`
         SELECT 
           scheme_id,
-          COUNT(*) FILTER (WHERE engineer_name ILIKE '%Akshay Bhojane%') as de_sms_count,
-          COUNT(*) FILTER (WHERE engineer_name ILIKE '%Rishikesh Salunke%') as ee_sms_count,
-          COUNT(*) FILTER (WHERE engineer_name ILIKE '%Deepak Ingale%' OR engineer_name ILIKE '%Rishikesh Salunkhe%') as ce_se_sms_count,
-          COUNT(*) FILTER (WHERE engineer_name ILIKE '%Member Secretary%' OR engineer_name ILIKE '%MS%') as ms_sms_count,
-          COUNT(*) FILTER (WHERE engineer_name ILIKE '%Principal Secretary%' OR engineer_name ILIKE '%PS%') as ps_sms_count,
+          COUNT(*) FILTER (WHERE engineer_name ILIKE '%Akshay Bhojane%' AND (is_success = true OR gateway_status = 200)) as de_sms_count,
+          COUNT(*) FILTER (WHERE engineer_name ILIKE '%Rishikesh Salunke%' AND (is_success = true OR gateway_status = 200)) as ee_sms_count,
+          COUNT(*) FILTER (WHERE (engineer_name ILIKE '%Deepak Ingale%' OR engineer_name ILIKE '%Rishikesh Salunkhe%') AND (is_success = true OR gateway_status = 200)) as ce_se_sms_count,
+          COUNT(*) FILTER (WHERE (engineer_name ILIKE '%Member Secretary%' OR engineer_name ILIKE '%MS%') AND (is_success = true OR gateway_status = 200)) as ms_sms_count,
+          COUNT(*) FILTER (WHERE (engineer_name ILIKE '%Principal Secretary%' OR engineer_name ILIKE '%PS%') AND (is_success = true OR gateway_status = 200)) as ps_sms_count,
           MAX(created_at) as last_sms_sent
         FROM sms_alert_logs
         WHERE scheme_id IS NOT NULL
@@ -388,6 +397,7 @@ export async function getEscalationStatus(options: {
           COUNT(*) as sms_count
         FROM sms_alert_logs
         WHERE sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
+          AND (is_success = true OR gateway_status = 200)
         GROUP BY sent_date, LOWER(TRIM(engineer_name)), mobile
       `)
     ]);
