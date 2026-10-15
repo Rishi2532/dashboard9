@@ -73,18 +73,19 @@ export default function Sidebar() {
   const isMobile = useIsMobile();
   const { isAdmin, isEngineer } = useAuth();
 
-  // Store sidebar state in localStorage to persist between page loads
+  // Ensure sidebar is closed by default and clear any legacy saved state
   useEffect(() => {
-    const storedState = localStorage.getItem("sidebarOpen");
-    if (storedState !== null) {
-      setIsOpen(storedState === "true");
+    try {
+      localStorage.removeItem("sidebarOpen");
+    } catch {
+      // ignore
     }
   }, []);
 
-  // Update localStorage when sidebar state changes
+  // Automatically close sidebar when navigating to a new page
   useEffect(() => {
-    localStorage.setItem("sidebarOpen", isOpen.toString());
-  }, [isOpen]);
+    setIsOpen(false);
+  }, [location]);
 
   // Use the Sheet component for both mobile and desktop
   return (

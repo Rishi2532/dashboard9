@@ -213,6 +213,7 @@ export default function EscalationPortalPage() {
   });
 
   const schemes = data?.schemes || [];
+  const dispatches = data?.dispatches;
 
   // Layer 1: DE / AE Civil (Daily Notice) -> All active schemes with telemetry breaches
   const layer1Schemes = useMemo(() => {

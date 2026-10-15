@@ -18,7 +18,6 @@ import {
   GaugeCircle,
   History,
   Download,
-  Eye,
   Search,
   X,
   Filter,
