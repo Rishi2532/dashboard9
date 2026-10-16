@@ -1890,6 +1890,16 @@ export default function EscalationPortalPage() {
                             const hasSms = schemeSms.length > 0;
 
                             if (!hasSms) {
+                              if (!item.officer_mobile) {
+                                return (
+                                  <span
+                                    className="text-[11px] text-amber-700/90 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded font-medium cursor-help"
+                                    title={`SMS could not be dispatched: No mobile number registered for ${targetTier} in scheme engineer directory`}
+                                  >
+                                    Not Dispatched (No Mobile)
+                                  </span>
+                                );
+                              }
                               return <span className="text-[11px] text-slate-400 italic">Not Dispatched</span>;
                             }
 

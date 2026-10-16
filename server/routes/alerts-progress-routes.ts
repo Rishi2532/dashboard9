@@ -2217,11 +2217,13 @@ router.get('/daily-dispatches', async (req, res) => {
           MAX(ea.engineer_name) as engineer_name,
           LOWER(TRIM(ea.engineer_email)) as engineer_email,
           CASE 
-            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.principal_secretary_email), ''))) THEN 'Principal Secretary (PS)'
-            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.member_secretary_email), ''))) THEN 'Member Secretary (MS)'
-            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.chief_engineer_email), ''))) THEN 'Chief Engineer (CE)'
-            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.se_email), ''))) THEN 'Superintending Engineer (SE)'
-            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_civil_email), ''))) OR LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_mech_email), ''))) THEN 'Executive Engineer (Civil)'
+            WHEN LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.chief_engineer_name), ''))) THEN 'Chief Engineer (CE)'
+            WHEN LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.se_name), ''))) THEN 'Superintending Engineer (SE)'
+            WHEN (LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.ee_civil_name), ''))) OR LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.ee_mech_name), '')))) THEN 'Executive Engineer (Civil)'
+            WHEN (LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.de_ae_civil_name), ''))) OR LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.de_ae_mech_name), '')))) THEN 'Deputy Engineer (DE Civil)'
+            WHEN LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) LIKE '%chief%' THEN 'Chief Engineer (CE)'
+            WHEN LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) LIKE '%superintending%' THEN 'Superintending Engineer (SE)'
+            WHEN LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) LIKE '%executive%' THEN 'Executive Engineer (Civil)'
             ELSE 'Deputy Engineer (DE Civil)'
           END as engineer_role,
           MIN(ea.created_at) as created_at,
@@ -2232,7 +2234,7 @@ router.get('/daily-dispatches', async (req, res) => {
         FROM email_acknowledgements ea
         LEFT JOIN scheme_engineer_details s ON s.scheme_id = ea.scheme_id
         WHERE ${dateFilterAck}
-        GROUP BY ea.sent_date, LOWER(TRIM(ea.engineer_email)), ea.scheme_id
+        GROUP BY ea.sent_date, LOWER(TRIM(ea.engineer_email)), ea.scheme_id, LOWER(TRIM(COALESCE(ea.engineer_name, '')))
         ORDER BY MIN(ea.created_at) DESC
       `;
       const emailsResult = await client.query(emailsQuery, queryParams);

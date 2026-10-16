@@ -398,160 +398,80 @@ export const formatAlertDate = (row: AlertData) => {
   return 'Today';
 };
 
-// Helper to extract engineer recipients for a given alert row strictly from Engineers Directory
-export const getRowRecipients = (row: AlertData) => {
+// Helper to extract engineer recipients for a given alert row strictly from actual email dispatches
+export const getRowRecipients = (row: AlertData): RecipientInfo[] => {
   const recipients: RecipientInfo[] = [];
 
-  const checkAck = (email: string | null, name: string | null) => {
-    if (!row.acknowledgements || row.acknowledgements.length === 0) {
-      return { isAck: false, acknowledged_at: null, isDispatched: false };
-    }
+  const acks = Array.isArray(row.acknowledgements) ? row.acknowledgements : [];
 
-    const targetEmail = email ? email.toLowerCase().trim() : '';
-    const targetName = name ? name.toLowerCase().trim() : '';
+  // 1. If actual email dispatches exist for this alert row, strictly show only the personnel who received an email
+  if (acks.length > 0) {
+    const seen = new Set<string>();
+    acks.forEach((a: any) => {
+      const aName = (a.engineer_name || '').trim();
+      const aEmail = (a.engineer_email || '').trim().toLowerCase();
+      if (!aName && !aEmail) return;
 
-    const match = row.acknowledgements.find((a: any) => {
-      // Extra safety check if both records have explicit sent_date strings:
-      if (a.sent_date && row.sent_date) {
-        const aDate = String(a.sent_date).split('T')[0];
-        const rDate = String(row.sent_date).split('T')[0];
-        if (aDate !== rDate) return false;
+      const key = `${aName.toLowerCase()}_${aEmail}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+
+      let role = 'DE/AE (Civil)';
+      let mobile: string | null = null;
+
+      const lowerName = aName.toLowerCase();
+      if (row.de_ae_civil_name && lowerName === row.de_ae_civil_name.toLowerCase().trim()) {
+        role = 'DE/AE (Civil)';
+        mobile = row.de_ae_civil_mobile?.trim() || null;
+      } else if (row.de_ae_mech_name && lowerName === row.de_ae_mech_name.toLowerCase().trim()) {
+        role = 'DE/AE (Mech)';
+        mobile = row.de_ae_mech_mobile?.trim() || null;
+      } else if (row.ee_civil_name && lowerName === row.ee_civil_name.toLowerCase().trim()) {
+        role = 'Executive Engineer (Civil)';
+        mobile = row.ee_civil_mobile?.trim() || null;
+      } else if (row.ee_mech_name && lowerName === row.ee_mech_name.toLowerCase().trim()) {
+        role = 'Executive Engineer (Mech)';
+        mobile = row.ee_mech_mobile?.trim() || null;
+      } else if (row.se_name && lowerName === row.se_name.toLowerCase().trim()) {
+        role = 'Superintending Engineer (SE)';
+        mobile = row.se_mobile?.trim() || null;
+      } else if (row.chief_engineer_name && lowerName === row.chief_engineer_name.toLowerCase().trim()) {
+        role = 'Chief Engineer';
+        mobile = row.chief_engineer_mobile?.trim() || null;
+      } else {
+        if (lowerName.includes('chief')) role = 'Chief Engineer';
+        else if (lowerName.includes('se') || lowerName.includes('superintending')) role = 'Superintending Engineer (SE)';
+        else if (lowerName.includes('ee') || lowerName.includes('executive')) role = 'Executive Engineer (Civil)';
+        else role = 'DE/AE (Civil)';
+        mobile = row.de_ae_civil_mobile?.trim() || null;
       }
 
-      const aEmail = a.engineer_email ? a.engineer_email.toLowerCase().trim() : '';
-      const aName = a.engineer_name ? a.engineer_name.toLowerCase().trim() : '';
-
-      // 1. If both records have an email address, require exact email match AND name/role match
-      if (targetEmail && aEmail) {
-        if (targetEmail !== aEmail) return false;
-        if (targetName && aName) {
-          const tN = targetName.toLowerCase().replace(/[^a-z0-9]/g, '');
-          const aN = aName.toLowerCase().replace(/[^a-z0-9]/g, '');
-          if (aN.includes(tN) || tN.includes(aN) || aN.includes('deae') || aN.includes('civil') || aN.includes('field') || aN.includes('engineer')) {
-            return true;
-          }
-          return false;
-        }
-        return true;
-      }
-
-      // 2. Fallback to name match ONLY if email address is absent on one of the records
-      if (targetName && aName && targetName === aName) {
-        return true;
-      }
-
-      return false;
+      recipients.push({
+        name: aName || 'Designated Engineer',
+        role,
+        email: aEmail || null,
+        mobile,
+        isAcknowledged: Boolean(a.acknowledged_at),
+        acknowledged_at: a.acknowledged_at || null,
+        isDispatched: true
+      });
     });
 
-    return {
-      isDispatched: !!match,
-      isAck: !!(match && match.acknowledged_at),
-      acknowledged_at: match?.acknowledged_at || null
-    };
-  };
-
-  // Strictly consider available persons from Engineers Directory only (no vendors, no blanks/dashes, no dummy fallbacks)
-  // Order: DE/AE (Civil) → DE/AE (Mech) → EE (Civil) → EE (Mech) → SE → CE (low to high)
-
-  // 1. DE/AE (Civil)
-  const deCivilName = isValidEngineerName(row.de_ae_civil_name)
-    ? row.de_ae_civil_name!.trim()
-    : (row.de_ae_civil_email ? "DE/AE (Civil)" : null);
-
-  if (deCivilName) {
-    const { isAck, acknowledged_at, isDispatched } = checkAck(row.de_ae_civil_email || null, deCivilName);
-    recipients.push({
-      role: "DE/AE (Civil)",
-      name: deCivilName,
-      email: row.de_ae_civil_email || null,
-      mobile: row.de_ae_civil_mobile?.trim() || null,
-      isAcknowledged: isAck,
-      acknowledged_at,
-      isDispatched
-    });
+    if (recipients.length > 0) return recipients;
   }
 
-  // 2. DE/AE (Mech)
-  if (isValidEngineerName(row.de_ae_mech_name)) {
-    const name = row.de_ae_mech_name!.trim();
-    const { isAck, acknowledged_at, isDispatched } = checkAck(row.de_ae_mech_email || null, name);
+  // 2. Fallback when alert has no logged email dispatch: only show the designated primary officer
+  const defaultName = row.de_ae_civil_name || row.civil_engineer_name || row.ee_civil_name;
+  if (isValidEngineerName(defaultName)) {
     recipients.push({
-      role: "DE/AE (Mech)",
-      name,
-      email: row.de_ae_mech_email || null,
-      mobile: row.de_ae_mech_mobile?.trim() || null,
-      isAcknowledged: isAck,
-      acknowledged_at,
-      isDispatched
+      name: defaultName!.trim(),
+      role: row.de_ae_civil_name ? 'DE/AE (Civil)' : 'Executive Engineer (Civil)',
+      email: row.de_ae_civil_email || row.civil_engineer_email || row.ee_civil_email || null,
+      mobile: row.de_ae_civil_mobile || row.ee_civil_mobile || null,
+      isAcknowledged: false,
+      acknowledged_at: null,
+      isDispatched: false
     });
-  }
-
-  // 3. Executive Engineer (Civil)
-  if (isValidEngineerName(row.ee_civil_name)) {
-    const name = row.ee_civil_name!.trim();
-    const { isAck, acknowledged_at, isDispatched } = checkAck(row.ee_civil_email || null, name);
-    recipients.push({
-      role: "Executive Engineer (Civil)",
-      name,
-      email: row.ee_civil_email || null,
-      mobile: row.ee_civil_mobile?.trim() || null,
-      isAcknowledged: isAck,
-      acknowledged_at,
-      isDispatched
-    });
-  }
-
-  // 4. Executive Engineer (Mech)
-  if (isValidEngineerName(row.ee_mech_name)) {
-    const name = row.ee_mech_name!.trim();
-    const { isAck, acknowledged_at, isDispatched } = checkAck(row.ee_mech_email || null, name);
-    recipients.push({
-      role: "Executive Engineer (Mech)",
-      name,
-      email: row.ee_mech_email || null,
-      mobile: row.ee_mech_mobile?.trim() || null,
-      isAcknowledged: isAck,
-      acknowledged_at,
-      isDispatched
-    });
-  }
-
-  // 5. Superintending Engineer (SE)
-  if (isValidEngineerName(row.se_name)) {
-    const name = row.se_name!.trim();
-    const { isAck, acknowledged_at, isDispatched } = checkAck(row.se_email || null, name);
-    recipients.push({
-      role: "Superintending Engineer (SE)",
-      name,
-      email: row.se_email || null,
-      mobile: row.se_mobile?.trim() || null,
-      isAcknowledged: isAck,
-      acknowledged_at,
-      isDispatched
-    });
-  }
-
-  // 6. Chief Engineer
-  if (isValidEngineerName(row.chief_engineer_name)) {
-    const name = row.chief_engineer_name!.trim();
-    const { isAck, acknowledged_at, isDispatched } = checkAck(row.chief_engineer_email || null, name);
-    recipients.push({
-      role: "Chief Engineer",
-      name,
-      email: row.chief_engineer_email || null,
-      mobile: row.chief_engineer_mobile?.trim() || null,
-      isAcknowledged: isAck,
-      acknowledged_at,
-      isDispatched
-    });
-  }
-
-  // If actual email dispatches exist for this alert, strictly show only the personnel who were dispatched an email
-  if (row.acknowledgements && row.acknowledgements.length > 0) {
-    const dispatched = recipients.filter(r => r.isDispatched);
-    if (dispatched.length > 0) {
-      return dispatched;
-    }
   }
 
   return recipients;
@@ -567,15 +487,7 @@ export const getRowAckInfo = (row: AlertData) => {
   const totalRequired = activeRecipients.length;
 
   // Confirmed acks for this specific alert
-  const validAcks = (row.acknowledgements || []).filter((a: any) => {
-    if (!a.acknowledged_at) return false;
-    if (a.sent_date && row.sent_date) {
-      const aDate = String(a.sent_date).split('T')[0];
-      const rDate = String(row.sent_date).split('T')[0];
-      if (aDate !== rDate) return false;
-    }
-    return true;
-  });
+  const validAcks = (row.acknowledgements || []).filter((a: any) => Boolean(a.acknowledged_at));
 
   const isAcknowledged = ackCount > 0 || validAcks.length > 0;
   const isFullyAcknowledged = totalRequired > 0 && ackCount >= totalRequired;
@@ -587,33 +499,6 @@ export const getRowAckInfo = (row: AlertData) => {
       email: r.email || "",
       acknowledged_at: r.acknowledged_at || ""
     }));
-
-  if (acksList.length === 0) {
-    if (row.acknowledged_by || row.engineer_name) {
-      acksList.push({
-        name: row.acknowledged_by || row.engineer_name || "Assigned Engineer",
-        email: row.engineer_email || row.ee_civil_email || "",
-        acknowledged_at: row.acknowledged_at || (validAcks[0]?.acknowledged_at) || ""
-      });
-    } else if (validAcks.length > 0) {
-      validAcks.forEach((a: any) => {
-        acksList.push({
-          name: a.engineer_name || "Assigned Engineer",
-          email: a.engineer_email || "",
-          acknowledged_at: a.acknowledged_at || ""
-        });
-      });
-    } else if (row.is_acknowledged) {
-      const fallbackName = row.ee_civil_name || (activeRecipients[0]?.name) || "Assigned Engineer";
-      const fallbackEmail = row.ee_civil_email || (activeRecipients[0]?.email) || "";
-      const fallbackAt = row.acknowledged_at || (row.acknowledgements && row.acknowledgements[0]?.acknowledged_at) || "";
-      acksList.push({
-        name: fallbackName,
-        email: fallbackEmail,
-        acknowledged_at: fallbackAt
-      });
-    }
-  }
 
   return {
     isAcknowledged,
@@ -3604,7 +3489,7 @@ export default function AlertsProgressPage() {
 
             <div className="flex items-center gap-2.5 text-xs text-slate-600 flex-wrap">
               <span>
-                Engineers Notified <strong className="text-[#0f4c81] font-bold text-sm ml-1">{actuallyNotifiedCount} / {totalRosterEngineers || totalEngineers || 6}</strong>
+                Engineers Notified <strong className="text-[#0f4c81] font-bold text-sm ml-1">{actuallyNotifiedCount} / {totalEngineers}</strong>
               </span>
 
               <span className="text-slate-300">|</span>
@@ -4477,6 +4362,16 @@ export default function AlertsProgressPage() {
                             const smsList = getRowSmsList(row);
 
                             if (smsList.length === 0) {
+                              if (!owner?.mobile) {
+                                return (
+                                  <span
+                                    className="text-[11px] text-amber-700/90 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded font-medium cursor-help"
+                                    title="SMS could not be dispatched: No mobile number registered for DE/AE in scheme engineer directory"
+                                  >
+                                    Not Dispatched (No Mobile)
+                                  </span>
+                                );
+                              }
                               return <span className="text-[11px] text-slate-400 italic">Not Dispatched</span>;
                             }
 
