@@ -30,8 +30,33 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
           ADD COLUMN IF NOT EXISTS gateway_response TEXT,
           ADD COLUMN IF NOT EXISTS scheme_id VARCHAR(100),
           ADD COLUMN IF NOT EXISTS scheme_name VARCHAR(255);
+
+        CREATE TABLE IF NOT EXISTS consolidated_email_dispatches (
+          id SERIAL PRIMARY KEY,
+          dispatch_date DATE NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date,
+          sent_time VARCHAR(20),
+          engineer_name VARCHAR(255) NOT NULL,
+          engineer_email VARCHAR(255) NOT NULL,
+          engineer_role VARCHAR(100) DEFAULT 'DE/AE (Civil)',
+          engineer_mobile VARCHAR(30),
+          total_schemes INTEGER NOT NULL DEFAULT 1,
+          scheme_ids JSONB DEFAULT '[]'::jsonb,
+          scheme_names JSONB DEFAULT '[]'::jsonb,
+          total_alerts INTEGER NOT NULL DEFAULT 1,
+          lpcd_alerts_count INTEGER DEFAULT 0,
+          chlorine_alerts_count INTEGER DEFAULT 0,
+          pressure_alerts_count INTEGER DEFAULT 0,
+          offline_alerts_count INTEGER DEFAULT 0,
+          master_token VARCHAR(128),
+          subject VARCHAR(255) DEFAULT '🚨 Critical Water Scheme Alerts - Action Required',
+          status VARCHAR(50) DEFAULT 'SENT',
+          error_message TEXT,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_consolidated_email_dispatches_date ON consolidated_email_dispatches(dispatch_date);
+        CREATE INDEX IF NOT EXISTS idx_consolidated_email_dispatches_email ON consolidated_email_dispatches(engineer_email);
       `);
-      console.log('✅ Alert logs tables schema verified (telemetry_date & dispatch_type ready)');
+      console.log('✅ Alert logs & consolidated email dispatches tables schema verified');
     } finally {
       client.release();
     }
@@ -2195,6 +2220,84 @@ router.get('/email-failures', async (req, res) => {
   }
 });
 
+// Dedicated API endpoint to fetch consolidated emails (engineer-wise, 1 email with all alerts)
+router.get('/consolidated-emails', async (req, res) => {
+  try {
+    const requestedDate = req.query.date as string;
+    const subTab = (req.query.subTab as string) || 'current';
+    const roleFilter = (req.query.role as string)?.trim();
+    const { dateFilter, queryParams } = getAlertDateFilter(requestedDate, subTab);
+    const dateFilterConsolidated = dateFilter.replace(/\bsent_date\b/g, 'ced.dispatch_date');
+
+    let extraFilter = '';
+    const extraParams = [...queryParams];
+    if (roleFilter) {
+      extraParams.push(`%${roleFilter}%`);
+      extraFilter = ` AND ced.engineer_role ILIKE $${extraParams.length}`;
+    }
+
+    const client = await pool.connect();
+    try {
+      const q = `
+        SELECT 
+          ced.id,
+          ced.dispatch_date,
+          TO_CHAR(ced.dispatch_date, 'YYYY-MM-DD') as sent_date,
+          ced.sent_time,
+          ced.engineer_name,
+          LOWER(TRIM(ced.engineer_email)) as engineer_email,
+          ced.engineer_role,
+          ced.engineer_mobile,
+          ced.total_schemes,
+          ced.scheme_ids,
+          ced.scheme_names,
+          ced.total_alerts,
+          ced.lpcd_alerts_count,
+          ced.chlorine_alerts_count,
+          ced.pressure_alerts_count,
+          ced.offline_alerts_count,
+          ced.master_token,
+          ced.subject,
+          ced.status,
+          ced.error_message,
+          ced.created_at
+        FROM consolidated_email_dispatches ced
+        WHERE ${dateFilterConsolidated} ${extraFilter}
+        ORDER BY ced.engineer_role ASC, ced.engineer_name ASC
+      `;
+      const result = await client.query(q, extraParams);
+      const rows = result.rows;
+
+      const deCount = rows.filter(r => r.engineer_role.includes('DE') || r.engineer_role.includes('AE')).length;
+      const eeCount = rows.filter(r => r.engineer_role.includes('Executive') || r.engineer_role.includes('EE')).length;
+      const seCount = rows.filter(r => r.engineer_role.includes('Superintending') || r.engineer_role.includes('SE')).length;
+      const ceCount = rows.filter(r => r.engineer_role.includes('Chief') || r.engineer_role.includes('CE')).length;
+
+      const allSchemes = new Set(rows.flatMap(r => Array.isArray(r.scheme_ids) ? r.scheme_ids : []));
+      const totalAlertsContained = rows.reduce((acc, r) => acc + (Number(r.total_alerts) || 0), 0);
+
+      res.json({
+        summary: {
+          totalEmails: rows.length,
+          deEmails: deCount,
+          eeEmails: eeCount,
+          seEmails: seCount,
+          ceEmails: ceCount,
+          uniqueEngineers: rows.length,
+          totalSchemesCovered: allSchemes.size,
+          totalAlertsContained
+        },
+        emails: rows
+      });
+    } finally {
+      client.release();
+    }
+  } catch (err: any) {
+    console.error('Error in /consolidated-emails:', err);
+    res.status(500).json({ error: 'Failed to fetch consolidated emails' });
+  }
+});
+
 // Endpoint to fetch all Daily Email and SMS Alert Dispatches (strictly excluding Real-Time alerts)
 router.get('/daily-dispatches', async (req, res) => {
   try {
@@ -2204,40 +2307,90 @@ router.get('/daily-dispatches', async (req, res) => {
 
     const client = await pool.connect();
     try {
-      // 1. Fetch Daily Email Alert Dispatches from email_acknowledgements (actual real emails sent)
-      const dateFilterAck = dateFilter.replace(/\bsent_date\b/g, 'ea.sent_date');
-      const emailsQuery = `
+      // 1. Fetch Daily Email Alert Dispatches from consolidated_email_dispatches (actual real emails sent)
+      const dateFilterConsolidated = dateFilter.replace(/\bsent_date\b/g, 'ced.dispatch_date');
+      const consolidatedEmailsQuery = `
         SELECT 
-          MIN(ea.id) as id,
-          ea.scheme_id,
-          COALESCE(MAX(s.scheme), MAX(ea.scheme_id), 'MVS Scheme') as scheme_name,
-          MAX(s.region) as region,
-          string_agg(DISTINCT ea.alert_type, ', ') as alert_type,
-          COUNT(*) as alert_count,
-          MAX(ea.engineer_name) as engineer_name,
-          LOWER(TRIM(ea.engineer_email)) as engineer_email,
+          ced.id,
+          ced.id as raw_id,
+          ced.dispatch_date,
+          TO_CHAR(ced.dispatch_date, 'YYYY-MM-DD') as sent_date,
+          ced.sent_time,
+          ced.engineer_name,
+          LOWER(TRIM(ced.engineer_email)) as engineer_email,
+          ced.engineer_role,
+          ced.engineer_mobile,
+          ced.total_schemes,
+          ced.scheme_ids,
+          ced.scheme_names,
+          COALESCE(ced.scheme_ids->>0, '') as scheme_id,
           CASE 
-            WHEN LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.chief_engineer_name), ''))) THEN 'Chief Engineer (CE)'
-            WHEN LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.se_name), ''))) THEN 'Superintending Engineer (SE)'
-            WHEN (LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.ee_civil_name), ''))) OR LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.ee_mech_name), '')))) THEN 'Executive Engineer (Civil)'
-            WHEN (LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.de_ae_civil_name), ''))) OR LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.de_ae_mech_name), '')))) THEN 'Deputy Engineer (DE Civil)'
-            WHEN LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) LIKE '%chief%' THEN 'Chief Engineer (CE)'
-            WHEN LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) LIKE '%superintending%' THEN 'Superintending Engineer (SE)'
-            WHEN LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) LIKE '%executive%' THEN 'Executive Engineer (Civil)'
-            ELSE 'Deputy Engineer (DE Civil)'
-          END as engineer_role,
-          MIN(ea.created_at) as created_at,
-          TO_CHAR(ea.sent_date, 'YYYY-MM-DD') as sent_date,
-          BOOL_OR(ea.acknowledged_at IS NOT NULL) as is_acknowledged,
-          MAX(ea.acknowledged_at) as acknowledged_at,
-          json_agg(DISTINCT jsonb_build_object('name', ea.engineer_name, 'email', LOWER(TRIM(ea.engineer_email)))) as actual_recipients
-        FROM email_acknowledgements ea
-        LEFT JOIN scheme_engineer_details s ON s.scheme_id = ea.scheme_id
-        WHERE ${dateFilterAck}
-        GROUP BY ea.sent_date, LOWER(TRIM(ea.engineer_email)), ea.scheme_id, LOWER(TRIM(COALESCE(ea.engineer_name, '')))
-        ORDER BY MIN(ea.created_at) DESC
+            WHEN jsonb_array_length(ced.scheme_names) = 1 THEN ced.scheme_names->>0
+            WHEN jsonb_array_length(ced.scheme_names) > 1 THEN (ced.scheme_names->>0) || ' (+' || (jsonb_array_length(ced.scheme_names) - 1) || ' more)'
+            ELSE 'MVS Scheme'
+          END as scheme_name,
+          COALESCE(s.region, '') as region,
+          ced.total_alerts,
+          ced.total_alerts as alert_count,
+          ced.lpcd_alerts_count,
+          ced.chlorine_alerts_count,
+          ced.pressure_alerts_count,
+          ced.offline_alerts_count,
+          CONCAT_WS(', ',
+            CASE WHEN ced.lpcd_alerts_count > 0 THEN 'LPCD (' || ced.lpcd_alerts_count || ')' END,
+            CASE WHEN ced.chlorine_alerts_count > 0 THEN 'Chlorine (' || ced.chlorine_alerts_count || ')' END,
+            CASE WHEN ced.pressure_alerts_count > 0 THEN 'Pressure (' || ced.pressure_alerts_count || ')' END,
+            CASE WHEN ced.offline_alerts_count > 0 THEN 'Offline (' || ced.offline_alerts_count || ')' END
+          ) as alert_type,
+          ced.subject,
+          ced.status,
+          ced.created_at,
+          json_build_array(json_build_object('name', ced.engineer_name, 'email', LOWER(TRIM(ced.engineer_email)))) as actual_recipients
+        FROM consolidated_email_dispatches ced
+        LEFT JOIN scheme_engineer_details s ON s.scheme_id = (ced.scheme_ids->>0)
+        WHERE ${dateFilterConsolidated}
+        ORDER BY ced.id ASC
       `;
-      const emailsResult = await client.query(emailsQuery, queryParams);
+      let emailsResult = await client.query(consolidatedEmailsQuery, queryParams);
+      let emails = emailsResult.rows;
+
+      // Fallback for older historical dates if consolidated_email_dispatches has no rows for that date
+      if (emails.length === 0) {
+        const dateFilterAck = dateFilter.replace(/\bsent_date\b/g, 'ea.sent_date');
+        const fallbackQuery = `
+          SELECT 
+            MIN(ea.id) as id,
+            ea.scheme_id,
+            COALESCE(MAX(s.scheme), MAX(ea.scheme_id), 'MVS Scheme') as scheme_name,
+            MAX(s.region) as region,
+            string_agg(DISTINCT ea.alert_type, ', ') as alert_type,
+            COUNT(*) as alert_count,
+            MAX(ea.engineer_name) as engineer_name,
+            LOWER(TRIM(ea.engineer_email)) as engineer_email,
+            CASE 
+              WHEN LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.chief_engineer_name), ''))) THEN 'Chief Engineer (CE)'
+              WHEN LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.se_name), ''))) THEN 'Superintending Engineer (SE)'
+              WHEN (LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.ee_civil_name), ''))) OR LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.ee_mech_name), '')))) THEN 'Executive Engineer (Civil)'
+              WHEN (LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.de_ae_civil_name), ''))) OR LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.de_ae_mech_name), '')))) THEN 'Deputy Engineer (DE Civil)'
+              WHEN LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) LIKE '%chief%' THEN 'Chief Engineer (CE)'
+              WHEN LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) LIKE '%superintending%' THEN 'Superintending Engineer (SE)'
+              WHEN LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) LIKE '%executive%' THEN 'Executive Engineer (Civil)'
+              ELSE 'Deputy Engineer (DE Civil)'
+            END as engineer_role,
+            MIN(ea.created_at) as created_at,
+            TO_CHAR(ea.sent_date, 'YYYY-MM-DD') as sent_date,
+            BOOL_OR(ea.acknowledged_at IS NOT NULL) as is_acknowledged,
+            MAX(ea.acknowledged_at) as acknowledged_at,
+            json_agg(DISTINCT jsonb_build_object('name', ea.engineer_name, 'email', LOWER(TRIM(ea.engineer_email)))) as actual_recipients
+          FROM email_acknowledgements ea
+          LEFT JOIN scheme_engineer_details s ON s.scheme_id = ea.scheme_id
+          WHERE ${dateFilterAck}
+          GROUP BY ea.sent_date, LOWER(TRIM(ea.engineer_email)), ea.scheme_id, LOWER(TRIM(COALESCE(ea.engineer_name, '')))
+          ORDER BY MIN(ea.created_at) DESC
+        `;
+        const fallbackResult = await client.query(fallbackQuery, queryParams);
+        emails = fallbackResult.rows;
+      }
 
       // 2. Fetch Daily SMS Alert Dispatches (strictly exclude Real-Time templates)
       const smsQuery = `
@@ -2258,18 +2411,38 @@ router.get('/daily-dispatches', async (req, res) => {
         ORDER BY created_at DESC
       `;
       const smsResult = await client.query(smsQuery, queryParams);
-
-      const emails = emailsResult.rows;
       const sms = smsResult.rows;
 
-      const uniqueEmailSchemes = new Set(emails.map(e => e.scheme_id)).size;
-      const uniqueSmsSchemes = new Set(sms.map(s => s.scheme_id)).size;
-      const allUniqueSchemes = new Set([...emails.map(e => e.scheme_id), ...sms.map(s => s.scheme_id)]).size;
+      const uniqueEmailSchemes = new Set(
+        emails.flatMap((e: any) => {
+          if (Array.isArray(e.scheme_ids)) return e.scheme_ids;
+          if (typeof e.scheme_ids === 'string') {
+            try { return JSON.parse(e.scheme_ids); } catch { return [e.scheme_id]; }
+          }
+          return [e.scheme_id];
+        }).filter(Boolean)
+      ).size;
+      const uniqueSmsSchemes = new Set(sms.map(s => s.scheme_id).filter(Boolean)).size;
+      const allUniqueSchemes = new Set([
+        ...emails.flatMap((e: any) => {
+          if (Array.isArray(e.scheme_ids)) return e.scheme_ids;
+          if (typeof e.scheme_ids === 'string') {
+            try { return JSON.parse(e.scheme_ids); } catch { return [e.scheme_id]; }
+          }
+          return [e.scheme_id];
+        }).filter(Boolean),
+        ...sms.map(s => s.scheme_id).filter(Boolean)
+      ]).size;
+
+      const deEmailsCount = emails.filter((e: any) => String(e.engineer_role || '').toLowerCase().includes('de') || String(e.engineer_role || '').toLowerCase().includes('ae')).length;
+      const eeEmailsCount = emails.filter((e: any) => String(e.engineer_role || '').toLowerCase().includes('executive') || String(e.engineer_role || '').toLowerCase().includes('ee')).length;
 
       res.json({
         summary: {
           totalEmails: emails.length,
           actualEmailsSent: emails.length, // 1 consolidated email per engineer
+          deEmails: deEmailsCount,
+          eeEmails: eeEmailsCount,
           totalSms: sms.length,
           totalDispatches: emails.length + sms.length,
           schemesCount: allUniqueSchemes,

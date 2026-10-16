@@ -219,6 +219,31 @@ async function ensureDailyAlertTables(db: any) {
         error_message TEXT,
         attempted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
+
+      CREATE TABLE IF NOT EXISTS consolidated_email_dispatches (
+        id SERIAL PRIMARY KEY,
+        dispatch_date DATE NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date,
+        sent_time VARCHAR(20),
+        engineer_name VARCHAR(255) NOT NULL,
+        engineer_email VARCHAR(255) NOT NULL,
+        engineer_role VARCHAR(100) DEFAULT 'DE/AE (Civil)',
+        engineer_mobile VARCHAR(30),
+        total_schemes INTEGER NOT NULL DEFAULT 1,
+        scheme_ids JSONB DEFAULT '[]'::jsonb,
+        scheme_names JSONB DEFAULT '[]'::jsonb,
+        total_alerts INTEGER NOT NULL DEFAULT 1,
+        lpcd_alerts_count INTEGER DEFAULT 0,
+        chlorine_alerts_count INTEGER DEFAULT 0,
+        pressure_alerts_count INTEGER DEFAULT 0,
+        offline_alerts_count INTEGER DEFAULT 0,
+        master_token VARCHAR(128),
+        subject VARCHAR(255) DEFAULT '🚨 Critical Water Scheme Alerts - Action Required',
+        status VARCHAR(50) DEFAULT 'SENT',
+        error_message TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_consolidated_email_dispatches_date ON consolidated_email_dispatches(dispatch_date);
+      CREATE INDEX IF NOT EXISTS idx_consolidated_email_dispatches_email ON consolidated_email_dispatches(engineer_email);
     `);
     isDailyAlertTablesReady = true;
   } catch (e) {
@@ -533,8 +558,8 @@ export async function runDailyAlertsJob() {
     // We will batch insert into emailAlertLogs at the end
     const emailLogsToInsert: any[] = [];
 
-    // Group alerts by Engineer Email (supporting multiple engineer names if an email is shared)
-    const emailsToSend: Record<string, { name: string; names: string[]; alerts: Alert[] }> = {};
+    // Group alerts by Engineer (email + role + name) to ensure each designated officer receives a consolidated email
+    const emailsToSend: Record<string, { email: string; name: string; role: string; alerts: Alert[] }> = {};
 
     // Group alerts by Engineer Mobile
     const smsToSend: Record<string, { name: string; email?: string; alerts: Alert[] }> = {};
@@ -588,26 +613,24 @@ export async function runDailyAlertsJob() {
             .filter(e => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(e));
         };
 
-        const addEngineerEmails = (emails: string[], name: string, alerts: Alert[]) => {
+        const addEngineerEmails = (emails: string[], name: string, role: string, alerts: Alert[]) => {
           if (!alerts || alerts.length === 0) return;
           const taggedAlerts = alerts.map(a => ({
             ...a,
             assignedEngineerName: name,
+            assignedEngineerRole: role,
           }));
           emails.forEach(email => {
-            if (!emailsToSend[email]) {
-              emailsToSend[email] = {
+            const groupKey = `${email}:::${role}:::${name}`;
+            if (!emailsToSend[groupKey]) {
+              emailsToSend[groupKey] = {
+                email,
                 name,
-                names: name ? [name] : [],
+                role,
                 alerts: [],
               };
-            } else {
-              if (name && !emailsToSend[email].names.includes(name)) {
-                emailsToSend[email].names.push(name);
-                emailsToSend[email].name = emailsToSend[email].names.join(" / ");
-              }
             }
-            emailsToSend[email].alerts.push(...taggedAlerts);
+            emailsToSend[groupKey].alerts.push(...taggedAlerts);
           });
         };
 
@@ -638,8 +661,8 @@ export async function runDailyAlertsJob() {
         // 1. DE / AE (Civil): DAILY (all active alerts on this scheme)
         const deCivilAlerts = schemeAlerts;
 
-        // 2. EE (Civil): EVERY 3 DAYS FOR REPEATING ALERTS (Day 3, 6, 9, 12, etc.)
-        const eeCivilAlerts = schemeAlerts.filter(a => (a.streak_days || 1) >= 3 && (a.streak_days || 1) % 3 === 0);
+        // 2. EE (Civil): Executive Engineers receive daily alerts for all schemes in their division
+        const eeCivilAlerts = schemeAlerts;
 
         // 3. Superintending Engineer (SE) & Chief Engineer (CE): EVERY 7 DAYS FOR REPEATING ALERTS (Day 7, 14, 21, etc.)
         const ceSeAlerts = schemeAlerts.filter(a => (a.streak_days || 1) >= 7 && (a.streak_days || 1) % 7 === 0);
@@ -655,6 +678,7 @@ export async function runDailyAlertsJob() {
         addEngineerEmails(
           sanitizeEmails(engineer.de_ae_civil_email || engineer.civil_engineer_email),
           engineer.de_ae_civil_name || engineer.civil_engineer_name || "DE/AE (Civil)",
+          "DE/AE (Civil)",
           deCivilAlerts
         );
         addEngineerMobiles(
@@ -664,10 +688,11 @@ export async function runDailyAlertsJob() {
           deCivilAlerts
         );
 
-        // 2. EE (Civil) - Repeating Alerts Every 3 Days (Email & SMS)
+        // 2. EE (Civil) - Executive Engineer (Daily Email)
         addEngineerEmails(
           sanitizeEmails(engineer.ee_civil_email),
-          engineer.ee_civil_name || "EE (Civil)",
+          engineer.ee_civil_name || "Executive Engineer (Civil)",
+          "Executive Engineer (Civil)",
           eeCivilAlerts
         );
         addEngineerMobiles(
@@ -681,6 +706,7 @@ export async function runDailyAlertsJob() {
         addEngineerEmails(
           sanitizeEmails(engineer.se_email),
           engineer.se_name || "Superintending Engineer (SE)",
+          "Superintending Engineer (SE)",
           ceSeAlerts
         );
         addEngineerMobiles(
@@ -693,7 +719,8 @@ export async function runDailyAlertsJob() {
         // 4. Chief Engineer (CE) - Repeating Alerts Every 7 Days (Email & SMS)
         addEngineerEmails(
           sanitizeEmails(engineer.chief_engineer_email),
-          engineer.chief_engineer_name || "Chief Engineer",
+          engineer.chief_engineer_name || "Chief Engineer (CE)",
+          "Chief Engineer (CE)",
           ceSeAlerts
         );
         addEngineerMobiles(
@@ -708,6 +735,7 @@ export async function runDailyAlertsJob() {
           addEngineerEmails(
             sanitizeEmails(execContacts.ms.email),
             execContacts.ms.name || "Member Secretary (MS)",
+            "Member Secretary (MS)",
             msAlerts
           );
         }
@@ -725,6 +753,7 @@ export async function runDailyAlertsJob() {
           addEngineerEmails(
             sanitizeEmails(execContacts.ps.email),
             execContacts.ps.name || "Principal Secretary (PS)",
+            "Principal Secretary (PS)",
             psAlerts
           );
         }
@@ -794,9 +823,9 @@ export async function runDailyAlertsJob() {
     // Ensure email supporting tables exist once
     await ensureDailyAlertTables(db);
 
-    // Send the consolidated emails
-    const emails = Object.keys(emailsToSend);
-    console.log(`📧 Preparing to send ${emails.length} alert emails...`);
+    // Send the consolidated emails (keyed engineer-wise: email + role + name)
+    const groupKeys = Object.keys(emailsToSend);
+    console.log(`📧 Preparing to send ${groupKeys.length} consolidated alert emails...`);
 
     let totalEmailsSent = 0;
     let totalEmailsFailed = 0;
@@ -809,8 +838,8 @@ export async function runDailyAlertsJob() {
       count: number;
     }> = [];
 
-    for (const email of emails) {
-      const { name, alerts } = emailsToSend[email];
+    for (const groupKey of groupKeys) {
+      const { email, name, role, alerts } = emailsToSend[groupKey];
       const uniqueAlertsMap = new Map();
       alerts.forEach(a => {
         const key = `${a.scheme_id}-${a.village_name}-${a.esr_name}-${a.chlorine_issue}-${a.chlorine_type}-${a.pressure_issue}-${a.lpcd_issue}-${a.offline_issue}-${a.offline_sensors}`;
@@ -870,7 +899,7 @@ export async function runDailyAlertsJob() {
 
       if (isSuccess) {
         totalEmailsSent++;
-        console.log(`✅ Sent alert email to ${email} for ${uniqueAlerts.length} issues.`);
+        console.log(`✅ Sent alert email to ${email} (${name} - ${role}) for ${uniqueAlerts.length} issues.`);
       } else {
         totalEmailsFailed++;
         const primarySchemeId = uniqueAlerts[0]?.scheme_id || null;
@@ -889,7 +918,7 @@ export async function runDailyAlertsJob() {
           count: uniqueAlerts.length,
         });
 
-        console.error(`❌ Failed to send alert email to ${email}:`, failureError);
+        console.error(`❌ Failed to send alert email to ${email} (${name}):`, failureError);
 
         try {
           await db.execute(sql`
@@ -899,6 +928,45 @@ export async function runDailyAlertsJob() {
         } catch (dbErr) {
           console.error("⚠️ Error saving failure to email_delivery_failures table:", dbErr);
         }
+      }
+
+      // Record this consolidated email dispatch into consolidated_email_dispatches table
+      try {
+        const distinctSchemeIds = Array.from(new Set(uniqueAlerts.map(a => a.scheme_id).filter(Boolean)));
+        const distinctSchemeNames = Array.from(new Set(uniqueAlerts.map(a => a.scheme_name || a.scheme_id).filter(Boolean)));
+        const lpcdCount = uniqueAlerts.filter(a => a.lpcd_issue).length;
+        const clCount = uniqueAlerts.filter(a => a.chlorine_issue).length;
+        const prCount = uniqueAlerts.filter(a => a.pressure_issue).length;
+        const offCount = uniqueAlerts.filter(a => a.offline_issue).length;
+
+        await db.execute(sql`
+          INSERT INTO consolidated_email_dispatches (
+            dispatch_date, sent_time, engineer_name, engineer_email, engineer_role,
+            total_schemes, scheme_ids, scheme_names, total_alerts,
+            lpcd_alerts_count, chlorine_alerts_count, pressure_alerts_count, offline_alerts_count,
+            master_token, subject, status, error_message
+          ) VALUES (
+            (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date,
+            ${istTimeStr},
+            ${name},
+            ${email},
+            ${role || 'DE/AE (Civil)'},
+            ${distinctSchemeIds.length || 1},
+            ${JSON.stringify(distinctSchemeIds)}::jsonb,
+            ${JSON.stringify(distinctSchemeNames)}::jsonb,
+            ${uniqueAlerts.length},
+            ${lpcdCount},
+            ${clCount},
+            ${prCount},
+            ${offCount},
+            ${masterToken},
+            '🚨 Critical Water Scheme Alerts - Action Required',
+            ${isSuccess ? 'SENT' : 'FAILED'},
+            ${failureError || null}
+          )
+        `);
+      } catch (insertErr) {
+        console.error("Could not log consolidated email dispatch:", insertErr);
       }
 
       // Add 1-second delay between outgoing emails to prevent mail server rate-limit blocks

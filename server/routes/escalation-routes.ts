@@ -457,7 +457,8 @@ router.get("/export-excel", async (req: Request, res: Response) => {
 
     let exportSchemes = schemes;
     if (levelFilter && [1, 2, 3, 4, 5].includes(levelFilter)) {
-      exportSchemes = schemes.filter((s) => s.escalation_level === levelFilter);
+      const minDays = levelFilter === 1 ? 1 : levelFilter === 2 ? 3 : levelFilter === 3 ? 7 : levelFilter === 4 ? 10 : 15;
+      exportSchemes = schemes.filter((s) => s.max_streak_days >= minDays || s.escalation_level >= levelFilter);
     }
 
     const workbook = new ExcelJS.Workbook();

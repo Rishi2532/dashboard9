@@ -1061,6 +1061,7 @@ export default function AlertsProgressPage() {
           item.villageName.toLowerCase().includes(query) ||
           item.esrName.toLowerCase().includes(query) ||
           item.recipientName.toLowerCase().includes(query) ||
+          (item.recipientRole && item.recipientRole.toLowerCase().includes(query)) ||
           item.recipientContact.toLowerCase().includes(query) ||
           (item.ticketId && item.ticketId.toLowerCase().includes(query)) ||
           item.alertType.toLowerCase().includes(query) ||
@@ -2538,7 +2539,11 @@ export default function AlertsProgressPage() {
               <div className="text-2xl font-black text-[#0f4c81] font-mono mt-0.5">
                 {dailyDispatchesData?.summary?.totalEmails ?? emailCount}
               </div>
-              <div className="text-[11px] text-blue-700 font-medium">To Scheme Engineers & Officers</div>
+              <div className="text-[11px] text-blue-700 font-medium">
+                {dailyDispatchesData?.summary?.deEmails !== undefined && dailyDispatchesData?.summary?.eeEmails !== undefined
+                  ? `${dailyDispatchesData.summary.deEmails} DE/AE · ${dailyDispatchesData.summary.eeEmails} EE`
+                  : "To Scheme Engineers & Officers"}
+              </div>
             </div>
           </div>
 

@@ -148,7 +148,7 @@ export async function getEscalationStatus(options: {
   schemes: SchemeEscalationItem[];
 }> {
   const db = await getDB();
-  const daysLookback = options.daysLookback || 14;
+  const daysLookback = options.daysLookback || 30;
 
   // 1. Fetch all assigned scheme engineers (Civil hierarchy)
   const engRows = await db.select().from(schemeEngineerDetails);

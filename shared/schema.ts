@@ -1639,3 +1639,35 @@ export const insertRealtimeAcknowledgementSchema = createInsertSchema(realtimeAc
 export type InsertRealtimeAcknowledgement = z.infer<typeof insertRealtimeAcknowledgementSchema>;
 export type RealtimeAcknowledgement = typeof realtimeAcknowledgements.$inferSelect;
 
+// Consolidated Email Dispatches table (tracks actual emails sent engineer-wise, bundling all alerts)
+export const consolidatedEmailDispatches = pgTable("consolidated_email_dispatches", {
+  id: serial("id").primaryKey(),
+  dispatch_date: date("dispatch_date").defaultNow().notNull(),
+  sent_time: varchar("sent_time", { length: 20 }),
+  engineer_name: varchar("engineer_name", { length: 255 }).notNull(),
+  engineer_email: varchar("engineer_email", { length: 255 }).notNull(),
+  engineer_role: varchar("engineer_role", { length: 100 }).default("DE/AE (Civil)").notNull(),
+  engineer_mobile: varchar("engineer_mobile", { length: 30 }),
+  total_schemes: integer("total_schemes").default(1).notNull(),
+  scheme_ids: jsonb("scheme_ids").default([]),
+  scheme_names: jsonb("scheme_names").default([]),
+  total_alerts: integer("total_alerts").default(1).notNull(),
+  lpcd_alerts_count: integer("lpcd_alerts_count").default(0),
+  chlorine_alerts_count: integer("chlorine_alerts_count").default(0),
+  pressure_alerts_count: integer("pressure_alerts_count").default(0),
+  offline_alerts_count: integer("offline_alerts_count").default(0),
+  master_token: varchar("master_token", { length: 128 }),
+  subject: varchar("subject", { length: 255 }).default("🚨 Critical Water Scheme Alerts - Action Required"),
+  status: varchar("status", { length: 50 }).default("SENT"),
+  error_message: text("error_message"),
+  created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const insertConsolidatedEmailDispatchSchema = createInsertSchema(consolidatedEmailDispatches).omit({
+  id: true,
+  created_at: true,
+});
+
+export type InsertConsolidatedEmailDispatch = z.infer<typeof insertConsolidatedEmailDispatchSchema>;
+export type ConsolidatedEmailDispatch = typeof consolidatedEmailDispatches.$inferSelect;
+
