@@ -387,50 +387,66 @@ export async function getEscalationStatus(options: {
   const dispatches = {
     today: {
       total_emails: 0,
+      total_officers: 0,
       total_sms: 0,
       de_emails: 0,
+      de_officers: 0,
       de_sms: 0,
       ee_emails: 0,
+      ee_officers: 0,
       ee_sms: 0,
       se_emails: 0,
+      se_officers: 0,
       se_sms: 0,
       ce_emails: 0,
+      ce_officers: 0,
       ce_sms: 0,
       ce_se_emails: 0,
+      ce_se_officers: 0,
       ce_se_sms: 0,
       ms_emails: 0,
+      ms_officers: 0,
       ms_sms: 0,
       ps_emails: 0,
+      ps_officers: 0,
       ps_sms: 0,
       categories: {
-        lpcd: { emails: 0, sms: 0 },
-        chlorine: { emails: 0, sms: 0 },
-        pressure: { emails: 0, sms: 0 },
-        offline: { emails: 0, sms: 0 },
+        lpcd: { emails: 0, officers: 0, sms: 0 },
+        chlorine: { emails: 0, officers: 0, sms: 0 },
+        pressure: { emails: 0, officers: 0, sms: 0 },
+        offline: { emails: 0, officers: 0, sms: 0 },
       },
     },
     last_7_days: {
       total_emails: 0,
+      total_officers: 0,
       total_sms: 0,
       de_emails: 0,
+      de_officers: 0,
       de_sms: 0,
       ee_emails: 0,
+      ee_officers: 0,
       ee_sms: 0,
       se_emails: 0,
+      se_officers: 0,
       se_sms: 0,
       ce_emails: 0,
+      ce_officers: 0,
       ce_sms: 0,
       ce_se_emails: 0,
+      ce_se_officers: 0,
       ce_se_sms: 0,
       ms_emails: 0,
+      ms_officers: 0,
       ms_sms: 0,
       ps_emails: 0,
+      ps_officers: 0,
       ps_sms: 0,
       categories: {
-        lpcd: { emails: 0, sms: 0 },
-        chlorine: { emails: 0, sms: 0 },
-        pressure: { emails: 0, sms: 0 },
-        offline: { emails: 0, sms: 0 },
+        lpcd: { emails: 0, officers: 0, sms: 0 },
+        chlorine: { emails: 0, officers: 0, sms: 0 },
+        pressure: { emails: 0, officers: 0, sms: 0 },
+        offline: { emails: 0, officers: 0, sms: 0 },
       },
     },
   };
@@ -567,7 +583,8 @@ export async function getEscalationStatus(options: {
             WHEN ea.alert_type ILIKE '%pressure%' THEN 'pressure'
             ELSE 'offline'
           END as category,
-          COUNT(DISTINCT LOWER(TRIM(ea.engineer_name))) as email_count
+          COUNT(DISTINCT LOWER(TRIM(ea.engineer_name))) as officer_count,
+          COUNT(DISTINCT ea.scheme_id) as email_count
         FROM email_acknowledgements ea
         WHERE ea.sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
         GROUP BY ea.sent_date::text, 
@@ -665,38 +682,67 @@ export async function getEscalationStatus(options: {
       ps: new Set(),
     };
 
+    const todayEmailsCountByTier: Record<string, number> = { de: 0, ee: 0, se: 0, ce: 0, ms: 0, ps: 0 };
+    const last7DaysEmailsCountByTier: Record<string, number> = { de: 0, ee: 0, se: 0, ce: 0, ms: 0, ps: 0 };
+    let todayTotalEmailDispatches = 0;
+    let last7DaysTotalEmailDispatches = 0;
+
     (emailStatsRes.rows || []).forEach((r: any) => {
       const isToday = r.sent_date === todayStr;
       const recipient = String(r.engineer_name || r.engineer_email || '').toLowerCase().trim();
       const tier: 'de' | 'ee' | 'se' | 'ce' | 'ms' | 'ps' = (r.tier as any) || 'de';
 
+      last7DaysTotalEmailDispatches++;
+      last7DaysEmailsCountByTier[tier] = (last7DaysEmailsCountByTier[tier] || 0) + 1;
+
       if (recipient) {
         last7DaysUniqueEmails.add(recipient);
         last7DaysUniqueByTier[tier]?.add(recipient);
-        if (isToday) {
+      }
+
+      if (isToday) {
+        todayTotalEmailDispatches++;
+        todayEmailsCountByTier[tier] = (todayEmailsCountByTier[tier] || 0) + 1;
+        if (recipient) {
           todayUniqueEmails.add(recipient);
           todayUniqueByTier[tier]?.add(recipient);
         }
       }
     });
 
-    dispatches.today.total_emails = todayUniqueEmails.size;
-    dispatches.today.de_emails = todayUniqueByTier.de.size;
-    dispatches.today.ee_emails = todayUniqueByTier.ee.size;
-    dispatches.today.se_emails = todayUniqueByTier.se.size;
-    dispatches.today.ce_emails = todayUniqueByTier.ce.size;
-    dispatches.today.ce_se_emails = todayUniqueByTier.se.size + todayUniqueByTier.ce.size;
-    dispatches.today.ms_emails = todayUniqueByTier.ms.size;
-    dispatches.today.ps_emails = todayUniqueByTier.ps.size;
+    dispatches.today.total_emails = todayTotalEmailDispatches;
+    dispatches.today.total_officers = todayUniqueEmails.size;
+    dispatches.today.de_emails = todayEmailsCountByTier.de;
+    dispatches.today.de_officers = todayUniqueByTier.de.size;
+    dispatches.today.ee_emails = todayEmailsCountByTier.ee;
+    dispatches.today.ee_officers = todayUniqueByTier.ee.size;
+    dispatches.today.se_emails = todayEmailsCountByTier.se;
+    dispatches.today.se_officers = todayUniqueByTier.se.size;
+    dispatches.today.ce_emails = todayEmailsCountByTier.ce;
+    dispatches.today.ce_officers = todayUniqueByTier.ce.size;
+    dispatches.today.ce_se_emails = todayEmailsCountByTier.se + todayEmailsCountByTier.ce;
+    dispatches.today.ce_se_officers = todayUniqueByTier.se.size + todayUniqueByTier.ce.size;
+    dispatches.today.ms_emails = todayEmailsCountByTier.ms;
+    dispatches.today.ms_officers = todayUniqueByTier.ms.size;
+    dispatches.today.ps_emails = todayEmailsCountByTier.ps;
+    dispatches.today.ps_officers = todayUniqueByTier.ps.size;
 
-    dispatches.last_7_days.total_emails = last7DaysUniqueEmails.size;
-    dispatches.last_7_days.de_emails = last7DaysUniqueByTier.de.size;
-    dispatches.last_7_days.ee_emails = last7DaysUniqueByTier.ee.size;
-    dispatches.last_7_days.se_emails = last7DaysUniqueByTier.se.size;
-    dispatches.last_7_days.ce_emails = last7DaysUniqueByTier.ce.size;
-    dispatches.last_7_days.ce_se_emails = last7DaysUniqueByTier.se.size + last7DaysUniqueByTier.ce.size;
-    dispatches.last_7_days.ms_emails = last7DaysUniqueByTier.ms.size;
-    dispatches.last_7_days.ps_emails = last7DaysUniqueByTier.ps.size;
+    dispatches.last_7_days.total_emails = last7DaysTotalEmailDispatches;
+    dispatches.last_7_days.total_officers = last7DaysUniqueEmails.size;
+    dispatches.last_7_days.de_emails = last7DaysEmailsCountByTier.de;
+    dispatches.last_7_days.de_officers = last7DaysUniqueByTier.de.size;
+    dispatches.last_7_days.ee_emails = last7DaysEmailsCountByTier.ee;
+    dispatches.last_7_days.ee_officers = last7DaysUniqueByTier.ee.size;
+    dispatches.last_7_days.se_emails = last7DaysEmailsCountByTier.se;
+    dispatches.last_7_days.se_officers = last7DaysUniqueByTier.se.size;
+    dispatches.last_7_days.ce_emails = last7DaysEmailsCountByTier.ce;
+    dispatches.last_7_days.ce_officers = last7DaysUniqueByTier.ce.size;
+    dispatches.last_7_days.ce_se_emails = last7DaysEmailsCountByTier.se + last7DaysEmailsCountByTier.ce;
+    dispatches.last_7_days.ce_se_officers = last7DaysUniqueByTier.se.size + last7DaysUniqueByTier.ce.size;
+    dispatches.last_7_days.ms_emails = last7DaysEmailsCountByTier.ms;
+    dispatches.last_7_days.ms_officers = last7DaysUniqueByTier.ms.size;
+    dispatches.last_7_days.ps_emails = last7DaysEmailsCountByTier.ps;
+    dispatches.last_7_days.ps_officers = last7DaysUniqueByTier.ps.size;
 
     (smsStatsRes.rows || []).forEach((r: any) => {
       const isToday = r.sent_date === todayStr;
@@ -747,12 +793,15 @@ export async function getEscalationStatus(options: {
     // Populate category breakdown
     (categoryEmailStatsRes.rows || []).forEach((r: any) => {
       const cat = r.category as 'lpcd' | 'chlorine' | 'pressure' | 'offline';
-      const count = Number(r.email_count || 0);
+      const emailCount = Number(r.email_count || 0);
+      const officerCount = Number(r.officer_count || 0);
       if (dispatches.last_7_days.categories[cat]) {
-        dispatches.last_7_days.categories[cat].emails += count;
+        dispatches.last_7_days.categories[cat].emails += emailCount;
+        dispatches.last_7_days.categories[cat].officers += officerCount;
       }
       if (r.sent_date === todayStr && dispatches.today.categories[cat]) {
-        dispatches.today.categories[cat].emails = count;
+        dispatches.today.categories[cat].emails = emailCount;
+        dispatches.today.categories[cat].officers = officerCount;
       }
     });
 

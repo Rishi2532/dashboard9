@@ -3256,7 +3256,13 @@ export default function AlertsProgressPage() {
     // Count real dispatched engineers strictly sourced from email_acknowledgements
     const dispatchedEngineersList = notifiedEngineersList.filter(e => e.isDispatched);
     const notifiedOfficersCount = dispatchedEngineersList.length || notifiedEngineersList.filter(e => e.ackCount > 0).length || (baseData.some(r => r.acknowledgements?.length) ? 1 : 0);
-    const emailsSentCount = notifiedOfficersCount;
+    // Schemes with dispatched alert emails (strictly 1 consolidated email per scheme)
+    const dispatchedSchemesCount = new Set(
+      baseData
+        .filter(r => (r.acknowledgements && r.acknowledgements.length > 0))
+        .map(r => r.scheme_id)
+    ).size || new Set(baseData.map(r => r.scheme_id)).size;
+    const emailsSentCount = dispatchedSchemesCount;
 
     const totalEngineers = dispatchedEngineersList.length > 0 ? dispatchedEngineersList.length : totalRosterEngineers;
     const totalAckEngineers = notifiedEngineersList.filter(e => e.isAcknowledged).length;
@@ -3699,7 +3705,7 @@ export default function AlertsProgressPage() {
 
               <div className="mt-2.5 pt-2 border-t border-indigo-100/80 flex items-center justify-between gap-1">
                 <span className="text-[9.5px] text-indigo-800 font-semibold truncate" title={`1 consolidated email sent per engineer bundling all their assigned schemes`}>
-                  Consolidated Dispatch ({emailsSentCount} Officers)
+                  Consolidated Dispatch ({notifiedOfficersCount} Officers)
                 </span>
                 <button
                   type="button"

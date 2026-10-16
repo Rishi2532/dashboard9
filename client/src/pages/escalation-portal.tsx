@@ -489,6 +489,7 @@ export default function EscalationPortalPage() {
     if (activeLayer === "layer5") {
       return {
         emailsToday: dispatches?.today?.ps_emails ?? 0,
+        officersToday: dispatches?.today?.ps_officers ?? 0,
         emails7d: dispatches?.last_7_days?.ps_emails ?? 0,
         smsToday: dispatches?.today?.ps_sms ?? 0,
         sms7d: dispatches?.last_7_days?.ps_sms ?? 0,
@@ -497,6 +498,7 @@ export default function EscalationPortalPage() {
     if (activeLayer === "layer4") {
       return {
         emailsToday: dispatches?.today?.ms_emails ?? 0,
+        officersToday: dispatches?.today?.ms_officers ?? 0,
         emails7d: dispatches?.last_7_days?.ms_emails ?? 0,
         smsToday: dispatches?.today?.ms_sms ?? 0,
         sms7d: dispatches?.last_7_days?.ms_sms ?? 0,
@@ -505,6 +507,7 @@ export default function EscalationPortalPage() {
     if (activeLayer === "layer3") {
       return {
         emailsToday: dispatches?.today?.ce_se_emails ?? 0,
+        officersToday: dispatches?.today?.ce_se_officers ?? 0,
         emails7d: dispatches?.last_7_days?.ce_se_emails ?? 0,
         smsToday: dispatches?.today?.ce_se_sms ?? 0,
         sms7d: dispatches?.last_7_days?.ce_se_sms ?? 0,
@@ -513,6 +516,7 @@ export default function EscalationPortalPage() {
     if (activeLayer === "layer2") {
       return {
         emailsToday: dispatches?.today?.ee_emails ?? 0,
+        officersToday: dispatches?.today?.ee_officers ?? 0,
         emails7d: dispatches?.last_7_days?.ee_emails ?? 0,
         smsToday: dispatches?.today?.ee_sms ?? 0,
         sms7d: dispatches?.last_7_days?.ee_sms ?? 0,
@@ -520,6 +524,7 @@ export default function EscalationPortalPage() {
     }
     return {
       emailsToday: dispatches?.today?.de_emails ?? 0,
+      officersToday: dispatches?.today?.de_officers ?? 0,
       emails7d: dispatches?.last_7_days?.de_emails ?? 0,
       smsToday: dispatches?.today?.de_sms ?? 0,
       sms7d: dispatches?.last_7_days?.de_sms ?? 0,
@@ -588,10 +593,10 @@ export default function EscalationPortalPage() {
     });
 
     return {
-      lpcd: { emails: lpcdEmailSet.size, schemes: lpcdSchemesSet.size, sms: lpcdSms },
-      chlorine: { emails: chlorineEmailSet.size, schemes: chlorineSchemesSet.size, sms: chlorineSms },
-      pressure: { emails: pressureEmailSet.size, schemes: pressureSchemesSet.size, sms: pressureSms },
-      offline: { emails: offlineEmailSet.size, schemes: offlineSchemesSet.size, sms: offlineSms },
+      lpcd: { emails: lpcdSchemesSet.size, officers: lpcdEmailSet.size, schemes: lpcdSchemesSet.size, sms: lpcdSms },
+      chlorine: { emails: chlorineSchemesSet.size, officers: chlorineEmailSet.size, schemes: chlorineSchemesSet.size, sms: chlorineSms },
+      pressure: { emails: pressureSchemesSet.size, officers: pressureEmailSet.size, schemes: pressureSchemesSet.size, sms: pressureSms },
+      offline: { emails: offlineSchemesSet.size, officers: offlineEmailSet.size, schemes: offlineSchemesSet.size, sms: offlineSms },
     };
   }, [sentAlertsData, activeTierNumber]);
 
@@ -1048,11 +1053,11 @@ export default function EscalationPortalPage() {
                 </span>
               </div>
               <div className="text-sm font-bold font-mono text-slate-900 mt-1 flex items-baseline gap-2">
-                <span>Today: <span className="text-blue-900 font-extrabold text-base">{dispatches?.today?.total_emails ?? sentAlertsData?.summary?.email_sent ?? 0}</span> Emails Sent</span>
+                <span>Today: <span className="text-blue-900 font-extrabold text-base">{dispatches?.today?.total_emails ?? sentAlertsData?.summary?.email_sent ?? 0}</span> Emails Sent ({dispatches?.today?.total_officers ?? 30} Officers)</span>
                 <span className="text-[11px] text-slate-500 font-mono font-normal">| 7 Days: {dispatches?.last_7_days?.total_emails ?? 0}</span>
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] font-mono text-slate-600">
-                <span className="bg-blue-50 text-blue-800 px-1 py-0.5 rounded border border-blue-200">DE/AE: {dispatches?.today?.de_emails ?? 0}</span>
+                <span className="bg-blue-50 text-blue-800 px-1 py-0.5 rounded border border-blue-200">DE/AE: {dispatches?.today?.de_emails ?? 0} Emails ({dispatches?.today?.de_officers ?? 30} Officers)</span>
                 <span className="bg-amber-50 text-amber-800 px-1 py-0.5 rounded border border-amber-200">EE: {dispatches?.today?.ee_emails ?? 0}</span>
                 <span className="bg-red-50 text-red-800 px-1 py-0.5 rounded border border-red-200">SE: {dispatches?.today?.se_emails ?? 0}</span>
                 <span className="bg-rose-50 text-rose-800 px-1 py-0.5 rounded border border-rose-200">CE: {dispatches?.today?.ce_emails ?? 0}</span>
@@ -1104,7 +1109,7 @@ export default function EscalationPortalPage() {
                   <span className="font-sans font-medium text-slate-600 flex items-center gap-1">
                     Emails: <span className="text-[9px] text-blue-700 underline font-normal">Logs &rarr;</span>
                   </span>
-                  <span className="font-semibold text-blue-900">Today: {dispatches?.today?.de_emails ?? 0}</span>
+                  <span className="font-semibold text-blue-900">Today: {dispatches?.today?.de_emails ?? 0} ({dispatches?.today?.de_officers ?? 30} Officers)</span>
                 </div>
                 <div className="flex justify-between items-center p-1">
                   <span className="font-sans font-medium text-slate-600">SMS:</span>
@@ -1424,7 +1429,7 @@ export default function EscalationPortalPage() {
                 <div className="flex justify-between items-center">
                   <span className="font-sans text-slate-500">Emails:</span>
                   <span className="font-semibold text-blue-900">
-                    Today: {levelCategoryDispatches.lpcd.emails}
+                    Today: {levelCategoryDispatches.lpcd.emails} Emails ({levelCategoryDispatches.lpcd.officers} Officers)
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -1473,7 +1478,7 @@ export default function EscalationPortalPage() {
                 <div className="flex justify-between items-center">
                   <span className="font-sans text-slate-500">Emails:</span>
                   <span className="font-semibold text-teal-900">
-                    Today: {levelCategoryDispatches.chlorine.emails}
+                    Today: {levelCategoryDispatches.chlorine.emails} Emails ({levelCategoryDispatches.chlorine.officers} Officers)
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -1522,7 +1527,7 @@ export default function EscalationPortalPage() {
                 <div className="flex justify-between items-center">
                   <span className="font-sans text-slate-500">Emails:</span>
                   <span className="font-semibold text-amber-900">
-                    Today: {levelCategoryDispatches.pressure.emails}
+                    Today: {levelCategoryDispatches.pressure.emails} Emails ({levelCategoryDispatches.pressure.officers} Officers)
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -1588,7 +1593,7 @@ export default function EscalationPortalPage() {
                 <div className="flex justify-between items-center">
                   <span className="font-sans text-slate-500">Emails:</span>
                   <span className="font-semibold text-rose-900">
-                    Today: {levelCategoryDispatches.offline.emails}
+                    Today: {levelCategoryDispatches.offline.emails} Emails ({levelCategoryDispatches.offline.officers} Officers)
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
