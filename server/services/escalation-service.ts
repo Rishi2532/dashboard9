@@ -461,7 +461,26 @@ export async function getEscalationStatus(options: {
 
     const [emailStatsRes, smsStatsRes, engineerRosterRes, categoryEmailStatsRes, categorySmsStatsRes] = await Promise.all([
       db.execute(sql`
-        -- 1. Actual dispatches to officers from email_acknowledgements (grouped per recipient per tier per day)
+        -- 1. Actual dispatches to officers from consolidated_email_dispatches (exact real emails sent)
+        SELECT 
+          dispatch_date::text as sent_date,
+          'ALL' as scheme_id,
+          LOWER(TRIM(engineer_email)) as engineer_email,
+          engineer_name,
+          CASE 
+            WHEN engineer_role ILIKE '%principal%' THEN 'ps'
+            WHEN engineer_role ILIKE '%member%' THEN 'ms'
+            WHEN engineer_role ILIKE '%chief%' THEN 'ce'
+            WHEN engineer_role ILIKE '%superintending%' THEN 'se'
+            WHEN engineer_role ILIKE '%executive%' OR engineer_role ILIKE '%ee%' THEN 'ee'
+            ELSE 'de'
+          END as tier
+        FROM consolidated_email_dispatches
+        WHERE dispatch_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
+
+        UNION ALL
+
+        -- 1b. Fallback to email_acknowledgements for dates prior to consolidated_email_dispatches
         SELECT 
           ea.sent_date::text as sent_date,
           ea.scheme_id,
@@ -474,13 +493,14 @@ export async function getEscalationStatus(options: {
                  AND LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.chief_engineer_name), ''))) THEN 'ce'
             WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.se_email), ''))) 
                  AND LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.se_name), ''))) THEN 'se'
-            WHEN (LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_civil_email), ''))) OR LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_mech_email), ''))))
-                 AND (LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.ee_civil_name), ''))) OR LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.ee_mech_name), '')))) THEN 'ee'
+            WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_civil_email), '')))
+                 AND LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.ee_civil_name), ''))) THEN 'ee'
             ELSE 'de'
           END as tier
         FROM email_acknowledgements ea
         LEFT JOIN scheme_engineer_details s ON s.scheme_id = ea.scheme_id
         WHERE ea.sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
+          AND ea.sent_date NOT IN (SELECT DISTINCT dispatch_date FROM consolidated_email_dispatches)
         GROUP BY ea.sent_date::text, ea.scheme_id, LOWER(TRIM(ea.engineer_email))
 
         UNION ALL
@@ -576,24 +596,44 @@ export async function getEscalationStatus(options: {
       `),
       db.execute(sql`
         SELECT 
-          ea.sent_date::text as sent_date,
-          CASE 
-            WHEN ea.alert_type ILIKE '%lpcd%' THEN 'lpcd'
-            WHEN ea.alert_type ILIKE '%chlorine%' THEN 'chlorine'
-            WHEN ea.alert_type ILIKE '%pressure%' THEN 'pressure'
-            ELSE 'offline'
-          END as category,
-          COUNT(DISTINCT LOWER(TRIM(ea.engineer_name))) as officer_count,
-          COUNT(DISTINCT ea.scheme_id) as email_count
-        FROM email_acknowledgements ea
-        WHERE ea.sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
-        GROUP BY ea.sent_date::text, 
-          CASE 
-            WHEN ea.alert_type ILIKE '%lpcd%' THEN 'lpcd'
-            WHEN ea.alert_type ILIKE '%chlorine%' THEN 'chlorine'
-            WHEN ea.alert_type ILIKE '%pressure%' THEN 'pressure'
-            ELSE 'offline'
-          END
+          dispatch_date::text as sent_date,
+          'lpcd' as category,
+          COUNT(*)::int as email_count,
+          COUNT(DISTINCT LOWER(TRIM(engineer_name)))::int as officer_count
+        FROM consolidated_email_dispatches
+        WHERE dispatch_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
+          AND lpcd_alerts_count > 0
+        GROUP BY dispatch_date::text
+        UNION ALL
+        SELECT 
+          dispatch_date::text as sent_date,
+          'chlorine' as category,
+          COUNT(*)::int as email_count,
+          COUNT(DISTINCT LOWER(TRIM(engineer_name)))::int as officer_count
+        FROM consolidated_email_dispatches
+        WHERE dispatch_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
+          AND chlorine_alerts_count > 0
+        GROUP BY dispatch_date::text
+        UNION ALL
+        SELECT 
+          dispatch_date::text as sent_date,
+          'pressure' as category,
+          COUNT(*)::int as email_count,
+          COUNT(DISTINCT LOWER(TRIM(engineer_name)))::int as officer_count
+        FROM consolidated_email_dispatches
+        WHERE dispatch_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
+          AND pressure_alerts_count > 0
+        GROUP BY dispatch_date::text
+        UNION ALL
+        SELECT 
+          dispatch_date::text as sent_date,
+          'offline' as category,
+          COUNT(*)::int as email_count,
+          COUNT(DISTINCT LOWER(TRIM(engineer_name)))::int as officer_count
+        FROM consolidated_email_dispatches
+        WHERE dispatch_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
+          AND offline_alerts_count > 0
+        GROUP BY dispatch_date::text
       `),
       db.execute(sql`
         SELECT 
@@ -646,18 +686,14 @@ export async function getEscalationStatus(options: {
 
     (engineerRosterRes.rows || []).forEach((row: any) => {
       sanitizeRosterEmails(row.de_civil_email).forEach(e => deEmailsSet.add(e));
-      sanitizeRosterEmails(row.de_mech_email).forEach(e => deEmailsSet.add(e));
       sanitizeRosterEmails(row.ee_civil_email).forEach(e => eeEmailsSet.add(e));
-      sanitizeRosterEmails(row.ee_mech_email).forEach(e => eeEmailsSet.add(e));
       sanitizeRosterEmails(row.se_email).forEach(e => { seEmailsSet.add(e); ceSeEmailsSet.add(e); });
       sanitizeRosterEmails(row.chief_engineer_email).forEach(e => { ceEmailsSet.add(e); ceSeEmailsSet.add(e); });
       sanitizeRosterEmails(row.member_secretary_email).forEach(e => msEmailsSet.add(e));
       sanitizeRosterEmails(row.principal_secretary_email).forEach(e => psEmailsSet.add(e));
 
       if (row.de_civil_mobile) deMobilesSet.add(row.de_civil_mobile);
-      if (row.de_mech_mobile) deMobilesSet.add(row.de_mech_mobile);
       if (row.ee_civil_mobile) eeMobilesSet.add(row.ee_civil_mobile);
-      if (row.ee_mech_mobile) eeMobilesSet.add(row.ee_mech_mobile);
       if (row.se_mobile) { seMobilesSet.add(row.se_mobile); ceSeMobilesSet.add(row.se_mobile); }
       if (row.chief_engineer_mobile) { ceMobilesSet.add(row.chief_engineer_mobile); ceSeMobilesSet.add(row.chief_engineer_mobile); }
     });
@@ -1702,16 +1738,35 @@ export async function executeEscalationDispatch(options: {
 
   const dryRun = options.dryRun !== false; // Default to dry-run unless explicitly false
 
+  const now = new Date();
+  const istParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    weekday: "short",
+    day: "numeric",
+  }).formatToParts(now);
+  let weekday = "";
+  let dayOfMonth = 1;
+  for (const p of istParts) {
+    if (p.type === "weekday") weekday = p.value;
+    if (p.type === "day") dayOfMonth = parseInt(p.value, 10);
+  }
+  const isMonday = weekday === "Mon";
+  const is1stMonday = isMonday && dayOfMonth >= 1 && dayOfMonth <= 7;
+  const is4thMonday = isMonday && dayOfMonth >= 22 && dayOfMonth <= 28;
+  const is1stOr4thMonday = is1stMonday || is4thMonday;
+
   // Filter if single scheme requested
   const targetSchemes = options.schemeId
     ? schemes.filter(s => s.scheme_id === options.schemeId)
     : schemes;
 
-  logs.push(`🔍 Evaluating ${targetSchemes.length} schemes for escalation dispatch (Mode: ${dryRun ? 'PREVIEW / DRY RUN' : 'LIVE DISPATCH'})...`);
+  logs.push(`🔍 Evaluating ${targetSchemes.length} schemes for escalation dispatch (Mode: ${dryRun ? 'PREVIEW / DRY RUN' : 'LIVE DISPATCH'}, Monday: ${isMonday}, 1st/4th Mon: ${is1stOr4thMonday})...`);
 
-  // --- 1. Level 2 Escalations to EE (Civil) ---
-  const level2Schemes = targetSchemes.filter(s => s.escalation_level >= 2);
-  logs.push(`📊 Found ${level2Schemes.length} schemes at Level 2 or higher (>= 3 days persistence).`);
+  // --- 1. Level 2 Escalations to EE (Civil) (Every 3rd day if streak >= 3 days) ---
+  const level2Schemes = options.schemeId
+    ? targetSchemes.filter(s => s.max_streak_days >= 3)
+    : targetSchemes.filter(s => s.max_streak_days >= 3 && s.max_streak_days % 3 === 0);
+  logs.push(`📊 Found ${level2Schemes.length} schemes eligible for Level 2 EE dispatch (Every 3rd day, streak >= 3 days).`);
 
   for (const scheme of level2Schemes) {
     const eeEmail = scheme.ee_civil_email;
@@ -1790,9 +1845,11 @@ export async function executeEscalationDispatch(options: {
     }
   }
 
-  // --- 2. Level 3 Escalations to Chief Engineer (CE) ---
-  const level3Schemes = targetSchemes.filter(s => s.escalation_level === 3);
-  logs.push(`📊 Found ${level3Schemes.length} schemes at Level 3 (>= 7 days chronic persistence).`);
+  // --- 2. Level 3 Escalations to Chief Engineer (CE) (Every Monday for streak >= 7 days) ---
+  const level3Schemes = options.schemeId
+    ? targetSchemes.filter(s => s.max_streak_days >= 7)
+    : (isMonday ? targetSchemes.filter(s => s.max_streak_days >= 7) : []);
+  logs.push(`📊 Found ${level3Schemes.length} schemes for Level 3 (Every Monday, streak >= 7 days; Today is Monday: ${isMonday}).`);
 
   // Group Level 3 schemes by Region for CE consolidated Email
   const schemesByRegion = new Map<string, SchemeEscalationItem[]>();
@@ -1882,9 +1939,11 @@ export async function executeEscalationDispatch(options: {
     }
   }
 
-  // --- 3. Level 4 Escalations to Member Secretary (MS) (10+ days unresolved) ---
-  const level4Schemes = targetSchemes.filter(s => s.max_streak_days >= 10);
-  logs.push(`📊 Found ${level4Schemes.length} schemes for Member Secretary (MS) Escalation (>= 10 days unresolved).`);
+  // --- 3. Level 4 Escalations to Member Secretary (MS) (1st & 4th Monday for streak >= 15 days) ---
+  const level4Schemes = options.schemeId
+    ? targetSchemes.filter(s => s.max_streak_days >= 15)
+    : (is1stOr4thMonday ? targetSchemes.filter(s => s.max_streak_days >= 15) : []);
+  logs.push(`📊 Found ${level4Schemes.length} schemes for Member Secretary (MS) Escalation (1st & 4th Monday, streak >= 15 days; Today: ${is1stOr4thMonday}).`);
 
   if (level4Schemes.length > 0) {
     const msEmail = execContacts.ms.email;
@@ -1968,9 +2027,11 @@ export async function executeEscalationDispatch(options: {
     }
   }
 
-  // --- 4. Level 5 Escalations to Principal Secretary (PS) (15+ days unresolved) ---
-  const level5Schemes = targetSchemes.filter(s => s.max_streak_days >= 15);
-  logs.push(`📊 Found ${level5Schemes.length} schemes for Principal Secretary (PS) Escalation (>= 15 days unresolved).`);
+  // --- 4. Level 5 Escalations to Principal Secretary (PS) (1st & 4th Monday for streak >= 15 days) ---
+  const level5Schemes = options.schemeId
+    ? targetSchemes.filter(s => s.max_streak_days >= 15)
+    : (is1stOr4thMonday ? targetSchemes.filter(s => s.max_streak_days >= 15) : []);
+  logs.push(`📊 Found ${level5Schemes.length} schemes for Principal Secretary (PS) Escalation (1st & 4th Monday, streak >= 15 days; Today: ${is1stOr4thMonday}).`);
 
   if (level5Schemes.length > 0) {
     const psEmail = execContacts.ps.email;
@@ -2071,6 +2132,9 @@ export interface SentAlertItem {
   alert_title: string;
   message_content: string;
   status: string;
+  is_success?: boolean;
+  gateway_status?: number;
+  error_message?: string;
   dispatch_type?: string;
   is_lpcd?: boolean;
   is_chlorine?: boolean;
@@ -2201,7 +2265,18 @@ export async function getSentEscalationAlerts(options: {
         END AS tier,
         s.template_name AS alert_title,
         s.message_text AS message_content,
-        COALESCE(s.delivery_status, CASE WHEN s.is_success THEN 'DELIVERED' ELSE 'FAILED' END) AS status,
+        CASE 
+          WHEN s.is_success = false 
+            OR s.gateway_status >= 400 
+            OR s.delivery_status ILIKE '%FAIL%' THEN 'FAILED'
+          WHEN s.delivery_status = 'DELIVERED' 
+            OR s.delivery_status = 'SUBMIT_ACCEPTED' 
+            OR (s.is_success = true AND (s.gateway_status = 200 OR s.gateway_status IS NULL)) THEN 'DELIVERED'
+          ELSE COALESCE(s.delivery_status, 'PENDING')
+        END AS status,
+        s.is_success,
+        s.gateway_status,
+        COALESCE(s.delivery_description, s.gateway_response) AS error_message,
         s.dispatch_type,
         (s.template_name ILIKE '%lpcd%') AS is_lpcd,
         (s.template_name ILIKE '%chlorine%') AS is_chlorine,
@@ -2235,6 +2310,9 @@ export async function getSentEscalationAlerts(options: {
         CONCAT('Daily Alert Digest (', sub.issue_count, ' Issues • ', sub.alert_types, ')') AS alert_title,
         CONCAT('Consolidated alert digest containing ', sub.issue_count, ' unresolved telemetry alerts across ', sub.alert_types, '.') AS message_content,
         'DELIVERED' AS status,
+        true AS is_success,
+        200 AS gateway_status,
+        NULL::text AS error_message,
         'daily' AS dispatch_type,
         sub.is_lpcd,
         sub.is_chlorine,
@@ -2333,6 +2411,9 @@ export async function getSentEscalationAlerts(options: {
         e.alert_type AS alert_title,
         e.alert_value AS message_content,
         'DELIVERED' AS status,
+        true AS is_success,
+        200 AS gateway_status,
+        NULL::text AS error_message,
         e.dispatch_type,
         (e.alert_type ILIKE '%lpcd%') AS is_lpcd,
         (e.alert_type ILIKE '%chlorine%') AS is_chlorine,
@@ -2447,6 +2528,9 @@ export async function getSentEscalationAlerts(options: {
       alert_title: String(r.alert_title),
       message_content: String(r.message_content),
       status: String(r.status),
+      is_success: r.is_success !== undefined && r.is_success !== null ? Boolean(r.is_success) : undefined,
+      gateway_status: r.gateway_status !== undefined && r.gateway_status !== null ? Number(r.gateway_status) : undefined,
+      error_message: r.error_message || undefined,
       dispatch_type: r.dispatch_type || undefined,
       is_lpcd: Boolean(r.is_lpcd),
       is_chlorine: Boolean(r.is_chlorine),

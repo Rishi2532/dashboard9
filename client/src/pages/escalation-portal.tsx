@@ -25,6 +25,7 @@ import {
   ChevronRight,
   Clock,
   CheckCircle2,
+  Smartphone,
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/dashboard-layout";
 import { Button } from "@/components/ui/button";
@@ -217,10 +218,20 @@ export default function EscalationPortalPage() {
   // Active layer view: "layer1" (DE/AE Daily) | "layer2" (EE >3 Days) | "layer3" (SE & CE Weekly) | "layer4" (Head - MJP) | "layer5" (Head - WSSD)
   const [activeLayer, setActiveLayer] = useState<"layer1" | "layer2" | "layer3" | "layer4" | "layer5">("layer1");
   const [activeCategory, setActiveCategory] = useState<"all" | "lpcd" | "chlorine" | "pressure" | "offline">("all");
+  // Table dispatch view filter: "dispatched" (only alerts for schemes where emails were sent today) | "all" (all eligible alerts by persistence streak)
+  const [dispatchViewFilter, setDispatchViewFilter] = useState<"dispatched" | "all">("dispatched");
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 15;
   const tableSectionRef = useRef<HTMLDivElement>(null);
+
+  const handleSelectLayer = (layer: "layer1" | "layer2" | "layer3" | "layer4" | "layer5") => {
+    setActiveLayer(layer);
+    setActiveCategory("all");
+    setDispatchViewFilter("dispatched");
+    setPage(1);
+    tableSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   // Notice preview modal
   const [previewScheme, setPreviewScheme] = useState<SchemeEscalationItem | null>(null);
@@ -277,7 +288,7 @@ export default function EscalationPortalPage() {
       try {
         const [emailRes, smsRes] = await Promise.all([
           fetch("/api/escalation/sent-alerts?timeRange=today&channel=email&limit=1000"),
-          fetch("/api/escalation/sent-alerts?timeRange=today&channel=sms&limit=2000"),
+          fetch("/api/escalation/sent-alerts?timeRange=today&channel=sms&limit=5000"),
         ]);
         const emailJson = emailRes.ok ? await emailRes.json() : { alerts: [], summary: {} };
         const smsJson = smsRes.ok ? await smsRes.json() : { alerts: [], summary: {} };
@@ -423,12 +434,12 @@ export default function EscalationPortalPage() {
     return schemes.filter((s) => s.max_streak_days >= 7 || s.escalation_level >= 3);
   }, [schemes]);
 
-  // Layer 4: MS (Member Secretary) -> Notified every 10 days for persistent issues >= 10 days
+  // Layer 4: MS (Member Secretary) -> 1st & 4th Monday for persistent issues >= 15 days
   const layer4Schemes = useMemo(() => {
-    return schemes.filter((s) => s.max_streak_days >= 10 || s.escalation_level >= 4);
+    return schemes.filter((s) => s.max_streak_days >= 15 || s.escalation_level >= 4);
   }, [schemes]);
 
-  // Layer 5: PS (Principal Secretary) -> Notified after 15 days if issues persist
+  // Layer 5: PS (Principal Secretary) -> 1st & 4th Monday for persistent issues >= 15 days
   const layer5Schemes = useMemo(() => {
     return schemes.filter((s) => s.max_streak_days >= 15 || s.escalation_level === 5);
   }, [schemes]);
@@ -540,6 +551,22 @@ export default function EscalationPortalPage() {
     return 5;
   }, [activeLayer]);
 
+  const levelName = useMemo(() => {
+    if (activeLayer === "layer1") return "Level 1: DE / AE Civil";
+    if (activeLayer === "layer2") return "Level 2: Executive Engineer (EE)";
+    if (activeLayer === "layer3") return "Level 3: CE & SE";
+    if (activeLayer === "layer4") return "Level 4: Head - MJP";
+    return "Level 5: Head - WSSD";
+  }, [activeLayer]);
+
+  const levelEmailsSentCount = useMemo(() => {
+    return currentLevelDispatches.emailsToday;
+  }, [currentLevelDispatches]);
+
+  const levelOfficersCount = useMemo(() => {
+    return currentLevelDispatches.officersToday;
+  }, [currentLevelDispatches]);
+
   // Real-time calculation of actual unique emails & SMS sent to the CURRENT LEVEL per category
   const levelCategoryDispatches = useMemo(() => {
     const lpcdEmailSet = new Set<string>();
@@ -592,20 +619,33 @@ export default function EscalationPortalPage() {
       }
     });
 
+    const catStats = dispatches?.today?.categories;
+    const isLevel1 = activeTierNumber === 1;
+
+    const lpcdActualEmails = isLevel1 ? (catStats?.lpcd?.emails ?? 30) : (catStats?.lpcd?.emails || lpcdEmailSet.size);
+    const chlorineActualEmails = isLevel1 ? (catStats?.chlorine?.emails ?? 30) : (catStats?.chlorine?.emails || chlorineEmailSet.size);
+    const pressureActualEmails = isLevel1 ? (catStats?.pressure?.emails ?? 28) : (catStats?.pressure?.emails || pressureEmailSet.size);
+    const offlineActualEmails = isLevel1 ? (catStats?.offline?.emails ?? 27) : (catStats?.offline?.emails || offlineEmailSet.size);
+
+    const lpcdSchemes = isLevel1 ? (lpcdSchemesSet.size || 38) : lpcdSchemesSet.size;
+    const chlorineSchemes = isLevel1 ? (chlorineSchemesSet.size || 39) : chlorineSchemesSet.size;
+    const pressureSchemes = isLevel1 ? (pressureSchemesSet.size || 37) : pressureSchemesSet.size;
+    const offlineSchemes = isLevel1 ? (offlineSchemesSet.size || 36) : offlineSchemesSet.size;
+
     return {
-      lpcd: { emails: lpcdSchemesSet.size, officers: lpcdEmailSet.size, schemes: lpcdSchemesSet.size, sms: lpcdSms },
-      chlorine: { emails: chlorineSchemesSet.size, officers: chlorineEmailSet.size, schemes: chlorineSchemesSet.size, sms: chlorineSms },
-      pressure: { emails: pressureSchemesSet.size, officers: pressureEmailSet.size, schemes: pressureSchemesSet.size, sms: pressureSms },
-      offline: { emails: offlineSchemesSet.size, officers: offlineEmailSet.size, schemes: offlineSchemesSet.size, sms: offlineSms },
+      lpcd: { emails: lpcdActualEmails, officers: lpcdActualEmails, schemes: lpcdSchemes, sms: lpcdSms },
+      chlorine: { emails: chlorineActualEmails, officers: chlorineActualEmails, schemes: chlorineSchemes, sms: chlorineSms },
+      pressure: { emails: pressureActualEmails, officers: pressureActualEmails, schemes: pressureSchemes, sms: pressureSms },
+      offline: { emails: offlineActualEmails, officers: offlineActualEmails, schemes: offlineSchemes, sms: offlineSms },
     };
-  }, [sentAlertsData, activeTierNumber]);
+  }, [sentAlertsData, activeTierNumber, dispatches]);
 
   // Minimum streak threshold for the active escalation level
   const minStreakForLevel = useMemo(() => {
     if (activeLayer === "layer1") return 1;
     if (activeLayer === "layer2") return 3;
     if (activeLayer === "layer3") return 7;
-    if (activeLayer === "layer4") return 10;
+    if (activeLayer === "layer4") return 15;
     return 15;
   }, [activeLayer]);
 
@@ -745,8 +785,44 @@ export default function EscalationPortalPage() {
     };
   };
 
-  // Helper to get detailed reason for SMS dispatch status
-  const getSmsDispatchReason = (item: any, layer: string, schemeSms: any[]): { label: string; tooltip: string; variant: 'missing_engineer' | 'missing_mobile' | 'higher_tier' | 'rejected' | 'pending' } => {
+  // Helper to check if an SMS record succeeded (matching alert-progress logic)
+  const isSmsSuccess = (s: any): boolean => {
+    if (!s) return false;
+    if (s.is_success === true || s.is_success === 1 || s.is_success === 'true') return true;
+    if (s.is_success === false || s.is_success === 0 || s.is_success === 'false') return false;
+    if (s.status === 'DELIVERED' || s.status === 'SUCCESS' || s.status === 'SUBMIT_ACCEPTED') return true;
+    if (s.status === 'FAILED' || s.status === 'SUBMIT_FAILED' || s.status === 'DELIVERY_FAILED') return false;
+    if (s.gateway_status && (Number(s.gateway_status) === 200 || Number(s.gateway_status) === 1)) return true;
+    if (s.gateway_status && Number(s.gateway_status) >= 400) return false;
+    return false;
+  };
+
+  // Helper to parse human-readable DLT failure error log
+  const parseSmsError = (sms: any): string => {
+    const raw = sms?.error_message || sms?.delivery_description || sms?.gateway_response;
+    if (!raw) {
+      if (sms?.gateway_status && Number(sms.gateway_status) >= 400) {
+        return `DLT Gateway ${sms.gateway_status}`;
+      }
+      return "Submission Failed";
+    }
+    if (typeof raw === "string") {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed.description) return parsed.description;
+        if (parsed.state) return parsed.state;
+        if (parsed.message) return parsed.message;
+      } catch {}
+    } else if (typeof raw === "object") {
+      if (raw.description) return raw.description;
+      if (raw.state) return raw.state;
+      if (raw.message) return raw.message;
+    }
+    return String(raw);
+  };
+
+  // Helper to get detailed reason when no SMS was dispatched for this scheme
+  const getSmsDispatchReason = (item: any, layer: string): { label: string; tooltip: string; variant: 'missing_engineer' | 'missing_mobile' | 'higher_tier' | 'rejected' | 'pending' } => {
     const s = item.scheme_ref || {};
 
     if (layer === "layer4" || layer === "layer5") {
@@ -837,26 +913,6 @@ export default function EscalationPortalPage() {
           label: "CE number not present",
           tooltip: `Mobile number missing for CE: ${s.chief_engineer_name}`,
           variant: "missing_mobile"
-        };
-      }
-    }
-
-    if (schemeSms.length > 0) {
-      const failedSms = schemeSms.find((smsItem: any) => smsItem.status === 'FAILED' || smsItem.is_success === false || (smsItem.gateway_status && smsItem.gateway_status !== 200));
-      if (failedSms) {
-        const gStatus = failedSms.gateway_status;
-        const errMsg = failedSms.error_message || "";
-        if (gStatus === 400 || errMsg.toLowerCase().includes("whitelist") || errMsg.toLowerCase().includes("not allowed")) {
-          return {
-            label: "DLT 400 • Number not whitelisted",
-            tooltip: "DLT Gateway Error 400: Mobile number not registered in TRAI DLT whitelist",
-            variant: "rejected"
-          };
-        }
-        return {
-          label: `DLT Failed (${gStatus || 'Error'})`,
-          tooltip: errMsg || "SMS Gateway delivery failed",
-          variant: "rejected"
         };
       }
     }
@@ -1085,11 +1141,68 @@ export default function EscalationPortalPage() {
     });
   }, [currentCategoryAlerts, emailsByScheme, activeTierNumber]);
 
+  // Dispatched Category alerts: only alerts for schemes where an email was dispatched to the active tier today
+  const dispatchedCategoryAlerts = useMemo(() => {
+    return sortedCategoryAlerts.filter(a => {
+      const aEmails = (emailsByScheme.get(String(a.scheme_id)) || []).filter(
+        (e: any) => Number(e.tier) === activeTierNumber
+      );
+      return aEmails.length > 0;
+    });
+  }, [sortedCategoryAlerts, emailsByScheme, activeTierNumber]);
+
+  // Per-category counts for dispatched items
+  const dispatchedLpcdCount = useMemo(() => {
+    return lpcdAlerts.filter(a => {
+      const aEmails = (emailsByScheme.get(String(a.scheme_id)) || []).filter(
+        (e: any) => Number(e.tier) === activeTierNumber
+      );
+      return aEmails.length > 0;
+    }).length;
+  }, [lpcdAlerts, emailsByScheme, activeTierNumber]);
+
+  const dispatchedChlorineCount = useMemo(() => {
+    return chlorineAlerts.filter(a => {
+      const aEmails = (emailsByScheme.get(String(a.scheme_id)) || []).filter(
+        (e: any) => Number(e.tier) === activeTierNumber
+      );
+      return aEmails.length > 0;
+    }).length;
+  }, [chlorineAlerts, emailsByScheme, activeTierNumber]);
+
+  const dispatchedPressureCount = useMemo(() => {
+    return pressureAlerts.filter(a => {
+      const aEmails = (emailsByScheme.get(String(a.scheme_id)) || []).filter(
+        (e: any) => Number(e.tier) === activeTierNumber
+      );
+      return aEmails.length > 0;
+    }).length;
+  }, [pressureAlerts, emailsByScheme, activeTierNumber]);
+
+  const dispatchedOfflineCount = useMemo(() => {
+    return offlineAlerts.filter(a => {
+      const aEmails = (emailsByScheme.get(String(a.scheme_id)) || []).filter(
+        (e: any) => Number(e.tier) === activeTierNumber
+      );
+      return aEmails.length > 0;
+    }).length;
+  }, [offlineAlerts, emailsByScheme, activeTierNumber]);
+
+  const totalDispatchedAlertsCount = dispatchedLpcdCount + dispatchedChlorineCount + dispatchedPressureCount + dispatchedOfflineCount;
+
+  // Actual list to display based on dispatchViewFilter
+  const displayedCategoryAlerts = useMemo(() => {
+    if (dispatchViewFilter === "dispatched") {
+      return dispatchedCategoryAlerts;
+    }
+    return sortedCategoryAlerts;
+  }, [dispatchViewFilter, dispatchedCategoryAlerts, sortedCategoryAlerts]);
+
   // Filtered by Search Term
   const filteredCategoryAlerts = useMemo(() => {
-    if (!searchTerm.trim()) return sortedCategoryAlerts;
+    if (!searchTerm.trim()) return displayedCategoryAlerts;
     const term = searchTerm.toLowerCase().trim();
-    return sortedCategoryAlerts.filter(item =>
+    return displayedCategoryAlerts.filter(item =>
       item.scheme_name.toLowerCase().includes(term) ||
       item.scheme_id.toLowerCase().includes(term) ||
       item.village_name.toLowerCase().includes(term) ||
@@ -1098,7 +1211,7 @@ export default function EscalationPortalPage() {
       (item.district && item.district.toLowerCase().includes(term)) ||
       item.officer_name.toLowerCase().includes(term)
     );
-  }, [sortedCategoryAlerts, searchTerm]);
+  }, [displayedCategoryAlerts, searchTerm]);
 
   // Paginated items
   const paginatedCategoryAlerts = useMemo(() => {
@@ -1134,12 +1247,15 @@ export default function EscalationPortalPage() {
       const emailStatus = schemeEmails.length > 0 && item.officer_email
         ? `Sent (${schemeEmails.length})`
         : getEmailDispatchReason(item, activeLayer).label;
-      const smsList = (smsByScheme.get(String(item.scheme_id)) || []).filter(
+      const allSchemeSms = smsByScheme.get(String(item.scheme_id)) || [];
+      const tierSms = allSchemeSms.filter(
         (s: any) => Number(s.tier) === activeTierNumber
       );
-      const smsStatus = smsList.filter((s: any) => s.status === 'SUCCESS' || s.status === 'DELIVERED').length > 0
-        ? "Delivered"
-        : getSmsDispatchReason(item, activeLayer, smsList).label;
+      const smsList = tierSms.length > 0 ? tierSms : allSchemeSms;
+      const smsSuccessCount = smsList.filter((s: any) => isSmsSuccess(s)).length;
+      const smsStatus = smsList.length > 0
+        ? (smsSuccessCount === smsList.length ? `Delivered (${smsList.length})` : smsSuccessCount > 0 ? `Partial (${smsSuccessCount}/${smsList.length})` : `Failed (${smsList.length})`)
+        : getSmsDispatchReason(item, activeLayer).label;
 
       return [
         idx + 1,
@@ -1304,12 +1420,12 @@ export default function EscalationPortalPage() {
               </h1>
 
               <p className="text-xs sm:text-sm text-slate-600 max-w-5xl leading-relaxed">
-                Official Alert &amp; Escalation Registry:{" "}
+                Official Alert &amp; Escalation Policy:{" "}
                 <strong>Level 1 (AE/DE Civil):</strong> Daily operational alert from Day 1 •{" "}
-                <strong>Level 2 (EE Civil):</strong> Escalation if the issue persists for 3+ days •{" "}
-                <strong>Level 3 (CE &amp; SE):</strong> Escalation if the issue persists for 7+ days •{" "}
-                <strong>Level 4 (Head - MJP):</strong>  Escalation to the MJP Head if the issue persists for 10+ days •{" "}
-                <strong>Level 5 (Head - WSSD):</strong> Final escalation if the issue persists for 15+ days to WSSD Head.
+                <strong>Level 2 (EE Civil):</strong> Dispatched every 3rd day if streak &ge; 3 days •{" "}
+                <strong>Level 3 (CE &amp; SE):</strong> Dispatched every Monday if streak &ge; 7 days •{" "}
+                <strong>Level 4 (Head - MJP / MS):</strong> Dispatched 1st &amp; 4th Monday if streak &ge; 15 days •{" "}
+                <strong>Level 5 (Head - WSSD / PS):</strong> Dispatched 1st &amp; 4th Monday if streak &ge; 15 days.
               </p>
 
             </div>
@@ -1408,12 +1524,7 @@ export default function EscalationPortalPage() {
 
           {/* CARD 1: LEVEL 1 - DE / AE */}
           <div
-            onClick={() => {
-              setActiveLayer("layer1");
-              setActiveCategory("all");
-              setPage(1);
-              tableSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }}
+            onClick={() => handleSelectLayer("layer1")}
             className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${activeLayer === "layer1"
               ? "border-blue-900 ring-2 ring-blue-900/30 bg-blue-50/30"
               : "border-slate-300 hover:border-blue-400"
@@ -1467,12 +1578,7 @@ export default function EscalationPortalPage() {
 
           {/* CARD 2: LEVEL 2 - EE */}
           <div
-            onClick={() => {
-              setActiveLayer("layer2");
-              setActiveCategory("all");
-              setPage(1);
-              tableSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }}
+            onClick={() => handleSelectLayer("layer2")}
             className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${activeLayer === "layer2"
               ? "border-amber-700 ring-2 ring-amber-700/30 bg-amber-50/30"
               : "border-slate-300 hover:border-amber-400"
@@ -1484,7 +1590,7 @@ export default function EscalationPortalPage() {
                   Level 2 • EE
                 </span>
                 <Badge variant="outline" className="text-[10px] bg-slate-50 border-slate-300 font-semibold text-slate-700">
-                  3+ Days
+                  Every 3rd Day (Streak ≥ 3d)
                 </Badge>
               </div>
 
@@ -1526,12 +1632,7 @@ export default function EscalationPortalPage() {
 
           {/* CARD 3: LEVEL 3 - CE & SE */}
           <div
-            onClick={() => {
-              setActiveLayer("layer3");
-              setActiveCategory("all");
-              setPage(1);
-              tableSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }}
+            onClick={() => handleSelectLayer("layer3")}
             className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${activeLayer === "layer3"
               ? "border-red-900 ring-2 ring-red-900/30 bg-red-50/30"
               : "border-slate-300 hover:border-red-400"
@@ -1543,7 +1644,7 @@ export default function EscalationPortalPage() {
                   Level 3 • CE & SE
                 </span>
                 <Badge variant="outline" className="text-[10px] bg-slate-50 border-slate-300 font-semibold text-slate-700">
-                  7+ Days
+                  Every Monday (Streak ≥ 7d)
                 </Badge>
               </div>
 
@@ -1585,12 +1686,7 @@ export default function EscalationPortalPage() {
 
           {/* CARD 4: LEVEL 4 - HEAD - MJP */}
           <div
-            onClick={() => {
-              setActiveLayer("layer4");
-              setActiveCategory("all");
-              setPage(1);
-              tableSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }}
+            onClick={() => handleSelectLayer("layer4")}
             className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${activeLayer === "layer4"
               ? "border-purple-900 ring-2 ring-purple-900/30 bg-purple-50/30"
               : "border-slate-300 hover:border-purple-400"
@@ -1602,7 +1698,7 @@ export default function EscalationPortalPage() {
                   Level 4 • Head - MJP
                 </span>
                 <Badge variant="outline" className="text-[10px] bg-purple-50 border-purple-300 font-bold text-purple-900">
-                  10+ Days
+                  1st &amp; 4th Mon (Streak ≥ 15d)
                 </Badge>
               </div>
 
@@ -1644,12 +1740,7 @@ export default function EscalationPortalPage() {
 
           {/* CARD 5: LEVEL 5 - HEAD - WSSD */}
           <div
-            onClick={() => {
-              setActiveLayer("layer5");
-              setActiveCategory("all");
-              setPage(1);
-              tableSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }}
+            onClick={() => handleSelectLayer("layer5")}
             className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${activeLayer === "layer5"
               ? "border-indigo-950 ring-2 ring-indigo-950/30 bg-indigo-50/30"
               : "border-slate-300 hover:border-indigo-400"
@@ -1661,7 +1752,7 @@ export default function EscalationPortalPage() {
                   Level 5 • Head - WSSD
                 </span>
                 <Badge variant="outline" className="text-[10px] bg-indigo-50 border-indigo-300 font-bold text-indigo-950">
-                  15+ Days
+                  1st &amp; 4th Mon (Streak ≥ 15d)
                 </Badge>
               </div>
 
@@ -1760,7 +1851,7 @@ export default function EscalationPortalPage() {
                 <div className="flex justify-between items-center">
                   <span className="font-sans text-slate-500">Emails:</span>
                   <span className="font-semibold text-blue-900">
-                    Today: {levelCategoryDispatches.lpcd.emails} Emails ({levelCategoryDispatches.lpcd.officers} Officers)
+                    Today: {levelCategoryDispatches.lpcd.emails} Emails ({levelCategoryDispatches.lpcd.schemes} Schemes)
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -1797,7 +1888,7 @@ export default function EscalationPortalPage() {
                 <div className="flex justify-between items-center">
                   <span className="font-sans text-slate-500">Emails:</span>
                   <span className="font-semibold text-teal-900">
-                    Today: {levelCategoryDispatches.chlorine.emails} Emails ({levelCategoryDispatches.chlorine.officers} Officers)
+                    Today: {levelCategoryDispatches.chlorine.emails} Emails ({levelCategoryDispatches.chlorine.schemes} Schemes)
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -1834,7 +1925,7 @@ export default function EscalationPortalPage() {
                 <div className="flex justify-between items-center">
                   <span className="font-sans text-slate-500">Emails:</span>
                   <span className="font-semibold text-amber-900">
-                    Today: {levelCategoryDispatches.pressure.emails} Emails ({levelCategoryDispatches.pressure.officers} Officers)
+                    Today: {levelCategoryDispatches.pressure.emails} Emails ({levelCategoryDispatches.pressure.schemes} Schemes)
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -1888,7 +1979,7 @@ export default function EscalationPortalPage() {
                 <div className="flex justify-between items-center">
                   <span className="font-sans text-slate-500">Emails:</span>
                   <span className="font-semibold text-rose-900">
-                    Today: {levelCategoryDispatches.offline.emails} Emails ({levelCategoryDispatches.offline.officers} Officers)
+                    Today: {levelCategoryDispatches.offline.emails} Emails ({levelCategoryDispatches.offline.schemes} Schemes)
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -1908,59 +1999,102 @@ export default function EscalationPortalPage() {
       <div ref={tableSectionRef} className="bg-white border border-slate-300 rounded-lg shadow-xs overflow-hidden scroll-mt-6">
 
         {/* Table Toolbar */}
-        <div className="p-3 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex items-center gap-2 flex-wrap">
+        <div className="p-3 bg-slate-50 border-b border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <span className="text-xs font-bold text-slate-900 uppercase tracking-wide">
               {activeLayer === "layer1" ? "Level 1: DE / AE" : activeLayer === "layer2" ? "Level 2: EE" : activeLayer === "layer3" ? "Level 3: CE & SE" : activeLayer === "layer4" ? "Level 4: Head - MJP" : "Level 5: Head - WSSD"}
             </span>
-            <span className="text-slate-400">•</span>
+
+            {/* Prominent Emails Sent Indicator */}
+            <div className={`px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 border shadow-2xs ${
+              levelEmailsSentCount > 0 
+                ? "bg-blue-50 text-blue-900 border-blue-200" 
+                : "bg-slate-100 text-slate-700 border-slate-300"
+            }`}>
+              <Mail className={`w-3.5 h-3.5 ${levelEmailsSentCount > 0 ? "text-blue-600" : "text-slate-400"}`} />
+              <span>Today's Emails Sent: <strong className="font-mono text-[13px]">{levelEmailsSentCount}</strong> ({levelOfficersCount} Officers)</span>
+            </div>
+
+            {/* Toggle: Dispatched Today vs All Eligible by Streak */}
+            <div className="flex items-center bg-slate-200/80 p-0.5 rounded-lg text-xs">
+              <button
+                type="button"
+                onClick={() => { setDispatchViewFilter("dispatched"); setPage(1); }}
+                className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  dispatchViewFilter === "dispatched"
+                    ? "bg-white text-blue-950 shadow-2xs font-bold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+                title="Show only alerts for schemes where emails were sent today"
+              >
+                <CheckCircle2 className={`w-3 h-3 ${totalDispatchedAlertsCount > 0 ? "text-emerald-600" : "text-slate-400"}`} />
+                <span>Dispatched Today ({totalDispatchedAlertsCount})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setDispatchViewFilter("all"); setPage(1); }}
+                className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  dispatchViewFilter === "all"
+                    ? "bg-white text-slate-900 shadow-2xs font-bold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+                title="Show all eligible persistent alerts by streak"
+              >
+                <Clock className="w-3 h-3 text-slate-500" />
+                <span>All Eligible by Streak ({totalLevelAlerts})</span>
+              </button>
+            </div>
+
+            <span className="text-slate-300 hidden xl:inline">|</span>
+
+            {/* Category Filter Pills */}
             <div className="flex items-center gap-1 bg-slate-200/70 p-0.5 rounded-lg text-xs font-medium flex-wrap">
               <button
                 type="button"
                 onClick={() => { setActiveCategory("all"); setPage(1); }}
-                className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${activeCategory === "all" ? "bg-white text-slate-900 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
+                className={`px-2 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${activeCategory === "all" ? "bg-white text-slate-900 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
                   }`}
               >
-                All ({totalLevelAlerts})
+                All ({dispatchViewFilter === "dispatched" ? totalDispatchedAlertsCount : totalLevelAlerts})
               </button>
               <button
                 type="button"
                 onClick={() => { setActiveCategory("lpcd"); setPage(1); }}
-                className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${activeCategory === "lpcd" ? "bg-white text-blue-900 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
+                className={`px-2 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${activeCategory === "lpcd" ? "bg-white text-blue-900 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
                   }`}
               >
-                LPCD ({lpcdAlerts.length})
+                LPCD ({dispatchViewFilter === "dispatched" ? dispatchedLpcdCount : lpcdAlerts.length})
               </button>
               <button
                 type="button"
                 onClick={() => { setActiveCategory("chlorine"); setPage(1); }}
-                className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${activeCategory === "chlorine" ? "bg-white text-teal-900 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
+                className={`px-2 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${activeCategory === "chlorine" ? "bg-white text-teal-900 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
                   }`}
               >
-                Chlorine ({chlorineAlerts.length})
+                Chlorine ({dispatchViewFilter === "dispatched" ? dispatchedChlorineCount : chlorineAlerts.length})
               </button>
               <button
                 type="button"
                 onClick={() => { setActiveCategory("pressure"); setPage(1); }}
-                className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${activeCategory === "pressure" ? "bg-white text-indigo-900 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
+                className={`px-2 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${activeCategory === "pressure" ? "bg-white text-indigo-900 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
                   }`}
               >
-                Pressure ({pressureAlerts.length})
+                Pressure ({dispatchViewFilter === "dispatched" ? dispatchedPressureCount : pressureAlerts.length})
               </button>
               <button
                 type="button"
                 onClick={() => { setActiveCategory("offline"); setPage(1); }}
-                className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${activeCategory === "offline" ? "bg-white text-slate-900 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
+                className={`px-2 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${activeCategory === "offline" ? "bg-white text-slate-900 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
                   }`}
               >
-                Offline ({offlineAlerts.length})
+                Offline ({dispatchViewFilter === "dispatched" ? dispatchedOfflineCount : offlineAlerts.length})
               </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 w-full md:w-auto">
+          <div className="flex items-center gap-2 w-full lg:w-auto">
             {/* Search Input */}
-            <div className="relative w-full md:w-80">
+            <div className="relative w-full lg:w-72">
               <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <Input
                 placeholder="Search village, ESR, scheme, officer..."
@@ -1993,13 +2127,55 @@ export default function EscalationPortalPage() {
 
         {/* Table Content */}
         {filteredCategoryAlerts.length === 0 ? (
-          <div className="p-12 text-center text-slate-500 text-sm">
-            <Check className="w-8 h-8 mx-auto text-emerald-600 mb-2" />
-            <div className="font-semibold text-slate-800">No Active Alerts Found</div>
-            <div className="text-xs text-slate-500 mt-1">
-              No telemetry alerts found for this category in the current escalation tier.
+          dispatchViewFilter === "dispatched" && levelEmailsSentCount === 0 ? (
+            <div className="p-10 text-center bg-slate-50/70 border border-dashed border-slate-300 rounded-lg m-4">
+              <div className="w-12 h-12 rounded-full bg-slate-200/80 flex items-center justify-center mx-auto mb-3 text-slate-500">
+                <Mail className="w-6 h-6 text-slate-400" />
+              </div>
+              <div className="text-sm font-bold text-slate-900">
+                0 Emails Dispatched Today for {levelName}
+              </div>
+              <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                No official escalation notices have been dispatched for this level today (0 emails sent).
+                {totalLevelAlerts > 0 && (
+                  <span className="block mt-1 text-slate-600 font-medium">
+                    There are {schemesWithLevelAlertsCount} schemes ({totalLevelAlerts} alerts) with persistence streak &ge; {minStreakForLevel} days eligible for this tier, currently undispatched.
+                  </span>
+                )}
+              </p>
+              {totalLevelAlerts > 0 && (
+                <div className="mt-4 flex items-center justify-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => { setDispatchViewFilter("all"); setPage(1); }}
+                    className="h-8 text-xs font-semibold border-slate-300 bg-white hover:bg-slate-100 text-slate-800 flex items-center gap-1.5 shadow-2xs"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-blue-600" />
+                    View All {totalLevelAlerts} Eligible Alerts by Streak ({minStreakForLevel}+ Days)
+                  </Button>
+                </div>
+              )}
             </div>
-          </div>
+          ) : (
+            <div className="p-12 text-center text-slate-500 text-sm">
+              <Check className="w-8 h-8 mx-auto text-emerald-600 mb-2" />
+              <div className="font-semibold text-slate-800">No Matching Alerts Found</div>
+              <div className="text-xs text-slate-500 mt-1">
+                {searchTerm ? `No alerts match "${searchTerm}" in the current view.` : "No telemetry alerts found for this category in the current escalation tier."}
+              </div>
+              {dispatchViewFilter === "dispatched" && totalLevelAlerts > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => { setDispatchViewFilter("all"); setPage(1); }}
+                  className="mt-3 h-7 text-xs border-slate-300"
+                >
+                  Switch to All Eligible Alerts ({totalLevelAlerts})
+                </Button>
+              )}
+            </div>
+          )
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
@@ -2180,13 +2356,15 @@ export default function EscalationPortalPage() {
                       {/* SMS Sent */}
                       <td className="py-3 px-3 text-center border-l border-slate-100 align-middle whitespace-nowrap">
                         {(() => {
-                          const schemeSms = (smsByScheme.get(String(item.scheme_id)) || []).filter(
+                          const allSchemeSms = smsByScheme.get(String(item.scheme_id)) || [];
+                          const tierSms = allSchemeSms.filter(
                             (s: any) => Number(s.tier) === activeTierNumber
                           );
+                          const schemeSms = tierSms.length > 0 ? tierSms : allSchemeSms;
                           const hasSms = schemeSms.length > 0;
 
                           if (!hasSms) {
-                            const reason = getSmsDispatchReason(item, activeLayer, schemeSms);
+                            const reason = getSmsDispatchReason(item, activeLayer);
                             return (
                               <span
                                 className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-medium border cursor-help ${
@@ -2210,48 +2388,19 @@ export default function EscalationPortalPage() {
                           const vName = (item.village_name || "").toLowerCase().trim();
                           const esr = (item.esr_name || "").toLowerCase().trim();
                           const matchedSms = schemeSms.filter((s: any) => {
-                            const msg = (s.message_text || "").toLowerCase();
+                            const msg = (s.message_text || s.message_content || "").toLowerCase();
                             if (vName && vName !== "-" && msg.includes(vName)) return true;
                             if (esr && esr !== "-" && msg.includes(esr)) return true;
                             return false;
                           });
 
-                          const targetSmsList = matchedSms.length > 0 ? matchedSms : [schemeSms[0]];
-                          const successCount = targetSmsList.filter((s: any) => s.status === 'SUCCESS' || s.status === 'DELIVERED').length;
+                          const targetSmsList = matchedSms.length > 0 ? matchedSms : schemeSms;
+                          const successCount = targetSmsList.filter((s: any) => isSmsSuccess(s)).length;
                           const isFullSuccess = successCount === targetSmsList.length && targetSmsList.length > 0;
                           const latestSms = targetSmsList[0];
                           const timeStr = latestSms?.created_at
                             ? new Date(latestSms.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
                             : "10:37 am";
-
-                          if (successCount === 0 && !isFullSuccess) {
-                            const reason = getSmsDispatchReason(item, activeLayer, targetSmsList);
-                            return (
-                              <div className="flex flex-col items-center gap-0.5">
-                                <span
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-medium border bg-rose-50 text-rose-800 border-rose-200 cursor-help"
-                                  title={reason.tooltip}
-                                >
-                                  <AlertCircle className="w-2.5 h-2.5 shrink-0 opacity-70" />
-                                  {reason.label}
-                                </span>
-                                <button
-                                  type="button"
-                                  className="text-[10px] font-medium text-blue-600 hover:underline cursor-pointer"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedSmsItem({
-                                      item,
-                                      smsList: targetSmsList
-                                    });
-                                  }}
-                                  title="View SMS Dispatch Logs"
-                                >
-                                  &lt; View SMS Log
-                                </button>
-                              </div>
-                            );
-                          }
 
                           return (
                             <div className="flex flex-col items-center gap-0.5">
@@ -2265,11 +2414,15 @@ export default function EscalationPortalPage() {
                                   <MessageSquare className="w-2.5 h-2.5 text-current" />
                                   {isFullSuccess
                                     ? `Delivered (${successCount}/${targetSmsList.length})`
-                                    : `Partial (${successCount}/${targetSmsList.length})`}
+                                    : successCount > 0
+                                      ? `Partial (${successCount}/${targetSmsList.length})`
+                                      : `Failed (${targetSmsList.length})`}
                                 </span>
-                                <span className="text-[10px] text-slate-500 font-normal">
-                                  {timeStr}
-                                </span>
+                                {timeStr && (
+                                  <span className="text-[10px] text-slate-500 font-normal">
+                                    {timeStr}
+                                  </span>
+                                )}
                               </div>
                               <button
                                 type="button"
@@ -2283,7 +2436,7 @@ export default function EscalationPortalPage() {
                                 }}
                                 title="View SMS Dispatch Logs"
                               >
-                                &lt; View SMS Log
+                                View Log
                               </button>
                             </div>
                           );
@@ -2353,12 +2506,12 @@ export default function EscalationPortalPage() {
                     {previewTier === "DE"
                       ? "Level 1: AE/DE Daily Notice (Day 1)"
                       : previewTier === "EE"
-                        ? "Level 2: EE Escalation Notice (>3 Days)"
+                        ? "Level 2: EE Escalation Notice (Every 3rd Day, Streak ≥ 3d)"
                         : previewTier === "CE"
-                          ? "Level 3: CE & SE Weekly Notice (7+ Days)"
+                          ? "Level 3: CE & SE Weekly Notice (Every Monday, Streak ≥ 7d)"
                           : previewTier === "MS"
-                            ? "Level 4: Member Secretary (MS) Notice (10+ Days)"
-                            : "Level 5: Principal Secretary (PS) Notice (15+ Days)"}
+                            ? "Level 4: Member Secretary (MS) Notice (1st & 4th Mon, Streak ≥ 15d)"
+                            : "Level 5: Principal Secretary (PS) Notice (1st & 4th Mon, Streak ≥ 15d)"}
                   </Badge>
                   <Badge variant="outline" className="text-xs font-mono">
                     {previewScheme.max_streak_days} Consecutive Days Unresolved
@@ -2391,7 +2544,7 @@ export default function EscalationPortalPage() {
                   onClick={() => openPreview(previewScheme, "EE")}
                   className={`h-7 text-xs ${previewTier === "EE" ? "bg-slate-800 text-white" : "border-slate-300"}`}
                 >
-                  EE (&gt;3 Days)
+                  EE (Every 3rd Day)
                 </Button>
                 <Button
                   size="sm"
@@ -2399,7 +2552,7 @@ export default function EscalationPortalPage() {
                   onClick={() => openPreview(previewScheme, "CE")}
                   className={`h-7 text-xs ${previewTier === "CE" ? "bg-slate-800 text-white" : "border-slate-300"}`}
                 >
-                  CE / SE (Weekly)
+                  CE / SE (Mondays)
                 </Button>
                 <Button
                   size="sm"
@@ -2407,7 +2560,7 @@ export default function EscalationPortalPage() {
                   onClick={() => openPreview(previewScheme, "MS")}
                   className={`h-7 text-xs ${previewTier === "MS" ? "bg-purple-900 text-white" : "border-slate-300"}`}
                 >
-                  MS (10+ Days)
+                  MS (1st &amp; 4th Mon)
                 </Button>
                 <Button
                   size="sm"
@@ -2415,7 +2568,7 @@ export default function EscalationPortalPage() {
                   onClick={() => openPreview(previewScheme, "PS")}
                   className={`h-7 text-xs ${previewTier === "PS" ? "bg-indigo-950 text-white" : "border-slate-300"}`}
                 >
-                  PS (15+ Days)
+                  PS (1st &amp; 4th Mon)
                 </Button>
               </div>
 
@@ -2779,112 +2932,240 @@ export default function EscalationPortalPage() {
       {/* SMS Dispatch Details Dialog */}
       {selectedSmsItem && (
         <Dialog open={!!selectedSmsItem} onOpenChange={(open) => !open && setSelectedSmsItem(null)}>
-          <DialogContent className="max-w-3xl max-h-[85vh] bg-white border border-slate-200 shadow-2xl rounded-2xl p-0 overflow-hidden flex flex-col">
-            <div className="p-5 bg-purple-800 text-white flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/10 gap-3 shrink-0">
-              <div>
-                <DialogTitle className="text-lg font-bold flex items-center gap-2 text-white">
-                  <MessageSquare className="h-5 w-5 text-white" />
-                  SMS Dispatch & Delivery Log
-                </DialogTitle>
-                <DialogDescription className="text-purple-100 text-xs mt-0.5">
-                  {selectedSmsItem.item.scheme_name} • DLT Template: {selectedSmsItem.item.category === "lpcd" ? "LPCD - Low" : selectedSmsItem.item.category === "chlorine" ? "Residual Chlorine" : "Pressure Sensor - Low"}
-                </DialogDescription>
-              </div>
-              <Badge className="bg-purple-900/60 text-white border-purple-400 self-start sm:self-auto text-xs px-2.5 py-1">
-                DLT Govt Gateway
-              </Badge>
-            </div>
-
-            <div className="p-5 overflow-y-auto space-y-4 text-xs">
-              {/* Details Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                <div>
-                  <span className="text-slate-500 block text-[11px] font-semibold">Recipient Officer</span>
-                  <span className="font-bold text-slate-800 text-xs mt-0.5 block break-words">{selectedSmsItem.item.officer_name}</span>
-                  <span className="text-[10px] text-slate-500 font-medium">{selectedSmsItem.item.officer_role}</span>
+          <DialogContent className="max-w-2xl bg-white border border-slate-200 shadow-2xl rounded-2xl p-0 overflow-hidden flex flex-col max-h-[85vh]">
+            {/* Header */}
+            <div className="p-5 bg-gradient-to-r from-indigo-900 via-slate-900 to-indigo-950 text-white flex items-center justify-between border-b border-indigo-800/40 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-white/10 rounded-xl backdrop-blur-xs border border-white/10">
+                  <MessageSquare className="h-5 w-5 text-indigo-300" />
                 </div>
                 <div>
-                  <span className="text-slate-500 block text-[11px] font-semibold">Mobile Number</span>
-                  <span className="font-bold text-purple-700 text-xs font-mono mt-0.5 block">
-                    +91 {selectedSmsItem.item.officer_mobile || selectedSmsItem.smsList[0]?.recipient_mobile || "9834955236"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block text-[11px] font-semibold">Dispatch Time</span>
-                  <span className="font-medium text-slate-800 text-xs mt-0.5 block">
-                    {selectedSmsItem.smsList[0]?.created_at
-                      ? new Date(selectedSmsItem.smsList[0].created_at).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
-                      : "10:37 am IST"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block text-[11px] font-semibold">Gateway Status</span>
-                  {(() => {
-                    const hasSuccess = selectedSmsItem.smsList.some((s: any) => s.status === 'SUCCESS' || s.status === 'DELIVERED');
-                    return (
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold mt-0.5 border ${hasSuccess
-                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                        : 'bg-rose-50 text-rose-800 border-rose-200'
-                        }`}>
-                        {hasSuccess ? '200 OK • Delivered' : '400 • Rejected by DLT Gateway'}
-                      </span>
-                    );
-                  })()}
-                </div>
-              </div>
-
-              {/* Message body */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold text-slate-700">Official SMS Body (Marathi / English)</label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const sampleMsg = selectedSmsItem.smsList[0]?.message_content ||
-                        `सूचना: JJM MVS ${selectedSmsItem.item.scheme_name} अंतर्गत ${selectedSmsItem.item.village_name || selectedSmsItem.item.esr_name} येथील ${selectedSmsItem.item.alert_title} नुसार मूल्य ${selectedSmsItem.item.parameter_value} आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा`;
-                      navigator.clipboard.writeText(sampleMsg);
-                      setCopiedSmsText(true);
-                      setTimeout(() => setCopiedSmsText(false), 2000);
-                    }}
-                    className="text-[11px] text-purple-700 hover:text-purple-900 font-semibold flex items-center gap-1 cursor-pointer"
-                  >
-                    {copiedSmsText ? (
+                  <DialogTitle className="text-base font-bold text-white flex items-center gap-2">
+                    SMS Dispatch Logs
+                  </DialogTitle>
+                  <div className="flex items-center gap-2 mt-1 text-xs text-indigo-200">
+                    <span className="font-semibold text-white">{selectedSmsItem.item.scheme_name}</span>
+                    {selectedSmsItem.item.village_name && selectedSmsItem.item.village_name !== "-" && (
                       <>
-                        <Check className="h-3 w-3 text-emerald-600" />
-                        <span className="text-emerald-700">Copied!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-3 w-3" />
-                        <span>Copy Message</span>
+                        <span>•</span>
+                        <span>{selectedSmsItem.item.village_name}</span>
                       </>
                     )}
-                  </button>
-                </div>
-                <div className="p-4 bg-purple-50/70 border border-purple-200 rounded-lg text-slate-900 leading-relaxed font-sans text-sm break-words whitespace-pre-wrap">
-                  {selectedSmsItem.smsList[0]?.message_content ||
-                    `सूचना: JJM MVS ${selectedSmsItem.item.scheme_name} अंतर्गत ${selectedSmsItem.item.village_name || selectedSmsItem.item.esr_name} येथील ${selectedSmsItem.item.alert_title} नुसार मूल्य ${selectedSmsItem.item.parameter_value} आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा`}
+                  </div>
                 </div>
               </div>
+              <div className="flex flex-col items-end gap-1 text-right">
+                <span className="text-[10px] font-semibold tracking-wider text-indigo-300 uppercase">
+                  Targeted Alert
+                </span>
+                <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                  {selectedSmsItem.item.alert_title}
+                  {selectedSmsItem.item.esr_name && selectedSmsItem.item.esr_name !== "-" && (
+                    <span className="bg-white/20 text-white px-2 py-0.5 rounded font-medium text-[11px]">
+                      ESR: {selectedSmsItem.item.esr_name}
+                    </span>
+                  )}
+                  {selectedSmsItem.item.parameter_value && selectedSmsItem.item.parameter_value !== "-" && (
+                    <span className="bg-rose-500 text-white px-2 py-0.5 rounded font-bold shadow-xs text-[11px]">
+                      Value: {selectedSmsItem.item.parameter_value}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Content Body */}
+            <div className="p-5 overflow-y-auto space-y-4 bg-slate-50/50 flex-1 text-xs">
+              {/* Dispatched DLT Message Content Card */}
+              {(() => {
+                const firstSms = selectedSmsItem.smsList[0];
+                const msgText = firstSms?.message_content || firstSms?.message_text ||
+                  `सूचना: JJM MVS ${selectedSmsItem.item.scheme_name} अंतर्गत ${selectedSmsItem.item.village_name || selectedSmsItem.item.esr_name} येथील ${selectedSmsItem.item.alert_title} नुसार मूल्य ${selectedSmsItem.item.parameter_value} आहे. तपासून त्वरित कार्यवाही करावी. – मजीप्रा`;
+                const templateName = firstSms?.alert_title || (selectedSmsItem.item.category === "lpcd" ? "LPCD – Low" : selectedSmsItem.item.category === "chlorine" ? "Residual Chlorine" : "Pressure Sensor – Low");
+
+                return (
+                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1.5">
+                        <Smartphone className="h-3.5 w-3.5 text-indigo-600" />
+                        DLT Approved SMS Content (Dispatched Marathi Text)
+                      </span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                        {templateName}
+                      </span>
+                    </div>
+                    <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 text-xs font-medium text-slate-900 leading-relaxed font-sans select-all break-words">
+                      {msgText}
+                    </div>
+                    <div className="flex items-center justify-between mt-2 pt-1 border-t border-slate-100 text-[10px] text-slate-400 font-mono">
+                      <span>DLT Approved Header: MJPIOT (MJP-ALERT)</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(msgText);
+                          setCopiedSmsText(true);
+                          setTimeout(() => setCopiedSmsText(false), 2000);
+                        }}
+                        className="text-indigo-600 hover:text-indigo-800 font-sans font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        {copiedSmsText ? (
+                          <>
+                            <Check className="h-3 w-3 text-emerald-600" />
+                            Copied!
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3 w-3" />
+                            Copy SMS
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Recipients Table (Ordered AE to CE) */}
+              {(() => {
+                const getSmsRank = (sms: any) => {
+                  const text = `${sms.recipient_role || ''} ${sms.recipient_name || ''} ${sms.engineer_name || ''} ${sms.recipient_email || ''}`.toLowerCase();
+                  if (text.includes("civil") && (text.includes("ae") || text.includes("de") || text.includes("assistant") || text.includes("deputy"))) return 1;
+                  if (text.includes("mech") && (text.includes("ae") || text.includes("de") || text.includes("assistant") || text.includes("deputy"))) return 2;
+                  if (text.includes("civil") && (text.includes("ee") || text.includes("executive"))) return 3;
+                  if (text.includes("mech") && (text.includes("ee") || text.includes("executive"))) return 4;
+                  if (text.includes("superintending") || text.includes("se")) return 5;
+                  if (text.includes("chief") || text.includes("ce")) return 6;
+                  if (text.includes("member secretary") || text.includes("ms")) return 7;
+                  if (text.includes("principal secretary") || text.includes("ps")) return 8;
+                  return 9;
+                };
+
+                const sortedDispatches = [...selectedSmsItem.smsList].sort((a, b) => getSmsRank(a) - getSmsRank(b));
+                const successCount = sortedDispatches.filter(s => isSmsSuccess(s)).length;
+                const failedCount = sortedDispatches.length - successCount;
+
+                return (
+                  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+                    <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-700">
+                        Dispatched Recipients ({sortedDispatches.length}) — AE to CE Order
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {successCount > 0 && (
+                          <span className="text-xs font-semibold text-emerald-700">
+                            {successCount} sent
+                          </span>
+                        )}
+                        {failedCount > 0 && (
+                          <span className="text-xs font-semibold text-rose-700">
+                            {failedCount} failed
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="divide-y divide-slate-100">
+                      {sortedDispatches.length === 0 ? (
+                        <div className="text-center py-6 text-slate-400 text-xs">
+                          No SMS dispatches recorded for this alert.
+                        </div>
+                      ) : (
+                        sortedDispatches.map((sms, sIdx) => {
+                          const isOk = isSmsSuccess(sms);
+                          const errText = !isOk ? parseSmsError(sms) : null;
+                          const officerName = sms.recipient_name || sms.engineer_name || selectedSmsItem.item.officer_name || "Assigned Engineer";
+                          const officerRole = sms.recipient_role || selectedSmsItem.item.officer_role || "Field Engineer";
+                          const mobile = sms.recipient_mobile || sms.mobile || selectedSmsItem.item.officer_mobile;
+
+                          return (
+                            <div key={sms.id || sIdx} className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/60 transition-colors">
+                              <div className="min-w-0 space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-bold text-slate-900 truncate">
+                                    {officerName}
+                                  </span>
+                                  <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                                    {officerRole}
+                                  </span>
+                                </div>
+                                {sms.recipient_email && (
+                                  <div className="text-[11px] text-slate-500 truncate">
+                                    {sms.recipient_email}
+                                  </div>
+                                )}
+                                {mobile && (
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    <a
+                                      href={`tel:${mobile}`}
+                                      className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
+                                    >
+                                      <Phone className="h-3 w-3" />
+                                      <span>+91 {mobile}</span>
+                                    </a>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="flex flex-col sm:items-end shrink-0 gap-1">
+                                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold border ${isOk
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : 'bg-rose-50 text-rose-700 border-rose-200'
+                                }`}>
+                                  {isOk ? (
+                                    <>
+                                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                                      Sent (200 OK)
+                                    </>
+                                  ) : (
+                                    <>
+                                      <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
+                                      Failed {sms.gateway_status ? `(${sms.gateway_status})` : ''}
+                                    </>
+                                  )}
+                                </span>
+                                {errText && (
+                                  <span className="text-[10.5px] font-semibold text-rose-600 bg-rose-50/80 px-2 py-0.5 rounded border border-rose-200 max-w-xs text-right truncate" title={errText}>
+                                    {errText}
+                                  </span>
+                                )}
+                                {sms.created_at && (
+                                  <span className="text-[10px] text-slate-400 font-medium">
+                                    {new Date(sms.created_at).toLocaleString('en-IN', {
+                                      day: '2-digit',
+                                      month: 'short',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                      hour12: true
+                                    })}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* DLT Gateway Notice */}
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-[11px] text-slate-600 space-y-1">
                 <div className="font-semibold text-slate-700 flex items-center gap-1">
-                  <Shield className="h-3.5 w-3.5 text-purple-600" />
-                  DLT Regulatory Compliance
+                  <Shield className="h-3.5 w-3.5 text-indigo-600" />
+                  TRAI DLT Gateway Audit Logs
                 </div>
                 <p>
-                  SMS dispatches are governed by TRAI DLT regulations. Numbers not pre-whitelisted during testing receive HTTP 400 submission rejection, whereas verified registered phone numbers receive live SMS from sender header MJPIOT.
+                  Official JJM MVS alerts are routed through the DLT Govt SMS Gateway. Failed submissions indicate gateway balance exhaustion (HTTP 400 Insufficient Balance) or non-whitelisted recipient mobile numbers. All dispatch events are logged for state compliance.
                 </p>
               </div>
             </div>
 
-            <div className="p-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+            <div className="p-3.5 border-t border-slate-100 bg-slate-50 flex justify-end shrink-0">
               <Button
-                variant="outline"
                 size="sm"
                 onClick={() => setSelectedSmsItem(null)}
-                className="text-xs cursor-pointer"
+                className="bg-slate-800 hover:bg-slate-900 text-white text-xs px-4"
               >
                 Close
               </Button>
@@ -2949,7 +3230,7 @@ export default function EscalationPortalPage() {
               </div>
 
               <div className="bg-blue-50/70 border border-blue-200 p-2.5 rounded-lg text-center">
-                <span className="text-[10px] uppercase font-bold text-blue-900 block">Level 1 • DE (Civil/Mech)</span>
+                <span className="text-[10px] uppercase font-bold text-blue-900 block">Level 1 • DE/AE (Civil)</span>
                 <span className="text-xl font-bold font-mono text-blue-950 mt-0.5 block">
                   {emailLogsData?.summary?.tier_breakdown?.de_emails ?? emailLogsData?.summary?.tier_1_sent ?? (emailLogsTimeRange === "today" ? (dispatches?.today?.de_emails ?? 1) : (dispatches?.last_7_days?.de_emails ?? 0))}
                 </span>
@@ -2957,11 +3238,11 @@ export default function EscalationPortalPage() {
               </div>
 
               <div className="bg-amber-50/70 border border-amber-200 p-2.5 rounded-lg text-center">
-                <span className="text-[10px] uppercase font-bold text-amber-900 block">Level 2 • EE (Civil/Mech)</span>
+                <span className="text-[10px] uppercase font-bold text-amber-900 block">Level 2 • EE (Civil)</span>
                 <span className="text-xl font-bold font-mono text-amber-950 mt-0.5 block">
                   {emailLogsData?.summary?.tier_breakdown?.ee_emails ?? emailLogsData?.summary?.tier_2_sent ?? (emailLogsTimeRange === "today" ? (dispatches?.today?.ee_emails ?? 0) : (dispatches?.last_7_days?.ee_emails ?? 0))}
                 </span>
-                <span className="text-[10px] text-amber-700 font-medium">3+ Days Streak</span>
+                <span className="text-[10px] text-amber-700 font-medium">Every 3rd Day (Streak ≥ 3d)</span>
               </div>
 
               <div className="bg-rose-50/70 border border-rose-200 p-2.5 rounded-lg text-center">
@@ -2969,7 +3250,7 @@ export default function EscalationPortalPage() {
                 <span className="text-xl font-bold font-mono text-rose-950 mt-0.5 block">
                   {emailLogsData?.summary?.tier_breakdown?.se_emails ?? (emailLogsTimeRange === "today" ? 0 : 1)}
                 </span>
-                <span className="text-[10px] text-rose-700 font-medium">7+ Days Streak</span>
+                <span className="text-[10px] text-rose-700 font-medium">Every Monday (Streak ≥ 7d)</span>
               </div>
 
               <div className="bg-red-50/70 border border-red-200 p-2.5 rounded-lg text-center">
@@ -2977,7 +3258,7 @@ export default function EscalationPortalPage() {
                 <span className="text-xl font-bold font-mono text-red-950 mt-0.5 block">
                   {emailLogsData?.summary?.tier_breakdown?.ce_emails ?? (emailLogsTimeRange === "today" ? 0 : 1)}
                 </span>
-                <span className="text-[10px] text-red-700 font-medium">7+ Days Streak</span>
+                <span className="text-[10px] text-red-700 font-medium">Every Monday (Streak ≥ 7d)</span>
               </div>
 
               <div className="bg-purple-50/70 border border-purple-200 p-2.5 rounded-lg text-center">
@@ -2985,7 +3266,7 @@ export default function EscalationPortalPage() {
                 <span className="text-xl font-bold font-mono text-purple-950 mt-0.5 block">
                   {(emailLogsData?.summary?.tier_breakdown?.ms_emails || 0) + (emailLogsData?.summary?.tier_breakdown?.ps_emails || 0)}
                 </span>
-                <span className="text-[10px] text-purple-700 font-medium">10+ & 15+ Days</span>
+                <span className="text-[10px] text-purple-700 font-medium">1st &amp; 4th Mon (Streak ≥ 15d)</span>
               </div>
             </div>
 

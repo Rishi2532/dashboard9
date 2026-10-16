@@ -2035,18 +2035,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
-        if (engRow.ee_mech_name || engRow.ee_mech_email) {
-          schemeEngineersList.push({
-            role: "EE (Mech)",
-            name: engRow.ee_mech_name || "EE (Mech)",
-            email: engRow.ee_mech_email,
-            mobile: engRow.ee_mech_mobile,
-          });
-          if (engRow.ee_mech_email && engRow.ee_mech_email.includes("@")) {
-            ccEmailsSet.add(engRow.ee_mech_email.trim().toLowerCase());
-          }
-        }
-
         if (engRow.de_ae_civil_name || engRow.de_ae_civil_email) {
           schemeEngineersList.push({
             role: "DE/AE (Civil)",
@@ -2056,18 +2044,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           if (engRow.de_ae_civil_email && engRow.de_ae_civil_email.includes("@")) {
             ccEmailsSet.add(engRow.de_ae_civil_email.trim().toLowerCase());
-          }
-        }
-
-        if (engRow.de_ae_mech_name || engRow.de_ae_mech_email) {
-          schemeEngineersList.push({
-            role: "DE/AE (Mech)",
-            name: engRow.de_ae_mech_name || "DE/AE (Mech)",
-            email: engRow.de_ae_mech_email,
-            mobile: engRow.de_ae_mech_mobile,
-          });
-          if (engRow.de_ae_mech_email && engRow.de_ae_mech_email.includes("@")) {
-            ccEmailsSet.add(engRow.de_ae_mech_email.trim().toLowerCase());
           }
         }
 
@@ -2361,21 +2337,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   }
                 }
               }
-              if (er.ee_mech_name || er.ee_mech_email) {
-                const k = `ee-mech-${er.ee_mech_email || er.ee_mech_name}`;
-                if (!seenRoles.has(k)) {
-                  seenRoles.add(k);
-                  groupEngineersList.push({
-                    role: "EE (Mech)",
-                    name: er.ee_mech_name || "EE (Mech)",
-                    email: er.ee_mech_email,
-                    mobile: er.ee_mech_mobile,
-                  });
-                  if (er.ee_mech_email && er.ee_mech_email.includes("@")) {
-                    groupCcEmailsSet.add(er.ee_mech_email.trim().toLowerCase());
-                  }
-                }
-              }
               if (er.de_ae_civil_name || er.de_ae_civil_email) {
                 const k = `civil-${er.de_ae_civil_email || er.de_ae_civil_name}`;
                 if (!seenRoles.has(k)) {
@@ -2388,21 +2349,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   });
                   if (er.de_ae_civil_email && er.de_ae_civil_email.includes("@")) {
                     groupCcEmailsSet.add(er.de_ae_civil_email.trim().toLowerCase());
-                  }
-                }
-              }
-              if (er.de_ae_mech_name || er.de_ae_mech_email) {
-                const k = `mech-${er.de_ae_mech_email || er.de_ae_mech_name}`;
-                if (!seenRoles.has(k)) {
-                  seenRoles.add(k);
-                  groupEngineersList.push({
-                    role: "DE/AE (Mech)",
-                    name: er.de_ae_mech_name || "DE/AE (Mech)",
-                    email: er.de_ae_mech_email,
-                    mobile: er.de_ae_mech_mobile,
-                  });
-                  if (er.de_ae_mech_email && er.de_ae_mech_email.includes("@")) {
-                    groupCcEmailsSet.add(er.de_ae_mech_email.trim().toLowerCase());
                   }
                 }
               }

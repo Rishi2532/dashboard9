@@ -51,7 +51,7 @@ router.post("/trigger-daily-alerts", async (req: Request, res: Response) => {
       await runDailyAlertsJob();
       return res.json({ success: true, message: "Daily alerts job triggered (force mode)" });
     }
-    const triggered = await triggerDailyJobIfNotSentToday("admin-portal-api");
+    const triggered = await triggerDailyJobIfNotSentToday("admin-portal-api", true);
     res.json({
       success: true,
       triggered,

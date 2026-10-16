@@ -858,9 +858,18 @@ export default function AlertsProgressPage() {
     return villages.size;
   }, [offlineData]);
 
-  // Actual Schemes, Email, and SMS counts per tab (strictly 1 consolidated email per scheme)
+  // Actual Schemes, Email, and SMS counts per tab (strictly based on actual consolidated emails dispatched)
   const lpcdSchemesCount = useMemo(() => new Set(lpcdData.map(r => r.scheme_id)).size, [lpcdData]);
-  const lpcdActualEmailsCount = lpcdSchemesCount;
+  const lpcdActualEmailsCount = useMemo(() => {
+    if (dailyDispatchesData?.emails && dailyDispatchesData.emails.length > 0) {
+      return dailyDispatchesData.emails.filter((e: any) => (e.lpcd_alerts_count || 0) > 0).length;
+    }
+    const engs = new Set<string>();
+    lpcdData.forEach(r => {
+      (r.acknowledgements || []).forEach(a => { if (a.engineer_name) engs.add(a.engineer_name.toLowerCase().trim()); });
+    });
+    return engs.size || lpcdSchemesCount;
+  }, [dailyDispatchesData, lpcdData, lpcdSchemesCount]);
   const lpcdActualSmsCount = useMemo(() => {
     const seen = new Set<string>();
     let count = 0;
@@ -874,7 +883,16 @@ export default function AlertsProgressPage() {
   }, [lpcdData]);
 
   const chlorineSchemesCount = useMemo(() => new Set(chlorineData.map(r => r.scheme_id)).size, [chlorineData]);
-  const chlorineActualEmailsCount = chlorineSchemesCount;
+  const chlorineActualEmailsCount = useMemo(() => {
+    if (dailyDispatchesData?.emails && dailyDispatchesData.emails.length > 0) {
+      return dailyDispatchesData.emails.filter((e: any) => (e.chlorine_alerts_count || 0) > 0).length;
+    }
+    const engs = new Set<string>();
+    chlorineData.forEach(r => {
+      (r.acknowledgements || []).forEach(a => { if (a.engineer_name) engs.add(a.engineer_name.toLowerCase().trim()); });
+    });
+    return engs.size || chlorineSchemesCount;
+  }, [dailyDispatchesData, chlorineData, chlorineSchemesCount]);
   const chlorineActualSmsCount = useMemo(() => {
     const seen = new Set<string>();
     let count = 0;
@@ -888,7 +906,16 @@ export default function AlertsProgressPage() {
   }, [chlorineData]);
 
   const pressureSchemesCount = useMemo(() => new Set(pressureData.map(r => r.scheme_id)).size, [pressureData]);
-  const pressureActualEmailsCount = pressureSchemesCount;
+  const pressureActualEmailsCount = useMemo(() => {
+    if (dailyDispatchesData?.emails && dailyDispatchesData.emails.length > 0) {
+      return dailyDispatchesData.emails.filter((e: any) => (e.pressure_alerts_count || 0) > 0).length;
+    }
+    const engs = new Set<string>();
+    pressureData.forEach(r => {
+      (r.acknowledgements || []).forEach(a => { if (a.engineer_name) engs.add(a.engineer_name.toLowerCase().trim()); });
+    });
+    return engs.size || pressureSchemesCount;
+  }, [dailyDispatchesData, pressureData, pressureSchemesCount]);
   const pressureActualSmsCount = useMemo(() => {
     const seen = new Set<string>();
     let count = 0;
@@ -902,7 +929,16 @@ export default function AlertsProgressPage() {
   }, [pressureData]);
 
   const offlineSchemesCount = useMemo(() => new Set(offlineData.map(r => r.scheme_id)).size, [offlineData]);
-  const offlineActualEmailsCount = offlineSchemesCount;
+  const offlineActualEmailsCount = useMemo(() => {
+    if (dailyDispatchesData?.emails && dailyDispatchesData.emails.length > 0) {
+      return dailyDispatchesData.emails.filter((e: any) => (e.offline_alerts_count || 0) > 0).length;
+    }
+    const engs = new Set<string>();
+    offlineData.forEach(r => {
+      (r.acknowledgements || []).forEach(a => { if (a.engineer_name) engs.add(a.engineer_name.toLowerCase().trim()); });
+    });
+    return engs.size || offlineSchemesCount;
+  }, [dailyDispatchesData, offlineData, offlineSchemesCount]);
   const offlineActualSmsCount = useMemo(() => {
     const seen = new Set<string>();
     let count = 0;
@@ -3146,13 +3182,19 @@ export default function AlertsProgressPage() {
     // Count real dispatched engineers strictly sourced from email_acknowledgements
     const dispatchedEngineersList = notifiedEngineersList.filter(e => e.isDispatched);
     const notifiedOfficersCount = dispatchedEngineersList.length || notifiedEngineersList.filter(e => e.ackCount > 0).length || (baseData.some(r => r.acknowledgements?.length) ? 1 : 0);
-    // Schemes with dispatched alert emails (strictly 1 consolidated email per scheme)
+    // Schemes with dispatched alert emails
     const dispatchedSchemesCount = new Set(
       baseData
         .filter(r => (r.acknowledgements && r.acknowledgements.length > 0))
         .map(r => r.scheme_id)
     ).size || new Set(baseData.map(r => r.scheme_id)).size;
-    const emailsSentCount = dispatchedSchemesCount;
+
+    // Actual consolidated emails sent to engineers for this tab
+    const tabActualEmails = type === 'lpcd' ? lpcdActualEmailsCount
+      : type === 'chlorine' ? chlorineActualEmailsCount
+      : type === 'pressure' ? pressureActualEmailsCount
+      : offlineActualEmailsCount;
+    const emailsSentCount = tabActualEmails || notifiedOfficersCount || dispatchedSchemesCount;
 
     const totalEngineers = dispatchedEngineersList.length > 0 ? dispatchedEngineersList.length : totalRosterEngineers;
     const totalAckEngineers = notifiedEngineersList.filter(e => e.isAcknowledged).length;
@@ -3595,7 +3637,7 @@ export default function AlertsProgressPage() {
 
               <div className="mt-2.5 pt-2 border-t border-indigo-100/80 flex items-center justify-between gap-1">
                 <span className="text-[9.5px] text-indigo-800 font-semibold truncate" title={`1 consolidated email sent per engineer bundling all their assigned schemes`}>
-                  Consolidated Dispatch ({notifiedOfficersCount} Officers)
+                  Consolidated Dispatch ({emailsSentCount} Officers · {dispatchedSchemesCount} Schemes)
                 </span>
                 <button
                   type="button"

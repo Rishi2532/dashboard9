@@ -56,6 +56,12 @@ export function getIstTimeParts(): {
   minute: number;
   second: number;
   displayStr: string;
+  weekday: string;
+  dayOfMonth: number;
+  isMonday: boolean;
+  is1stMonday: boolean;
+  is4thMonday: boolean;
+  is1stOr4thMonday: boolean;
 } {
   const now = new Date();
   const dateStr = new Intl.DateTimeFormat("en-CA", {
@@ -70,20 +76,31 @@ export function getIstTimeParts(): {
     hour: "numeric",
     minute: "numeric",
     second: "numeric",
+    weekday: "short",
+    day: "numeric",
     hour12: false,
   }).formatToParts(now);
 
   let hour = 0;
   let minute = 0;
   let second = 0;
+  let weekday = "";
+  let dayOfMonth = 1;
   for (const p of parts) {
     if (p.type === "hour") hour = parseInt(p.value, 10);
     if (p.type === "minute") minute = parseInt(p.value, 10);
     if (p.type === "second") second = parseInt(p.value, 10);
+    if (p.type === "weekday") weekday = p.value;
+    if (p.type === "day") dayOfMonth = parseInt(p.value, 10);
   }
 
+  const isMonday = weekday === "Mon";
+  const is1stMonday = isMonday && dayOfMonth >= 1 && dayOfMonth <= 7;
+  const is4thMonday = isMonday && dayOfMonth >= 22 && dayOfMonth <= 28;
+  const is1stOr4thMonday = is1stMonday || is4thMonday;
+
   const displayStr = now.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
-  return { dateStr, hour, minute, second, displayStr };
+  return { dateStr, hour, minute, second, displayStr, weekday, dayOfMonth, isMonday, is1stMonday, is4thMonday, is1stOr4thMonday };
 }
 
 /**
@@ -110,30 +127,32 @@ export async function hasAlertsBeenSentToday(targetDateStr?: string): Promise<bo
  * Safely executes the daily alerts job and automatic offline notifications.
  * Enforces a concurrency lock and a 15-minute failsafe execution timeout.
  */
-export async function triggerDailyJobIfNotSentToday(triggerSource: string): Promise<boolean> {
-  const { dateStr, displayStr } = getIstTimeParts();
+export async function triggerDailyJobIfNotSentToday(triggerSource: string, force: boolean = false): Promise<boolean> {
+  const { dateStr, hour, minute, displayStr } = getIstTimeParts();
 
   if (isJobRunning) {
     console.log(`⏳ [${triggerSource}] Daily alerts job is currently already in progress. Skipping trigger.`);
     return false;
   }
 
-  if (lastDispatchedDate === dateStr) {
-    // Already executed today in this running server instance
-    return false;
-  }
+  const isManualOrForced = force || triggerSource === "admin-portal-api" || triggerSource === "manual";
 
-  const alreadySentInDb = await hasAlertsBeenSentToday(dateStr);
-  if (alreadySentInDb) {
-    console.log(`ℹ️ [${triggerSource}] Daily alerts already recorded in database for today (${dateStr}). Syncing local state.`);
-    lastDispatchedDate = dateStr;
-    return false;
+  if (!isManualOrForced) {
+    if (lastDispatchedDate === dateStr) {
+      return false;
+    }
+    const alreadySentToday = await hasAlertsBeenSentToday(dateStr);
+    if (alreadySentToday) {
+      lastDispatchedDate = dateStr;
+      console.log(`ℹ️ [Daily Alerts Engine] Daily alerts have already been sent for ${dateStr}. Skipping trigger.`);
+      return false;
+    }
   }
 
   isJobRunning = true;
   const startTime = Date.now();
   console.log(`\n============================================================`);
-  console.log(`🚀 [Daily Alerts Engine] Initiating 11:00 AM dispatch (Trigger: ${triggerSource})`);
+  console.log(`🚀 [Daily Alerts Engine] Initiating daily alert dispatch (Trigger: ${triggerSource})`);
   console.log(`   Time: ${displayStr} IST | Date: ${dateStr}`);
   console.log(`============================================================\n`);
 
@@ -153,7 +172,7 @@ export async function triggerDailyJobIfNotSentToday(triggerSource: string): Prom
     lastDispatchedDate = dateStr;
     lastDispatchedTimestamp = new Date().toISOString();
     lastJobDurationMs = Date.now() - startTime;
-    console.log(`✅ [Daily Alerts Engine] Completed 11:00 AM dispatch for ${dateStr} in ${(lastJobDurationMs / 1000).toFixed(1)}s.`);
+    console.log(`✅ [Daily Alerts Engine] Completed daily dispatch for ${dateStr} in ${(lastJobDurationMs / 1000).toFixed(1)}s.`);
     return true;
   } catch (err) {
     console.error("❌ [Daily Alerts Engine] Dispatch encountered an error:", err);
@@ -312,8 +331,9 @@ export function startDailyAlertsCron() {
   }, 6000);
 }
 
-export async function runDailyAlertsJob() {
-  console.log("⏰ Running daily alerts job...");
+export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; skipSmsSending?: boolean; forceAllTiers?: boolean }) {
+  const ist = getIstTimeParts();
+  console.log(`⏰ Running daily alerts job... [${ist.dateStr} (${ist.weekday}) | Day ${ist.dayOfMonth} | Monday: ${ist.isMonday} | 1st/4th Mon: ${ist.is1stOr4thMonday}]`);
   try {
     const db = await getDB();
     const allAlertsBySchemeId: Record<string, Alert[]> = {};
@@ -521,6 +541,33 @@ export async function runDailyAlertsJob() {
       console.warn("⚠️ Could not load past alert logs for streak calculation:", pastErr);
     }
 
+    // Query when EE (Civil) was last dispatched an email from consolidated_email_dispatches and email_acknowledgements
+    const lastEeDispatchMap = new Map<string, string>();
+    try {
+      const eeRes: any = await db.execute(sql`
+        SELECT LOWER(TRIM(engineer_email)) as email, MAX(sent_date)::text as last_dispatch_date
+        FROM (
+          SELECT engineer_email, dispatch_date as sent_date
+          FROM consolidated_email_dispatches
+          WHERE (engineer_role ILIKE '%EE%' OR engineer_role ILIKE '%Executive%')
+            AND status = 'SENT'
+          UNION ALL
+          SELECT ea.engineer_email, ea.sent_date
+          FROM email_acknowledgements ea
+          INNER JOIN scheme_engineer_details sed ON sed.scheme_id = ea.scheme_id
+          WHERE LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(sed.ee_civil_email))
+        ) all_ee_dispatches
+        GROUP BY LOWER(TRIM(engineer_email))
+      `);
+      (eeRes.rows || []).forEach((r: any) => {
+        if (r.email && r.last_dispatch_date) {
+          lastEeDispatchMap.set(r.email, r.last_dispatch_date);
+        }
+      });
+    } catch (eeErr) {
+      console.warn("⚠️ Could not load last EE dispatch dates:", eeErr);
+    }
+
     const getAlertStreak = (alert: Alert): number => {
       const alertType = alert.offline_issue
         ? 'Offline'
@@ -566,8 +613,9 @@ export async function runDailyAlertsJob() {
 
     const now = new Date();
     const istTimeStr = now.toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour12: false });
+    const istDateStr = now.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
     const istDayOfWeek = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Kolkata", weekday: "long" }).format(now);
-    console.log(`📅 Daily Alerts Dispatch Day (IST): ${istDayOfWeek}`);
+    console.log(`📅 Daily Alerts Dispatch Day (IST): ${istDayOfWeek} (${istDateStr} ${istTimeStr})`);
 
     allEngineerDetails.forEach((engineer) => {
       let schemeAlerts: Alert[] = [];
@@ -661,17 +709,40 @@ export async function runDailyAlertsJob() {
         // 1. DE / AE (Civil): DAILY (all active alerts on this scheme)
         const deCivilAlerts = schemeAlerts;
 
-        // 2. EE (Civil): Executive Engineers receive daily alerts for all schemes in their division
-        const eeCivilAlerts = schemeAlerts;
+        // 2. EE (Civil): Level 2 Escalation (EVERY 3RD DAY if streak >= 3 days: Day 3, 6, 9, 12, etc.)
+        // Verified against both: (1) unbroken streak >= 3 days AND (2) at least 3 days elapsed since last email to EE in DB
+        const eeEmailClean = (engineer.ee_civil_email || '').trim().toLowerCase();
+        const lastEeSentStr = lastEeDispatchMap.get(eeEmailClean);
+        let daysSinceLastEeEmail = 999;
+        if (lastEeSentStr) {
+          const lastDate = new Date(lastEeSentStr);
+          const todayDate = new Date(istDateStr);
+          const diffMs = todayDate.getTime() - lastDate.getTime();
+          daysSinceLastEeEmail = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+        }
 
-        // 3. Superintending Engineer (SE) & Chief Engineer (CE): EVERY 7 DAYS FOR REPEATING ALERTS (Day 7, 14, 21, etc.)
-        const ceSeAlerts = schemeAlerts.filter(a => (a.streak_days || 1) >= 7 && (a.streak_days || 1) % 7 === 0);
+        const eeCivilAlerts = schemeAlerts.filter(a => {
+          const s = a.streak_days || 1;
+          if (options?.forceAllTiers) return s >= 3;
+          // Must have persistent streak >= 3 days, AND must NOT have received an email in the last 2 days
+          const isAtLeast3DaysSinceLast = daysSinceLastEeEmail >= 3;
+          return s >= 3 && isAtLeast3DaysSinceLast && (s % 3 === 0);
+        });
 
-        // 4. Member Secretary (MS): EVERY 10 DAYS FOR PERSISTING ISSUES (Day 10, 20, 30, etc.)
-        const msAlerts = schemeAlerts.filter(a => (a.streak_days || 1) >= 10 && (a.streak_days || 1) % 10 === 0);
+        // 3. Superintending Engineer (SE) & Chief Engineer (CE): EVERY MONDAY for alerts with streak >= 7 days
+        const ceSeAlerts = (ist.isMonday || options?.forceAllTiers)
+          ? schemeAlerts.filter(a => (a.streak_days || 1) >= 7)
+          : [];
 
-        // 5. Principal Secretary (PS): EVERY 15 DAYS FOR PERSISTING ISSUES (Day 15, 30, etc.)
-        const psAlerts = schemeAlerts.filter(a => (a.streak_days || 1) >= 15 && (a.streak_days || 1) % 15 === 0);
+        // 4. Member Secretary (MS): EVERY 1ST MONDAY AND 4TH MONDAY for streak >= 15 days
+        const msAlerts = (ist.is1stOr4thMonday || options?.forceAllTiers)
+          ? schemeAlerts.filter(a => (a.streak_days || 1) >= 15)
+          : [];
+
+        // 5. Principal Secretary (PS): EVERY 1ST MONDAY AND 4TH MONDAY for streak >= 15 days
+        const psAlerts = (ist.is1stOr4thMonday || options?.forceAllTiers)
+          ? schemeAlerts.filter(a => (a.streak_days || 1) >= 15)
+          : [];
 
         // --- Dispatch by Role ---
         // 1. DE/AE (Civil) - Daily Email & Daily SMS
@@ -798,6 +869,7 @@ export async function runDailyAlertsJob() {
             principal_secretary_email: execContacts.ps.email || null,
             dispatch_type: 'daily',
             telemetry_date: alert.telemetry_date || null,
+            sent_date: istDateStr,
             sent_time: istTimeStr,
           };
 
@@ -823,10 +895,19 @@ export async function runDailyAlertsJob() {
     // Ensure email supporting tables exist once
     await ensureDailyAlertTables(db);
 
+    // Persist logs in database before sending so alerts are recorded immediately
+    if (emailLogsToInsert.length > 0) {
+      console.log(`💾 Saving ${emailLogsToInsert.length} alert logs to the database...`);
+      const batchSize = 100;
+      for (let i = 0; i < emailLogsToInsert.length; i += batchSize) {
+        const batch = emailLogsToInsert.slice(i, i + batchSize);
+        await db.insert(emailAlertLogs).values(batch);
+      }
+      console.log("✅ Alert logs saved successfully.");
+    }
+
     // Send the consolidated emails (keyed engineer-wise: email + role + name)
     const groupKeys = Object.keys(emailsToSend);
-    console.log(`📧 Preparing to send ${groupKeys.length} consolidated alert emails...`);
-
     let totalEmailsSent = 0;
     let totalEmailsFailed = 0;
     const failedDeliveries: Array<{
@@ -837,6 +918,11 @@ export async function runDailyAlertsJob() {
       error: string;
       count: number;
     }> = [];
+
+    if (options?.skipEmailSending) {
+      console.log(`⏭️ [skipEmailSending=true] Skipping consolidated email dispatch (${groupKeys.length} already processed).`);
+    } else {
+      console.log(`📧 Preparing to send ${groupKeys.length} consolidated alert emails...`);
 
     for (const groupKey of groupKeys) {
       const { email, name, role, alerts } = emailsToSend[groupKey];
@@ -976,7 +1062,7 @@ export async function runDailyAlertsJob() {
     // Print clear dispatch audit summary in server console
     console.log(`\n============================================================`);
     console.log(`📊 DAILY ALERTS EMAIL DISPATCH AUDIT`);
-    console.log(`   Total Attempted: ${emails.length}`);
+    console.log(`   Total Attempted: ${groupKeys.length}`);
     console.log(`   ✅ Successfully Sent: ${totalEmailsSent}`);
     console.log(`   ❌ Failed: ${totalEmailsFailed}`);
     if (failedDeliveries.length > 0) {
@@ -989,10 +1075,13 @@ export async function runDailyAlertsJob() {
       console.log(`   🎉 All alert emails delivered with 100% success.`);
     }
     console.log(`============================================================\n`);
+    } // End of !options?.skipEmailSending
 
     // Send the consolidated SMS alerts
     const mobiles = Object.keys(smsToSend);
-    if (mobiles.length > 0) {
+    if (options?.skipSmsSending) {
+      console.log(`⏭️ [skipSmsSending=true] Skipping SMS dispatch (${mobiles.length} recipients already processed).`);
+    } else if (mobiles.length > 0) {
       console.log(`📱 Preparing to send ${mobiles.length} alert SMS messages...`);
       for (const mobile of mobiles) {
         const { name, email, alerts } = smsToSend[mobile];
@@ -1010,17 +1099,6 @@ export async function runDailyAlertsJob() {
           console.error(`❌ Failed to send alert SMS to ${mobile}:`, err);
         }
       }
-    }
-
-    // Persist logs in database
-    if (emailLogsToInsert.length > 0) {
-      console.log(`💾 Saving ${emailLogsToInsert.length} alert logs to the database...`);
-      const batchSize = 100;
-      for (let i = 0; i < emailLogsToInsert.length; i += batchSize) {
-        const batch = emailLogsToInsert.slice(i, i + batchSize);
-        await db.insert(emailAlertLogs).values(batch);
-      }
-      console.log("✅ Alert logs saved successfully.");
     }
 
   } catch (error) {
