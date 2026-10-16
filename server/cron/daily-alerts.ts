@@ -96,11 +96,11 @@ export function getIstTimeParts(): {
 
   const isMonday = weekday === "Mon";
   const is1stMonday = isMonday && dayOfMonth >= 1 && dayOfMonth <= 7;
-  const is4thMonday = isMonday && dayOfMonth >= 22 && dayOfMonth <= 28;
-  const is1stOr4thMonday = is1stMonday || is4thMonday;
+  const is3rdMonday = isMonday && dayOfMonth >= 15 && dayOfMonth <= 21;
+  const is1stOr3rdMonday = is1stMonday || is3rdMonday;
 
   const displayStr = now.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
-  return { dateStr, hour, minute, second, displayStr, weekday, dayOfMonth, isMonday, is1stMonday, is4thMonday, is1stOr4thMonday };
+  return { dateStr, hour, minute, second, displayStr, weekday, dayOfMonth, isMonday, is1stMonday, is3rdMonday, is1stOr3rdMonday };
 }
 
 /**
@@ -734,13 +734,13 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
           ? schemeAlerts.filter(a => (a.streak_days || 1) >= 7)
           : [];
 
-        // 4. Member Secretary (MS): EVERY 1ST MONDAY AND 4TH MONDAY for streak >= 15 days
-        const msAlerts = (ist.is1stOr4thMonday || options?.forceAllTiers)
+        // 4. Member Secretary (MS): EVERY 1ST MONDAY AND 3RD MONDAY for streak >= 15 days
+        const msAlerts = (ist.is1stOr3rdMonday || options?.forceAllTiers)
           ? schemeAlerts.filter(a => (a.streak_days || 1) >= 15)
           : [];
 
-        // 5. Principal Secretary (PS): EVERY 1ST MONDAY AND 4TH MONDAY for streak >= 15 days
-        const psAlerts = (ist.is1stOr4thMonday || options?.forceAllTiers)
+        // 5. Principal Secretary (PS): EVERY 1ST MONDAY AND 3RD MONDAY for streak >= 15 days
+        const psAlerts = (ist.is1stOr3rdMonday || options?.forceAllTiers)
           ? schemeAlerts.filter(a => (a.streak_days || 1) >= 15)
           : [];
 

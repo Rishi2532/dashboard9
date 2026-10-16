@@ -1752,15 +1752,15 @@ export async function executeEscalationDispatch(options: {
   }
   const isMonday = weekday === "Mon";
   const is1stMonday = isMonday && dayOfMonth >= 1 && dayOfMonth <= 7;
-  const is4thMonday = isMonday && dayOfMonth >= 22 && dayOfMonth <= 28;
-  const is1stOr4thMonday = is1stMonday || is4thMonday;
+  const is3rdMonday = isMonday && dayOfMonth >= 15 && dayOfMonth <= 21;
+  const is1stOr3rdMonday = is1stMonday || is3rdMonday;
 
   // Filter if single scheme requested
   const targetSchemes = options.schemeId
     ? schemes.filter(s => s.scheme_id === options.schemeId)
     : schemes;
 
-  logs.push(`🔍 Evaluating ${targetSchemes.length} schemes for escalation dispatch (Mode: ${dryRun ? 'PREVIEW / DRY RUN' : 'LIVE DISPATCH'}, Monday: ${isMonday}, 1st/4th Mon: ${is1stOr4thMonday})...`);
+  logs.push(`🔍 Evaluating ${targetSchemes.length} schemes for escalation dispatch (Mode: ${dryRun ? 'PREVIEW / DRY RUN' : 'LIVE DISPATCH'}, Monday: ${isMonday}, 1st/3rd Mon: ${is1stOr3rdMonday})...`);
 
   // --- 1. Level 2 Escalations to EE (Civil) (Every 3rd day if streak >= 3 days) ---
   const level2Schemes = options.schemeId
@@ -1939,11 +1939,11 @@ export async function executeEscalationDispatch(options: {
     }
   }
 
-  // --- 3. Level 4 Escalations to Member Secretary (MS) (1st & 4th Monday for streak >= 15 days) ---
+  // --- 3. Level 4 Escalations to Member Secretary (MS) (1st & 3rd Monday for streak >= 15 days) ---
   const level4Schemes = options.schemeId
     ? targetSchemes.filter(s => s.max_streak_days >= 15)
-    : (is1stOr4thMonday ? targetSchemes.filter(s => s.max_streak_days >= 15) : []);
-  logs.push(`📊 Found ${level4Schemes.length} schemes for Member Secretary (MS) Escalation (1st & 4th Monday, streak >= 15 days; Today: ${is1stOr4thMonday}).`);
+    : (is1stOr3rdMonday ? targetSchemes.filter(s => s.max_streak_days >= 15) : []);
+  logs.push(`📊 Found ${level4Schemes.length} schemes for Member Secretary (MS) Escalation (1st & 3rd Monday, streak >= 15 days; Today: ${is1stOr3rdMonday}).`);
 
   if (level4Schemes.length > 0) {
     const msEmail = execContacts.ms.email;
@@ -2027,11 +2027,11 @@ export async function executeEscalationDispatch(options: {
     }
   }
 
-  // --- 4. Level 5 Escalations to Principal Secretary (PS) (1st & 4th Monday for streak >= 15 days) ---
+  // --- 4. Level 5 Escalations to Principal Secretary (PS) (1st & 3rd Monday for streak >= 15 days) ---
   const level5Schemes = options.schemeId
     ? targetSchemes.filter(s => s.max_streak_days >= 15)
-    : (is1stOr4thMonday ? targetSchemes.filter(s => s.max_streak_days >= 15) : []);
-  logs.push(`📊 Found ${level5Schemes.length} schemes for Principal Secretary (PS) Escalation (1st & 4th Monday, streak >= 15 days; Today: ${is1stOr4thMonday}).`);
+    : (is1stOr3rdMonday ? targetSchemes.filter(s => s.max_streak_days >= 15) : []);
+  logs.push(`📊 Found ${level5Schemes.length} schemes for Principal Secretary (PS) Escalation (1st & 3rd Monday, streak >= 15 days; Today: ${is1stOr3rdMonday}).`);
 
   if (level5Schemes.length > 0) {
     const psEmail = execContacts.ps.email;

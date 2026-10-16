@@ -434,12 +434,12 @@ export default function EscalationPortalPage() {
     return schemes.filter((s) => s.max_streak_days >= 7 || s.escalation_level >= 3);
   }, [schemes]);
 
-  // Layer 4: MS (Member Secretary) -> 1st & 4th Monday for persistent issues >= 15 days
+  // Layer 4: MS (Member Secretary) -> 1st & 3rd Monday for persistent issues >= 15 days
   const layer4Schemes = useMemo(() => {
     return schemes.filter((s) => s.max_streak_days >= 15 || s.escalation_level >= 4);
   }, [schemes]);
 
-  // Layer 5: PS (Principal Secretary) -> 1st & 4th Monday for persistent issues >= 15 days
+  // Layer 5: PS (Principal Secretary) -> 1st & 3rd Monday for persistent issues >= 15 days
   const layer5Schemes = useMemo(() => {
     return schemes.filter((s) => s.max_streak_days >= 15 || s.escalation_level === 5);
   }, [schemes]);
@@ -1424,8 +1424,8 @@ export default function EscalationPortalPage() {
                 <strong>Level 1 (AE/DE Civil):</strong> Daily operational alert from Day 1 •{" "}
                 <strong>Level 2 (EE Civil):</strong> Dispatched every 3rd day if streak &ge; 3 days •{" "}
                 <strong>Level 3 (CE &amp; SE):</strong> Dispatched every Monday if streak &ge; 7 days •{" "}
-                <strong>Level 4 (Head - MJP / MS):</strong> Dispatched 1st &amp; 4th Monday if streak &ge; 15 days •{" "}
-                <strong>Level 5 (Head - WSSD / PS):</strong> Dispatched 1st &amp; 4th Monday if streak &ge; 15 days.
+                <strong>Level 4 (Head - MJP / MS):</strong> Dispatched 1st &amp; 3rd Monday if streak &ge; 15 days •{" "}
+                <strong>Level 5 (Head - WSSD / PS):</strong> Dispatched 1st &amp; 3rd Monday if streak &ge; 15 days.
               </p>
 
             </div>
@@ -1698,7 +1698,7 @@ export default function EscalationPortalPage() {
                   Level 4 • Head - MJP
                 </span>
                 <Badge variant="outline" className="text-[10px] bg-purple-50 border-purple-300 font-bold text-purple-900">
-                  1st &amp; 4th Mon (Streak ≥ 15d)
+                  1st &amp; 3rd Mon (Streak ≥ 15d)
                 </Badge>
               </div>
 
@@ -1752,7 +1752,7 @@ export default function EscalationPortalPage() {
                   Level 5 • Head - WSSD
                 </span>
                 <Badge variant="outline" className="text-[10px] bg-indigo-50 border-indigo-300 font-bold text-indigo-950">
-                  1st &amp; 4th Mon (Streak ≥ 15d)
+                  1st &amp; 3rd Mon (Streak ≥ 15d)
                 </Badge>
               </div>
 
@@ -2510,8 +2510,8 @@ export default function EscalationPortalPage() {
                         : previewTier === "CE"
                           ? "Level 3: CE & SE Weekly Notice (Every Monday, Streak ≥ 7d)"
                           : previewTier === "MS"
-                            ? "Level 4: Member Secretary (MS) Notice (1st & 4th Mon, Streak ≥ 15d)"
-                            : "Level 5: Principal Secretary (PS) Notice (1st & 4th Mon, Streak ≥ 15d)"}
+                            ? "Level 4: Member Secretary (MS) Notice (1st & 3rd Mon, Streak ≥ 15d)"
+                            : "Level 5: Principal Secretary (PS) Notice (1st & 3rd Mon, Streak ≥ 15d)"}
                   </Badge>
                   <Badge variant="outline" className="text-xs font-mono">
                     {previewScheme.max_streak_days} Consecutive Days Unresolved
@@ -2560,7 +2560,7 @@ export default function EscalationPortalPage() {
                   onClick={() => openPreview(previewScheme, "MS")}
                   className={`h-7 text-xs ${previewTier === "MS" ? "bg-purple-900 text-white" : "border-slate-300"}`}
                 >
-                  MS (1st &amp; 4th Mon)
+                  MS (1st &amp; 3rd Mon)
                 </Button>
                 <Button
                   size="sm"
@@ -2568,7 +2568,7 @@ export default function EscalationPortalPage() {
                   onClick={() => openPreview(previewScheme, "PS")}
                   className={`h-7 text-xs ${previewTier === "PS" ? "bg-indigo-950 text-white" : "border-slate-300"}`}
                 >
-                  PS (1st &amp; 4th Mon)
+                  PS (1st &amp; 3rd Mon)
                 </Button>
               </div>
 
@@ -3266,7 +3266,7 @@ export default function EscalationPortalPage() {
                 <span className="text-xl font-bold font-mono text-purple-950 mt-0.5 block">
                   {(emailLogsData?.summary?.tier_breakdown?.ms_emails || 0) + (emailLogsData?.summary?.tier_breakdown?.ps_emails || 0)}
                 </span>
-                <span className="text-[10px] text-purple-700 font-medium">1st &amp; 4th Mon (Streak ≥ 15d)</span>
+                <span className="text-[10px] text-purple-700 font-medium">1st &amp; 3rd Mon (Streak ≥ 15d)</span>
               </div>
             </div>
 
