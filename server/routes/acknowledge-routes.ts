@@ -30,7 +30,8 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
       ALTER TABLE email_acknowledgements 
       ADD COLUMN IF NOT EXISTS alert_id INTEGER,
       ADD COLUMN IF NOT EXISTS ticket_id VARCHAR(100),
-      ADD COLUMN IF NOT EXISTS esr_name VARCHAR(255);
+      ADD COLUMN IF NOT EXISTS esr_name VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS engineer_role VARCHAR(100);
 
       CREATE INDEX IF NOT EXISTS idx_email_acknowledgements_token ON email_acknowledgements(token);
       CREATE INDEX IF NOT EXISTS idx_email_acknowledgements_scheme ON email_acknowledgements(scheme_id, alert_type, sent_date);

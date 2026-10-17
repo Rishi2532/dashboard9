@@ -220,10 +220,12 @@ async function ensureDailyAlertTables(db: any) {
         esr_name VARCHAR(255),
         engineer_email VARCHAR(255) NOT NULL,
         engineer_name VARCHAR(255),
+        engineer_role VARCHAR(100),
         sent_date DATE NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date,
         acknowledged_at TIMESTAMP WITH TIME ZONE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
+      ALTER TABLE email_acknowledgements ADD COLUMN IF NOT EXISTS engineer_role VARCHAR(100);
       CREATE INDEX IF NOT EXISTS idx_email_acknowledgements_token ON email_acknowledgements(token);
       CREATE INDEX IF NOT EXISTS idx_email_acknowledgements_scheme ON email_acknowledgements(scheme_id, alert_type, sent_date);
 
@@ -950,14 +952,16 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
 
           const engName = (alert as any).assignedEngineerName || name;
 
+          const engRole = role || 'DE/AE (Civil)';
+
           await db.execute(sql`
-            INSERT INTO email_acknowledgements (token, scheme_id, alert_type, esr_name, engineer_email, engineer_name, sent_date)
-            VALUES (${itemToken}, ${alert.scheme_id}, ${alertType}, ${alert.esr_name || null}, ${email}, ${engName}, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date)
+            INSERT INTO email_acknowledgements (token, scheme_id, alert_type, esr_name, engineer_email, engineer_name, engineer_role, sent_date)
+            VALUES (${itemToken}, ${alert.scheme_id}, ${alertType}, ${alert.esr_name || null}, ${email}, ${engName}, ${engRole}, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date)
           `);
 
           await db.execute(sql`
-            INSERT INTO email_acknowledgements (token, scheme_id, alert_type, esr_name, engineer_email, engineer_name, sent_date)
-            VALUES (${masterToken}, ${alert.scheme_id}, ${alertType}, ${alert.esr_name || null}, ${email}, ${engName}, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date)
+            INSERT INTO email_acknowledgements (token, scheme_id, alert_type, esr_name, engineer_email, engineer_name, engineer_role, sent_date)
+            VALUES (${masterToken}, ${alert.scheme_id}, ${alertType}, ${alert.esr_name || null}, ${email}, ${engName}, ${engRole}, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date)
           `);
         }
       } catch (tokenErr) {

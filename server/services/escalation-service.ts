@@ -416,6 +416,38 @@ export async function getEscalationStatus(options: {
         pressure: { emails: 0, officers: 0, sms: 0 },
         offline: { emails: 0, officers: 0, sms: 0 },
       },
+      level_categories: {
+        1: {
+          lpcd: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          chlorine: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          pressure: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          offline: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+        },
+        2: {
+          lpcd: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          chlorine: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          pressure: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          offline: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+        },
+        3: {
+          lpcd: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          chlorine: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          pressure: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          offline: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+        },
+        4: {
+          lpcd: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          chlorine: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          pressure: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          offline: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+        },
+        5: {
+          lpcd: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          chlorine: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          pressure: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          offline: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+        },
+      },
     },
     last_7_days: {
       total_emails: 0,
@@ -447,6 +479,38 @@ export async function getEscalationStatus(options: {
         chlorine: { emails: 0, officers: 0, sms: 0 },
         pressure: { emails: 0, officers: 0, sms: 0 },
         offline: { emails: 0, officers: 0, sms: 0 },
+      },
+      level_categories: {
+        1: {
+          lpcd: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          chlorine: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          pressure: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          offline: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+        },
+        2: {
+          lpcd: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          chlorine: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          pressure: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          offline: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+        },
+        3: {
+          lpcd: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          chlorine: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          pressure: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          offline: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+        },
+        4: {
+          lpcd: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          chlorine: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          pressure: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          offline: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+        },
+        5: {
+          lpcd: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          chlorine: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          pressure: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+          offline: { emails: 0, officers: 0, schemes: 0, sms: 0 },
+        },
       },
     },
   };
@@ -598,42 +662,102 @@ export async function getEscalationStatus(options: {
         SELECT 
           dispatch_date::text as sent_date,
           'lpcd' as category,
+          CASE 
+            WHEN engineer_role ILIKE '%Principal%' THEN 5
+            WHEN engineer_role ILIKE '%Member%' THEN 4
+            WHEN engineer_role ILIKE '%Chief%' OR engineer_role ILIKE '%Superintending%' OR engineer_role ILIKE '%SE%' THEN 3
+            WHEN engineer_role ILIKE '%Executive%' OR engineer_role ILIKE '%EE%' THEN 2
+            ELSE 1
+          END as tier,
           COUNT(*)::int as email_count,
-          COUNT(DISTINCT LOWER(TRIM(engineer_name)))::int as officer_count
+          COUNT(DISTINCT LOWER(TRIM(engineer_name)))::int as officer_count,
+          jsonb_agg(scheme_ids) as all_scheme_ids
         FROM consolidated_email_dispatches
         WHERE dispatch_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
           AND lpcd_alerts_count > 0
-        GROUP BY dispatch_date::text
+        GROUP BY dispatch_date::text, 
+          CASE 
+            WHEN engineer_role ILIKE '%Principal%' THEN 5
+            WHEN engineer_role ILIKE '%Member%' THEN 4
+            WHEN engineer_role ILIKE '%Chief%' OR engineer_role ILIKE '%Superintending%' OR engineer_role ILIKE '%SE%' THEN 3
+            WHEN engineer_role ILIKE '%Executive%' OR engineer_role ILIKE '%EE%' THEN 2
+            ELSE 1
+          END
         UNION ALL
         SELECT 
           dispatch_date::text as sent_date,
           'chlorine' as category,
+          CASE 
+            WHEN engineer_role ILIKE '%Principal%' THEN 5
+            WHEN engineer_role ILIKE '%Member%' THEN 4
+            WHEN engineer_role ILIKE '%Chief%' OR engineer_role ILIKE '%Superintending%' OR engineer_role ILIKE '%SE%' THEN 3
+            WHEN engineer_role ILIKE '%Executive%' OR engineer_role ILIKE '%EE%' THEN 2
+            ELSE 1
+          END as tier,
           COUNT(*)::int as email_count,
-          COUNT(DISTINCT LOWER(TRIM(engineer_name)))::int as officer_count
+          COUNT(DISTINCT LOWER(TRIM(engineer_name)))::int as officer_count,
+          jsonb_agg(scheme_ids) as all_scheme_ids
         FROM consolidated_email_dispatches
         WHERE dispatch_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
           AND chlorine_alerts_count > 0
-        GROUP BY dispatch_date::text
+        GROUP BY dispatch_date::text,
+          CASE 
+            WHEN engineer_role ILIKE '%Principal%' THEN 5
+            WHEN engineer_role ILIKE '%Member%' THEN 4
+            WHEN engineer_role ILIKE '%Chief%' OR engineer_role ILIKE '%Superintending%' OR engineer_role ILIKE '%SE%' THEN 3
+            WHEN engineer_role ILIKE '%Executive%' OR engineer_role ILIKE '%EE%' THEN 2
+            ELSE 1
+          END
         UNION ALL
         SELECT 
           dispatch_date::text as sent_date,
           'pressure' as category,
+          CASE 
+            WHEN engineer_role ILIKE '%Principal%' THEN 5
+            WHEN engineer_role ILIKE '%Member%' THEN 4
+            WHEN engineer_role ILIKE '%Chief%' OR engineer_role ILIKE '%Superintending%' OR engineer_role ILIKE '%SE%' THEN 3
+            WHEN engineer_role ILIKE '%Executive%' OR engineer_role ILIKE '%EE%' THEN 2
+            ELSE 1
+          END as tier,
           COUNT(*)::int as email_count,
-          COUNT(DISTINCT LOWER(TRIM(engineer_name)))::int as officer_count
+          COUNT(DISTINCT LOWER(TRIM(engineer_name)))::int as officer_count,
+          jsonb_agg(scheme_ids) as all_scheme_ids
         FROM consolidated_email_dispatches
         WHERE dispatch_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
           AND pressure_alerts_count > 0
-        GROUP BY dispatch_date::text
+        GROUP BY dispatch_date::text,
+          CASE 
+            WHEN engineer_role ILIKE '%Principal%' THEN 5
+            WHEN engineer_role ILIKE '%Member%' THEN 4
+            WHEN engineer_role ILIKE '%Chief%' OR engineer_role ILIKE '%Superintending%' OR engineer_role ILIKE '%SE%' THEN 3
+            WHEN engineer_role ILIKE '%Executive%' OR engineer_role ILIKE '%EE%' THEN 2
+            ELSE 1
+          END
         UNION ALL
         SELECT 
           dispatch_date::text as sent_date,
           'offline' as category,
+          CASE 
+            WHEN engineer_role ILIKE '%Principal%' THEN 5
+            WHEN engineer_role ILIKE '%Member%' THEN 4
+            WHEN engineer_role ILIKE '%Chief%' OR engineer_role ILIKE '%Superintending%' OR engineer_role ILIKE '%SE%' THEN 3
+            WHEN engineer_role ILIKE '%Executive%' OR engineer_role ILIKE '%EE%' THEN 2
+            ELSE 1
+          END as tier,
           COUNT(*)::int as email_count,
-          COUNT(DISTINCT LOWER(TRIM(engineer_name)))::int as officer_count
+          COUNT(DISTINCT LOWER(TRIM(engineer_name)))::int as officer_count,
+          jsonb_agg(scheme_ids) as all_scheme_ids
         FROM consolidated_email_dispatches
         WHERE dispatch_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
           AND offline_alerts_count > 0
-        GROUP BY dispatch_date::text
+        GROUP BY dispatch_date::text,
+          CASE 
+            WHEN engineer_role ILIKE '%Principal%' THEN 5
+            WHEN engineer_role ILIKE '%Member%' THEN 4
+            WHEN engineer_role ILIKE '%Chief%' OR engineer_role ILIKE '%Superintending%' OR engineer_role ILIKE '%SE%' THEN 3
+            WHEN engineer_role ILIKE '%Executive%' OR engineer_role ILIKE '%EE%' THEN 2
+            ELSE 1
+          END
       `),
       db.execute(sql`
         SELECT 
@@ -644,6 +768,14 @@ export async function getEscalationStatus(options: {
             WHEN template_name ILIKE '%pressure%' THEN 'pressure'
             ELSE 'offline'
           END as category,
+          CASE 
+            WHEN engineer_name ILIKE '%Principal Secretary%' OR dispatch_type = 'escalation_level5' THEN 5
+            WHEN engineer_name ILIKE '%Member Secretary%' OR dispatch_type = 'escalation_level4' THEN 4
+            WHEN engineer_name ILIKE '%Deepak Ingale%' OR engineer_name ILIKE '%Chief Engineer%' OR template_id = 'LEVEL_3_ESCALATION_CE' THEN 3
+            WHEN engineer_name ILIKE '%Rishikesh Salunkhe%' THEN 3
+            WHEN engineer_name ILIKE '%Rishikesh Salunke%' OR template_id = 'LEVEL_2_ESCALATION_EE' THEN 2
+            ELSE 1
+          END as tier,
           COUNT(*) as sms_count
         FROM sms_alert_logs
         WHERE sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
@@ -654,6 +786,14 @@ export async function getEscalationStatus(options: {
             WHEN template_name ILIKE '%chlorine%' THEN 'chlorine'
             WHEN template_name ILIKE '%pressure%' THEN 'pressure'
             ELSE 'offline'
+          END,
+          CASE 
+            WHEN engineer_name ILIKE '%Principal Secretary%' OR dispatch_type = 'escalation_level5' THEN 5
+            WHEN engineer_name ILIKE '%Member Secretary%' OR dispatch_type = 'escalation_level4' THEN 4
+            WHEN engineer_name ILIKE '%Deepak Ingale%' OR engineer_name ILIKE '%Chief Engineer%' OR template_id = 'LEVEL_3_ESCALATION_CE' THEN 3
+            WHEN engineer_name ILIKE '%Rishikesh Salunkhe%' THEN 3
+            WHEN engineer_name ILIKE '%Rishikesh Salunke%' OR template_id = 'LEVEL_2_ESCALATION_EE' THEN 2
+            ELSE 1
           END
       `)
     ]);
@@ -826,29 +966,64 @@ export async function getEscalationStatus(options: {
       }
     });
 
-    // Populate category breakdown
+    // Populate category breakdown (both overall categories and level_categories by tier 1..5)
     (categoryEmailStatsRes.rows || []).forEach((r: any) => {
       const cat = r.category as 'lpcd' | 'chlorine' | 'pressure' | 'offline';
+      const tier = Number(r.tier || 1);
       const emailCount = Number(r.email_count || 0);
       const officerCount = Number(r.officer_count || 0);
+
+      // Extract unique schemes covered
+      let schemeCount = 0;
+      if (Array.isArray(r.all_scheme_ids)) {
+        const sids = new Set<string>();
+        r.all_scheme_ids.forEach((item: any) => {
+          if (Array.isArray(item)) item.forEach(id => { if (id) sids.add(String(id)); });
+          else if (item) sids.add(String(item));
+        });
+        schemeCount = sids.size;
+      }
+
       if (dispatches.last_7_days.categories[cat]) {
         dispatches.last_7_days.categories[cat].emails += emailCount;
         dispatches.last_7_days.categories[cat].officers += officerCount;
       }
-      if (r.sent_date === todayStr && dispatches.today.categories[cat]) {
-        dispatches.today.categories[cat].emails = emailCount;
-        dispatches.today.categories[cat].officers = officerCount;
+      if (dispatches.last_7_days.level_categories[tier]?.[cat]) {
+        dispatches.last_7_days.level_categories[tier][cat].emails += emailCount;
+        dispatches.last_7_days.level_categories[tier][cat].officers += officerCount;
+        dispatches.last_7_days.level_categories[tier][cat].schemes += schemeCount;
+      }
+
+      if (r.sent_date === todayStr) {
+        if (tier === 1 && dispatches.today.categories[cat]) {
+          dispatches.today.categories[cat].emails = emailCount;
+          dispatches.today.categories[cat].officers = officerCount;
+        }
+        if (dispatches.today.level_categories[tier]?.[cat]) {
+          dispatches.today.level_categories[tier][cat].emails = emailCount;
+          dispatches.today.level_categories[tier][cat].officers = officerCount;
+          dispatches.today.level_categories[tier][cat].schemes = schemeCount;
+        }
       }
     });
 
     (categorySmsStatsRes.rows || []).forEach((r: any) => {
       const cat = r.category as 'lpcd' | 'chlorine' | 'pressure' | 'offline';
+      const tier = Number(r.tier || 1);
       const count = Number(r.sms_count || 0);
       if (dispatches.last_7_days.categories[cat]) {
         dispatches.last_7_days.categories[cat].sms += count;
       }
-      if (r.sent_date === todayStr && dispatches.today.categories[cat]) {
-        dispatches.today.categories[cat].sms = count;
+      if (dispatches.last_7_days.level_categories[tier]?.[cat]) {
+        dispatches.last_7_days.level_categories[tier][cat].sms += count;
+      }
+      if (r.sent_date === todayStr) {
+        if (tier === 1 && dispatches.today.categories[cat]) {
+          dispatches.today.categories[cat].sms = count;
+        }
+        if (dispatches.today.level_categories[tier]?.[cat]) {
+          dispatches.today.level_categories[tier][cat].sms = count;
+        }
       }
     });
   } catch (dispErr) {
@@ -2294,7 +2469,53 @@ export async function getSentEscalationAlerts(options: {
 
       UNION ALL
 
-      -- 2. Actual Daily Emails Dispatched to Officers from email_alert_logs
+      -- 2. Actual Daily Emails Dispatched to Officers from consolidated_email_dispatches
+      SELECT 
+        ced.id::text AS id,
+        'email' AS channel,
+        ced.created_at,
+        ced.dispatch_date::date AS sent_date,
+        COALESCE(ced.scheme_ids->>0, 'MJP-SCHEME') AS scheme_id,
+        CASE 
+          WHEN jsonb_array_length(ced.scheme_names) = 1 THEN ced.scheme_names->>0
+          WHEN jsonb_array_length(ced.scheme_names) > 1 THEN (ced.scheme_names->>0) || ' (+' || (jsonb_array_length(ced.scheme_names) - 1) || ' more)'
+          ELSE 'Maharashtra Jeevan Pradhikaran'
+        END AS scheme_name,
+        ced.engineer_name AS recipient_name,
+        LOWER(TRIM(ced.engineer_email)) AS recipient_email,
+        ced.engineer_mobile AS recipient_mobile,
+        ced.engineer_role AS recipient_role,
+        CASE 
+          WHEN ced.engineer_role ILIKE '%Principal%' THEN 5
+          WHEN ced.engineer_role ILIKE '%Member%' THEN 4
+          WHEN ced.engineer_role ILIKE '%Chief%' OR ced.engineer_role ILIKE '%Superintending%' OR ced.engineer_role ILIKE '%SE%' THEN 3
+          WHEN ced.engineer_role ILIKE '%Executive%' OR ced.engineer_role ILIKE '%EE%' THEN 2
+          ELSE 1
+        END AS tier,
+        CONCAT('Daily Alert Digest (', ced.total_alerts, ' Issues)') AS alert_title,
+        CONCAT('Consolidated alert digest containing ', ced.total_alerts, ' unresolved telemetry alerts.') AS message_content,
+        'DELIVERED' AS status,
+        (ced.status = 'SENT') AS is_success,
+        200 AS gateway_status,
+        ced.error_message AS error_message,
+        'daily' AS dispatch_type,
+        (ced.lpcd_alerts_count > 0) AS is_lpcd,
+        (ced.chlorine_alerts_count > 0) AS is_chlorine,
+        (ced.pressure_alerts_count > 0) AS is_pressure,
+        (ced.offline_alerts_count > 0) AS is_offline,
+        ARRAY(
+          SELECT x FROM unnest(ARRAY[
+            CASE WHEN ced.lpcd_alerts_count > 0 THEN 'lpcd' END,
+            CASE WHEN ced.chlorine_alerts_count > 0 THEN 'chlorine' END,
+            CASE WHEN ced.pressure_alerts_count > 0 THEN 'pressure' END,
+            CASE WHEN ced.offline_alerts_count > 0 THEN 'offline' END
+          ]) AS x WHERE x IS NOT NULL
+        ) AS categories
+      FROM consolidated_email_dispatches ced
+
+      UNION ALL
+
+      -- 2b. Fallback for older historical dates from email_acknowledgements
       SELECT 
         sub.id,
         'email' AS channel,
@@ -2336,7 +2557,7 @@ export async function getSentEscalationAlerts(options: {
             WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.se_email), ''))) 
                  AND LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.se_name), ''))) THEN 3
             WHEN (LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_civil_email), ''))) OR LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_mech_email), ''))))
-                 AND (LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.ee_civil_name), ''))) OR LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.ee_mech_name), '')))) THEN 2
+                 OR (LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.ee_civil_name), ''))) OR LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) LIKE '%executive%' OR LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) LIKE '%ee%') THEN 2
             ELSE 1
           END AS role_tier,
           CASE 
@@ -2347,7 +2568,7 @@ export async function getSentEscalationAlerts(options: {
             WHEN LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.se_email), ''))) 
                  AND LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.se_name), ''))) THEN 'Superintending Engineer (SE)'
             WHEN (LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_civil_email), ''))) OR LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(COALESCE(MAX(s.ee_mech_email), ''))))
-                 AND (LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.ee_civil_name), ''))) OR LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.ee_mech_name), '')))) THEN 'Executive Engineer (EE)'
+                 OR (LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) = LOWER(TRIM(COALESCE(MAX(s.ee_civil_name), ''))) OR LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) LIKE '%executive%' OR LOWER(TRIM(COALESCE(MAX(ea.engineer_name), ''))) LIKE '%ee%') THEN 'Executive Engineer (EE)'
             ELSE 'Deputy Engineer (DE Civil)'
           END AS role_name,
           COUNT(*) AS issue_count,
@@ -2366,6 +2587,7 @@ export async function getSentEscalationAlerts(options: {
           ) AS categories
         FROM email_acknowledgements ea
         LEFT JOIN scheme_engineer_details s ON s.scheme_id = ea.scheme_id
+        WHERE ea.sent_date::date NOT IN (SELECT DISTINCT dispatch_date FROM consolidated_email_dispatches)
         GROUP BY ea.sent_date::date, LOWER(TRIM(ea.engineer_email)), ea.scheme_id
       ) sub
 

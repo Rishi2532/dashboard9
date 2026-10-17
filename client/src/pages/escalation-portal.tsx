@@ -619,13 +619,40 @@ export default function EscalationPortalPage() {
       }
     });
 
-    const catStats = dispatches?.today?.categories;
-    const isLevel1 = activeTierNumber === 1;
+    // Check if backend escalation-service provided level_categories for this tier
+    const tierCategoryStats = (dispatches?.today as any)?.level_categories?.[activeTierNumber];
+    if (tierCategoryStats) {
+      return {
+        lpcd: {
+          emails: tierCategoryStats.lpcd?.emails ?? lpcdEmailSet.size,
+          schemes: tierCategoryStats.lpcd?.schemes ?? lpcdSchemesSet.size,
+          sms: tierCategoryStats.lpcd?.sms ?? lpcdSms,
+        },
+        chlorine: {
+          emails: tierCategoryStats.chlorine?.emails ?? chlorineEmailSet.size,
+          schemes: tierCategoryStats.chlorine?.schemes ?? chlorineSchemesSet.size,
+          sms: tierCategoryStats.chlorine?.sms ?? chlorineSms,
+        },
+        pressure: {
+          emails: tierCategoryStats.pressure?.emails ?? pressureEmailSet.size,
+          schemes: tierCategoryStats.pressure?.schemes ?? pressureSchemesSet.size,
+          sms: tierCategoryStats.pressure?.sms ?? pressureSms,
+        },
+        offline: {
+          emails: tierCategoryStats.offline?.emails ?? offlineEmailSet.size,
+          schemes: tierCategoryStats.offline?.schemes ?? offlineSchemesSet.size,
+          sms: tierCategoryStats.offline?.sms ?? offlineSms,
+        },
+      };
+    }
 
-    const lpcdActualEmails = isLevel1 ? (catStats?.lpcd?.emails ?? 30) : (catStats?.lpcd?.emails || lpcdEmailSet.size);
-    const chlorineActualEmails = isLevel1 ? (catStats?.chlorine?.emails ?? 30) : (catStats?.chlorine?.emails || chlorineEmailSet.size);
-    const pressureActualEmails = isLevel1 ? (catStats?.pressure?.emails ?? 28) : (catStats?.pressure?.emails || pressureEmailSet.size);
-    const offlineActualEmails = isLevel1 ? (catStats?.offline?.emails ?? 27) : (catStats?.offline?.emails || offlineEmailSet.size);
+    const isLevel1 = activeTierNumber === 1;
+    const catStats = isLevel1 ? dispatches?.today?.categories : null;
+
+    const lpcdActualEmails = isLevel1 ? (catStats?.lpcd?.emails ?? 30) : lpcdEmailSet.size;
+    const chlorineActualEmails = isLevel1 ? (catStats?.chlorine?.emails ?? 30) : chlorineEmailSet.size;
+    const pressureActualEmails = isLevel1 ? (catStats?.pressure?.emails ?? 28) : pressureEmailSet.size;
+    const offlineActualEmails = isLevel1 ? (catStats?.offline?.emails ?? 27) : offlineEmailSet.size;
 
     const lpcdSchemes = isLevel1 ? (lpcdSchemesSet.size || 38) : lpcdSchemesSet.size;
     const chlorineSchemes = isLevel1 ? (chlorineSchemesSet.size || 39) : chlorineSchemesSet.size;
@@ -633,10 +660,10 @@ export default function EscalationPortalPage() {
     const offlineSchemes = isLevel1 ? (offlineSchemesSet.size || 36) : offlineSchemesSet.size;
 
     return {
-      lpcd: { emails: lpcdActualEmails, officers: lpcdActualEmails, schemes: lpcdSchemes, sms: lpcdSms },
-      chlorine: { emails: chlorineActualEmails, officers: chlorineActualEmails, schemes: chlorineSchemes, sms: chlorineSms },
-      pressure: { emails: pressureActualEmails, officers: pressureActualEmails, schemes: pressureSchemes, sms: pressureSms },
-      offline: { emails: offlineActualEmails, officers: offlineActualEmails, schemes: offlineSchemes, sms: offlineSms },
+      lpcd: { emails: lpcdActualEmails, schemes: lpcdSchemes, sms: lpcdSms },
+      chlorine: { emails: chlorineActualEmails, schemes: chlorineSchemes, sms: chlorineSms },
+      pressure: { emails: pressureActualEmails, schemes: pressureSchemes, sms: pressureSms },
+      offline: { emails: offlineActualEmails, schemes: offlineSchemes, sms: offlineSms },
     };
   }, [sentAlertsData, activeTierNumber, dispatches]);
 
@@ -1498,11 +1525,11 @@ export default function EscalationPortalPage() {
                 </span>
               </div>
               <div className="text-sm font-bold font-mono text-slate-900 mt-1 flex items-baseline gap-2">
-                <span>Today: <span className="text-blue-900 font-extrabold text-base">{dispatches?.today?.total_emails ?? sentAlertsData?.summary?.email_sent ?? 0}</span> Emails Sent ({dispatches?.today?.total_officers ?? 30} Officers)</span>
+                <span>Today: <span className="text-blue-900 font-extrabold text-base">{dispatches?.today?.total_emails ?? sentAlertsData?.summary?.email_sent ?? 0}</span> Emails Sent</span>
                 {/* <span className="text-[11px] text-slate-500 font-mono font-normal">| 7 Days: {dispatches?.last_7_days?.total_emails ?? 0}</span> */}
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] font-mono text-slate-600">
-                <span className="bg-blue-50 text-blue-800 px-1 py-0.5 rounded border border-blue-200">AE/DE: {dispatches?.today?.de_emails ?? 0} Emails ({dispatches?.today?.de_officers ?? 30} Officers)</span>
+                <span className="bg-blue-50 text-blue-800 px-1 py-0.5 rounded border border-blue-200">AE/DE: {dispatches?.today?.de_emails ?? 0} Emails</span>
                 <span className="bg-amber-50 text-amber-800 px-1 py-0.5 rounded border border-amber-200">EE: {dispatches?.today?.ee_emails ?? 0}</span>
                 <span className="bg-red-50 text-red-800 px-1 py-0.5 rounded border border-red-200">SE: {dispatches?.today?.se_emails ?? 0}</span>
                 <span className="bg-rose-50 text-rose-800 px-1 py-0.5 rounded border border-rose-200">CE: {dispatches?.today?.ce_emails ?? 0}</span>
@@ -1549,7 +1576,7 @@ export default function EscalationPortalPage() {
                   <span className="font-sans font-medium text-slate-600 flex items-center gap-1">
                     Emails:
                   </span>
-                  <span className="font-semibold text-blue-900">Today: {dispatches?.today?.de_emails ?? 0} ({dispatches?.today?.de_officers ?? 30} Officers)</span>
+                  <span className="font-semibold text-blue-900">Today: {dispatches?.today?.de_emails ?? 0}</span>
                 </div>
                 <div className="flex justify-between items-center p-1">
                   <span className="font-sans font-medium text-slate-600">SMS:</span>
@@ -2012,7 +2039,7 @@ export default function EscalationPortalPage() {
                 : "bg-slate-100 text-slate-700 border-slate-300"
             }`}>
               <Mail className={`w-3.5 h-3.5 ${levelEmailsSentCount > 0 ? "text-blue-600" : "text-slate-400"}`} />
-              <span>Today's Emails Sent: <strong className="font-mono text-[13px]">{levelEmailsSentCount}</strong> ({levelOfficersCount} Officers)</span>
+              <span>Today's Emails Sent: <strong className="font-mono text-[13px]">{levelEmailsSentCount}</strong></span>
             </div>
 
             {/* Toggle: Dispatched Today vs All Eligible by Streak */}

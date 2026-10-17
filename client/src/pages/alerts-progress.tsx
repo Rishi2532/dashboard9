@@ -416,19 +416,33 @@ export const getRowRecipients = (row: AlertData): RecipientInfo[] => {
       if (seen.has(key)) return;
       seen.add(key);
 
-      let role = 'DE/AE (Civil)';
-      let mobile: string | null = null;
+      let role = a.engineer_role || 'DE/AE (Civil)';
+      let mobile: string | null = a.engineer_mobile || null;
 
       const lowerName = aName.toLowerCase();
-      if (row.de_ae_civil_name && lowerName === row.de_ae_civil_name.toLowerCase().trim()) {
+      const lowerEmail = aEmail.toLowerCase();
+      if (a.engineer_role) {
+        role = a.engineer_role;
+        if (!mobile) {
+          if (role.toLowerCase().includes('executive') || role.toLowerCase().includes('ee')) {
+            mobile = row.ee_civil_mobile?.trim() || null;
+          } else if (role.toLowerCase().includes('superintending') || role.toLowerCase().includes('se')) {
+            mobile = row.se_mobile?.trim() || null;
+          } else if (role.toLowerCase().includes('chief')) {
+            mobile = row.chief_engineer_mobile?.trim() || null;
+          } else {
+            mobile = row.de_ae_civil_mobile?.trim() || null;
+          }
+        }
+      } else if (row.de_ae_civil_name && lowerName === row.de_ae_civil_name.toLowerCase().trim()) {
         role = 'DE/AE (Civil)';
         mobile = row.de_ae_civil_mobile?.trim() || null;
-      } else if (row.de_ae_mech_name && lowerName === row.de_ae_mech_name.toLowerCase().trim()) {
-        role = 'DE/AE (Mech)';
-        mobile = row.de_ae_mech_mobile?.trim() || null;
       } else if (row.ee_civil_name && lowerName === row.ee_civil_name.toLowerCase().trim()) {
         role = 'Executive Engineer (Civil)';
         mobile = row.ee_civil_mobile?.trim() || null;
+      } else if (row.de_ae_mech_name && lowerName === row.de_ae_mech_name.toLowerCase().trim()) {
+        role = 'DE/AE (Mech)';
+        mobile = row.de_ae_mech_mobile?.trim() || null;
       } else if (row.ee_mech_name && lowerName === row.ee_mech_name.toLowerCase().trim()) {
         role = 'Executive Engineer (Mech)';
         mobile = row.ee_mech_mobile?.trim() || null;
@@ -438,11 +452,33 @@ export const getRowRecipients = (row: AlertData): RecipientInfo[] => {
       } else if (row.chief_engineer_name && lowerName === row.chief_engineer_name.toLowerCase().trim()) {
         role = 'Chief Engineer';
         mobile = row.chief_engineer_mobile?.trim() || null;
+      } else if (lowerName.includes('chief')) {
+        role = 'Chief Engineer';
+        mobile = row.chief_engineer_mobile?.trim() || null;
+      } else if (lowerName.includes('superintending') || lowerName.includes('se ') || lowerName.includes('s.e.')) {
+        role = 'Superintending Engineer (SE)';
+        mobile = row.se_mobile?.trim() || null;
+      } else if (lowerName.includes('executive') || lowerName.includes('ee ') || lowerName.includes('e.e.')) {
+        role = 'Executive Engineer (Civil)';
+        mobile = row.ee_civil_mobile?.trim() || null;
+      } else if (
+        row.de_ae_civil_email &&
+        lowerEmail === row.de_ae_civil_email.toLowerCase().trim() &&
+        (!row.ee_civil_email || lowerEmail !== row.ee_civil_email.toLowerCase().trim())
+      ) {
+        // Unique DE/AE email
+        role = 'DE/AE (Civil)';
+        mobile = row.de_ae_civil_mobile?.trim() || null;
+      } else if (
+        row.ee_civil_email &&
+        lowerEmail === row.ee_civil_email.toLowerCase().trim() &&
+        (!row.de_ae_civil_email || lowerEmail !== row.de_ae_civil_email.toLowerCase().trim())
+      ) {
+        // Unique EE email
+        role = 'Executive Engineer (Civil)';
+        mobile = row.ee_civil_mobile?.trim() || null;
       } else {
-        if (lowerName.includes('chief')) role = 'Chief Engineer';
-        else if (lowerName.includes('se') || lowerName.includes('superintending')) role = 'Superintending Engineer (SE)';
-        else if (lowerName.includes('ee') || lowerName.includes('executive')) role = 'Executive Engineer (Civil)';
-        else role = 'DE/AE (Civil)';
+        role = 'DE/AE (Civil)';
         mobile = row.de_ae_civil_mobile?.trim() || null;
       }
 

@@ -87,8 +87,8 @@ router.use((req: any, res: any, next: any) => {
  * - subTab === 'current' (or default): strictly queries today's date in IST (shows 0 if no alerts sent today)
  */
 function getAlertDateFilter(requestedDate?: string, subTab: string = 'current') {
-  const cleanDate = (requestedDate && requestedDate !== 'undefined' && requestedDate !== 'null' && requestedDate.trim() !== '') 
-    ? requestedDate.trim() 
+  const cleanDate = (requestedDate && requestedDate !== 'undefined' && requestedDate !== 'null' && requestedDate.trim() !== '')
+    ? requestedDate.trim()
     : undefined;
 
   if (cleanDate) {
@@ -223,6 +223,7 @@ router.get('/lpcd', async (req, res) => {
                  json_agg(json_build_object(
                    'engineer_email', engineer_email,
                    'engineer_name', engineer_name,
+                   'engineer_role', engineer_role,
                    'sent_date', sent_date::text,
                    'acknowledged_at', max_ack
                  )) as acknowledgements
@@ -231,6 +232,7 @@ router.get('/lpcd', async (req, res) => {
                    sent_date,
                    LOWER(TRIM(engineer_email)) as engineer_email, 
                    MAX(engineer_name) as engineer_name, 
+                   MAX(engineer_role) as engineer_role, 
                    MAX(acknowledged_at) as max_ack
             FROM email_acknowledgements
             WHERE alert_type IN ('LPCD', 'Low LPCD')
@@ -404,6 +406,7 @@ router.get('/chlorine', async (req, res) => {
                  json_agg(json_build_object(
                    'engineer_email', engineer_email,
                    'engineer_name', engineer_name,
+                   'engineer_role', engineer_role,
                    'sent_date', sent_date::text,
                    'acknowledged_at', max_ack
                  )) as acknowledgements
@@ -412,6 +415,7 @@ router.get('/chlorine', async (req, res) => {
                    sent_date,
                    LOWER(TRIM(engineer_email)) as engineer_email, 
                    MAX(engineer_name) as engineer_name, 
+                   MAX(engineer_role) as engineer_role, 
                    MAX(acknowledged_at) as max_ack
             FROM email_acknowledgements
             WHERE alert_type IN ('Chlorine', 'Low Chlorine', 'High Chlorine')
@@ -586,6 +590,7 @@ router.get('/pressure', async (req, res) => {
                  json_agg(json_build_object(
                    'engineer_email', engineer_email,
                    'engineer_name', engineer_name,
+                   'engineer_role', engineer_role,
                    'sent_date', sent_date::text,
                    'acknowledged_at', max_ack
                  )) as acknowledgements
@@ -594,6 +599,7 @@ router.get('/pressure', async (req, res) => {
                    sent_date,
                    LOWER(TRIM(engineer_email)) as engineer_email, 
                    MAX(engineer_name) as engineer_name, 
+                   MAX(engineer_role) as engineer_role, 
                    MAX(acknowledged_at) as max_ack
             FROM email_acknowledgements
             WHERE alert_type IN ('Pressure', 'Low Pressure')
@@ -747,6 +753,7 @@ router.get('/offline', async (req, res) => {
                  json_agg(json_build_object(
                    'engineer_email', engineer_email,
                    'engineer_name', engineer_name,
+                   'engineer_role', engineer_role,
                    'sent_date', sent_date::text,
                    'acknowledged_at', max_ack
                  )) as acknowledgements
@@ -755,6 +762,7 @@ router.get('/offline', async (req, res) => {
                    sent_date,
                    LOWER(TRIM(engineer_email)) as engineer_email, 
                    MAX(engineer_name) as engineer_name, 
+                   MAX(engineer_role) as engineer_role, 
                    MAX(acknowledged_at) as max_ack
             FROM email_acknowledgements
             WHERE alert_type = 'Offline'
@@ -910,14 +918,14 @@ router.get('/offline', async (req, res) => {
         ORDER BY COALESCE(e.region, c.region, s.region), COALESCE(e.scheme_name, c.scheme_name, s.scheme_name), e.village_name;
       `;
       const result = await client.query(query, queryParams);
-      
+
       const mappedRows = result.rows.map((row: any) => {
         const offlineList: string[] = [];
         if (row.chlorine_status === 'Offline') offlineList.push('Chlorine');
         if (row.pressure_status === 'Offline') offlineList.push('Pressure');
         if (row.flow_meter_status === 'Offline') offlineList.push('Flow Meter');
         const val = offlineList.length > 0 ? offlineList.join(', ') : (row.current_value || 'Offline');
-        
+
         return {
           scheme_id: row.scheme_id,
           scheme_name: row.scheme_name,
@@ -965,7 +973,7 @@ router.get('/offline', async (req, res) => {
           sms_dispatches: row.sms_dispatches || []
         };
       });
-      
+
       res.json(mappedRows);
     } finally {
       client.release();
@@ -987,13 +995,13 @@ function getAckDetails(acknowledgements: any) {
     const formattedDate = isNaN(ackDate.getTime())
       ? String(ackItem.acknowledged_at)
       : ackDate.toLocaleString('en-IN', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true,
-        });
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
     return {
       isAck: true,
       ackStatus: 'Acknowledged',
@@ -1063,13 +1071,13 @@ function getSmsDetails(smsDispatches: any) {
   const d = latest.created_at ? new Date(latest.created_at) : null;
   const timeStr = d && !isNaN(d.getTime())
     ? d.toLocaleString('en-IN', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true,
-      })
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    })
     : latest.sent_date || '-';
 
   const statusStr = successCount === total
@@ -1102,13 +1110,13 @@ function getEmailDetails(row: any) {
     const d = new Date(row.created_at);
     timeStr = !isNaN(d.getTime())
       ? d.toLocaleString('en-IN', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true,
-        })
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      })
       : (row.sent_date ? String(row.sent_date).slice(0, 10) : '-');
   } else if (row.sent_date) {
     timeStr = String(row.sent_date).slice(0, 10);
@@ -1189,8 +1197,8 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
 
     const { dateFilter, queryParams } = getAlertDateFilter(requestedDate, subTab);
 
-    const titleSuffix = requestedDate 
-      ? `Date: ${requestedDate}` 
+    const titleSuffix = requestedDate
+      ? `Date: ${requestedDate}`
       : (subTab === 'previous' ? 'Previous Day (Yesterday)' : `Current (${new Date().toLocaleDateString('en-IN')})`);
 
     const client = await pool.connect();
@@ -1254,6 +1262,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
                      json_agg(json_build_object(
                        'engineer_email', engineer_email,
                        'engineer_name', engineer_name,
+                       'engineer_role', engineer_role,
                        'sent_date', sent_date::text,
                        'acknowledged_at', max_ack
                      )) as acknowledgements
@@ -1262,6 +1271,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
                        sent_date,
                        LOWER(TRIM(engineer_email)) as engineer_email, 
                        MAX(engineer_name) as engineer_name, 
+                       MAX(engineer_role) as engineer_role, 
                        MAX(acknowledged_at) as max_ack
                 FROM email_acknowledgements
                 WHERE alert_type IN ('LPCD', 'Low LPCD')
@@ -1453,6 +1463,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
                      json_agg(json_build_object(
                        'engineer_email', engineer_email,
                        'engineer_name', engineer_name,
+                       'engineer_role', engineer_role,
                        'sent_date', sent_date::text,
                        'acknowledged_at', max_ack
                      )) as acknowledgements
@@ -1461,6 +1472,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
                        sent_date,
                        LOWER(TRIM(engineer_email)) as engineer_email, 
                        MAX(engineer_name) as engineer_name, 
+                       MAX(engineer_role) as engineer_role, 
                        MAX(acknowledged_at) as max_ack
                 FROM email_acknowledgements
                 WHERE alert_type IN ('Chlorine', 'Low Chlorine', 'RCA')
@@ -1655,6 +1667,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
                      json_agg(json_build_object(
                        'engineer_email', engineer_email,
                        'engineer_name', engineer_name,
+                       'engineer_role', engineer_role,
                        'sent_date', sent_date::text,
                        'acknowledged_at', max_ack
                      )) as acknowledgements
@@ -1663,6 +1676,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
                        sent_date,
                        LOWER(TRIM(engineer_email)) as engineer_email, 
                        MAX(engineer_name) as engineer_name, 
+                       MAX(engineer_role) as engineer_role, 
                        MAX(acknowledged_at) as max_ack
                 FROM email_acknowledgements
                 WHERE alert_type IN ('Pressure', 'Low Pressure')
@@ -1836,6 +1850,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
                      json_agg(json_build_object(
                        'engineer_email', engineer_email,
                        'engineer_name', engineer_name,
+                       'engineer_role', engineer_role,
                        'sent_date', sent_date::text,
                        'acknowledged_at', max_ack
                      )) as acknowledgements
@@ -1844,6 +1859,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
                        sent_date,
                        LOWER(TRIM(engineer_email)) as engineer_email, 
                        MAX(engineer_name) as engineer_name, 
+                       MAX(engineer_role) as engineer_role, 
                        MAX(acknowledged_at) as max_ack
                 FROM email_acknowledgements
                 WHERE alert_type = 'Offline'
