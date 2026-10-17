@@ -2375,9 +2375,9 @@ export async function getSentEscalationAlerts(options: {
     const d = options.date.trim().replace(/'/g, "''");
     dateFilter = `sent_date = '${d}'::date`;
   } else if (timeRange === 'today') {
-    dateFilter = "(sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date OR created_at >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date)";
+    dateFilter = "((created_at AT TIME ZONE 'Asia/Kolkata')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date OR sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date)";
   } else if (timeRange === 'yesterday') {
-    dateFilter = "(sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '1 day' OR (created_at >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '1 day' AND created_at < (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date))";
+    dateFilter = "((created_at AT TIME ZONE 'Asia/Kolkata')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - 1 OR sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - 1)";
   } else if (timeRange === '7days') {
     dateFilter = "(sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days' OR created_at >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days')";
   } else if (timeRange === '30days') {
@@ -2421,21 +2421,32 @@ export async function getSentEscalationAlerts(options: {
         CASE 
           WHEN s.engineer_name ILIKE '%Principal Secretary%' OR s.dispatch_type = 'escalation_level5' THEN 'Principal Secretary (PS)'
           WHEN s.engineer_name ILIKE '%Member Secretary%' OR s.dispatch_type = 'escalation_level4' THEN 'Member Secretary (MS)'
-          WHEN s.engineer_name ILIKE '%Deepak Ingale%' OR s.engineer_name ILIKE '%Chief Engineer%' OR s.template_id = 'LEVEL_3_ESCALATION_CE' THEN 'Chief Engineer (CE)'
-          WHEN s.engineer_name ILIKE '%Rishikesh Salunkhe%' THEN 'Superintending Engineer (SE)'
-          WHEN s.engineer_name ILIKE '%Rishikesh Salunke%' OR s.template_id = 'LEVEL_2_ESCALATION_EE' THEN 'Executive Engineer (EE Civil)'
-          WHEN s.engineer_name ILIKE '%Rushikesh Salunke%' THEN 'Executive Engineer (EE Mech)'
-          WHEN s.engineer_name ILIKE '%Akshay Bhojane%' THEN 'Deputy Engineer (DE Civil)'
-          WHEN s.engineer_name ILIKE '%Rushikesh Salunkhe%' THEN 'Deputy Engineer (DE Mech)'
-          ELSE 'Field Engineer'
+          WHEN (sed.chief_engineer_name IS NOT NULL AND LOWER(TRIM(s.engineer_name)) = LOWER(TRIM(sed.chief_engineer_name)))
+            OR s.engineer_name ILIKE '%Deepak Ingale%' OR s.engineer_name ILIKE '%Chief Engineer%' OR s.template_id = 'LEVEL_3_ESCALATION_CE' THEN 'Chief Engineer (CE)'
+          WHEN (sed.se_name IS NOT NULL AND LOWER(TRIM(s.engineer_name)) = LOWER(TRIM(sed.se_name)))
+            OR s.engineer_name ILIKE '%Rishikesh Salunkhe%' OR s.engineer_name ILIKE '%Superintending Engineer%' OR s.engineer_name ILIKE '% SE%' THEN 'Superintending Engineer (SE)'
+          WHEN (sed.ee_civil_name IS NOT NULL AND LOWER(TRIM(s.engineer_name)) = LOWER(TRIM(sed.ee_civil_name)))
+            OR s.engineer_name ILIKE '%Rishikesh Salunke%' OR s.template_id = 'LEVEL_2_ESCALATION_EE' OR s.engineer_name ILIKE '%EE Civil%' THEN 'Executive Engineer (EE Civil)'
+          WHEN (sed.ee_mech_name IS NOT NULL AND LOWER(TRIM(s.engineer_name)) = LOWER(TRIM(sed.ee_mech_name)))
+            OR s.engineer_name ILIKE '%Rushikesh Salunke%' OR s.engineer_name ILIKE '%EE Mech%' THEN 'Executive Engineer (EE Mech)'
+          WHEN (sed.de_ae_civil_name IS NOT NULL AND LOWER(TRIM(s.engineer_name)) = LOWER(TRIM(sed.de_ae_civil_name)))
+            OR s.engineer_name ILIKE '%Akshay Bhojane%' OR s.engineer_name ILIKE '%DE Civil%' OR s.engineer_name ILIKE '%AE Civil%' OR s.engineer_name ILIKE '%Nagrale%' THEN 'Deputy Engineer (DE Civil)'
+          WHEN (sed.de_ae_mech_name IS NOT NULL AND LOWER(TRIM(s.engineer_name)) = LOWER(TRIM(sed.de_ae_mech_name)))
+            OR s.engineer_name ILIKE '%Rushikesh Salunkhe%' OR s.engineer_name ILIKE '%DE Mech%' OR s.engineer_name ILIKE '%AE Mech%' THEN 'Deputy Engineer (DE Mech)'
+          WHEN s.engineer_name ILIKE '%EE%' OR s.engineer_name ILIKE '%Executive%' THEN 'Executive Engineer (EE Civil)'
+          WHEN s.engineer_name ILIKE '%DE%' OR s.engineer_name ILIKE '%AE%' OR s.engineer_name ILIKE '%Deputy%' OR s.engineer_name ILIKE '%Assistant%' THEN 'Deputy Engineer (DE Civil)'
+          ELSE 'Deputy Engineer (DE Civil)'
         END AS recipient_role,
         CASE 
           WHEN s.engineer_name ILIKE '%Principal Secretary%' OR s.dispatch_type = 'escalation_level5' THEN 5
           WHEN s.engineer_name ILIKE '%Member Secretary%' OR s.dispatch_type = 'escalation_level4' THEN 4
-          WHEN s.engineer_name ILIKE '%Deepak Ingale%' OR s.engineer_name ILIKE '%Chief Engineer%' OR s.template_id = 'LEVEL_3_ESCALATION_CE' THEN 3
-          WHEN s.engineer_name ILIKE '%Rishikesh Salunkhe%' THEN 3
-          WHEN s.engineer_name ILIKE '%Rishikesh Salunke%' OR s.template_id = 'LEVEL_2_ESCALATION_EE' THEN 2
-          WHEN s.engineer_name ILIKE '%Rushikesh Salunke%' THEN 2
+          WHEN (sed.chief_engineer_name IS NOT NULL AND LOWER(TRIM(s.engineer_name)) = LOWER(TRIM(sed.chief_engineer_name)))
+            OR s.engineer_name ILIKE '%Deepak Ingale%' OR s.engineer_name ILIKE '%Chief Engineer%' OR s.template_id = 'LEVEL_3_ESCALATION_CE' THEN 3
+          WHEN (sed.se_name IS NOT NULL AND LOWER(TRIM(s.engineer_name)) = LOWER(TRIM(sed.se_name)))
+            OR s.engineer_name ILIKE '%Rishikesh Salunkhe%' OR s.engineer_name ILIKE '%Superintending Engineer%' OR s.engineer_name ILIKE '% SE%' THEN 3
+          WHEN (sed.ee_civil_name IS NOT NULL AND LOWER(TRIM(s.engineer_name)) = LOWER(TRIM(sed.ee_civil_name)))
+            OR (sed.ee_mech_name IS NOT NULL AND LOWER(TRIM(s.engineer_name)) = LOWER(TRIM(sed.ee_mech_name)))
+            OR s.engineer_name ILIKE '%Rishikesh Salunke%' OR s.template_id = 'LEVEL_2_ESCALATION_EE' OR s.engineer_name ILIKE '%Rushikesh Salunke%' THEN 2
           ELSE 1
         END AS tier,
         s.template_name AS alert_title,
@@ -2454,11 +2465,12 @@ export async function getSentEscalationAlerts(options: {
         COALESCE(s.delivery_description, s.gateway_response) AS error_message,
         s.dispatch_type,
         (s.template_name ILIKE '%lpcd%') AS is_lpcd,
-        (s.template_name ILIKE '%chlorine%') AS is_chlorine,
-        (s.template_name ILIKE '%pressure%') AS is_pressure,
+        (s.template_name ILIKE '%chlorine%' AND s.template_name NOT ILIKE '%offline%') AS is_chlorine,
+        (s.template_name ILIKE '%pressure%' AND s.template_name NOT ILIKE '%offline%') AS is_pressure,
         (s.template_name ILIKE '%offline%') AS is_offline,
         ARRAY[
           CASE 
+            WHEN s.template_name ILIKE '%offline%' THEN 'offline'
             WHEN s.template_name ILIKE '%lpcd%' THEN 'lpcd'
             WHEN s.template_name ILIKE '%chlorine%' THEN 'chlorine'
             WHEN s.template_name ILIKE '%pressure%' THEN 'pressure'
@@ -2466,6 +2478,10 @@ export async function getSentEscalationAlerts(options: {
           END
         ] AS categories
       FROM sms_alert_logs s
+      LEFT JOIN scheme_engineer_details sed ON (
+        (s.scheme_id IS NOT NULL AND s.scheme_id != '' AND s.scheme_id = sed.scheme_id)
+        OR (s.scheme_name IS NOT NULL AND s.scheme_name != '' AND s.scheme_name ILIKE sed.scheme)
+      )
 
       UNION ALL
 
