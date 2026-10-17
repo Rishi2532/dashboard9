@@ -1808,6 +1808,7 @@ export default function EscalationPortalPage() {
 
           {/* CARD 1: LEVEL 1 - DE / AE */}
           <div
+            id="level-card-layer1"
             onClick={() => handleSelectLayer("layer1")}
             className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${activeLayer === "layer1"
               ? "border-blue-900 ring-2 ring-blue-900/30 bg-blue-50/30"
@@ -1880,6 +1881,7 @@ export default function EscalationPortalPage() {
 
           {/* CARD 2: LEVEL 2 - EE */}
           <div
+            id="level-card-layer2"
             onClick={() => handleSelectLayer("layer2")}
             className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${activeLayer === "layer2"
               ? "border-amber-700 ring-2 ring-amber-700/30 bg-amber-50/30"
@@ -1952,6 +1954,7 @@ export default function EscalationPortalPage() {
 
           {/* CARD 3: LEVEL 3 - CE & SE */}
           <div
+            id="level-card-layer3"
             onClick={() => handleSelectLayer("layer3")}
             className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${activeLayer === "layer3"
               ? "border-red-900 ring-2 ring-red-900/30 bg-red-50/30"
@@ -2024,6 +2027,7 @@ export default function EscalationPortalPage() {
 
           {/* CARD 4: LEVEL 4 - HEAD - MJP */}
           <div
+            id="level-card-layer4"
             onClick={() => handleSelectLayer("layer4")}
             className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${activeLayer === "layer4"
               ? "border-purple-900 ring-2 ring-purple-900/30 bg-purple-50/30"
@@ -2096,6 +2100,7 @@ export default function EscalationPortalPage() {
 
           {/* CARD 5: LEVEL 5 - HEAD - WSSD */}
           <div
+            id="level-card-layer5"
             onClick={() => handleSelectLayer("layer5")}
             className={`cursor-pointer bg-white border rounded-lg p-3.5 transition-all flex flex-col justify-between shadow-2xs hover:shadow-xs ${activeLayer === "layer5"
               ? "border-indigo-950 ring-2 ring-indigo-950/30 bg-indigo-50/30"
@@ -2714,6 +2719,7 @@ export default function EscalationPortalPage() {
                           <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
                             <div className="flex flex-col items-center gap-1">
                               <button
+                                id={`view-7-days-btn-${idx}`}
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -4100,7 +4106,6 @@ export default function EscalationPortalPage() {
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200 text-[10.5px] font-bold text-slate-600 uppercase tracking-wider">
-                        <th className="py-2.5 px-3 text-center w-12">Day</th>
                         <th className="py-2.5 px-3">Date</th>
                         <th className="py-2.5 px-3">Recorded Value</th>
                         <th className="py-2.5 px-3 text-center">Status</th>
@@ -4121,9 +4126,6 @@ export default function EscalationPortalPage() {
 
                         return (
                           <tr key={day.dayIndex} className={`hover:bg-slate-50 transition-colors ${day.dayIndex === 1 ? "bg-blue-50/30" : ""}`}>
-                            <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-600">
-                              {day.dayLabel}
-                            </td>
                             <td className="py-2.5 px-3 whitespace-nowrap">
                               <span className="font-semibold text-slate-900">{day.dateFormatted}</span>
                               {day.dayIndex === 1 && (
