@@ -19,6 +19,8 @@ import {
   runDailyAlertsJob,
 } from "../cron/daily-alerts";
 import ExcelJS from "exceljs";
+import { getDB } from "../db";
+import { sql } from "drizzle-orm";
 
 const router = Router();
 
@@ -119,6 +121,114 @@ router.get("/summary", async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error("Error in /api/escalation/summary:", error);
     res.status(500).json({ error: error.message || "Failed to fetch escalation summary" });
+  }
+});
+
+/**
+ * GET /api/escalation/alert-history
+ * Returns the last 7 days daily values and escalation trend for a scheme and alert category
+ */
+router.get("/alert-history", async (req: Request, res: Response) => {
+  try {
+    const schemeId = req.query.schemeId ? String(req.query.schemeId).trim() : "";
+    const category = req.query.category ? String(req.query.category).trim().toLowerCase() : "all";
+    const villageName = req.query.villageName ? String(req.query.villageName).trim() : "";
+    const esrName = req.query.esrName ? String(req.query.esrName).trim() : "";
+
+    if (!schemeId) {
+      return res.status(400).json({ error: "schemeId is required" });
+    }
+
+    // Map category to alert types
+    let alertTypeCondition = sql`true`;
+    if (category === "lpcd") {
+      alertTypeCondition = sql`alert_type IN ('LPCD', 'Low LPCD')`;
+    } else if (category === "chlorine") {
+      alertTypeCondition = sql`alert_type IN ('Chlorine', 'Low Chlorine', 'High Chlorine')`;
+    } else if (category === "pressure") {
+      alertTypeCondition = sql`alert_type IN ('Pressure', 'Low Pressure')`;
+    } else if (category === "offline") {
+      alertTypeCondition = sql`alert_type = 'Offline'`;
+    }
+
+    // Query past 14 days of alert logs
+    const db = await getDB();
+    const logsRes = await db.execute(sql`
+      SELECT 
+        id, scheme_id, scheme_name, region, village_name, esr_name, 
+        alert_type, alert_value, sent_date, created_at, ticket_id
+      FROM email_alert_logs
+      WHERE scheme_id = ${schemeId}
+        AND ${alertTypeCondition}
+        AND sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '14 days'
+      ORDER BY sent_date DESC, created_at DESC
+    `);
+
+    // Build the 7-day timeline (today and previous 6 days)
+    const today = new Date();
+    const days: any[] = [];
+    const rows = logsRes.rows || [];
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateStr = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(d);
+
+      const dateFormatted = d.toLocaleDateString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+
+      const dayLabel = i === 0 ? "Today" : i === 1 ? "Yesterday" : `Day ${i + 1}`;
+
+      // Filter logs for this specific date (and optional village / esr matching)
+      let dayLogs = rows.filter((r: any) => {
+        const logDateStr = r.sent_date ? new Date(r.sent_date).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }) : "";
+        return logDateStr === dateStr;
+      });
+
+      if (villageName && dayLogs.some((l: any) => l.village_name && l.village_name.toLowerCase() === villageName.toLowerCase())) {
+        dayLogs = dayLogs.filter((l: any) => l.village_name && l.village_name.toLowerCase() === villageName.toLowerCase());
+      }
+      if (esrName && dayLogs.some((l: any) => l.esr_name && l.esr_name.toLowerCase() === esrName.toLowerCase())) {
+        dayLogs = dayLogs.filter((l: any) => l.esr_name && l.esr_name.toLowerCase() === esrName.toLowerCase());
+      }
+
+      const hasAlert = dayLogs.length > 0;
+      const primaryLog = dayLogs[0] || null;
+
+      days.push({
+        dayIndex: i + 1,
+        date: dateStr,
+        dateFormatted,
+        dayLabel,
+        hasAlert,
+        alertType: primaryLog?.alert_type || (hasAlert ? "Alert" : "Normal / Within Limits"),
+        alertValue: primaryLog?.alert_value || (hasAlert ? "-" : "Normal"),
+        villageName: primaryLog?.village_name || villageName || "-",
+        esrName: primaryLog?.esr_name || esrName || "-",
+        ticketId: primaryLog?.ticket_id || "-",
+        logCount: dayLogs.length,
+        allLogs: dayLogs,
+      });
+    }
+
+    res.json({
+      success: true,
+      schemeId,
+      category,
+      timeline: days,
+    });
+  } catch (error: any) {
+    console.error("Error in /api/escalation/alert-history:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch alert history" });
   }
 });
 
@@ -456,9 +566,55 @@ router.get("/export-excel", async (req: Request, res: Response) => {
     const { summary, schemes } = await getEscalationStatus({ region });
 
     let exportSchemes = schemes;
+    let latestDispatchDateStr: string | null = null;
     if (levelFilter && [1, 2, 3, 4, 5].includes(levelFilter)) {
-      const minDays = levelFilter === 1 ? 1 : levelFilter === 2 ? 3 : levelFilter === 3 ? 7 : levelFilter === 4 ? 10 : 15;
-      exportSchemes = schemes.filter((s) => s.max_streak_days >= minDays || s.escalation_level >= levelFilter);
+      const db = await getDB();
+      const latestDispatchRes = await db.execute(sql`
+        SELECT 
+          dispatch_date::date as dispatch_date
+        FROM consolidated_email_dispatches
+        WHERE (
+          CASE 
+            WHEN engineer_role ILIKE '%Principal%' THEN 5
+            WHEN engineer_role ILIKE '%Member%' THEN 4
+            WHEN engineer_role ILIKE '%Chief%' OR engineer_role ILIKE '%Superintending%' OR engineer_role ILIKE '%SE%' THEN 3
+            WHEN engineer_role ILIKE '%Executive%' OR engineer_role ILIKE '%EE%' THEN 2
+            ELSE 1
+          END
+        ) = ${levelFilter}
+        ORDER BY dispatch_date DESC
+        LIMIT 1
+      `);
+
+      if (latestDispatchRes.rows && latestDispatchRes.rows.length > 0) {
+        const latestDate = latestDispatchRes.rows[0].dispatch_date;
+        latestDispatchDateStr = new Date(latestDate).toLocaleDateString("en-IN", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric"
+        });
+
+        const allDispatchesRes = await db.execute(sql`
+          SELECT DISTINCT sid.scheme_id
+          FROM consolidated_email_dispatches ced
+          LEFT JOIN LATERAL jsonb_array_elements_text(COALESCE(ced.scheme_ids, '[]'::jsonb)) AS sid(scheme_id) ON true
+          WHERE (
+            CASE 
+              WHEN ced.engineer_role ILIKE '%Principal%' THEN 5
+              WHEN ced.engineer_role ILIKE '%Member%' THEN 4
+              WHEN ced.engineer_role ILIKE '%Chief%' OR ced.engineer_role ILIKE '%Superintending%' OR ced.engineer_role ILIKE '%SE%' THEN 3
+              WHEN ced.engineer_role ILIKE '%Executive%' OR ced.engineer_role ILIKE '%EE%' THEN 2
+              ELSE 1
+            END
+          ) = ${levelFilter}
+          AND ced.dispatch_date::date = ${latestDate}::date
+        `);
+
+        const validSchemeIds = new Set((allDispatchesRes.rows || []).map((r: any) => String(r.scheme_id || '').trim()));
+        exportSchemes = schemes.filter(s => validSchemeIds.has(String(s.scheme_id).trim()));
+      } else {
+        exportSchemes = [];
+      }
     }
 
     const workbook = new ExcelJS.Workbook();
@@ -482,7 +638,7 @@ router.get("/export-excel", async (req: Request, res: Response) => {
     sheet.mergeCells("A2:O2");
     const subCell = sheet.getCell("A2");
     const levelSubTitle = levelFilter
-      ? `Level ${levelFilter} Alert Escalation Registry (${exportSchemes.length} Schemes)`
+      ? `Level ${levelFilter} Alert Escalation Registry (${exportSchemes.length} Schemes Dispatched${latestDispatchDateStr ? ` on ${latestDispatchDateStr}` : " - No Emails Dispatched"})`
       : "4-Tier Alerts Escalation Matrix (DE / EE / CE & SE / Member Secretary)";
     subCell.value = `${levelSubTitle} — (Report Generated: ${new Date().toLocaleDateString("en-IN")})`;
     subCell.font = { name: "Arial", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
@@ -516,6 +672,27 @@ router.get("/export-excel", async (req: Request, res: Response) => {
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2563EB" } };
       cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
     });
+
+    if (exportSchemes.length === 0) {
+      const emptyRow = sheet.addRow([
+        "-",
+        levelFilter ? `No escalation emails have been dispatched for Level ${levelFilter}.` : "No schemes found.",
+        "-",
+        "-",
+        "-",
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        "-",
+        "-",
+        "-",
+        "-",
+      ]);
+      emptyRow.height = 24;
+    }
 
     exportSchemes.forEach((s) => {
       const levelLabel =

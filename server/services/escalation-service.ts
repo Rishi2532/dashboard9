@@ -58,6 +58,7 @@ export interface SchemeEscalationItem {
   ps_sms_count: number;
   total_email_count: number;
   last_notified_at?: string;
+  remarks?: any[];
 }
 
 export interface EscalationSummary {
@@ -191,6 +192,33 @@ export async function getEscalationStatus(options: {
   const rawRes = await db.execute(alertsQuery);
   const alertRows: any[] = rawRes.rows || [];
 
+  // Query issue_reports (Field Remarks)
+  const remarksByScheme = new Map<string, any[]>();
+  try {
+    const issuesRes = await db.execute(sql`
+      SELECT scheme_id, 
+             json_agg(json_build_object(
+               'problem_level', problem_level,
+               'village_name', village_name,
+               'esr_name', esr_name,
+               'reason', reason,
+               'status', status,
+               'status_value', status_value,
+               'resolution_remark', resolution_remark,
+               'created_at', created_at,
+               'resolved_at', resolved_at,
+               'creator_name', creator_name
+             )) as remarks
+      FROM issue_reports
+      GROUP BY scheme_id
+    `);
+    (issuesRes.rows || []).forEach((r: any) => {
+      if (r.scheme_id) remarksByScheme.set(String(r.scheme_id).trim(), r.remarks || []);
+    });
+  } catch (err) {
+    console.error("Error fetching issue_reports in getEscalationStatus:", err);
+  }
+
   // 3. Group by scheme
   const schemeAgg = new Map<string, SchemeEscalationItem>();
 
@@ -283,6 +311,7 @@ export async function getEscalationStatus(options: {
         ms_sms_count: 0,
         ps_sms_count: 0,
         total_email_count: 0,
+        remarks: remarksByScheme.get(schemeId) || [],
       });
     }
 

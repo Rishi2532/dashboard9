@@ -671,7 +671,9 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
             assignedEngineerRole: role,
           }));
           emails.forEach(email => {
-            const groupKey = `${email}:::${role}:::${name}`;
+            // Strictly 1 email per scheme
+            const schemeId = engineer.scheme_id || alerts[0]?.scheme_id || 'unknown';
+            const groupKey = `${email}:::${role}:::${name}:::${schemeId}`;
             if (!emailsToSend[groupKey]) {
               emailsToSend[groupKey] = {
                 email,
@@ -971,9 +973,13 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
       let isSuccess = false;
       let failureError: string | null = null;
 
+      const primarySchemeId = uniqueAlerts[0]?.scheme_id || null;
+      const primarySchemeName = uniqueAlerts[0]?.scheme_name || (primarySchemeId ? `Scheme ${primarySchemeId}` : 'Action Required');
+      const emailSubject = `🚨 Critical Water Scheme Alert - ${primarySchemeName}`;
+
       try {
         // Enforce 25-second timeout on each email send to prevent SMTP freezing cron
-        const sendPromise = sendDailyAlertEmail(email, name, uniqueAlerts, masterToken);
+        const sendPromise = sendDailyAlertEmail(email, name, uniqueAlerts, masterToken, emailSubject);
         const timeoutPromise = new Promise<boolean>((_, reject) =>
           setTimeout(() => reject(new Error("SMTP send timeout (25s exceeded)")), 25000)
         );
@@ -989,11 +995,9 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
 
       if (isSuccess) {
         totalEmailsSent++;
-        console.log(`✅ Sent alert email to ${email} (${name} - ${role}) for ${uniqueAlerts.length} issues.`);
+        console.log(`✅ Sent alert email to ${email} (${name} - ${role}) for ${uniqueAlerts.length} issues in ${primarySchemeName}.`);
       } else {
         totalEmailsFailed++;
-        const primarySchemeId = uniqueAlerts[0]?.scheme_id || null;
-        const primarySchemeName = uniqueAlerts[0]?.scheme_name || null;
         const alertSummary = uniqueAlerts
           .map(a => `${a.scheme_name || a.scheme_id} (${a.village_name || a.esr_name || 'Main'}): ${a.chlorine_issue ? (a.chlorine_type || 'Chlorine') : a.pressure_issue ? 'Pressure' : a.lpcd_issue ? 'LPCD' : 'Offline'}`)
           .slice(0, 5)
@@ -1050,7 +1054,7 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
             ${prCount},
             ${offCount},
             ${masterToken},
-            '🚨 Critical Water Scheme Alerts - Action Required',
+            ${emailSubject},
             ${isSuccess ? 'SENT' : 'FAILED'},
             ${failureError || null}
           )

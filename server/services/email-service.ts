@@ -466,8 +466,12 @@ export async function sendDailyAlertEmail(
   engineerName: string,
   alertsData: any[],
   acknowledgeToken?: string, // ONE token for the entire email (covers all schemes)
+  customSubject?: string,
 ): Promise<boolean> {
-  const subject = `🚨 Critical Water Scheme Alerts - Action Required`;
+  const schemeTitle = alertsData[0]?.scheme_name ? `${alertsData[0]?.scheme_name} (ID: ${alertsData[0]?.scheme_id})` : '';
+  const subject = customSubject || (schemeTitle 
+    ? `🚨 Critical Water Scheme Alert - ${schemeTitle}` 
+    : `🚨 Critical Water Scheme Alerts - Action Required`);
   const baseUrl = process.env.APP_BASE_URL || 'https://dashboard1.mahajaliot.in';
 
   let alertsHtml = `
