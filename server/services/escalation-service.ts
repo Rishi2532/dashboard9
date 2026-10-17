@@ -2487,11 +2487,11 @@ export async function getSentEscalationAlerts(options: {
 
       -- 2. Actual Daily Emails Dispatched to Officers from consolidated_email_dispatches
       SELECT 
-        ced.id::text AS id,
+        (ced.id::text || '-' || COALESCE(sid.scheme_id, '0')) AS id,
         'email' AS channel,
         ced.created_at,
         ced.dispatch_date::date AS sent_date,
-        COALESCE(ced.scheme_ids->>0, 'MJP-SCHEME') AS scheme_id,
+        COALESCE(sid.scheme_id, ced.scheme_ids->>0, 'MJP-SCHEME') AS scheme_id,
         CASE 
           WHEN jsonb_array_length(ced.scheme_names) = 1 THEN ced.scheme_names->>0
           WHEN jsonb_array_length(ced.scheme_names) > 1 THEN (ced.scheme_names->>0) || ' (+' || (jsonb_array_length(ced.scheme_names) - 1) || ' more)'
@@ -2528,6 +2528,7 @@ export async function getSentEscalationAlerts(options: {
           ]) AS x WHERE x IS NOT NULL
         ) AS categories
       FROM consolidated_email_dispatches ced
+      LEFT JOIN LATERAL jsonb_array_elements_text(COALESCE(ced.scheme_ids, '[]'::jsonb)) AS sid(scheme_id) ON true
 
       UNION ALL
 
