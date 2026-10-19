@@ -296,13 +296,14 @@ router.get("/historical", async (req, res) => {
           AND (
             CASE 
               WHEN pressure_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN pressure_date::date
-              WHEN pressure_date ~ '^[0-9]{2}-[0-9]{2}-[0-9]{4}$' THEN TO_DATE(pressure_date, 'DD-MM-YYYY')
-              WHEN pressure_date ~ '^[0-9]{1,2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(pressure_date, 'DD-Mon-YYYY')
-              WHEN pressure_date ~ '^[0-9]{1,2}-[A-Za-z]{3}-[0-9]{2}$' THEN TO_DATE(pressure_date, 'DD-Mon-YY')
+              WHEN pressure_date ~ '^[0-9]{2}-[0-9]{2}-[0-9]{4}$' THEN safe_to_date(pressure_date, 'DD-MM-YYYY')
+              WHEN pressure_date ~ '^[0-9]{1,2}-[A-Za-z]{3}-[0-9]{4}$' THEN safe_to_date(pressure_date, 'DD-Mon-YYYY')
+              WHEN pressure_date ~ '^[0-9]{1,2}-[A-Za-z]{3}-[0-9]{2}$' THEN safe_to_date(pressure_date, 'DD-Mon-YY')
               WHEN pressure_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
-                TO_DATE(pressure_date || '-' || 
+                safe_to_date(pressure_date || '-' || 
                   CASE 
-                    WHEN EXTRACT(MONTH FROM TO_DATE(pressure_date, 'DD-Mon')) > EXTRACT(MONTH FROM uploaded_at) 
+                    WHEN safe_to_date('01-' || substring(pressure_date from '[A-Za-z]{3}'), 'DD-Mon') IS NOT NULL
+                         AND EXTRACT(MONTH FROM safe_to_date('01-' || substring(pressure_date from '[A-Za-z]{3}'), 'DD-Mon')) > EXTRACT(MONTH FROM uploaded_at) 
                     THEN (EXTRACT(YEAR FROM uploaded_at) - 1)::text
                     ELSE EXTRACT(YEAR FROM uploaded_at)::text
                   END, 
@@ -634,13 +635,14 @@ router.get("/count", async (req, res) => {
             AND (
               CASE 
                 WHEN pressure_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN pressure_date::date
-                WHEN pressure_date ~ '^[0-9]{2}-[0-9]{2}-[0-9]{4}$' THEN TO_DATE(pressure_date, 'DD-MM-YYYY')
-                WHEN pressure_date ~ '^[0-9]{1,2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(pressure_date, 'DD-Mon-YYYY')
-                WHEN pressure_date ~ '^[0-9]{1,2}-[A-Za-z]{3}-[0-9]{2}$' THEN TO_DATE(pressure_date, 'DD-Mon-YY')
+                WHEN pressure_date ~ '^[0-9]{2}-[0-9]{2}-[0-9]{4}$' THEN safe_to_date(pressure_date, 'DD-MM-YYYY')
+                WHEN pressure_date ~ '^[0-9]{1,2}-[A-Za-z]{3}-[0-9]{4}$' THEN safe_to_date(pressure_date, 'DD-Mon-YYYY')
+                WHEN pressure_date ~ '^[0-9]{1,2}-[A-Za-z]{3}-[0-9]{2}$' THEN safe_to_date(pressure_date, 'DD-Mon-YY')
                 WHEN pressure_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
-                  TO_DATE(pressure_date || '-' || 
+                  safe_to_date(pressure_date || '-' || 
                     CASE 
-                      WHEN EXTRACT(MONTH FROM TO_DATE(pressure_date, 'DD-Mon')) > EXTRACT(MONTH FROM uploaded_at) 
+                      WHEN safe_to_date('01-' || substring(pressure_date from '[A-Za-z]{3}'), 'DD-Mon') IS NOT NULL
+                           AND EXTRACT(MONTH FROM safe_to_date('01-' || substring(pressure_date from '[A-Za-z]{3}'), 'DD-Mon')) > EXTRACT(MONTH FROM uploaded_at) 
                       THEN (EXTRACT(YEAR FROM uploaded_at) - 1)::text
                       ELSE EXTRACT(YEAR FROM uploaded_at)::text
                     END, 

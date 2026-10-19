@@ -12814,6 +12814,30 @@ export class PostgresStorage implements IStorage {
       const client = await pool.connect();
 
       try {
+        // Ensure safe_to_date helper function exists on the connection
+        await client.query(`
+          CREATE OR REPLACE FUNCTION safe_to_date(val text, fmt text) RETURNS date AS $$
+          BEGIN
+            RETURN TO_DATE(val, fmt);
+          EXCEPTION WHEN OTHERS THEN
+            BEGIN
+              RETURN TO_DATE(
+                regexp_replace(
+                  regexp_replace(
+                    regexp_replace(val, '29-Feb', '28-Feb', 'i'),
+                    '29([/-])02', '28\\1'
+                  ),
+                  '02([/-])29', '02\\128'
+                ),
+                fmt
+              );
+            EXCEPTION WHEN OTHERS THEN
+              RETURN NULL;
+            END;
+          END;
+          $$ LANGUAGE plpgsql IMMUTABLE;
+        `);
+
         const queryParams: any[] = [filter.startDate, filter.endDate];
         let paramIdx = 3;
         let filterSql = '';
@@ -12841,23 +12865,28 @@ export class PostgresStorage implements IStorage {
               p.*,
               (
                 CASE 
+                  WHEN regexp_replace(p.pressure_date, '\\s', '', 'g') ~ '^[0-9.]+$' AND length(regexp_replace(p.pressure_date, '\\s', '', 'g')) <= 7 
+                    THEN (DATE '1899-12-30' + (regexp_replace(p.pressure_date, '\\s', '', 'g')::numeric)::integer)
                   WHEN p.pressure_date ~ '^[0-9]{1,2}-[A-Za-z]{3}$' THEN 
                     CASE 
-                      WHEN EXTRACT(MONTH FROM TO_DATE(p.pressure_date, 'DD-Mon')) >= 11 AND EXTRACT(MONTH FROM p.uploaded_at) <= 2 THEN
-                        TO_DATE(p.pressure_date || '-' || (EXTRACT(YEAR FROM p.uploaded_at) - 1)::text, 'DD-Mon-YYYY')
+                      WHEN safe_to_date('01-' || substring(p.pressure_date from '[A-Za-z]{3}'), 'DD-Mon') IS NOT NULL 
+                           AND EXTRACT(MONTH FROM safe_to_date('01-' || substring(p.pressure_date from '[A-Za-z]{3}'), 'DD-Mon')) >= 11 
+                           AND EXTRACT(MONTH FROM COALESCE(p.uploaded_at, CURRENT_DATE)) <= 2 THEN
+                        safe_to_date(p.pressure_date || '-' || (EXTRACT(YEAR FROM COALESCE(p.uploaded_at, CURRENT_DATE)) - 1)::text, 'DD-Mon-YYYY')
                       ELSE 
-                        TO_DATE(p.pressure_date || '-' || EXTRACT(YEAR FROM p.uploaded_at)::text, 'DD-Mon-YYYY')
+                        safe_to_date(p.pressure_date || '-' || EXTRACT(YEAR FROM COALESCE(p.uploaded_at, CURRENT_DATE))::text, 'DD-Mon-YYYY')
                     END
-                  WHEN p.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{4}$' THEN TO_DATE(p.pressure_date, 'DD-Mon-YYYY')
-                  WHEN p.pressure_date ~ '^[0-9]{2}-[A-Za-z]{3}-[0-9]{2}$' THEN TO_DATE(p.pressure_date, 'DD-Mon-YY')
-                  WHEN p.pressure_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(p.pressure_date, 'YYYY-MM-DD')
-                  WHEN p.pressure_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN TO_DATE(p.pressure_date, 'DD/MM/YYYY')
-                  WHEN p.pressure_date ~ '^[0-9]+\\.?[0-9]*$' AND CAST(p.pressure_date AS NUMERIC) < 1000000 THEN (TO_DATE('1899-12-30', 'YYYY-MM-DD') + (INTERVAL '1 day' * CAST(p.pressure_date AS NUMERIC)))::date 
+                  WHEN p.pressure_date ~ '^[0-9]{1,2}-[A-Za-z]{3}-[0-9]{4}$' THEN safe_to_date(p.pressure_date, 'DD-Mon-YYYY')
+                  WHEN p.pressure_date ~ '^[0-9]{1,2}-[A-Za-z]{3}-[0-9]{2}$' THEN safe_to_date(p.pressure_date, 'DD-Mon-YY')
+                  WHEN p.pressure_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN safe_to_date(p.pressure_date, 'YYYY-MM-DD')
+                  WHEN p.pressure_date ~ '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$' THEN safe_to_date(p.pressure_date, 'DD/MM/YYYY')
+                  WHEN p.pressure_date ~ '^[0-9]+\\.?[0-9]*$' AND CAST(p.pressure_date AS NUMERIC) < 1000000 
+                    THEN (DATE '1899-12-30' + (INTERVAL '1 day' * CAST(p.pressure_date AS NUMERIC)))::date 
                   ELSE NULL
                 END
               ) as actual_timestamp
             FROM pressure_history p
-            WHERE p.pressure_value IS NOT NULL
+            WHERE p.pressure_value IS NOT NULL AND p.pressure_date IS NOT NULL
           )
           SELECT DISTINCT ON (p.scheme_id, p.village_name, p.esr_name, p.actual_timestamp)
             p.scheme_id, p.scheme_name, p.village_name, p.esr_name, 
@@ -12865,7 +12894,9 @@ export class PostgresStorage implements IStorage {
             p.pressure_value, p.dashboard_url, p.uploaded_at,
             TO_CHAR(p.actual_timestamp, 'YYYY-MM-DD') as measurement_date
           FROM parsed_dates p
-          WHERE p.actual_timestamp >= $1::date AND p.actual_timestamp <= $2::date
+          WHERE p.actual_timestamp IS NOT NULL 
+            AND p.actual_timestamp >= $1::date 
+            AND p.actual_timestamp <= $2::date
           ${filterSql}
           ORDER BY p.scheme_id, p.village_name, p.esr_name, p.actual_timestamp, p.uploaded_at DESC
         `;
@@ -12889,6 +12920,7 @@ export class PostgresStorage implements IStorage {
         }));
       } finally {
         client.release();
+        await pool.end().catch(() => { });
       }
     } catch (error) {
       console.error("Error in getHistoricalPressureData:", error);
