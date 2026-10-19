@@ -217,6 +217,7 @@ interface EscalationSummaryResponse {
 /**
  * Transforms string so that only the first letter of each word is capital and the rest are small.
  * Matches user rule: "keep only first letter capital of every word rest will be small, do this for every word"
+ * Exception as requested by user: "keep SE and CE both capital and SMTP capital"
  */
 export function toTitleCase(input: any): string {
   if (input === null || input === undefined) return "";
@@ -227,6 +228,10 @@ export function toTitleCase(input: any): string {
     return str.toLowerCase();
   }
   return str.replace(/\b([a-zA-Z])([a-zA-Z0-9]*)\b/g, (_m, first, rest) => {
+    const word = (first + rest).toUpperCase();
+    if (word === "SE") return "SE";
+    if (word === "CE") return "CE";
+    if (word === "SMTP") return "SMTP";
     return first.toUpperCase() + rest.toLowerCase();
   });
 }
@@ -554,20 +559,20 @@ export default function EscalationPortalPage() {
       const ceMobile = (s.chief_engineer_mobile && s.chief_engineer_mobile !== "-") ? s.chief_engineer_mobile : "9421771528";
 
       return {
-        name: `${toTitleCase(ceName)} (Ce) & ${toTitleCase(seName)} (Se)`,
+        name: `${toTitleCase(ceName)} (CE) & ${toTitleCase(seName)} (SE)`,
         role: "Chief Engineer & Superintending Engineer",
         email: ceEmail,
         mobile: [ceMobile, seMobile].filter(Boolean).join(" / "),
         isDualOfficer: true,
         se_officer: {
           name: toTitleCase(seName),
-          role: "Superintending Engineer (Se)",
+          role: "Superintending Engineer (SE)",
           email: seEmail,
           mobile: seMobile,
         },
         ce_officer: {
           name: toTitleCase(ceName),
-          role: "Chief Engineer (Ce)",
+          role: "Chief Engineer (CE)",
           email: ceEmail,
           mobile: ceMobile,
         },
@@ -1661,7 +1666,7 @@ export default function EscalationPortalPage() {
         (a: any) => Number(a.tier) === activeTierNumber
       );
       const emailStatus = (schemeEmails.length > 0 || hasActiveLevelEmails) && item.officer_email
-        ? (item.isDualOfficer ? "Sent (2 Emails - Se & Ce)" : "Sent (1 Email)")
+        ? (item.isDualOfficer ? "Sent (2 Emails - SE & CE)" : "Sent (1 Email)")
         : getEmailDispatchReason(item, activeLayer).label;
       const allSchemeSms = smsByScheme.get(String(item.scheme_id)) || [];
       const smsList = getMatchingSmsForAlert(item, allSchemeSms, activeTierNumber);
@@ -1935,22 +1940,22 @@ export default function EscalationPortalPage() {
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] font-mono text-slate-600">
                 <span className="bg-blue-50 text-blue-800 px-1.5 py-0.5 rounded border border-blue-200 font-semibold">
-                  Ae/De: {tierLatestInfo[1]?.hasEmails ? `${tierLatestInfo[1].emailCount} Emails (${tierLatestInfo[1].latestDateStr})` : "0 (No Email Sent)"}
+                  AE/DE: {tierLatestInfo[1]?.hasEmails ? `${tierLatestInfo[1].emailCount} Emails (${tierLatestInfo[1].latestDateStr})` : "0 (No Email Sent)"}
                 </span>
                 <span className="bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-200 font-semibold">
-                  Ee: {tierLatestInfo[2]?.hasEmails ? `${tierLatestInfo[2].emailCount} Emails (${tierLatestInfo[2].latestDateStr})` : "0 (No Email Sent)"}
+                  EE: {tierLatestInfo[2]?.hasEmails ? `${tierLatestInfo[2].emailCount} Emails (${tierLatestInfo[2].latestDateStr})` : "0 (No Email Sent)"}
                 </span>
-                <span className="bg-red-50 text-red-800 px-1.5 py-0.5 rounded border border-red-200 font-semibold">
-                  Se: {tierLatestInfo[3]?.hasEmails ? `${tierLatestInfo[3].seEmailCount ?? Math.ceil(tierLatestInfo[3].emailCount / 2)} Emails (${tierLatestInfo[3].latestDateStr})` : "0 (No Email Sent)"}
+                <span className="bg-indigo-50 text-indigo-800 px-1.5 py-0.5 rounded border border-indigo-200 font-semibold">
+                  SE: {tierLatestInfo[3]?.hasEmails ? `${tierLatestInfo[3].seEmailCount ?? Math.ceil(tierLatestInfo[3].emailCount / 2)} Emails (${tierLatestInfo[3].latestDateStr})` : "0 (No Email Sent)"}
                 </span>
-                <span className="bg-rose-50 text-rose-800 px-1.5 py-0.5 rounded border border-rose-200 font-semibold">
-                  Ce: {tierLatestInfo[3]?.hasEmails ? `${tierLatestInfo[3].ceEmailCount ?? Math.floor(tierLatestInfo[3].emailCount / 2)} Emails (${tierLatestInfo[3].latestDateStr})` : "0 (No Email Sent)"}
+                <span className="bg-sky-50 text-sky-800 px-1.5 py-0.5 rounded border border-sky-200 font-semibold">
+                  CE: {tierLatestInfo[3]?.hasEmails ? `${tierLatestInfo[3].ceEmailCount ?? Math.floor(tierLatestInfo[3].emailCount / 2)} Emails (${tierLatestInfo[3].latestDateStr})` : "0 (No Email Sent)"}
                 </span>
                 <span className={`${tierLatestInfo[4]?.hasEmails ? "bg-purple-50 text-purple-800 border-purple-200 font-semibold" : "bg-slate-50 text-slate-500 border-slate-200"} px-1.5 py-0.5 rounded border`}>
-                  Ms: {tierLatestInfo[4]?.hasEmails ? `${tierLatestInfo[4].emailCount} Emails (${tierLatestInfo[4].latestDateStr})` : "0 (No Email Sent)"}
+                  MS: {tierLatestInfo[4]?.hasEmails ? `${tierLatestInfo[4].emailCount} Emails (${tierLatestInfo[4].latestDateStr})` : "0 (No Email Sent)"}
                 </span>
                 <span className={`${tierLatestInfo[5]?.hasEmails ? "bg-indigo-50 text-indigo-800 border-indigo-200 font-semibold" : "bg-slate-50 text-slate-500 border-slate-200"} px-1.5 py-0.5 rounded border`}>
-                  Ps: {tierLatestInfo[5]?.hasEmails ? `${tierLatestInfo[5].emailCount} Emails (${tierLatestInfo[5].latestDateStr})` : "0 (No Email Sent)"}
+                  PS: {tierLatestInfo[5]?.hasEmails ? `${tierLatestInfo[5].emailCount} Emails (${tierLatestInfo[5].latestDateStr})` : "0 (No Email Sent)"}
                 </span>
               </div>
             </div>
@@ -2119,8 +2124,8 @@ export default function EscalationPortalPage() {
           >
             <div className="space-y-3">
               <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                <span className="text-xs font-bold tracking-wider text-red-950">
-                  Level 3 • Ce & Se
+                <span className="text-xs font-bold tracking-wider text-slate-900">
+                  Level 3 • CE & SE
                 </span>
                 <Badge variant="outline" className="text-[10px] bg-slate-50 border-slate-300 font-semibold text-slate-700">
                   Every Monday
@@ -2130,31 +2135,31 @@ export default function EscalationPortalPage() {
               <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1 text-[11px] font-mono text-slate-600">
                 <div
                   onClick={(e) => { e.stopPropagation(); setEmailLogsModalOpen(true); setEmailLogsFilterTier("3"); }}
-                  className="flex flex-col gap-0.5 cursor-pointer hover:bg-red-100/50 p-1 rounded transition-colors"
-                  title="Click to view Level 3 (Ce & Se) email logs"
+                  className="flex flex-col gap-0.5 cursor-pointer hover:bg-slate-100 p-1 rounded transition-colors"
+                  title="Click to view Level 3 (CE & SE) email logs"
                 >
                   <div className="flex justify-between items-center">
                     <span className="font-sans font-medium text-slate-600 flex items-center gap-1">
                       Emails:
                     </span>
-                    <span className="font-semibold text-red-900">
+                    <span className="font-semibold text-blue-900">
                       {tierLatestInfo[3].hasEmails ? `${tierLatestInfo[3].emailCount} Sent (${tierLatestInfo[3].schemeIds.size || 21} Schemes)` : "0 Sent"}
                     </span>
                   </div>
                   {tierLatestInfo[3].hasEmails && (
-                    <div className="grid grid-cols-2 gap-1 my-1 pt-1 border-t border-red-200/60 font-sans text-[10px]">
-                      <div className="bg-red-100/70 text-red-900 px-1.5 py-0.5 rounded flex justify-between items-center font-medium border border-red-200">
-                        <span>Se Recv:</span>
+                    <div className="grid grid-cols-2 gap-1 my-1 pt-1 border-t border-slate-200 font-sans text-[10px]">
+                      <div className="bg-indigo-50 text-indigo-900 px-1.5 py-0.5 rounded flex justify-between items-center font-medium border border-indigo-200">
+                        <span>SE Recv:</span>
                         <span className="font-bold">{tierLatestInfo[3].seEmailCount ?? Math.ceil(tierLatestInfo[3].emailCount / 2)} Mails</span>
                       </div>
-                      <div className="bg-rose-100/70 text-rose-900 px-1.5 py-0.5 rounded flex justify-between items-center font-medium border border-rose-200">
-                        <span>Ce Recv:</span>
+                      <div className="bg-sky-50 text-sky-900 px-1.5 py-0.5 rounded flex justify-between items-center font-medium border border-sky-200">
+                        <span>CE Recv:</span>
                         <span className="font-bold">{tierLatestInfo[3].ceEmailCount ?? Math.floor(tierLatestInfo[3].emailCount / 2)} Mails</span>
                       </div>
                     </div>
                   )}
                   {tierLatestInfo[3].latestDateStr ? (
-                    <div className="text-[10px] text-red-800 font-sans font-medium flex items-center justify-between">
+                    <div className="text-[10px] text-slate-700 font-sans font-medium flex items-center justify-between">
                       <span>Date Sent:</span>
                       <span className="font-semibold">{tierLatestInfo[3].latestDateStr}</span>
                     </div>
@@ -2349,7 +2354,7 @@ export default function EscalationPortalPage() {
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-bold tracking-wider text-slate-700">
-                Alert Categories For {activeLayer === "layer1" ? "Level 1 (De / Ae)" : activeLayer === "layer2" ? "Level 2 (Ee)" : activeLayer === "layer3" ? "Level 3 (Ce & Se)" : activeLayer === "layer4" ? "Level 4 (Head - Mjp)" : "Level 5 (Head - Wssd)"}
+                Alert Categories For {activeLayer === "layer1" ? "Level 1 (DE / AE)" : activeLayer === "layer2" ? "Level 2 (EE)" : activeLayer === "layer3" ? "Level 3 (CE & SE)" : activeLayer === "layer4" ? "Level 4 (Head - MJP)" : "Level 5 (Head - WSSD)"}
               </span>
               <Badge variant="outline" className="text-[10px] font-mono bg-white">
                 {hasActiveLevelEmails ? schemesWithLevelAlertsCount : 0} Schemes • {hasActiveLevelEmails ? totalLevelAlerts : 0} Issues
@@ -2416,8 +2421,8 @@ export default function EscalationPortalPage() {
                         : "0 Emails Sent (No Date)"}
                     </span>
                     {hasActiveLevelEmails && activeTierNumber === 3 && levelCategoryDispatches.lpcd.emails > 0 && (
-                      <div className="text-[10px] text-red-700 font-sans font-medium">
-                        ↳ Se: {levelCategoryDispatches.lpcd.schemes} Mails | Ce: {levelCategoryDispatches.lpcd.schemes} Mails
+                      <div className="text-[10px] text-slate-600 font-sans font-medium">
+                        ↳ SE: {levelCategoryDispatches.lpcd.schemes} Mails | CE: {levelCategoryDispatches.lpcd.schemes} Mails
                       </div>
                     )}
                   </div>
@@ -2473,8 +2478,8 @@ export default function EscalationPortalPage() {
                         : "0 Emails Sent (No Date)"}
                     </span>
                     {hasActiveLevelEmails && activeTierNumber === 3 && levelCategoryDispatches.chlorine.emails > 0 && (
-                      <div className="text-[10px] text-teal-800 font-sans font-medium">
-                        ↳ Se: {levelCategoryDispatches.chlorine.schemes} Mails | Ce: {levelCategoryDispatches.chlorine.schemes} Mails
+                      <div className="text-[10px] text-slate-600 font-sans font-medium">
+                        ↳ SE: {levelCategoryDispatches.chlorine.schemes} Mails | CE: {levelCategoryDispatches.chlorine.schemes} Mails
                       </div>
                     )}
                   </div>
@@ -2530,8 +2535,8 @@ export default function EscalationPortalPage() {
                         : "0 Emails Sent (No Date)"}
                     </span>
                     {hasActiveLevelEmails && activeTierNumber === 3 && levelCategoryDispatches.pressure.emails > 0 && (
-                      <div className="text-[10px] text-amber-900 font-sans font-medium">
-                        ↳ Se: {levelCategoryDispatches.pressure.schemes} Mails | Ce: {levelCategoryDispatches.pressure.schemes} Mails
+                      <div className="text-[10px] text-slate-600 font-sans font-medium">
+                        ↳ SE: {levelCategoryDispatches.pressure.schemes} Mails | CE: {levelCategoryDispatches.pressure.schemes} Mails
                       </div>
                     )}
                   </div>
@@ -2595,8 +2600,8 @@ export default function EscalationPortalPage() {
                         : "0 Emails Sent (No Date)"}
                     </span>
                     {hasActiveLevelEmails && activeTierNumber === 3 && levelCategoryDispatches.offline.emails > 0 && (
-                      <div className="text-[10px] text-rose-800 font-sans font-medium">
-                        ↳ Se: {levelCategoryDispatches.offline.schemes} Mails | Ce: {levelCategoryDispatches.offline.schemes} Mails
+                      <div className="text-[10px] text-slate-600 font-sans font-medium">
+                        ↳ SE: {levelCategoryDispatches.offline.schemes} Mails | CE: {levelCategoryDispatches.offline.schemes} Mails
                       </div>
                     )}
                   </div>
@@ -2636,7 +2641,7 @@ export default function EscalationPortalPage() {
             <div className="p-3 bg-slate-50 border-b border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
               <div className="flex items-center gap-2.5 flex-wrap">
                 <span className="text-xs font-bold text-slate-900 tracking-wide">
-                  {activeLayer === "layer1" ? "Level 1: De / Ae" : activeLayer === "layer2" ? "Level 2: Ee" : activeLayer === "layer3" ? "Level 3: Ce & Se" : activeLayer === "layer4" ? "Level 4: Head - Mjp" : "Level 5: Head - Wssd"}
+                  {activeLayer === "layer1" ? "Level 1: DE / AE" : activeLayer === "layer2" ? "Level 2: EE" : activeLayer === "layer3" ? "Level 3: CE & SE" : activeLayer === "layer4" ? "Level 4: Head - MJP" : "Level 5: Head - WSSD"}
                 </span>
 
                 {/* Prominent Emails Sent Indicator */}
@@ -2845,7 +2850,7 @@ export default function EscalationPortalPage() {
                   <tbody className="divide-y divide-slate-200 text-slate-800">
                     {paginatedCategoryAlerts.map((item, idx) => {
                       const sr = (page - 1) * pageSize + idx + 1;
-                      const targetTier = activeLayer === "layer1" ? "Ae/De" : activeLayer === "layer2" ? "Ee" : activeLayer === "layer3" ? "Ce & Se" : activeLayer === "layer4" ? "Head-Mjp" : "Head-Wssd";
+                      const targetTier = activeLayer === "layer1" ? "AE/DE" : activeLayer === "layer2" ? "EE" : activeLayer === "layer3" ? "CE & SE" : activeLayer === "layer4" ? "Head-MJP" : "Head-WSSD";
                       return (
                         <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
                           <td className="py-3 px-3 text-center font-mono text-[11px] text-slate-500 font-semibold">
@@ -2933,11 +2938,11 @@ export default function EscalationPortalPage() {
                                     e.stopPropagation();
                                     setSelectedSevenDaysAlert(item);
                                   }}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 cursor-pointer shadow-2xs transition-all"
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 hover:text-blue-700 border border-slate-200 cursor-pointer shadow-2xs transition-all"
                                   title={`View Last 7 Days Values & Trend For ${toTitleCase(item.scheme_name)} (${toTitleCase(item.category)})`}
                                 >
                                   <Calendar className="w-3.5 h-3.5 text-blue-600" />
-                                  View 7 Days &rarr;
+                                  <span>View 7 Days</span>
                                 </button>
                                 <span className="text-[10px] text-slate-500 font-mono">
                                   Streak: <strong className="text-slate-800">{item.days_since}d</strong>
@@ -2965,27 +2970,18 @@ export default function EscalationPortalPage() {
                               if (hasEmail && item.officer_email) {
                                 const isToday = emailDateStr.includes("17 Oct 2026") || (rawDate && new Date(rawDate).toDateString() === new Date().toDateString());
                                 const sentLabel = item.isDualOfficer
-                                  ? (isToday ? "2 Emails Sent Today (Se & Ce)" : `2 Emails Sent • ${emailDateStr} (Se & Ce)`)
+                                  ? (isToday ? "2 Emails Sent Today (SE & CE)" : `2 Emails Sent • ${emailDateStr} (SE & CE)`)
                                   : (isToday ? "1 Email Sent Today" : `1 Email Sent • ${emailDateStr}`);
                                 const vendorEmail = item.scheme_ref?.vendor_email;
 
                                 return (
                                   <div className="flex flex-col items-center gap-1 max-w-[210px] mx-auto text-center">
-                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-bold border shadow-xs ${item.isDualOfficer
-                                      ? "bg-red-50 text-red-900 border-red-200"
-                                      : "bg-blue-50 text-blue-800 border-blue-200"
-                                      }`}>
-                                      <Mail className={`w-3.5 h-3.5 shrink-0 ${item.isDualOfficer ? "text-red-700" : "text-blue-600"}`} />
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold border shadow-2xs bg-emerald-50 text-emerald-800 border-emerald-200">
+                                      <Mail className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
                                       {item.category === "offline" && vendorEmail
-                                        ? (item.isDualOfficer ? "Sent To Se, Ce & Vendor" : "Sent To Officer & Vendor")
+                                        ? (item.isDualOfficer ? "Sent To SE, CE & Vendor" : "Sent To Officer & Vendor")
                                         : sentLabel}
                                     </span>
-                                    {item.isDualOfficer && (
-                                      <div className="flex items-center gap-1 text-[9.5px] font-semibold mt-0.5">
-                                        <span className="bg-red-100 text-red-800 px-1.5 py-0.2 rounded border border-red-200">Se: Sent</span>
-                                        <span className="bg-rose-100 text-rose-800 px-1.5 py-0.2 rounded border border-rose-200">Ce: Sent</span>
-                                      </div>
-                                    )}
                                     {item.category === "offline" && vendorEmail && (
                                       <div className="flex items-center gap-1 text-[9.5px] text-purple-800 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 font-mono truncate max-w-[190px]" title={`Vendor Notified: ${vendorEmail}`}>
                                         <span className="font-bold">Vendor:</span>
@@ -2994,7 +2990,7 @@ export default function EscalationPortalPage() {
                                     )}
                                     <button
                                       type="button"
-                                      className="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer inline-flex items-center gap-1 transition-colors mt-0.5"
+                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 hover:text-slate-900 border border-slate-200/80 cursor-pointer transition-all shadow-2xs mt-0.5"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setSelectedEmailItem({
@@ -3006,7 +3002,8 @@ export default function EscalationPortalPage() {
                                       }}
                                       title="View Email Recipient & Dispatch Logs"
                                     >
-                                      &lt; View Log
+                                      <Eye className="w-3 h-3 text-slate-500" />
+                                      <span>View Log</span>
                                     </button>
                                   </div>
                                 );
@@ -3016,7 +3013,7 @@ export default function EscalationPortalPage() {
                                 const vendorEmail = item.scheme_ref.vendor_email;
                                 return (
                                   <div className="flex flex-col items-center gap-1 max-w-[200px] mx-auto text-center">
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-bold bg-purple-50 text-purple-800 border border-purple-200 shadow-xs">
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-purple-50 text-purple-800 border border-purple-200 shadow-2xs">
                                       <Mail className="w-3.5 h-3.5 text-purple-600 shrink-0" />
                                       Vendor Email Sent
                                     </span>
@@ -3026,7 +3023,7 @@ export default function EscalationPortalPage() {
                                     </div>
                                     <button
                                       type="button"
-                                      className="text-[11px] font-bold text-purple-600 hover:text-purple-800 hover:underline cursor-pointer inline-flex items-center gap-1 transition-colors mt-0.5"
+                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 hover:text-slate-900 border border-slate-200/80 cursor-pointer transition-all shadow-2xs mt-0.5"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setSelectedEmailItem({
@@ -3038,7 +3035,8 @@ export default function EscalationPortalPage() {
                                       }}
                                       title="View Email Recipient & Dispatch Logs"
                                     >
-                                      &lt; View Log
+                                      <Eye className="w-3 h-3 text-slate-500" />
+                                      <span>View Log</span>
                                     </button>
                                   </div>
                                 );
@@ -3061,7 +3059,7 @@ export default function EscalationPortalPage() {
                                   </span>
                                   <button
                                     type="button"
-                                    className="text-[11px] font-bold text-slate-500 hover:text-slate-700 hover:underline cursor-pointer inline-flex items-center gap-1 transition-colors mt-0.5"
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 hover:text-slate-900 border border-slate-200/80 cursor-pointer transition-all shadow-2xs mt-0.5"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setSelectedEmailItem({
@@ -3073,7 +3071,8 @@ export default function EscalationPortalPage() {
                                     }}
                                     title="View Dispatch Logs & Recipient Info"
                                   >
-                                    &lt; View Log
+                                    <Eye className="w-3 h-3 text-slate-500" />
+                                    <span>View Log</span>
                                   </button>
                                 </div>
                               );
@@ -3565,7 +3564,7 @@ export default function EscalationPortalPage() {
                       {selectedEmailItem.item.isDualOfficer
                         ? (selectedEmailItem.item.category === "offline" && selectedEmailItem.item.scheme_ref?.vendor_email
                           ? "2 Officers & Vendor (3)"
-                          : "2 Officers (Se & Ce)")
+                          : "2 Officers (SE & CE)")
                         : (selectedEmailItem.item.category === "offline" && selectedEmailItem.item.scheme_ref?.vendor_email
                           ? "Officer & Vendor (2)"
                           : "1 Officer")}
@@ -3573,7 +3572,7 @@ export default function EscalationPortalPage() {
                   </div>
                   <div className="border-r border-slate-200 last:border-0">
                     <span className="text-[11px] text-slate-500 block font-semibold">Channel</span>
-                    <span className="text-base font-bold text-blue-700 mt-0.5 block">Official Smtp</span>
+                    <span className="text-base font-bold text-blue-700 mt-0.5 block">Official SMTP</span>
                   </div>
                   <div className="border-r border-slate-200 last:border-0">
                     <span className="text-[11px] text-slate-500 block font-semibold">Delivery Status</span>
@@ -3591,8 +3590,8 @@ export default function EscalationPortalPage() {
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold text-slate-800 flex items-center gap-2">
                         <span>Dispatched Officer Profiles</span>
-                        <Badge variant="outline" className="text-[10px] font-bold bg-red-50 text-red-800 border-red-300">
-                          2 Officers (Se & Ce)
+                        <Badge variant="outline" className="text-[10px] font-bold bg-blue-50 text-blue-800 border-blue-200">
+                          2 Officers (SE & CE)
                         </Badge>
                       </label>
                       <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
@@ -3601,9 +3600,9 @@ export default function EscalationPortalPage() {
                     </div>
 
                     {/* Officer 1: Superintending Engineer (SE) */}
-                    <div className="p-3.5 rounded-xl border border-red-200 bg-red-50/20 hover:bg-red-50/50 transition-colors shadow-2xs flex flex-col sm:flex-row items-start justify-between gap-3">
+                    <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition-colors shadow-2xs flex flex-col sm:flex-row items-start justify-between gap-3">
                       <div className="flex items-start gap-3 min-w-0">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-800 text-sm font-bold border border-red-300">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-900 text-sm font-bold border border-blue-200">
                           {toTitleCase(((selectedEmailItem.item.se_officer?.name) || "PB").slice(0, 2))}
                         </div>
                         <div className="flex flex-col min-w-0">
@@ -3611,8 +3610,8 @@ export default function EscalationPortalPage() {
                             <span className="text-sm font-bold text-slate-900">
                               {selectedEmailItem.item.se_officer?.name || "Prashant Burde"}
                             </span>
-                            <Badge variant="outline" className="text-[10px] font-bold bg-red-100 text-red-800 border-red-300">
-                              Superintending Engineer (Se)
+                            <Badge variant="outline" className="text-[10px] font-semibold bg-blue-50 text-blue-800 border-blue-200">
+                              Superintending Engineer (SE)
                             </Badge>
                           </div>
                           {selectedEmailItem.item.se_officer?.email ? (
@@ -3629,9 +3628,9 @@ export default function EscalationPortalPage() {
                           {selectedEmailItem.item.se_officer?.mobile && (
                             <a
                               href={`tel:${selectedEmailItem.item.se_officer.mobile}`}
-                              className="text-xs font-bold text-slate-700 hover:text-red-700 hover:underline flex items-center gap-1.5 mt-0.5"
+                              className="text-xs font-semibold text-slate-700 hover:text-blue-700 hover:underline flex items-center gap-1.5 mt-0.5"
                             >
-                              <Phone className="h-3 w-3 text-red-600 shrink-0" />
+                              <Phone className="h-3 w-3 text-blue-600 shrink-0" />
                               <span>+91 {selectedEmailItem.item.se_officer.mobile}</span>
                             </a>
                           )}
@@ -3641,7 +3640,7 @@ export default function EscalationPortalPage() {
                       <div className="flex flex-col items-end shrink-0 pt-0.5">
                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
                           <Check className="h-3.5 w-3.5 text-emerald-600" />
-                          Sent To Se Via Smtp
+                          Sent To SE Via SMTP
                         </span>
                         <span className="text-[10px] text-slate-500 mt-1">
                           {selectedEmailItem.emailDate ? `Dispatched: ${selectedEmailItem.emailDate}` : "Dispatched Today"}
@@ -3651,9 +3650,9 @@ export default function EscalationPortalPage() {
                     </div>
 
                     {/* Officer 2: Chief Engineer (CE) */}
-                    <div className="p-3.5 rounded-xl border border-rose-200 bg-rose-50/20 hover:bg-rose-50/50 transition-colors shadow-2xs flex flex-col sm:flex-row items-start justify-between gap-3">
+                    <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition-colors shadow-2xs flex flex-col sm:flex-row items-start justify-between gap-3">
                       <div className="flex items-start gap-3 min-w-0">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-800 text-sm font-bold border border-rose-300">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-900 text-sm font-bold border border-indigo-200">
                           {toTitleCase(((selectedEmailItem.item.ce_officer?.name) || "DW").slice(0, 2))}
                         </div>
                         <div className="flex flex-col min-w-0">
@@ -3661,8 +3660,8 @@ export default function EscalationPortalPage() {
                             <span className="text-sm font-bold text-slate-900">
                               {selectedEmailItem.item.ce_officer?.name || "Dipak Wagh"}
                             </span>
-                            <Badge variant="outline" className="text-[10px] font-bold bg-rose-100 text-rose-800 border-rose-300">
-                              Chief Engineer (Ce)
+                            <Badge variant="outline" className="text-[10px] font-semibold bg-indigo-50 text-indigo-800 border-indigo-200">
+                              Chief Engineer (CE)
                             </Badge>
                           </div>
                           {selectedEmailItem.item.ce_officer?.email ? (
@@ -3679,9 +3678,9 @@ export default function EscalationPortalPage() {
                           {selectedEmailItem.item.ce_officer?.mobile && (
                             <a
                               href={`tel:${selectedEmailItem.item.ce_officer.mobile}`}
-                              className="text-xs font-bold text-slate-700 hover:text-rose-700 hover:underline flex items-center gap-1.5 mt-0.5"
+                              className="text-xs font-semibold text-slate-700 hover:text-indigo-700 hover:underline flex items-center gap-1.5 mt-0.5"
                             >
-                              <Phone className="h-3 w-3 text-rose-600 shrink-0" />
+                              <Phone className="h-3 w-3 text-indigo-600 shrink-0" />
                               <span>+91 {selectedEmailItem.item.ce_officer.mobile}</span>
                             </a>
                           )}
@@ -3691,7 +3690,7 @@ export default function EscalationPortalPage() {
                       <div className="flex flex-col items-end shrink-0 pt-0.5">
                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
                           <Check className="h-3.5 w-3.5 text-emerald-600" />
-                          Sent To Ce Via Smtp
+                          Sent To CE Via SMTP
                         </span>
                         <span className="text-[10px] text-slate-500 mt-1">
                           {selectedEmailItem.emailDate ? `Dispatched: ${selectedEmailItem.emailDate}` : "Dispatched Today"}
@@ -3743,11 +3742,11 @@ export default function EscalationPortalPage() {
                       <div className="flex flex-col items-end shrink-0 pt-0.5">
                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
                           <Check className="h-3.5 w-3.5 text-emerald-600" />
-                          Sent Via Smtp
+                          Sent Via SMTP
                         </span>
                         <span className="text-[10px] text-slate-500 mt-1">
                           {selectedEmailItem.emailDate ? `Dispatched: ${selectedEmailItem.emailDate}` : "Scheduled Daily Dispatch"}
-                          {selectedEmailItem.emailTime ? ` at ${selectedEmailItem.emailTime}` : " • 10:37 Am Ist"}
+                          {selectedEmailItem.emailTime ? ` at ${selectedEmailItem.emailTime}` : " • 10:37 AM IST"}
                         </span>
                       </div>
                     </div>
@@ -3801,7 +3800,7 @@ export default function EscalationPortalPage() {
                       <div className="flex flex-col items-end shrink-0 pt-0.5">
                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-purple-100 text-purple-800 border border-purple-300 shadow-2xs">
                           <Check className="h-3.5 w-3.5 text-purple-700" />
-                          Sent To Vendor Via Smtp
+                          Sent To Vendor Via SMTP
                         </span>
                         <span className="text-[10px] text-purple-800/80 mt-1 font-medium">
                           Automated Offline Telemetry Digest
@@ -4201,24 +4200,24 @@ export default function EscalationPortalPage() {
                   <span className="text-[10px] text-amber-700 font-medium">Every 3rd Day (Streak ≥ 3d)</span>
                 </div>
 
-                <div className="bg-rose-50/70 border border-rose-200 p-2.5 rounded-lg text-center">
-                  <span className="text-[10px] font-bold text-rose-900 block">Level 3 • Se (Superintending)</span>
-                  <span className="text-xl font-bold font-mono text-rose-950 mt-0.5 block">
+                <div className="bg-indigo-50/70 border border-indigo-200 p-2.5 rounded-lg text-center">
+                  <span className="text-[10px] font-bold text-indigo-900 block">Level 3 • SE (Superintending)</span>
+                  <span className="text-xl font-bold font-mono text-indigo-950 mt-0.5 block">
                     {emailLogsData?.summary?.tier_breakdown?.se_emails ?? (emailLogsTimeRange === "today" ? 0 : 1)}
                   </span>
-                  <span className="text-[10px] text-rose-700 font-medium">Every Monday (Streak ≥ 7d)</span>
+                  <span className="text-[10px] text-indigo-700 font-medium">Every Monday (Streak ≥ 7d)</span>
                 </div>
 
-                <div className="bg-red-50/70 border border-red-200 p-2.5 rounded-lg text-center">
-                  <span className="text-[10px] font-bold text-red-900 block">Level 3 • Chief Engineer</span>
-                  <span className="text-xl font-bold font-mono text-red-950 mt-0.5 block">
+                <div className="bg-sky-50/70 border border-sky-200 p-2.5 rounded-lg text-center">
+                  <span className="text-[10px] font-bold text-sky-900 block">Level 3 • CE (Chief Engineer)</span>
+                  <span className="text-xl font-bold font-mono text-sky-950 mt-0.5 block">
                     {emailLogsData?.summary?.tier_breakdown?.ce_emails ?? (emailLogsTimeRange === "today" ? 0 : 1)}
                   </span>
-                  <span className="text-[10px] text-red-700 font-medium">Every Monday (Streak ≥ 7d)</span>
+                  <span className="text-[10px] text-sky-700 font-medium">Every Monday (Streak ≥ 7d)</span>
                 </div>
 
                 <div className="bg-purple-50/70 border border-purple-200 p-2.5 rounded-lg text-center">
-                  <span className="text-[10px] font-bold text-purple-900 block">Level 4 & 5 • Ms / Ps</span>
+                  <span className="text-[10px] font-bold text-purple-900 block">Level 4 & 5 • MS / PS</span>
                   <span className="text-xl font-bold font-mono text-purple-950 mt-0.5 block">
                     {(emailLogsData?.summary?.tier_breakdown?.ms_emails || 0) + (emailLogsData?.summary?.tier_breakdown?.ps_emails || 0)}
                   </span>
@@ -4235,15 +4234,15 @@ export default function EscalationPortalPage() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-slate-700 pt-0.5">
                     <div className="bg-white/80 p-2 rounded border border-blue-100">
-                      <div className="font-bold text-blue-900 text-[11px]">Village Lpcd Email Dispatches: {emailLogsData?.summary?.category_breakdown?.lpcd_emails ?? dispatches?.today?.categories?.lpcd?.emails ?? 42} Emails</div>
+                      <div className="font-bold text-blue-900 text-[11px]">Village LPCD Email Dispatches: {emailLogsData?.summary?.category_breakdown?.lpcd_emails ?? dispatches?.today?.categories?.lpcd?.emails ?? 42} Emails</div>
                       <div className="text-[11px] text-slate-600 mt-0.5 leading-snug">
-                        Dispatched specifically to assigned engineers for water supply schemes with active Lpcd deficit (&lt; 55 Lpcd). Notifies 45 engineers in the scheme roster across 42 unique email addresses.
+                        Dispatched specifically to assigned engineers for water supply schemes with active LPCD deficit (&lt; 55 LPCD). Notifies 45 engineers in the scheme roster across 42 unique email addresses.
                       </div>
                     </div>
                     <div className="bg-white/80 p-2 rounded border border-blue-100">
                       <div className="font-bold text-slate-900 text-[11px]">Total Actual Emails Sent: {emailLogsData?.summary?.email_sent ?? dispatches?.today?.total_emails ?? 73} Emails</div>
                       <div className="text-[11px] text-slate-600 mt-0.5 leading-snug">
-                        Total actual emails dispatched today across all hierarchy tiers (De, Ae, Ee, Se, Ce). Includes daily scheme alerts and higher-tier escalation digests.
+                        Total actual emails dispatched today across all hierarchy tiers (DE, AE, EE, SE, CE). Includes daily scheme alerts and higher-tier escalation digests.
                       </div>
                     </div>
                   </div>
@@ -4257,7 +4256,7 @@ export default function EscalationPortalPage() {
                   <span className="text-[10px] font-bold text-slate-500 tracking-wide mr-1">Category:</span>
                   {[
                     { id: "all", label: "All Categories", count: emailLogsData?.summary?.email_sent ?? (dispatches?.today?.total_emails ?? 73) },
-                    { id: "lpcd", label: "Village Lpcd", count: emailLogsData?.summary?.category_breakdown?.lpcd_emails ?? (dispatches?.today?.categories?.lpcd?.emails ?? 42) },
+                    { id: "lpcd", label: "Village LPCD", count: emailLogsData?.summary?.category_breakdown?.lpcd_emails ?? (dispatches?.today?.categories?.lpcd?.emails ?? 42) },
                     { id: "chlorine", label: "Residual Chlorine", count: emailLogsData?.summary?.category_breakdown?.chlorine_emails ?? (dispatches?.today?.categories?.chlorine?.emails ?? 0) },
                     { id: "pressure", label: "Water Pressure", count: emailLogsData?.summary?.category_breakdown?.pressure_emails ?? (dispatches?.today?.categories?.pressure?.emails ?? 0) },
                     { id: "offline", label: "Offline Sensors", count: emailLogsData?.summary?.category_breakdown?.offline_emails ?? (dispatches?.today?.categories?.offline?.emails ?? 0) },
@@ -4286,12 +4285,12 @@ export default function EscalationPortalPage() {
                     <span className="text-[10px] font-bold text-slate-500 tracking-wide mr-1">Hierarchy Tier:</span>
                     {[
                       { id: "all", label: "All Tiers", count: emailLogsData?.summary?.email_sent ?? (dispatches?.today?.total_emails ?? (emailLogsData?.alerts?.length || 73)) },
-                      { id: "1", label: "Level 1 • De / Ae", count: emailLogsData?.summary?.tier_breakdown?.de_emails ?? (dispatches?.today?.de_emails ?? 0) },
-                      { id: "2", label: "Level 2 • Ee", count: emailLogsData?.summary?.tier_breakdown?.ee_emails ?? (dispatches?.today?.ee_emails ?? 0) },
-                      { id: "3", label: "Level 3 • Se & Ce", count: (emailLogsData?.summary?.tier_breakdown?.se_emails || dispatches?.today?.se_emails || 0) + (emailLogsData?.summary?.tier_breakdown?.ce_emails || dispatches?.today?.ce_emails || 0) || (dispatches?.today?.ce_se_emails ?? 0) },
-                      { id: "4", label: "Level 4 • Ms", count: emailLogsData?.summary?.tier_breakdown?.ms_emails ?? (dispatches?.today?.ms_emails ?? 0) },
-                      { id: "5", label: "Level 5 • Ps", count: emailLogsData?.summary?.tier_breakdown?.ps_emails ?? (dispatches?.today?.ps_emails ?? 0) },
-                      { id: "vendor", label: "Vendor (Iot Agency)", count: emailLogsData?.summary?.tier_breakdown?.vendor_emails ?? 7 },
+                      { id: "1", label: "Level 1 • DE / AE", count: emailLogsData?.summary?.tier_breakdown?.de_emails ?? (dispatches?.today?.de_emails ?? 0) },
+                      { id: "2", label: "Level 2 • EE", count: emailLogsData?.summary?.tier_breakdown?.ee_emails ?? (dispatches?.today?.ee_emails ?? 0) },
+                      { id: "3", label: "Level 3 • SE & CE", count: (emailLogsData?.summary?.tier_breakdown?.se_emails || dispatches?.today?.se_emails || 0) + (emailLogsData?.summary?.tier_breakdown?.ce_emails || dispatches?.today?.ce_emails || 0) || (dispatches?.today?.ce_se_emails ?? 0) },
+                      { id: "4", label: "Level 4 • MS", count: emailLogsData?.summary?.tier_breakdown?.ms_emails ?? (dispatches?.today?.ms_emails ?? 0) },
+                      { id: "5", label: "Level 5 • PS", count: emailLogsData?.summary?.tier_breakdown?.ps_emails ?? (dispatches?.today?.ps_emails ?? 0) },
+                      { id: "vendor", label: "Vendor (IoT Agency)", count: emailLogsData?.summary?.tier_breakdown?.vendor_emails ?? 7 },
                     ].map((f) => (
                       <button
                         key={f.id}
@@ -4422,13 +4421,13 @@ export default function EscalationPortalPage() {
                                   {log.created_at ? new Date(log.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "Today"}
                                 </div>
                                 <div className="text-[10px] text-slate-500 font-mono">
-                                  {log.created_at ? new Date(log.created_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true }) : "10:37 Am Ist"}
+                                  {log.created_at ? new Date(log.created_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true }) : "10:37 AM IST"}
                                 </div>
                               </td>
                               <td className="py-3 px-3 text-center whitespace-nowrap">
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
                                   <Check className="w-3 h-3 text-emerald-600" />
-                                  Delivered (Smtp)
+                                  Delivered (SMTP)
                                 </span>
                               </td>
                               <td className="py-3 px-3 text-center whitespace-nowrap">
@@ -4485,15 +4484,15 @@ export default function EscalationPortalPage() {
         {/* LAST 7 DAYS TELEMETRY VALUES & TREND MODAL DIALOG         */}
         {/* ========================================================= */}
         <Dialog open={Boolean(selectedSevenDaysAlert)} onOpenChange={(open) => !open && setSelectedSevenDaysAlert(null)}>
-          <DialogContent className="max-w-4xl max-h-[88vh] flex flex-col p-0 overflow-hidden bg-white">
-            <DialogHeader className="p-5 bg-slate-900 text-white shrink-0">
-              <div className="flex items-center justify-between gap-3">
+          <DialogContent className="max-w-4xl max-h-[88vh] flex flex-col p-0 overflow-hidden bg-white rounded-2xl shadow-2xl border border-slate-200">
+            <DialogHeader className="p-5 bg-gradient-to-r from-slate-950 via-blue-950 to-slate-900 text-white shrink-0 border-b border-white/10">
+              <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider bg-blue-500/30 text-blue-200 border border-blue-400/40">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-bold tracking-wider bg-blue-500/30 text-blue-200 border border-blue-400/30">
                       7-Day Telemetry History
                     </span>
-                    <Badge variant="outline" className="text-[10px] font-mono text-slate-300 border-slate-700">
+                    <Badge variant="outline" className="text-[10px] font-mono text-slate-300 border-slate-700 bg-white/5">
                       ID: #{selectedSevenDaysAlert?.scheme_id}
                     </Badge>
                   </div>
@@ -4504,44 +4503,87 @@ export default function EscalationPortalPage() {
                     {selectedSevenDaysAlert?.region} Region {selectedSevenDaysAlert?.district ? `• ${selectedSevenDaysAlert?.district} District` : ""} • Location: <strong>{selectedSevenDaysAlert?.esr_name && selectedSevenDaysAlert?.esr_name !== "-" ? `${selectedSevenDaysAlert.esr_name} (${selectedSevenDaysAlert.village_name})` : selectedSevenDaysAlert?.village_name}</strong>
                   </DialogDescription>
                 </div>
-                <div className="text-right shrink-0">
-                  <div className="text-[11px] text-slate-400">Current Streak</div>
-                  <div className="text-xl font-black font-mono text-amber-400">
+                <div className="text-right shrink-0 bg-white/10 p-2.5 rounded-xl border border-white/10 backdrop-blur-xs">
+                  <div className="text-[10px] font-medium text-slate-300">Persistence Streak</div>
+                  <div className="text-xl font-black font-mono text-amber-400 mt-0.5">
                     {selectedSevenDaysAlert?.days_since || 1} Days
                   </div>
-                  <div className="text-[10px] font-semibold text-slate-300">
-                    {activeLayer === "layer1" ? "Level 1 (De/Ae)" : activeLayer === "layer2" ? "Level 2 (Ee)" : activeLayer === "layer3" ? "Level 3 (Ce/Se)" : activeLayer === "layer4" ? "Level 4 (Ms)" : "Level 5 (Ps)"}
+                  <div className="text-[10px] font-semibold text-blue-200 mt-0.5">
+                    {activeLayer === "layer1" ? "Level 1 • DE / AE" : activeLayer === "layer2" ? "Level 2 • EE" : activeLayer === "layer3" ? "Level 3 • CE & SE" : activeLayer === "layer4" ? "Level 4 • MS" : "Level 5 • PS"}
                   </div>
                 </div>
               </div>
             </DialogHeader>
 
             <div className="p-5 overflow-y-auto space-y-4">
+              {/* Summary Metrics Strip */}
+              {(() => {
+                const timeline = sevenDaysHistoryData?.timeline || [];
+                const breachCount = timeline.filter((d: any) => d.hasAlert).length;
+                const compliantCount = timeline.filter((d: any) => !d.hasAlert).length;
+                const standardLabel = selectedSevenDaysAlert?.category === "lpcd"
+                  ? "≥ 55 LPCD (Har Ghar Jal)"
+                  : selectedSevenDaysAlert?.category === "chlorine"
+                    ? "0.20 – 0.50 mg/L Residual Chlorine"
+                    : selectedSevenDaysAlert?.category === "pressure"
+                      ? "≥ 0.20 Bar Terminal Pressure"
+                      : "Continuous 24h Heartbeat";
+
+                return (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl">
+                      <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">7-Day Violation Count</div>
+                      <div className="text-base font-bold text-slate-900 mt-1 flex items-baseline gap-1.5">
+                        <span className="font-mono text-red-600 font-extrabold">{breachCount}</span>
+                        <span className="text-xs text-slate-500 font-normal">Breach Days</span>
+                        <span className="text-slate-300">|</span>
+                        <span className="font-mono text-emerald-600 font-bold">{compliantCount}</span>
+                        <span className="text-xs text-slate-500 font-normal">Compliant</span>
+                      </div>
+                    </div>
+                    <div className="bg-blue-50/60 border border-blue-200 p-3 rounded-xl">
+                      <div className="text-[10px] font-semibold text-blue-800 uppercase tracking-wide">Latest Recorded Value</div>
+                      <div className="text-base font-bold font-mono text-blue-950 mt-1">
+                        {selectedSevenDaysAlert?.parameter_value || "Breach"}
+                      </div>
+                    </div>
+                    <div className="bg-emerald-50/60 border border-emerald-200 p-3 rounded-xl">
+                      <div className="text-[10px] font-semibold text-emerald-800 uppercase tracking-wide">Prescribed Standard</div>
+                      <div className="text-xs font-bold text-emerald-950 mt-1 truncate" title={standardLabel}>
+                        {standardLabel}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Benchmark Guideline Notice */}
-              <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-lg text-xs flex items-start gap-2.5">
+              <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-xl text-xs flex items-start gap-2.5">
                 <Info className="w-4 h-4 text-blue-700 shrink-0 mt-0.5" />
                 <div className="space-y-0.5 text-slate-700">
                   <div className="font-bold text-blue-950">
                     {selectedSevenDaysAlert?.category === "lpcd"
-                      ? "Jal Jeevan Mission Standard: Minimum 55 Lpcd Per Capita"
+                      ? "Jal Jeevan Mission Standard: Minimum 55 LPCD Per Capita"
                       : selectedSevenDaysAlert?.category === "chlorine"
                         ? "Jal Jeevan Mission Standard: 0.20 – 0.50 Mg/L Residual Chlorine"
                         : selectedSevenDaysAlert?.category === "pressure"
                           ? "Jal Jeevan Mission Standard: Minimum 0.20 Bar Terminal Pressure"
-                          : "Iot Telemetry Standard: Continuous 24-Hour Heartbeat Transmission"}
+                          : "IoT Telemetry Standard: Continuous 24-Hour Heartbeat Transmission"}
                   </div>
                   <p className="text-[11px] text-slate-600 leading-relaxed">
-                    Under The Jjm Escalation Framework, Unaddressed Violations Persist Across Days:
-                    Day 1–2 Alerts Are Notified To De/Ae (Level 1); Day 3+ Escalate To Ee (Level 2); Day 7+ Escalate To Ce &amp; Se (Level 3); Day 15+ Escalate To Member Secretary &amp; Principal Secretary.
+                    Under The JJM Escalation Framework, Unaddressed Violations Persist Across Days:
+                    Day 1–2 Alerts Are Notified To DE / AE (Level 1); Day 3+ Escalate To EE (Level 2); Day 7+ Escalate To CE &amp; SE (Level 3); Day 15+ Escalate To Member Secretary &amp; Principal Secretary.
                   </p>
                 </div>
               </div>
 
               {/* 7-Days Values Table */}
-              <div className="border border-slate-200 rounded-lg overflow-hidden shadow-2xs">
-                <div className="bg-slate-100 px-4 py-2 border-b border-slate-200 font-bold text-xs text-slate-800 flex items-center justify-between">
+              <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+                <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 font-semibold text-xs text-slate-800 flex items-center justify-between">
                   <span>Last 7 Days Chronological Values ({toTitleCase(selectedSevenDaysAlert?.category)})</span>
-                  <span className="text-[11px] font-normal text-slate-500 font-mono">11 Oct 2026 – 17 Oct 2026</span>
+                  <span className="text-[11px] font-normal text-slate-500 font-mono">
+                    {sevenDaysHistoryData?.timeline?.[sevenDaysHistoryData.timeline.length - 1]?.dateFormatted || "13 Oct 2026"} – {sevenDaysHistoryData?.timeline?.[0]?.dateFormatted || "19 Oct 2026"}
+                  </span>
                 </div>
 
                 {sevenDaysLoading ? (
@@ -4552,42 +4594,46 @@ export default function EscalationPortalPage() {
                 ) : (
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="bg-slate-50 border-b border-slate-200 text-[10.5px] font-bold text-slate-600 tracking-wider">
-                        <th className="py-2.5 px-3">Date</th>
-                        <th className="py-2.5 px-3">Recorded Value</th>
-                        <th className="py-2.5 px-3 text-center">Status</th>
-                        <th className="py-2.5 px-3">Escalation Tier</th>
-                        <th className="py-2.5 px-3 text-center">Incident Ticket</th>
+                      <tr className="bg-slate-100/75 border-b border-slate-200 text-[11px] font-semibold text-slate-700 tracking-wide">
+                        <th className="py-2.5 px-3.5">Date</th>
+                        <th className="py-2.5 px-3.5">Recorded Value</th>
+                        <th className="py-2.5 px-3.5 text-center">Status</th>
+                        <th className="py-2.5 px-3.5">Escalation Tier</th>
+                        <th className="py-2.5 px-3.5 text-center">Incident Ticket</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                    <tbody className="divide-y divide-slate-100 font-medium text-slate-700 bg-white">
                       {(sevenDaysHistoryData?.timeline || []).map((day: any) => {
                         const isBreach = day.hasAlert;
+                        const currentStreak = Number(selectedSevenDaysAlert?.days_since || 7);
+                        // Timeline is ordered newest first (dayIndex = 1 is Today, 2 is Yesterday...)
+                        // Calculate consecutive streak age on that historical date:
+                        const dayHistoricalStreak = Math.max(1, currentStreak - (day.dayIndex - 1));
                         const tierLabel = isBreach
-                          ? day.dayIndex >= 7
-                            ? "Level 3 • Ce & Se Escalated"
-                            : day.dayIndex >= 3
-                              ? "Level 2 • Ee Escalated"
-                              : "Level 1 • De / Ae Operational"
+                          ? dayHistoricalStreak >= 7
+                            ? "Level 3 • CE & SE Escalated"
+                            : dayHistoricalStreak >= 3
+                              ? "Level 2 • EE Escalated"
+                              : "Level 1 • DE / AE Operational"
                           : "Normal / Compliant";
 
                         return (
-                          <tr key={day.dayIndex} className={`hover:bg-slate-50 transition-colors ${day.dayIndex === 1 ? "bg-blue-50/30" : ""}`}>
-                            <td className="py-2.5 px-3 whitespace-nowrap">
+                          <tr key={day.dayIndex} className={`hover:bg-slate-50/80 transition-colors ${day.dayIndex === 1 ? "bg-blue-50/20" : ""}`}>
+                            <td className="py-2.5 px-3.5 whitespace-nowrap">
                               <span className="font-semibold text-slate-900">{day.dateFormatted}</span>
                               {day.dayIndex === 1 && (
-                                <Badge className="ml-1.5 text-[9px] px-1 py-0 bg-blue-600 text-white">Latest</Badge>
+                                <Badge className="ml-1.5 text-[9px] px-1.5 py-0.2 bg-blue-600 text-white font-semibold">Latest</Badge>
                               )}
                             </td>
-                            <td className="py-2.5 px-3">
+                            <td className="py-2.5 px-3.5">
                               <span className={`font-mono font-bold text-xs ${isBreach ? "text-red-700" : "text-emerald-700"}`}>
                                 {day.alertValue}
                               </span>
                             </td>
-                            <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                            <td className="py-2.5 px-3.5 text-center whitespace-nowrap">
                               <Badge
                                 variant="outline"
-                                className={`text-[10px] font-bold ${isBreach
+                                className={`text-[10px] font-semibold ${isBreach
                                   ? "bg-red-50 text-red-800 border-red-200"
                                   : "bg-emerald-50 text-emerald-800 border-emerald-200"
                                   }`}
@@ -4595,13 +4641,15 @@ export default function EscalationPortalPage() {
                                 {isBreach ? day.alertType : "Compliant"}
                               </Badge>
                             </td>
-                            <td className="py-2.5 px-3 whitespace-nowrap">
+                            <td className="py-2.5 px-3.5 whitespace-nowrap">
                               <span className={`text-[11px] font-semibold ${isBreach ? "text-amber-900" : "text-slate-500"}`}>
                                 {tierLabel}
                               </span>
                             </td>
-                            <td className="py-2.5 px-3 text-center font-mono text-[10px] text-slate-500">
-                              {day.ticketId !== "-" ? day.ticketId : `TKT-${selectedSevenDaysAlert?.scheme_id}-${day.dayIndex}`}
+                            <td className="py-2.5 px-3.5 text-center font-mono text-[10.5px] text-slate-500">
+                              <span className="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 text-slate-600 font-mono">
+                                {day.ticketId !== "-" ? day.ticketId : `TKT-${selectedSevenDaysAlert?.scheme_id}-${day.dayIndex}`}
+                              </span>
                             </td>
                           </tr>
                         );
@@ -4614,7 +4662,9 @@ export default function EscalationPortalPage() {
 
             {/* Modal Footer */}
             <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
-
+              <span className="text-xs text-slate-500 font-mono">
+                Showing 7-day chronological telemetry record
+              </span>
               <Button
                 variant="outline"
                 size="sm"

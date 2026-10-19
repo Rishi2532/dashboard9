@@ -274,12 +274,18 @@ router.get("/alert-history", async (req: Request, res: Response) => {
       const primaryLog = dayLogs[0] || null;
       const telemetry = getTelemetryReading(telemetryRow, category, d);
 
-      // Determine breach status
+      // Determine breach status: Prioritize official email dispatch logs for this date
       let hasAlert = dayLogs.length > 0;
       let alertType = primaryLog?.alert_type || "";
       let alertValue = primaryLog?.alert_value || "";
 
-      if (telemetry) {
+      if (hasAlert) {
+        // There is an official logged alert for this date
+        if (!alertValue && telemetry?.rawValue) {
+          alertValue = telemetry.rawValue;
+        }
+      } else if (telemetry) {
+        // No alert log recorded, fallback to telemetry reading
         if (category === "chlorine") {
           if (telemetry.numVal !== null) {
             if (telemetry.numVal < 0.20) {
