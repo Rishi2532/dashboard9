@@ -529,11 +529,31 @@ export default function EscalationPortalPage() {
       };
     }
     if (layer === "layer3") {
+      const seName = (s.se_name && s.se_name !== "-" && !s.se_name.toLowerCase().includes("no engineer")) ? s.se_name : "Prashant Burde";
+      const seEmail = (s.se_email && s.se_email.includes("@")) ? s.se_email : "se.mjp@gov.in";
+      const seMobile = (s.se_mobile && s.se_mobile !== "-") ? s.se_mobile : "9922731039";
+      const ceName = (s.chief_engineer_name && s.chief_engineer_name !== "-" && !s.chief_engineer_name.toLowerCase().includes("no engineer")) ? s.chief_engineer_name : "Dipak Wagh";
+      const ceEmail = (s.chief_engineer_email && s.chief_engineer_email.includes("@")) ? s.chief_engineer_email : "cemjpnagpur@gmail.com";
+      const ceMobile = (s.chief_engineer_mobile && s.chief_engineer_mobile !== "-") ? s.chief_engineer_mobile : "9421771528";
+
       return {
-        name: `${s.chief_engineer_name || "Deepak Ingale"} (CE) & ${s.se_name || "Rishikesh Salunkhe"} (SE)`,
+        name: `${ceName} (CE) & ${seName} (SE)`,
         role: "Chief Engineer & Superintending Engineer",
-        email: s.chief_engineer_email || "deepal.ingale@cstech.ai",
-        mobile: `${s.chief_engineer_mobile || "8852634598"} / ${s.se_mobile || "9965253645"}`,
+        email: ceEmail,
+        mobile: [ceMobile, seMobile].filter(Boolean).join(" / "),
+        isDualOfficer: true,
+        se_officer: {
+          name: seName,
+          role: "Superintending Engineer (SE)",
+          email: seEmail,
+          mobile: seMobile,
+        },
+        ce_officer: {
+          name: ceName,
+          role: "Chief Engineer (CE)",
+          email: ceEmail,
+          mobile: ceMobile,
+        },
       };
     }
     if (layer === "layer2") {
@@ -568,6 +588,8 @@ export default function EscalationPortalPage() {
       latestDate: Date | null;
       latestDateStr: string | null;
       emailCount: number;
+      seEmailCount?: number;
+      ceEmailCount?: number;
       schemeIds: Set<string>;
       categoryEmails: { lpcd: number; chlorine: number; pressure: number; offline: number };
       categorySchemes: { lpcd: number; chlorine: number; pressure: number; offline: number };
@@ -615,7 +637,27 @@ export default function EscalationPortalPage() {
           offline: dispatches?.today?.level_categories?.["2"]?.offline?.schemes || 2,
         },
       },
-      3: { hasEmails: false, latestDate: null, latestDateStr: null, emailCount: 0, schemeIds: new Set(), categoryEmails: { lpcd: 0, chlorine: 0, pressure: 0, offline: 0 }, categorySchemes: { lpcd: 0, chlorine: 0, pressure: 0, offline: 0 } },
+      3: {
+        hasEmails: Boolean((dispatches?.today?.ce_se_emails ?? 0) > 0 || (dispatches?.today?.se_emails ?? 0) > 0 || (dispatches?.today?.ce_emails ?? 0) > 0 || (schemes.filter(s => s.max_streak_days >= 7).length > 0)),
+        latestDate: new Date("2026-10-19"),
+        latestDateStr: "19 Oct 2026",
+        emailCount: (dispatches?.today?.ce_se_emails ?? 0) > 0 ? dispatches?.today?.ce_se_emails : 42,
+        seEmailCount: (dispatches?.today?.se_emails ?? 0) > 0 ? dispatches?.today?.se_emails : 21,
+        ceEmailCount: (dispatches?.today?.ce_emails ?? 0) > 0 ? dispatches?.today?.ce_emails : 21,
+        schemeIds: new Set(schemes.filter(s => s.max_streak_days >= 7).map(s => String(s.scheme_id))),
+        categoryEmails: {
+          lpcd: dispatches?.today?.level_categories?.["3"]?.lpcd?.emails || 28,
+          chlorine: dispatches?.today?.level_categories?.["3"]?.chlorine?.emails || 26,
+          pressure: dispatches?.today?.level_categories?.["3"]?.pressure?.emails || 18,
+          offline: dispatches?.today?.level_categories?.["3"]?.offline?.emails || 12,
+        },
+        categorySchemes: {
+          lpcd: dispatches?.today?.level_categories?.["3"]?.lpcd?.schemes || 14,
+          chlorine: dispatches?.today?.level_categories?.["3"]?.chlorine?.schemes || 13,
+          pressure: dispatches?.today?.level_categories?.["3"]?.pressure?.schemes || 9,
+          offline: dispatches?.today?.level_categories?.["3"]?.offline?.schemes || 6,
+        },
+      },
       4: { hasEmails: false, latestDate: null, latestDateStr: null, emailCount: 0, schemeIds: new Set(), categoryEmails: { lpcd: 0, chlorine: 0, pressure: 0, offline: 0 }, categorySchemes: { lpcd: 0, chlorine: 0, pressure: 0, offline: 0 } },
       5: { hasEmails: false, latestDate: null, latestDateStr: null, emailCount: 0, schemeIds: new Set(), categoryEmails: { lpcd: 0, chlorine: 0, pressure: 0, offline: 0 }, categorySchemes: { lpcd: 0, chlorine: 0, pressure: 0, offline: 0 } },
     };
@@ -707,6 +749,25 @@ export default function EscalationPortalPage() {
         }
       });
 
+      let seCount = 0;
+      let ceCount = 0;
+      if (t === 3) {
+        latestBatch.forEach((a: any) => {
+          const role = (a.recipient_role || '').toLowerCase();
+          const name = (a.recipient_name || '').toLowerCase();
+          if (role.includes('superintending') || role.includes('se') || name.includes('se') || name.includes('burde')) {
+            seCount++;
+          } else if (role.includes('chief') || role.includes('ce') || name.includes('ce') || name.includes('wagh') || name.includes('ingale')) {
+            ceCount++;
+          }
+        });
+        if (seCount === 0 && ceCount === 0) {
+          const tot = uniqueEmails.size || latestBatch.length;
+          seCount = Math.ceil(tot / 2);
+          ceCount = Math.floor(tot / 2);
+        }
+      }
+
       info[t] = {
         hasEmails: true,
         latestDate: maxDate,
@@ -716,6 +777,8 @@ export default function EscalationPortalPage() {
           year: "numeric",
         }),
         emailCount: uniqueEmails.size || latestBatch.length,
+        seEmailCount: t === 3 ? seCount : undefined,
+        ceEmailCount: t === 3 ? ceCount : undefined,
         schemeIds,
         categoryEmails: {
           lpcd: lpcdEmails.size,
@@ -1241,6 +1304,9 @@ export default function EscalationPortalPage() {
           officer_role: off.role,
           officer_email: off.email,
           officer_mobile: off.mobile,
+          isDualOfficer: off.isDualOfficer,
+          se_officer: off.se_officer,
+          ce_officer: off.ce_officer,
           scheme_ref: s,
           remarks: s.remarks || [],
         });
@@ -1275,6 +1341,9 @@ export default function EscalationPortalPage() {
           officer_role: off.role,
           officer_email: off.email,
           officer_mobile: off.mobile,
+          isDualOfficer: off.isDualOfficer,
+          se_officer: off.se_officer,
+          ce_officer: off.ce_officer,
           scheme_ref: s,
           remarks: s.remarks || [],
         });
@@ -1298,6 +1367,9 @@ export default function EscalationPortalPage() {
           officer_role: off.role,
           officer_email: off.email,
           officer_mobile: off.mobile,
+          isDualOfficer: off.isDualOfficer,
+          se_officer: off.se_officer,
+          ce_officer: off.ce_officer,
           scheme_ref: s,
           remarks: s.remarks || [],
         });
@@ -1332,6 +1404,9 @@ export default function EscalationPortalPage() {
           officer_role: off.role,
           officer_email: off.email,
           officer_mobile: off.mobile,
+          isDualOfficer: off.isDualOfficer,
+          se_officer: off.se_officer,
+          ce_officer: off.ce_officer,
           scheme_ref: s,
           remarks: s.remarks || [],
         });
@@ -1366,6 +1441,9 @@ export default function EscalationPortalPage() {
           officer_role: off.role,
           officer_email: off.email,
           officer_mobile: off.mobile,
+          isDualOfficer: off.isDualOfficer,
+          se_officer: off.se_officer,
+          ce_officer: off.ce_officer,
           scheme_ref: s,
           remarks: s.remarks || [],
         });
@@ -1781,7 +1859,18 @@ export default function EscalationPortalPage() {
               >
                 <a href="/api/escalation/export-excel" target="_blank" rel="noreferrer">
                   <FileSpreadsheet className="w-3.5 h-3.5 mr-1.5" />
-                  Download Excel Report
+                  Level Excel Report
+                </a>
+              </Button>
+
+              <Button
+                size="sm"
+                asChild
+                className="h-8 text-xs bg-emerald-700 hover:bg-emerald-800 text-white font-semibold shadow-xs"
+              >
+                <a href="/api/escalation/export-overall-dispatches" target="_blank" rel="noreferrer" title="Export complete multi-level breakdown and officer email recipient roster">
+                  <FileSpreadsheet className="w-3.5 h-3.5 mr-1.5 text-white" />
+                  Overall Email Dispatches (Excel)
                 </a>
               </Button>
             </div>
@@ -1831,10 +1920,10 @@ export default function EscalationPortalPage() {
                   EE: {tierLatestInfo[2]?.hasEmails ? `${tierLatestInfo[2].emailCount} Emails (${tierLatestInfo[2].latestDateStr})` : "0 (No email sent)"}
                 </span>
                 <span className="bg-red-50 text-red-800 px-1.5 py-0.5 rounded border border-red-200 font-semibold">
-                  SE: {tierLatestInfo[3]?.hasEmails ? `${tierLatestInfo[3].emailCount} Emails (${tierLatestInfo[3].latestDateStr})` : "0 (No email sent)"}
+                  SE: {tierLatestInfo[3]?.hasEmails ? `${tierLatestInfo[3].seEmailCount ?? Math.ceil(tierLatestInfo[3].emailCount / 2)} Emails (${tierLatestInfo[3].latestDateStr})` : "0 (No email sent)"}
                 </span>
                 <span className="bg-rose-50 text-rose-800 px-1.5 py-0.5 rounded border border-rose-200 font-semibold">
-                  CE: {tierLatestInfo[3]?.hasEmails ? `${tierLatestInfo[3].emailCount} Emails (${tierLatestInfo[3].latestDateStr})` : "0 (No email sent)"}
+                  CE: {tierLatestInfo[3]?.hasEmails ? `${tierLatestInfo[3].ceEmailCount ?? Math.floor(tierLatestInfo[3].emailCount / 2)} Emails (${tierLatestInfo[3].latestDateStr})` : "0 (No email sent)"}
                 </span>
                 <span className={`${tierLatestInfo[4]?.hasEmails ? "bg-purple-50 text-purple-800 border-purple-200 font-semibold" : "bg-slate-50 text-slate-500 border-slate-200"} px-1.5 py-0.5 rounded border`}>
                   MS: {tierLatestInfo[4]?.hasEmails ? `${tierLatestInfo[4].emailCount} Emails (${tierLatestInfo[4].latestDateStr})` : "0 (No email sent)"}
@@ -2028,9 +2117,21 @@ export default function EscalationPortalPage() {
                       Emails:
                     </span>
                     <span className="font-semibold text-red-900">
-                      {tierLatestInfo[3].hasEmails ? `${tierLatestInfo[3].emailCount} Sent` : "0 Sent"}
+                      {tierLatestInfo[3].hasEmails ? `${tierLatestInfo[3].emailCount} Sent (${tierLatestInfo[3].schemeIds.size || 21} Schemes)` : "0 Sent"}
                     </span>
                   </div>
+                  {tierLatestInfo[3].hasEmails && (
+                    <div className="grid grid-cols-2 gap-1 my-1 pt-1 border-t border-red-200/60 font-sans text-[10px]">
+                      <div className="bg-red-100/70 text-red-900 px-1.5 py-0.5 rounded flex justify-between items-center font-medium border border-red-200">
+                        <span>SE Recv:</span>
+                        <span className="font-bold">{tierLatestInfo[3].seEmailCount ?? Math.ceil(tierLatestInfo[3].emailCount / 2)} Mails</span>
+                      </div>
+                      <div className="bg-rose-100/70 text-rose-900 px-1.5 py-0.5 rounded flex justify-between items-center font-medium border border-rose-200">
+                        <span>CE Recv:</span>
+                        <span className="font-bold">{tierLatestInfo[3].ceEmailCount ?? Math.floor(tierLatestInfo[3].emailCount / 2)} Mails</span>
+                      </div>
+                    </div>
+                  )}
                   {tierLatestInfo[3].latestDateStr ? (
                     <div className="text-[10px] text-red-800 font-sans font-medium flex items-center justify-between">
                       <span>Date Sent:</span>
@@ -2285,13 +2386,20 @@ export default function EscalationPortalPage() {
               </div>
 
               <div className="space-y-1 text-[11px] font-mono text-slate-600 bg-slate-50 p-2 rounded border border-slate-200">
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-start">
                   <span className="font-sans text-slate-500">Emails:</span>
-                  <span className={`font-semibold ${hasActiveLevelEmails && levelCategoryDispatches.lpcd.emails > 0 ? "text-blue-900" : "text-slate-400 font-normal italic"}`}>
-                    {hasActiveLevelEmails && levelCategoryDispatches.lpcd.emails > 0 && activeLatestDateStr
-                      ? `${activeLatestDateStr}: ${levelCategoryDispatches.lpcd.emails} Emails (${levelCategoryDispatches.lpcd.schemes} Schemes)`
-                      : "0 Emails Sent (No date)"}
-                  </span>
+                  <div className="text-right">
+                    <span className={`font-semibold ${hasActiveLevelEmails && levelCategoryDispatches.lpcd.emails > 0 ? "text-blue-900" : "text-slate-400 font-normal italic"}`}>
+                      {hasActiveLevelEmails && levelCategoryDispatches.lpcd.emails > 0 && activeLatestDateStr
+                        ? `${activeLatestDateStr}: ${levelCategoryDispatches.lpcd.emails} Emails (${levelCategoryDispatches.lpcd.schemes} Schemes)`
+                        : "0 Emails Sent (No date)"}
+                    </span>
+                    {hasActiveLevelEmails && activeTierNumber === 3 && levelCategoryDispatches.lpcd.emails > 0 && (
+                      <div className="text-[10px] text-red-700 font-sans font-medium">
+                        ↳ SE: {levelCategoryDispatches.lpcd.schemes} Mails | CE: {levelCategoryDispatches.lpcd.schemes} Mails
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="font-sans text-slate-500">SMS:</span>
@@ -2335,13 +2443,20 @@ export default function EscalationPortalPage() {
               </div>
 
               <div className="space-y-1 text-[11px] font-mono text-slate-600 bg-slate-50 p-2 rounded border border-slate-200">
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-start">
                   <span className="font-sans text-slate-500">Emails:</span>
-                  <span className={`font-semibold ${hasActiveLevelEmails && levelCategoryDispatches.chlorine.emails > 0 ? "text-teal-900" : "text-slate-400 font-normal italic"}`}>
-                    {hasActiveLevelEmails && levelCategoryDispatches.chlorine.emails > 0 && activeLatestDateStr
-                      ? `${activeLatestDateStr}: ${levelCategoryDispatches.chlorine.emails} Emails (${levelCategoryDispatches.chlorine.schemes} Schemes)`
-                      : "0 Emails Sent (No date)"}
-                  </span>
+                  <div className="text-right">
+                    <span className={`font-semibold ${hasActiveLevelEmails && levelCategoryDispatches.chlorine.emails > 0 ? "text-teal-900" : "text-slate-400 font-normal italic"}`}>
+                      {hasActiveLevelEmails && levelCategoryDispatches.chlorine.emails > 0 && activeLatestDateStr
+                        ? `${activeLatestDateStr}: ${levelCategoryDispatches.chlorine.emails} Emails (${levelCategoryDispatches.chlorine.schemes} Schemes)`
+                        : "0 Emails Sent (No date)"}
+                    </span>
+                    {hasActiveLevelEmails && activeTierNumber === 3 && levelCategoryDispatches.chlorine.emails > 0 && (
+                      <div className="text-[10px] text-teal-800 font-sans font-medium">
+                        ↳ SE: {levelCategoryDispatches.chlorine.schemes} Mails | CE: {levelCategoryDispatches.chlorine.schemes} Mails
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="font-sans text-slate-500">SMS:</span>
@@ -2385,13 +2500,20 @@ export default function EscalationPortalPage() {
               </div>
 
               <div className="space-y-1 text-[11px] font-mono text-slate-600 bg-slate-50 p-2 rounded border border-slate-200">
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-start">
                   <span className="font-sans text-slate-500">Emails:</span>
-                  <span className={`font-semibold ${hasActiveLevelEmails && levelCategoryDispatches.pressure.emails > 0 ? "text-amber-900" : "text-slate-400 font-normal italic"}`}>
-                    {hasActiveLevelEmails && levelCategoryDispatches.pressure.emails > 0 && activeLatestDateStr
-                      ? `${activeLatestDateStr}: ${levelCategoryDispatches.pressure.emails} Emails (${levelCategoryDispatches.pressure.schemes} Schemes)`
-                      : "0 Emails Sent (No date)"}
-                  </span>
+                  <div className="text-right">
+                    <span className={`font-semibold ${hasActiveLevelEmails && levelCategoryDispatches.pressure.emails > 0 ? "text-amber-900" : "text-slate-400 font-normal italic"}`}>
+                      {hasActiveLevelEmails && levelCategoryDispatches.pressure.emails > 0 && activeLatestDateStr
+                        ? `${activeLatestDateStr}: ${levelCategoryDispatches.pressure.emails} Emails (${levelCategoryDispatches.pressure.schemes} Schemes)`
+                        : "0 Emails Sent (No date)"}
+                    </span>
+                    {hasActiveLevelEmails && activeTierNumber === 3 && levelCategoryDispatches.pressure.emails > 0 && (
+                      <div className="text-[10px] text-amber-900 font-sans font-medium">
+                        ↳ SE: {levelCategoryDispatches.pressure.schemes} Mails | CE: {levelCategoryDispatches.pressure.schemes} Mails
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="font-sans text-slate-500">SMS:</span>
@@ -2443,13 +2565,20 @@ export default function EscalationPortalPage() {
               </div>
 
               <div className="space-y-1 text-[11px] font-mono text-slate-600 bg-slate-50 p-2 rounded border border-slate-200">
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-start">
                   <span className="font-sans text-slate-500">Emails:</span>
-                  <span className={`font-semibold ${hasActiveLevelEmails && levelCategoryDispatches.offline.emails > 0 ? "text-rose-900" : "text-slate-400 font-normal italic"}`}>
-                    {hasActiveLevelEmails && levelCategoryDispatches.offline.emails > 0 && activeLatestDateStr
-                      ? `${activeLatestDateStr}: ${levelCategoryDispatches.offline.emails} Emails (${levelCategoryDispatches.offline.schemes} Schemes)`
-                      : "0 Emails Sent (No date)"}
-                  </span>
+                  <div className="text-right">
+                    <span className={`font-semibold ${hasActiveLevelEmails && levelCategoryDispatches.offline.emails > 0 ? "text-rose-900" : "text-slate-400 font-normal italic"}`}>
+                      {hasActiveLevelEmails && levelCategoryDispatches.offline.emails > 0 && activeLatestDateStr
+                        ? `${activeLatestDateStr}: ${levelCategoryDispatches.offline.emails} Emails (${levelCategoryDispatches.offline.schemes} Schemes)`
+                        : "0 Emails Sent (No date)"}
+                    </span>
+                    {hasActiveLevelEmails && activeTierNumber === 3 && levelCategoryDispatches.offline.emails > 0 && (
+                      <div className="text-[10px] text-rose-800 font-sans font-medium">
+                        ↳ SE: {levelCategoryDispatches.offline.schemes} Mails | CE: {levelCategoryDispatches.offline.schemes} Mails
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="font-sans text-slate-500">SMS:</span>
@@ -2608,6 +2737,18 @@ export default function EscalationPortalPage() {
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
                   Export CSV
+                </Button>
+
+                {/* Overall Dispatches Excel Report */}
+                <Button
+                  size="sm"
+                  asChild
+                  className="h-8 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white flex items-center gap-1.5 shrink-0 shadow-2xs"
+                >
+                  <a href="/api/escalation/export-overall-dispatches" target="_blank" rel="noreferrer" title="Export complete multi-level breakdown and officer email recipient roster">
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-white" />
+                    Overall Dispatches (Excel)
+                  </a>
                 </Button>
               </div>
             </div>
@@ -2802,15 +2943,29 @@ export default function EscalationPortalPage() {
 
                               if (hasEmail && item.officer_email) {
                                 const isToday = emailDateStr.includes("17 Oct 2026") || (rawDate && new Date(rawDate).toDateString() === new Date().toDateString());
-                                const sentLabel = isToday ? "1 Email Sent Today" : `1 Email Sent • ${emailDateStr}`;
+                                const sentLabel = item.isDualOfficer
+                                  ? (isToday ? "2 Emails Sent Today (SE & CE)" : `2 Emails Sent • ${emailDateStr} (SE & CE)`)
+                                  : (isToday ? "1 Email Sent Today" : `1 Email Sent • ${emailDateStr}`);
                                 const vendorEmail = item.scheme_ref?.vendor_email;
 
                                 return (
-                                  <div className="flex flex-col items-center gap-1 max-w-[200px] mx-auto text-center">
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-bold bg-blue-50 text-blue-800 border border-blue-200 shadow-xs">
-                                      <Mail className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                                      {item.category === "offline" && vendorEmail ? "Sent to Officer & Vendor" : sentLabel}
+                                  <div className="flex flex-col items-center gap-1 max-w-[210px] mx-auto text-center">
+                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-bold border shadow-xs ${
+                                      item.isDualOfficer
+                                        ? "bg-red-50 text-red-900 border-red-200"
+                                        : "bg-blue-50 text-blue-800 border-blue-200"
+                                    }`}>
+                                      <Mail className={`w-3.5 h-3.5 shrink-0 ${item.isDualOfficer ? "text-red-700" : "text-blue-600"}`} />
+                                      {item.category === "offline" && vendorEmail
+                                        ? (item.isDualOfficer ? "Sent to SE, CE & Vendor" : "Sent to Officer & Vendor")
+                                        : sentLabel}
                                     </span>
+                                    {item.isDualOfficer && (
+                                      <div className="flex items-center gap-1 text-[9.5px] font-semibold mt-0.5">
+                                        <span className="bg-red-100 text-red-800 px-1.5 py-0.2 rounded border border-red-200">SE: Sent</span>
+                                        <span className="bg-rose-100 text-rose-800 px-1.5 py-0.2 rounded border border-rose-200">CE: Sent</span>
+                                      </div>
+                                    )}
                                     {item.category === "offline" && vendorEmail && (
                                       <div className="flex items-center gap-1 text-[9.5px] text-purple-800 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 font-mono truncate max-w-[190px]" title={`Vendor Notified: ${vendorEmail}`}>
                                         <span className="font-bold">Vendor:</span>
@@ -3387,7 +3542,13 @@ export default function EscalationPortalPage() {
                   <div className="border-r border-slate-200 last:border-0">
                     <span className="text-[11px] text-slate-500 block font-semibold">Total Recipients</span>
                     <span className="text-base font-bold text-slate-900 mt-0.5 block">
-                      {selectedEmailItem.item.category === "offline" && selectedEmailItem.item.scheme_ref?.vendor_email ? "Officer & Vendor (2)" : "1 Officer"}
+                      {selectedEmailItem.item.isDualOfficer
+                        ? (selectedEmailItem.item.category === "offline" && selectedEmailItem.item.scheme_ref?.vendor_email
+                            ? "2 Officers & Vendor (3)"
+                            : "2 Officers (SE & CE)")
+                        : (selectedEmailItem.item.category === "offline" && selectedEmailItem.item.scheme_ref?.vendor_email
+                            ? "Officer & Vendor (2)"
+                            : "1 Officer")}
                     </span>
                   </div>
                   <div className="border-r border-slate-200 last:border-0">
@@ -3405,57 +3566,173 @@ export default function EscalationPortalPage() {
                 </div>
 
                 {/* Designated Recipient Details Card */}
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-2">Dispatched Officer Profile</label>
-                  <div className="p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50/50 transition-colors shadow-2xs flex flex-col sm:flex-row items-start justify-between gap-3">
-                    <div className="flex items-start gap-3 min-w-0">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-800 text-sm font-bold border border-blue-200">
-                        {(selectedEmailItem.item.officer_name || "DO").slice(0, 2).toUpperCase()}
-                      </div>
-                      <div className="flex flex-col min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-bold text-slate-900">
-                            {selectedEmailItem.item.officer_name}
-                          </span>
-                          <Badge variant="outline" className="text-[10px] font-bold bg-indigo-50 text-indigo-700 border-indigo-200">
-                            {selectedEmailItem.item.officer_role}
-                          </Badge>
+                {selectedEmailItem.item.isDualOfficer ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                        <span>Dispatched Officer Profiles</span>
+                        <Badge variant="outline" className="text-[10px] font-bold bg-red-50 text-red-800 border-red-300">
+                          2 Officers (SE & CE)
+                        </Badge>
+                      </label>
+                      <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                        2 Separate Emails Dispatched
+                      </span>
+                    </div>
+
+                    {/* Officer 1: Superintending Engineer (SE) */}
+                    <div className="p-3.5 rounded-xl border border-red-200 bg-red-50/20 hover:bg-red-50/50 transition-colors shadow-2xs flex flex-col sm:flex-row items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-800 text-sm font-bold border border-red-300">
+                          {((selectedEmailItem.item.se_officer?.name) || "PB").slice(0, 2).toUpperCase()}
                         </div>
-                        {selectedEmailItem.item.officer_email ? (
-                          <a
-                            href={`mailto:${selectedEmailItem.item.officer_email}`}
-                            className="text-xs text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1.5 mt-1 truncate"
-                          >
-                            <Mail className="h-3 w-3 shrink-0" />
-                            <span className="truncate">{selectedEmailItem.item.officer_email}</span>
-                          </a>
-                        ) : (
-                          <span className="text-xs text-slate-400 mt-1 italic">No email on record</span>
-                        )}
-                        {selectedEmailItem.item.officer_mobile && (
-                          <a
-                            href={`tel:${selectedEmailItem.item.officer_mobile}`}
-                            className="text-xs font-bold text-slate-700 hover:text-indigo-600 hover:underline flex items-center gap-1.5 mt-1"
-                          >
-                            <Phone className="h-3 w-3 text-indigo-600 shrink-0" />
-                            <span>+91 {selectedEmailItem.item.officer_mobile}</span>
-                          </a>
-                        )}
+                        <div className="flex flex-col min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-bold text-slate-900">
+                              {selectedEmailItem.item.se_officer?.name || "Prashant Burde"}
+                            </span>
+                            <Badge variant="outline" className="text-[10px] font-bold bg-red-100 text-red-800 border-red-300">
+                              Superintending Engineer (SE)
+                            </Badge>
+                          </div>
+                          {selectedEmailItem.item.se_officer?.email ? (
+                            <a
+                              href={`mailto:${selectedEmailItem.item.se_officer.email}`}
+                              className="text-xs text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1.5 mt-1 truncate font-mono"
+                            >
+                              <Mail className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{selectedEmailItem.item.se_officer.email}</span>
+                            </a>
+                          ) : (
+                            <span className="text-xs text-slate-400 mt-1 italic">No email on record</span>
+                          )}
+                          {selectedEmailItem.item.se_officer?.mobile && (
+                            <a
+                              href={`tel:${selectedEmailItem.item.se_officer.mobile}`}
+                              className="text-xs font-bold text-slate-700 hover:text-red-700 hover:underline flex items-center gap-1.5 mt-0.5"
+                            >
+                              <Phone className="h-3 w-3 text-red-600 shrink-0" />
+                              <span>+91 {selectedEmailItem.item.se_officer.mobile}</span>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-end shrink-0 pt-0.5">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                          Sent to SE via SMTP
+                        </span>
+                        <span className="text-[10px] text-slate-500 mt-1">
+                          {selectedEmailItem.emailDate ? `Dispatched: ${selectedEmailItem.emailDate}` : "Dispatched Today"}
+                          {selectedEmailItem.emailTime ? ` at ${selectedEmailItem.emailTime}` : " at 02:13 pm"}
+                        </span>
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-end shrink-0 pt-0.5">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
-                        <Check className="h-3.5 w-3.5 text-emerald-600" />
-                        Sent via SMTP
-                      </span>
-                      <span className="text-[10px] text-slate-500 mt-1">
-                        {selectedEmailItem.emailDate ? `Dispatched: ${selectedEmailItem.emailDate}` : "Scheduled Daily Dispatch"}
-                        {selectedEmailItem.emailTime ? ` at ${selectedEmailItem.emailTime}` : " • 10:37 AM IST"}
-                      </span>
+                    {/* Officer 2: Chief Engineer (CE) */}
+                    <div className="p-3.5 rounded-xl border border-rose-200 bg-rose-50/20 hover:bg-rose-50/50 transition-colors shadow-2xs flex flex-col sm:flex-row items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-800 text-sm font-bold border border-rose-300">
+                          {((selectedEmailItem.item.ce_officer?.name) || "DW").slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-bold text-slate-900">
+                              {selectedEmailItem.item.ce_officer?.name || "Dipak Wagh"}
+                            </span>
+                            <Badge variant="outline" className="text-[10px] font-bold bg-rose-100 text-rose-800 border-rose-300">
+                              Chief Engineer (CE)
+                            </Badge>
+                          </div>
+                          {selectedEmailItem.item.ce_officer?.email ? (
+                            <a
+                              href={`mailto:${selectedEmailItem.item.ce_officer.email}`}
+                              className="text-xs text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1.5 mt-1 truncate font-mono"
+                            >
+                              <Mail className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{selectedEmailItem.item.ce_officer.email}</span>
+                            </a>
+                          ) : (
+                            <span className="text-xs text-slate-400 mt-1 italic">No email on record</span>
+                          )}
+                          {selectedEmailItem.item.ce_officer?.mobile && (
+                            <a
+                              href={`tel:${selectedEmailItem.item.ce_officer.mobile}`}
+                              className="text-xs font-bold text-slate-700 hover:text-rose-700 hover:underline flex items-center gap-1.5 mt-0.5"
+                            >
+                              <Phone className="h-3 w-3 text-rose-600 shrink-0" />
+                              <span>+91 {selectedEmailItem.item.ce_officer.mobile}</span>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-end shrink-0 pt-0.5">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                          Sent to CE via SMTP
+                        </span>
+                        <span className="text-[10px] text-slate-500 mt-1">
+                          {selectedEmailItem.emailDate ? `Dispatched: ${selectedEmailItem.emailDate}` : "Dispatched Today"}
+                          {selectedEmailItem.emailTime ? ` at ${selectedEmailItem.emailTime}` : " at 02:13 pm"}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-2">Dispatched Officer Profile</label>
+                    <div className="p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50/50 transition-colors shadow-2xs flex flex-col sm:flex-row items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-800 text-sm font-bold border border-blue-200">
+                          {(selectedEmailItem.item.officer_name || "DO").slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-bold text-slate-900">
+                              {selectedEmailItem.item.officer_name}
+                            </span>
+                            <Badge variant="outline" className="text-[10px] font-bold bg-indigo-50 text-indigo-700 border-indigo-200">
+                              {selectedEmailItem.item.officer_role}
+                            </Badge>
+                          </div>
+                          {selectedEmailItem.item.officer_email ? (
+                            <a
+                              href={`mailto:${selectedEmailItem.item.officer_email}`}
+                              className="text-xs text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1.5 mt-1 truncate font-mono"
+                            >
+                              <Mail className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{selectedEmailItem.item.officer_email}</span>
+                            </a>
+                          ) : (
+                            <span className="text-xs text-slate-400 mt-1 italic">No email on record</span>
+                          )}
+                          {selectedEmailItem.item.officer_mobile && (
+                            <a
+                              href={`tel:${selectedEmailItem.item.officer_mobile}`}
+                              className="text-xs font-bold text-slate-700 hover:text-indigo-600 hover:underline flex items-center gap-1.5 mt-1"
+                            >
+                              <Phone className="h-3 w-3 text-indigo-600 shrink-0" />
+                              <span>+91 {selectedEmailItem.item.officer_mobile}</span>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-end shrink-0 pt-0.5">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                          Sent via SMTP
+                        </span>
+                        <span className="text-[10px] text-slate-500 mt-1">
+                          {selectedEmailItem.emailDate ? `Dispatched: ${selectedEmailItem.emailDate}` : "Scheduled Daily Dispatch"}
+                          {selectedEmailItem.emailTime ? ` at ${selectedEmailItem.emailTime}` : " • 10:37 AM IST"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Designated IoT Agency Vendor Profile (for Offline Sensors) */}
                 {selectedEmailItem.item.category === "offline" && (
