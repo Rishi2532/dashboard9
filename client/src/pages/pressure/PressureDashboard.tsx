@@ -965,7 +965,7 @@ const PressureDashboard: React.FC = () => {
     return {
       className: "bg-orange-50 border-orange-200",
       statusText: "Above Range",
-      textColor: "text-orange-800",
+      textColor: "text-green-800",
       icon: <AlertCircle className="h-5 w-5 text-orange-600" />,
     };
   };
@@ -3412,7 +3412,7 @@ const PressureDashboard: React.FC = () => {
                                 </span>
                               </Button>
                             );
-                          })()                        ) : (
+                          })()) : (
                           <span className="text-gray-400">-</span>
                         )}
                       </TableCell>
@@ -3916,20 +3916,18 @@ const PressureDashboard: React.FC = () => {
                       {selectedRemarkDetails.issues.map((issue: any, index: number) => (
                         <div
                           key={index}
-                          className={`bg-white p-5 rounded-xl shadow-sm border border-slate-200 ${
-                            issue.status === 'Resolved'
-                              ? 'border-l-4 border-l-emerald-500'
-                              : 'border-l-4 border-l-red-500'
-                          }`}
+                          className={`bg-white p-5 rounded-xl shadow-sm border border-slate-200 ${issue.status === 'Resolved'
+                            ? 'border-l-4 border-l-emerald-500'
+                            : 'border-l-4 border-l-red-500'
+                            }`}
                         >                          <div className="flex justify-between items-start mb-3 gap-4">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
                                 <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider">
                                   {issue.problem_level ? `${issue.problem_level} Level`.toUpperCase() : (issue.category || "General")}
                                 </span>
-                                <span className={`px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider ${
-                                  issue.status === 'Resolved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                }`}>
+                                <span className={`px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider ${issue.status === 'Resolved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                  }`}>
                                   {issue.status || 'Active'}
                                 </span>                              </div>
                             </div>
@@ -3963,7 +3961,7 @@ const PressureDashboard: React.FC = () => {
                                       month: 'short', day: 'numeric', year: 'numeric',
                                       hour: 'numeric', minute: '2-digit', hour12: true
                                     })}
-                                  </span>                                )}
+                                  </span>)}
                               </div>
                             )}
                           </div>
@@ -3987,14 +3985,14 @@ const PressureDashboard: React.FC = () => {
           uiSchemeFilter === "commissioned"
             ? `Commissioned${waterSupplyStatus !== "All" ? ` (${waterSupplyStatus} Supply)` : ""}`
             : uiSchemeFilter === "fully_completed"
-            ? "Fully Completed"
-            : uiSchemeFilter === "in_progress"
-            ? "In Progress"
-            : uiSchemeFilter === "common_filter"
-            ? "Civil Complete & IoT Connected"
-            : uiSchemeFilter === "mjp_commissioned_yes"
-            ? "MJP Commissioned"
-            : "All Schemes"
+              ? "Fully Completed"
+              : uiSchemeFilter === "in_progress"
+                ? "In Progress"
+                : uiSchemeFilter === "common_filter"
+                  ? "Civil Complete & IoT Connected"
+                  : uiSchemeFilter === "mjp_commissioned_yes"
+                    ? "MJP Commissioned"
+                    : "All Schemes"
         }
         qualifyingCount={summaryUniqueSchemes + missingPressureSchemes.length}
         presentCount={summaryUniqueSchemes}

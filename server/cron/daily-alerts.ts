@@ -757,39 +757,18 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
         const deCivilAlerts = schemeAlerts;
 
         // 2. EE (Civil): Level 2 Escalation (EVERY 3RD DAY if streak >= 3 days: Day 3, 6, 9, 12, etc.)
-        // Verified against both: (1) unbroken streak >= 3 days AND (2) at least 3 days elapsed since last email to EE in DB
-        const eeEmailClean = (engineer.ee_civil_email || '').trim().toLowerCase();
-        const lastEeSentStr = lastEeDispatchMap.get(eeEmailClean);
-        let daysSinceLastEeEmail = 999;
-        if (lastEeSentStr) {
-          const lastDate = new Date(lastEeSentStr);
-          const todayDate = new Date(istDateStr);
-          const diffMs = todayDate.getTime() - lastDate.getTime();
-          daysSinceLastEeEmail = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
-        }
+        // 2. EE (Civil): Level 2 Escalation (All qualifying alerts with streak >= 3 days)
+        // User rule: Even if streak is 7, if >= 3 then EE will receive.
+        const eeCivilAlerts = schemeAlerts.filter(a => (a.streak_days || 1) >= 3);
 
-        const eeCivilAlerts = schemeAlerts.filter(a => {
-          const s = a.streak_days || 1;
-          if (options?.forceAllTiers) return s >= 3;
-          // Must have persistent streak >= 3 days, AND must NOT have received an email in the last 2 days
-          const isAtLeast3DaysSinceLast = daysSinceLastEeEmail >= 3;
-          return s >= 3 && isAtLeast3DaysSinceLast && (s % 3 === 0);
-        });
+        // 3. Superintending Engineer (SE) & Chief Engineer (CE): Alerts with streak >= 7 days
+        const ceSeAlerts = schemeAlerts.filter(a => (a.streak_days || 1) >= 7);
 
-        // 3. Superintending Engineer (SE) & Chief Engineer (CE): EVERY MONDAY for alerts with streak >= 7 days
-        const ceSeAlerts = (ist.isMonday || options?.forceAllTiers)
-          ? schemeAlerts.filter(a => (a.streak_days || 1) >= 7)
-          : [];
+        // 4. Member Secretary (MS): Alerts with streak >= 15 days
+        const msAlerts = schemeAlerts.filter(a => (a.streak_days || 1) >= 15);
 
-        // 4. Member Secretary (MS): EVERY 1ST MONDAY AND 3RD MONDAY for streak >= 15 days
-        const msAlerts = (ist.is1stOr3rdMonday || options?.forceAllTiers)
-          ? schemeAlerts.filter(a => (a.streak_days || 1) >= 15)
-          : [];
-
-        // 5. Principal Secretary (PS): EVERY 1ST MONDAY AND 3RD MONDAY for streak >= 15 days
-        const psAlerts = (ist.is1stOr3rdMonday || options?.forceAllTiers)
-          ? schemeAlerts.filter(a => (a.streak_days || 1) >= 15)
-          : [];
+        // 5. Principal Secretary (PS): Alerts with streak >= 15 days
+        const psAlerts = schemeAlerts.filter(a => (a.streak_days || 1) >= 15);
 
         // --- Dispatch by Role ---
         // 1. DE/AE (Civil) - Daily Email & Daily SMS
