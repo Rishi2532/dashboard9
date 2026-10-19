@@ -110,7 +110,7 @@ router.get("/type/:reportType", async (req, res) => {
       "scheme_level",
       // Overall report types
       "overall_chlorine",
-      "overall_pressure", 
+      "overall_pressure",
       "overall_water_consumption",
       "overall_lpcd",
       // Monthly Reports
@@ -152,7 +152,7 @@ router.get("/type/:reportType", async (req, res) => {
 
     // Return file metadata as JSON instead of downloading the file
     console.log(`Found file metadata for report type: ${reportType}`);
-    
+
     res.json({
       id: latestFile.id,
       file_name: latestFile.file_name,
@@ -252,7 +252,7 @@ router.post(
         "scheme_level",
         // Overall report types
         "overall_chlorine",
-        "overall_pressure", 
+        "overall_pressure",
         "overall_water_consumption",
         "overall_lpcd",
         // Monthly Reports
@@ -379,26 +379,29 @@ router.get('/download/overall-chlorine', async (req, res) => {
   try {
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
     const client = await pool.connect();
-    
+
     try {
       // Get all chlorine data
       const result = await client.query(`
         SELECT 
-          region, circle, division, sub_division, block,
-          scheme_id, scheme_name, village_name, esr_name,
-          chlorine_value_1, chlorine_value_2, chlorine_value_3, chlorine_value_4,
-          chlorine_value_5, chlorine_value_6, chlorine_value_7,
-          chlorine_date_day_1, chlorine_date_day_2, chlorine_date_day_3, chlorine_date_day_4,
-          chlorine_date_day_5, chlorine_date_day_6, chlorine_date_day_7,
-          number_of_consistent_zero_value_in_chlorine,
-          chlorine_less_than_02_mgl, chlorine_between_02_05_mgl, chlorine_greater_than_05_mgl
-        FROM chlorine_data
-        ORDER BY region, scheme_id, village_name, esr_name
+          cd.region, cd.circle, cd.division, cd.sub_division, cd.block,
+          cd.scheme_id, cd.scheme_name, cd.village_name, cd.esr_name,
+          cd.chlorine_value_1, cd.chlorine_value_2, cd.chlorine_value_3, cd.chlorine_value_4,
+          cd.chlorine_value_5, cd.chlorine_value_6, cd.chlorine_value_7,
+          cd.chlorine_date_day_1, cd.chlorine_date_day_2, cd.chlorine_date_day_3, cd.chlorine_date_day_4,
+          cd.chlorine_date_day_5, cd.chlorine_date_day_6, cd.chlorine_date_day_7,
+          cd.number_of_consistent_zero_value_in_chlorine,
+          cd.chlorine_less_than_02_mgl, cd.chlorine_between_02_05_mgl, cd.chlorine_greater_than_05_mgl
+        FROM chlorine_data cd
+        JOIN communication_status cs 
+          ON (cd.scheme_id = cs.scheme_id AND cd.village_name = cs.village_name AND cd.esr_name = cs.esr_name)
+        WHERE cs.chlorine_connected = 'Connected'
+        ORDER BY cd.region, cd.scheme_id, cd.village_name, cd.esr_name
       `);
 
       // Create workbook
       const wb = XLSX.utils.book_new();
-      
+
       // Convert data for Excel
       const excelData = result.rows.map(row => ({
         'Region': row.region,
@@ -432,7 +435,7 @@ router.get('/download/overall-chlorine', async (req, res) => {
 
       const ws = XLSX.utils.json_to_sheet(excelData);
       XLSX.utils.book_append_sheet(wb, ws, 'Chlorine Data');
-      
+
       // Add summary sheet
       const summaryData = [
         { 'Report Type': 'Overall Chlorine Report' },
@@ -444,12 +447,12 @@ router.get('/download/overall-chlorine', async (req, res) => {
       XLSX.utils.book_append_sheet(wb, summaryWs, 'Report Summary');
 
       const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-      
+
       const filename = `Overall_Chlorine_Report_${new Date().toISOString().split('T')[0]}`;
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
       res.send(buffer);
-      
+
     } finally {
       client.release();
     }
@@ -464,7 +467,7 @@ router.get('/download/overall-pressure', async (req, res) => {
   try {
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
     const client = await pool.connect();
-    
+
     try {
       // Get all pressure data
       const result = await client.query(`
@@ -483,7 +486,7 @@ router.get('/download/overall-pressure', async (req, res) => {
 
       // Create workbook
       const wb = XLSX.utils.book_new();
-      
+
       // Convert data for Excel
       const excelData = result.rows.map(row => ({
         'Region': row.region,
@@ -517,7 +520,7 @@ router.get('/download/overall-pressure', async (req, res) => {
 
       const ws = XLSX.utils.json_to_sheet(excelData);
       XLSX.utils.book_append_sheet(wb, ws, 'Pressure Data');
-      
+
       // Add summary sheet
       const summaryData = [
         { 'Report Type': 'Overall Pressure Report' },
@@ -529,12 +532,12 @@ router.get('/download/overall-pressure', async (req, res) => {
       XLSX.utils.book_append_sheet(wb, summaryWs, 'Report Summary');
 
       const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-      
+
       const filename = `Overall_Pressure_Report_${new Date().toISOString().split('T')[0]}`;
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
       res.send(buffer);
-      
+
     } finally {
       client.release();
     }
@@ -549,7 +552,7 @@ router.get('/download/overall-water-consumption', async (req, res) => {
   try {
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
     const client = await pool.connect();
-    
+
     try {
       // Get all water consumption data
       const result = await client.query(`
@@ -569,7 +572,7 @@ router.get('/download/overall-water-consumption', async (req, res) => {
 
       // Create workbook
       const wb = XLSX.utils.book_new();
-      
+
       // Convert data for Excel
       const excelData = result.rows.map(row => ({
         'Region': row.region,
@@ -598,7 +601,7 @@ router.get('/download/overall-water-consumption', async (req, res) => {
 
       const ws = XLSX.utils.json_to_sheet(excelData);
       XLSX.utils.book_append_sheet(wb, ws, 'Water Consumption Data');
-      
+
       // Add summary sheet
       const summaryData = [
         { 'Report Type': 'Overall Water Consumption Report' },
@@ -610,12 +613,12 @@ router.get('/download/overall-water-consumption', async (req, res) => {
       XLSX.utils.book_append_sheet(wb, summaryWs, 'Report Summary');
 
       const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-      
+
       const filename = `Overall_Water_Consumption_Report_${new Date().toISOString().split('T')[0]}`;
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
       res.send(buffer);
-      
+
     } finally {
       client.release();
     }
@@ -630,7 +633,7 @@ router.get('/download/overall-lpcd', async (req, res) => {
   try {
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
     const client = await pool.connect();
-    
+
     try {
       // Get all LPCD data
       const result = await client.query(`
@@ -652,7 +655,7 @@ router.get('/download/overall-lpcd', async (req, res) => {
 
       // Create workbook
       const wb = XLSX.utils.book_new();
-      
+
       // Convert data for Excel
       const excelData = result.rows.map(row => ({
         'Region': row.region,
@@ -686,7 +689,7 @@ router.get('/download/overall-lpcd', async (req, res) => {
 
       const ws = XLSX.utils.json_to_sheet(excelData);
       XLSX.utils.book_append_sheet(wb, ws, 'LPCD Data');
-      
+
       // Add summary sheet
       const summaryData = [
         { 'Report Type': 'Overall LPCD Report' },
@@ -698,12 +701,12 @@ router.get('/download/overall-lpcd', async (req, res) => {
       XLSX.utils.book_append_sheet(wb, summaryWs, 'Report Summary');
 
       const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-      
+
       const filename = `Overall_LPCD_Report_${new Date().toISOString().split('T')[0]}`;
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
       res.send(buffer);
-      
+
     } finally {
       client.release();
     }

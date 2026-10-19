@@ -859,6 +859,26 @@ const ChlorineDashboard: React.FC = () => {
       );
     }
 
+    // Filter to only include ESRs where chlorine_connected = 'Connected' in communication_status
+    if (communicationStatusData && communicationStatusData.length > 0) {
+      const commConnectedSet = new Set<string>();
+      communicationStatusData.forEach((comm) => {
+        if (comm.chlorine_connected === "Connected") {
+          const key7 = `${comm.region}|${comm.circle}|${comm.division}|${comm.sub_division}|${comm.block}|${comm.village_name}|${comm.esr_name}`.toLowerCase().trim();
+          commConnectedSet.add(key7);
+          if (comm.scheme_id && comm.esr_name) {
+            commConnectedSet.add(`${comm.scheme_id}|${comm.village_name}|${comm.esr_name}`.toLowerCase().trim());
+          }
+        }
+      });
+
+      filtered = filtered.filter((item) => {
+        const key7 = `${item.region}|${item.circle}|${item.division}|${item.sub_division}|${item.block}|${item.village_name}|${item.esr_name}`.toLowerCase().trim();
+        const keyEsr = `${item.scheme_id}|${item.village_name}|${item.esr_name}`.toLowerCase().trim();
+        return commConnectedSet.has(key7) || commConnectedSet.has(keyEsr);
+      });
+    }
+
     return filtered;
   }, [
     allChlorineData,
@@ -871,6 +891,7 @@ const ChlorineDashboard: React.FC = () => {
     schemeStatusMap,
     villageFilter,
     isVillageCompleted,
+    communicationStatusData,
   ]);
 
   // Calculate sensor status counts for chlorine sensors using globally filtered data
@@ -3591,11 +3612,10 @@ const ChlorineDashboard: React.FC = () => {
                         {selectedRemarkDetails?.issues.map((issue: any, index: number) => (
                           <div
                             key={index}
-                            className={`bg-white p-5 rounded-xl shadow-sm border border-slate-200 ${
-                              issue.status === 'Resolved'
+                            className={`bg-white p-5 rounded-xl shadow-sm border border-slate-200 ${issue.status === 'Resolved'
                                 ? 'border-l-4 border-l-emerald-500'
                                 : 'border-l-4 border-l-red-500'
-                            }`}
+                              }`}
                           >
                             <div className="flex justify-between items-start mb-3 gap-4">
                               <div className="flex-1">
@@ -3603,9 +3623,8 @@ const ChlorineDashboard: React.FC = () => {
                                   <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider">
                                     {issue.problem_level ? `${issue.problem_level} Level`.toUpperCase() : (issue.category || "General")}
                                   </span>
-                                  <span className={`px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider ${
-                                    issue.status === 'Resolved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                  }`}>
+                                  <span className={`px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider ${issue.status === 'Resolved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                    }`}>
                                     {issue.status || 'Active'}
                                   </span>
                                 </div>
@@ -3666,14 +3685,14 @@ const ChlorineDashboard: React.FC = () => {
           uiSchemeFilter === "commissioned"
             ? `Commissioned${waterSupplyStatus !== "All" ? ` (${waterSupplyStatus} Supply)` : ""}`
             : uiSchemeFilter === "fully_completed"
-            ? "Fully Completed"
-            : uiSchemeFilter === "in_progress"
-            ? "In Progress"
-            : uiSchemeFilter === "common_filter"
-            ? "Civil Complete & IoT Connected"
-            : uiSchemeFilter === "mjp_commissioned_yes"
-            ? "MJP Commissioned"
-            : "All Schemes"
+              ? "Fully Completed"
+              : uiSchemeFilter === "in_progress"
+                ? "In Progress"
+                : uiSchemeFilter === "common_filter"
+                  ? "Civil Complete & IoT Connected"
+                  : uiSchemeFilter === "mjp_commissioned_yes"
+                    ? "MJP Commissioned"
+                    : "All Schemes"
         }
         qualifyingCount={globalUniqueSchemes + missingChlorineSchemes.length}
         presentCount={globalUniqueSchemes}
