@@ -197,7 +197,7 @@ router.get('/lpcd', async (req, res) => {
           GROUP BY scheme_id
         ),
         recent_logs AS (
-          SELECT DISTINCT ON (scheme_id, village_name, sent_date) 
+          SELECT DISTINCT ON (ticket_id) 
                  scheme_id, scheme_name, region, village_name, ticket_id, alert_value, telemetry_date,
                  sent_time,
                  ee_civil_name, ee_civil_email,
@@ -215,7 +215,7 @@ router.get('/lpcd', async (req, res) => {
             AND (ticket_id NOT LIKE 'TKT-RT-%' OR ticket_id IS NULL)
             AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
             AND ${dateFilter}
-          ORDER BY scheme_id, village_name, sent_date, created_at DESC
+          ORDER BY ticket_id, created_at DESC
         ),
         ack_status AS (
           SELECT scheme_id,
@@ -380,7 +380,7 @@ router.get('/chlorine', async (req, res) => {
           GROUP BY scheme_id
         ),
         recent_logs AS (
-          SELECT DISTINCT ON (scheme_id, esr_name, sent_date) 
+          SELECT DISTINCT ON (scheme_id, LOWER(TRIM(COALESCE(village_name, ''))), LOWER(TRIM(COALESCE(esr_name, ''))), sent_date) 
                  scheme_id, scheme_name, region, village_name, esr_name, ticket_id, alert_value, telemetry_date,
                  sent_time,
                  ee_civil_name, ee_civil_email,
@@ -398,7 +398,7 @@ router.get('/chlorine', async (req, res) => {
             AND (ticket_id NOT LIKE 'TKT-RT-%' OR ticket_id IS NULL)
             AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
             AND ${dateFilter}
-          ORDER BY scheme_id, esr_name, sent_date, created_at DESC
+          ORDER BY scheme_id, LOWER(TRIM(COALESCE(village_name, ''))), LOWER(TRIM(COALESCE(esr_name, ''))), sent_date, created_at DESC
         ),
         ack_status AS (
           SELECT scheme_id,
@@ -564,7 +564,7 @@ router.get('/pressure', async (req, res) => {
           GROUP BY scheme_id
         ),
         recent_logs AS (
-          SELECT DISTINCT ON (scheme_id, esr_name, sent_date) 
+          SELECT DISTINCT ON (scheme_id, LOWER(TRIM(COALESCE(village_name, ''))), LOWER(TRIM(COALESCE(esr_name, ''))), sent_date) 
                  scheme_id, scheme_name, region, village_name, esr_name, ticket_id, alert_value, telemetry_date,
                  sent_time,
                  ee_civil_name, ee_civil_email,
@@ -582,7 +582,7 @@ router.get('/pressure', async (req, res) => {
             AND (ticket_id NOT LIKE 'TKT-RT-%' OR ticket_id IS NULL)
             AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
             AND ${dateFilter}
-          ORDER BY scheme_id, esr_name, sent_date, created_at DESC
+          ORDER BY scheme_id, LOWER(TRIM(COALESCE(village_name, ''))), LOWER(TRIM(COALESCE(esr_name, ''))), sent_date, created_at DESC
         ),
         ack_status AS (
           SELECT scheme_id,
@@ -771,8 +771,8 @@ router.get('/offline', async (req, res) => {
           ) sub
           GROUP BY scheme_id, sent_date
         ),
-        all_offline_logs AS (
-          SELECT 
+        recent_logs AS (
+          SELECT DISTINCT ON (scheme_id, LOWER(TRIM(COALESCE(village_name, ''))), LOWER(TRIM(COALESCE(esr_name, ''))), sent_date)
             scheme_id, scheme_name, region, village_name, esr_name, ticket_id, alert_value, telemetry_date,
             sent_time, ee_civil_name, ee_civil_email, ee_mech_name, ee_mech_email,
             de_ae_civil_name, de_ae_civil_email, de_ae_mech_name, de_ae_mech_email,
@@ -780,23 +780,11 @@ router.get('/offline', async (req, res) => {
             civil_engineer_name, civil_engineer_email, mechanical_engineer_name, mechanical_engineer_email,
             site_supervisor_name, site_supervisor_email, created_at, sent_date
           FROM email_alert_logs
-          WHERE alert_type ILIKE '%Offline%' AND ${dateFilter}
-          UNION ALL
-          SELECT 
-            scheme_id, scheme_name, NULL as region, NULL as village_name, NULL as esr_name, NULL as ticket_id, 'Offline' as alert_value, telemetry_date,
-            NULL as sent_time, NULL as ee_civil_name, NULL as ee_civil_email, NULL as ee_mech_name, NULL as ee_mech_email,
-            NULL as de_ae_civil_name, NULL as de_ae_civil_email, NULL as de_ae_mech_name, NULL as de_ae_mech_email,
-            NULL as se_name, NULL as se_email, NULL as chief_engineer_name, NULL as chief_engineer_email,
-            NULL as civil_engineer_name, NULL as civil_engineer_email, NULL as mechanical_engineer_name, NULL as mechanical_engineer_email,
-            NULL as site_supervisor_name, NULL as site_supervisor_email, created_at, sent_date
-          FROM sms_alert_logs
-          WHERE (template_name ILIKE '%Offline%') AND ${dateFilter}
-        ),
-        recent_logs AS (
-          SELECT DISTINCT ON (scheme_id, COALESCE(esr_name, ''), COALESCE(village_name, ''), sent_date)
-            *
-          FROM all_offline_logs
-          ORDER BY scheme_id, COALESCE(esr_name, ''), COALESCE(village_name, ''), sent_date, created_at DESC
+          WHERE alert_type ILIKE '%Offline%'
+            AND (ticket_id NOT LIKE 'TKT-RT-%' OR ticket_id IS NULL)
+            AND (dispatch_type = 'daily' OR dispatch_type IS NULL)
+            AND ${dateFilter}
+          ORDER BY scheme_id, LOWER(TRIM(COALESCE(village_name, ''))), LOWER(TRIM(COALESCE(esr_name, ''))), sent_date, created_at DESC
         ),
         deduped_sms AS (
           SELECT DISTINCT ON (id)
@@ -884,8 +872,11 @@ router.get('/offline', async (req, res) => {
                  c.last_seen, c.pressure_last_seen, c.esr_name, c.village_name, c.scheme_name, c.region
           FROM communication_status c
           WHERE c.scheme_id = e.scheme_id 
+            AND (e.village_name IS NULL OR LOWER(TRIM(c.village_name)) = LOWER(TRIM(e.village_name)))
             AND (e.esr_name IS NULL OR LOWER(TRIM(c.esr_name)) = LOWER(TRIM(e.esr_name)))
-          ORDER BY (CASE WHEN e.esr_name IS NOT NULL AND LOWER(TRIM(c.esr_name)) = LOWER(TRIM(e.esr_name)) THEN 0 ELSE 1 END)
+          ORDER BY 
+            (CASE WHEN e.village_name IS NOT NULL AND LOWER(TRIM(c.village_name)) = LOWER(TRIM(e.village_name)) THEN 0 ELSE 1 END),
+            (CASE WHEN e.esr_name IS NOT NULL AND LOWER(TRIM(c.esr_name)) = LOWER(TRIM(e.esr_name)) THEN 0 ELSE 1 END)
           LIMIT 1
         ) c ON true
         LEFT JOIN LATERAL (
@@ -914,17 +905,19 @@ router.get('/offline', async (req, res) => {
         ) v ON true
         LEFT JOIN issues i ON e.scheme_id = i.scheme_id
         LEFT JOIN ack_status a ON (e.scheme_id = a.scheme_id AND e.sent_date::date = a.sent_date::date)
-        WHERE (s.water_supply = 'Yes' OR s.water_supply IS NULL)
         ORDER BY COALESCE(e.region, c.region, s.region), COALESCE(e.scheme_name, c.scheme_name, s.scheme_name), e.village_name;
       `;
       const result = await client.query(query, queryParams);
 
       const mappedRows = result.rows.map((row: any) => {
-        const offlineList: string[] = [];
-        if (row.chlorine_status === 'Offline') offlineList.push('Chlorine');
-        if (row.pressure_status === 'Offline') offlineList.push('Pressure');
-        if (row.flow_meter_status === 'Offline') offlineList.push('Flow Meter');
-        const val = offlineList.length > 0 ? offlineList.join(', ') : (row.current_value || 'Offline');
+        let val = (row.alert_value && row.alert_value !== 'Offline') ? row.alert_value : (row.current_value && row.current_value !== 'Offline') ? row.current_value : '';
+        if (!val) {
+          const offlineList: string[] = [];
+          if (row.chlorine_status === 'Offline') offlineList.push('Chlorine');
+          if (row.pressure_status === 'Offline') offlineList.push('Pressure');
+          if (row.flow_meter_status === 'Offline') offlineList.push('Flow Meter');
+          val = offlineList.length > 0 ? offlineList.join(', ') : (row.current_value || 'Offline');
+        }
 
         return {
           scheme_id: row.scheme_id,
@@ -2022,7 +2015,7 @@ router.get(['/export-excel', '/download-14-day-report'], async (req, res) => {
               row.region || '-',
               row.village_name || '-',
               row.esr_name || '-',
-              offlineList.join(', ') || 'Offline',
+              (row.alert_value && row.alert_value !== 'Offline') ? row.alert_value : (offlineList.join(', ') || 'Offline'),
               row.chlorine_status || 'Online',
               row.pressure_status || 'Online',
               row.flow_meter_status || 'Online',

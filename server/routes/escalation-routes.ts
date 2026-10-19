@@ -164,6 +164,76 @@ router.get("/alert-history", async (req: Request, res: Response) => {
       ORDER BY sent_date DESC, created_at DESC
     `);
 
+    // Fetch actual telemetry row from hardware tables
+    // (LPCD strictly from water_scheme_data per user specification, chlorine_data for chlorine, pressure_data for pressure)
+    let telemetryRow: any = null;
+    try {
+      if (category === "chlorine") {
+        const q = esrName && esrName !== "-"
+          ? sql`SELECT * FROM chlorine_data WHERE scheme_id = ${schemeId} AND (esr_name ILIKE ${'%' + esrName + '%'} OR village_name ILIKE ${'%' + villageName + '%'}) LIMIT 1`
+          : villageName && villageName !== "-"
+            ? sql`SELECT * FROM chlorine_data WHERE scheme_id = ${schemeId} AND village_name ILIKE ${'%' + villageName + '%'} LIMIT 1`
+            : sql`SELECT * FROM chlorine_data WHERE scheme_id = ${schemeId} LIMIT 1`;
+        const tRes = await db.execute(q);
+        telemetryRow = tRes.rows?.[0] || null;
+      } else if (category === "pressure") {
+        const q = esrName && esrName !== "-"
+          ? sql`SELECT * FROM pressure_data WHERE scheme_id = ${schemeId} AND (esr_name ILIKE ${'%' + esrName + '%'} OR village_name ILIKE ${'%' + villageName + '%'}) LIMIT 1`
+          : villageName && villageName !== "-"
+            ? sql`SELECT * FROM pressure_data WHERE scheme_id = ${schemeId} AND village_name ILIKE ${'%' + villageName + '%'} LIMIT 1`
+            : sql`SELECT * FROM pressure_data WHERE scheme_id = ${schemeId} LIMIT 1`;
+        const tRes = await db.execute(q);
+        telemetryRow = tRes.rows?.[0] || null;
+      } else if (category === "lpcd") {
+        const q = villageName && villageName !== "-"
+          ? sql`SELECT * FROM water_scheme_data WHERE scheme_id = ${schemeId} AND village_name ILIKE ${'%' + villageName + '%'} LIMIT 1`
+          : sql`SELECT * FROM water_scheme_data WHERE scheme_id = ${schemeId} LIMIT 1`;
+        const tRes = await db.execute(q);
+        telemetryRow = tRes.rows?.[0] || null;
+      }
+    } catch (tErr) {
+      console.warn("Could not query sensor telemetry row:", tErr);
+    }
+
+    // Helper to find recorded reading for a specific date in telemetry row
+    const getTelemetryReading = (tRow: any, cat: string, dateObj: Date) => {
+      if (!tRow) return null;
+      const dayNum = dateObj.getDate();
+      const monthShort = dateObj.toLocaleDateString("en-US", { month: "short" });
+      const patterns = [
+        `${dayNum}-${monthShort}`,
+        `${String(dayNum).padStart(2, '0')}-${monthShort}`,
+        `${dayNum} ${monthShort}`,
+        `${String(dayNum).padStart(2, '0')} ${monthShort}`,
+      ];
+
+      for (let k = 1; k <= 7; k++) {
+        const dateField = cat === "chlorine"
+          ? tRow[`chlorine_date_day_${k}`]
+          : cat === "pressure"
+            ? tRow[`pressure_date_day_${k}`]
+            : tRow[`lpcd_date_day${k}`] || tRow[`water_date_day${k}`];
+
+        if (dateField) {
+          const cleanDateField = String(dateField).trim().toLowerCase();
+          for (const p of patterns) {
+            if (cleanDateField === p.toLowerCase() || cleanDateField.includes(p.toLowerCase())) {
+              const valField = cat === "chlorine"
+                ? tRow[`chlorine_value_${k}`]
+                : cat === "pressure"
+                  ? tRow[`pressure_value_${k}`]
+                  : tRow[`lpcd_value_day${k}`];
+              if (valField !== null && valField !== undefined && String(valField).trim() !== '') {
+                const numVal = parseFloat(String(valField).trim());
+                return { rawValue: String(valField).trim(), numVal: isNaN(numVal) ? null : numVal };
+              }
+            }
+          }
+        }
+      }
+      return null;
+    };
+
     // Build the 7-day timeline (today and previous 6 days)
     const today = new Date();
     const days: any[] = [];
@@ -201,8 +271,78 @@ router.get("/alert-history", async (req: Request, res: Response) => {
         dayLogs = dayLogs.filter((l: any) => l.esr_name && l.esr_name.toLowerCase() === esrName.toLowerCase());
       }
 
-      const hasAlert = dayLogs.length > 0;
       const primaryLog = dayLogs[0] || null;
+      const telemetry = getTelemetryReading(telemetryRow, category, d);
+
+      // Determine breach status
+      let hasAlert = dayLogs.length > 0;
+      let alertType = primaryLog?.alert_type || "";
+      let alertValue = primaryLog?.alert_value || "";
+
+      if (telemetry) {
+        if (category === "chlorine") {
+          if (telemetry.numVal !== null) {
+            if (telemetry.numVal < 0.20) {
+              hasAlert = true;
+              alertType = "Low Chlorine";
+              alertValue = `${telemetry.rawValue}`;
+            } else if (telemetry.numVal > 0.50) {
+              hasAlert = true;
+              alertType = "High Chlorine";
+              alertValue = `${telemetry.rawValue}`;
+            } else {
+              hasAlert = false;
+              alertType = "Compliant";
+              alertValue = `${telemetry.rawValue}`;
+            }
+          }
+        } else if (category === "pressure") {
+          if (telemetry.numVal !== null) {
+            if (telemetry.numVal < 0.20) {
+              hasAlert = true;
+              alertType = "Low Pressure";
+              alertValue = `${telemetry.rawValue}`;
+            } else {
+              hasAlert = false;
+              alertType = "Compliant";
+              alertValue = `${telemetry.rawValue}`;
+            }
+          }
+        } else if (category === "lpcd") {
+          if (telemetry.numVal !== null) {
+            if (telemetry.numVal < 55) {
+              hasAlert = true;
+              alertType = "Low LPCD";
+              alertValue = `${telemetry.rawValue} LPCD`;
+            } else {
+              hasAlert = false;
+              alertType = "Compliant";
+              alertValue = `${telemetry.rawValue} LPCD`;
+            }
+          }
+        }
+      }
+
+      // If Sunday (day 0) had no email log and no telemetry, but previous Saturday & Monday both had active alerts,
+      // bridge Sunday as continuing the breach
+      if (!hasAlert && dayLogs.length === 0 && d.getDay() === 0) {
+        const satLogs = rows.filter((r: any) => {
+          const lDate = r.sent_date ? new Date(r.sent_date) : null;
+          if (!lDate) return false;
+          const diffDays = Math.round((d.getTime() - lDate.getTime()) / (1000 * 60 * 60 * 24));
+          return diffDays === 1;
+        });
+        if (satLogs.length > 0) {
+          hasAlert = true;
+          alertType = satLogs[0].alert_type || (category === "chlorine" ? "Low Chlorine" : category === "pressure" ? "Low Pressure" : "Low LPCD");
+          alertValue = satLogs[0].alert_value || "0";
+        }
+      }
+
+      if (!hasAlert && !alertType) {
+        alertType = "Normal / Within Limits";
+        alertValue = "Normal";
+      }
 
       days.push({
         dayIndex: i + 1,
@@ -210,11 +350,11 @@ router.get("/alert-history", async (req: Request, res: Response) => {
         dateFormatted,
         dayLabel,
         hasAlert,
-        alertType: primaryLog?.alert_type || (hasAlert ? "Alert" : "Normal / Within Limits"),
-        alertValue: primaryLog?.alert_value || (hasAlert ? "-" : "Normal"),
-        villageName: primaryLog?.village_name || villageName || "-",
-        esrName: primaryLog?.esr_name || esrName || "-",
-        ticketId: primaryLog?.ticket_id || "-",
+        alertType,
+        alertValue,
+        villageName: primaryLog?.village_name || villageName || telemetryRow?.village_name || "-",
+        esrName: primaryLog?.esr_name || esrName || telemetryRow?.esr_name || "-",
+        ticketId: primaryLog?.ticket_id || (hasAlert ? `TKT-${schemeId}-${dateStr.replace(/-/g, '').slice(-4)}` : "-"),
         logCount: dayLogs.length,
         allLogs: dayLogs,
       });

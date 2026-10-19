@@ -894,6 +894,19 @@ export default function AlertsProgressPage() {
     return villages.size;
   }, [offlineData]);
 
+  const offlineBifurcation = useMemo(() => {
+    let chlorine = 0;
+    let pressure = 0;
+    let flow = 0;
+    offlineData.forEach((r: any) => {
+      const v = (r.current_value || r.alert_value || '').toLowerCase();
+      if (v.includes('chlorine')) chlorine++;
+      if (v.includes('pressure')) pressure++;
+      if (v.includes('flow') || v.includes('meter')) flow++;
+    });
+    return { chlorine, pressure, flow, total: chlorine + pressure + flow };
+  }, [offlineData]);
+
   // Actual Schemes, Email, and SMS counts per tab (strictly based on actual consolidated emails dispatched)
   const lpcdSchemesCount = useMemo(() => new Set(lpcdData.map(r => r.scheme_id)).size, [lpcdData]);
   const lpcdActualEmailsCount = useMemo(() => {
@@ -1789,7 +1802,7 @@ export default function AlertsProgressPage() {
                     {offlineSchemesCount} Scheme{offlineSchemesCount !== 1 ? 's' : ''}
                   </div>
                   <div className="text-[11px] text-slate-600 font-medium">
-                    {offlineVillagesCount} Village{offlineVillagesCount !== 1 ? 's' : ''}
+                    {offlineTotalCount} Sensor{offlineTotalCount !== 1 ? 's' : ''}
                   </div>
                   <div className="text-[11px] text-slate-500 font-medium">
                     {offlineEsrsCount} ESR{offlineEsrsCount !== 1 ? 's' : ''}
@@ -3385,6 +3398,23 @@ export default function AlertsProgressPage() {
                       ? "Shows terminal pressure sensors outside required head range (0.20 – 0.70 Bar)."
                       : "Shows IoT sensors currently experiencing telemetry dropout / communication failure."}
               </p>
+              {type === "offline" && (
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wide">Bifurcation:</span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-900 border border-teal-300 text-xs font-bold shadow-2xs">
+                    <Droplets className="w-3 h-3 text-teal-600" />
+                    Chlorine Offline: <strong className="font-mono">{offlineBifurcation.chlorine}</strong>
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-300 text-xs font-bold shadow-2xs">
+                    <GaugeCircle className="w-3 h-3 text-amber-600" />
+                    Pressure Offline: <strong className="font-mono">{offlineBifurcation.pressure}</strong>
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-900 border border-indigo-300 text-xs font-bold shadow-2xs">
+                    <Activity className="w-3 h-3 text-indigo-600" />
+                    Flow Meter Offline: <strong className="font-mono">{offlineBifurcation.flow}</strong>
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -4257,7 +4287,7 @@ export default function AlertsProgressPage() {
                               )}
                               {row.esr_name && (
                                 <span>
-                                  ESR: <strong className="text-slate-800 font-semibold">{row.esr_name}</strong>
+                                  Sensor: <strong className="text-slate-800 font-semibold">{row.esr_name}</strong>
                                 </span>
                               )}
                               {!row.village_name && !row.esr_name && (
@@ -4843,13 +4873,7 @@ export default function AlertsProgressPage() {
                 <div className="text-[11px] font-semibold text-slate-700 mt-1 flex items-center gap-1.5 flex-wrap">
                   <span className="text-slate-800">{lpcdSchemesCount} Scheme{lpcdSchemesCount === 1 ? '' : 's'}</span>
                   <span className="text-slate-300">•</span>
-                  <span className="text-slate-800"><strong className="text-slate-900">{lpcdVillagesCount}</strong> Villages</span>
-                  {lpcdEsrsCount > 0 && (
-                    <>
-                      <span className="text-slate-300">•</span>
-                      <span className="text-slate-800"><strong className="text-slate-900">{lpcdEsrsCount}</strong> ESR</span>
-                    </>
-                  )}
+                  <span className="text-slate-800"><strong className="text-slate-900">{lpcdData.length}</strong> Villages</span>
                 </div>
                 <div className="text-[10px] text-slate-500 font-medium mt-1 flex items-center gap-1">
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
@@ -4893,7 +4917,7 @@ export default function AlertsProgressPage() {
                   <span className="text-slate-300">•</span>
                   <span className="text-slate-800"><strong className="text-slate-900">{chlorineVillagesCount}</strong> Villages</span>
                   <span className="text-slate-300">•</span>
-                  <span className="text-slate-800"><strong className="text-slate-900">{chlorineEsrsCount}</strong> ESR</span>
+                  <span className="text-slate-800"><strong className="text-slate-900">{chlorineData.length}</strong> Sensors</span>
                 </div>
                 <div className="text-[10px] text-slate-500 font-medium mt-1 flex items-center gap-1">
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
@@ -4937,7 +4961,7 @@ export default function AlertsProgressPage() {
                   <span className="text-slate-300">•</span>
                   <span className="text-slate-800"><strong className="text-slate-900">{pressureVillagesCount}</strong> Villages</span>
                   <span className="text-slate-300">•</span>
-                  <span className="text-slate-800"><strong className="text-slate-900">{pressureEsrsCount}</strong> ESR</span>
+                  <span className="text-slate-800"><strong className="text-slate-900">{pressureData.length}</strong> Sensors</span>
                 </div>
                 <div className="text-[10px] text-slate-500 font-medium mt-1 flex items-center gap-1">
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
@@ -4973,19 +4997,26 @@ export default function AlertsProgressPage() {
               </div>
               <div className="mt-1">
                 <div className="text-2xl font-black text-slate-900 tracking-tight flex items-baseline gap-1.5">
-                  <span>{offlineData.length}</span>
-                  <span className="text-xs font-semibold text-rose-700">Alerts</span>
+                  <span>{offlineBifurcation.total}</span>
+                  <span className="text-xs font-semibold text-rose-700">Sensors</span>
                 </div>
                 <div className="text-[11px] font-semibold text-slate-700 mt-1 flex items-center gap-1.5 flex-wrap">
                   <span className="text-slate-800">{offlineSchemesCount} Scheme{offlineSchemesCount === 1 ? '' : 's'}</span>
                   <span className="text-slate-300">•</span>
-                  <span className="text-slate-800"><strong className="text-slate-900">{offlineVillagesCount}</strong> Villages</span>
+                  <span className="text-slate-800"><strong className="text-slate-900">{offlineBifurcation.total}</strong> Offline Sensors</span>
                   <span className="text-slate-300">•</span>
-                  <span className="text-slate-800"><strong className="text-slate-900">{offlineEsrsCount}</strong> ESR</span>
+                  <span className="text-slate-800"><strong className="text-slate-900">{offlineData.length}</strong> Locations</span>
                 </div>
-                <div className="text-[10px] text-slate-500 font-medium mt-1 flex items-center gap-1">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
-                  <span>Data with critical parameters</span>
+                <div className="mt-1.5 pt-1.5 border-t border-slate-100 flex items-center gap-1.5 flex-wrap text-[10px]">
+                  <span className="px-1.5 py-0.5 rounded bg-teal-50 text-teal-800 border border-teal-200 font-semibold" title="Chlorine Analyzers Offline">
+                    Chlorine: <strong>{offlineBifurcation.chlorine}</strong>
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 font-semibold" title="Pressure Sensors Offline">
+                    Pressure: <strong>{offlineBifurcation.pressure}</strong>
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-800 border border-indigo-200 font-semibold" title="Flow Meters Offline">
+                    Flow: <strong>{offlineBifurcation.flow}</strong>
+                  </span>
                 </div>
               </div>
             </button>
@@ -5094,7 +5125,7 @@ export default function AlertsProgressPage() {
                           <th className="p-2.5 text-center w-14">Sr. No.</th>
                           <th className="p-2.5">Scheme Details</th>
                           <th className="p-2.5 text-center">
-                            {activeTab === "lpcd" ? "Village Name" : "Village & ESR Location"}
+                            {activeTab === "lpcd" ? "Village Name" : "Village & Sensor Location"}
                           </th>
                           <th className="p-2.5 text-center">
                             {activeTab === "lpcd" ? "Alert LPCD (<55)" : activeTab === "chlorine" ? "Chlorine (mg/L)" : activeTab === "pressure" ? "Pressure (Bar)" : "Offline Sensor"}
@@ -5131,7 +5162,7 @@ export default function AlertsProgressPage() {
                                     )}
                                     {row.esr_name && (
                                       <span className="text-[10px] text-slate-500 font-medium">
-                                        ESR: {row.esr_name}
+                                        Sensor: {row.esr_name}
                                       </span>
                                     )}
                                     {!row.village_name && !row.esr_name && (

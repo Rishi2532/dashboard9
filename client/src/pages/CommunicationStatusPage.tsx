@@ -930,20 +930,20 @@ export default function CommunicationStatusPage() {
 
       agg.total_esrs += 1;
 
-      // Online status checks
-      if (item.flow_meter_status === 'Online') agg.flow_meter_online += 1;
-      if (item.chlorine_status === 'Online') agg.chlorine_online += 1;
-      if (item.pressure_status === 'Online') agg.pressure_online += 1;
+      // Online status checks (only if connected)
+      if (item.flow_meter_connected === 'Connected' && item.flow_meter_status === 'Online') agg.flow_meter_online += 1;
+      if (item.chlorine_connected === 'Connected' && item.chlorine_status === 'Online') agg.chlorine_online += 1;
+      if (item.pressure_connected === 'Connected' && item.pressure_status === 'Online') agg.pressure_online += 1;
 
-      // Offline status checks
-      if (item.flow_meter_status === 'Offline') agg.flow_meter_offline += 1;
-      if (item.chlorine_status === 'Offline') agg.chlorine_offline += 1;
-      if (item.pressure_status === 'Offline') agg.pressure_offline += 1;
+      // Offline status checks (only if connected)
+      if (item.flow_meter_connected === 'Connected' && item.flow_meter_status === 'Offline') agg.flow_meter_offline += 1;
+      if (item.chlorine_connected === 'Connected' && item.chlorine_status === 'Offline') agg.chlorine_offline += 1;
+      if (item.pressure_connected === 'Connected' && item.pressure_status === 'Offline') agg.pressure_offline += 1;
 
-      // Offline > 72h status checks
-      if (item.flow_meter_72h === '1') agg.flow_meter_offline_72h += 1;
-      if (item.chlorine_72h === '1') agg.chlorine_offline_72h += 1;
-      if (item.pressure_72h === '1') agg.pressure_offline_72h += 1;
+      // Offline > 72h status checks (only if connected)
+      if (item.flow_meter_connected === 'Connected' && item.flow_meter_72h === '1') agg.flow_meter_offline_72h += 1;
+      if (item.chlorine_connected === 'Connected' && item.chlorine_72h === '1') agg.chlorine_offline_72h += 1;
+      if (item.pressure_connected === 'Connected' && item.pressure_72h === '1') agg.pressure_offline_72h += 1;
     });
 
     return Array.from(map.values()).sort((a, b) => a.scheme_name.localeCompare(b.scheme_name));
@@ -1605,27 +1605,27 @@ export default function CommunicationStatusPage() {
                                 <TableCell>{scheme.lpcd_value_day7 !== undefined && scheme.lpcd_value_day7 !== null ? Number(scheme.lpcd_value_day7).toFixed(1) : "N/A"}</TableCell>
                                 <TableCell>{scheme.esr_name}</TableCell>
                                 <TableCell>
-                                  {getStatusBadge(scheme.chlorine_status)}
+                                  {scheme.chlorine_connected === 'Connected' ? getStatusBadge(scheme.chlorine_status) : <span className="text-slate-400 text-xs font-medium">—</span>}
                                 </TableCell>
                                 <TableCell>
-                                  {isWaterZero
+                                  {isWaterZero || scheme.chlorine_connected !== 'Connected'
                                     ? "N/A"
                                     : (scheme.chlorine_value_7 !== undefined && scheme.chlorine_value_7 !== null
                                       ? Number(scheme.chlorine_value_7).toFixed(2)
                                       : "N/A")}
                                 </TableCell>
                                 <TableCell>
-                                  {getStatusBadge(scheme.pressure_status)}
+                                  {scheme.pressure_connected === 'Connected' ? getStatusBadge(scheme.pressure_status) : <span className="text-slate-400 text-xs font-medium">—</span>}
                                 </TableCell>
                                 <TableCell>
-                                  {isWaterZero
+                                  {isWaterZero || scheme.pressure_connected !== 'Connected'
                                     ? "N/A"
                                     : (scheme.pressure_value_7 !== undefined && scheme.pressure_value_7 !== null
                                       ? Number(scheme.pressure_value_7).toFixed(2)
                                       : "N/A")}
                                 </TableCell>
                                 <TableCell>
-                                  {getStatusBadge(scheme.flow_meter_status)}
+                                  {scheme.flow_meter_connected === 'Connected' ? getStatusBadge(scheme.flow_meter_status) : <span className="text-slate-400 text-xs font-medium">—</span>}
                                 </TableCell>
                                 <TableCell>{scheme.water_value_day7 !== undefined && scheme.water_value_day7 !== null ? Number(scheme.water_value_day7).toFixed(2) : "N/A"}</TableCell>
                               </TableRow>

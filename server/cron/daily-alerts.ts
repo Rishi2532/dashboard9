@@ -373,20 +373,31 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
       }
     };
 
-    // 1. Check Chlorine Data (Low Chlorine < 0.2 mg/L, High Chlorine > 0.5 mg/L)
-    const chlorineIssues = await db
-      .select()
-      .from(chlorineData)
-      .where(
-        sql`chlorine_value_7 IS NOT NULL
-            AND NULLIF(REGEXP_REPLACE(chlorine_value_7::text, '[^0-9.]', '', 'g'), '') IS NOT NULL
-            AND (
-              (NULLIF(REGEXP_REPLACE(chlorine_value_7::text, '[^0-9.]', '', 'g'), '')::numeric) < 0.2
-              OR (NULLIF(REGEXP_REPLACE(chlorine_value_7::text, '[^0-9.]', '', 'g'), '')::numeric) > 0.5
-            )`
-      );
+    // 1. Check Chlorine Data (Low Chlorine < 0.2 mg/L, High Chlorine > 0.5 mg/L) - ONLY SENSORS WITH WATER
+    const chlorineIssuesRes: any = await db.execute(sql`
+      SELECT DISTINCT ON (c.scheme_id, LOWER(TRIM(COALESCE(c.village_name, ''))), LOWER(TRIM(COALESCE(c.esr_name, ''))))
+        c.scheme_id, c.scheme_name, c.village_name, c.esr_name, c.chlorine_value_7, c.chlorine_date_day_7
+      FROM chlorine_data c
+      JOIN scheme_status s ON s.scheme_id = c.scheme_id AND s.water_supply = 'Yes'
+      JOIN water_consumption wc ON (
+        c.scheme_id = wc.scheme_id AND
+        LOWER(TRIM(COALESCE(c.village_name, ''))) = LOWER(TRIM(COALESCE(wc.village_name, ''))) AND
+        LOWER(TRIM(COALESCE(c.esr_name, ''))) = LOWER(TRIM(COALESCE(wc.esr_name, '')))
+      )
+      WHERE c.chlorine_value_7 IS NOT NULL
+        AND NULLIF(REGEXP_REPLACE(c.chlorine_value_7::text, '[^0-9.]', '', 'g'), '') IS NOT NULL
+        AND (
+          (NULLIF(REGEXP_REPLACE(c.chlorine_value_7::text, '[^0-9.]', '', 'g'), '')::numeric) < 0.2
+          OR (NULLIF(REGEXP_REPLACE(c.chlorine_value_7::text, '[^0-9.]', '', 'g'), '')::numeric) > 0.5
+        )
+        AND wc.water_value_day7 IS NOT NULL 
+        AND CAST(wc.water_value_day7 AS text) NOT IN ('0', '0.0', '0.00')
+        AND wc.water_value_day7::numeric > 0
+      ORDER BY c.scheme_id, LOWER(TRIM(COALESCE(c.village_name, ''))), LOWER(TRIM(COALESCE(c.esr_name, ''))), c.chlorine_date_day_7 DESC
+    `);
+    const chlorineIssues = chlorineIssuesRes.rows || chlorineIssuesRes || [];
 
-    chlorineIssues.forEach((row) => {
+    chlorineIssues.forEach((row: any) => {
       const numVal = parseFloat(String(row.chlorine_value_7 || "0"));
       const isHigh = numVal > 0.5;
       addAlert(row.scheme_id, row.scheme_name, {
@@ -401,18 +412,29 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
       });
     });
 
-    // 2. Check Pressure Data (Strictly LOW PRESSURE ONLY: < 0.2 Bar, never >= 0.2)
-    const pressureIssues = await db
-      .select()
-      .from(pressureData)
-      .where(
-        sql`pressure_value_7 IS NOT NULL
-            AND NULLIF(REGEXP_REPLACE(pressure_value_7::text, '[^0-9.]', '', 'g'), '') IS NOT NULL
-            AND (NULLIF(REGEXP_REPLACE(pressure_value_7::text, '[^0-9.]', '', 'g'), '')::numeric) < 0.2
-            AND (NULLIF(REGEXP_REPLACE(pressure_value_7::text, '[^0-9.]', '', 'g'), '')::numeric) >= 0`
-      );
+    // 2. Check Pressure Data (Strictly LOW PRESSURE ONLY: < 0.2 Bar, never >= 0.2) - ONLY SENSORS WITH WATER
+    const pressureIssuesRes: any = await db.execute(sql`
+      SELECT DISTINCT ON (p.scheme_id, LOWER(TRIM(COALESCE(p.village_name, ''))), LOWER(TRIM(COALESCE(p.esr_name, ''))))
+        p.scheme_id, p.scheme_name, p.village_name, p.esr_name, p.pressure_value_7, p.pressure_date_day_7
+      FROM pressure_data p
+      JOIN scheme_status s ON s.scheme_id = p.scheme_id AND s.water_supply = 'Yes'
+      JOIN water_consumption wc ON (
+        p.scheme_id = wc.scheme_id AND
+        LOWER(TRIM(COALESCE(p.village_name, ''))) = LOWER(TRIM(COALESCE(wc.village_name, ''))) AND
+        LOWER(TRIM(COALESCE(p.esr_name, ''))) = LOWER(TRIM(COALESCE(wc.esr_name, '')))
+      )
+      WHERE p.pressure_value_7 IS NOT NULL
+        AND NULLIF(REGEXP_REPLACE(p.pressure_value_7::text, '[^0-9.]', '', 'g'), '') IS NOT NULL
+        AND (NULLIF(REGEXP_REPLACE(p.pressure_value_7::text, '[^0-9.]', '', 'g'), '')::numeric) < 0.2
+        AND (NULLIF(REGEXP_REPLACE(p.pressure_value_7::text, '[^0-9.]', '', 'g'), '')::numeric) >= 0
+        AND wc.water_value_day7 IS NOT NULL 
+        AND CAST(wc.water_value_day7 AS text) NOT IN ('0', '0.0', '0.00')
+        AND wc.water_value_day7::numeric > 0
+      ORDER BY p.scheme_id, LOWER(TRIM(COALESCE(p.village_name, ''))), LOWER(TRIM(COALESCE(p.esr_name, ''))), p.pressure_date_day_7 DESC
+    `);
+    const pressureIssues = pressureIssuesRes.rows || pressureIssuesRes || [];
 
-    pressureIssues.forEach((row) => {
+    pressureIssues.forEach((row: any) => {
       const numVal = parseFloat(String(row.pressure_value_7 || "0"));
       // Strict guard in JS: only send alert email when pressure is strictly below 0.2 Bar
       if (!isNaN(numVal) && numVal < 0.2 && numVal >= 0) {
@@ -439,7 +461,7 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
         )
       );
 
-    lpcdIssues.forEach((row) => {
+    lpcdIssues.forEach((row, rowIdx) => {
       const isLpcdIssue = row.lpcd_value_day7 !== null && parseFloat(row.lpcd_value_day7 as any) < 55;
 
       if (isLpcdIssue) {
@@ -450,41 +472,47 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
           lpcd_issue: true,
           lpcd_value: row.lpcd_value_day7,
           telemetry_date: row.lpcd_date_day7 ? String(row.lpcd_date_day7) : undefined,
-        });
+          alert_idx: rowIdx,
+        } as any);
       }
     });
 
-    // 4. Check Offline Sensors Data (communication_status)
+    // 4. Check Offline Sensors Data (communication_status) - All offline sensors, not restricted by water
     try {
       const offlineRowsRes: any = await db.execute(sql`
-        SELECT
-          scheme_id,
-          scheme_name,
-          region,
-          village_name,
-          esr_name,
-          chlorine_status,
-          pressure_status,
-          flow_meter_status,
-          last_seen,
-          pressure_last_seen
-        FROM communication_status
-        WHERE chlorine_status = 'Offline'
-           OR pressure_status = 'Offline'
-           OR flow_meter_status = 'Offline'
+        SELECT DISTINCT ON (c.scheme_id, LOWER(TRIM(COALESCE(c.village_name, ''))), LOWER(TRIM(COALESCE(c.esr_name, ''))))
+          c.scheme_id,
+          c.scheme_name,
+          c.region,
+          c.village_name,
+          c.esr_name,
+          c.chlorine_connected,
+          c.pressure_connected,
+          c.flow_meter_connected,
+          c.chlorine_status,
+          c.pressure_status,
+          c.flow_meter_status,
+          c.last_seen,
+          c.pressure_last_seen
+        FROM communication_status c
+        WHERE (TRIM(c.chlorine_connected) = 'Connected' AND c.chlorine_status = 'Offline')
+           OR (TRIM(c.pressure_connected) = 'Connected' AND c.pressure_status = 'Offline')
+           OR (TRIM(c.flow_meter_connected) = 'Connected' AND c.flow_meter_status = 'Offline')
+        ORDER BY c.scheme_id, LOWER(TRIM(COALESCE(c.village_name, ''))), LOWER(TRIM(COALESCE(c.esr_name, '')))
       `);
 
       const offlineRows = offlineRowsRes.rows || offlineRowsRes;
       if (Array.isArray(offlineRows)) {
         offlineRows.forEach((row: any) => {
           const offlineSensorsList: string[] = [];
-          const isChlorine = row.chlorine_status === 'Offline';
-          const isPressure = row.pressure_status === 'Offline';
-          const isFlow = row.flow_meter_status === 'Offline';
+          const isChlorine = String(row.chlorine_connected || '').trim() === 'Connected' && row.chlorine_status === 'Offline';
+          const isPressure = String(row.pressure_connected || '').trim() === 'Connected' && row.pressure_status === 'Offline';
+          const isFlow = String(row.flow_meter_connected || '').trim() === 'Connected' && row.flow_meter_status === 'Offline';
 
           if (isChlorine) offlineSensorsList.push('Chlorine');
           if (isPressure) offlineSensorsList.push('Pressure');
           if (isFlow) offlineSensorsList.push('Flow Meter');
+          if (offlineSensorsList.length === 0) return;
 
           const offlineDate = row.last_seen || row.pressure_last_seen || null;
 
@@ -598,6 +626,21 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
         if (pastDates.includes(dStr)) {
           streak++;
         } else {
+          // If d is Sunday and daily alerts did not run on Sunday, bridge Sunday if Saturday had an alert
+          if (d.getDay() === 0) {
+            const sat = new Date(d);
+            sat.setDate(sat.getDate() - 1);
+            const satStr = new Intl.DateTimeFormat("en-CA", {
+              timeZone: "Asia/Kolkata",
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+            }).format(sat);
+            if (pastDates.includes(satStr)) {
+              streak++;
+              continue;
+            }
+          }
           break;
         }
       }
@@ -887,7 +930,7 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
             emailLogsToInsert.push({ ...baseLog, alert_type: "Low Pressure", alert_value: String(alert.pressure_value), ticket_id: generateTicketId() });
           }
           if (alert.lpcd_issue) {
-            emailLogsToInsert.push({ ...baseLog, alert_type: "Low LPCD", alert_value: String(alert.lpcd_value), ticket_id: generateTicketId() });
+            emailLogsToInsert.push({ ...baseLog, alert_type: "Low LPCD", alert_value: String(alert.lpcd_value), ticket_id: generateTicketId(), alert_index: (alert as any).alert_idx } as any);
           }
           if (alert.offline_issue) {
             emailLogsToInsert.push({ ...baseLog, alert_type: "Offline", alert_value: String(alert.offline_sensors || "Offline"), ticket_id: generateTicketId() });
@@ -899,12 +942,23 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
     // Ensure email supporting tables exist once
     await ensureDailyAlertTables(db);
 
-    // Persist logs in database before sending so alerts are recorded immediately
-    if (emailLogsToInsert.length > 0) {
-      console.log(`💾 Saving ${emailLogsToInsert.length} alert logs to the database...`);
+    // Persist logs in database before sending so alerts are recorded immediately (deduplicated by sensor incident)
+    const uniqueLogsMap = new Map();
+    emailLogsToInsert.forEach(log => {
+      const key = log.alert_type === "Low LPCD"
+        ? `${log.scheme_id}__${(log.village_name || '').trim().toLowerCase()}__${(log as any).alert_index}`
+        : `${log.scheme_id}__${(log.village_name || '').trim().toLowerCase()}__${(log.esr_name || '').trim().toLowerCase()}__${log.alert_type}`;
+      if (!uniqueLogsMap.has(key)) {
+        uniqueLogsMap.set(key, log);
+      }
+    });
+    const dedupedLogsToInsert = Array.from(uniqueLogsMap.values());
+
+    if (dedupedLogsToInsert.length > 0) {
+      console.log(`💾 Saving ${dedupedLogsToInsert.length} unique alert logs to the database...`);
       const batchSize = 100;
-      for (let i = 0; i < emailLogsToInsert.length; i += batchSize) {
-        const batch = emailLogsToInsert.slice(i, i + batchSize);
+      for (let i = 0; i < dedupedLogsToInsert.length; i += batchSize) {
+        const batch = dedupedLogsToInsert.slice(i, i + batchSize);
         await db.insert(emailAlertLogs).values(batch);
       }
       console.log("✅ Alert logs saved successfully.");

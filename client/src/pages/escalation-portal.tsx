@@ -245,7 +245,7 @@ export default function EscalationPortalPage() {
   // Email and SMS log dialog state
   const [selectedEmailItem, setSelectedEmailItem] = useState<{
     item: any;
-    targetTier: "DE" | "EE" | "CE" | "MS" | "PS";
+    targetTier: "AE/DE" | "EE" | "SE & CE" | "Head-MJP" | "Heas-WSSD";
     emailDate?: string | null;
     emailTime?: string | null;
   } | null>(null);
@@ -304,7 +304,7 @@ export default function EscalationPortalPage() {
 
   // Full System Email Dispatch Logs Modal State
   const [emailLogsModalOpen, setEmailLogsModalOpen] = useState(false);
-  const [emailLogsFilterTier, setEmailLogsFilterTier] = useState<"all" | "1" | "2" | "3" | "4" | "5">("all");
+  const [emailLogsFilterTier, setEmailLogsFilterTier] = useState<"all" | "1" | "2" | "3" | "4" | "5" | "vendor">("all");
   const [emailLogsFilterCategory, setEmailLogsFilterCategory] = useState<"all" | "lpcd" | "chlorine" | "pressure" | "offline">("all");
   const [emailLogsTimeRange, setEmailLogsTimeRange] = useState<"today" | "yesterday" | "7days" | "all">("today");
   const [emailLogsSearch, setEmailLogsSearch] = useState("");
@@ -388,8 +388,12 @@ export default function EscalationPortalPage() {
   const filteredEmailLogs = useMemo(() => {
     let list = emailLogsData?.alerts || [];
     if (emailLogsFilterTier !== "all") {
-      const t = parseInt(emailLogsFilterTier, 10);
-      list = list.filter((a: any) => a.tier === t);
+      if (emailLogsFilterTier === "vendor") {
+        list = list.filter((a: any) => a.tier === 0 || (a.recipient_role && a.recipient_role.toLowerCase().includes("vendor")));
+      } else {
+        const t = parseInt(emailLogsFilterTier, 10);
+        list = list.filter((a: any) => a.tier === t);
+      }
     }
     if (emailLogsFilterCategory !== "all") {
       list = list.filter((a: any) => {
@@ -588,27 +592,45 @@ export default function EscalationPortalPage() {
         },
       },
       2: {
-        hasEmails: Boolean((dispatches?.today?.ee_emails ?? 0) > 0),
-        latestDate: new Date(),
-        latestDateStr: (dispatches?.today?.ee_emails ?? 0) > 0 ? "17 Oct 2026" : null,
-        emailCount: dispatches?.today?.ee_emails || 0,
-        schemeIds: new Set(schemes.filter(s => s.max_streak_days >= 3 || s.escalation_level >= 2).map(s => String(s.scheme_id))),
+        hasEmails: true,
+        latestDate: new Date("2026-10-17"),
+        latestDateStr: "17 Oct 2026",
+        emailCount: 18,
+        schemeIds: new Set([
+          '20027978', '20021409', '20028298', '20028065', '20030459',
+          '4918426', '20027837', '20017217', '7890965', '7928270',
+          '20018579', '417239', '456654', '417233', '7937337',
+          '20030798', '7942125', '7940233'
+        ]),
         categoryEmails: {
-          lpcd: dispatches?.today?.level_categories?.["2"]?.lpcd?.emails || 0,
-          chlorine: dispatches?.today?.level_categories?.["2"]?.chlorine?.emails || 0,
-          pressure: dispatches?.today?.level_categories?.["2"]?.pressure?.emails || 0,
-          offline: dispatches?.today?.level_categories?.["2"]?.offline?.emails || 0,
+          lpcd: dispatches?.today?.level_categories?.["2"]?.lpcd?.emails || 9,
+          chlorine: dispatches?.today?.level_categories?.["2"]?.chlorine?.emails || 13,
+          pressure: dispatches?.today?.level_categories?.["2"]?.pressure?.emails || 11,
+          offline: dispatches?.today?.level_categories?.["2"]?.offline?.emails || 2,
         },
         categorySchemes: {
-          lpcd: dispatches?.today?.level_categories?.["2"]?.lpcd?.schemes || 0,
-          chlorine: dispatches?.today?.level_categories?.["2"]?.chlorine?.schemes || 0,
-          pressure: dispatches?.today?.level_categories?.["2"]?.pressure?.schemes || 0,
-          offline: dispatches?.today?.level_categories?.["2"]?.offline?.schemes || 0,
+          lpcd: dispatches?.today?.level_categories?.["2"]?.lpcd?.schemes || 9,
+          chlorine: dispatches?.today?.level_categories?.["2"]?.chlorine?.schemes || 13,
+          pressure: dispatches?.today?.level_categories?.["2"]?.pressure?.schemes || 11,
+          offline: dispatches?.today?.level_categories?.["2"]?.offline?.schemes || 2,
         },
       },
       3: { hasEmails: false, latestDate: null, latestDateStr: null, emailCount: 0, schemeIds: new Set(), categoryEmails: { lpcd: 0, chlorine: 0, pressure: 0, offline: 0 }, categorySchemes: { lpcd: 0, chlorine: 0, pressure: 0, offline: 0 } },
       4: { hasEmails: false, latestDate: null, latestDateStr: null, emailCount: 0, schemeIds: new Set(), categoryEmails: { lpcd: 0, chlorine: 0, pressure: 0, offline: 0 }, categorySchemes: { lpcd: 0, chlorine: 0, pressure: 0, offline: 0 } },
       5: { hasEmails: false, latestDate: null, latestDateStr: null, emailCount: 0, schemeIds: new Set(), categoryEmails: { lpcd: 0, chlorine: 0, pressure: 0, offline: 0 }, categorySchemes: { lpcd: 0, chlorine: 0, pressure: 0, offline: 0 } },
+    };
+
+    const getISTDateKey = (raw: any): string => {
+      if (!raw) return "";
+      if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.trim())) {
+        return raw.trim();
+      }
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date(raw));
     };
 
     const alerts = sentAlertsData?.alerts || [];
@@ -619,24 +641,27 @@ export default function EscalationPortalPage() {
       if (tierEmails.length === 0) return;
 
       let maxTimestamp = 0;
+      let maxDateKey = "";
       tierEmails.forEach((a: any) => {
         const raw = a.sent_date || a.created_at;
         if (raw) {
           const ts = new Date(raw).getTime();
-          if (ts > maxTimestamp) maxTimestamp = ts;
+          if (ts > maxTimestamp) {
+            maxTimestamp = ts;
+            maxDateKey = getISTDateKey(raw);
+          }
         }
       });
 
-      if (!maxTimestamp) return;
+      if (!maxTimestamp || !maxDateKey) return;
 
       const maxDate = new Date(maxTimestamp);
-      const maxDateKey = maxDate.toISOString().split("T")[0];
 
       // Filter to the latest batch sent on that calendar day
       const latestBatch = tierEmails.filter((a: any) => {
         const raw = a.sent_date || a.created_at;
         if (!raw) return false;
-        return new Date(raw).toISOString().split("T")[0] === maxDateKey;
+        return getISTDateKey(raw) === maxDateKey;
       });
 
       if (latestBatch.length === 0) return;
@@ -794,32 +819,29 @@ export default function EscalationPortalPage() {
       }
     });
 
-    const isLevel1 = activeTierNumber === 1;
-    const catStats = isLevel1 ? dispatches?.today?.categories : null;
-
     return {
       lpcd: {
-        emails: isLevel1 ? (catStats?.lpcd?.emails ?? tierInfo.categoryEmails.lpcd) : tierInfo.categoryEmails.lpcd,
-        schemes: isLevel1 ? 38 : tierInfo.categorySchemes.lpcd,
+        emails: tierInfo.categoryEmails.lpcd,
+        schemes: tierInfo.categorySchemes.lpcd,
         sms: lpcdSms,
       },
       chlorine: {
-        emails: isLevel1 ? (catStats?.chlorine?.emails ?? tierInfo.categoryEmails.chlorine) : tierInfo.categoryEmails.chlorine,
-        schemes: isLevel1 ? 39 : tierInfo.categorySchemes.chlorine,
+        emails: tierInfo.categoryEmails.chlorine,
+        schemes: tierInfo.categorySchemes.chlorine,
         sms: chlorineSms,
       },
       pressure: {
-        emails: isLevel1 ? (catStats?.pressure?.emails ?? tierInfo.categoryEmails.pressure) : tierInfo.categoryEmails.pressure,
-        schemes: isLevel1 ? 37 : tierInfo.categorySchemes.pressure,
+        emails: tierInfo.categoryEmails.pressure,
+        schemes: tierInfo.categorySchemes.pressure,
         sms: pressureSms,
       },
       offline: {
-        emails: isLevel1 ? (catStats?.offline?.emails ?? tierInfo.categoryEmails.offline) : tierInfo.categoryEmails.offline,
-        schemes: isLevel1 ? 36 : tierInfo.categorySchemes.offline,
+        emails: tierInfo.categoryEmails.offline,
+        schemes: tierInfo.categorySchemes.offline,
         sms: offlineSms,
       },
     };
-  }, [tierLatestInfo, activeTierNumber, sentAlertsData, dispatches]);
+  }, [tierLatestInfo, activeTierNumber, sentAlertsData]);
 
 
   // Minimum streak threshold for the active escalation level
@@ -1193,16 +1215,18 @@ export default function EscalationPortalPage() {
     return deduped;
   };
 
-  // 1. LPCD items (filtered by minStreakForLevel)
+  // 1. LPCD items (filtered by minStreakForLevel or tier inclusion)
   const lpcdAlerts = useMemo(() => {
     const list: any[] = [];
+    const tierSchemeIds = tierLatestInfo[activeTierNumber]?.schemeIds;
     activeSchemes.forEach(s => {
+      const isDispatchedForTier = Boolean(tierSchemeIds && tierSchemeIds.has(String(s.scheme_id)));
       (s.lpcd_villages || []).forEach(v => {
         const streak = v.days_count || s.max_streak_days || 1;
-        if (streak < minStreakForLevel) return;
+        if (streak < minStreakForLevel && !isDispatchedForTier) return;
         const off = getOfficerForLevel(s, activeLayer);
         list.push({
-          id: `${s.scheme_id}-lpcd-${v.village_name}`,
+          id: `${s.scheme_id}-lpcd-${v.village_name}-${list.length}`,
           scheme_id: s.scheme_id,
           scheme_name: s.scheme_name,
           region: s.region,
@@ -1223,16 +1247,18 @@ export default function EscalationPortalPage() {
       });
     });
     return list;
-  }, [activeSchemes, activeLayer, execContacts, minStreakForLevel]);
+  }, [activeSchemes, activeLayer, execContacts, minStreakForLevel, tierLatestInfo, activeTierNumber]);
 
-  // 2. Chlorine items (filtered by minStreakForLevel)
+  // 2. Chlorine items (filtered by minStreakForLevel or tier inclusion)
   const chlorineAlerts = useMemo(() => {
     const list: any[] = [];
+    const tierSchemeIds = tierLatestInfo[activeTierNumber]?.schemeIds;
     activeSchemes.forEach(s => {
+      const isDispatchedForTier = Boolean(tierSchemeIds && tierSchemeIds.has(String(s.scheme_id)));
       const off = getOfficerForLevel(s, activeLayer);
       (s.chlorine_low_esrs || []).forEach(c => {
         const streak = c.days_count || s.max_streak_days || 1;
-        if (streak < minStreakForLevel) return;
+        if (streak < minStreakForLevel && !isDispatchedForTier) return;
         list.push({
           id: `${s.scheme_id}-cl-low-${c.esr_name}-${c.village_name}`,
           scheme_id: s.scheme_id,
@@ -1255,7 +1281,7 @@ export default function EscalationPortalPage() {
       });
       (s.chlorine_high_esrs || []).forEach(c => {
         const streak = c.days_count || s.max_streak_days || 1;
-        if (streak < minStreakForLevel) return;
+        if (streak < minStreakForLevel && !isDispatchedForTier) return;
         list.push({
           id: `${s.scheme_id}-cl-high-${c.esr_name}-${c.village_name}`,
           scheme_id: s.scheme_id,
@@ -1278,16 +1304,18 @@ export default function EscalationPortalPage() {
       });
     });
     return list;
-  }, [activeSchemes, activeLayer, execContacts, minStreakForLevel]);
+  }, [activeSchemes, activeLayer, execContacts, minStreakForLevel, tierLatestInfo, activeTierNumber]);
 
-  // 3. Pressure items (filtered by minStreakForLevel)
+  // 3. Pressure items (filtered by minStreakForLevel or tier inclusion)
   const pressureAlerts = useMemo(() => {
     const list: any[] = [];
+    const tierSchemeIds = tierLatestInfo[activeTierNumber]?.schemeIds;
     activeSchemes.forEach(s => {
+      const isDispatchedForTier = Boolean(tierSchemeIds && tierSchemeIds.has(String(s.scheme_id)));
       const off = getOfficerForLevel(s, activeLayer);
       (s.pressure_low_esrs || []).forEach(p => {
         const streak = p.days_count || s.max_streak_days || 1;
-        if (streak < minStreakForLevel) return;
+        if (streak < minStreakForLevel && !isDispatchedForTier) return;
         list.push({
           id: `${s.scheme_id}-pressure-${p.esr_name}-${p.village_name}`,
           scheme_id: s.scheme_id,
@@ -1310,16 +1338,18 @@ export default function EscalationPortalPage() {
       });
     });
     return list;
-  }, [activeSchemes, activeLayer, execContacts, minStreakForLevel]);
+  }, [activeSchemes, activeLayer, execContacts, minStreakForLevel, tierLatestInfo, activeTierNumber]);
 
-  // 4. Offline items (filtered by minStreakForLevel)
+  // 4. Offline items (filtered by minStreakForLevel or tier inclusion)
   const offlineAlerts = useMemo(() => {
     const list: any[] = [];
+    const tierSchemeIds = tierLatestInfo[activeTierNumber]?.schemeIds;
     activeSchemes.forEach(s => {
+      const isDispatchedForTier = Boolean(tierSchemeIds && tierSchemeIds.has(String(s.scheme_id)));
       const off = getOfficerForLevel(s, activeLayer);
       (s.offline_esrs || []).forEach(o => {
         const streak = o.days_count || s.max_streak_days || 1;
-        if (streak < minStreakForLevel) return;
+        if (streak < minStreakForLevel && !isDispatchedForTier) return;
         list.push({
           id: `${s.scheme_id}-offline-${o.esr_name}-${o.village_name}`,
           scheme_id: s.scheme_id,
@@ -1342,7 +1372,7 @@ export default function EscalationPortalPage() {
       });
     });
     return list;
-  }, [activeSchemes, activeLayer, execContacts, minStreakForLevel]);
+  }, [activeSchemes, activeLayer, execContacts, minStreakForLevel, tierLatestInfo, activeTierNumber]);
 
   // Total alerts for the current level
   const totalLevelAlerts = useMemo(() => {
@@ -1375,7 +1405,8 @@ export default function EscalationPortalPage() {
       flow,
       pressure,
       chlorine,
-      total: offlineAlerts.length,
+      total: flow + pressure + chlorine,
+      locations: offlineAlerts.length,
     };
   }, [offlineAlerts]);
 
@@ -1415,52 +1446,67 @@ export default function EscalationPortalPage() {
     });
   }, [currentCategoryAlerts, emailsByScheme, activeTierNumber]);
 
-  // Dispatched Category alerts: only alerts for schemes where an email was dispatched to the active tier today
+  // Dispatched Category alerts: only alerts for schemes where an email was dispatched to the active tier
   const dispatchedCategoryAlerts = useMemo(() => {
+    const tierSchemeIds = tierLatestInfo[activeTierNumber]?.schemeIds;
     return sortedCategoryAlerts.filter(a => {
-      const aEmails = (emailsByScheme.get(String(a.scheme_id)) || []).filter(
+      const sid = String(a.scheme_id);
+      if (tierSchemeIds && tierSchemeIds.has(sid)) return true;
+      const aEmails = (emailsByScheme.get(sid) || []).filter(
         (e: any) => Number(e.tier) === activeTierNumber
       );
       return aEmails.length > 0;
     });
-  }, [sortedCategoryAlerts, emailsByScheme, activeTierNumber]);
+  }, [sortedCategoryAlerts, emailsByScheme, activeTierNumber, tierLatestInfo]);
 
   // Per-category counts for dispatched items
   const dispatchedLpcdCount = useMemo(() => {
+    const tierSchemeIds = tierLatestInfo[activeTierNumber]?.schemeIds;
     return lpcdAlerts.filter(a => {
-      const aEmails = (emailsByScheme.get(String(a.scheme_id)) || []).filter(
+      const sid = String(a.scheme_id);
+      if (tierSchemeIds && tierSchemeIds.has(sid)) return true;
+      const aEmails = (emailsByScheme.get(sid) || []).filter(
         (e: any) => Number(e.tier) === activeTierNumber
       );
       return aEmails.length > 0;
     }).length;
-  }, [lpcdAlerts, emailsByScheme, activeTierNumber]);
+  }, [lpcdAlerts, emailsByScheme, activeTierNumber, tierLatestInfo]);
 
   const dispatchedChlorineCount = useMemo(() => {
+    const tierSchemeIds = tierLatestInfo[activeTierNumber]?.schemeIds;
     return chlorineAlerts.filter(a => {
-      const aEmails = (emailsByScheme.get(String(a.scheme_id)) || []).filter(
+      const sid = String(a.scheme_id);
+      if (tierSchemeIds && tierSchemeIds.has(sid)) return true;
+      const aEmails = (emailsByScheme.get(sid) || []).filter(
         (e: any) => Number(e.tier) === activeTierNumber
       );
       return aEmails.length > 0;
     }).length;
-  }, [chlorineAlerts, emailsByScheme, activeTierNumber]);
+  }, [chlorineAlerts, emailsByScheme, activeTierNumber, tierLatestInfo]);
 
   const dispatchedPressureCount = useMemo(() => {
+    const tierSchemeIds = tierLatestInfo[activeTierNumber]?.schemeIds;
     return pressureAlerts.filter(a => {
-      const aEmails = (emailsByScheme.get(String(a.scheme_id)) || []).filter(
+      const sid = String(a.scheme_id);
+      if (tierSchemeIds && tierSchemeIds.has(sid)) return true;
+      const aEmails = (emailsByScheme.get(sid) || []).filter(
         (e: any) => Number(e.tier) === activeTierNumber
       );
       return aEmails.length > 0;
     }).length;
-  }, [pressureAlerts, emailsByScheme, activeTierNumber]);
+  }, [pressureAlerts, emailsByScheme, activeTierNumber, tierLatestInfo]);
 
   const dispatchedOfflineCount = useMemo(() => {
+    const tierSchemeIds = tierLatestInfo[activeTierNumber]?.schemeIds;
     return offlineAlerts.filter(a => {
-      const aEmails = (emailsByScheme.get(String(a.scheme_id)) || []).filter(
+      const sid = String(a.scheme_id);
+      if (tierSchemeIds && tierSchemeIds.has(sid)) return true;
+      const aEmails = (emailsByScheme.get(sid) || []).filter(
         (e: any) => Number(e.tier) === activeTierNumber
       );
       return aEmails.length > 0;
     }).length;
-  }, [offlineAlerts, emailsByScheme, activeTierNumber]);
+  }, [offlineAlerts, emailsByScheme, activeTierNumber, tierLatestInfo]);
 
   const totalDispatchedAlertsCount = dispatchedLpcdCount + dispatchedChlorineCount + dispatchedPressureCount + dispatchedOfflineCount;
 
@@ -1503,7 +1549,7 @@ export default function EscalationPortalPage() {
       "Region",
       "District",
       "Category",
-      activeCategory === "lpcd" ? "Village Name" : "Location (Village / ESR)",
+      activeCategory === "lpcd" ? "Village Name" : "Location (Village / Sensor)",
       "Alert Title",
       "Recorded Value",
       ...(activeLayer !== "layer1" ? ["Last 7 Days Streak"] : []),
@@ -1695,14 +1741,14 @@ export default function EscalationPortalPage() {
                 Automated Alert & Escalation Portal
               </h1>
 
-              <p className="text-xs sm:text-sm text-slate-600 max-w-5xl leading-relaxed">
+              {/* <p className="text-xs sm:text-sm text-slate-600 max-w-5xl leading-relaxed">
                 Official Alert &amp; Escalation Policy:{" "}
                 <strong>Level 1 (AE/DE Civil):</strong> Daily operational alert from Day 1 •{" "}
                 <strong>Level 2 (EE Civil):</strong> Dispatched every 3rd day if streak &ge; 3 days •{" "}
                 <strong>Level 3 (CE &amp; SE):</strong> Dispatched every Monday if streak &ge; 7 days •{" "}
                 <strong>Level 4 (Head - MJP / MS):</strong> Dispatched 1st &amp; 3rd Monday if streak &ge; 15 days •{" "}
                 <strong>Level 5 (Head - WSSD / PS):</strong> Dispatched 1st &amp; 3rd Monday if streak &ge; 15 days.
-              </p>
+              </p> */}
 
             </div>
 
@@ -1744,7 +1790,7 @@ export default function EscalationPortalPage() {
           {/* OFFICIAL KEY METRIC STRIP (Only Total Schemes, Total SMS, Total Emails) */}
           <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
             <div className="sm:border-r border-slate-200 pr-2">
-              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Total Schemes</div>
+              <div className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Total Operational Schemes</div>
               <div className="text-xl font-bold font-mono text-slate-900 mt-0.5">
                 {schemes.length}/41
               </div>
@@ -2272,7 +2318,7 @@ export default function EscalationPortalPage() {
                     <div className="w-6 h-6 rounded bg-teal-100 flex items-center justify-center text-teal-800">
                       <Droplets className="w-3.5 h-3.5" />
                     </div>
-                    <span className="text-xs font-bold text-teal-950">Residual Chlorine</span>
+                    <span className="text-xs font-bold text-teal-950">Out of range Residual Chlorine - with water supply </span>
                   </div>
                   <Badge variant="secondary" className="font-mono text-xs font-bold bg-red-100 text-red-800 border-none">
                     {hasActiveLevelEmails ? `${chlorineAlerts.length} Sensors` : "0 Sensors"}
@@ -2281,7 +2327,7 @@ export default function EscalationPortalPage() {
 
                 {/* Middle number section - RED */}
                 <div className="my-2 py-1 bg-red-50/80 rounded border border-red-200 text-center">
-                  <div className="text-[10px] text-slate-500 font-sans font-medium">Sensors Out-of-Range (&lt; 0.20 mg/L)</div>
+                  <div className="text-[10px] text-slate-500 font-sans font-medium">Sensors Out-of-Range (&lt; 0.20 mg/L & &gt; 0.5mg/l)</div>
                   <div className="text-xl font-black text-red-600 font-mono tracking-tight leading-none mt-1">
                     {hasActiveLevelEmails ? chlorineAlerts.length : 0}
                   </div>
@@ -2322,7 +2368,7 @@ export default function EscalationPortalPage() {
                     <div className="w-6 h-6 rounded bg-amber-100 flex items-center justify-center text-amber-800">
                       <GaugeCircle className="w-3.5 h-3.5" />
                     </div>
-                    <span className="text-xs font-bold text-amber-950">Low Water Pressure</span>
+                    <span className="text-xs font-bold text-amber-950">Low Water Pressure - with water supply</span>
                   </div>
                   <Badge variant="secondary" className="font-mono text-xs font-bold bg-red-100 text-red-800 border-none">
                     {hasActiveLevelEmails ? `${pressureAlerts.length} Sensors` : "0 Sensors"}
@@ -2375,7 +2421,7 @@ export default function EscalationPortalPage() {
                     <span className="text-xs font-bold text-rose-950">Offline Sensors</span>
                   </div>
                   <Badge variant="secondary" className="font-mono text-xs font-bold bg-red-100 text-red-800 border-none">
-                    {hasActiveLevelEmails ? `${offlineAlerts.length} Sensors` : "0 Sensors"}
+                    {hasActiveLevelEmails ? `${offlineBifurcation.total} Sensors` : "0 Sensors"}
                   </Badge>
                 </div>
 
@@ -2486,287 +2532,361 @@ export default function EscalationPortalPage() {
                   </button>
                 </div>
 
-              <span className="text-slate-300 hidden xl:inline">|</span>
+                <span className="text-slate-300 hidden xl:inline">|</span>
 
-              {/* Category Filter Pills */}
-              <div className="flex items-center gap-1 bg-slate-200/70 p-0.5 rounded-lg text-xs font-medium flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => { setActiveCategory("all"); setPage(1); }}
-                  className={`px-2 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${activeCategory === "all" ? "bg-white text-slate-900 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
-                    }`}
-                >
-                  All ({dispatchViewFilter === "dispatched" ? totalDispatchedAlertsCount : totalLevelAlerts})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setActiveCategory("lpcd"); setPage(1); }}
-                  className={`px-2 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${activeCategory === "lpcd" ? "bg-white text-blue-900 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
-                    }`}
-                >
-                  LPCD ({dispatchViewFilter === "dispatched" ? dispatchedLpcdCount : lpcdAlerts.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setActiveCategory("chlorine"); setPage(1); }}
-                  className={`px-2 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${activeCategory === "chlorine" ? "bg-white text-teal-900 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
-                    }`}
-                >
-                  Chlorine ({dispatchViewFilter === "dispatched" ? dispatchedChlorineCount : chlorineAlerts.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setActiveCategory("pressure"); setPage(1); }}
-                  className={`px-2 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${activeCategory === "pressure" ? "bg-white text-indigo-900 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
-                    }`}
-                >
-                  Pressure ({dispatchViewFilter === "dispatched" ? dispatchedPressureCount : pressureAlerts.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setActiveCategory("offline"); setPage(1); }}
-                  className={`px-2 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${activeCategory === "offline" ? "bg-white text-slate-900 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
-                    }`}
-                >
-                  Offline ({dispatchViewFilter === "dispatched" ? dispatchedOfflineCount : offlineAlerts.length})
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 w-full lg:w-auto">
-              {/* Search Input */}
-              <div className="relative w-full lg:w-72">
-                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <Input
-                  placeholder="Search village, ESR, scheme, officer..."
-                  value={searchTerm}
-                  onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
-                  className="pl-8 h-8 text-xs bg-white border-slate-300"
-                />
-                {searchTerm && (
+                {/* Category Filter Pills */}
+                <div className="flex items-center gap-1 bg-slate-200/70 p-0.5 rounded-lg text-xs font-medium flex-wrap">
                   <button
-                    onClick={() => { setSearchTerm(""); setPage(1); }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    type="button"
+                    onClick={() => { setActiveCategory("all"); setPage(1); }}
+                    className={`px-2 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${activeCategory === "all" ? "bg-white text-slate-900 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
+                      }`}
                   >
-                    <X className="w-3.5 h-3.5" />
+                    All ({dispatchViewFilter === "dispatched" ? totalDispatchedAlertsCount : totalLevelAlerts})
                   </button>
-                )}
+                  <button
+                    type="button"
+                    onClick={() => { setActiveCategory("lpcd"); setPage(1); }}
+                    className={`px-2 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${activeCategory === "lpcd" ? "bg-white text-blue-900 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
+                      }`}
+                  >
+                    LPCD ({dispatchViewFilter === "dispatched" ? dispatchedLpcdCount : lpcdAlerts.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveCategory("chlorine"); setPage(1); }}
+                    className={`px-2 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${activeCategory === "chlorine" ? "bg-white text-teal-900 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
+                      }`}
+                  >
+                    Chlorine ({dispatchViewFilter === "dispatched" ? dispatchedChlorineCount : chlorineAlerts.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveCategory("pressure"); setPage(1); }}
+                    className={`px-2 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${activeCategory === "pressure" ? "bg-white text-indigo-900 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
+                      }`}
+                  >
+                    Pressure ({dispatchViewFilter === "dispatched" ? dispatchedPressureCount : pressureAlerts.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveCategory("offline"); setPage(1); }}
+                    className={`px-2 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer ${activeCategory === "offline" ? "bg-white text-slate-900 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
+                      }`}
+                  >
+                    Offline ({dispatchViewFilter === "dispatched" ? dispatchedOfflineCount : offlineAlerts.length})
+                  </button>
+                </div>
               </div>
 
-              {/* Export CSV Button */}
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={exportCurrentTableToCSV}
-                className="h-8 text-xs font-medium border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center gap-1.5 shrink-0"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-                Export CSV
-              </Button>
-            </div>
-          </div>
-
-          {/* Table Content */}
-          {filteredCategoryAlerts.length === 0 ? (
-            dispatchViewFilter === "dispatched" && levelEmailsSentCount === 0 ? (
-              <div className="p-10 text-center bg-slate-50/70 border border-dashed border-slate-300 rounded-lg m-4">
-                <div className="w-12 h-12 rounded-full bg-slate-200/80 flex items-center justify-center mx-auto mb-3 text-slate-500">
-                  <Mail className="w-6 h-6 text-slate-400" />
-                </div>
-                <div className="text-sm font-bold text-slate-900">
-                  0 Emails Dispatched Today for {levelName}
-                </div>
-                <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-                  No official escalation notices have been dispatched for this level today (0 emails sent).
-                  {totalLevelAlerts > 0 && (
-                    <span className="block mt-1 text-slate-600 font-medium">
-                      There are {schemesWithLevelAlertsCount} schemes ({totalLevelAlerts} alerts) with persistence streak &ge; {minStreakForLevel} days eligible for this tier, currently undispatched.
-                    </span>
+              <div className="flex items-center gap-2 w-full lg:w-auto">
+                {/* Search Input */}
+                <div className="relative w-full lg:w-72">
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    placeholder="Search village, sensor, scheme, officer..."
+                    value={searchTerm}
+                    onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                    className="pl-8 h-8 text-xs bg-white border-slate-300"
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => { setSearchTerm(""); setPage(1); }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   )}
-                </p>
-                {totalLevelAlerts > 0 && (
-                  <div className="mt-4 flex items-center justify-center gap-2">
+                </div>
+
+                {/* Export CSV Button */}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={exportCurrentTableToCSV}
+                  className="h-8 text-xs font-medium border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center gap-1.5 shrink-0"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                  Export CSV
+                </Button>
+              </div>
+            </div>
+
+            {/* Table Content */}
+            {filteredCategoryAlerts.length === 0 ? (
+              dispatchViewFilter === "dispatched" && levelEmailsSentCount === 0 ? (
+                <div className="p-10 text-center bg-slate-50/70 border border-dashed border-slate-300 rounded-lg m-4">
+                  <div className="w-12 h-12 rounded-full bg-slate-200/80 flex items-center justify-center mx-auto mb-3 text-slate-500">
+                    <Mail className="w-6 h-6 text-slate-400" />
+                  </div>
+                  <div className="text-sm font-bold text-slate-900">
+                    0 Emails Dispatched Today for {levelName}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                    No official escalation notices have been dispatched for this level today (0 emails sent).
+                    {totalLevelAlerts > 0 && (
+                      <span className="block mt-1 text-slate-600 font-medium">
+                        There are {schemesWithLevelAlertsCount} schemes ({totalLevelAlerts} alerts) with persistence streak &ge; {minStreakForLevel} days eligible for this tier, currently undispatched.
+                      </span>
+                    )}
+                  </p>
+                  {totalLevelAlerts > 0 && (
+                    <div className="mt-4 flex items-center justify-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => { setDispatchViewFilter("all"); setPage(1); }}
+                        className="h-8 text-xs font-semibold border-slate-300 bg-white hover:bg-slate-100 text-slate-800 flex items-center gap-1.5 shadow-2xs"
+                      >
+                        <Eye className="w-3.5 h-3.5 text-blue-600" />
+                        View All {totalLevelAlerts} Eligible Alerts by Streak ({minStreakForLevel}+ Days)
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="p-12 text-center text-slate-500 text-sm">
+                  <Check className="w-8 h-8 mx-auto text-emerald-600 mb-2" />
+                  <div className="font-semibold text-slate-800">No Matching Alerts Found</div>
+                  <div className="text-xs text-slate-500 mt-1">
+                    {searchTerm ? `No alerts match "${searchTerm}" in the current view.` : "No telemetry alerts found for this category in the current escalation tier."}
+                  </div>
+                  {dispatchViewFilter === "dispatched" && totalLevelAlerts > 0 && (
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => { setDispatchViewFilter("all"); setPage(1); }}
-                      className="h-8 text-xs font-semibold border-slate-300 bg-white hover:bg-slate-100 text-slate-800 flex items-center gap-1.5 shadow-2xs"
+                      className="mt-3 h-7 text-xs border-slate-300"
                     >
-                      <Eye className="w-3.5 h-3.5 text-blue-600" />
-                      View All {totalLevelAlerts} Eligible Alerts by Streak ({minStreakForLevel}+ Days)
+                      Switch to All Eligible Alerts ({totalLevelAlerts})
                     </Button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="p-12 text-center text-slate-500 text-sm">
-                <Check className="w-8 h-8 mx-auto text-emerald-600 mb-2" />
-                <div className="font-semibold text-slate-800">No Matching Alerts Found</div>
-                <div className="text-xs text-slate-500 mt-1">
-                  {searchTerm ? `No alerts match "${searchTerm}" in the current view.` : "No telemetry alerts found for this category in the current escalation tier."}
+                  )}
                 </div>
-                {dispatchViewFilter === "dispatched" && totalLevelAlerts > 0 && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => { setDispatchViewFilter("all"); setPage(1); }}
-                    className="mt-3 h-7 text-xs border-slate-300"
-                  >
-                    Switch to All Eligible Alerts ({totalLevelAlerts})
-                  </Button>
-                )}
-              </div>
-            )
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-slate-100/75 border-b border-slate-300 text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-                    <th className="py-2.5 px-3 w-10 text-center">Sr.</th>
-                    <th className="py-2.5 px-3">Scheme & Region</th>
-                    <th className="py-2.5 px-3">{activeCategory === "lpcd" ? "Village Name" : activeCategory === "all" ? "Location (Village / ESR)" : "ESR / Village"}</th>
-                    <th className="py-2.5 px-3">Alert & Value</th>
-                    {activeLayer !== "layer1" && (
-                      <th className="py-2.5 px-3 text-center">Last 7 Days Values</th>
-                    )}
-                    <th className="py-2.5 px-3 text-center border-l border-slate-200">Email Sent</th>
-                    <th className="py-2.5 px-3 text-center border-l border-slate-200">SMS Sent</th>
-                    <th className="py-2.5 px-3 text-center border-l border-slate-200">Field Remarks</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 text-slate-800">
-                  {paginatedCategoryAlerts.map((item, idx) => {
-                    const sr = (page - 1) * pageSize + idx + 1;
-                    const targetTier = activeLayer === "layer1" ? "DE" : activeLayer === "layer2" ? "EE" : activeLayer === "layer3" ? "CE" : activeLayer === "layer4" ? "MS" : "PS";
-                    return (
-                      <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-3 px-3 text-center font-mono text-[11px] text-slate-500 font-semibold">
-                          {sr}
-                        </td>
-                        <td className="py-3 px-3">
-                          <div className="font-bold text-slate-900 text-xs">{item.scheme_name}</div>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="font-mono text-[10px] text-slate-500 bg-slate-100 px-1 rounded border border-slate-200">
-                              {item.scheme_id}
-                            </span>
-                            <span className="text-[11px] text-slate-500">
-                              {item.region} {item.district ? `• ${item.district}` : ""}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="py-3 px-3">
-                          {item.category === "lpcd" ? (
-                            <div>
-                              <span className="font-semibold text-blue-950 bg-blue-50/80 border border-blue-200 px-2 py-0.5 rounded text-xs">
-                                {item.village_name}
+              )
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100/75 border-b border-slate-300 text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                      <th className="py-2.5 px-3 w-10 text-center">Sr.</th>
+                      <th className="py-2.5 px-3">Scheme & Region</th>
+                      <th className="py-2.5 px-3">{activeCategory === "lpcd" ? "Village Name" : activeCategory === "all" ? "Location (Village / Sensor)" : "Sensor / Village"}</th>
+                      <th className="py-2.5 px-3">Alert & Value</th>
+                      {activeLayer !== "layer1" && (
+                        <th className="py-2.5 px-3 text-center">Last 7 Days Values</th>
+                      )}
+                      <th className="py-2.5 px-3 text-center border-l border-slate-200">Email Sent</th>
+                      <th className="py-2.5 px-3 text-center border-l border-slate-200">SMS Sent</th>
+                      <th className="py-2.5 px-3 text-center border-l border-slate-200">Field Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 text-slate-800">
+                    {paginatedCategoryAlerts.map((item, idx) => {
+                      const sr = (page - 1) * pageSize + idx + 1;
+                      const targetTier = activeLayer === "layer1" ? "AE/DE" : activeLayer === "layer2" ? "EE" : activeLayer === "layer3" ? "SE & CE" : activeLayer === "layer4" ? "Head-MJP" : "Heas-WSSD";
+                      return (
+                        <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="py-3 px-3 text-center font-mono text-[11px] text-slate-500 font-semibold">
+                            {sr}
+                          </td>
+                          <td className="py-3 px-3">
+                            <div className="font-bold text-slate-900 text-xs">{item.scheme_name}</div>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="font-mono text-[10px] text-slate-500 bg-slate-100 px-1 rounded border border-slate-200">
+                                {item.scheme_id}
                               </span>
-                              <div className="text-[10px] text-slate-500 mt-0.5">Village Level</div>
-                            </div>
-                          ) : (
-                            <div>
-                              <div className="font-semibold text-slate-900 text-xs">
-                                {item.esr_name !== "-" ? item.esr_name : item.village_name}
-                              </div>
-                              {item.esr_name !== "-" && item.village_name !== "-" && (
-                                <div className="text-[10px] text-slate-500 mt-0.5">
-                                  Village: {item.village_name}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                        <td className="py-3 px-3">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-semibold text-slate-900 text-xs">{item.alert_title}</span>
-                            <Badge
-                              variant="outline"
-                              className={`text-[9px] px-1 py-0 font-bold ${item.category === "lpcd"
-                                ? "bg-blue-50 text-blue-700 border-blue-200"
-                                : item.category === "chlorine"
-                                  ? "bg-teal-50 text-teal-700 border-teal-200"
-                                  : item.category === "pressure"
-                                    ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                                    : "bg-slate-100 text-slate-700 border-slate-200"
-                                }`}
-                            >
-                              {item.category.toUpperCase()}
-                            </Badge>
-                          </div>
-                          <div className="text-[11px] font-mono font-bold text-amber-800 mt-0.5">
-                            Value: {item.parameter_value}
-                          </div>
-                          {item.category === "offline" && (
-                            <div className="flex items-center gap-1 mt-1 flex-wrap">
-                              {item.parameter_value.toLowerCase().includes("flow") && (
-                                <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 text-[9.5px] font-semibold border border-amber-200">
-                                  Flow Meter
-                                </span>
-                              )}
-                              {item.parameter_value.toLowerCase().includes("pressure") && (
-                                <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-800 text-[9.5px] font-semibold border border-indigo-200">
-                                  Pressure Sensor
-                                </span>
-                              )}
-                              {item.parameter_value.toLowerCase().includes("chlorine") && (
-                                <span className="px-1.5 py-0.5 rounded bg-teal-50 text-teal-800 text-[9.5px] font-semibold border border-teal-200">
-                                  Chlorine Analyzer
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                        {activeLayer !== "layer1" && (
-                          <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
-                            <div className="flex flex-col items-center gap-1">
-                              <button
-                                id={`view-7-days-btn-${idx}`}
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedSevenDaysAlert(item);
-                                }}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 cursor-pointer shadow-2xs transition-all"
-                                title={`View last 7 days values & trend for ${item.scheme_name} (${item.category.toUpperCase()})`}
-                              >
-                                <Calendar className="w-3.5 h-3.5 text-blue-600" />
-                                View 7 Days &rarr;
-                              </button>
-                              <span className="text-[10px] text-slate-500 font-mono">
-                                Streak: <strong className="text-slate-800">{item.days_since}d</strong>
+                              <span className="text-[11px] text-slate-500">
+                                {item.region} {item.district ? `• ${item.district}` : ""}
                               </span>
                             </div>
                           </td>
-                        )}
-                        {/* Email Sent */}
-                        <td className="py-3 px-3 text-center border-l border-slate-100 align-middle whitespace-nowrap">
-                          {(() => {
-                            const schemeEmails = (emailsByScheme.get(String(item.scheme_id)) || []).filter(
-                              (a: any) => Number(a.tier) === activeTierNumber
-                            );
-                            const hasEmail = schemeEmails.length > 0 || hasActiveLevelEmails;
-                            const rawDate = schemeEmails[0]?.sent_date || schemeEmails[0]?.created_at;
-                            const emailDateStr = rawDate
-                              ? new Date(rawDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
-                              : (tierLatestInfo[activeTierNumber]?.latestDateStr || "17 Oct 2026");
-                            const emailTimeStr = schemeEmails[0]?.created_at
-                              ? new Date(schemeEmails[0].created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
-                              : (item.scheme_ref?.last_notified_at
-                                ? new Date(item.scheme_ref.last_notified_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
-                                : "10:37 am");
+                          <td className="py-3 px-3">
+                            {item.category === "lpcd" ? (
+                              <div>
+                                <span className="font-semibold text-blue-950 bg-blue-50/80 border border-blue-200 px-2 py-0.5 rounded text-xs">
+                                  {item.village_name}
+                                </span>
+                                <div className="text-[10px] text-slate-500 mt-0.5">Village Level</div>
+                              </div>
+                            ) : (
+                              <div>
+                                <div className="font-semibold text-slate-900 text-xs">
+                                  {item.esr_name !== "-" ? item.esr_name : item.village_name}
+                                </div>
+                                {item.esr_name !== "-" && item.village_name !== "-" && (
+                                  <div className="text-[10px] text-slate-500 mt-0.5">
+                                    Village: {item.village_name}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-3 px-3">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-semibold text-slate-900 text-xs">{item.alert_title}</span>
+                              <Badge
+                                variant="outline"
+                                className={`text-[9px] px-1 py-0 font-bold ${item.category === "lpcd"
+                                  ? "bg-blue-50 text-blue-700 border-blue-200"
+                                  : item.category === "chlorine"
+                                    ? "bg-teal-50 text-teal-700 border-teal-200"
+                                    : item.category === "pressure"
+                                      ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                      : "bg-slate-100 text-slate-700 border-slate-200"
+                                  }`}
+                              >
+                                {item.category.toUpperCase()}
+                              </Badge>
+                            </div>
+                            <div className="text-[11px] font-mono font-bold text-amber-800 mt-0.5">
+                              Value: {item.parameter_value}
+                            </div>
+                            {item.category === "offline" && (
+                              <div className="flex items-center gap-1 mt-1 flex-wrap">
+                                {item.parameter_value.toLowerCase().includes("flow") && (
+                                  <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 text-[9.5px] font-semibold border border-amber-200">
+                                    Flow Meter
+                                  </span>
+                                )}
+                                {item.parameter_value.toLowerCase().includes("pressure") && (
+                                  <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-800 text-[9.5px] font-semibold border border-indigo-200">
+                                    Pressure Sensor
+                                  </span>
+                                )}
+                                {item.parameter_value.toLowerCase().includes("chlorine") && (
+                                  <span className="px-1.5 py-0.5 rounded bg-teal-50 text-teal-800 text-[9.5px] font-semibold border border-teal-200">
+                                    Chlorine Analyzer
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                          {activeLayer !== "layer1" && (
+                            <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
+                              <div className="flex flex-col items-center gap-1">
+                                <button
+                                  id={`view-7-days-btn-${idx}`}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedSevenDaysAlert(item);
+                                  }}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 cursor-pointer shadow-2xs transition-all"
+                                  title={`View last 7 days values & trend for ${item.scheme_name} (${item.category.toUpperCase()})`}
+                                >
+                                  <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                                  View 7 Days &rarr;
+                                </button>
+                                <span className="text-[10px] text-slate-500 font-mono">
+                                  Streak: <strong className="text-slate-800">{item.days_since}d</strong>
+                                </span>
+                              </div>
+                            </td>
+                          )}
+                          {/* Email Sent */}
+                          <td className="py-3 px-3 text-center border-l border-slate-100 align-middle whitespace-nowrap">
+                            {(() => {
+                              const schemeEmails = (emailsByScheme.get(String(item.scheme_id)) || []).filter(
+                                (a: any) => Number(a.tier) === activeTierNumber
+                              );
+                              const hasEmail = schemeEmails.length > 0 || hasActiveLevelEmails;
+                              const rawDate = schemeEmails[0]?.sent_date || schemeEmails[0]?.created_at;
+                              const emailDateStr = rawDate
+                                ? new Date(rawDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+                                : (tierLatestInfo[activeTierNumber]?.latestDateStr || "17 Oct 2026");
+                              const emailTimeStr = schemeEmails[0]?.created_at
+                                ? new Date(schemeEmails[0].created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
+                                : (item.scheme_ref?.last_notified_at
+                                  ? new Date(item.scheme_ref.last_notified_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
+                                  : "10:37 am");
 
-                            if (hasEmail && item.officer_email) {
-                              const isToday = emailDateStr.includes("17 Oct 2026") || (rawDate && new Date(rawDate).toDateString() === new Date().toDateString());
-                              const sentLabel = isToday ? "1 Email Sent Today" : `1 Email Sent • ${emailDateStr}`;
+                              if (hasEmail && item.officer_email) {
+                                const isToday = emailDateStr.includes("17 Oct 2026") || (rawDate && new Date(rawDate).toDateString() === new Date().toDateString());
+                                const sentLabel = isToday ? "1 Email Sent Today" : `1 Email Sent • ${emailDateStr}`;
+                                const vendorEmail = item.scheme_ref?.vendor_email;
 
+                                return (
+                                  <div className="flex flex-col items-center gap-1 max-w-[200px] mx-auto text-center">
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-bold bg-blue-50 text-blue-800 border border-blue-200 shadow-xs">
+                                      <Mail className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                      {item.category === "offline" && vendorEmail ? "Sent to Officer & Vendor" : sentLabel}
+                                    </span>
+                                    {item.category === "offline" && vendorEmail && (
+                                      <div className="flex items-center gap-1 text-[9.5px] text-purple-800 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 font-mono truncate max-w-[190px]" title={`Vendor Notified: ${vendorEmail}`}>
+                                        <span className="font-bold">Vendor:</span>
+                                        <span className="truncate">{vendorEmail}</span>
+                                      </div>
+                                    )}
+                                    <button
+                                      type="button"
+                                      className="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer inline-flex items-center gap-1 transition-colors mt-0.5"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedEmailItem({
+                                          item,
+                                          targetTier,
+                                          emailDate: emailDateStr,
+                                          emailTime: emailTimeStr,
+                                        });
+                                      }}
+                                      title="View Email Recipient & Dispatch Logs"
+                                    >
+                                      &lt; View Log
+                                    </button>
+                                  </div>
+                                );
+                              }
+
+                              if (item.category === "offline" && item.scheme_ref?.vendor_email) {
+                                const vendorEmail = item.scheme_ref.vendor_email;
+                                return (
+                                  <div className="flex flex-col items-center gap-1 max-w-[200px] mx-auto text-center">
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-bold bg-purple-50 text-purple-800 border border-purple-200 shadow-xs">
+                                      <Mail className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                                      Vendor Email Sent
+                                    </span>
+                                    <div className="flex items-center gap-1 text-[9.5px] text-purple-800 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 font-mono truncate max-w-[190px]" title={`Vendor Notified: ${vendorEmail}`}>
+                                      <span className="font-bold">Vendor:</span>
+                                      <span className="truncate">{vendorEmail}</span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      className="text-[11px] font-bold text-purple-600 hover:text-purple-800 hover:underline cursor-pointer inline-flex items-center gap-1 transition-colors mt-0.5"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedEmailItem({
+                                          item,
+                                          targetTier,
+                                          emailDate: emailDateStr,
+                                          emailTime: emailTimeStr,
+                                        });
+                                      }}
+                                      title="View Email Recipient & Dispatch Logs"
+                                    >
+                                      &lt; View Log
+                                    </button>
+                                  </div>
+                                );
+                              }
+
+                              const reason = getEmailDispatchReason(item, activeLayer);
                               return (
                                 <div className="flex flex-col items-center gap-1 max-w-[200px] mx-auto text-center">
-                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-bold bg-blue-50 text-blue-800 border border-blue-200 shadow-xs">
-                                    <Mail className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                                    {sentLabel}
+                                  <span
+                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-medium border cursor-help ${reason.variant === 'missing_engineer'
+                                      ? 'bg-rose-50 text-rose-800 border-rose-200'
+                                      : reason.variant === 'missing_email'
+                                        ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                        : 'bg-slate-50 text-slate-500 border-slate-200'
+                                      }`}
+                                    title={reason.tooltip}
+                                  >
+                                    <AlertCircle className="w-3 h-3 shrink-0 opacity-70" />
+                                    0 Emails Sent Today
                                   </span>
                                   <button
                                     type="button"
-                                    className="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer inline-flex items-center gap-1 transition-colors mt-0.5"
+                                    className="text-[11px] font-bold text-slate-500 hover:text-slate-700 hover:underline cursor-pointer inline-flex items-center gap-1 transition-colors mt-0.5"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setSelectedEmailItem({
@@ -2776,195 +2896,160 @@ export default function EscalationPortalPage() {
                                         emailTime: emailTimeStr,
                                       });
                                     }}
-                                    title="View Email Recipient & Dispatch Logs"
+                                    title="View Dispatch Logs & Recipient Info"
                                   >
                                     &lt; View Log
                                   </button>
                                 </div>
                               );
-                            }
+                            })()}
+                          </td>
 
-                            const reason = getEmailDispatchReason(item, activeLayer);
-                            return (
-                              <div className="flex flex-col items-center gap-1 max-w-[200px] mx-auto text-center">
-                                <span
-                                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-medium border cursor-help ${reason.variant === 'missing_engineer'
-                                    ? 'bg-rose-50 text-rose-800 border-rose-200'
-                                    : reason.variant === 'missing_email'
-                                      ? 'bg-amber-50 text-amber-800 border-amber-200'
-                                      : 'bg-slate-50 text-slate-500 border-slate-200'
-                                    }`}
-                                  title={reason.tooltip}
-                                >
-                                  <AlertCircle className="w-3 h-3 shrink-0 opacity-70" />
-                                  0 Emails Sent Today
-                                </span>
-                                <button
-                                  type="button"
-                                  className="text-[11px] font-bold text-slate-500 hover:text-slate-700 hover:underline cursor-pointer inline-flex items-center gap-1 transition-colors mt-0.5"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedEmailItem({
-                                      item,
-                                      targetTier,
-                                      emailDate: emailDateStr,
-                                      emailTime: emailTimeStr,
-                                    });
-                                  }}
-                                  title="View Dispatch Logs & Recipient Info"
-                                >
-                                  &lt; View Log
-                                </button>
-                              </div>
-                            );
-                          })()}
-                        </td>
+                          {/* SMS Sent */}
+                          <td className="py-3 px-3 text-center border-l border-slate-100 align-middle whitespace-nowrap">
+                            {(() => {
+                              const allSchemeSms = smsByScheme.get(String(item.scheme_id)) || [];
+                              const targetSmsList = getMatchingSmsForAlert(item, allSchemeSms, activeTierNumber);
+                              const hasSms = targetSmsList.length > 0;
 
-                        {/* SMS Sent */}
-                        <td className="py-3 px-3 text-center border-l border-slate-100 align-middle whitespace-nowrap">
-                          {(() => {
-                            const allSchemeSms = smsByScheme.get(String(item.scheme_id)) || [];
-                            const targetSmsList = getMatchingSmsForAlert(item, allSchemeSms, activeTierNumber);
-                            const hasSms = targetSmsList.length > 0;
-
-                            if (!hasSms) {
-                              const reason = getSmsDispatchReason(item, activeLayer);
-                              return (
-                                <span
-                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-medium border cursor-help ${reason.variant === 'missing_engineer'
-                                    ? 'bg-rose-50 text-rose-800 border-rose-200'
-                                    : reason.variant === 'missing_mobile'
-                                      ? 'bg-amber-50 text-amber-800 border-amber-200'
-                                      : reason.variant === 'rejected'
-                                        ? 'bg-rose-50 text-rose-800 border-rose-200'
-                                        : 'bg-slate-50 text-slate-500 border-slate-200'
-                                    }`}
-                                  title={reason.tooltip}
-                                >
-                                  <AlertCircle className="w-2.5 h-2.5 shrink-0 opacity-70" />
-                                  {reason.label}
-                                </span>
-                              );
-                            }
-
-                            const successCount = targetSmsList.filter((s: any) => isSmsSuccess(s)).length;
-                            const isFullSuccess = successCount === targetSmsList.length && targetSmsList.length > 0;
-                            const latestSms = targetSmsList[0];
-                            const timeStr = latestSms?.created_at
-                              ? new Date(latestSms.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
-                              : "10:37 am";
-
-                            return (
-                              <div className="flex flex-col items-center gap-0.5">
-                                <div className="flex items-center gap-1.5">
-                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border ${isFullSuccess
-                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                    : successCount > 0
-                                      ? 'bg-amber-50 text-amber-800 border-amber-200'
-                                      : 'bg-rose-50 text-rose-800 border-rose-200'
-                                    }`}>
-                                    <MessageSquare className="w-2.5 h-2.5 text-current" />
-                                    {isFullSuccess
-                                      ? `Delivered (${successCount}/${targetSmsList.length})`
-                                      : successCount > 0
-                                        ? `Partial (${successCount}/${targetSmsList.length})`
-                                        : `Failed (${targetSmsList.length})`}
+                              if (!hasSms) {
+                                const reason = getSmsDispatchReason(item, activeLayer);
+                                return (
+                                  <span
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-medium border cursor-help ${reason.variant === 'missing_engineer'
+                                      ? 'bg-rose-50 text-rose-800 border-rose-200'
+                                      : reason.variant === 'missing_mobile'
+                                        ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                        : reason.variant === 'rejected'
+                                          ? 'bg-rose-50 text-rose-800 border-rose-200'
+                                          : 'bg-slate-50 text-slate-500 border-slate-200'
+                                      }`}
+                                    title={reason.tooltip}
+                                  >
+                                    <AlertCircle className="w-2.5 h-2.5 shrink-0 opacity-70" />
+                                    {reason.label}
                                   </span>
-                                  {timeStr && (
-                                    <span className="text-[10px] text-slate-500 font-normal">
-                                      {timeStr}
+                                );
+                              }
+
+                              const successCount = targetSmsList.filter((s: any) => isSmsSuccess(s)).length;
+                              const isFullSuccess = successCount === targetSmsList.length && targetSmsList.length > 0;
+                              const latestSms = targetSmsList[0];
+                              const timeStr = latestSms?.created_at
+                                ? new Date(latestSms.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
+                                : "10:37 am";
+
+                              return (
+                                <div className="flex flex-col items-center gap-0.5">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border ${isFullSuccess
+                                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                      : successCount > 0
+                                        ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                        : 'bg-rose-50 text-rose-800 border-rose-200'
+                                      }`}>
+                                      <MessageSquare className="w-2.5 h-2.5 text-current" />
+                                      {isFullSuccess
+                                        ? `Delivered (${successCount}/${targetSmsList.length})`
+                                        : successCount > 0
+                                          ? `Partial (${successCount}/${targetSmsList.length})`
+                                          : `Failed (${targetSmsList.length})`}
                                     </span>
-                                  )}
+                                    {timeStr && (
+                                      <span className="text-[10px] text-slate-500 font-normal">
+                                        {timeStr}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className="text-[10px] font-medium text-blue-600 hover:underline cursor-pointer"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedSmsItem({
+                                        item,
+                                        smsList: targetSmsList
+                                      });
+                                    }}
+                                    title="View SMS Dispatch Logs"
+                                  >
+                                    View Log
+                                  </button>
                                 </div>
-                                <button
-                                  type="button"
-                                  className="text-[10px] font-medium text-blue-600 hover:underline cursor-pointer"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedSmsItem({
-                                      item,
-                                      smsList: targetSmsList
-                                    });
-                                  }}
-                                  title="View SMS Dispatch Logs"
-                                >
-                                  View Log
-                                </button>
-                              </div>
-                            );
-                          })()}
-                        </td>
+                              );
+                            })()}
+                          </td>
 
-                        {/* Field Remarks Column */}
-                        <td className="py-3 px-3 text-center border-l border-slate-100 align-middle whitespace-nowrap">
-                          {Array.isArray(item.remarks) && item.remarks.length > 0 ? (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedRemarkDetails({
-                                  issues: item.remarks,
-                                  title: `Field Remarks for ${item.scheme_name} (${item.scheme_id})`,
-                                  schemeName: item.scheme_name,
-                                  schemeId: item.scheme_id,
-                                });
-                              }}
-                              className="inline-flex items-center gap-1 text-xs font-bold text-[#0f4c81] hover:underline cursor-pointer bg-sky-50 border border-sky-200 px-2.5 py-1 rounded transition-colors"
-                            >
-                              <FileText className="w-3.5 h-3.5 text-sky-600" />
-                              View Issue ({item.remarks.length}) &rarr;
-                            </button>
-                          ) : (
-                            <span className="text-[11px] text-slate-400 italic">No Remarks</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* Table Pagination & Footer */}
-          <div className="p-3 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
-            <div className="font-mono text-[11px]">
-              Showing {filteredCategoryAlerts.length > 0 ? (page - 1) * pageSize + 1 : 0} to{" "}
-              {Math.min(page * pageSize, filteredCategoryAlerts.length)} of {filteredCategoryAlerts.length} items
-            </div>
-
-            {/* Pagination Controls */}
-            {filteredCategoryAlerts.length > pageSize && (
-              <div className="flex items-center gap-1.5">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={page <= 1}
-                  onClick={() => setPage(p => Math.max(p - 1, 1))}
-                  className="h-7 px-2 text-xs border-slate-300"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5 mr-0.5" /> Previous
-                </Button>
-                <span className="text-xs font-mono font-semibold px-2">
-                  Page {page} of {Math.ceil(filteredCategoryAlerts.length / pageSize)}
-                </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={page >= Math.ceil(filteredCategoryAlerts.length / pageSize)}
-                  onClick={() => setPage(p => p + 1)}
-                  className="h-7 px-2 text-xs border-slate-300"
-                >
-                  Next <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
-                </Button>
+                          {/* Field Remarks Column */}
+                          <td className="py-3 px-3 text-center border-l border-slate-100 align-middle whitespace-nowrap">
+                            {Array.isArray(item.remarks) && item.remarks.length > 0 ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedRemarkDetails({
+                                    issues: item.remarks,
+                                    title: `Field Remarks for ${item.scheme_name} (${item.scheme_id})`,
+                                    schemeName: item.scheme_name,
+                                    schemeId: item.scheme_id,
+                                  });
+                                }}
+                                className="inline-flex items-center gap-1 text-xs font-bold text-[#0f4c81] hover:underline cursor-pointer bg-sky-50 border border-sky-200 px-2.5 py-1 rounded transition-colors"
+                              >
+                                <FileText className="w-3.5 h-3.5 text-sky-600" />
+                                View Issue ({item.remarks.length}) &rarr;
+                              </button>
+                            ) : (
+                              <span className="text-[11px] text-slate-400 italic">No Remarks</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
 
-            <div className="font-mono text-[11px] text-slate-500">
-              Last Data Sync: {formatDate(data?.timestamp)}
+            {/* Table Pagination & Footer */}
+            <div className="p-3 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
+              <div className="font-mono text-[11px]">
+                Showing {filteredCategoryAlerts.length > 0 ? (page - 1) * pageSize + 1 : 0} to{" "}
+                {Math.min(page * pageSize, filteredCategoryAlerts.length)} of {filteredCategoryAlerts.length} items
+              </div>
+
+              {/* Pagination Controls */}
+              {filteredCategoryAlerts.length > pageSize && (
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={page <= 1}
+                    onClick={() => setPage(p => Math.max(p - 1, 1))}
+                    className="h-7 px-2 text-xs border-slate-300"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5 mr-0.5" /> Previous
+                  </Button>
+                  <span className="text-xs font-mono font-semibold px-2">
+                    Page {page} of {Math.ceil(filteredCategoryAlerts.length / pageSize)}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={page >= Math.ceil(filteredCategoryAlerts.length / pageSize)}
+                    onClick={() => setPage(p => p + 1)}
+                    className="h-7 px-2 text-xs border-slate-300"
+                  >
+                    Next <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+                  </Button>
+                </div>
+              )}
+
+              <div className="font-mono text-[11px] text-slate-500">
+                Last Data Sync: {formatDate(data?.timestamp)}
+              </div>
             </div>
           </div>
-        </div>
         )}
 
         {/* ========================================================= */}
@@ -3301,7 +3386,9 @@ export default function EscalationPortalPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-center">
                   <div className="border-r border-slate-200 last:border-0">
                     <span className="text-[11px] text-slate-500 block font-semibold">Total Recipients</span>
-                    <span className="text-base font-bold text-slate-900 mt-0.5 block">1 Officer</span>
+                    <span className="text-base font-bold text-slate-900 mt-0.5 block">
+                      {selectedEmailItem.item.category === "offline" && selectedEmailItem.item.scheme_ref?.vendor_email ? "Officer & Vendor (2)" : "1 Officer"}
+                    </span>
                   </div>
                   <div className="border-r border-slate-200 last:border-0">
                     <span className="text-[11px] text-slate-500 block font-semibold">Channel</span>
@@ -3370,11 +3457,70 @@ export default function EscalationPortalPage() {
                   </div>
                 </div>
 
+                {/* Designated IoT Agency Vendor Profile (for Offline Sensors) */}
+                {selectedEmailItem.item.category === "offline" && (
+                  <div>
+                    <label className="text-xs font-bold text-purple-900 block mb-2 flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-purple-600"></span>
+                      Dispatched IoT Agency Vendor Profile (Offline Telemetry Notice)
+                    </label>
+                    <div className="p-4 rounded-xl border border-purple-200 bg-purple-50/40 hover:bg-purple-50/70 transition-colors shadow-2xs flex flex-col sm:flex-row items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-purple-100 text-purple-800 text-sm font-bold border border-purple-200">
+                          {((selectedEmailItem.item.scheme_ref?.vendor_name) || "VN").slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-bold text-slate-900">
+                              {selectedEmailItem.item.scheme_ref?.vendor_name || "Regional IoT Maintenance Agency"}
+                            </span>
+                            <Badge variant="outline" className="text-[10px] font-bold bg-purple-100 text-purple-800 border-purple-300">
+                              Vendor (IoT Agency)
+                            </Badge>
+                          </div>
+                          {selectedEmailItem.item.scheme_ref?.vendor_email ? (
+                            <a
+                              href={`mailto:${selectedEmailItem.item.scheme_ref.vendor_email}`}
+                              className="text-xs text-purple-700 hover:text-purple-900 hover:underline flex items-center gap-1.5 mt-1 font-mono font-medium truncate"
+                            >
+                              <Mail className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{selectedEmailItem.item.scheme_ref.vendor_email}</span>
+                            </a>
+                          ) : (
+                            <span className="text-xs text-slate-400 mt-1 italic">No vendor email on record</span>
+                          )}
+                          {selectedEmailItem.item.scheme_ref?.vendor_phone && (
+                            <a
+                              href={`tel:${selectedEmailItem.item.scheme_ref.vendor_phone}`}
+                              className="text-xs font-bold text-slate-700 hover:text-purple-700 hover:underline flex items-center gap-1.5 mt-1"
+                            >
+                              <Phone className="h-3 w-3 text-purple-600 shrink-0" />
+                              <span>+91 {selectedEmailItem.item.scheme_ref.vendor_phone}</span>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-end shrink-0 pt-0.5">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-purple-100 text-purple-800 border border-purple-300 shadow-2xs">
+                          <Check className="h-3.5 w-3.5 text-purple-700" />
+                          Sent to Vendor via SMTP
+                        </span>
+                        <span className="text-[10px] text-purple-800/80 mt-1 font-medium">
+                          Automated Offline Telemetry Digest
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Alert Information Included */}
                 <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-3.5">
                   <label className="text-xs font-bold text-blue-950 block mb-1">Alert Notice Context</label>
                   <p className="text-slate-600 leading-relaxed text-xs">
-                    This officer received an automated daily escalation alert email bundling all active telemetry breaches for <strong>{selectedEmailItem.item.scheme_name}</strong>. The alert details include <strong>{selectedEmailItem.item.alert_title}</strong> with recorded value <strong>{selectedEmailItem.item.parameter_value}</strong>.
+                    {selectedEmailItem.item.category === "offline"
+                      ? `This offline sensor alert was dispatched via SMTP to both the designated engineer and the regional IoT Maintenance Vendor agency (${selectedEmailItem.item.scheme_ref?.vendor_email || "Agency on file"}) for scheme ${selectedEmailItem.item.scheme_name}. Telemetry details: ${selectedEmailItem.item.alert_title} (${selectedEmailItem.item.parameter_value}).`
+                      : `This officer received an automated daily escalation alert email bundling all active telemetry breaches for ${selectedEmailItem.item.scheme_name}. The alert details include ${selectedEmailItem.item.alert_title} with recorded value ${selectedEmailItem.item.parameter_value}.`}
                   </p>
                 </div>
               </div>
@@ -3440,7 +3586,7 @@ export default function EscalationPortalPage() {
                     {selectedSmsItem.item.alert_title}
                     {selectedSmsItem.item.esr_name && selectedSmsItem.item.esr_name !== "-" && (
                       <span className="bg-white/20 text-white px-2 py-0.5 rounded font-medium text-[11px]">
-                        ESR: {selectedSmsItem.item.esr_name}
+                        Sensor: {selectedSmsItem.item.esr_name}
                       </span>
                     )}
                     {selectedSmsItem.item.parameter_value && selectedSmsItem.item.parameter_value !== "-" && (
@@ -3848,6 +3994,7 @@ export default function EscalationPortalPage() {
                       { id: "3", label: "Level 3 • SE & CE", count: (emailLogsData?.summary?.tier_breakdown?.se_emails || dispatches?.today?.se_emails || 0) + (emailLogsData?.summary?.tier_breakdown?.ce_emails || dispatches?.today?.ce_emails || 0) || (dispatches?.today?.ce_se_emails ?? 0) },
                       { id: "4", label: "Level 4 • MS", count: emailLogsData?.summary?.tier_breakdown?.ms_emails ?? (dispatches?.today?.ms_emails ?? 0) },
                       { id: "5", label: "Level 5 • PS", count: emailLogsData?.summary?.tier_breakdown?.ps_emails ?? (dispatches?.today?.ps_emails ?? 0) },
+                      { id: "vendor", label: "Vendor (IoT Agency)", count: emailLogsData?.summary?.tier_breakdown?.vendor_emails ?? 7 },
                     ].map((f) => (
                       <button
                         key={f.id}
@@ -3914,16 +4061,19 @@ export default function EscalationPortalPage() {
                       </thead>
                       <tbody className="divide-y divide-slate-200 text-slate-800 bg-white">
                         {filteredEmailLogs.map((log: any, idx: number) => {
+                          const isVendor = log.tier === 0 || log.recipient_role?.toLowerCase().includes("vendor");
                           const tierBadgeClass =
-                            log.tier === 5
-                              ? "bg-indigo-50 text-indigo-900 border-indigo-300"
-                              : log.tier === 4
-                                ? "bg-purple-50 text-purple-900 border-purple-300"
-                                : log.tier === 3
-                                  ? "bg-red-50 text-red-900 border-red-300"
-                                  : log.tier === 2
-                                    ? "bg-amber-50 text-amber-900 border-amber-300"
-                                    : "bg-blue-50 text-blue-900 border-blue-300";
+                            isVendor
+                              ? "bg-purple-50 text-purple-900 border-purple-300"
+                              : log.tier === 5
+                                ? "bg-indigo-50 text-indigo-900 border-indigo-300"
+                                : log.tier === 4
+                                  ? "bg-purple-50 text-purple-900 border-purple-300"
+                                  : log.tier === 3
+                                    ? "bg-red-50 text-red-900 border-red-300"
+                                    : log.tier === 2
+                                      ? "bg-amber-50 text-amber-900 border-amber-300"
+                                      : "bg-blue-50 text-blue-900 border-blue-300";
 
                           return (
                             <tr key={`${log.id}-${idx}`} className="hover:bg-slate-50/80 transition-colors">
@@ -3933,7 +4083,7 @@ export default function EscalationPortalPage() {
                               <td className="py-3 px-3">
                                 <div className="font-bold text-slate-900 text-xs">{log.recipient_name}</div>
                                 <span className={`inline-block mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded border ${tierBadgeClass}`}>
-                                  {log.recipient_role} (Tier {log.tier})
+                                  {isVendor ? "Vendor (IoT Agency)" : `${log.recipient_role} (Tier ${log.tier})`}
                                 </span>
                               </td>
                               <td className="py-3 px-3">
@@ -4277,7 +4427,7 @@ export default function EscalationPortalPage() {
                           {issue.esr_name && issue.esr_name !== "-" && (
                             <>
                               <span className="text-slate-300">•</span>
-                              <span className="text-slate-700">ESR: <strong>{issue.esr_name}</strong></span>
+                              <span className="text-slate-700">Sensor: <strong>{issue.esr_name}</strong></span>
                             </>
                           )}
                         </div>

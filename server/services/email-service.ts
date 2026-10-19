@@ -679,7 +679,7 @@ export async function sendAutomaticOfflineEmails(): Promise<void> {
   const client = await pool.connect();
 
   try {
-    // Fetch all offline sensors and their single assigned vendor per region
+    // Fetch all offline sensors and their single assigned vendor per region (all offline, not restricted by water supply)
     const query = `
       SELECT 
         c.scheme_id,
@@ -687,6 +687,9 @@ export async function sendAutomaticOfflineEmails(): Promise<void> {
         c.region,
         c.village_name,
         c.esr_name,
+        c.chlorine_connected,
+        c.pressure_connected,
+        c.flow_meter_connected,
         c.chlorine_status,
         c.pressure_status,
         c.flow_meter_status,
@@ -694,16 +697,14 @@ export async function sendAutomaticOfflineEmails(): Promise<void> {
         v.email as vendor_email,
         v.phone as vendor_phone
       FROM communication_status c
-      INNER JOIN scheme_status s ON c.scheme_id = s.scheme_id
-      INNER JOIN (
+      LEFT JOIN (
         SELECT DISTINCT ON (region) region, employee_name, email, phone
         FROM vendor
         ORDER BY region, id
       ) v ON c.region = v.region
-      WHERE (c.chlorine_status = 'Offline' 
-         OR c.pressure_status = 'Offline' 
-         OR c.flow_meter_status = 'Offline')
-        AND s.water_supply = 'Yes'
+      WHERE ((TRIM(c.chlorine_connected) = 'Connected' AND c.chlorine_status = 'Offline')
+         OR (TRIM(c.pressure_connected) = 'Connected' AND c.pressure_status = 'Offline')
+         OR (TRIM(c.flow_meter_connected) = 'Connected' AND c.flow_meter_status = 'Offline'))
       ORDER BY c.region, c.scheme_name;
     `;
     const res = await client.query(query);
@@ -721,19 +722,20 @@ export async function sendAutomaticOfflineEmails(): Promise<void> {
       const email = row.vendor_email;
       if (!email || !email.includes('@')) return;
 
+      const offlineSensorsList: string[] = [];
+      if (String(row.chlorine_connected || '').trim() === 'Connected' && row.chlorine_status === 'Offline') offlineSensorsList.push('Chlorine');
+      if (String(row.pressure_connected || '').trim() === 'Connected' && row.pressure_status === 'Offline') offlineSensorsList.push('Pressure');
+      if (String(row.flow_meter_connected || '').trim() === 'Connected' && row.flow_meter_status === 'Offline') offlineSensorsList.push('Flow Meter');
+      if (offlineSensorsList.length === 0) return;
+
       if (!vendorGroups[email]) {
         vendorGroups[email] = {
-          vendorName: row.vendor_name,
-          region: row.region,
-          phone: row.vendor_phone,
+          vendorName: row.vendor_name || 'IoT Agency Vendor',
+          region: row.region || 'Maharashtra',
+          phone: row.vendor_phone || '',
           sensors: []
         };
       }
-
-      const offlineSensorsList: string[] = [];
-      if (row.chlorine_status === 'Offline') offlineSensorsList.push('Chlorine');
-      if (row.pressure_status === 'Offline') offlineSensorsList.push('Pressure');
-      if (row.flow_meter_status === 'Offline') offlineSensorsList.push('Flow Meter');
 
       vendorGroups[email].sensors.push({
         scheme_id: row.scheme_id,
@@ -744,15 +746,65 @@ export async function sendAutomaticOfflineEmails(): Promise<void> {
       });
     });
 
-    // Send email to each vendor with their consolidated list
+    // Send email to each vendor with their consolidated list and record in consolidated_email_dispatches
     for (const email of Object.keys(vendorGroups)) {
       const { vendorName, region, phone, sensors } = vendorGroups[email];
 
-      console.log(`Sending offline sensors report to vendor ${vendorName} (${email}) for region ${region}...`);
-      await sendOfflineSensorsEmail(email, vendorName, region, sensors);
+      console.log(`Sending offline sensors report to vendor ${vendorName} (${email}) for region ${region} (${sensors.length} sensors)...`);
+      let isSuccess = false;
+      let failureError: string | null = null;
+      try {
+        isSuccess = await sendOfflineSensorsEmail(email, vendorName, region, sensors);
+      } catch (sendErr: any) {
+        failureError = sendErr?.message || String(sendErr);
+      }
+
+      // Record this vendor email dispatch so it is visible in the Escalation Portal Sent Emails Registry
+      try {
+        const distinctSchemeIds = Array.from(new Set(sensors.map((s: any) => s.scheme_id).filter(Boolean)));
+        const distinctSchemeNames = Array.from(new Set(sensors.map((s: any) => s.scheme_name || s.scheme_id).filter(Boolean)));
+        // Vendors strictly receive offline sensor hardware alerts only (not chlorine, pressure, or LPCD potability alerts)
+        const emailSubject = `🚨 Offline Sensors Alert - ${region} Region - JJM SWSM Maharashtra`;
+
+        await client.query(`
+          INSERT INTO consolidated_email_dispatches (
+            dispatch_date, sent_time, engineer_name, engineer_email, engineer_role,
+            engineer_mobile, total_schemes, scheme_ids, scheme_names, total_alerts,
+            lpcd_alerts_count, chlorine_alerts_count, pressure_alerts_count, offline_alerts_count,
+            subject, status, error_message
+          ) VALUES (
+            (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date,
+            TO_CHAR(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata', 'HH24:MI:SS'),
+            $1, $2, $3,
+            $4, $5, $6::jsonb, $7::jsonb, $8,
+            0, 0, 0, $9,
+            $10, $11, $12
+          )
+        `, [
+          vendorName,
+          email,
+          'Vendor (IoT Agency)',
+          phone || null,
+          distinctSchemeIds.length || 1,
+          JSON.stringify(distinctSchemeIds),
+          JSON.stringify(distinctSchemeNames),
+          sensors.length,
+          sensors.length,
+          emailSubject,
+          isSuccess ? 'SENT' : 'FAILED',
+          failureError
+        ]);
+        console.log(`✅ Recorded vendor email dispatch for ${vendorName} (${email}) in consolidated_email_dispatches.`);
+      } catch (logErr) {
+        console.error("⚠️ Error logging vendor email to consolidated_email_dispatches:", logErr);
+      }
 
       if (phone && phone.length >= 10) {
-        await sendOfflineSensorsSMS(phone, vendorName, region, sensors.length);
+        try {
+          await sendOfflineSensorsSMS(phone, vendorName, region, sensors.length);
+        } catch (smsErr) {
+          console.error(`⚠️ Error sending SMS to vendor ${vendorName}:`, smsErr);
+        }
       }
     }
 

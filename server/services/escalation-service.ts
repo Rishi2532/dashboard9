@@ -38,6 +38,9 @@ export interface SchemeEscalationItem {
   chief_engineer_name?: string;
   chief_engineer_email?: string;
   chief_engineer_mobile?: string;
+  vendor_name?: string;
+  vendor_email?: string;
+  vendor_phone?: string;
   ms_name?: string;
   ms_email?: string;
   ms_mobile?: string;
@@ -163,7 +166,22 @@ export async function getEscalationStatus(options: {
     }
   });
 
+  // Query regional vendors
+  const vendorRowsRes = await db.execute(sql`
+    SELECT DISTINCT ON (region) region, employee_name, email, phone
+    FROM vendor
+    ORDER BY region, id
+  `);
+  const vendorMap = new Map<string, any>();
+  (vendorRowsRes.rows || []).forEach((v: any) => {
+    if (v.region) {
+      vendorMap.set(String(v.region).trim().toLowerCase(), v);
+    }
+  });
+
   // 2. Query persistent alert records from email_alert_logs
+  // Note: Offline alerts are included for all schemes (not restricted by water supply),
+  // while LPCD, Chlorine, and Pressure are restricted to water_supply = 'Yes'.
   const alertsQuery = sql`
     SELECT 
       e.scheme_id,
@@ -175,14 +193,17 @@ export async function getEscalationStatus(options: {
       COUNT(DISTINCT e.sent_date) as active_days_count,
       ARRAY_AGG(DISTINCT (e.sent_date::date)::text ORDER BY (e.sent_date::date)::text DESC) as dates_seen,
       BOOL_OR(e.sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date OR e.sent_date = CURRENT_DATE) as is_today_alert,
-      MAX(e.alert_value) as latest_val
+      COALESCE(
+        MAX(CASE WHEN (e.sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date OR e.sent_date = CURRENT_DATE) THEN e.alert_value END),
+        (ARRAY_AGG(e.alert_value ORDER BY e.sent_date DESC, e.created_at DESC))[1]
+      ) as latest_val
     FROM email_alert_logs e
     LEFT JOIN scheme_status s ON s.scheme_id = e.scheme_id
     WHERE e.sent_date >= CURRENT_DATE - (${daysLookback} * INTERVAL '1 day')
       AND e.scheme_id IS NOT NULL
       AND (e.ticket_id NOT LIKE 'TKT-RT-%' OR e.ticket_id IS NULL)
       AND (e.dispatch_type = 'daily' OR e.dispatch_type IS NULL)
-      AND (s.water_supply = 'Yes' OR s.water_supply IS NULL)
+      AND (e.alert_type ILIKE '%offline%' OR s.water_supply = 'Yes' OR s.water_supply IS NULL)
       ${options.region && options.region !== 'All' ? sql`AND (TRIM(REPLACE(e.region, chr(65279), '')) = ${options.region} OR e.region = ${options.region})` : sql``}
     GROUP BY e.scheme_id, e.scheme_name, e.region, e.village_name, e.esr_name, e.alert_type
     HAVING COUNT(DISTINCT e.sent_date) >= 1
@@ -257,6 +278,17 @@ export async function getEscalationStatus(options: {
       if (datesSeen.includes(dStr)) {
         consecutivePastDays++;
       } else {
+        // Bridge Sunday if daily alerts did not run on Sunday
+        // (d.getDay() === 0 in IST means Sunday; if previous day Saturday was in breach, bridge Sunday)
+        if (d.getDay() === 0) {
+          const satDate = new Date(d);
+          satDate.setDate(satDate.getDate() - 1);
+          const satStr = formatIST(satDate);
+          if (datesSeen.includes(satStr)) {
+            consecutivePastDays++;
+            continue;
+          }
+        }
         break;
       }
     }
@@ -301,6 +333,9 @@ export async function getEscalationStatus(options: {
         chief_engineer_name: eng?.chief_engineer_name || undefined,
         chief_engineer_email: eng?.chief_engineer_email || undefined,
         chief_engineer_mobile: eng?.chief_engineer_mobile || undefined,
+        vendor_name: vendorMap.get(String(engRegion || region || '').toLowerCase().trim())?.employee_name || undefined,
+        vendor_email: vendorMap.get(String(engRegion || region || '').toLowerCase().trim())?.email || undefined,
+        vendor_phone: vendorMap.get(String(engRegion || region || '').toLowerCase().trim())?.phone || undefined,
         ee_escalated: false,
         ce_escalated: false,
         ms_escalated: false,
@@ -325,11 +360,8 @@ export async function getEscalationStatus(options: {
       }
 
       if (alertType.includes('lpcd')) {
-        const villageKey = village.trim().toLowerCase();
-        if (!item.lpcd_villages.some(v => v.village_name.trim().toLowerCase() === villageKey)) {
-          item.lpcd_villages_count++;
-          item.lpcd_villages.push({ village_name: village, days_count: days, avg_val: val });
-        }
+        item.lpcd_villages_count++;
+        item.lpcd_villages.push({ village_name: village, days_count: days, avg_val: val });
       } else if (alertType.includes('high chlorine') || alertType.includes('chlorine high')) {
         const esrKey = `${village.trim().toLowerCase()}__${esr.trim().toLowerCase()}`;
         if (!item.chlorine_high_esrs.some(e => `${e.village_name.trim().toLowerCase()}__${e.esr_name.trim().toLowerCase()}` === esrKey)) {
@@ -566,6 +598,7 @@ export async function getEscalationStatus(options: {
             WHEN engineer_role ILIKE '%chief%' THEN 'ce'
             WHEN engineer_role ILIKE '%superintending%' THEN 'se'
             WHEN engineer_role ILIKE '%executive%' OR engineer_role ILIKE '%ee%' THEN 'ee'
+            WHEN engineer_role ILIKE '%vendor%' THEN 'vendor'
             ELSE 'de'
           END as tier
         FROM consolidated_email_dispatches
@@ -692,6 +725,7 @@ export async function getEscalationStatus(options: {
           dispatch_date::text as sent_date,
           'lpcd' as category,
           CASE 
+            WHEN engineer_role ILIKE '%Vendor%' THEN 0
             WHEN engineer_role ILIKE '%Principal%' THEN 5
             WHEN engineer_role ILIKE '%Member%' THEN 4
             WHEN engineer_role ILIKE '%Chief%' OR engineer_role ILIKE '%Superintending%' OR engineer_role ILIKE '%SE%' THEN 3
@@ -706,6 +740,7 @@ export async function getEscalationStatus(options: {
           AND lpcd_alerts_count > 0
         GROUP BY dispatch_date::text, 
           CASE 
+            WHEN engineer_role ILIKE '%Vendor%' THEN 0
             WHEN engineer_role ILIKE '%Principal%' THEN 5
             WHEN engineer_role ILIKE '%Member%' THEN 4
             WHEN engineer_role ILIKE '%Chief%' OR engineer_role ILIKE '%Superintending%' OR engineer_role ILIKE '%SE%' THEN 3
@@ -717,6 +752,7 @@ export async function getEscalationStatus(options: {
           dispatch_date::text as sent_date,
           'chlorine' as category,
           CASE 
+            WHEN engineer_role ILIKE '%Vendor%' THEN 0
             WHEN engineer_role ILIKE '%Principal%' THEN 5
             WHEN engineer_role ILIKE '%Member%' THEN 4
             WHEN engineer_role ILIKE '%Chief%' OR engineer_role ILIKE '%Superintending%' OR engineer_role ILIKE '%SE%' THEN 3
@@ -731,6 +767,7 @@ export async function getEscalationStatus(options: {
           AND chlorine_alerts_count > 0
         GROUP BY dispatch_date::text,
           CASE 
+            WHEN engineer_role ILIKE '%Vendor%' THEN 0
             WHEN engineer_role ILIKE '%Principal%' THEN 5
             WHEN engineer_role ILIKE '%Member%' THEN 4
             WHEN engineer_role ILIKE '%Chief%' OR engineer_role ILIKE '%Superintending%' OR engineer_role ILIKE '%SE%' THEN 3
@@ -742,6 +779,7 @@ export async function getEscalationStatus(options: {
           dispatch_date::text as sent_date,
           'pressure' as category,
           CASE 
+            WHEN engineer_role ILIKE '%Vendor%' THEN 0
             WHEN engineer_role ILIKE '%Principal%' THEN 5
             WHEN engineer_role ILIKE '%Member%' THEN 4
             WHEN engineer_role ILIKE '%Chief%' OR engineer_role ILIKE '%Superintending%' OR engineer_role ILIKE '%SE%' THEN 3
@@ -756,6 +794,7 @@ export async function getEscalationStatus(options: {
           AND pressure_alerts_count > 0
         GROUP BY dispatch_date::text,
           CASE 
+            WHEN engineer_role ILIKE '%Vendor%' THEN 0
             WHEN engineer_role ILIKE '%Principal%' THEN 5
             WHEN engineer_role ILIKE '%Member%' THEN 4
             WHEN engineer_role ILIKE '%Chief%' OR engineer_role ILIKE '%Superintending%' OR engineer_role ILIKE '%SE%' THEN 3
@@ -767,6 +806,7 @@ export async function getEscalationStatus(options: {
           dispatch_date::text as sent_date,
           'offline' as category,
           CASE 
+            WHEN engineer_role ILIKE '%Vendor%' THEN 0
             WHEN engineer_role ILIKE '%Principal%' THEN 5
             WHEN engineer_role ILIKE '%Member%' THEN 4
             WHEN engineer_role ILIKE '%Chief%' OR engineer_role ILIKE '%Superintending%' OR engineer_role ILIKE '%SE%' THEN 3
@@ -781,6 +821,7 @@ export async function getEscalationStatus(options: {
           AND offline_alerts_count > 0
         GROUP BY dispatch_date::text,
           CASE 
+            WHEN engineer_role ILIKE '%Vendor%' THEN 0
             WHEN engineer_role ILIKE '%Principal%' THEN 5
             WHEN engineer_role ILIKE '%Member%' THEN 4
             WHEN engineer_role ILIKE '%Chief%' OR engineer_role ILIKE '%Superintending%' OR engineer_role ILIKE '%SE%' THEN 3
@@ -2323,9 +2364,10 @@ export async function executeEscalationDispatch(options: {
 }
 
 export interface SentAlertItem {
-  id: number;
+  id: number | string;
   channel: 'sms' | 'email';
   created_at: string;
+  sent_date?: string;
   scheme_id: string;
   scheme_name: string;
   recipient_name: string;
@@ -2419,7 +2461,11 @@ export async function getSentEscalationAlerts(options: {
     whereClauses.push(`channel = '${options.channel.toLowerCase()}'`);
   }
   if (options.tier && options.tier !== 'all') {
-    whereClauses.push(`tier = ${parseInt(options.tier, 10)}`);
+    if (options.tier === 'vendor' || options.tier === '0') {
+      whereClauses.push(`(tier = 0 OR recipient_role ILIKE '%Vendor%')`);
+    } else {
+      whereClauses.push(`tier = ${parseInt(options.tier, 10)}`);
+    }
   }
   if (options.category && options.category !== 'all') {
     if (options.category === 'lpcd') whereClauses.push(`is_lpcd = true`);
@@ -2535,6 +2581,7 @@ export async function getSentEscalationAlerts(options: {
           WHEN ced.engineer_role ILIKE '%Member%' THEN 4
           WHEN ced.engineer_role ILIKE '%Chief%' OR ced.engineer_role ILIKE '%Superintending%' OR ced.engineer_role ILIKE '%SE%' THEN 3
           WHEN ced.engineer_role ILIKE '%Executive%' OR ced.engineer_role ILIKE '%EE%' THEN 2
+          WHEN ced.engineer_role ILIKE '%Vendor%' THEN 0
           ELSE 1
         END AS tier,
         CONCAT('Daily Alert Digest (', ced.total_alerts, ' Issues)') AS alert_title,
@@ -2711,6 +2758,7 @@ export async function getSentEscalationAlerts(options: {
       COUNT(*) FILTER (WHERE tier = 3 AND (channel = 'email' OR status = 'DELIVERED')) AS tier_3_sent,
       COUNT(*) FILTER (WHERE tier = 4 AND (channel = 'email' OR status = 'DELIVERED')) AS tier_4_sent,
       COUNT(*) FILTER (WHERE tier = 5 AND (channel = 'email' OR status = 'DELIVERED')) AS tier_5_sent,
+      COUNT(*) FILTER (WHERE channel = 'email' AND tier = 0) AS vendor_emails,
       COUNT(*) FILTER (WHERE channel = 'email' AND tier = 1) AS de_emails,
       COUNT(*) FILTER (WHERE channel = 'email' AND tier = 2) AS ee_emails,
       COUNT(*) FILTER (WHERE channel = 'email' AND tier = 3 AND recipient_role ILIKE '%Superintending%') AS se_emails,
@@ -2762,6 +2810,7 @@ export async function getSentEscalationAlerts(options: {
       today_sent_count: Number(rawSummary.today_sent_count || 0),
       last_dispatched_at: rawSummary.last_dispatched_at || null,
       tier_breakdown: {
+        vendor_emails: Number(rawSummary.vendor_emails || 0),
         de_emails: Number(rawSummary.de_emails || 0),
         ee_emails: Number(rawSummary.ee_emails || 0),
         se_emails: Number(rawSummary.se_emails || 0),
@@ -2783,9 +2832,10 @@ export async function getSentEscalationAlerts(options: {
       },
     },
     alerts: (rowsRes.rows || []).map((r: any) => ({
-      id: Number(r.id),
+      id: isNaN(Number(r.id)) ? String(r.id) : Number(r.id),
       channel: r.channel,
       created_at: r.created_at,
+      sent_date: r.sent_date ? (r.sent_date instanceof Date ? r.sent_date.toISOString().split('T')[0] : String(r.sent_date).split('T')[0]) : undefined,
       scheme_id: String(r.scheme_id),
       scheme_name: String(r.scheme_name),
       recipient_name: String(r.recipient_name),

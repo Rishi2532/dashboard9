@@ -3085,7 +3085,7 @@ router.get("/overall-region-comparison/details/:category", async (req, res) => {
 router.get("/overall-region-comparison/export/:category", async (req, res) => {
   try {
     const { category } = req.params;
-    let { region, dates, fullyCompleted, filterType, agencyType } = req.query; // Add filterType
+    let { region, dates, fullyCompleted, filterType, agencyType, villageFilter } = req.query; // Add filterType
 
     // Sanitize region if it equals "All Regions"
     if (region === 'All Regions') {
