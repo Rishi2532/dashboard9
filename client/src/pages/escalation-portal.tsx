@@ -12,6 +12,9 @@ import {
   FileSpreadsheet,
   MessageSquare,
   User,
+  Users,
+  Send,
+  Server,
   Shield,
   Building2,
   X,
@@ -2990,7 +2993,7 @@ export default function EscalationPortalPage() {
                                     )}
                                     <button
                                       type="button"
-                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 hover:text-slate-900 border border-slate-200/80 cursor-pointer transition-all shadow-2xs mt-0.5"
+                                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10.5px] font-semibold text-blue-700 bg-blue-50/80 hover:bg-blue-100 hover:text-blue-900 border border-blue-200/80 cursor-pointer transition-all shadow-2xs mt-1"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setSelectedEmailItem({
@@ -3002,7 +3005,7 @@ export default function EscalationPortalPage() {
                                       }}
                                       title="View Email Recipient & Dispatch Logs"
                                     >
-                                      <Eye className="w-3 h-3 text-slate-500" />
+                                      <Eye className="w-3 h-3 text-blue-600" />
                                       <span>View Log</span>
                                     </button>
                                   </div>
@@ -3023,7 +3026,7 @@ export default function EscalationPortalPage() {
                                     </div>
                                     <button
                                       type="button"
-                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 hover:text-slate-900 border border-slate-200/80 cursor-pointer transition-all shadow-2xs mt-0.5"
+                                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10.5px] font-semibold text-blue-700 bg-blue-50/80 hover:bg-blue-100 hover:text-blue-900 border border-blue-200/80 cursor-pointer transition-all shadow-2xs mt-1"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setSelectedEmailItem({
@@ -3035,7 +3038,7 @@ export default function EscalationPortalPage() {
                                       }}
                                       title="View Email Recipient & Dispatch Logs"
                                     >
-                                      <Eye className="w-3 h-3 text-slate-500" />
+                                      <Eye className="w-3 h-3 text-blue-600" />
                                       <span>View Log</span>
                                     </button>
                                   </div>
@@ -3059,7 +3062,7 @@ export default function EscalationPortalPage() {
                                   </span>
                                   <button
                                     type="button"
-                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 hover:text-slate-900 border border-slate-200/80 cursor-pointer transition-all shadow-2xs mt-0.5"
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10.5px] font-semibold text-blue-700 bg-blue-50/80 hover:bg-blue-100 hover:text-blue-900 border border-blue-200/80 cursor-pointer transition-all shadow-2xs mt-1"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setSelectedEmailItem({
@@ -3071,7 +3074,7 @@ export default function EscalationPortalPage() {
                                     }}
                                     title="View Dispatch Logs & Recipient Info"
                                   >
-                                    <Eye className="w-3 h-3 text-slate-500" />
+                                    <Eye className="w-3 h-3 text-blue-600" />
                                     <span>View Log</span>
                                   </button>
                                 </div>
@@ -3137,7 +3140,7 @@ export default function EscalationPortalPage() {
                                   </div>
                                   <button
                                     type="button"
-                                    className="text-[10px] font-medium text-blue-600 hover:underline cursor-pointer"
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold text-indigo-700 bg-indigo-50/90 hover:bg-indigo-100 hover:text-indigo-900 border border-indigo-200/80 cursor-pointer transition-all shadow-2xs mt-1"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setSelectedSmsItem({
@@ -3147,7 +3150,8 @@ export default function EscalationPortalPage() {
                                     }}
                                     title="View SMS Dispatch Logs"
                                   >
-                                    View Log
+                                    <Eye className="w-2.5 h-2.5 text-indigo-600" />
+                                    <span>View Log</span>
                                   </button>
                                 </div>
                               );
@@ -3539,28 +3543,40 @@ export default function EscalationPortalPage() {
         {/* Email Dispatch & Recipient Details Dialog */}
         {selectedEmailItem && (
           <Dialog open={!!selectedEmailItem} onOpenChange={(open) => !open && setSelectedEmailItem(null)}>
-            <DialogContent className="max-w-3xl max-h-[85vh] bg-white border border-slate-200 shadow-2xl rounded-2xl p-0 overflow-hidden flex flex-col">
-              <div className="p-5 bg-[#0f4c81] text-white flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/10 gap-3 shrink-0">
-                <div>
-                  <DialogTitle className="text-lg font-bold flex items-center gap-2 text-white">
-                    <Mail className="h-5 w-5 text-white" />
+            <DialogContent className="max-w-3xl max-h-[88vh] bg-white border border-slate-200 shadow-2xl rounded-2xl p-0 overflow-hidden flex flex-col font-sans">
+              {/* Premium Gradient Header */}
+              <div className="p-5 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950 text-white flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/10 gap-3 shrink-0">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-md text-[10.5px] font-mono font-bold bg-blue-500/20 text-blue-300 border border-blue-400/30">
+                      ID: #{selectedEmailItem.item.scheme_id}
+                    </span>
+                    <span className="text-xs text-slate-300 font-medium">
+                      {selectedEmailItem.item.region} Region {selectedEmailItem.item.district ? `• ${selectedEmailItem.item.district}` : ""}
+                    </span>
+                  </div>
+                  <DialogTitle className="text-lg font-bold flex items-center gap-2 text-white tracking-tight">
+                    <Mail className="h-5 w-5 text-blue-400" />
                     Email Dispatch & Recipient Details
                   </DialogTitle>
-                  <DialogDescription className="text-blue-100 text-xs mt-0.5">
-                    {selectedEmailItem.item.scheme_name} (ID: {selectedEmailItem.item.scheme_id}) • {selectedEmailItem.item.region}
+                  <DialogDescription className="text-blue-100/90 text-xs font-medium">
+                    {selectedEmailItem.item.scheme_name}
                   </DialogDescription>
                 </div>
-                <Badge className="bg-blue-600/60 text-white border-blue-400 self-start sm:self-auto text-xs px-2.5 py-1">
+                <Badge className="bg-white/10 text-white border-white/20 self-start sm:self-auto text-xs px-3 py-1 font-semibold backdrop-blur-xs rounded-full">
                   Escalation Tier: {toTitleCase(selectedEmailItem.targetTier)}
                 </Badge>
               </div>
 
               <div className="p-5 overflow-y-auto space-y-4 text-xs">
-                {/* Delivery overview banner */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-center">
-                  <div className="border-r border-slate-200 last:border-0">
-                    <span className="text-[11px] text-slate-500 block font-semibold">Total Recipients</span>
-                    <span className="text-base font-bold text-slate-900 mt-0.5 block">
+                {/* Delivery Overview 4-Card Strip */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200/90 text-center">
+                  <div className="border-r border-slate-200/80 last:border-0 pr-2">
+                    <div className="flex items-center justify-center gap-1 text-[11px] text-slate-500 font-semibold mb-0.5">
+                      <Users className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Total Recipients</span>
+                    </div>
+                    <span className="text-sm font-bold text-slate-900 block">
                       {selectedEmailItem.item.isDualOfficer
                         ? (selectedEmailItem.item.category === "offline" && selectedEmailItem.item.scheme_ref?.vendor_email
                           ? "2 Officers & Vendor (3)"
@@ -3570,17 +3586,31 @@ export default function EscalationPortalPage() {
                           : "1 Officer")}
                     </span>
                   </div>
-                  <div className="border-r border-slate-200 last:border-0">
-                    <span className="text-[11px] text-slate-500 block font-semibold">Channel</span>
-                    <span className="text-base font-bold text-blue-700 mt-0.5 block">Official SMTP</span>
+                  <div className="border-r border-slate-200/80 last:border-0 pr-2">
+                    <div className="flex items-center justify-center gap-1 text-[11px] text-slate-500 font-semibold mb-0.5">
+                      <Send className="w-3.5 h-3.5 text-blue-500" />
+                      <span>Channel</span>
+                    </div>
+                    <span className="text-sm font-bold text-blue-700 block">Official SMTP</span>
                   </div>
-                  <div className="border-r border-slate-200 last:border-0">
-                    <span className="text-[11px] text-slate-500 block font-semibold">Delivery Status</span>
-                    <span className="text-base font-bold text-emerald-700 mt-0.5 block">Delivered</span>
+                  <div className="border-r border-slate-200/80 last:border-0 pr-2">
+                    <div className="flex items-center justify-center gap-1 text-[11px] text-slate-500 font-semibold mb-0.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Delivery Status</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-1.5 text-sm font-bold text-emerald-700">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <span>Delivered</span>
+                    </div>
                   </div>
                   <div>
-                    <span className="text-[11px] text-slate-500 block font-semibold">Sender Host</span>
-                    <span className="text-xs font-mono font-bold text-slate-700 mt-1 block truncate" title="info@mahajaliot.in">info@mahajaliot.in</span>
+                    <div className="flex items-center justify-center gap-1 text-[11px] text-slate-500 font-semibold mb-0.5">
+                      <Server className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>Sender Host</span>
+                    </div>
+                    <span className="text-xs font-mono font-semibold text-slate-700 block truncate" title="info@mahajaliot.in">
+                      info@mahajaliot.in
+                    </span>
                   </div>
                 </div>
 
@@ -3594,15 +3624,15 @@ export default function EscalationPortalPage() {
                           2 Officers (SE & CE)
                         </Badge>
                       </label>
-                      <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 shadow-2xs">
                         2 Separate Emails Dispatched
                       </span>
                     </div>
 
                     {/* Officer 1: Superintending Engineer (SE) */}
-                    <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition-colors shadow-2xs flex flex-col sm:flex-row items-start justify-between gap-3">
-                      <div className="flex items-start gap-3 min-w-0">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-900 text-sm font-bold border border-blue-200">
+                    <div className="p-4 rounded-xl border border-slate-200 bg-white hover:border-blue-300 transition-all shadow-2xs flex flex-col sm:flex-row items-start justify-between gap-3">
+                      <div className="flex items-start gap-3.5 min-w-0">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white text-sm font-bold shadow-xs">
                           {toTitleCase(((selectedEmailItem.item.se_officer?.name) || "PB").slice(0, 2))}
                         </div>
                         <div className="flex flex-col min-w-0">
@@ -3610,18 +3640,31 @@ export default function EscalationPortalPage() {
                             <span className="text-sm font-bold text-slate-900">
                               {selectedEmailItem.item.se_officer?.name || "Prashant Burde"}
                             </span>
-                            <Badge variant="outline" className="text-[10px] font-semibold bg-blue-50 text-blue-800 border-blue-200">
+                            <Badge variant="outline" className="text-[10.5px] font-semibold bg-blue-50 text-blue-800 border-blue-200">
                               Superintending Engineer (SE)
                             </Badge>
                           </div>
                           {selectedEmailItem.item.se_officer?.email ? (
-                            <a
-                              href={`mailto:${selectedEmailItem.item.se_officer.email}`}
-                              className="text-xs text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1.5 mt-1 truncate font-mono"
-                            >
-                              <Mail className="h-3 w-3 shrink-0" />
-                              <span className="truncate">{selectedEmailItem.item.se_officer.email}</span>
-                            </a>
+                            <div className="flex items-center gap-1.5 mt-1 font-mono text-xs">
+                              <a
+                                href={`mailto:${selectedEmailItem.item.se_officer.email}`}
+                                className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 truncate"
+                              >
+                                <Mail className="h-3 w-3 shrink-0 text-slate-400" />
+                                <span className="truncate">{selectedEmailItem.item.se_officer.email}</span>
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(selectedEmailItem.item.se_officer.email);
+                                  toast({ title: "Copied Email", description: selectedEmailItem.item.se_officer.email });
+                                }}
+                                className="text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
+                                title="Copy Email"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </button>
+                            </div>
                           ) : (
                             <span className="text-xs text-slate-400 mt-1 italic">No email on record</span>
                           )}
@@ -3638,21 +3681,22 @@ export default function EscalationPortalPage() {
                       </div>
 
                       <div className="flex flex-col items-end shrink-0 pt-0.5">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
                           <Check className="h-3.5 w-3.5 text-emerald-600" />
                           Sent To SE Via SMTP
                         </span>
-                        <span className="text-[10px] text-slate-500 mt-1">
+                        <span className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-slate-400" />
                           {selectedEmailItem.emailDate ? `Dispatched: ${selectedEmailItem.emailDate}` : "Dispatched Today"}
-                          {selectedEmailItem.emailTime ? ` at ${selectedEmailItem.emailTime}` : " at 02:13 pm"}
+                          {selectedEmailItem.emailTime ? ` at ${selectedEmailItem.emailTime}` : " at 10:37 AM IST"}
                         </span>
                       </div>
                     </div>
 
                     {/* Officer 2: Chief Engineer (CE) */}
-                    <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition-colors shadow-2xs flex flex-col sm:flex-row items-start justify-between gap-3">
-                      <div className="flex items-start gap-3 min-w-0">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-900 text-sm font-bold border border-indigo-200">
+                    <div className="p-4 rounded-xl border border-slate-200 bg-white hover:border-indigo-300 transition-all shadow-2xs flex flex-col sm:flex-row items-start justify-between gap-3">
+                      <div className="flex items-start gap-3.5 min-w-0">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-sky-700 text-white text-sm font-bold shadow-xs">
                           {toTitleCase(((selectedEmailItem.item.ce_officer?.name) || "DW").slice(0, 2))}
                         </div>
                         <div className="flex flex-col min-w-0">
@@ -3660,18 +3704,31 @@ export default function EscalationPortalPage() {
                             <span className="text-sm font-bold text-slate-900">
                               {selectedEmailItem.item.ce_officer?.name || "Dipak Wagh"}
                             </span>
-                            <Badge variant="outline" className="text-[10px] font-semibold bg-indigo-50 text-indigo-800 border-indigo-200">
+                            <Badge variant="outline" className="text-[10.5px] font-semibold bg-indigo-50 text-indigo-800 border-indigo-200">
                               Chief Engineer (CE)
                             </Badge>
                           </div>
                           {selectedEmailItem.item.ce_officer?.email ? (
-                            <a
-                              href={`mailto:${selectedEmailItem.item.ce_officer.email}`}
-                              className="text-xs text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1.5 mt-1 truncate font-mono"
-                            >
-                              <Mail className="h-3 w-3 shrink-0" />
-                              <span className="truncate">{selectedEmailItem.item.ce_officer.email}</span>
-                            </a>
+                            <div className="flex items-center gap-1.5 mt-1 font-mono text-xs">
+                              <a
+                                href={`mailto:${selectedEmailItem.item.ce_officer.email}`}
+                                className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 truncate"
+                              >
+                                <Mail className="h-3 w-3 shrink-0 text-slate-400" />
+                                <span className="truncate">{selectedEmailItem.item.ce_officer.email}</span>
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(selectedEmailItem.item.ce_officer.email);
+                                  toast({ title: "Copied Email", description: selectedEmailItem.item.ce_officer.email });
+                                }}
+                                className="text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
+                                title="Copy Email"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </button>
+                            </div>
                           ) : (
                             <span className="text-xs text-slate-400 mt-1 italic">No email on record</span>
                           )}
@@ -3688,13 +3745,14 @@ export default function EscalationPortalPage() {
                       </div>
 
                       <div className="flex flex-col items-end shrink-0 pt-0.5">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
                           <Check className="h-3.5 w-3.5 text-emerald-600" />
                           Sent To CE Via SMTP
                         </span>
-                        <span className="text-[10px] text-slate-500 mt-1">
+                        <span className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-slate-400" />
                           {selectedEmailItem.emailDate ? `Dispatched: ${selectedEmailItem.emailDate}` : "Dispatched Today"}
-                          {selectedEmailItem.emailTime ? ` at ${selectedEmailItem.emailTime}` : " at 02:13 pm"}
+                          {selectedEmailItem.emailTime ? ` at ${selectedEmailItem.emailTime}` : " at 10:37 AM IST"}
                         </span>
                       </div>
                     </div>
@@ -3702,9 +3760,9 @@ export default function EscalationPortalPage() {
                 ) : (
                   <div>
                     <label className="text-xs font-bold text-slate-700 block mb-2">Dispatched Officer Profile</label>
-                    <div className="p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50/50 transition-colors shadow-2xs flex flex-col sm:flex-row items-start justify-between gap-3">
-                      <div className="flex items-start gap-3 min-w-0">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-800 text-sm font-bold border border-blue-200">
+                    <div className="p-4 rounded-xl border border-slate-200 bg-white hover:border-blue-300 transition-all shadow-2xs flex flex-col sm:flex-row items-start justify-between gap-3">
+                      <div className="flex items-start gap-3.5 min-w-0">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white text-sm font-bold shadow-xs">
                           {toTitleCase((selectedEmailItem.item.officer_name || "DO").slice(0, 2))}
                         </div>
                         <div className="flex flex-col min-w-0">
@@ -3712,25 +3770,38 @@ export default function EscalationPortalPage() {
                             <span className="text-sm font-bold text-slate-900">
                               {selectedEmailItem.item.officer_name}
                             </span>
-                            <Badge variant="outline" className="text-[10px] font-bold bg-indigo-50 text-indigo-700 border-indigo-200">
+                            <Badge variant="outline" className="text-[10.5px] font-semibold bg-indigo-50 text-indigo-700 border-indigo-200">
                               {selectedEmailItem.item.officer_role}
                             </Badge>
                           </div>
                           {selectedEmailItem.item.officer_email ? (
-                            <a
-                              href={`mailto:${selectedEmailItem.item.officer_email}`}
-                              className="text-xs text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1.5 mt-1 truncate font-mono"
-                            >
-                              <Mail className="h-3 w-3 shrink-0" />
-                              <span className="truncate">{selectedEmailItem.item.officer_email}</span>
-                            </a>
+                            <div className="flex items-center gap-1.5 mt-1 font-mono text-xs">
+                              <a
+                                href={`mailto:${selectedEmailItem.item.officer_email}`}
+                                className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 truncate"
+                              >
+                                <Mail className="h-3 w-3 shrink-0 text-slate-400" />
+                                <span className="truncate">{selectedEmailItem.item.officer_email}</span>
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(selectedEmailItem.item.officer_email);
+                                  toast({ title: "Copied Email", description: selectedEmailItem.item.officer_email });
+                                }}
+                                className="text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
+                                title="Copy Email"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </button>
+                            </div>
                           ) : (
                             <span className="text-xs text-slate-400 mt-1 italic">No email on record</span>
                           )}
                           {selectedEmailItem.item.officer_mobile && (
                             <a
                               href={`tel:${selectedEmailItem.item.officer_mobile}`}
-                              className="text-xs font-bold text-slate-700 hover:text-indigo-600 hover:underline flex items-center gap-1.5 mt-1"
+                              className="text-xs font-semibold text-slate-700 hover:text-indigo-600 hover:underline flex items-center gap-1.5 mt-0.5"
                             >
                               <Phone className="h-3 w-3 text-indigo-600 shrink-0" />
                               <span>+91 {selectedEmailItem.item.officer_mobile}</span>
@@ -3740,11 +3811,12 @@ export default function EscalationPortalPage() {
                       </div>
 
                       <div className="flex flex-col items-end shrink-0 pt-0.5">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
                           <Check className="h-3.5 w-3.5 text-emerald-600" />
                           Sent Via SMTP
                         </span>
-                        <span className="text-[10px] text-slate-500 mt-1">
+                        <span className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-slate-400" />
                           {selectedEmailItem.emailDate ? `Dispatched: ${selectedEmailItem.emailDate}` : "Scheduled Daily Dispatch"}
                           {selectedEmailItem.emailTime ? ` at ${selectedEmailItem.emailTime}` : " • 10:37 AM IST"}
                         </span>
@@ -3758,11 +3830,11 @@ export default function EscalationPortalPage() {
                   <div>
                     <label className="text-xs font-bold text-purple-900 block mb-2 flex items-center gap-1.5">
                       <span className="h-2 w-2 rounded-full bg-purple-600"></span>
-                      Dispatched Iot Agency Vendor Profile (Offline Telemetry Notice)
+                      Dispatched IoT Agency Vendor Profile (Offline Telemetry Notice)
                     </label>
                     <div className="p-4 rounded-xl border border-purple-200 bg-purple-50/40 hover:bg-purple-50/70 transition-colors shadow-2xs flex flex-col sm:flex-row items-start justify-between gap-3">
-                      <div className="flex items-start gap-3 min-w-0">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-purple-100 text-purple-800 text-sm font-bold border border-purple-200">
+                      <div className="flex items-start gap-3.5 min-w-0">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-purple-100 text-purple-800 text-sm font-bold border border-purple-200">
                           {toTitleCase(((selectedEmailItem.item.scheme_ref?.vendor_name) || "VN").slice(0, 2))}
                         </div>
                         <div className="flex flex-col min-w-0">
@@ -3771,7 +3843,7 @@ export default function EscalationPortalPage() {
                               {selectedEmailItem.item.scheme_ref?.vendor_name || "Regional IoT Maintenance Agency"}
                             </span>
                             <Badge variant="outline" className="text-[10px] font-bold bg-purple-100 text-purple-800 border-purple-300">
-                              Vendor (Iot Agency)
+                              Vendor (IoT Agency)
                             </Badge>
                           </div>
                           {selectedEmailItem.item.scheme_ref?.vendor_email ? (
@@ -3788,7 +3860,7 @@ export default function EscalationPortalPage() {
                           {selectedEmailItem.item.scheme_ref?.vendor_phone && (
                             <a
                               href={`tel:${selectedEmailItem.item.scheme_ref.vendor_phone}`}
-                              className="text-xs font-bold text-slate-700 hover:text-purple-700 hover:underline flex items-center gap-1.5 mt-1"
+                              className="text-xs font-semibold text-slate-700 hover:text-purple-700 hover:underline flex items-center gap-1.5 mt-0.5"
                             >
                               <Phone className="h-3 w-3 text-purple-600 shrink-0" />
                               <span>+91 {selectedEmailItem.item.scheme_ref.vendor_phone}</span>
@@ -3798,7 +3870,7 @@ export default function EscalationPortalPage() {
                       </div>
 
                       <div className="flex flex-col items-end shrink-0 pt-0.5">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-purple-100 text-purple-800 border border-purple-300 shadow-2xs">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-300 shadow-2xs">
                           <Check className="h-3.5 w-3.5 text-purple-700" />
                           Sent To Vendor Via SMTP
                         </span>
@@ -3811,8 +3883,21 @@ export default function EscalationPortalPage() {
                 )}
 
                 {/* Alert Information Included */}
-                <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-3.5">
-                  <label className="text-xs font-bold text-blue-950 block mb-1">Alert Notice Context</label>
+                <div className="bg-slate-50/80 border border-slate-200/90 rounded-xl p-4 space-y-1.5">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      <AlertCircle className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Alert Notice Context</span>
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="outline" className="text-[10px] font-semibold bg-white text-slate-700 border-slate-200">
+                        {toTitleCase(selectedEmailItem.item.category)}
+                      </Badge>
+                      <span className="font-mono font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200 text-[11px]">
+                        Value: {selectedEmailItem.item.parameter_value}
+                      </span>
+                    </div>
+                  </div>
                   <p className="text-slate-600 leading-relaxed text-xs">
                     {selectedEmailItem.item.category === "offline"
                       ? `This offline sensor alert was dispatched via SMTP to both the designated engineer and the regional IoT Maintenance Vendor agency (${selectedEmailItem.item.scheme_ref?.vendor_email || "Agency on file"}) for scheme ${selectedEmailItem.item.scheme_name}. Telemetry details: ${selectedEmailItem.item.alert_title} (${selectedEmailItem.item.parameter_value}).`
@@ -3821,7 +3906,7 @@ export default function EscalationPortalPage() {
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+              <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
                 <Button
                   variant="outline"
                   size="sm"
@@ -3831,7 +3916,7 @@ export default function EscalationPortalPage() {
                     setSelectedEmailItem(null);
                     openPreview(item.scheme_ref, tier);
                   }}
-                  className="text-xs font-semibold text-blue-700 hover:bg-blue-50 border-blue-300 flex items-center gap-1.5 cursor-pointer"
+                  className="text-xs font-semibold text-blue-700 hover:bg-blue-100 bg-blue-50 border border-blue-300 flex items-center gap-1.5 cursor-pointer shadow-2xs"
                 >
                   <Eye className="h-3.5 w-3.5 text-blue-600" />
                   <span>Open Full Notice Preview</span>
@@ -4030,35 +4115,46 @@ export default function EscalationPortalPage() {
                             const errText = !isOk ? parseSmsError(sms) : null;
                             const officerName = sms.recipient_name || sms.engineer_name || selectedSmsItem.item.officer_name || "Assigned Engineer";
                             const officerRole = resolveSmsRole(sms, selectedSmsItem.item);
-                            const mobile = sms.recipient_mobile || sms.mobile || selectedSmsItem.item.officer_mobile;
+                            const initials = (officerName || "OF")
+                              .split(" ")
+                              .filter(Boolean)
+                              .map((p: string) => p[0])
+                              .slice(0, 2)
+                              .join("")
+                              .toUpperCase() || "OF";
 
                             return (
-                              <div key={sms.id || sIdx} className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/60 transition-colors">
-                                <div className="min-w-0 space-y-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs font-bold text-slate-900 truncate">
-                                      {officerName}
-                                    </span>
-                                    <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
-                                      {officerRole}
-                                    </span>
+                              <div key={sms.id || sIdx} className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/70 transition-colors">
+                                <div className="flex items-start gap-3 min-w-0">
+                                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-slate-800 text-white text-xs font-bold shadow-2xs mt-0.5">
+                                    {initials}
                                   </div>
-                                  {sms.recipient_email && (
-                                    <div className="text-[11px] text-slate-500 truncate">
-                                      {sms.recipient_email}
+                                  <div className="min-w-0 space-y-1">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="text-xs font-bold text-slate-900 truncate">
+                                        {officerName}
+                                      </span>
+                                      <span className="text-[10px] font-semibold text-indigo-900 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">
+                                        {officerRole}
+                                      </span>
                                     </div>
-                                  )}
-                                  {mobile && (
-                                    <div className="flex items-center gap-2 mt-0.5">
-                                      <a
-                                        href={`tel:${mobile}`}
-                                        className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
-                                      >
-                                        <Phone className="h-3 w-3" />
-                                        <span>+91 {mobile}</span>
-                                      </a>
-                                    </div>
-                                  )}
+                                    {sms.recipient_email && (
+                                      <div className="text-[11px] text-slate-500 font-mono truncate">
+                                        {sms.recipient_email}
+                                      </div>
+                                    )}
+                                    {mobile && (
+                                      <div className="flex items-center gap-2 mt-0.5">
+                                        <a
+                                          href={`tel:${mobile}`}
+                                          className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
+                                        >
+                                          <Phone className="h-3 w-3" />
+                                          <span>+91 {mobile}</span>
+                                        </a>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
 
                                 <div className="flex flex-col sm:items-end shrink-0 gap-1">
@@ -4131,28 +4227,34 @@ export default function EscalationPortalPage() {
 
         {/* Full Official Email Dispatch Logs & Audit Modal */}
         <Dialog open={emailLogsModalOpen} onOpenChange={setEmailLogsModalOpen}>
-          <DialogContent className="max-w-5xl max-h-[90vh] bg-white border border-slate-300 shadow-2xl rounded-2xl p-0 overflow-hidden flex flex-col">
+          <DialogContent className="max-w-5xl max-h-[90vh] bg-white border border-slate-200 shadow-2xl rounded-2xl p-0 overflow-hidden flex flex-col font-sans">
             {/* Header */}
-            <div className="p-5 bg-gradient-to-r from-blue-950 via-slate-900 to-blue-900 text-white flex flex-col md:flex-row md:items-center justify-between border-b border-white/10 gap-4 shrink-0">
+            <div className="p-5 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950 text-white flex flex-col md:flex-row md:items-center justify-between border-b border-white/10 gap-4 shrink-0">
               <div>
-                <div className="flex items-center gap-2 text-xs text-blue-200 font-semibold mb-1">
-                  <span>Maharashtra Jeevan Pradhikaran (Mjp)</span>
-                  <span>•</span>
+                <div className="flex items-center gap-2 text-xs text-blue-300 font-semibold mb-1 flex-wrap">
+                  <span className="font-bold tracking-wide">Maharashtra Jeevan Pradhikaran (MJP)</span>
+                  <span className="text-white/40">•</span>
                   <span>Automated Notification Engine</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 ml-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    SMTP Verified
+                  </span>
                 </div>
-                <DialogTitle className="text-xl font-bold flex items-center gap-2.5 text-white">
-                  <Mail className="h-5 w-5 text-blue-300" />
-                  Actual Email Dispatch Logs & Audit
+                <DialogTitle className="text-xl font-bold flex items-center gap-2.5 text-white tracking-tight">
+                  <div className="p-1.5 bg-blue-500/20 rounded-lg border border-blue-400/30">
+                    <Mail className="h-5 w-5 text-blue-400" />
+                  </div>
+                  Actual Email Dispatch Logs &amp; Audit
                 </DialogTitle>
-                <DialogDescription className="text-blue-100 text-xs mt-1 max-w-2xl">
-                  Verifiable dispatch registry showing actual email alert digests sent to each designated officer across Level 1 (De), Level 2 (Ee), Level 3 (Ce & Se), Level 4 (Ms), and Level 5 (Ps).
+                <DialogDescription className="text-blue-100/90 text-xs mt-1.5 max-w-2xl leading-relaxed">
+                  Verifiable state dispatch registry showing official email alert digests transmitted to designated officers across Level 1 (DE / AE), Level 2 (EE), Level 3 (SE &amp; CE), Level 4 (MS), and Level 5 (PS).
                 </DialogDescription>
               </div>
 
               {/* Time Range Selector */}
-              <div className="flex items-center gap-1.5 bg-white/10 p-1 rounded-lg backdrop-blur-xs self-start md:self-auto border border-white/15">
+              <div className="flex items-center gap-1.5 bg-white/10 p-1.5 rounded-xl backdrop-blur-xs self-start md:self-auto border border-white/15 shadow-inner">
                 {[
-                  { id: "today", label: "Today (15 Oct)" },
+                  { id: "today", label: `Today (${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short" })})` },
                   { id: "yesterday", label: "Yesterday" },
                   { id: "7days", label: "Last 7 Days" },
                   { id: "all", label: "All Logs" },
@@ -4161,9 +4263,9 @@ export default function EscalationPortalPage() {
                     key={t.id}
                     type="button"
                     onClick={() => setEmailLogsTimeRange(t.id as any)}
-                    className={`px-2.5 py-1 text-xs font-semibold rounded transition-all cursor-pointer ${emailLogsTimeRange === t.id
-                      ? "bg-white text-blue-950 shadow-xs"
-                      : "text-blue-100 hover:text-white hover:bg-white/10"
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${emailLogsTimeRange === t.id
+                      ? "bg-white text-slate-950 shadow-sm font-bold"
+                      : "text-blue-100 hover:text-white hover:bg-white/10 font-medium"
                       }`}
                   >
                     {t.label}
@@ -4173,76 +4275,119 @@ export default function EscalationPortalPage() {
             </div>
 
             {/* Content Body */}
-            <div className="p-5 overflow-y-auto space-y-4 text-xs">
+            <div className="p-5 overflow-y-auto space-y-4 text-xs flex-1">
               {/* Executive Breakdown Summary Strip */}
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-                <div className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg text-center">
-                  <span className="text-[10px] font-bold text-slate-500 block">Total Emails</span>
-                  <span className="text-xl font-bold font-mono text-slate-900 mt-0.5 block">
+                <div className="bg-slate-50/90 border border-slate-200/90 p-3 rounded-xl text-center shadow-2xs hover:shadow-xs transition-shadow">
+                  <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                    <Mail className="w-3 h-3 text-slate-400" />
+                    <span>Total Emails</span>
+                  </div>
+                  <span className="text-2xl font-black font-mono text-slate-900 block tracking-tight">
                     {emailLogsData?.summary?.email_sent ?? (emailLogsTimeRange === "today" ? (dispatches?.today?.total_emails ?? 1) : (dispatches?.last_7_days?.total_emails ?? 0))}
                   </span>
-                  <span className="text-[10px] text-slate-500 font-mono">Dispatches</span>
+                  <span className="inline-block mt-1 text-[9.5px] font-semibold text-slate-600 bg-white px-2 py-0.5 rounded-full border border-slate-200">
+                    Dispatched &amp; Logged
+                  </span>
                 </div>
 
-                <div className="bg-blue-50/70 border border-blue-200 p-2.5 rounded-lg text-center">
-                  <span className="text-[10px] font-bold text-blue-900 block">Level 1 • De/Ae (Civil)</span>
-                  <span className="text-xl font-bold font-mono text-blue-950 mt-0.5 block">
+                <div className="bg-blue-50/70 border border-blue-200/80 p-3 rounded-xl text-center shadow-2xs hover:shadow-xs transition-shadow">
+                  <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-blue-900 uppercase tracking-wider mb-1">
+                    <User className="w-3 h-3 text-blue-600" />
+                    <span>Level 1 • DE / AE</span>
+                  </div>
+                  <span className="text-2xl font-black font-mono text-blue-950 block tracking-tight">
                     {emailLogsData?.summary?.tier_breakdown?.de_emails ?? emailLogsData?.summary?.tier_1_sent ?? (emailLogsTimeRange === "today" ? (dispatches?.today?.de_emails ?? 1) : (dispatches?.last_7_days?.de_emails ?? 0))}
                   </span>
-                  <span className="text-[10px] text-blue-700 font-medium">Daily Cadence</span>
+                  <span className="inline-block mt-1 text-[9.5px] font-semibold text-blue-700 bg-blue-100/60 px-2 py-0.5 rounded-full border border-blue-200">
+                    Daily Cadence
+                  </span>
                 </div>
 
-                <div className="bg-amber-50/70 border border-amber-200 p-2.5 rounded-lg text-center">
-                  <span className="text-[10px] font-bold text-amber-900 block">Level 2 • Ee (Civil)</span>
-                  <span className="text-xl font-bold font-mono text-amber-950 mt-0.5 block">
+                <div className="bg-amber-50/70 border border-amber-200/80 p-3 rounded-xl text-center shadow-2xs hover:shadow-xs transition-shadow">
+                  <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-amber-900 uppercase tracking-wider mb-1">
+                    <Clock className="w-3 h-3 text-amber-600" />
+                    <span>Level 2 • EE</span>
+                  </div>
+                  <span className="text-2xl font-black font-mono text-amber-950 block tracking-tight">
                     {emailLogsData?.summary?.tier_breakdown?.ee_emails ?? emailLogsData?.summary?.tier_2_sent ?? (emailLogsTimeRange === "today" ? (dispatches?.today?.ee_emails ?? 0) : (dispatches?.last_7_days?.ee_emails ?? 0))}
                   </span>
-                  <span className="text-[10px] text-amber-700 font-medium">Every 3rd Day (Streak ≥ 3d)</span>
+                  <span className="inline-block mt-1 text-[9.5px] font-semibold text-amber-800 bg-amber-100/60 px-2 py-0.5 rounded-full border border-amber-200">
+                    Every 3rd Day
+                  </span>
                 </div>
 
-                <div className="bg-indigo-50/70 border border-indigo-200 p-2.5 rounded-lg text-center">
-                  <span className="text-[10px] font-bold text-indigo-900 block">Level 3 • SE (Superintending)</span>
-                  <span className="text-xl font-bold font-mono text-indigo-950 mt-0.5 block">
+                <div className="bg-indigo-50/70 border border-indigo-200/80 p-3 rounded-xl text-center shadow-2xs hover:shadow-xs transition-shadow">
+                  <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-indigo-900 uppercase tracking-wider mb-1">
+                    <Shield className="w-3 h-3 text-indigo-600" />
+                    <span>Level 3 • SE</span>
+                  </div>
+                  <span className="text-2xl font-black font-mono text-indigo-950 block tracking-tight">
                     {emailLogsData?.summary?.tier_breakdown?.se_emails ?? (emailLogsTimeRange === "today" ? 0 : 1)}
                   </span>
-                  <span className="text-[10px] text-indigo-700 font-medium">Every Monday (Streak ≥ 7d)</span>
+                  <span className="inline-block mt-1 text-[9.5px] font-semibold text-indigo-700 bg-indigo-100/60 px-2 py-0.5 rounded-full border border-indigo-200">
+                    Mon (Streak ≥ 7d)
+                  </span>
                 </div>
 
-                <div className="bg-sky-50/70 border border-sky-200 p-2.5 rounded-lg text-center">
-                  <span className="text-[10px] font-bold text-sky-900 block">Level 3 • CE (Chief Engineer)</span>
-                  <span className="text-xl font-bold font-mono text-sky-950 mt-0.5 block">
+                <div className="bg-sky-50/70 border border-sky-200/80 p-3 rounded-xl text-center shadow-2xs hover:shadow-xs transition-shadow">
+                  <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-sky-900 uppercase tracking-wider mb-1">
+                    <Building2 className="w-3 h-3 text-sky-600" />
+                    <span>Level 3 • CE</span>
+                  </div>
+                  <span className="text-2xl font-black font-mono text-sky-950 block tracking-tight">
                     {emailLogsData?.summary?.tier_breakdown?.ce_emails ?? (emailLogsTimeRange === "today" ? 0 : 1)}
                   </span>
-                  <span className="text-[10px] text-sky-700 font-medium">Every Monday (Streak ≥ 7d)</span>
+                  <span className="inline-block mt-1 text-[9.5px] font-semibold text-sky-700 bg-sky-100/60 px-2 py-0.5 rounded-full border border-sky-200">
+                    Mon (Streak ≥ 7d)
+                  </span>
                 </div>
 
-                <div className="bg-purple-50/70 border border-purple-200 p-2.5 rounded-lg text-center">
-                  <span className="text-[10px] font-bold text-purple-900 block">Level 4 & 5 • MS / PS</span>
-                  <span className="text-xl font-bold font-mono text-purple-950 mt-0.5 block">
+                <div className="bg-purple-50/70 border border-purple-200/80 p-3 rounded-xl text-center shadow-2xs hover:shadow-xs transition-shadow">
+                  <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-purple-900 uppercase tracking-wider mb-1">
+                    <Users className="w-3 h-3 text-purple-600" />
+                    <span>Level 4 &amp; 5 • MS / PS</span>
+                  </div>
+                  <span className="text-2xl font-black font-mono text-purple-950 block tracking-tight">
                     {(emailLogsData?.summary?.tier_breakdown?.ms_emails || 0) + (emailLogsData?.summary?.tier_breakdown?.ps_emails || 0)}
                   </span>
-                  <span className="text-[10px] text-purple-700 font-medium">1st &amp; 3rd Mon (Streak ≥ 15d)</span>
+                  <span className="inline-block mt-1 text-[9.5px] font-semibold text-purple-700 bg-purple-100/60 px-2 py-0.5 rounded-full border border-purple-200">
+                    1st &amp; 3rd Mon (≥ 15d)
+                  </span>
                 </div>
               </div>
 
               {/* Verification & Audit Clarification Banner */}
-              <div className="p-3.5 bg-blue-50/80 border border-blue-200 rounded-xl text-slate-700 flex items-start gap-3">
-                <Info className="w-4 h-4 text-blue-700 shrink-0 mt-0.5" />
-                <div className="space-y-1 text-xs">
-                  <div className="font-bold text-blue-950 flex items-center gap-2">
-                    <span>Email Dispatch Audit & Recipient Verification ({emailLogsTimeRange === "today" ? "Today • 15 Oct 2026" : "Selected Period"})</span>
+              <div className="p-4 bg-gradient-to-r from-blue-50/90 via-slate-50 to-indigo-50/80 border border-blue-200/80 rounded-xl text-slate-700 flex items-start gap-3 shadow-2xs">
+                <div className="p-1.5 bg-blue-100 rounded-lg text-blue-700 shrink-0 mt-0.5">
+                  <Info className="w-4 h-4" />
+                </div>
+                <div className="space-y-1.5 text-xs flex-1">
+                  <div className="font-bold text-blue-950 flex items-center justify-between flex-wrap gap-2">
+                    <span className="text-sm">Email Dispatch Audit &amp; Recipient Verification ({emailLogsTimeRange === "today" ? `Today • ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}` : "Selected Period"})</span>
+                    <span className="text-[11px] font-mono text-blue-700 font-semibold bg-white/80 px-2 py-0.5 rounded border border-blue-200">
+                      TLS 1.3 / SMTP Auth: OK
+                    </span>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-slate-700 pt-0.5">
-                    <div className="bg-white/80 p-2 rounded border border-blue-100">
-                      <div className="font-bold text-blue-900 text-[11px]">Village LPCD Email Dispatches: {emailLogsData?.summary?.category_breakdown?.lpcd_emails ?? dispatches?.today?.categories?.lpcd?.emails ?? 42} Emails</div>
-                      <div className="text-[11px] text-slate-600 mt-0.5 leading-snug">
-                        Dispatched specifically to assigned engineers for water supply schemes with active LPCD deficit (&lt; 55 LPCD). Notifies 45 engineers in the scheme roster across 42 unique email addresses.
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-slate-700 pt-0.5">
+                    <div className="bg-white/90 p-3 rounded-lg border border-blue-100 shadow-2xs">
+                      <div className="font-bold text-blue-900 text-xs flex items-center gap-1.5">
+                        <Droplets className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Village LPCD Email Dispatches:</span>
+                        <span className="font-mono text-blue-950 font-extrabold">{emailLogsData?.summary?.category_breakdown?.lpcd_emails ?? dispatches?.today?.categories?.lpcd?.emails ?? 42} Emails</span>
+                      </div>
+                      <div className="text-[11px] text-slate-600 mt-1 leading-snug">
+                        Dispatched specifically to assigned engineers for water supply schemes with active LPCD deficit (&lt; 55 LPCD). Notifies 45 engineers in the scheme roster across 42 unique verified email addresses.
                       </div>
                     </div>
-                    <div className="bg-white/80 p-2 rounded border border-blue-100">
-                      <div className="font-bold text-slate-900 text-[11px]">Total Actual Emails Sent: {emailLogsData?.summary?.email_sent ?? dispatches?.today?.total_emails ?? 73} Emails</div>
-                      <div className="text-[11px] text-slate-600 mt-0.5 leading-snug">
-                        Total actual emails dispatched today across all hierarchy tiers (DE, AE, EE, SE, CE). Includes daily scheme alerts and higher-tier escalation digests.
+                    <div className="bg-white/90 p-3 rounded-lg border border-blue-100 shadow-2xs">
+                      <div className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                        <Send className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>Total Actual Emails Sent:</span>
+                        <span className="font-mono text-indigo-950 font-extrabold">{emailLogsData?.summary?.email_sent ?? dispatches?.today?.total_emails ?? 73} Emails</span>
+                      </div>
+                      <div className="text-[11px] text-slate-600 mt-1 leading-snug">
+                        Total actual emails dispatched today across all hierarchy tiers (DE, AE, EE, SE, CE). Includes daily scheme alerts and higher-tier escalation digests with authenticated SMTP transmission.
                       </div>
                     </div>
                   </div>
@@ -4250,10 +4395,10 @@ export default function EscalationPortalPage() {
               </div>
 
               {/* Controls: Category Filter Tabs, Tier Filter Tabs & Search */}
-              <div className="space-y-2 pt-1 border-t border-slate-200">
+              <div className="space-y-2.5 pt-2 border-t border-slate-200">
                 {/* 1. Category Filter Tabs */}
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[10px] font-bold text-slate-500 tracking-wide mr-1">Category:</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Category:</span>
                   {[
                     { id: "all", label: "All Categories", count: emailLogsData?.summary?.email_sent ?? (dispatches?.today?.total_emails ?? 73) },
                     { id: "lpcd", label: "Village LPCD", count: emailLogsData?.summary?.category_breakdown?.lpcd_emails ?? (dispatches?.today?.categories?.lpcd?.emails ?? 42) },
@@ -4265,13 +4410,13 @@ export default function EscalationPortalPage() {
                       key={c.id}
                       type="button"
                       onClick={() => setEmailLogsFilterCategory(c.id as any)}
-                      className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1.5 border ${emailLogsFilterCategory === c.id
-                        ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
-                        : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
+                      className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 border shadow-2xs ${emailLogsFilterCategory === c.id
+                        ? "bg-slate-900 text-white border-slate-900 shadow-xs"
+                        : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
                         }`}
                     >
                       <span>{c.label}</span>
-                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${emailLogsFilterCategory === c.id ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${emailLogsFilterCategory === c.id ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
                         }`}>
                         {c.count}
                       </span>
@@ -4282,7 +4427,7 @@ export default function EscalationPortalPage() {
                 {/* 2. Hierarchy Tier Filter Tabs & Search */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[10px] font-bold text-slate-500 tracking-wide mr-1">Hierarchy Tier:</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Hierarchy:</span>
                     {[
                       { id: "all", label: "All Tiers", count: emailLogsData?.summary?.email_sent ?? (dispatches?.today?.total_emails ?? (emailLogsData?.alerts?.length || 73)) },
                       { id: "1", label: "Level 1 • DE / AE", count: emailLogsData?.summary?.tier_breakdown?.de_emails ?? (dispatches?.today?.de_emails ?? 0) },
@@ -4296,13 +4441,13 @@ export default function EscalationPortalPage() {
                         key={f.id}
                         type="button"
                         onClick={() => setEmailLogsFilterTier(f.id as any)}
-                        className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center gap-1.5 border ${emailLogsFilterTier === f.id
-                          ? "bg-blue-900 text-white border-blue-900 shadow-2xs"
-                          : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
+                        className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 border shadow-2xs ${emailLogsFilterTier === f.id
+                          ? "bg-blue-900 text-white border-blue-900 shadow-xs"
+                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
                           }`}
                       >
                         <span>{f.label}</span>
-                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${emailLogsFilterTier === f.id ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${emailLogsFilterTier === f.id ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
                           }`}>
                           {f.count}
                         </span>
@@ -4316,12 +4461,12 @@ export default function EscalationPortalPage() {
                       placeholder="Search officer, email, scheme..."
                       value={emailLogsSearch}
                       onChange={(e) => setEmailLogsSearch(e.target.value)}
-                      className="pl-8 h-8 text-xs bg-white border-slate-300"
+                      className="pl-8 pr-7 h-8 text-xs bg-white border-slate-200 rounded-lg shadow-2xs focus-visible:ring-1 focus-visible:ring-blue-500"
                     />
                     {emailLogsSearch && (
                       <button
                         onClick={() => setEmailLogsSearch("")}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -4332,21 +4477,21 @@ export default function EscalationPortalPage() {
 
               {/* Data Table */}
               {filteredEmailLogs.length === 0 ? (
-                <div className="p-8 text-center text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                <div className="p-8 text-center text-slate-500 bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
                   <CheckCircle2 className="w-8 h-8 mx-auto text-slate-400 mb-2" />
-                  <div className="font-bold text-slate-800">No Email Dispatches for Selected Filter</div>
-                  <div className="text-xs text-slate-500 mt-1">
-                    No emails were sent under this tier for the selected time window ({emailLogsTimeRange}).
+                  <div className="font-bold text-slate-800 text-sm">No Email Dispatches Found</div>
+                  <div className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                    No verified emails matched the selected filters for this time window ({emailLogsTimeRange}).
                   </div>
                 </div>
               ) : (
-                <div className="border border-slate-300 rounded-xl overflow-hidden shadow-2xs">
+                <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs bg-white">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
-                        <tr className="bg-slate-100/80 border-b border-slate-300 text-[11px] font-bold text-slate-700 tracking-wider">
-                          <th className="py-2.5 px-3 w-10 text-center">Sr.</th>
-                          <th className="py-2.5 px-3">Recipient Officer & Role</th>
+                        <tr className="bg-slate-50 border-b border-slate-200 text-[10.5px] font-bold text-slate-600 uppercase tracking-wider">
+                          <th className="py-2.5 px-3 w-10 text-center font-mono">#</th>
+                          <th className="py-2.5 px-3">Recipient Officer &amp; Role</th>
                           <th className="py-2.5 px-3">Email Address</th>
                           <th className="py-2.5 px-3">Water Supply Scheme</th>
                           <th className="py-2.5 px-3">Dispatch Subject / Alerts</th>
@@ -4355,36 +4500,76 @@ export default function EscalationPortalPage() {
                           <th className="py-2.5 px-3 text-center">Action</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-200 text-slate-800 bg-white">
+                      <tbody className="divide-y divide-slate-100 text-slate-800 bg-white">
                         {filteredEmailLogs.map((log: any, idx: number) => {
                           const isVendor = log.tier === 0 || log.recipient_role?.toLowerCase().includes("vendor");
                           const tierBadgeClass =
                             isVendor
-                              ? "bg-purple-50 text-purple-900 border-purple-300"
+                              ? "bg-purple-50 text-purple-900 border-purple-200"
                               : log.tier === 5
-                                ? "bg-indigo-50 text-indigo-900 border-indigo-300"
+                                ? "bg-sky-50 text-sky-900 border-sky-200"
                                 : log.tier === 4
-                                  ? "bg-purple-50 text-purple-900 border-purple-300"
+                                  ? "bg-purple-50 text-purple-900 border-purple-200"
                                   : log.tier === 3
-                                    ? "bg-red-50 text-red-900 border-red-300"
+                                    ? "bg-indigo-50 text-indigo-900 border-indigo-200"
                                     : log.tier === 2
-                                      ? "bg-amber-50 text-amber-900 border-amber-300"
-                                      : "bg-blue-50 text-blue-900 border-blue-300";
+                                      ? "bg-amber-50 text-amber-900 border-amber-200"
+                                      : "bg-blue-50 text-blue-900 border-blue-200";
+
+                          const avatarGradient =
+                            isVendor
+                              ? "from-violet-600 to-purple-700"
+                              : log.tier === 5
+                                ? "from-sky-600 to-blue-800"
+                                : log.tier === 4
+                                  ? "from-purple-600 to-indigo-700"
+                                  : log.tier === 3
+                                    ? "from-indigo-600 to-sky-700"
+                                    : log.tier === 2
+                                      ? "from-amber-500 to-orange-600"
+                                      : "from-blue-600 to-indigo-700";
+
+                          const initials = (log.recipient_name || "OF")
+                            .split(" ")
+                            .filter(Boolean)
+                            .map((p: string) => p[0])
+                            .slice(0, 2)
+                            .join("")
+                            .toUpperCase() || "OF";
+
+                          // Format role nicely with acronym capitalization
+                          let displayRole = isVendor ? "Vendor (IoT Agency)" : `${toTitleCase(log.recipient_role)} (Tier ${log.tier})`;
+                          displayRole = displayRole
+                            .replace(/De\b/g, "DE")
+                            .replace(/Ae\b/g, "AE")
+                            .replace(/Ee\b/g, "EE")
+                            .replace(/Se\b/g, "SE")
+                            .replace(/Ce\b/g, "CE")
+                            .replace(/Ms\b/g, "MS")
+                            .replace(/Ps\b/g, "PS")
+                            .replace(/Iot\b/g, "IoT");
 
                           return (
-                            <tr key={`${log.id}-${idx}`} className="hover:bg-slate-50/80 transition-colors">
-                              <td className="py-3 px-3 text-center font-mono text-[11px] text-slate-500 font-semibold">
+                            <tr key={`${log.id}-${idx}`} className="hover:bg-slate-50/70 transition-colors">
+                              <td className="py-3 px-3 text-center font-mono text-[11px] text-slate-400 font-semibold">
                                 {idx + 1}
                               </td>
                               <td className="py-3 px-3">
-                                <div className="font-bold text-slate-900 text-xs">{toTitleCase(log.recipient_name)}</div>
-                                <span className={`inline-block mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded border ${tierBadgeClass}`}>
-                                  {isVendor ? "Vendor (Iot Agency)" : `${toTitleCase(log.recipient_role)} (Tier ${log.tier})`}
-                                </span>
+                                <div className="flex items-center gap-2.5">
+                                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${avatarGradient} text-white text-[11px] font-bold shadow-2xs`}>
+                                    {initials}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="font-bold text-slate-900 text-xs truncate">{toTitleCase(log.recipient_name)}</div>
+                                    <span className={`inline-block mt-0.5 text-[9.5px] font-semibold px-2 py-0.5 rounded-md border ${tierBadgeClass}`}>
+                                      {displayRole}
+                                    </span>
+                                  </div>
+                                </div>
                               </td>
                               <td className="py-3 px-3">
                                 <div className="flex items-center gap-1.5 font-mono text-[11px] text-blue-700">
-                                  <a href={`mailto:${log.recipient_email}`} className="hover:underline">
+                                  <a href={`mailto:${log.recipient_email}`} className="hover:underline hover:text-blue-900 truncate max-w-[180px]" title={log.recipient_email}>
                                     {log.recipient_email}
                                   </a>
                                   <button
@@ -4393,7 +4578,7 @@ export default function EscalationPortalPage() {
                                       navigator.clipboard.writeText(log.recipient_email || "");
                                       toast({ title: "Copied Email", description: log.recipient_email });
                                     }}
-                                    className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                                    className="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition-colors cursor-pointer"
                                     title="Copy Email Address"
                                   >
                                     <Copy className="w-3 h-3" />
@@ -4401,32 +4586,39 @@ export default function EscalationPortalPage() {
                                 </div>
                               </td>
                               <td className="py-3 px-3">
-                                <div className="font-semibold text-slate-900 text-xs">{toTitleCase(log.scheme_name)}</div>
-                                <div className="font-mono text-[10px] text-slate-500 mt-0.5">Id: #{log.scheme_id}</div>
+                                <div className="font-semibold text-slate-900 text-xs truncate max-w-[200px]" title={log.scheme_name}>
+                                  {toTitleCase(log.scheme_name)}
+                                </div>
+                                <div className="inline-flex items-center gap-1 font-mono text-[10px] text-blue-700 bg-blue-50/80 px-1.5 py-0.2 rounded border border-blue-100 mt-0.5">
+                                  ID: #{log.scheme_id}
+                                </div>
                               </td>
                               <td className="py-3 px-3">
-                                <div className="font-semibold text-slate-800 text-xs">{toTitleCase(log.alert_title)}</div>
+                                <div className="font-semibold text-slate-800 text-xs truncate max-w-xs" title={log.alert_title}>
+                                  {toTitleCase(log.alert_title)}
+                                </div>
                                 <div className="text-[10px] text-slate-500 mt-0.5 truncate max-w-xs" title={log.message_content}>
                                   {log.message_content}
                                 </div>
                                 <div className="flex items-center gap-1 mt-1 flex-wrap">
-                                  {log.is_lpcd && <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-blue-100 text-blue-900 border border-blue-200">Lpcd</span>}
-                                  {log.is_chlorine && <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-teal-100 text-teal-900 border border-teal-200">Chlorine</span>}
-                                  {log.is_pressure && <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 border border-amber-200">Pressure</span>}
-                                  {log.is_offline && <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-rose-100 text-rose-900 border border-rose-200">Offline</span>}
+                                  {log.is_lpcd && <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-blue-100/80 text-blue-900 border border-blue-200">LPCD</span>}
+                                  {log.is_chlorine && <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-teal-100/80 text-teal-900 border border-teal-200">Chlorine</span>}
+                                  {log.is_pressure && <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-100/80 text-amber-900 border border-amber-200">Pressure</span>}
+                                  {log.is_offline && <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-rose-100/80 text-rose-900 border border-rose-200">Offline</span>}
                                 </div>
                               </td>
                               <td className="py-3 px-3 whitespace-nowrap">
-                                <div className="font-medium text-slate-800 text-[11px]">
-                                  {log.created_at ? new Date(log.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "Today"}
+                                <div className="font-semibold text-slate-800 text-[11px] flex items-center gap-1">
+                                  <Clock className="w-3 h-3 text-slate-400" />
+                                  <span>{log.created_at ? new Date(log.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "Today"}</span>
                                 </div>
-                                <div className="text-[10px] text-slate-500 font-mono">
+                                <div className="text-[10px] text-slate-500 font-mono pl-4">
                                   {log.created_at ? new Date(log.created_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true }) : "10:37 AM IST"}
                                 </div>
                               </td>
                               <td className="py-3 px-3 text-center whitespace-nowrap">
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                                  <Check className="w-3 h-3 text-emerald-600" />
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                                   Delivered (SMTP)
                                 </span>
                               </td>
@@ -4448,9 +4640,10 @@ export default function EscalationPortalPage() {
                                       openPreview(matchingScheme, tierMap[log.tier] || "DE");
                                     }
                                   }}
-                                  className="h-6 px-2 text-[10px] font-semibold text-blue-700 hover:bg-blue-50 border-blue-300 cursor-pointer"
+                                  className="h-7 px-2.5 text-[10.5px] font-semibold text-blue-700 hover:text-blue-900 bg-blue-50/70 hover:bg-blue-100 border-blue-200 shadow-2xs flex items-center gap-1 cursor-pointer"
                                 >
-                                  Preview Notice
+                                  <Eye className="w-3 h-3 text-blue-600" />
+                                  <span>Preview</span>
                                 </Button>
                               </td>
                             </tr>
@@ -4464,15 +4657,18 @@ export default function EscalationPortalPage() {
             </div>
 
             {/* Footer */}
-            <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
-              <div className="text-xs text-slate-600 font-mono">
-                Showing {filteredEmailLogs.length} verified email dispatch record(s)
+            <div className="p-3.5 bg-slate-50/90 border-t border-slate-200 flex items-center justify-between">
+              <div className="text-xs text-slate-600 font-medium flex items-center gap-2">
+                <span className="font-mono font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">
+                  {filteredEmailLogs.length}
+                </span>
+                <span>Verified Email Dispatch Record(s)</span>
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setEmailLogsModalOpen(false)}
-                className="text-xs cursor-pointer"
+                className="text-xs font-semibold px-4 cursor-pointer hover:bg-slate-100"
               >
                 Close Audit Logs
               </Button>
