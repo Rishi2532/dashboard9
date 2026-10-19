@@ -510,10 +510,15 @@ export async function sendDailyAlertEmail(
     if (alert.lpcd_issue) issues.push(`<span style="color: #ea580c; font-weight: bold;">Low LPCD:</span> ${alert.lpcd_value} (Below 55)`);
     if (alert.offline_issue) issues.push(`<span style="color: #ea580c; font-weight: bold;">Offline:</span> ${alert.offline_sensors || 'Sensors Offline'}`);
     if (alert.streak_days && alert.streak_days >= 3) {
+      const isStateLevel = alert.streak_days >= 15;
       const isChronic = alert.streak_days >= 7;
+      const tierLabel = isStateLevel ? 'Tier 4/5 State Escalation - MS/PS' : isChronic ? 'Tier 3 Chronic - CE/SE' : 'Tier 2 Escalation - EE';
+      const bgColor = isStateLevel ? '#f3e8ff' : isChronic ? '#fee2e2' : '#fef3c7';
+      const textColor = isStateLevel ? '#6b21a8' : isChronic ? '#991b1b' : '#92400e';
+      const borderColor = isStateLevel ? '#d8b4fe' : isChronic ? '#fca5a5' : '#fcd34d';
       issues.push(
-        `<span style="display: inline-block; background-color: ${isChronic ? '#fee2e2' : '#fef3c7'}; color: ${isChronic ? '#991b1b' : '#92400e'}; border: 1px solid ${isChronic ? '#fca5a5' : '#fcd34d'}; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 11px; margin-top: 4px;">` +
-        `🚨 Repeated for ${alert.streak_days} consecutive days (${isChronic ? 'Tier 3 Chronic - CE/SE' : 'Tier 2 Escalation - EE'})` +
+        `<span style="display: inline-block; background-color: ${bgColor}; color: ${textColor}; border: 1px solid ${borderColor}; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 11px; margin-top: 4px;">` +
+        `🚨 Repeated for ${alert.streak_days} consecutive days (${tierLabel})` +
         `</span>`
       );
     }

@@ -3,6 +3,7 @@ import { sql, eq } from "drizzle-orm";
 import { schemeEngineerDetails, users, emailAlertLogs } from "../../shared/schema";
 import { sendSmartpingDLTSMS, normalizeIndianMobile, logSmsAlert } from "./sms-service";
 import { sendMail } from "./email-service";
+import { calculateAllAlertStreaksFromHistory } from "./streak-engine";
 
 export interface SchemeEscalationItem {
   scheme_id: string;
@@ -179,39 +180,8 @@ export async function getEscalationStatus(options: {
     }
   });
 
-  // 2. Query persistent alert records from email_alert_logs
-  // Note: Offline alerts are included for all schemes (not restricted by water supply),
-  // while LPCD, Chlorine, and Pressure are restricted to water_supply = 'Yes'.
-  const alertsQuery = sql`
-    SELECT 
-      e.scheme_id,
-      e.scheme_name,
-      e.region,
-      COALESCE(NULLIF(TRIM(e.village_name), ''), '-') as village_name,
-      COALESCE(NULLIF(TRIM(e.esr_name), ''), '-') as esr_name,
-      e.alert_type,
-      COUNT(DISTINCT e.sent_date) as active_days_count,
-      ARRAY_AGG(DISTINCT (e.sent_date::date)::text ORDER BY (e.sent_date::date)::text DESC) as dates_seen,
-      BOOL_OR(e.sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date OR e.sent_date = CURRENT_DATE) as is_today_alert,
-      COALESCE(
-        MAX(CASE WHEN (e.sent_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date OR e.sent_date = CURRENT_DATE) THEN e.alert_value END),
-        (ARRAY_AGG(e.alert_value ORDER BY e.sent_date DESC, e.created_at DESC))[1]
-      ) as latest_val
-    FROM email_alert_logs e
-    LEFT JOIN scheme_status s ON s.scheme_id = e.scheme_id
-    WHERE e.sent_date >= CURRENT_DATE - (${daysLookback} * INTERVAL '1 day')
-      AND e.scheme_id IS NOT NULL
-      AND (e.ticket_id NOT LIKE 'TKT-RT-%' OR e.ticket_id IS NULL)
-      AND (e.dispatch_type = 'daily' OR e.dispatch_type IS NULL)
-      AND (e.alert_type ILIKE '%offline%' OR s.water_supply = 'Yes' OR s.water_supply IS NULL)
-      ${options.region && options.region !== 'All' ? sql`AND (TRIM(REPLACE(e.region, chr(65279), '')) = ${options.region} OR e.region = ${options.region})` : sql``}
-    GROUP BY e.scheme_id, e.scheme_name, e.region, e.village_name, e.esr_name, e.alert_type
-    HAVING COUNT(DISTINCT e.sent_date) >= 1
-    ORDER BY e.scheme_id, active_days_count DESC
-  `;
-
-  const rawRes = await db.execute(alertsQuery);
-  const alertRows: any[] = rawRes.rows || [];
+  // 2. Query exact alerts & streaks directly from history tables from latest available date
+  const { allAlerts } = await calculateAllAlertStreaksFromHistory(db);
 
   // Query issue_reports (Field Remarks)
   const remarksByScheme = new Map<string, any[]>();
@@ -240,62 +210,21 @@ export async function getEscalationStatus(options: {
     console.error("Error fetching issue_reports in getEscalationStatus:", err);
   }
 
-  // 3. Group by scheme
+  // 3. Group by scheme with exact streaks from history tables
   const schemeAgg = new Map<string, SchemeEscalationItem>();
 
-  for (const row of alertRows) {
-    const schemeId = String(row.scheme_id || '').trim();
+  for (const alert of allAlerts) {
+    const schemeId = String(alert.scheme_id || '').trim();
     if (!schemeId) continue;
 
-    const schemeName = String(row.scheme_name || schemeId).trim();
-    const region = String(row.region || 'Maharashtra').replace(/^\uFEFF/, '').trim();
-    const alertType = String(row.alert_type || '').toLowerCase();
-    
-    // Compute unbroken consecutive days matching daily-alerts streak logic
-    const formatIST = (d: Date) => new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Asia/Kolkata',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    }).format(d);
+    const schemeName = String(alert.scheme_name || schemeId).trim();
+    const region = String(alert.region || 'Maharashtra').replace(/^\uFEFF/, '').trim();
 
-    const rawDatesSeen: any[] = row.dates_seen || [];
-    const datesSeen: string[] = rawDatesSeen.map((d: any) => {
-      if (!d) return '';
-      if (d instanceof Date) {
-        return formatIST(d);
-      }
-      return String(d).split('T')[0].split(' ')[0].trim();
-    }).filter(Boolean);
-
-    const today = new Date();
-    const hasToday = Boolean(row.is_today_alert) || datesSeen.includes(formatIST(today));
-    let consecutivePastDays = 0;
-    for (let i = 1; i <= 30; i++) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const dStr = formatIST(d);
-      if (datesSeen.includes(dStr)) {
-        consecutivePastDays++;
-      } else {
-        // Bridge Sunday if daily alerts did not run on Sunday
-        // (d.getDay() === 0 in IST means Sunday; if previous day Saturday was in breach, bridge Sunday)
-        if (d.getDay() === 0) {
-          const satDate = new Date(d);
-          satDate.setDate(satDate.getDate() - 1);
-          const satStr = formatIST(satDate);
-          if (datesSeen.includes(satStr)) {
-            consecutivePastDays++;
-            continue;
-          }
-        }
-        break;
-      }
+    if (options.region && options.region !== 'All') {
+      const cleanOpt = options.region.replace(/^\uFEFF/, '').trim().toLowerCase();
+      const cleanReg = region.toLowerCase();
+      if (cleanReg !== cleanOpt) continue;
     }
-    const days = hasToday ? (1 + consecutivePastDays) : (consecutivePastDays > 0 ? consecutivePastDays : 1);
-    const village = String(row.village_name || '-');
-    const esr = String(row.esr_name || '-');
-    const val = String(row.latest_val || '');
 
     if (!schemeAgg.has(schemeId)) {
       const eng = engMap.get(schemeId) || engMap.get(schemeName.toLowerCase());
@@ -351,41 +280,40 @@ export async function getEscalationStatus(options: {
     }
 
     const item = schemeAgg.get(schemeId)!;
+    const days = alert.streak_days;
+    item.total_issues_count++;
+    if (days > item.max_streak_days) {
+      item.max_streak_days = days;
+    }
 
-    // Only count active alerts that triggered today in active counts and lists
-    if (hasToday) {
-      item.total_issues_count++;
-      if (days > item.max_streak_days) {
-        item.max_streak_days = days;
-      }
-
-      if (alertType.includes('lpcd')) {
-        item.lpcd_villages_count++;
-        item.lpcd_villages.push({ village_name: village, days_count: days, avg_val: val });
-      } else if (alertType.includes('high chlorine') || alertType.includes('chlorine high')) {
-        const esrKey = `${village.trim().toLowerCase()}__${esr.trim().toLowerCase()}`;
+    if (alert.category === 'lpcd') {
+      item.lpcd_villages_count++;
+      item.lpcd_villages.push({ village_name: alert.village_name, days_count: days, avg_val: alert.parameter_value });
+    } else if (alert.category === 'chlorine') {
+      if (alert.alert_type === 'High Chlorine') {
+        const esrKey = `${alert.village_name.trim().toLowerCase()}__${alert.esr_name.trim().toLowerCase()}`;
         if (!item.chlorine_high_esrs.some(e => `${e.village_name.trim().toLowerCase()}__${e.esr_name.trim().toLowerCase()}` === esrKey)) {
           item.chlorine_high_count++;
-          item.chlorine_high_esrs.push({ village_name: village, esr_name: esr, days_count: days, val });
+          item.chlorine_high_esrs.push({ village_name: alert.village_name, esr_name: alert.esr_name, days_count: days, val: alert.parameter_value });
         }
-      } else if (alertType.includes('chlorine') || alertType.includes('low chlorine')) {
-        const esrKey = `${village.trim().toLowerCase()}__${esr.trim().toLowerCase()}`;
+      } else {
+        const esrKey = `${alert.village_name.trim().toLowerCase()}__${alert.esr_name.trim().toLowerCase()}`;
         if (!item.chlorine_low_esrs.some(e => `${e.village_name.trim().toLowerCase()}__${e.esr_name.trim().toLowerCase()}` === esrKey)) {
           item.chlorine_low_count++;
-          item.chlorine_low_esrs.push({ village_name: village, esr_name: esr, days_count: days, val });
+          item.chlorine_low_esrs.push({ village_name: alert.village_name, esr_name: alert.esr_name, days_count: days, val: alert.parameter_value });
         }
-      } else if (alertType.includes('pressure')) {
-        const esrKey = `${village.trim().toLowerCase()}__${esr.trim().toLowerCase()}`;
-        if (!item.pressure_low_esrs.some(e => `${e.village_name.trim().toLowerCase()}__${e.esr_name.trim().toLowerCase()}` === esrKey)) {
-          item.pressure_low_count++;
-          item.pressure_low_esrs.push({ village_name: village, esr_name: esr, days_count: days, val });
-        }
-      } else if (alertType.includes('offline')) {
-        const esrKey = `${village.trim().toLowerCase()}__${esr.trim().toLowerCase()}`;
-        if (!item.offline_esrs.some(e => `${e.village_name.trim().toLowerCase()}__${e.esr_name.trim().toLowerCase()}` === esrKey)) {
-          item.offline_count++;
-          item.offline_esrs.push({ village_name: village, esr_name: esr, days_count: days, sensors: val });
-        }
+      }
+    } else if (alert.category === 'pressure') {
+      const esrKey = `${alert.village_name.trim().toLowerCase()}__${alert.esr_name.trim().toLowerCase()}`;
+      if (!item.pressure_low_esrs.some(e => `${e.village_name.trim().toLowerCase()}__${e.esr_name.trim().toLowerCase()}` === esrKey)) {
+        item.pressure_low_count++;
+        item.pressure_low_esrs.push({ village_name: alert.village_name, esr_name: alert.esr_name, days_count: days, val: alert.parameter_value });
+      }
+    } else if (alert.category === 'offline') {
+      const esrKey = `${alert.village_name.trim().toLowerCase()}__${alert.esr_name.trim().toLowerCase()}`;
+      if (!item.offline_esrs.some(e => `${e.village_name.trim().toLowerCase()}__${e.esr_name.trim().toLowerCase()}` === esrKey)) {
+        item.offline_count++;
+        item.offline_esrs.push({ village_name: alert.village_name, esr_name: alert.esr_name, days_count: days, sensors: alert.offline_sensors });
       }
     }
   }

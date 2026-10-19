@@ -12,6 +12,7 @@ import { sendDailyAlertEmail, generateAcknowledgeToken, sendAutomaticOfflineEmai
 import { eq, or, lt, and, isNotNull, sql } from "drizzle-orm";
 import { sendDailyAlertSMS } from "../services/sms-service";
 import { getExecutiveContacts } from "../services/escalation-service";
+import { calculateAllAlertStreaksFromHistory } from "../services/streak-engine";
 
 interface Alert {
   scheme_id: string;
@@ -338,6 +339,11 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
   console.log(`⏰ Running daily alerts job... [${ist.dateStr} (${ist.weekday}) | Day ${ist.dayOfMonth} | Monday: ${ist.isMonday} | 1st/4th Mon: ${ist.is1stOr4thMonday}]`);
   try {
     const db = await getDB();
+
+    // Compute exact streaks from history tables from latest available date
+    console.log("📊 Computing exact alerts and streaks from history tables...");
+    const { alertsByKey: historyAlertsByKey } = await calculateAllAlertStreaksFromHistory(db);
+
     const allAlertsBySchemeId: Record<string, Alert[]> = {};
     const allAlertsBySchemeName: Record<string, Alert[]> = {};
 
@@ -400,6 +406,11 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
     chlorineIssues.forEach((row: any) => {
       const numVal = parseFloat(String(row.chlorine_value_7 || "0"));
       const isHigh = numVal > 0.5;
+      const vKey = (row.village_name || '-').trim().toLowerCase();
+      const eKey = (row.esr_name || '-').trim().toLowerCase();
+      const histAlert = historyAlertsByKey.get(`${String(row.scheme_id).trim()}|chlorine|${vKey}|${eKey}`);
+      const streak = histAlert ? histAlert.streak_days : 1;
+
       addAlert(row.scheme_id, row.scheme_name, {
         scheme_id: row.scheme_id || "N/A",
         scheme_name: row.scheme_name || "N/A",
@@ -409,6 +420,7 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
         chlorine_type: isHigh ? "High Chlorine" : "Low Chlorine",
         chlorine_value: row.chlorine_value_7,
         telemetry_date: row.chlorine_date_day_7 ? String(row.chlorine_date_day_7) : undefined,
+        streak_days: streak,
       });
     });
 
@@ -438,6 +450,11 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
       const numVal = parseFloat(String(row.pressure_value_7 || "0"));
       // Strict guard in JS: only send alert email when pressure is strictly below 0.2 Bar
       if (!isNaN(numVal) && numVal < 0.2 && numVal >= 0) {
+        const vKey = (row.village_name || '-').trim().toLowerCase();
+        const eKey = (row.esr_name || '-').trim().toLowerCase();
+        const histAlert = historyAlertsByKey.get(`${String(row.scheme_id).trim()}|pressure|${vKey}|${eKey}`);
+        const streak = histAlert ? histAlert.streak_days : 1;
+
         addAlert(row.scheme_id, row.scheme_name, {
           scheme_id: row.scheme_id || "N/A",
           scheme_name: row.scheme_name || "N/A",
@@ -446,6 +463,7 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
           pressure_issue: true,
           pressure_value: row.pressure_value_7,
           telemetry_date: row.pressure_date_day_7 ? String(row.pressure_date_day_7) : undefined,
+          streak_days: streak,
         });
       }
     });
@@ -465,6 +483,10 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
       const isLpcdIssue = row.lpcd_value_day7 !== null && parseFloat(row.lpcd_value_day7 as any) < 55;
 
       if (isLpcdIssue) {
+        const vKey = (row.village_name || '-').trim().toLowerCase();
+        const histAlert = historyAlertsByKey.get(`${String(row.scheme_id).trim()}|lpcd|${vKey}|-`);
+        const streak = histAlert ? histAlert.streak_days : 1;
+
         addAlert(row.scheme_id, row.scheme_name, {
           scheme_id: row.scheme_id || "N/A",
           scheme_name: row.scheme_name || "N/A",
@@ -473,6 +495,7 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
           lpcd_value: row.lpcd_value_day7,
           telemetry_date: row.lpcd_date_day7 ? String(row.lpcd_date_day7) : undefined,
           alert_idx: rowIdx,
+          streak_days: streak,
         } as any);
       }
     });
@@ -515,6 +538,10 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
           if (offlineSensorsList.length === 0) return;
 
           const offlineDate = row.last_seen || row.pressure_last_seen || null;
+          const vKey = (row.village_name || '-').trim().toLowerCase();
+          const eKey = (row.esr_name || '-').trim().toLowerCase();
+          const histAlert = historyAlertsByKey.get(`${String(row.scheme_id).trim()}|offline|${vKey}|${eKey}`);
+          const streak = histAlert ? histAlert.streak_days : 1;
 
           addAlert(row.scheme_id, row.scheme_name, {
             scheme_id: row.scheme_id || "N/A",
@@ -528,6 +555,7 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
             chlorine_offline: isChlorine,
             offline_time: offlineDate,
             telemetry_date: offlineDate ? (typeof offlineDate === 'object' ? new Date(offlineDate).toISOString() : String(offlineDate)) : undefined,
+            streak_days: streak,
           });
         });
       }
@@ -599,52 +627,10 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
     }
 
     const getAlertStreak = (alert: Alert): number => {
-      const alertType = alert.offline_issue
-        ? 'Offline'
-        : alert.chlorine_issue
-          ? (alert.chlorine_type || (parseFloat(String(alert.chlorine_value || "0").replace(/[^0-9.]/g, '')) > 0.5 ? 'High Chlorine' : 'Low Chlorine'))
-          : alert.pressure_issue
-            ? 'Low Pressure'
-            : 'Low LPCD';
-      const village = (alert.village_name && alert.village_name.trim()) ? alert.village_name.trim() : '-';
-      const esr = (alert.esr_name && alert.esr_name.trim()) ? alert.esr_name.trim() : '-';
-      const key = `${alert.scheme_id}|${alertType}|${village}|${esr}`.toLowerCase();
-
-      const pastDates = pastAlertsMap.get(key) || [];
-      // Calculate consecutive days backwards from yesterday in IST
-      let streak = 1;
-      const today = new Date();
-      for (let i = 1; i <= 30; i++) {
-        const d = new Date(today);
-        d.setDate(d.getDate() - i);
-        const dStr = new Intl.DateTimeFormat("en-CA", {
-          timeZone: "Asia/Kolkata",
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-        }).format(d);
-        if (pastDates.includes(dStr)) {
-          streak++;
-        } else {
-          // If d is Sunday and daily alerts did not run on Sunday, bridge Sunday if Saturday had an alert
-          if (d.getDay() === 0) {
-            const sat = new Date(d);
-            sat.setDate(sat.getDate() - 1);
-            const satStr = new Intl.DateTimeFormat("en-CA", {
-              timeZone: "Asia/Kolkata",
-              year: "numeric",
-              month: "2-digit",
-              day: "2-digit",
-            }).format(sat);
-            if (pastDates.includes(satStr)) {
-              streak++;
-              continue;
-            }
-          }
-          break;
-        }
+      if (alert.streak_days && alert.streak_days >= 1) {
+        return alert.streak_days;
       }
-      return streak;
+      return 1;
     };
 
     // We will batch insert into emailAlertLogs at the end
