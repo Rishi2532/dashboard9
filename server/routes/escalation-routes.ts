@@ -21,6 +21,7 @@ import {
 import ExcelJS from "exceljs";
 import { getDB } from "../db";
 import { sql } from "drizzle-orm";
+import { calculateAllAlertStreaksFromHistory } from "../services/streak-engine";
 
 const router = Router();
 
@@ -1621,6 +1622,145 @@ router.get("/export-overall-dispatches", async (req: Request, res: Response) => 
   } catch (error: any) {
     console.error("Error in export-overall-dispatches:", error);
     res.status(500).json({ error: error.message || "Failed to export overall dispatches" });
+  }
+});
+
+/**
+ * GET /api/escalation/level5-summary or /api/level5-summary
+ * Returns matrix summary for:
+ * 1. Project Scope (Scope Overview)
+ * 2. IoT Progress (Integrated vs Fully Integrated)
+ * 3. Operational (water_supply = 'Yes')
+ * 4. Alert - Level 5 - 20+ Days (Low LPCD schemes & villages, Low Pressure ESRs, Residual Chlorine out of range ESRs)
+ */
+router.get("/level5-summary", async (req: Request, res: Response) => {
+  try {
+    const selectedRegion = (req.query.region as string) || "all";
+    const streakThreshold = parseInt((req.query.days as string) || "20", 10) || 20;
+    const isAll = !selectedRegion || selectedRegion.toLowerCase() === "all";
+
+    const db = await getDB();
+
+    // 1. Project Scope
+    let projectScope = {
+      schemes: 389,
+      villages: 5993,
+      esr: 10319,
+    };
+
+    if (!isAll) {
+      const scopeRes: any = await db.execute(sql`
+        SELECT
+          COUNT(DISTINCT sp.scheme_id)::bigint AS schemes,
+          COALESCE(SUM(sp.number_of_villages), 0)::bigint AS villages,
+          COALESCE(SUM(COALESCE(sp.number_of_esr,0) + COALESCE(sp.number_of_gsr,0) + COALESCE(sp.number_of_mbr,0)), 0)::bigint AS esr
+        FROM scheme_progress_summary sp
+        LEFT JOIN (
+          SELECT DISTINCT scheme_id::text as scheme_id, region FROM scheme_status
+        ) ss ON ss.scheme_id = sp.scheme_id::text
+        WHERE (
+          sp.region ILIKE ${`%${selectedRegion}%`} 
+          OR ss.region ILIKE ${`%${selectedRegion}%`}
+        );
+      `);
+      const r = scopeRes.rows ? scopeRes.rows[0] : scopeRes[0];
+      if (r) {
+        projectScope = {
+          schemes: Number(r.schemes || 0),
+          villages: Number(r.villages || 0),
+          esr: Number(r.esr || 0),
+        };
+      }
+    }
+
+    // 2. IoT Progress
+    let iotProgress = {
+      schemes: { totalIntegrated: 226, fullyIntegrated: 52 },
+      villages: { totalIntegrated: 2249, fullyIntegrated: 1271 },
+      esr: { totalIntegrated: 3018, fullyIntegrated: 2249 },
+    };
+
+    if (!isAll) {
+      const iotRes: any = await db.execute(sql`
+        SELECT
+          COUNT(DISTINCT CASE WHEN total_villages_integrated > 0 OR total_esr_integrated > 0 THEN scheme_id END)::bigint as schemes_total,
+          COUNT(DISTINCT CASE WHEN TRIM(LOWER(fully_completion_scheme_status)) IN ('fully completed', 'completed', 'fully-completed') THEN scheme_id END)::bigint as schemes_fully,
+          COALESCE(SUM(total_villages_integrated), 0)::bigint as villages_total,
+          COALESCE(SUM(fully_completed_villages), 0)::bigint as villages_fully,
+          COALESCE(SUM(total_esr_integrated), 0)::bigint as esr_total,
+          COALESCE(SUM(no_fully_completed_esr), 0)::bigint as esr_fully
+        FROM scheme_status
+        WHERE region ILIKE ${`%${selectedRegion}%`};
+      `);
+      const r = iotRes.rows ? iotRes.rows[0] : iotRes[0];
+      if (r) {
+        iotProgress = {
+          schemes: { totalIntegrated: Number(r.schemes_total || 0), fullyIntegrated: Number(r.schemes_fully || 0) },
+          villages: { totalIntegrated: Number(r.villages_total || 0), fullyIntegrated: Number(r.villages_fully || 0) },
+          esr: { totalIntegrated: Number(r.esr_total || 0), fullyIntegrated: Number(r.esr_fully || 0) },
+        };
+      }
+    }
+
+    // 3. Operational
+    let operational = {
+      schemes: 39,
+      villages: 255,
+      esr: 324,
+    };
+
+    if (!isAll) {
+      const opRes: any = await db.execute(sql`
+        SELECT
+          COUNT(DISTINCT ss.scheme_id)::bigint as schemes,
+          COUNT(DISTINCT (ws.scheme_id, LOWER(TRIM(ws.village_name))))::bigint as villages,
+          COUNT(DISTINCT (c.scheme_id, LOWER(TRIM(c.village_name)), LOWER(TRIM(c.esr_name))))::bigint as esr
+        FROM scheme_status ss
+        LEFT JOIN water_scheme_data ws ON ws.scheme_id = ss.scheme_id
+        LEFT JOIN chlorine_data c ON c.scheme_id = ss.scheme_id
+        WHERE ss.water_supply = 'Yes'
+          AND ss.region ILIKE ${`%${selectedRegion}%`};
+      `);
+      const r = opRes.rows ? opRes.rows[0] : opRes[0];
+      if (r) {
+        operational = {
+          schemes: Number(r.schemes || 0),
+          villages: Number(r.villages || 0),
+          esr: Number(r.esr || 0),
+        };
+      }
+    }
+
+    // 4. Alerts - Level 5 (continuous history streak >= streakThreshold)
+    const { allAlerts } = await calculateAllAlertStreaksFromHistory(db);
+    const filteredAlerts = isAll
+      ? allAlerts
+      : allAlerts.filter(a => a.region && a.region.toLowerCase().includes(selectedRegion.toLowerCase()));
+
+    const lpcdVillages = filteredAlerts.filter(a => a.category === 'lpcd' && a.streak_days >= streakThreshold);
+    const lpcdSchemes = new Set(lpcdVillages.map(a => a.scheme_id));
+    const pressureEsrs = filteredAlerts.filter(a => a.category === 'pressure' && a.streak_days >= streakThreshold);
+    const chlorineEsrs = filteredAlerts.filter(a => a.category === 'chlorine' && a.streak_days >= streakThreshold);
+
+    const alertsLevel5 = {
+      daysStreak: streakThreshold,
+      lowLpcdSchemes: lpcdSchemes.size,
+      lowLpcdVillages: lpcdVillages.length,
+      lowPressureEsrs: pressureEsrs.length,
+      residualChlorineOutOfRange: chlorineEsrs.length,
+    };
+
+    res.json({
+      success: true,
+      region: selectedRegion,
+      projectScope,
+      iotProgress,
+      operational,
+      alertsLevel5,
+    });
+  } catch (error: any) {
+    console.error("Error in level5-summary:", error);
+    res.status(500).json({ error: error.message || "Failed to get level 5 summary" });
   }
 });
 

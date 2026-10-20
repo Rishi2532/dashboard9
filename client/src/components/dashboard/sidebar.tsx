@@ -20,6 +20,7 @@ import {
   BellRing,
   UserCheck,
   TrendingUp,
+  Table2,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,7 @@ const navigationItems: NavigationItem[] = [
   { name: "Monthly Reports", href: "/monthly-reports", icon: FileText },
   { name: "Alerts Progress", href: "/alerts-progress", icon: BellRing, adminOnly: true },
   { name: "Escalation Matrix", href: "/escalation", icon: TrendingUp },
+  { name: "Level 5 Alert Summary", href: "/level5-summary", icon: Table2 },
 
   { name: "Village LPCD", href: "/lpcd", icon: Droplet },
   { name: "Scheme LPCD", href: "/scheme-lpcd", icon: Droplet },

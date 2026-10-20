@@ -30,7 +30,9 @@ import {
   CheckCircle2,
   Smartphone,
   Calendar,
+  Table2,
 } from "lucide-react";
+import { Link } from "wouter";
 import DashboardLayout from "@/components/dashboard/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -1844,6 +1846,17 @@ export default function EscalationPortalPage() {
                 <User className="w-3.5 h-3.5 mr-1.5 text-purple-700" />
                 Configure MS & PS Details
               </Button> */}
+
+              <Link href="/level5-summary">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 font-semibold"
+                >
+                  <Table2 className="w-3.5 h-3.5 mr-1.5 text-indigo-700" />
+                  Level 5 Alert Summary
+                </Button>
+              </Link>
 
               <Button
                 variant="outline"
