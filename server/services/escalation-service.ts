@@ -139,19 +139,38 @@ export interface EscalationSummary {
   total_alert_incidents?: number;
 }
 
+let cachedEscalationStatus: {
+  timestamp: number;
+  key: string;
+  data: { summary: EscalationSummary; schemes: SchemeEscalationItem[] };
+} | null = null;
+const ESCALATION_STATUS_CACHE_TTL = 45 * 1000; // 45 seconds in-memory cache
+
+export function invalidateEscalationStatusCache() {
+  cachedEscalationStatus = null;
+}
+
 /**
  * Computes the real-time escalation status across all schemes.
  * - Level 1: Issue active for 1 to 2 days (DE/AE Civil)
  * - Level 2: Issue persists for 3 to 6 consecutive days (EE Civil Escalation)
- * - Level 3: Issue persists for 7+ consecutive days (CE & SE Regional Escalation)
+ * - Level 3: Issue persists for 7 to 14 consecutive days (CE & SE Regional Escalation)
+ * - Level 4: Issue persists for 15 to 19 consecutive days (Member Secretary MS Escalation)
+ * - Level 5: Issue persists for 20+ consecutive days (Principal Secretary PS Escalation)
  */
 export async function getEscalationStatus(options: {
   daysLookback?: number;
   region?: string;
+  forceRefresh?: boolean;
 } = {}): Promise<{
   summary: EscalationSummary;
   schemes: SchemeEscalationItem[];
 }> {
+  const cacheKey = `${options.region || 'ALL'}::${options.daysLookback || 30}`;
+  if (!options.forceRefresh && cachedEscalationStatus && cachedEscalationStatus.key === cacheKey && (Date.now() - cachedEscalationStatus.timestamp < ESCALATION_STATUS_CACHE_TTL)) {
+    return cachedEscalationStatus.data;
+  }
+
   const db = await getDB();
   const daysLookback = options.daysLookback || 30;
 
@@ -512,6 +531,20 @@ export async function getEscalationStatus(options: {
       day: "2-digit",
     }).format(new Date());
 
+    const toDateStr = (raw: any): string => {
+      if (!raw) return '';
+      if (raw instanceof Date) {
+        return new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Asia/Kolkata",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(raw);
+      }
+      const s = String(raw).trim();
+      return s.slice(0, 10);
+    };
+
     const [emailStatsRes, smsStatsRes, engineerRosterRes, categoryEmailStatsRes, categorySmsStatsRes] = await Promise.all([
       db.execute(sql`
         -- 1. Actual dispatches to officers from consolidated_email_dispatches (exact real emails sent)
@@ -862,7 +895,7 @@ export async function getEscalationStatus(options: {
     let last7DaysTotalEmailDispatches = 0;
 
     (emailStatsRes.rows || []).forEach((r: any) => {
-      const isToday = r.sent_date === todayStr;
+      const isToday = toDateStr(r.sent_date) === todayStr;
       const recipient = String(r.engineer_name || r.engineer_email || '').toLowerCase().trim();
       const tier: 'de' | 'ee' | 'se' | 'ce' | 'ms' | 'ps' = (r.tier as any) || 'de';
 
@@ -919,7 +952,7 @@ export async function getEscalationStatus(options: {
     dispatches.last_7_days.ps_officers = last7DaysUniqueByTier.ps.size;
 
     (smsStatsRes.rows || []).forEach((r: any) => {
-      const isToday = r.sent_date === todayStr;
+      const isToday = toDateStr(r.sent_date) === todayStr;
       const count = Number(r.sms_count || 0);
       const name = String(r.engineer_name || '').toLowerCase();
       const cleanMobile = String(r.mobile || '').replace(/[^0-9]/g, '');
@@ -992,7 +1025,7 @@ export async function getEscalationStatus(options: {
         dispatches.last_7_days.level_categories[tier][cat].schemes += schemeCount;
       }
 
-      if (r.sent_date === todayStr) {
+      if (toDateStr(r.sent_date) === todayStr) {
         if (tier === 1 && dispatches.today.categories[cat]) {
           dispatches.today.categories[cat].emails = emailCount;
           dispatches.today.categories[cat].officers = officerCount;
@@ -1015,7 +1048,7 @@ export async function getEscalationStatus(options: {
       if (dispatches.last_7_days.level_categories[tier]?.[cat]) {
         dispatches.last_7_days.level_categories[tier][cat].sms += count;
       }
-      if (r.sent_date === todayStr) {
+      if (toDateStr(r.sent_date) === todayStr) {
         if (tier === 1 && dispatches.today.categories[cat]) {
           dispatches.today.categories[cat].sms = count;
         }
@@ -1030,13 +1063,13 @@ export async function getEscalationStatus(options: {
 
   // 4. Calculate active escalation levels and flags
   const schemesList = Array.from(schemeAgg.values()).map(s => {
-    if (s.max_streak_days >= 15) {
+    if (s.max_streak_days >= 20) {
       s.escalation_level = 5;
       s.ee_escalated = true;
       s.ce_escalated = true;
       s.ms_escalated = true;
       s.ps_escalated = true;
-    } else if (s.max_streak_days >= 10) {
+    } else if (s.max_streak_days >= 15) {
       s.escalation_level = 4;
       s.ee_escalated = true;
       s.ce_escalated = true;
@@ -1113,7 +1146,9 @@ export async function getEscalationStatus(options: {
     r.schemes.push(s.scheme_id);
   });
 
-  return { summary, schemes: schemesList };
+  const finalResult = { summary, schemes: schemesList };
+  cachedEscalationStatus = { timestamp: Date.now(), key: cacheKey, data: finalResult };
+  return finalResult;
 }
 
 /**

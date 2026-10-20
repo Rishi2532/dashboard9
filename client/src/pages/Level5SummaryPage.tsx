@@ -235,11 +235,13 @@ export default function Level5SummaryPage() {
       columns: [
         { key: "scheme_id", label: "Scheme ID" },
         { key: "scheme_name", label: "Scheme Name" },
+        { key: "village_name", label: "Village Name" },
         { key: "region", label: "Region" },
         { key: "circle", label: "Circle" },
         { key: "division", label: "Division" },
         { key: "block", label: "Block" },
-        { key: "total_villages_integrated", label: "Villages Integrated" },
+        { key: "population", label: "Population" },
+        { key: "lpcd_value", label: "Latest LPCD" },
         { key: "status", label: "Status" },
       ],
     },
@@ -249,12 +251,14 @@ export default function Level5SummaryPage() {
       columns: [
         { key: "scheme_id", label: "Scheme ID" },
         { key: "scheme_name", label: "Scheme Name" },
+        { key: "village_name", label: "Village Name" },
         { key: "region", label: "Region" },
         { key: "circle", label: "Circle" },
         { key: "division", label: "Division" },
         { key: "block", label: "Block" },
-        { key: "fully_completed_villages", label: "Villages Fully Completed" },
-        { key: "status", label: "Status" },
+        { key: "population", label: "Population" },
+        { key: "lpcd_value", label: "Latest LPCD" },
+        { key: "status", label: "Completion Status" },
       ],
     },
     iotEsrTotal: {
@@ -263,12 +267,16 @@ export default function Level5SummaryPage() {
       columns: [
         { key: "scheme_id", label: "Scheme ID" },
         { key: "scheme_name", label: "Scheme Name" },
+        { key: "village_name", label: "Village Name" },
+        { key: "esr_name", label: "ESR Name" },
         { key: "region", label: "Region" },
         { key: "circle", label: "Circle" },
         { key: "division", label: "Division" },
         { key: "block", label: "Block" },
-        { key: "total_esr_integrated", label: "ESRs Integrated" },
-        { key: "status", label: "Status" },
+        { key: "chlorine_connected", label: "Chlorine Sensor" },
+        { key: "pressure_connected", label: "Pressure Sensor" },
+        { key: "flow_meter_connected", label: "Flow Meter" },
+        { key: "status", label: "Overall Status" },
       ],
     },
     iotEsrFully: {
@@ -277,12 +285,16 @@ export default function Level5SummaryPage() {
       columns: [
         { key: "scheme_id", label: "Scheme ID" },
         { key: "scheme_name", label: "Scheme Name" },
+        { key: "village_name", label: "Village Name" },
+        { key: "esr_name", label: "ESR Name" },
         { key: "region", label: "Region" },
         { key: "circle", label: "Circle" },
         { key: "division", label: "Division" },
         { key: "block", label: "Block" },
-        { key: "no_fully_completed_esr", label: "ESRs Fully Completed" },
-        { key: "status", label: "Status" },
+        { key: "chlorine_connected", label: "Chlorine Sensor" },
+        { key: "pressure_connected", label: "Pressure Sensor" },
+        { key: "flow_meter_connected", label: "Flow Meter" },
+        { key: "status", label: "Overall Status" },
       ],
     },
     operationalSchemes: {
@@ -309,6 +321,9 @@ export default function Level5SummaryPage() {
         { key: "circle", label: "Circle" },
         { key: "division", label: "Division" },
         { key: "block", label: "Block" },
+        { key: "population", label: "Population" },
+        { key: "lpcd_value", label: "Latest LPCD" },
+        { key: "status", label: "Water Supply" },
       ],
     },
     operationalEsr: {
@@ -323,6 +338,7 @@ export default function Level5SummaryPage() {
         { key: "circle", label: "Circle" },
         { key: "division", label: "Division" },
         { key: "block", label: "Block" },
+        { key: "status", label: "Water Supply" },
       ],
     },
     lowLpcdSchemes: {
@@ -764,10 +780,9 @@ export default function Level5SummaryPage() {
                 {/* ROW 4: Alert Header with dynamic Escalation Role title */}
                 <div className="grid grid-cols-10 bg-[#FCECEF] text-slate-800 text-sm sm:text-base divide-x divide-slate-300 min-h-[58px] items-center">
                   <div className="col-span-2 px-4 py-3 font-bold text-rose-700">
-                    {streakDays === 7 && "Alert - CE & SE (7+ Days)"}
-                    {streakDays === 15 && "Alert - MS Escalation (15+ Days)"}
-                    {streakDays === 20 && "Alert - PS Escalation (20+ Days)"}
-                    {![7, 15, 20].includes(streakDays) && `Alert - Level ${alerts.escalationLevel || 5} - ${streakDays}+ Days`}
+                    {streakDays <= 7 && "Alert - CE & SE Escalation (7+ Days)"}
+                    {streakDays > 7 && streakDays <= 15 && "Alert - MS Escalation (15+ Days)"}
+                    {streakDays > 15 && "Alert - PS Escalation (20+ Days)"}
                   </div>
                   <div className="col-span-2 px-4 py-3 text-left font-medium text-slate-800">
                     Low LPCD In schemes
@@ -787,8 +802,8 @@ export default function Level5SummaryPage() {
                 <div className="grid grid-cols-10 bg-[#FEF9C3] text-slate-800 text-sm sm:text-base divide-x divide-slate-300 min-h-[58px] items-center">
                   <div className="col-span-2 px-4 py-3 font-bold text-rose-700 flex items-center justify-between">
                     <span>Result</span>
-                    <span className="text-[10px] font-normal uppercase tracking-wider text-rose-700 bg-rose-100/70 border border-rose-200 px-1.5 py-0.5 rounded">
-                      {streakDays === 7 ? "CE / SE" : streakDays === 15 ? "MS" : "PS Level 5"}
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-rose-700 bg-rose-100 border border-rose-300 px-2 py-0.5 rounded shadow-sm">
+                      {streakDays <= 7 ? "CE & SE Escalation" : streakDays <= 15 ? "MS Escalation" : "PS Escalation"}
                     </span>
                   </div>
                   <div className="col-span-2 px-4 py-3 text-left text-base sm:text-lg">
@@ -964,10 +979,33 @@ export default function Level5SummaryPage() {
                                   >
                                     {val || 0} Days
                                   </Badge>
+                                ) : col.key === "chlorine_connected" || col.key === "pressure_connected" || col.key === "flow_meter_connected" ? (
+                                  <Badge
+                                    variant="outline"
+                                    className={`text-[10px] font-semibold ${
+                                      String(val || '').trim().toLowerCase() === "connected"
+                                        ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                                        : "bg-rose-50 text-rose-700 border-rose-300"
+                                    }`}
+                                  >
+                                    {val || "Not Connected"}
+                                  </Badge>
+                                ) : col.key === "population" ? (
+                                  <span className="font-mono text-slate-800">
+                                    {val !== undefined && val !== null && !isNaN(Number(val)) ? Number(val).toLocaleString("en-IN") : "-"}
+                                  </span>
+                                ) : col.key === "lpcd_value" ? (
+                                  <span className="font-mono font-semibold text-slate-900">
+                                    {val !== undefined && val !== null ? `${val} LPCD` : "-"}
+                                  </span>
                                 ) : col.key === "status" ? (
                                   <Badge
                                     variant="outline"
-                                    className="bg-slate-100 text-slate-700 border-slate-300 text-[10px]"
+                                    className={`text-[10px] font-semibold ${
+                                      String(val || '').trim().toLowerCase() === "completed" || String(val || '').trim().toLowerCase() === "fully completed" || String(val || '').trim().toLowerCase() === "yes"
+                                        ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                                        : "bg-slate-100 text-slate-700 border-slate-300"
+                                    }`}
                                   >
                                     {val || "Active"}
                                   </Badge>

@@ -967,8 +967,8 @@ function addLevelDispatchesSheet(
       const sNames = Array.isArray(r.scheme_names)
         ? r.scheme_names.join("; ")
         : typeof r.scheme_names === "string"
-        ? (JSON.parse(r.scheme_names || "[]") || []).join("; ")
-        : r.scheme_names || "-";
+          ? (JSON.parse(r.scheme_names || "[]") || []).join("; ")
+          : r.scheme_names || "-";
 
       const timeStr = r.sent_time || (r.created_at ? new Date(r.created_at).toLocaleTimeString("en-IN", { hour12: false }) : "-");
       const dateStr = r.dispatch_date || (r.created_at ? new Date(r.created_at).toISOString().slice(0, 10) : "-");
@@ -1202,8 +1202,8 @@ async function handleExportDispatchesExcel(req: Request, res: Response) {
         const sids = Array.isArray(r.scheme_ids)
           ? r.scheme_ids
           : typeof r.scheme_ids === "string"
-          ? JSON.parse(r.scheme_ids || "[]")
-          : [];
+            ? JSON.parse(r.scheme_ids || "[]")
+            : [];
         sids.forEach((sid: any) => schemesSet.add(String(sid)));
 
         if (Number(r.lpcd_alerts_count) > 0) lpcdMails++;
@@ -1486,148 +1486,217 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
       opSchemesRes,
       opVillagesRes,
       opEsrsRes,
-      streaksRes
+      escalationRes
     ] = await Promise.all([
       db.execute(sql`
-        SELECT scheme_id, scheme_name, region, circle, division, block, total_villages_integrated, total_esr_integrated, fully_completion_scheme_status as status
+        SELECT DISTINCT ON (scheme_id)
+          scheme_id, scheme_name, region, circle, division, sub_division, block,
+          total_villages_integrated, total_esr_integrated,
+          fully_completion_scheme_status as status,
+          water_supply
         FROM scheme_status
         WHERE (total_villages_integrated > 0 OR total_esr_integrated > 0)
           ${isAll ? sql`` : sql`AND region ILIKE ${`%${selectedRegion}%`}`}
-        ORDER BY region, scheme_name
+        ORDER BY scheme_id, region, scheme_name
       `),
       db.execute(sql`
-        SELECT scheme_id, scheme_name, region, circle, division, block, fully_completed_villages, no_fully_completed_esr, fully_completion_scheme_status as status
+        SELECT DISTINCT ON (scheme_id)
+          scheme_id, scheme_name, region, circle, division, sub_division, block,
+          fully_completed_villages, no_fully_completed_esr,
+          fully_completion_scheme_status as status,
+          water_supply
         FROM scheme_status
-        WHERE TRIM(LOWER(fully_completion_scheme_status)) IN ('fully completed', 'completed', 'fully-completed')
+        WHERE (TRIM(LOWER(fully_completion_scheme_status)) IN ('fully completed', 'completed', 'fully-completed', 'connected') OR TRIM(LOWER(mjp_fully_completed)) = 'yes')
           ${isAll ? sql`` : sql`AND region ILIKE ${`%${selectedRegion}%`}`}
-        ORDER BY region, scheme_name
+        ORDER BY scheme_id, region, scheme_name
       `),
       db.execute(sql`
-        SELECT scheme_id, scheme_name, region, circle, division, block, total_villages_integrated, fully_completed_villages, fully_completion_scheme_status as status
-        FROM scheme_status
-        WHERE total_villages_integrated > 0
-          ${isAll ? sql`` : sql`AND region ILIKE ${`%${selectedRegion}%`}`}
-        ORDER BY region, scheme_name
+        SELECT DISTINCT ON (ws.scheme_id, LOWER(TRIM(ws.village_name)))
+          ws.scheme_id, ws.scheme_name, ws.village_name, ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
+          ws.population, ws.lpcd_value_day7 as lpcd_value, ss.water_supply_status as status
+        FROM water_scheme_data ws
+        LEFT JOIN scheme_status ss ON ss.scheme_id = ws.scheme_id
+        WHERE ws.village_name IS NOT NULL
+          ${isAll ? sql`` : sql`AND ws.region ILIKE ${`%${selectedRegion}%`}`}
+        ORDER BY ws.scheme_id, LOWER(TRIM(ws.village_name))
       `),
       db.execute(sql`
-        SELECT scheme_id, scheme_name, region, circle, division, block, fully_completed_villages, total_villages_integrated, fully_completion_scheme_status as status
-        FROM scheme_status
-        WHERE fully_completed_villages > 0
-          ${isAll ? sql`` : sql`AND region ILIKE ${`%${selectedRegion}%`}`}
-        ORDER BY region, scheme_name
+        SELECT DISTINCT ON (ws.scheme_id, LOWER(TRIM(ws.village_name)))
+          ws.scheme_id, ws.scheme_name, ws.village_name, ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
+          ws.population, ws.lpcd_value_day7 as lpcd_value, 'Completed' as status
+        FROM water_scheme_data ws
+        JOIN village v ON v.scheme_id = ws.scheme_id AND LOWER(TRIM(v.village_name)) = LOWER(TRIM(ws.village_name))
+        LEFT JOIN scheme_status ss ON ss.scheme_id = ws.scheme_id
+        WHERE TRIM(LOWER(v.fully_completion_village_status)) IN ('completed', 'fully completed', 'fully_completed')
+          ${isAll ? sql`` : sql`AND ws.region ILIKE ${`%${selectedRegion}%`}`}
+        ORDER BY ws.scheme_id, LOWER(TRIM(ws.village_name))
       `),
       db.execute(sql`
-        SELECT scheme_id, scheme_name, region, circle, division, block, total_esr_integrated, no_fully_completed_esr, fully_completion_scheme_status as status
-        FROM scheme_status
-        WHERE total_esr_integrated > 0
+        SELECT DISTINCT ON (scheme_id, LOWER(TRIM(village_name)), LOWER(TRIM(esr_name)))
+          scheme_id, scheme_name, village_name, esr_name, region, circle, division, sub_division, block,
+          chlorine_connected, pressure_connected, flow_meter_connected,
+          overall_status as status
+        FROM communication_status
+        WHERE esr_name IS NOT NULL AND esr_name != '-'
           ${isAll ? sql`` : sql`AND region ILIKE ${`%${selectedRegion}%`}`}
-        ORDER BY region, scheme_name
+        ORDER BY scheme_id, LOWER(TRIM(village_name)), LOWER(TRIM(esr_name))
       `),
       db.execute(sql`
-        SELECT scheme_id, scheme_name, region, circle, division, block, no_fully_completed_esr, total_esr_integrated, fully_completion_scheme_status as status
-        FROM scheme_status
-        WHERE no_fully_completed_esr > 0
+        SELECT DISTINCT ON (scheme_id, LOWER(TRIM(village_name)), LOWER(TRIM(esr_name)))
+          scheme_id, scheme_name, village_name, esr_name, region, circle, division, sub_division, block,
+          chlorine_connected, pressure_connected, flow_meter_connected,
+          overall_status as status
+        FROM communication_status
+        WHERE esr_name IS NOT NULL AND esr_name != '-'
+          AND LOWER(TRIM(chlorine_connected)) = 'connected'
+          AND LOWER(TRIM(pressure_connected)) = 'connected'
+          AND LOWER(TRIM(flow_meter_connected)) = 'connected'
           ${isAll ? sql`` : sql`AND region ILIKE ${`%${selectedRegion}%`}`}
-        ORDER BY region, scheme_name
+        ORDER BY scheme_id, LOWER(TRIM(village_name)), LOWER(TRIM(esr_name))
       `),
       db.execute(sql`
-        SELECT scheme_id, scheme_name, region, circle, division, block, water_supply as status
+        SELECT DISTINCT ON (scheme_id)
+          scheme_id, scheme_name, region, circle, division, sub_division, block,
+          water_supply as status
         FROM scheme_status
         WHERE water_supply = 'Yes'
           ${isAll ? sql`` : sql`AND region ILIKE ${`%${selectedRegion}%`}`}
-        ORDER BY region, scheme_name
+        ORDER BY scheme_id, region, scheme_name
       `),
       db.execute(sql`
-        SELECT DISTINCT ss.region, ss.circle, ss.division, ss.block, ss.scheme_id, ss.scheme_name, ws.village_name
-        FROM scheme_status ss
-        JOIN water_scheme_data ws ON ws.scheme_id = ss.scheme_id
-        WHERE ss.water_supply = 'Yes'
-          ${isAll ? sql`` : sql`AND ss.region ILIKE ${`%${selectedRegion}%`}`}
-        ORDER BY ss.region, ss.scheme_name, ws.village_name
+        SELECT DISTINCT ON (ws.scheme_id, LOWER(TRIM(ws.village_name)))
+          ws.scheme_id, ws.scheme_name, ws.village_name, ws.region, ws.circle, ws.division, ws.sub_division, ws.block,
+          ws.population, ws.lpcd_value_day7 as lpcd_value, 'Yes' as status
+        FROM water_scheme_data ws
+        JOIN scheme_status ss ON ss.scheme_id = ws.scheme_id AND ss.water_supply = 'Yes'
+        WHERE ws.village_name IS NOT NULL
+          ${isAll ? sql`` : sql`AND ws.region ILIKE ${`%${selectedRegion}%`}`}
+        ORDER BY ws.scheme_id, LOWER(TRIM(ws.village_name))
       `),
       db.execute(sql`
-        SELECT DISTINCT ss.region, ss.circle, ss.division, ss.block, ss.scheme_id, ss.scheme_name, c.village_name, c.esr_name
-        FROM scheme_status ss
-        JOIN chlorine_data c ON c.scheme_id = ss.scheme_id
-        WHERE ss.water_supply = 'Yes'
-          ${isAll ? sql`` : sql`AND ss.region ILIKE ${`%${selectedRegion}%`}`}
-        ORDER BY ss.region, ss.scheme_name, c.village_name, c.esr_name
+        SELECT DISTINCT ON (c.scheme_id, LOWER(TRIM(c.village_name)), LOWER(TRIM(c.esr_name)))
+          c.scheme_id, c.scheme_name, c.village_name, c.esr_name, c.region, c.circle, c.division, c.sub_division, c.block,
+          'Yes' as status
+        FROM chlorine_data c
+        JOIN scheme_status ss ON ss.scheme_id = c.scheme_id AND ss.water_supply = 'Yes'
+        WHERE c.esr_name IS NOT NULL AND c.esr_name != '-'
+          ${isAll ? sql`` : sql`AND c.region ILIKE ${`%${selectedRegion}%`}`}
+        ORDER BY c.scheme_id, LOWER(TRIM(c.village_name)), LOWER(TRIM(c.esr_name))
       `),
-      calculateAllAlertStreaksFromHistory(db, forceRefresh)
+      getEscalationStatus({ region: isAll ? undefined : selectedRegion })
     ]);
 
-    // 4. Alerts - Level (continuous history streak >= streakThreshold)
-    const { allAlerts } = streaksRes;
-    const filteredAlerts = isAll
-      ? allAlerts
-      : allAlerts.filter(a => a.region && a.region.toLowerCase().includes(selectedRegion.toLowerCase()));
+    const iotSchemesTotalList = (iotSchemesTotalRes as any).rows || [];
+    const iotSchemesFullyList = (iotSchemesFullyRes as any).rows || [];
+    const iotVillagesTotalList = (iotVillagesTotalRes as any).rows || [];
+    const iotVillagesFullyList = (iotVillagesFullyRes as any).rows || [];
+    const iotEsrTotalList = (iotEsrTotalRes as any).rows || [];
+    const iotEsrFullyList = (iotEsrFullyRes as any).rows || [];
+    const opSchemesList = (opSchemesRes as any).rows || [];
+    const opVillagesList = (opVillagesRes as any).rows || [];
+    const opEsrsList = (opEsrsRes as any).rows || [];
 
-    const lpcdVillages = filteredAlerts.filter(a => a.category === 'lpcd' && a.streak_days >= streakThreshold);
-    const pressureEsrs = filteredAlerts.filter(a => a.category === 'pressure' && a.streak_days >= streakThreshold);
-    const chlorineEsrs = filteredAlerts.filter(a => a.category === 'chlorine' && a.streak_days >= streakThreshold);
+    iotProgress = {
+      schemes: { totalIntegrated: iotSchemesTotalList.length, fullyIntegrated: iotSchemesFullyList.length },
+      villages: { totalIntegrated: iotVillagesTotalList.length, fullyIntegrated: iotVillagesFullyList.length },
+      esr: { totalIntegrated: iotEsrTotalList.length, fullyIntegrated: iotEsrFullyList.length },
+    };
 
-    // Group LPCD schemes with village breakdowns
-    const lpcdSchemeMap = new Map<string, any>();
-    lpcdVillages.forEach(v => {
-      const sid = String(v.scheme_id);
-      if (!lpcdSchemeMap.has(sid)) {
-        lpcdSchemeMap.set(sid, {
-          scheme_id: sid,
-          scheme_name: v.scheme_name,
-          region: v.region,
-          villages_count: 0,
-          max_streak: 0,
-          villages: [],
-        });
-      }
-      const item = lpcdSchemeMap.get(sid);
-      item.villages_count++;
-      if ((v.streak_days || 0) > item.max_streak) item.max_streak = v.streak_days;
-      item.villages.push(v.village_name);
-    });
+    operational = {
+      schemes: opSchemesList.length,
+      villages: opVillagesList.length,
+      esr: opEsrsList.length,
+    };
+
+    // 4. Alerts calculation by streak threshold (7, 15, 20 Days)
+    const allSchemes = (escalationRes as any)?.schemes || [];
+    const qualifyingSchemes = allSchemes.filter((s: any) => (s.max_streak_days || 0) >= streakThreshold);
 
     const lowLpcdSchemesList: any[] = [];
-    lpcdSchemeMap.forEach(v => {
-      lowLpcdSchemesList.push({
-        ...v,
-        villages_list: v.villages.join(', ')
-      });
+    const lowLpcdVillagesList: any[] = [];
+    const lowPressureEsrsList: any[] = [];
+    const residualChlorineList: any[] = [];
+
+    qualifyingSchemes.forEach((s: any) => {
+      // Low LPCD Schemes & Villages
+      if (s.lpcd_villages && s.lpcd_villages.length > 0) {
+        lowLpcdSchemesList.push({
+          scheme_id: s.scheme_id,
+          scheme_name: s.scheme_name,
+          region: s.region,
+          division: s.division,
+          district: s.district,
+          villages_count: s.lpcd_villages.length,
+          max_streak: s.max_streak_days,
+          villages_list: s.lpcd_villages.map((v: any) => v.village_name).join(', '),
+        });
+
+        s.lpcd_villages.forEach((v: any) => {
+          lowLpcdVillagesList.push({
+            scheme_id: s.scheme_id,
+            scheme_name: s.scheme_name,
+            region: s.region,
+            division: s.division,
+            village_name: v.village_name,
+            parameter_value: v.avg_val || '<55 LPCD',
+            streak_days: s.max_streak_days,
+            telemetry_date: null,
+          });
+        });
+      }
+
+      // Low Pressure ESRs
+      if (s.pressure_low_esrs && s.pressure_low_esrs.length > 0) {
+        s.pressure_low_esrs.forEach((p: any) => {
+          lowPressureEsrsList.push({
+            scheme_id: s.scheme_id,
+            scheme_name: s.scheme_name,
+            region: s.region,
+            division: s.division,
+            village_name: p.village_name,
+            esr_name: p.esr_name,
+            parameter_value: p.val || '<0.2 Bar',
+            streak_days: s.max_streak_days,
+            telemetry_date: null,
+          });
+        });
+      }
+
+      // Residual Chlorine Out Of Range (low + high)
+      if (s.chlorine_low_esrs && s.chlorine_low_esrs.length > 0) {
+        s.chlorine_low_esrs.forEach((c: any) => {
+          residualChlorineList.push({
+            scheme_id: s.scheme_id,
+            scheme_name: s.scheme_name,
+            region: s.region,
+            division: s.division,
+            village_name: c.village_name,
+            esr_name: c.esr_name,
+            parameter_value: c.val || '<0.2 mg/L',
+            issue_type: 'Low Chlorine',
+            streak_days: s.max_streak_days,
+            telemetry_date: null,
+          });
+        });
+      }
+      if (s.chlorine_high_esrs && s.chlorine_high_esrs.length > 0) {
+        s.chlorine_high_esrs.forEach((c: any) => {
+          residualChlorineList.push({
+            scheme_id: s.scheme_id,
+            scheme_name: s.scheme_name,
+            region: s.region,
+            division: s.division,
+            village_name: c.village_name,
+            esr_name: c.esr_name,
+            parameter_value: c.val || '>0.5 mg/L',
+            issue_type: 'High Chlorine',
+            streak_days: s.max_streak_days,
+            telemetry_date: null,
+          });
+        });
+      }
     });
 
-    const lowLpcdVillagesList = lpcdVillages.map(v => ({
-      scheme_id: v.scheme_id,
-      scheme_name: v.scheme_name,
-      region: v.region,
-      village_name: v.village_name,
-      parameter_value: v.parameter_value || String((v as any).latest_value ?? "<55"),
-      streak_days: v.streak_days,
-      telemetry_date: v.telemetry_date || null,
-    }));
-
-    const lowPressureEsrsList = pressureEsrs.map(p => ({
-      scheme_id: p.scheme_id,
-      scheme_name: p.scheme_name,
-      region: p.region,
-      village_name: p.village_name,
-      esr_name: p.esr_name,
-      parameter_value: p.parameter_value || String((p as any).latest_value ?? "<0.2"),
-      streak_days: p.streak_days,
-      telemetry_date: p.telemetry_date || null,
-    }));
-
-    const residualChlorineList = chlorineEsrs.map(c => ({
-      scheme_id: c.scheme_id,
-      scheme_name: c.scheme_name,
-      region: c.region,
-      village_name: c.village_name,
-      esr_name: c.esr_name,
-      parameter_value: c.parameter_value || String((c as any).latest_value ?? "-"),
-      issue_type: c.alert_type || (parseFloat(String(c.parameter_value || (c as any).latest_value || '0')) > 0.5 ? "High Chlorine" : "Low Chlorine"),
-      streak_days: c.streak_days,
-      telemetry_date: c.telemetry_date || null,
-    }));
-
-    // Escalation tier metadata depending on streak threshold
     let escalationLevel = 5;
     let escalationRole = "Principal Secretary (PS) Escalation";
     let escalationTitle = `Alert - Level 5 (PS Escalation) - ${streakThreshold}+ Days`;
@@ -1666,15 +1735,15 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
       alertsLevel5: alertsLevel, // backwards compatible
       alertsLevel,
       details: {
-        iotSchemesTotal: (iotSchemesTotalRes as any).rows || [],
-        iotSchemesFully: (iotSchemesFullyRes as any).rows || [],
-        iotVillagesTotal: (iotVillagesTotalRes as any).rows || [],
-        iotVillagesFully: (iotVillagesFullyRes as any).rows || [],
-        iotEsrTotal: (iotEsrTotalRes as any).rows || [],
-        iotEsrFully: (iotEsrFullyRes as any).rows || [],
-        operationalSchemes: (opSchemesRes as any).rows || [],
-        operationalVillages: (opVillagesRes as any).rows || [],
-        operationalEsr: (opEsrsRes as any).rows || [],
+        iotSchemesTotal: iotSchemesTotalList,
+        iotSchemesFully: iotSchemesFullyList,
+        iotVillagesTotal: iotVillagesTotalList,
+        iotVillagesFully: iotVillagesFullyList,
+        iotEsrTotal: iotEsrTotalList,
+        iotEsrFully: iotEsrFullyList,
+        operationalSchemes: opSchemesList,
+        operationalVillages: opVillagesList,
+        operationalEsr: opEsrsList,
         lowLpcdSchemes: lowLpcdSchemesList,
         lowLpcdVillages: lowLpcdVillagesList,
         lowPressureEsrs: lowPressureEsrsList,
