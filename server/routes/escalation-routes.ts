@@ -125,6 +125,47 @@ router.get("/summary", async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/escalation/latest-date
+ * Returns the latest date available in the database telemetry tables
+ */
+router.get("/latest-date", async (req: Request, res: Response) => {
+  try {
+    const db = await getDB();
+    const result = await db.execute(sql`
+      SELECT COALESCE(
+        (SELECT chlorine_date_day_7 FROM chlorine_data WHERE chlorine_date_day_7 IS NOT NULL LIMIT 1),
+        (SELECT pressure_date_day_7 FROM pressure_data WHERE pressure_date_day_7 IS NOT NULL LIMIT 1),
+        (SELECT lpcd_date_day7 FROM water_scheme_data WHERE lpcd_date_day7 IS NOT NULL LIMIT 1),
+        '18-Oct'
+      ) as latest_date
+    `);
+    const raw = result.rows?.[0]?.latest_date || '18-Oct';
+    const parts = String(raw).split('-');
+    const day = parts[0];
+    const month = parts[1] || 'Oct';
+    const monthMap: Record<string, string> = {
+      Jan: 'January', Feb: 'February', Mar: 'March', Apr: 'April',
+      May: 'May', Jun: 'June', Jul: 'July', Aug: 'August',
+      Sep: 'September', Oct: 'October', Nov: 'November', Dec: 'December'
+    };
+    const fullMonth = monthMap[month] || month;
+    const formatted = `${fullMonth} ${day}, 2026`;
+
+    res.json({
+      success: true,
+      rawDate: raw,
+      formatted,
+    });
+  } catch (error: any) {
+    res.json({
+      success: true,
+      rawDate: '18-Oct',
+      formatted: 'October 18, 2026'
+    });
+  }
+});
+
+/**
  * GET /api/escalation/alert-history
  * Returns the last 7 days daily values and escalation trend for a scheme and alert category
  */
@@ -139,7 +180,9 @@ router.get("/alert-history", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "schemeId is required" });
     }
 
-    // Map category to alert types
+    const db = await getDB();
+
+    // Query past email_alert_logs for ticket_ids and logged dispatches
     let alertTypeCondition = sql`true`;
     if (category === "lpcd") {
       alertTypeCondition = sql`alert_type IN ('LPCD', 'Low LPCD')`;
@@ -151,8 +194,6 @@ router.get("/alert-history", async (req: Request, res: Response) => {
       alertTypeCondition = sql`alert_type = 'Offline'`;
     }
 
-    // Query past 14 days of alert logs
-    const db = await getDB();
     const logsRes = await db.execute(sql`
       SELECT 
         id, scheme_id, scheme_name, region, village_name, esr_name, 
@@ -160,211 +201,284 @@ router.get("/alert-history", async (req: Request, res: Response) => {
       FROM email_alert_logs
       WHERE scheme_id = ${schemeId}
         AND ${alertTypeCondition}
-        AND sent_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '14 days'
       ORDER BY sent_date DESC, created_at DESC
     `);
+    const logs: any[] = logsRes.rows || [];
 
-    // Fetch actual telemetry row from hardware tables
-    // (LPCD strictly from water_scheme_data per user specification, chlorine_data for chlorine, pressure_data for pressure)
-    let telemetryRow: any = null;
-    try {
-      if (category === "chlorine") {
-        const q = esrName && esrName !== "-"
-          ? sql`SELECT * FROM chlorine_data WHERE scheme_id = ${schemeId} AND (esr_name ILIKE ${'%' + esrName + '%'} OR village_name ILIKE ${'%' + villageName + '%'}) LIMIT 1`
-          : villageName && villageName !== "-"
-            ? sql`SELECT * FROM chlorine_data WHERE scheme_id = ${schemeId} AND village_name ILIKE ${'%' + villageName + '%'} LIMIT 1`
-            : sql`SELECT * FROM chlorine_data WHERE scheme_id = ${schemeId} LIMIT 1`;
-        const tRes = await db.execute(q);
-        telemetryRow = tRes.rows?.[0] || null;
-      } else if (category === "pressure") {
-        const q = esrName && esrName !== "-"
-          ? sql`SELECT * FROM pressure_data WHERE scheme_id = ${schemeId} AND (esr_name ILIKE ${'%' + esrName + '%'} OR village_name ILIKE ${'%' + villageName + '%'}) LIMIT 1`
-          : villageName && villageName !== "-"
-            ? sql`SELECT * FROM pressure_data WHERE scheme_id = ${schemeId} AND village_name ILIKE ${'%' + villageName + '%'} LIMIT 1`
-            : sql`SELECT * FROM pressure_data WHERE scheme_id = ${schemeId} LIMIT 1`;
-        const tRes = await db.execute(q);
-        telemetryRow = tRes.rows?.[0] || null;
-      } else if (category === "lpcd") {
-        const q = villageName && villageName !== "-"
-          ? sql`SELECT * FROM water_scheme_data WHERE scheme_id = ${schemeId} AND village_name ILIKE ${'%' + villageName + '%'} LIMIT 1`
-          : sql`SELECT * FROM water_scheme_data WHERE scheme_id = ${schemeId} LIMIT 1`;
-        const tRes = await db.execute(q);
-        telemetryRow = tRes.rows?.[0] || null;
-      }
-    } catch (tErr) {
-      console.warn("Could not query sensor telemetry row:", tErr);
-    }
+    // CASE 1: OFFLINE SENSORS
+    if (category === "offline") {
+      const commRes = await db.execute(sql`
+        SELECT * FROM communication_status
+        WHERE scheme_id = ${schemeId}
+          ${villageName && villageName !== "-" ? sql`AND LOWER(TRIM(village_name)) = LOWER(TRIM(${villageName}))` : sql``}
+          ${esrName && esrName !== "-" ? sql`AND LOWER(TRIM(esr_name)) = LOWER(TRIM(${esrName}))` : sql``}
+        LIMIT 1
+      `);
+      const row: any = commRes.rows?.[0];
 
-    // Helper to find recorded reading for a specific date in telemetry row
-    const getTelemetryReading = (tRow: any, cat: string, dateObj: Date) => {
-      if (!tRow) return null;
-      const dayNum = dateObj.getDate();
-      const monthShort = dateObj.toLocaleDateString("en-US", { month: "short" });
-      const patterns = [
-        `${dayNum}-${monthShort}`,
-        `${String(dayNum).padStart(2, '0')}-${monthShort}`,
-        `${dayNum} ${monthShort}`,
-        `${String(dayNum).padStart(2, '0')} ${monthShort}`,
+      // Telemetry dates: Day 7 (18-Oct) down to Day 1 (12-Oct)
+      const dateConfigs = [
+        { dayIndex: 1, label: '18-Oct', full: '18 Oct 2026', d: new Date('2026-10-18T12:00:00Z') },
+        { dayIndex: 2, label: '17-Oct', full: '17 Oct 2026', d: new Date('2026-10-17T12:00:00Z') },
+        { dayIndex: 3, label: '16-Oct', full: '16 Oct 2026', d: new Date('2026-10-16T12:00:00Z') },
+        { dayIndex: 4, label: '15-Oct', full: '15 Oct 2026', d: new Date('2026-10-15T12:00:00Z') },
+        { dayIndex: 5, label: '14-Oct', full: '14 Oct 2026', d: new Date('2026-10-14T12:00:00Z') },
+        { dayIndex: 6, label: '13-Oct', full: '13 Oct 2026', d: new Date('2026-10-13T12:00:00Z') },
+        { dayIndex: 7, label: '12-Oct', full: '12 Oct 2026', d: new Date('2026-10-12T12:00:00Z') },
       ];
 
-      for (let k = 1; k <= 7; k++) {
-        const dateField = cat === "chlorine"
-          ? tRow[`chlorine_date_day_${k}`]
-          : cat === "pressure"
-            ? tRow[`pressure_date_day_${k}`]
-            : tRow[`lpcd_date_day${k}`] || tRow[`water_date_day${k}`];
+      const isChlorine = row ? (String(row.chlorine_connected || '').trim() === 'Connected' && row.chlorine_status === 'Offline') : false;
+      const isPressure = row ? (String(row.pressure_connected || '').trim() === 'Connected' && row.pressure_status === 'Offline') : false;
+      const isFlow = row ? (String(row.flow_meter_connected || '').trim() === 'Connected' && row.flow_meter_status === 'Offline') : false;
 
-        if (dateField) {
-          const cleanDateField = String(dateField).trim().toLowerCase();
-          for (const p of patterns) {
-            if (cleanDateField === p.toLowerCase() || cleanDateField.includes(p.toLowerCase())) {
-              const valField = cat === "chlorine"
-                ? tRow[`chlorine_value_${k}`]
-                : cat === "pressure"
-                  ? tRow[`pressure_value_${k}`]
-                  : tRow[`lpcd_value_day${k}`];
-              if (valField !== null && valField !== undefined && String(valField).trim() !== '') {
-                const numVal = parseFloat(String(valField).trim());
-                return { rawValue: String(valField).trim(), numVal: isNaN(numVal) ? null : numVal };
-              }
-            }
-          }
+      const offlineSensors: string[] = [];
+      if (isPressure) offlineSensors.push('Pressure');
+      if (isChlorine) offlineSensors.push('Chlorine');
+      if (isFlow) offlineSensors.push('Flow Meter');
+
+      const offlineLabel = offlineSensors.length > 0 ? offlineSensors.join(', ') : 'Sensor';
+
+      // Find any logged ticket
+      const matchedTicket = logs.find((l: any) => l.ticket_id && l.ticket_id !== '-')?.ticket_id;
+
+      const timeline = dateConfigs.map((dt) => {
+        let clFlowDays = 0;
+        if ((isChlorine || isFlow) && row?.last_seen) {
+          clFlowDays = Math.max(1, Math.floor((dt.d.getTime() - new Date(row.last_seen).getTime()) / (1000 * 86400)));
         }
-      }
-      return null;
-    };
+        let prDays = 0;
+        if (isPressure && row?.pressure_last_seen) {
+          prDays = Math.max(1, Math.floor((dt.d.getTime() - new Date(row.pressure_last_seen).getTime()) / (1000 * 86400)));
+        }
+        const streakOnDay = Math.max(clFlowDays, prDays, 1);
+        const tier = streakOnDay >= 7 ? 'Level 3 • CE & SE Escalated' : streakOnDay >= 3 ? 'Level 2 • EE Escalated' : 'Level 1 • DE / AE Operational';
 
-    // Build the 7-day timeline (today and previous 6 days)
-    const today = new Date();
-    const days: any[] = [];
-    const rows = logsRes.rows || [];
-
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const dateStr = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Asia/Kolkata",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).format(d);
-
-      const dateFormatted = d.toLocaleDateString("en-IN", {
-        timeZone: "Asia/Kolkata",
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
+        return {
+          dayIndex: dt.dayIndex,
+          date: dt.d.toISOString().split('T')[0],
+          dateFormatted: dt.full,
+          dayLabel: dt.dayIndex === 1 ? 'Latest' : `Day ${dt.dayIndex}`,
+          hasAlert: true,
+          alertType: 'Offline',
+          alertValue: `${offlineLabel} Offline`,
+          villageName: row?.village_name || villageName || '-',
+          esrName: row?.esr_name || esrName || '-',
+          ticketId: matchedTicket || `TKT-${schemeId}-${dt.label.replace('-', '')}`,
+          logCount: 1,
+          allLogs: [],
+        };
       });
 
-      const dayLabel = i === 0 ? "Today" : i === 1 ? "Yesterday" : `Day ${i + 1}`;
-
-      // Filter logs for this specific date (and optional village / esr matching)
-      let dayLogs = rows.filter((r: any) => {
-        const logDateStr = r.sent_date ? new Date(r.sent_date).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }) : "";
-        return logDateStr === dateStr;
-      });
-
-      if (villageName && dayLogs.some((l: any) => l.village_name && l.village_name.toLowerCase() === villageName.toLowerCase())) {
-        dayLogs = dayLogs.filter((l: any) => l.village_name && l.village_name.toLowerCase() === villageName.toLowerCase());
-      }
-      if (esrName && dayLogs.some((l: any) => l.esr_name && l.esr_name.toLowerCase() === esrName.toLowerCase())) {
-        dayLogs = dayLogs.filter((l: any) => l.esr_name && l.esr_name.toLowerCase() === esrName.toLowerCase());
-      }
-
-      const primaryLog = dayLogs[0] || null;
-      const telemetry = getTelemetryReading(telemetryRow, category, d);
-
-      // Determine breach status: Prioritize official email dispatch logs for this date
-      let hasAlert = dayLogs.length > 0;
-      let alertType = primaryLog?.alert_type || "";
-      let alertValue = primaryLog?.alert_value || "";
-
-      if (hasAlert) {
-        // There is an official logged alert for this date
-        if (!alertValue && telemetry?.rawValue) {
-          alertValue = telemetry.rawValue;
-        }
-      } else if (telemetry) {
-        // No alert log recorded, fallback to telemetry reading
-        if (category === "chlorine") {
-          if (telemetry.numVal !== null) {
-            if (telemetry.numVal < 0.20) {
-              hasAlert = true;
-              alertType = "Low Chlorine";
-              alertValue = `${telemetry.rawValue}`;
-            } else if (telemetry.numVal > 0.50) {
-              hasAlert = true;
-              alertType = "High Chlorine";
-              alertValue = `${telemetry.rawValue}`;
-            } else {
-              hasAlert = false;
-              alertType = "Compliant";
-              alertValue = `${telemetry.rawValue}`;
-            }
-          }
-        } else if (category === "pressure") {
-          if (telemetry.numVal !== null) {
-            if (telemetry.numVal < 0.20) {
-              hasAlert = true;
-              alertType = "Low Pressure";
-              alertValue = `${telemetry.rawValue}`;
-            } else {
-              hasAlert = false;
-              alertType = "Compliant";
-              alertValue = `${telemetry.rawValue}`;
-            }
-          }
-        } else if (category === "lpcd") {
-          if (telemetry.numVal !== null) {
-            if (telemetry.numVal < 55) {
-              hasAlert = true;
-              alertType = "Low LPCD";
-              alertValue = `${telemetry.rawValue} LPCD`;
-            } else {
-              hasAlert = false;
-              alertType = "Compliant";
-              alertValue = `${telemetry.rawValue} LPCD`;
-            }
-          }
-        }
-      }
-
-      // If Sunday (day 0) had no email log and no telemetry, but previous Saturday & Monday both had active alerts,
-      // bridge Sunday as continuing the breach
-      if (!hasAlert && dayLogs.length === 0 && d.getDay() === 0) {
-        const satLogs = rows.filter((r: any) => {
-          const lDate = r.sent_date ? new Date(r.sent_date) : null;
-          if (!lDate) return false;
-          const diffDays = Math.round((d.getTime() - lDate.getTime()) / (1000 * 60 * 60 * 24));
-          return diffDays === 1;
-        });
-        if (satLogs.length > 0) {
-          hasAlert = true;
-          alertType = satLogs[0].alert_type || (category === "chlorine" ? "Low Chlorine" : category === "pressure" ? "Low Pressure" : "Low LPCD");
-          alertValue = satLogs[0].alert_value || "0";
-        }
-      }
-
-      if (!hasAlert && !alertType) {
-        alertType = "Normal / Within Limits";
-        alertValue = "Normal";
-      }
-
-      days.push({
-        dayIndex: i + 1,
-        date: dateStr,
-        dateFormatted,
-        dayLabel,
-        hasAlert,
-        alertType,
-        alertValue,
-        villageName: primaryLog?.village_name || villageName || telemetryRow?.village_name || "-",
-        esrName: primaryLog?.esr_name || esrName || telemetryRow?.esr_name || "-",
-        ticketId: primaryLog?.ticket_id || (hasAlert ? `TKT-${schemeId}-${dateStr.replace(/-/g, '').slice(-4)}` : "-"),
-        logCount: dayLogs.length,
-        allLogs: dayLogs,
+      return res.json({
+        success: true,
+        schemeId,
+        category,
+        timeline,
       });
     }
+
+    // CASE 2: LPCD, CHLORINE, OR PRESSURE
+    let telemetryRow: any = null;
+    if (category === "chlorine") {
+      const q = esrName && esrName !== "-"
+        ? sql`
+          SELECT c.*, 
+            wc.water_value_day7 as w7, wc.water_value_day6 as w6, wc.water_value_day5 as w5,
+            wc.water_value_day4 as w4, wc.water_value_day3 as w3, wc.water_value_day2 as w2,
+            wc.water_value_day1 as w1
+          FROM chlorine_data c
+          LEFT JOIN water_consumption wc ON (
+            c.scheme_id = wc.scheme_id AND
+            LOWER(TRIM(COALESCE(c.village_name, ''))) = LOWER(TRIM(COALESCE(wc.village_name, ''))) AND
+            LOWER(TRIM(COALESCE(c.esr_name, ''))) = LOWER(TRIM(COALESCE(wc.esr_name, '')))
+          )
+          WHERE c.scheme_id = ${schemeId} AND (c.esr_name ILIKE ${'%' + esrName + '%'} OR c.village_name ILIKE ${'%' + villageName + '%'})
+          LIMIT 1`
+        : villageName && villageName !== "-"
+          ? sql`
+          SELECT c.*, 
+            wc.water_value_day7 as w7, wc.water_value_day6 as w6, wc.water_value_day5 as w5,
+            wc.water_value_day4 as w4, wc.water_value_day3 as w3, wc.water_value_day2 as w2,
+            wc.water_value_day1 as w1
+          FROM chlorine_data c
+          LEFT JOIN water_consumption wc ON (
+            c.scheme_id = wc.scheme_id AND
+            LOWER(TRIM(COALESCE(c.village_name, ''))) = LOWER(TRIM(COALESCE(wc.village_name, ''))) AND
+            LOWER(TRIM(COALESCE(c.esr_name, ''))) = LOWER(TRIM(COALESCE(wc.esr_name, '')))
+          )
+          WHERE c.scheme_id = ${schemeId} AND c.village_name ILIKE ${'%' + villageName + '%'}
+          LIMIT 1`
+          : sql`
+          SELECT c.*, 
+            wc.water_value_day7 as w7, wc.water_value_day6 as w6, wc.water_value_day5 as w5,
+            wc.water_value_day4 as w4, wc.water_value_day3 as w3, wc.water_value_day2 as w2,
+            wc.water_value_day1 as w1
+          FROM chlorine_data c
+          LEFT JOIN water_consumption wc ON (
+            c.scheme_id = wc.scheme_id AND
+            LOWER(TRIM(COALESCE(c.village_name, ''))) = LOWER(TRIM(COALESCE(wc.village_name, ''))) AND
+            LOWER(TRIM(COALESCE(c.esr_name, ''))) = LOWER(TRIM(COALESCE(wc.esr_name, '')))
+          )
+          WHERE c.scheme_id = ${schemeId}
+          LIMIT 1`;
+      const tRes = await db.execute(q);
+      telemetryRow = tRes.rows?.[0] || null;
+    } else if (category === "pressure") {
+      const q = esrName && esrName !== "-"
+        ? sql`
+          SELECT p.*, 
+            wc.water_value_day7 as w7, wc.water_value_day6 as w6, wc.water_value_day5 as w5,
+            wc.water_value_day4 as w4, wc.water_value_day3 as w3, wc.water_value_day2 as w2,
+            wc.water_value_day1 as w1
+          FROM pressure_data p
+          LEFT JOIN water_consumption wc ON (
+            p.scheme_id = wc.scheme_id AND
+            LOWER(TRIM(COALESCE(p.village_name, ''))) = LOWER(TRIM(COALESCE(wc.village_name, ''))) AND
+            LOWER(TRIM(COALESCE(p.esr_name, ''))) = LOWER(TRIM(COALESCE(wc.esr_name, '')))
+          )
+          WHERE p.scheme_id = ${schemeId} AND (p.esr_name ILIKE ${'%' + esrName + '%'} OR p.village_name ILIKE ${'%' + villageName + '%'})
+          LIMIT 1`
+        : villageName && villageName !== "-"
+          ? sql`
+          SELECT p.*, 
+            wc.water_value_day7 as w7, wc.water_value_day6 as w6, wc.water_value_day5 as w5,
+            wc.water_value_day4 as w4, wc.water_value_day3 as w3, wc.water_value_day2 as w2,
+            wc.water_value_day1 as w1
+          FROM pressure_data p
+          LEFT JOIN water_consumption wc ON (
+            p.scheme_id = wc.scheme_id AND
+            LOWER(TRIM(COALESCE(p.village_name, ''))) = LOWER(TRIM(COALESCE(wc.village_name, ''))) AND
+            LOWER(TRIM(COALESCE(p.esr_name, ''))) = LOWER(TRIM(COALESCE(wc.esr_name, '')))
+          )
+          WHERE p.scheme_id = ${schemeId} AND p.village_name ILIKE ${'%' + villageName + '%'}
+          LIMIT 1`
+          : sql`
+          SELECT p.*, 
+            wc.water_value_day7 as w7, wc.water_value_day6 as w6, wc.water_value_day5 as w5,
+            wc.water_value_day4 as w4, wc.water_value_day3 as w3, wc.water_value_day2 as w2,
+            wc.water_value_day1 as w1
+          FROM pressure_data p
+          LEFT JOIN water_consumption wc ON (
+            p.scheme_id = wc.scheme_id AND
+            LOWER(TRIM(COALESCE(p.village_name, ''))) = LOWER(TRIM(COALESCE(wc.village_name, ''))) AND
+            LOWER(TRIM(COALESCE(p.esr_name, ''))) = LOWER(TRIM(COALESCE(wc.esr_name, '')))
+          )
+          WHERE p.scheme_id = ${schemeId}
+          LIMIT 1`;
+      const tRes = await db.execute(q);
+      telemetryRow = tRes.rows?.[0] || null;
+    } else if (category === "lpcd") {
+      const q = villageName && villageName !== "-"
+        ? sql`SELECT * FROM water_scheme_data WHERE scheme_id = ${schemeId} AND village_name ILIKE ${'%' + villageName + '%'} LIMIT 1`
+        : sql`SELECT * FROM water_scheme_data WHERE scheme_id = ${schemeId} LIMIT 1`;
+      const tRes = await db.execute(q);
+      telemetryRow = tRes.rows?.[0] || null;
+    }
+
+    const matchedTicket = logs.find((l: any) => l.ticket_id && l.ticket_id !== '-')?.ticket_id;
+
+    // Build timeline using the 7 database days (Day 7 down to Day 1)
+    const dayIndices = [7, 6, 5, 4, 3, 2, 1];
+    const days = dayIndices.map((k, idx) => {
+      let rawVal: any = null;
+      let rawW: any = null;
+      let rawDate: string = `${11 + k}-Oct`;
+
+      if (telemetryRow) {
+        if (category === "chlorine") {
+          rawVal = telemetryRow[`chlorine_value_${k}`];
+          rawW = telemetryRow[`w${k}`] ?? telemetryRow[`water_consumption_${k}`];
+          rawDate = telemetryRow[`chlorine_date_day_${k}`] || rawDate;
+        } else if (category === "pressure") {
+          rawVal = telemetryRow[`pressure_value_${k}`];
+          rawW = telemetryRow[`w${k}`] ?? telemetryRow[`water_consumption_${k}`];
+          rawDate = telemetryRow[`pressure_date_day_${k}`] || rawDate;
+        } else if (category === "lpcd") {
+          rawVal = telemetryRow[`lpcd_value_day${k}`];
+          rawW = telemetryRow[`water_value_day${k}`];
+          rawDate = telemetryRow[`lpcd_date_day${k}`] || rawDate;
+        }
+      }
+
+      const numVal = rawVal !== null && rawVal !== undefined && String(rawVal).trim() !== '' ? parseFloat(String(rawVal).trim()) : null;
+      const numW = rawW !== null && rawW !== undefined && String(rawW).trim() !== '' ? parseFloat(String(rawW).trim()) : null;
+
+      let isBreach = false;
+      let alertType = "Compliant";
+      let alertValue = "Normal";
+
+      if (category === "chlorine") {
+        if (numVal !== null && !isNaN(numVal)) {
+          alertValue = `${numVal.toFixed(2)} mg/L`;
+          if ((numVal < 0.20 || numVal > 0.50) && (numW === null || numW > 0)) {
+            isBreach = true;
+            alertType = numVal > 0.50 ? "High Chlorine" : "Low Chlorine";
+          }
+        }
+      } else if (category === "pressure") {
+        if (numVal !== null && !isNaN(numVal)) {
+          alertValue = `${numVal.toFixed(2)} Bar`;
+          if (numVal < 0.20 && numVal >= 0 && (numW === null || numW > 0)) {
+            isBreach = true;
+            alertType = "Low Pressure";
+          }
+        }
+      } else if (category === "lpcd") {
+        if (numVal !== null && !isNaN(numVal)) {
+          alertValue = `${numVal.toFixed(0)} LPCD`;
+          if (numVal < 55) {
+            isBreach = true;
+            alertType = "Low LPCD";
+          }
+        }
+      }
+
+      // Compute streak on day k
+      let streakOnDay = 0;
+      if (isBreach && telemetryRow) {
+        for (let j = k; j >= 1; j--) {
+          let jVal: any = null;
+          let jW: any = null;
+          if (category === "chlorine") {
+            jVal = telemetryRow[`chlorine_value_${j}`];
+            jW = telemetryRow[`w${j}`] ?? telemetryRow[`water_consumption_${j}`];
+          } else if (category === "pressure") {
+            jVal = telemetryRow[`pressure_value_${j}`];
+            jW = telemetryRow[`w${j}`] ?? telemetryRow[`water_consumption_${j}`];
+          } else if (category === "lpcd") {
+            jVal = telemetryRow[`lpcd_value_day${j}`];
+            jW = telemetryRow[`water_value_day${j}`];
+          }
+          const jnVal = jVal !== null && jVal !== undefined && String(jVal).trim() !== '' ? parseFloat(String(jVal).trim()) : null;
+          const jnW = jW !== null && jW !== undefined && String(jW).trim() !== '' ? parseFloat(String(jW).trim()) : null;
+          let jBreach = false;
+          if (category === "chlorine" && jnVal !== null && (jnVal < 0.2 || jnVal > 0.5) && (jnW === null || jnW > 0)) jBreach = true;
+          if (category === "pressure" && jnVal !== null && (jnVal < 0.2 && jnVal >= 0) && (jnW === null || jnW > 0)) jBreach = true;
+          if (category === "lpcd" && jnVal !== null && jnVal < 55) jBreach = true;
+
+          if (jBreach) streakOnDay++;
+          else break;
+        }
+      }
+
+      // Clean formatted date: e.g. "18-Oct" -> "18 Oct 2026"
+      const cleanDate = rawDate.replace('-', ' ') + ' 2026';
+
+      return {
+        dayIndex: idx + 1,
+        date: cleanDate,
+        dateFormatted: cleanDate,
+        dayLabel: idx === 0 ? "Latest" : `Day ${idx + 1}`,
+        hasAlert: isBreach,
+        alertType,
+        alertValue,
+        villageName: villageName || telemetryRow?.village_name || "-",
+        esrName: esrName || telemetryRow?.esr_name || "-",
+        ticketId: matchedTicket || `TKT-${schemeId}-${rawDate.replace('-', '')}`,
+        logCount: isBreach ? 1 : 0,
+        allLogs: [],
+      };
+    });
 
     res.json({
       success: true,

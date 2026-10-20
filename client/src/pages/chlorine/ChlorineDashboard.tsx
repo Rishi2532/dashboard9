@@ -2257,10 +2257,6 @@ const ChlorineDashboard: React.FC = () => {
 
         {/* Qualifying Schemes Info Footer */}
         <div className="bg-slate-50 border-t border-slate-100 px-4 py-2 flex flex-wrap justify-between items-center gap-2">
-          <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
-            <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block animate-pulse" />
-            Live Data Feed
-          </div>
           <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 shadow-sm">
             <Info className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
             <span className="text-xs font-medium text-blue-800">
@@ -3613,8 +3609,8 @@ const ChlorineDashboard: React.FC = () => {
                           <div
                             key={index}
                             className={`bg-white p-5 rounded-xl shadow-sm border border-slate-200 ${issue.status === 'Resolved'
-                                ? 'border-l-4 border-l-emerald-500'
-                                : 'border-l-4 border-l-red-500'
+                              ? 'border-l-4 border-l-emerald-500'
+                              : 'border-l-4 border-l-red-500'
                               }`}
                           >
                             <div className="flex justify-between items-start mb-3 gap-4">

@@ -163,18 +163,14 @@ export default function FilterBar({
       </div>
 
       {/* Footer */}
-      <div className="bg-slate-50 border-t border-slate-100 px-3 py-1.5 flex justify-between items-center">
-        <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
-          <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block animate-pulse" />
-          Live Data Feed
-        </div>
-        {resultCount !== undefined && (
+      {resultCount !== undefined && (
+        <div className="bg-slate-50 border-t border-slate-100 px-3 py-1.5 flex justify-end items-center">
           <div className="text-[10px] font-medium text-slate-600">
             Showing <span className="text-blue-600 font-bold">{resultCount.toLocaleString()}</span>{" "}
             {resultLabel}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -677,49 +677,49 @@ const EnhancedLpcdDashboard = () => {
     }
   };
 
-    const getLatestLpcdValue = (scheme: WaterSchemeData): number | null => {
-      // Try to get the latest non-null value
-      for (const day of [7, 6, 5, 4, 3, 2, 1]) {
-        const value = scheme[`lpcd_value_day${day}` as keyof WaterSchemeData];
-        if (
-          value !== undefined &&
-          value !== null &&
-          value !== "" &&
-          !isNaN(Number(value))
-        ) {
-          return Number(value);
-        }
+  const getLatestLpcdValue = (scheme: WaterSchemeData): number | null => {
+    // Try to get the latest non-null value
+    for (const day of [7, 6, 5, 4, 3, 2, 1]) {
+      const value = scheme[`lpcd_value_day${day}` as keyof WaterSchemeData];
+      if (
+        value !== undefined &&
+        value !== null &&
+        value !== "" &&
+        !isNaN(Number(value))
+      ) {
+        return Number(value);
       }
-      return null;
-    };
+    }
+    return null;
+  };
 
-    // Get latest water supply value
-    const getLatestWaterSupplyValue = (
-      scheme: WaterSchemeData,
-    ): number | null => {
-      // Try to get the latest non-null water supply value, starting with day 7
-      for (const day of [7, 6, 5, 4, 3, 2, 1]) {
-        const value = scheme[`water_value_day${day}` as keyof WaterSchemeData];
-        if (
-          value !== undefined &&
-          value !== null &&
-          value !== "" &&
-          !isNaN(Number(value))
-        ) {
-          return Number(value);
-        }
+  // Get latest water supply value
+  const getLatestWaterSupplyValue = (
+    scheme: WaterSchemeData,
+  ): number | null => {
+    // Try to get the latest non-null water supply value, starting with day 7
+    for (const day of [7, 6, 5, 4, 3, 2, 1]) {
+      const value = scheme[`water_value_day${day}` as keyof WaterSchemeData];
+      if (
+        value !== undefined &&
+        value !== null &&
+        value !== "" &&
+        !isNaN(Number(value))
+      ) {
+        return Number(value);
       }
-      return null;
-    };
+    }
+    return null;
+  };
 
-    // Check if a scheme has zero water supply for the current day
-    const hasNoCurrentWaterSupply = (scheme: WaterSchemeData): boolean => {
-      // Get the most recent water supply value
-      const currentWaterSupply = getLatestLpcdValue(scheme);
-  
-      // Return true if it's explicitly 0
-      return currentWaterSupply !== null && currentWaterSupply === 0;
-    };
+  // Check if a scheme has zero water supply for the current day
+  const hasNoCurrentWaterSupply = (scheme: WaterSchemeData): boolean => {
+    // Get the most recent water supply value
+    const currentWaterSupply = getLatestLpcdValue(scheme);
+
+    // Return true if it's explicitly 0
+    return currentWaterSupply !== null && currentWaterSupply === 0;
+  };
 
   // Check if a scheme has consistent zero water supply for all 7 days
   const hasConsistentZeroWaterSupply = (scheme: WaterSchemeData): boolean => {
@@ -1357,7 +1357,7 @@ const EnhancedLpcdDashboard = () => {
             const val = (scheme as any)[`water_value_day${i}`];
             rowData.push(val !== null && val !== undefined ? Number(val).toFixed(4) : "N/A");
           }
-          
+
           // LPCD values day 1-7
           for (let i = 1; i <= 7; i++) {
             const val = (scheme as any)[`lpcd_value_day${i}`];
@@ -1365,11 +1365,11 @@ const EnhancedLpcdDashboard = () => {
           }
 
           const row = worksheet.addRow(rowData);
-          
+
           // Add some basic styling to cells if needed
           row.eachCell((cell, colNumber) => {
-             cell.alignment = { horizontal: colNumber <= 9 ? 'left' : 'right' };
-             cell.border = {
+            cell.alignment = { horizontal: colNumber <= 9 ? 'left' : 'right' };
+            cell.border = {
               top: { style: "thin" },
               left: { style: "thin" },
               bottom: { style: "thin" },
@@ -2170,10 +2170,6 @@ const EnhancedLpcdDashboard = () => {
 
         {/* Footer */}
         <div className="bg-slate-50 border-t border-slate-100 px-4 py-2 flex flex-wrap justify-between items-center gap-2">
-          <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
-            <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block animate-pulse" />
-            Live Data Feed
-          </div>
           <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 shadow-sm">
             <Info className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
             <span className="text-xs font-medium text-blue-800">
@@ -2927,7 +2923,7 @@ const EnhancedLpcdDashboard = () => {
                               const isEven = index % 2 === 0;
                               // Check for active issues — only village-level shown here
                               const villageLevelIssues = villageIssuesMap.get(`${scheme.scheme_id}-${scheme.village_name}`) || [];
-                              const hasActiveIssue = villageLevelIssues.some((i: any) => i.status === 'Active');                              return (
+                              const hasActiveIssue = villageLevelIssues.some((i: any) => i.status === 'Active'); return (
                                 <TableRow
                                   // IMPORTANT: Key includes block field to handle duplicate villages across blocks
                                   // This ensures proper React rendering when same village exists in multiple blocks
@@ -2966,7 +2962,7 @@ const EnhancedLpcdDashboard = () => {
                                     {scheme.population?.toLocaleString("en-IN") ||
                                       "N/A"}
                                   </TableCell>
- 
+
                                   <TableCell className="border-b border-blue-200 text-center align-middle">
                                     <LpcdBadge
                                       value={calculateWeeklyAverageLpcd(scheme)}
@@ -2975,7 +2971,7 @@ const EnhancedLpcdDashboard = () => {
                                   <TableCell className="border-b border-blue-200 text-center align-middle">
                                     <LpcdBadge value={lpcdValue} />
                                   </TableCell>
- 
+
                                   <TableCell className="border-b border-blue-200 text-center align-middle">
                                     <Badge
                                       variant="outline"
@@ -3009,7 +3005,7 @@ const EnhancedLpcdDashboard = () => {
                                             </span>
                                           </Button>
                                         );
-                                      })()                                    ) : (
+                                      })()) : (
                                       <span className="text-gray-400">-</span>
                                     )}
                                   </TableCell>
@@ -3169,20 +3165,18 @@ const EnhancedLpcdDashboard = () => {
                       {selectedRemarkDetails.issues.map((issue: any, index: number) => (
                         <div
                           key={index}
-                          className={`bg-white p-5 rounded-xl shadow-sm border border-slate-200 ${
-                            issue.status === 'Resolved'
-                              ? 'border-l-4 border-l-emerald-500'
-                              : 'border-l-4 border-l-red-500'
-                          }`}
+                          className={`bg-white p-5 rounded-xl shadow-sm border border-slate-200 ${issue.status === 'Resolved'
+                            ? 'border-l-4 border-l-emerald-500'
+                            : 'border-l-4 border-l-red-500'
+                            }`}
                         >                          <div className="flex justify-between items-start mb-3 gap-4">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
                                 <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider">
                                   {issue.problem_level ? `${issue.problem_level} Level`.toUpperCase() : (issue.category || "General")}
                                 </span>
-                                <span className={`px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider ${
-                                  issue.status === 'Resolved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                }`}>
+                                <span className={`px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider ${issue.status === 'Resolved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                  }`}>
                                   {issue.status || 'Active'}
                                 </span>                              </div>
                             </div>
@@ -3216,7 +3210,7 @@ const EnhancedLpcdDashboard = () => {
                                       month: 'short', day: 'numeric', year: 'numeric',
                                       hour: 'numeric', minute: '2-digit', hour12: true
                                     })}
-                                  </span>                                )}
+                                  </span>)}
                               </div>
                             )}
                           </div>

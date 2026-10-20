@@ -17,14 +17,35 @@ export interface AlertWithHistoryStreak {
   chlorine_offline?: boolean;
 }
 
+const MONTH_MAP: Record<string, number> = {
+  jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+  jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
+};
+
+export function parseHistoryDate(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  const str = String(dateStr).trim();
+  const parts = str.split('-');
+  if (parts.length === 2) {
+    const day = parseInt(parts[0], 10);
+    const mon = MONTH_MAP[parts[1].toLowerCase().slice(0, 3)];
+    if (!isNaN(day) && mon !== undefined) {
+      // Standardize to UTC for continuous day difference calculations (default year 2026)
+      return new Date(Date.UTC(2026, mon, day));
+    }
+  }
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 /**
- * Computes exact streaks from history tables from the latest available date:
- * - LPCD: from water_scheme_data 7-day readings (<55 LPCD) backwards from Day 7
- * - Chlorine: from chlorine_data 7-day readings (<0.2 or >0.5 with water>0) backwards from Day 7
- * - Pressure: from pressure_data 7-day readings (<0.2 Bar with water>0) backwards from Day 7
- * - Offline: from communication_status:
- *     difference between yesterday date and last_seen date for Chlorine & Flow Meter,
- *     and pressure_last_seen date for Pressure
+ * Computes exact streaks directly from history tables for continuous non-compliant days:
+ * - LPCD: from water_scheme_data_history (<55 LPCD) backwards across continuous days from latest available date
+ * - Chlorine: from chlorine_history joined with water_consumption_history (<0.2 or >0.5 with water>0) backwards across continuous days
+ * - Pressure: from pressure_history joined with water_consumption_history (<0.2 Bar with water>0) backwards across continuous days
+ * - Offline: from communication_status: difference in days between yesterday and last_seen / pressure_last_seen
+ *
+ * If data is continuous on cloud (e.g. from 2-Oct to 17-Oct = 16 days), streak reaches 15+ days (Level 4 & 5).
  */
 export async function calculateAllAlertStreaksFromHistory(db: any): Promise<{
   allAlerts: AlertWithHistoryStreak[];
@@ -49,173 +70,295 @@ export async function calculateAllAlertStreaksFromHistory(db: any): Promise<{
     alertsByKey.set(key, alert);
   };
 
-  // 1. LPCD Streaks (from water_scheme_data Day 7..1)
-  const lpcdRes: any = await db.execute(sql`
+  // -------------------------------------------------------------
+  // 1. LPCD Streaks (from water_scheme_data_history)
+  // -------------------------------------------------------------
+  const lpcdRows = await db.execute(sql`
     SELECT 
-      ws.scheme_id, ws.scheme_name, ws.region, ws.village_name,
-      ws.lpcd_value_day7 as d7, ws.lpcd_value_day6 as d6, ws.lpcd_value_day5 as d5,
-      ws.lpcd_value_day4 as d4, ws.lpcd_value_day3 as d3, ws.lpcd_value_day2 as d2,
-      ws.lpcd_value_day1 as d1,
-      ws.lpcd_date_day7
-    FROM water_scheme_data ws
-    JOIN scheme_status ss ON ss.scheme_id = ws.scheme_id AND ss.water_supply = 'Yes'
-    WHERE ws.lpcd_value_day7 IS NOT NULL 
-      AND NULLIF(REGEXP_REPLACE(ws.lpcd_value_day7::text, '[^0-9.]', '', 'g'), '') IS NOT NULL
-      AND (NULLIF(REGEXP_REPLACE(ws.lpcd_value_day7::text, '[^0-9.]', '', 'g'), '')::numeric) < 55
-    ORDER BY ws.scheme_id, ws.village_name
+      h.scheme_id, h.scheme_name, h.region, h.village_name, h.data_date, h.lpcd_value
+    FROM water_scheme_data_history h
+    JOIN scheme_status ss ON ss.scheme_id = h.scheme_id AND ss.water_supply = 'Yes'
+    WHERE h.data_date IS NOT NULL
+    ORDER BY h.scheme_id, LOWER(TRIM(COALESCE(h.village_name, ''))), h.uploaded_at DESC, h.id DESC
   `);
 
-  (lpcdRes.rows || []).forEach((row: any) => {
-    let streak = 0;
-    const vals = [row.d7, row.d6, row.d5, row.d4, row.d3, row.d2, row.d1];
-    for (const v of vals) {
-      const num = v !== null && v !== undefined ? parseFloat(String(v)) : null;
-      if (num !== null && !isNaN(num) && num < 55) {
-        streak++;
+  const villageLpcdMap = new Map<string, {
+    scheme_id: string;
+    scheme_name: string;
+    region?: string;
+    village_name: string;
+    records: Array<{ date: Date; dateStr: string; lpcd: number }>;
+  }>();
+
+  for (const r of lpcdRows.rows) {
+    const key = `${r.scheme_id}_${String(r.village_name).trim().toLowerCase()}`;
+    const d = parseHistoryDate(String(r.data_date));
+    if (!d) continue;
+
+    if (!villageLpcdMap.has(key)) {
+      villageLpcdMap.set(key, {
+        scheme_id: String(r.scheme_id),
+        scheme_name: String(r.scheme_name || `Scheme ${r.scheme_id}`),
+        region: r.region ? String(r.region) : undefined,
+        village_name: String(r.village_name || '-'),
+        records: []
+      });
+    }
+
+    const entry = villageLpcdMap.get(key)!;
+    if (!entry.records.some(item => item.date.getTime() === d.getTime())) {
+      entry.records.push({
+        date: d,
+        dateStr: String(r.data_date),
+        lpcd: parseFloat(String(r.lpcd_value || '0'))
+      });
+    }
+  }
+
+  villageLpcdMap.forEach((entry) => {
+    // Sort descending by date (latest first)
+    entry.records.sort((a, b) => b.date.getTime() - a.date.getTime());
+    if (entry.records.length === 0) return;
+
+    const latest = entry.records[0];
+    // Active alert only if latest date is non-compliant (< 55 LPCD)
+    if (latest.lpcd >= 55) return;
+
+    let streak = 1;
+    let prevDate = latest.date;
+
+    for (let i = 1; i < entry.records.length; i++) {
+      const curr = entry.records[i];
+      const diffDays = Math.round((prevDate.getTime() - curr.date.getTime()) / (1000 * 86400));
+
+      if (diffDays === 1) {
+        if (curr.lpcd < 55) {
+          streak++;
+          prevDate = curr.date;
+        } else {
+          // Breached condition stopped
+          break;
+        }
       } else {
+        // Calendar continuity broken
         break;
       }
     }
-    const finalStreak = Math.max(1, streak);
-    const lpcdVal = row.d7 ? `${parseFloat(String(row.d7)).toFixed(0)} LPCD` : "0 LPCD";
 
     registerAlert({
-      scheme_id: row.scheme_id,
-      scheme_name: row.scheme_name || `Scheme ${row.scheme_id}`,
-      region: row.region || undefined,
+      scheme_id: entry.scheme_id,
+      scheme_name: entry.scheme_name,
+      region: entry.region,
       category: 'lpcd',
       alert_type: 'Low LPCD',
-      village_name: row.village_name || '-',
+      village_name: entry.village_name,
       esr_name: '-',
-      parameter_value: lpcdVal,
-      streak_days: finalStreak,
-      telemetry_date: row.lpcd_date_day7 ? String(row.lpcd_date_day7) : undefined,
+      parameter_value: `${latest.lpcd.toFixed(0)} LPCD`,
+      streak_days: streak,
+      telemetry_date: latest.dateStr
     });
   });
 
-  // 2. Chlorine Streaks (from chlorine_data Day 7..1 & water_consumption)
-  const clRes: any = await db.execute(sql`
-    SELECT DISTINCT ON (c.scheme_id, LOWER(TRIM(COALESCE(c.village_name, ''))), LOWER(TRIM(COALESCE(c.esr_name, ''))))
-      c.scheme_id, c.scheme_name, c.region, c.village_name, c.esr_name,
-      c.chlorine_value_7 as c7, c.chlorine_value_6 as c6, c.chlorine_value_5 as c5,
-      c.chlorine_value_4 as c4, c.chlorine_value_3 as c3, c.chlorine_value_2 as c2,
-      c.chlorine_value_1 as c1,
-      c.chlorine_date_day_7,
-      wc.water_value_day7 as w7, wc.water_value_day6 as w6, wc.water_value_day5 as w5,
-      wc.water_value_day4 as w4, wc.water_value_day3 as w3, wc.water_value_day2 as w2,
-      wc.water_value_day1 as w1
-    FROM chlorine_data c
+  // -------------------------------------------------------------
+  // 2. Chlorine Streaks (from chlorine_history & water_consumption_history)
+  // -------------------------------------------------------------
+  const clRows = await db.execute(sql`
+    SELECT 
+      c.scheme_id, c.scheme_name, c.region, c.village_name, c.esr_name, c.chlorine_date, c.chlorine_value,
+      wc.water_value
+    FROM chlorine_history c
     JOIN scheme_status ss ON ss.scheme_id = c.scheme_id AND ss.water_supply = 'Yes'
-    JOIN water_consumption wc ON (
+    LEFT JOIN water_consumption_history wc ON (
       c.scheme_id = wc.scheme_id AND
       LOWER(TRIM(COALESCE(c.village_name, ''))) = LOWER(TRIM(COALESCE(wc.village_name, ''))) AND
-      LOWER(TRIM(COALESCE(c.esr_name, ''))) = LOWER(TRIM(COALESCE(wc.esr_name, '')))
+      LOWER(TRIM(COALESCE(c.esr_name, ''))) = LOWER(TRIM(COALESCE(wc.esr_name, ''))) AND
+      c.chlorine_date = wc.data_date
     )
-    WHERE c.chlorine_value_7 IS NOT NULL
-      AND NULLIF(REGEXP_REPLACE(c.chlorine_value_7::text, '[^0-9.]', '', 'g'), '') IS NOT NULL
-      AND (
-        (NULLIF(REGEXP_REPLACE(c.chlorine_value_7::text, '[^0-9.]', '', 'g'), '')::numeric) < 0.2
-        OR (NULLIF(REGEXP_REPLACE(c.chlorine_value_7::text, '[^0-9.]', '', 'g'), '')::numeric) > 0.5
-      )
-      AND wc.water_value_day7 IS NOT NULL 
-      AND CAST(wc.water_value_day7 AS text) NOT IN ('0', '0.0', '0.00')
-      AND wc.water_value_day7::numeric > 0
-    ORDER BY c.scheme_id, LOWER(TRIM(COALESCE(c.village_name, ''))), LOWER(TRIM(COALESCE(c.esr_name, ''))), c.chlorine_date_day_7 DESC
+    WHERE c.chlorine_date IS NOT NULL
+    ORDER BY c.scheme_id, LOWER(TRIM(COALESCE(c.village_name, ''))), LOWER(TRIM(COALESCE(c.esr_name, ''))), c.uploaded_at DESC, c.id DESC
   `);
 
-  (clRes.rows || []).forEach((row: any) => {
-    let streak = 0;
-    const cVals = [row.c7, row.c6, row.c5, row.c4, row.c3, row.c2, row.c1];
-    const wVals = [row.w7, row.w6, row.w5, row.w4, row.w3, row.w2, row.w1];
-    for (let i = 0; i < 7; i++) {
-      const cv = cVals[i] !== null && cVals[i] !== undefined ? parseFloat(String(cVals[i])) : null;
-      const wv = wVals[i] !== null && wVals[i] !== undefined ? parseFloat(String(wVals[i])) : null;
-      if (cv !== null && !isNaN(cv) && (cv < 0.2 || cv > 0.5) && wv !== null && !isNaN(wv) && wv > 0) {
-        streak++;
+  const esrClMap = new Map<string, {
+    scheme_id: string;
+    scheme_name: string;
+    region?: string;
+    village_name: string;
+    esr_name: string;
+    records: Array<{ date: Date; dateStr: string; cl: number | null; water: number }>;
+  }>();
+
+  for (const r of clRows.rows) {
+    const key = `${r.scheme_id}_${String(r.village_name).trim().toLowerCase()}_${String(r.esr_name).trim().toLowerCase()}`;
+    const d = parseHistoryDate(String(r.chlorine_date));
+    if (!d) continue;
+
+    if (!esrClMap.has(key)) {
+      esrClMap.set(key, {
+        scheme_id: String(r.scheme_id),
+        scheme_name: String(r.scheme_name || `Scheme ${r.scheme_id}`),
+        region: r.region ? String(r.region) : undefined,
+        village_name: String(r.village_name || '-'),
+        esr_name: String(r.esr_name || '-'),
+        records: []
+      });
+    }
+
+    const entry = esrClMap.get(key)!;
+    if (!entry.records.some(item => item.date.getTime() === d.getTime())) {
+      entry.records.push({
+        date: d,
+        dateStr: String(r.chlorine_date),
+        cl: r.chlorine_value !== null ? parseFloat(String(r.chlorine_value)) : null,
+        water: r.water_value !== null ? parseFloat(String(r.water_value)) : 0
+      });
+    }
+  }
+
+  esrClMap.forEach((entry) => {
+    entry.records.sort((a, b) => b.date.getTime() - a.date.getTime());
+    if (entry.records.length === 0) return;
+
+    const latest = entry.records[0];
+    // Active Day 7 breach: chlorine < 0.2 or > 0.5 with water > 0
+    if (latest.cl === null || isNaN(latest.cl) || (latest.cl >= 0.2 && latest.cl <= 0.5) || latest.water <= 0) {
+      return;
+    }
+
+    let streak = 1;
+    let prevDate = latest.date;
+
+    for (let i = 1; i < entry.records.length; i++) {
+      const curr = entry.records[i];
+      const diffDays = Math.round((prevDate.getTime() - curr.date.getTime()) / (1000 * 86400));
+
+      if (diffDays === 1) {
+        if (curr.cl !== null && !isNaN(curr.cl) && (curr.cl < 0.2 || curr.cl > 0.5) && curr.water > 0) {
+          streak++;
+          prevDate = curr.date;
+        } else {
+          break;
+        }
       } else {
         break;
       }
     }
-    const finalStreak = Math.max(1, streak);
-    const numVal = parseFloat(String(row.c7 || "0"));
-    const isHigh = numVal > 0.5;
-    const alertType = isHigh ? "High Chlorine" : "Low Chlorine";
-    const clVal = `${numVal.toFixed(2)} mg/L`;
 
+    const isHigh = latest.cl > 0.5;
     registerAlert({
-      scheme_id: row.scheme_id,
-      scheme_name: row.scheme_name || `Scheme ${row.scheme_id}`,
-      region: row.region || undefined,
+      scheme_id: entry.scheme_id,
+      scheme_name: entry.scheme_name,
+      region: entry.region,
       category: 'chlorine',
-      alert_type: alertType,
-      village_name: row.village_name || '-',
-      esr_name: row.esr_name || '-',
-      parameter_value: clVal,
-      streak_days: finalStreak,
-      telemetry_date: row.chlorine_date_day_7 ? String(row.chlorine_date_day_7) : undefined,
+      alert_type: isHigh ? 'High Chlorine' : 'Low Chlorine',
+      village_name: entry.village_name,
+      esr_name: entry.esr_name,
+      parameter_value: `${latest.cl.toFixed(2)} mg/L`,
+      streak_days: streak,
+      telemetry_date: latest.dateStr
     });
   });
 
-  // 3. Pressure Streaks (from pressure_data Day 7..1 & water_consumption)
-  const prRes: any = await db.execute(sql`
-    SELECT DISTINCT ON (p.scheme_id, LOWER(TRIM(COALESCE(p.village_name, ''))), LOWER(TRIM(COALESCE(p.esr_name, ''))))
-      p.scheme_id, p.scheme_name, p.region, p.village_name, p.esr_name,
-      p.pressure_value_7 as p7, p.pressure_value_6 as p6, p.pressure_value_5 as p5,
-      p.pressure_value_4 as p4, p.pressure_value_3 as p3, p.pressure_value_2 as p2,
-      p.pressure_value_1 as p1,
-      p.pressure_date_day_7,
-      wc.water_value_day7 as w7, wc.water_value_day6 as w6, wc.water_value_day5 as w5,
-      wc.water_value_day4 as w4, wc.water_value_day3 as w3, wc.water_value_day2 as w2,
-      wc.water_value_day1 as w1
-    FROM pressure_data p
+  // -------------------------------------------------------------
+  // 3. Pressure Streaks (from pressure_history & water_consumption_history)
+  // -------------------------------------------------------------
+  const prRows = await db.execute(sql`
+    SELECT 
+      p.scheme_id, p.scheme_name, p.region, p.village_name, p.esr_name, p.pressure_date, p.pressure_value,
+      wc.water_value
+    FROM pressure_history p
     JOIN scheme_status ss ON ss.scheme_id = p.scheme_id AND ss.water_supply = 'Yes'
-    JOIN water_consumption wc ON (
+    LEFT JOIN water_consumption_history wc ON (
       p.scheme_id = wc.scheme_id AND
       LOWER(TRIM(COALESCE(p.village_name, ''))) = LOWER(TRIM(COALESCE(wc.village_name, ''))) AND
-      LOWER(TRIM(COALESCE(p.esr_name, ''))) = LOWER(TRIM(COALESCE(wc.esr_name, '')))
+      LOWER(TRIM(COALESCE(p.esr_name, ''))) = LOWER(TRIM(COALESCE(wc.esr_name, ''))) AND
+      p.pressure_date = wc.data_date
     )
-    WHERE p.pressure_value_7 IS NOT NULL
-      AND NULLIF(REGEXP_REPLACE(p.pressure_value_7::text, '[^0-9.]', '', 'g'), '') IS NOT NULL
-      AND (NULLIF(REGEXP_REPLACE(p.pressure_value_7::text, '[^0-9.]', '', 'g'), '')::numeric) < 0.2
-      AND (NULLIF(REGEXP_REPLACE(p.pressure_value_7::text, '[^0-9.]', '', 'g'), '')::numeric) >= 0
-      AND wc.water_value_day7 IS NOT NULL 
-      AND CAST(wc.water_value_day7 AS text) NOT IN ('0', '0.0', '0.00')
-      AND wc.water_value_day7::numeric > 0
-    ORDER BY p.scheme_id, LOWER(TRIM(COALESCE(p.village_name, ''))), LOWER(TRIM(COALESCE(p.esr_name, ''))), p.pressure_date_day_7 DESC
+    WHERE p.pressure_date IS NOT NULL
+    ORDER BY p.scheme_id, LOWER(TRIM(COALESCE(p.village_name, ''))), LOWER(TRIM(COALESCE(p.esr_name, ''))), p.uploaded_at DESC, p.id DESC
   `);
 
-  (prRes.rows || []).forEach((row: any) => {
-    let streak = 0;
-    const pVals = [row.p7, row.p6, row.p5, row.p4, row.p3, row.p2, row.p1];
-    const wVals = [row.w7, row.w6, row.w5, row.w4, row.w3, row.w2, row.w1];
-    for (let i = 0; i < 7; i++) {
-      const pv = pVals[i] !== null && pVals[i] !== undefined ? parseFloat(String(pVals[i])) : null;
-      const wv = wVals[i] !== null && wVals[i] !== undefined ? parseFloat(String(wVals[i])) : null;
-      if (pv !== null && !isNaN(pv) && pv < 0.2 && pv >= 0 && wv !== null && !isNaN(wv) && wv > 0) {
-        streak++;
+  const esrPrMap = new Map<string, {
+    scheme_id: string;
+    scheme_name: string;
+    region?: string;
+    village_name: string;
+    esr_name: string;
+    records: Array<{ date: Date; dateStr: string; pr: number | null; water: number }>;
+  }>();
+
+  for (const r of prRows.rows) {
+    const key = `${r.scheme_id}_${String(r.village_name).trim().toLowerCase()}_${String(r.esr_name).trim().toLowerCase()}`;
+    const d = parseHistoryDate(String(r.pressure_date));
+    if (!d) continue;
+
+    if (!esrPrMap.has(key)) {
+      esrPrMap.set(key, {
+        scheme_id: String(r.scheme_id),
+        scheme_name: String(r.scheme_name || `Scheme ${r.scheme_id}`),
+        region: r.region ? String(r.region) : undefined,
+        village_name: String(r.village_name || '-'),
+        esr_name: String(r.esr_name || '-'),
+        records: []
+      });
+    }
+
+    const entry = esrPrMap.get(key)!;
+    if (!entry.records.some(item => item.date.getTime() === d.getTime())) {
+      entry.records.push({
+        date: d,
+        dateStr: String(r.pressure_date),
+        pr: r.pressure_value !== null ? parseFloat(String(r.pressure_value)) : null,
+        water: r.water_value !== null ? parseFloat(String(r.water_value)) : 0
+      });
+    }
+  }
+
+  esrPrMap.forEach((entry) => {
+    entry.records.sort((a, b) => b.date.getTime() - a.date.getTime());
+    if (entry.records.length === 0) return;
+
+    const latest = entry.records[0];
+    // Active Day 7 breach: pressure < 0.2 Bar and >= 0 with water > 0
+    if (latest.pr === null || isNaN(latest.pr) || latest.pr >= 0.2 || latest.pr < 0 || latest.water <= 0) {
+      return;
+    }
+
+    let streak = 1;
+    let prevDate = latest.date;
+
+    for (let i = 1; i < entry.records.length; i++) {
+      const curr = entry.records[i];
+      const diffDays = Math.round((prevDate.getTime() - curr.date.getTime()) / (1000 * 86400));
+
+      if (diffDays === 1) {
+        if (curr.pr !== null && !isNaN(curr.pr) && curr.pr < 0.2 && curr.pr >= 0 && curr.water > 0) {
+          streak++;
+          prevDate = curr.date;
+        } else {
+          break;
+        }
       } else {
         break;
       }
     }
-    const finalStreak = Math.max(1, streak);
-    const numVal = parseFloat(String(row.p7 || "0"));
-    const prVal = `${numVal.toFixed(2)} Bar`;
 
     registerAlert({
-      scheme_id: row.scheme_id,
-      scheme_name: row.scheme_name || `Scheme ${row.scheme_id}`,
-      region: row.region || undefined,
+      scheme_id: entry.scheme_id,
+      scheme_name: entry.scheme_name,
+      region: entry.region,
       category: 'pressure',
       alert_type: 'Low Pressure',
-      village_name: row.village_name || '-',
-      esr_name: row.esr_name || '-',
-      parameter_value: prVal,
-      streak_days: finalStreak,
-      telemetry_date: row.pressure_date_day_7 ? String(row.pressure_date_day_7) : undefined,
+      village_name: entry.village_name,
+      esr_name: entry.esr_name,
+      parameter_value: `${latest.pr.toFixed(2)} Bar`,
+      streak_days: streak,
+      telemetry_date: latest.dateStr
     });
   });
 
+  // -------------------------------------------------------------
   // 4. Offline Streaks (from communication_status vs yesterday)
+  // -------------------------------------------------------------
   const offRes: any = await db.execute(sql`
     SELECT DISTINCT ON (c.scheme_id, LOWER(TRIM(COALESCE(c.village_name, ''))), LOWER(TRIM(COALESCE(c.esr_name, ''))))
       c.scheme_id, c.scheme_name, c.region, c.village_name, c.esr_name,

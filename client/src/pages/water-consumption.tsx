@@ -2154,10 +2154,6 @@ const WaterConsumptionPage: React.FC = () => {
 
               {/* Qualifying Schemes Info Footer */}
               <div className="bg-slate-50 border-t border-slate-100 px-4 py-2 flex flex-wrap justify-between items-center gap-2">
-                <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
-                  <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block animate-pulse" />
-                  Live Data Feed
-                </div>
                 <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 shadow-sm">
                   <Info className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
                   <span className="text-xs font-medium text-blue-800">
@@ -2179,61 +2175,59 @@ const WaterConsumptionPage: React.FC = () => {
             </div>
 
             <div className="flex gap-2 mb-6">
-                {/* Excel Export Dropdown */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
-                    >
-                      <FileSpreadsheet className="mr-2 h-4 w-4" />
-                      Export Excel
-                      <ChevronDown className="ml-2 h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuLabel>Export Options</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() =>
-                        exportToExcel(
-                          filteredData,
-                          `Water_Consumption_${currentFilter}_${selectedRegion}_${
-                            new Date().toISOString().split("T")[0]
-                          }`,
-                        )
-                      }
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Export Filtered Data
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() =>
-                        exportToExcel(
-                          allWaterConsumptionData,
-                          `Water_Consumption_All_ESR_${
-                            new Date().toISOString().split("T")[0]
-                          }`,
-                        )
-                      }
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Export All ESR Locations
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+              {/* Excel Export Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                  >
+                    <FileSpreadsheet className="mr-2 h-4 w-4" />
+                    Export Excel
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuLabel>Export Options</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() =>
+                      exportToExcel(
+                        filteredData,
+                        `Water_Consumption_${currentFilter}_${selectedRegion}_${new Date().toISOString().split("T")[0]
+                        }`,
+                      )
+                    }
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Export Filtered Data
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() =>
+                      exportToExcel(
+                        allWaterConsumptionData,
+                        `Water_Consumption_All_ESR_${new Date().toISOString().split("T")[0]
+                        }`,
+                      )
+                    }
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Export All ESR Locations
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-                {/* Historical Data Button */}
-                <Button
-                  onClick={() => setShowHistoricalData(!showHistoricalData)}
-                  variant="outline"
-                  className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
-                  data-testid="button-toggle-historical"
-                >
-                  <Calendar className="mr-2 h-4 w-4" />
-                  Historical Data
-                </Button>
-              </div>
+              {/* Historical Data Button */}
+              <Button
+                onClick={() => setShowHistoricalData(!showHistoricalData)}
+                variant="outline"
+                className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                data-testid="button-toggle-historical"
+              >
+                <Calendar className="mr-2 h-4 w-4" />
+                Historical Data
+              </Button>
+            </div>
 
             {/* Historical Data Date Selection */}
             {showHistoricalData && (
@@ -2286,11 +2280,10 @@ const WaterConsumptionPage: React.FC = () => {
                       onClick={exportHistoricalData}
                       variant="default"
                       size="sm"
-                      className={`flex items-center gap-2 mt-4 md:mt-0 transition-all ${
-                        historicalRecordCount > 0
+                      className={`flex items-center gap-2 mt-4 md:mt-0 transition-all ${historicalRecordCount > 0
                           ? "bg-green-600 hover:bg-green-700 shadow-lg scale-105"
                           : "bg-blue-600 hover:bg-blue-700"
-                      }`}
+                        }`}
                       disabled={
                         isCountingRecords ||
                         isExportingHistorical ||
@@ -2886,7 +2879,7 @@ const WaterConsumptionPage: React.FC = () => {
                               borderRadius: "0",
                               color:
                                 consumptionPercentage !== null &&
-                                consumptionPercentage > 75
+                                  consumptionPercentage > 75
                                   ? "#dc2626"
                                   : "#2563eb",
                             }}
@@ -2946,7 +2939,7 @@ const WaterConsumptionPage: React.FC = () => {
                                     </span>
                                   </Button>
                                 );
-                              })()                            ) : (
+                              })()) : (
                               <span style={{ color: "#94a3b8" }}>-</span>
                             )}
                           </td>
@@ -3094,7 +3087,7 @@ const WaterConsumptionPage: React.FC = () => {
                                           <div className="font-medium">
                                             {formatWaterValue(
                                               record[
-                                                `water_value_day${day}` as keyof WaterConsumptionRecord
+                                              `water_value_day${day}` as keyof WaterConsumptionRecord
                                               ] as number,
                                             )}{" "}
                                             LL
@@ -3258,11 +3251,10 @@ const WaterConsumptionPage: React.FC = () => {
                         (issue: any, index: number) => (
                           <div
                             key={index}
-                            className={`bg-white p-5 rounded-xl shadow-sm border border-slate-200 ${
-                              issue.status === 'Resolved'
+                            className={`bg-white p-5 rounded-xl shadow-sm border border-slate-200 ${issue.status === 'Resolved'
                                 ? 'border-l-4 border-l-emerald-500'
                                 : 'border-l-4 border-l-red-500'
-                            }`}                          >
+                              }`}                          >
                             <div className="flex justify-between items-start mb-3 gap-4">
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
@@ -3271,9 +3263,8 @@ const WaterConsumptionPage: React.FC = () => {
                                       ? `${issue.problem_level} Level`.toUpperCase()
                                       : issue.category || "General"}
                                   </span>
-                                  <span className={`px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider ${
-                                    issue.status === 'Resolved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                  }`}>
+                                  <span className={`px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider ${issue.status === 'Resolved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                    }`}>
                                     {issue.status || 'Active'}
                                   </span>                                </div>
                               </div>
@@ -3315,7 +3306,7 @@ const WaterConsumptionPage: React.FC = () => {
                                         month: 'short', day: 'numeric', year: 'numeric',
                                         hour: 'numeric', minute: '2-digit', hour12: true
                                       })}
-                                    </span>                                  )}
+                                    </span>)}
                                 </div>
                               )}
                             </div>

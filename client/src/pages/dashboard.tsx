@@ -1704,9 +1704,6 @@ export default function Dashboard() {
             <p className="mt-1 sm:mt-2 text-sm text-blue-700/80 font-medium flex items-center">
               <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-2"></span>
               Integration Dashboard for Jal Jeevan Mission
-              <span className="ml-3 py-0.5 px-2 text-xs bg-blue-100 text-blue-700 rounded-full">
-                Live Data
-              </span>
             </p>
           </div>
           <div className="mt-4 flex sm:mt-0 sm:ml-4 space-x-3">
