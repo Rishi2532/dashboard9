@@ -61,8 +61,8 @@ export function getIstTimeParts(): {
   dayOfMonth: number;
   isMonday: boolean;
   is1stMonday: boolean;
-  is4thMonday: boolean;
-  is1stOr4thMonday: boolean;
+  is3rdMonday: boolean;
+  is1stOr3rdMonday: boolean;
 } {
   const now = new Date();
   const dateStr = new Intl.DateTimeFormat("en-CA", {
@@ -336,7 +336,7 @@ export function startDailyAlertsCron() {
 
 export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; skipSmsSending?: boolean; forceAllTiers?: boolean }) {
   const ist = getIstTimeParts();
-  console.log(`⏰ Running daily alerts job... [${ist.dateStr} (${ist.weekday}) | Day ${ist.dayOfMonth} | Monday: ${ist.isMonday} | 1st/4th Mon: ${ist.is1stOr4thMonday}]`);
+  console.log(`⏰ Running daily alerts job... [${ist.dateStr} (${ist.weekday}) | Day ${ist.dayOfMonth} | Monday: ${ist.isMonday} | 1st/3rd Mon: ${ist.is1stOr3rdMonday}]`);
   try {
     const db = await getDB();
 
@@ -603,23 +603,42 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
     const lastEeDispatchMap = new Map<string, string>();
     try {
       const eeRes: any = await db.execute(sql`
-        SELECT LOWER(TRIM(engineer_email)) as email, MAX(sent_date)::text as last_dispatch_date
+        SELECT 
+          LOWER(TRIM(engineer_email)) as email, 
+          scheme_id,
+          MAX(sent_date)::text as last_dispatch_date
         FROM (
-          SELECT engineer_email, dispatch_date as sent_date
-          FROM consolidated_email_dispatches
-          WHERE (engineer_role ILIKE '%EE%' OR engineer_role ILIKE '%Executive%')
-            AND status = 'SENT'
+          SELECT 
+            ced.engineer_email, 
+            sid.scheme_id,
+            ced.dispatch_date as sent_date
+          FROM consolidated_email_dispatches ced
+          LEFT JOIN LATERAL jsonb_array_elements_text(COALESCE(ced.scheme_ids, '[]'::jsonb)) AS sid(scheme_id) ON true
+          WHERE (ced.engineer_role ILIKE '%EE%' OR ced.engineer_role ILIKE '%Executive%')
+            AND ced.status = 'SENT'
           UNION ALL
-          SELECT ea.engineer_email, ea.sent_date
+          SELECT 
+            ea.engineer_email, 
+            ea.scheme_id,
+            ea.sent_date
           FROM email_acknowledgements ea
           INNER JOIN scheme_engineer_details sed ON sed.scheme_id = ea.scheme_id
           WHERE LOWER(TRIM(ea.engineer_email)) = LOWER(TRIM(sed.ee_civil_email))
         ) all_ee_dispatches
-        GROUP BY LOWER(TRIM(engineer_email))
+        GROUP BY LOWER(TRIM(engineer_email)), scheme_id
       `);
       (eeRes.rows || []).forEach((r: any) => {
-        if (r.email && r.last_dispatch_date) {
-          lastEeDispatchMap.set(r.email, r.last_dispatch_date);
+        if (r.last_dispatch_date) {
+          const dStr = String(r.last_dispatch_date).slice(0, 10);
+          if (r.email && r.scheme_id) {
+            lastEeDispatchMap.set(`${r.email}:::${r.scheme_id}`, dStr);
+          }
+          if (r.scheme_id) {
+            lastEeDispatchMap.set(`scheme:::${r.scheme_id}`, dStr);
+          }
+          if (r.email && !lastEeDispatchMap.has(`email:::${r.email}`)) {
+            lastEeDispatchMap.set(`email:::${r.email}`, dStr);
+          }
         }
       });
     } catch (eeErr) {
@@ -743,18 +762,56 @@ export async function runDailyAlertsJob(options?: { skipEmailSending?: boolean; 
         const deCivilAlerts = schemeAlerts;
 
         // 2. EE (Civil): Level 2 Escalation (EVERY 3RD DAY if streak >= 3 days: Day 3, 6, 9, 12, etc.)
-        // 2. EE (Civil): Level 2 Escalation (All qualifying alerts with streak >= 3 days)
-        // User rule: Even if streak is 7, if >= 3 then EE will receive.
-        const eeCivilAlerts = schemeAlerts.filter(a => (a.streak_days || 1) >= 3);
+        const eeEmailClean = (engineer.ee_civil_email || "").toLowerCase().trim();
+        const lastEeDateStr =
+          (eeEmailClean && engSchemeId ? lastEeDispatchMap.get(`${eeEmailClean}:::${engSchemeId}`) : null) ||
+          (engSchemeId ? lastEeDispatchMap.get(`scheme:::${engSchemeId}`) : null) ||
+          (eeEmailClean ? lastEeDispatchMap.get(`email:::${eeEmailClean}`) : null);
 
-        // 3. Superintending Engineer (SE) & Chief Engineer (CE): Alerts with streak >= 7 days
-        const ceSeAlerts = schemeAlerts.filter(a => (a.streak_days || 1) >= 7);
+        let daysSinceLastEe = 999;
+        if (lastEeDateStr) {
+          try {
+            const [ly, lm, ld] = lastEeDateStr.slice(0, 10).split('-').map(Number);
+            const [ty, tm, td] = istDateStr.slice(0, 10).split('-').map(Number);
+            const lastD = new Date(Date.UTC(ly, lm - 1, ld));
+            const todayD = new Date(Date.UTC(ty, tm - 1, td));
+            daysSinceLastEe = Math.round((todayD.getTime() - lastD.getTime()) / (1000 * 60 * 60 * 24));
+          } catch (e) {
+            daysSinceLastEe = 999;
+          }
+        }
 
-        // 4. Member Secretary (MS): Alerts with streak >= 15 days
-        const msAlerts = schemeAlerts.filter(a => (a.streak_days || 1) >= 15);
+        // EE is dispatched strictly on every 3rd day:
+        // - Cannot be dispatched if already dispatched within last 2 days (daysSinceLastEe < 3).
+        // - Dispatched if forced, OR on 3-day intervals (for new streak: Day 3; for recurring: at least 3 days elapsed).
+        const isEeCadenceDue = Boolean(
+          options?.forceAllTiers || (
+            daysSinceLastEe >= 3 &&
+            schemeAlerts.some(a => (a.streak_days || 1) >= 3 && ((a.streak_days || 1) % 3 === 0 || daysSinceLastEe >= 3))
+          )
+        );
 
-        // 5. Principal Secretary (PS): Alerts with streak >= 15 days
-        const psAlerts = schemeAlerts.filter(a => (a.streak_days || 1) >= 15);
+        const eeCivilAlerts = isEeCadenceDue
+          ? schemeAlerts.filter(a => (a.streak_days || 1) >= 3)
+          : [];
+
+        // 3. Superintending Engineer (SE) & Chief Engineer (CE): Weekly Notice EVERY MONDAY (streak >= 7 days)
+        const isCeSeDay = Boolean(options?.forceAllTiers || ist.isMonday);
+        const ceSeAlerts = isCeSeDay
+          ? schemeAlerts.filter(a => (a.streak_days || 1) >= 7)
+          : [];
+
+        // 4. Member Secretary (MS): 1st & 3rd MONDAY of the month (streak >= 15 days)
+        const isMsDay = Boolean(options?.forceAllTiers || ist.is1stOr3rdMonday);
+        const msAlerts = isMsDay
+          ? schemeAlerts.filter(a => (a.streak_days || 1) >= 15)
+          : [];
+
+        // 5. Principal Secretary (PS): 1st & 3rd MONDAY of the month (streak >= 15 days)
+        const isPsDay = Boolean(options?.forceAllTiers || ist.is1stOr3rdMonday);
+        const psAlerts = isPsDay
+          ? schemeAlerts.filter(a => (a.streak_days || 1) >= 15)
+          : [];
 
         // --- Dispatch by Role ---
         // 1. DE/AE (Civil) - Daily Email & Daily SMS

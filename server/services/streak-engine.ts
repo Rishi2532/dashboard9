@@ -47,11 +47,33 @@ export function parseHistoryDate(dateStr: string): Date | null {
  *
  * If data is continuous on cloud (e.g. from 2-Oct to 17-Oct = 16 days), streak reaches 15+ days (Level 4 & 5).
  */
-export async function calculateAllAlertStreaksFromHistory(db: any): Promise<{
+let cachedAlertsData: {
+  timestamp: number;
+  data: {
+    allAlerts: AlertWithHistoryStreak[];
+    alertsByScheme: Map<string, AlertWithHistoryStreak[]>;
+    alertsByKey: Map<string, AlertWithHistoryStreak>;
+  };
+} | null = null;
+
+const STREAK_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes cache
+
+export function invalidateStreakCache() {
+  cachedAlertsData = null;
+}
+
+export async function calculateAllAlertStreaksFromHistory(
+  db: any,
+  forceRefresh: boolean = false
+): Promise<{
   allAlerts: AlertWithHistoryStreak[];
   alertsByScheme: Map<string, AlertWithHistoryStreak[]>;
   alertsByKey: Map<string, AlertWithHistoryStreak>;
 }> {
+  if (!forceRefresh && cachedAlertsData && Date.now() - cachedAlertsData.timestamp < STREAK_CACHE_TTL_MS) {
+    return cachedAlertsData.data;
+  }
+
   const allAlerts: AlertWithHistoryStreak[] = [];
   const alertsByScheme = new Map<string, AlertWithHistoryStreak[]>();
   const alertsByKey = new Map<string, AlertWithHistoryStreak>();
@@ -417,5 +439,7 @@ export async function calculateAllAlertStreaksFromHistory(db: any): Promise<{
     });
   });
 
-  return { allAlerts, alertsByScheme, alertsByKey };
+  const result = { allAlerts, alertsByScheme, alertsByKey };
+  cachedAlertsData = { timestamp: Date.now(), data: result };
+  return result;
 }

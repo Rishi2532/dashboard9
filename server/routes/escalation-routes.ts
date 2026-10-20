@@ -817,241 +817,229 @@ router.post("/executive-contacts", async (req: Request, res: Response) => {
 });
 
 /**
- * GET /api/escalation/export-excel
- * Exports the full Escalation Matrix into a styled Excel workbook
+ * Helper to determine escalation level (1..5) from officer role string
  */
-router.get("/export-excel", async (req: Request, res: Response) => {
-  try {
-    const region = req.query.region ? String(req.query.region) : undefined;
-    const levelFilter = req.query.level ? parseInt(String(req.query.level), 10) : undefined;
-    const { summary, schemes } = await getEscalationStatus({ region });
+function getEscalationLevelFromRole(role: string): number {
+  const r = (role || "").toLowerCase();
+  if (r.includes("principal") || r.includes("ps")) return 5;
+  if (r.includes("member") || r.includes("ms")) return 4;
+  if (r.includes("chief") || r.includes("ce") || r.includes("superintending") || r.includes("se")) return 3;
+  if (r.includes("executive") || r.includes("ee")) return 2;
+  if (r.includes("vendor") || r.includes("agency")) return 0;
+  return 1;
+}
 
-    let exportSchemes = schemes;
-    let latestDispatchDateStr: string | null = null;
-    if (levelFilter && [1, 2, 3, 4, 5].includes(levelFilter)) {
-      const db = await getDB();
-      const latestDispatchRes = await db.execute(sql`
-        SELECT 
-          dispatch_date::date as dispatch_date
-        FROM consolidated_email_dispatches
-        WHERE (
-          CASE 
-            WHEN engineer_role ILIKE '%Principal%' THEN 5
-            WHEN engineer_role ILIKE '%Member%' THEN 4
-            WHEN engineer_role ILIKE '%Chief%' OR engineer_role ILIKE '%Superintending%' OR engineer_role ILIKE '%SE%' THEN 3
-            WHEN engineer_role ILIKE '%Executive%' OR engineer_role ILIKE '%EE%' THEN 2
-            ELSE 1
-          END
-        ) = ${levelFilter}
-        ORDER BY dispatch_date DESC
-        LIMIT 1
-      `);
+/**
+ * Helper to get clean level title from level number
+ */
+function getLevelTitle(level: number): { title: string; sheetName: string; authority: string; cadence: string } {
+  switch (level) {
+    case 5:
+      return {
+        title: "Level 5: Principal Secretary (PS)",
+        sheetName: "Level 5 - PS",
+        authority: "Principal Secretary (Head - WSSD)",
+        cadence: "1st & 3rd Monday (Streak ≥ 20 Days)",
+      };
+    case 4:
+      return {
+        title: "Level 4: Member Secretary (MS)",
+        sheetName: "Level 4 - MS",
+        authority: "Member Secretary (Head - MJP)",
+        cadence: "1st & 3rd Monday (Streak ≥ 15 Days)",
+      };
+    case 3:
+      return {
+        title: "Level 3: Superintending & Chief Engineer (SE & CE)",
+        sheetName: "Level 3 - CE & SE",
+        authority: "Chief Engineer & Superintending Engineer",
+        cadence: "Every Monday (Weekly, Streak ≥ 7 Days)",
+      };
+    case 2:
+      return {
+        title: "Level 2: Executive Engineer (EE)",
+        sheetName: "Level 2 - EE",
+        authority: "Executive Engineer (Civil)",
+        cadence: "Every 3rd Day (Streak ≥ 3 Days)",
+      };
+    case 0:
+      return {
+        title: "Vendor IoT Maintenance Agencies",
+        sheetName: "Vendor IoT Agencies",
+        authority: "IoT Maintenance Agency Vendors",
+        cadence: "Daily & Immediate Telemetry Breaches",
+      };
+    case 1:
+    default:
+      return {
+        title: "Level 1: Deputy Engineer / Assistant Engineer (DE/AE)",
+        sheetName: "Level 1 - DE & AE",
+        authority: "Deputy Engineer / Assistant Engineer (Civil)",
+        cadence: "Daily Automated Dispatch (1+ Days)",
+      };
+  }
+}
 
-      if (latestDispatchRes.rows && latestDispatchRes.rows.length > 0) {
-        const latestDate = latestDispatchRes.rows[0].dispatch_date;
-        latestDispatchDateStr = new Date(latestDate).toLocaleDateString("en-IN", {
-          day: "2-digit",
-          month: "short",
-          year: "numeric"
-        });
+/**
+ * Helper to add a Level Dispatches Sheet (person, time, schemes, alerts count for lpcd/chlorine/pressure/offline)
+ * Specifically excludes streak calculation and current level as requested by user.
+ */
+function addLevelDispatchesSheet(
+  workbook: ExcelJS.Workbook,
+  sheetName: string,
+  levelTitle: string,
+  rows: any[],
+  categoryFilter: string
+) {
+  const sheet = workbook.addWorksheet(sheetName.slice(0, 31), {
+    views: [{ showGridLines: true }],
+  });
 
-        const allDispatchesRes = await db.execute(sql`
-          SELECT DISTINCT sid.scheme_id
-          FROM consolidated_email_dispatches ced
-          LEFT JOIN LATERAL jsonb_array_elements_text(COALESCE(ced.scheme_ids, '[]'::jsonb)) AS sid(scheme_id) ON true
-          WHERE (
-            CASE 
-              WHEN ced.engineer_role ILIKE '%Principal%' THEN 5
-              WHEN ced.engineer_role ILIKE '%Member%' THEN 4
-              WHEN ced.engineer_role ILIKE '%Chief%' OR ced.engineer_role ILIKE '%Superintending%' OR ced.engineer_role ILIKE '%SE%' THEN 3
-              WHEN ced.engineer_role ILIKE '%Executive%' OR ced.engineer_role ILIKE '%EE%' THEN 2
-              ELSE 1
-            END
-          ) = ${levelFilter}
-          AND ced.dispatch_date::date = ${latestDate}::date
-        `);
+  const catTag = categoryFilter && categoryFilter !== "all" ? ` [${categoryFilter.toUpperCase()} ONLY]` : "";
 
-        const validSchemeIds = new Set((allDispatchesRes.rows || []).map((r: any) => String(r.scheme_id || '').trim()));
-        exportSchemes = schemes.filter(s => validSchemeIds.has(String(s.scheme_id).trim()));
-      } else {
-        exportSchemes = [];
-      }
-    }
+  // Title Banner
+  sheet.mergeCells("A1:P1");
+  const tCell = sheet.getCell("A1");
+  tCell.value = "MAHARASHTRA JEEVAN PRADHIKARAN — JAL JEEVAN MISSION";
+  tCell.font = { name: "Arial", size: 14, bold: true, color: { argb: "FFFFFFFF" } };
+  tCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F172A" } };
+  tCell.alignment = { horizontal: "center", vertical: "middle" };
+  sheet.getRow(1).height = 32;
 
-    const workbook = new ExcelJS.Workbook();
-    workbook.creator = "MJP JJM IoT Cell";
-    workbook.created = new Date();
+  sheet.mergeCells("A2:P2");
+  const subCell = sheet.getCell("A2");
+  subCell.value = `Official Email Alert Dispatch Registry — ${levelTitle}${catTag} — (${rows.length} Emails Dispatched)`;
+  subCell.font = { name: "Arial", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
+  subCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } };
+  subCell.alignment = { horizontal: "center", vertical: "middle" };
+  sheet.getRow(2).height = 24;
 
-    const sheetName = levelFilter ? `Level ${levelFilter} Escalation` : "Escalation Matrix";
-    const sheet = workbook.addWorksheet(sheetName, {
-      views: [{ showGridLines: true }],
-    });
+  const headers = [
+    "Sr No",
+    "Dispatch Date",
+    "Dispatch Time (IST)",
+    "Recipient Officer Name",
+    "Role / Designation",
+    "Recipient Email Address",
+    "Mobile Number",
+    "Schemes Count",
+    "Scheme Name(s) Covered",
+    "Total Alerts in Email",
+    "Low LPCD Alerts (<55)",
+    "Chlorine Alerts",
+    "Pressure Alerts",
+    "Offline Sensor Alerts",
+    "Email Subject",
+    "Delivery Status",
+  ];
 
-    // Branded Header
-    sheet.mergeCells("A1:O1");
-    const titleCell = sheet.getCell("A1");
-    titleCell.value = "MAHARASHTRA JEEVAN PRADHIKARAN - JAL JEEVAN MISSION";
-    titleCell.font = { name: "Arial", size: 14, bold: true, color: { argb: "FFFFFFFF" } };
-    titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F172A" } };
-    titleCell.alignment = { horizontal: "center", vertical: "middle" };
-    sheet.getRow(1).height = 32;
+  const headerRow = sheet.addRow(headers);
+  headerRow.height = 26;
+  headerRow.eachCell((cell) => {
+    cell.font = { name: "Arial", size: 10, bold: true, color: { argb: "FFFFFFFF" } };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1D4ED8" } };
+    cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+  });
 
-    sheet.mergeCells("A2:O2");
-    const subCell = sheet.getCell("A2");
-    const levelSubTitle = levelFilter
-      ? `Level ${levelFilter} Alert Escalation Registry (${exportSchemes.length} Schemes Dispatched${latestDispatchDateStr ? ` on ${latestDispatchDateStr}` : " - No Emails Dispatched"})`
-      : "4-Tier Alerts Escalation Matrix (DE / EE / CE & SE / Member Secretary)";
-    subCell.value = `${levelSubTitle} — (Report Generated: ${new Date().toLocaleDateString("en-IN")})`;
-    subCell.font = { name: "Arial", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
-    subCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } };
-    subCell.alignment = { horizontal: "center", vertical: "middle" };
-    sheet.getRow(2).height = 24;
+  if (rows.length === 0) {
+    const emptyRow = sheet.addRow([
+      "-",
+      "-",
+      "-",
+      `No emails dispatched for ${levelTitle}${catTag}`,
+      "-",
+      "-",
+      "-",
+      0,
+      "-",
+      0,
+      0,
+      0,
+      0,
+      0,
+      "-",
+      "No Records",
+    ]);
+    emptyRow.height = 24;
+    emptyRow.alignment = { vertical: "middle" };
+  } else {
+    rows.forEach((r, idx) => {
+      const sNames = Array.isArray(r.scheme_names)
+        ? r.scheme_names.join("; ")
+        : typeof r.scheme_names === "string"
+        ? (JSON.parse(r.scheme_names || "[]") || []).join("; ")
+        : r.scheme_names || "-";
 
-    // Headers
-    const headers = [
-      "Scheme ID",
-      "Scheme Name",
-      "Region",
-      "Division",
-      "Escalation Level",
-      "Streak Days",
-      "Villages <55 LPCD",
-      "ESRs Low Chlorine",
-      "ESRs High Chlorine",
-      "ESRs Low Pressure",
-      "Offline Sensors",
-      "DE / AE (Civil)",
-      "EE (Civil)",
-      "Chief Engineer (CE)",
-      "Member Secretary (MS)",
-    ];
-
-    const headerRow = sheet.addRow(headers);
-    headerRow.height = 26;
-    headerRow.eachCell((cell) => {
-      cell.font = { name: "Arial", size: 10, bold: true, color: { argb: "FFFFFFFF" } };
-      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2563EB" } };
-      cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
-    });
-
-    if (exportSchemes.length === 0) {
-      const emptyRow = sheet.addRow([
-        "-",
-        levelFilter ? `No escalation emails have been dispatched for Level ${levelFilter}.` : "No schemes found.",
-        "-",
-        "-",
-        "-",
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        "-",
-        "-",
-        "-",
-        "-",
-      ]);
-      emptyRow.height = 24;
-    }
-
-    exportSchemes.forEach((s) => {
-      const levelLabel =
-        s.escalation_level === 5
-          ? "Level 5 - PS (15+ Days)"
-          : s.escalation_level === 4
-          ? "Level 4 - MS (10-14 Days)"
-          : s.escalation_level === 3
-          ? "Level 3 - CE/SE (7-9 Days)"
-          : s.escalation_level === 2
-          ? "Level 2 - EE (3-6 Days)"
-          : "Level 1 - DE (1-2 Days)";
+      const timeStr = r.sent_time || (r.created_at ? new Date(r.created_at).toLocaleTimeString("en-IN", { hour12: false }) : "-");
+      const dateStr = r.dispatch_date || (r.created_at ? new Date(r.created_at).toISOString().slice(0, 10) : "-");
 
       const row = sheet.addRow([
-        s.scheme_id,
-        s.scheme_name,
-        s.region,
-        s.division || "-",
-        levelLabel,
-        s.max_streak_days,
-        s.lpcd_villages_count,
-        s.chlorine_low_count,
-        s.chlorine_high_count,
-        s.pressure_low_count,
-        s.offline_count,
-        s.de_ae_civil_name ? `${s.de_ae_civil_name} (${s.de_ae_civil_mobile || "N/A"})` : "-",
-        s.ee_civil_name ? `${s.ee_civil_name} (${s.ee_civil_mobile || "N/A"})` : "-",
-        s.chief_engineer_name ? `${s.chief_engineer_name} (${s.chief_engineer_mobile || "N/A"})` : "-",
-        s.escalation_level === 5
-          ? "Principal Secretary (PS) Escalated"
-          : s.escalation_level === 4
-          ? "Member Secretary (MS) Escalated"
-          : "-",
+        idx + 1,
+        dateStr,
+        timeStr,
+        r.engineer_name || "-",
+        r.engineer_role || "-",
+        r.engineer_email || "-",
+        r.engineer_mobile ? `+91 ${r.engineer_mobile}` : "-",
+        r.total_schemes || 1,
+        sNames,
+        r.total_alerts || 0,
+        r.lpcd_alerts_count || 0,
+        r.chlorine_alerts_count || 0,
+        r.pressure_alerts_count || 0,
+        r.offline_alerts_count || 0,
+        r.subject || "Daily Alert Digest",
+        r.status === "SENT" ? "DELIVERED (SMTP)" : r.status || "SENT",
       ]);
 
       row.height = 22;
+      row.alignment = { vertical: "middle" };
+      row.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(2).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(3).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(7).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(8).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(10).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(11).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(12).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(13).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(14).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(16).alignment = { horizontal: "center", vertical: "middle" };
 
-      // Color-code the level cell
-      const levelCell = row.getCell(5);
-      if (s.escalation_level === 5) {
-        levelCell.font = { bold: true, color: { argb: "FF1E1B4B" } };
-        levelCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE0E7FF" } };
-      } else if (s.escalation_level === 4) {
-        levelCell.font = { bold: true, color: { argb: "FF581C87" } };
-        levelCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3E8FF" } };
-      } else if (s.escalation_level === 3) {
-        levelCell.font = { bold: true, color: { argb: "FF991B1B" } };
-        levelCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFEE2E2" } };
-      } else if (s.escalation_level === 2) {
-        levelCell.font = { bold: true, color: { argb: "FF92400E" } };
-        levelCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFDF2E9" } };
-      } else {
-        levelCell.font = { bold: true, color: { argb: "FF065F46" } };
-        levelCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD1FAE5" } };
+      // Status green
+      const statusCell = row.getCell(16);
+      statusCell.font = { bold: true, color: { argb: "FF065F46" } };
+
+      if (idx % 2 === 1) {
+        row.eachCell((c) => {
+          c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8FAFC" } };
+        });
       }
     });
-
-    // Auto fit column widths
-    sheet.columns.forEach((col, idx) => {
-      let maxLen = 12;
-      col.eachCell?.({ includeEmpty: false }, (cell) => {
-        const val = cell.value ? String(cell.value) : "";
-        if (val.length > maxLen) maxLen = Math.min(val.length + 3, 40);
-      });
-      col.width = maxLen;
-    });
-
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="MJP_Escalation_Matrix_${new Date().toISOString().slice(0, 10)}.xlsx"`
-    );
-
-    await workbook.xlsx.write(res);
-    res.end();
-  } catch (error: any) {
-    console.error("Error in export-excel:", error);
-    res.status(500).json({ error: error.message });
   }
-});
+
+  sheet.columns.forEach((col) => {
+    let maxLen = 14;
+    col.eachCell?.({ includeEmpty: false }, (cell) => {
+      const val = cell.value ? String(cell.value) : "";
+      if (val.length > maxLen) maxLen = Math.min(val.length + 3, 50);
+    });
+    col.width = maxLen;
+  });
+}
 
 /**
- * GET /api/escalation/export-overall-dispatches
- * Exports an executive-level multi-sheet Excel workbook:
- *  - Sheet 1: Level-wise Summary (how many emails received by each level)
- *  - Sheet 2: Recipient-wise Dispatches (detailed breakdown of "to whom" across all levels)
- *  - Sheet 3: Scheme Master Escalation Matrix
+ * Shared function to build and send the dispatches workbook
  */
-router.get("/export-overall-dispatches", async (req: Request, res: Response) => {
+async function handleExportDispatchesExcel(req: Request, res: Response) {
   try {
     const db = await getDB();
+    const levelParam = req.query.level ? String(req.query.level).toLowerCase() : undefined;
+    const levelFilter = levelParam && levelParam !== "all" ? parseInt(levelParam, 10) : undefined;
+    const categoryFilter = (req.query.category as string || "all").toLowerCase();
     const dateParam = req.query.date ? String(req.query.date) : undefined;
-    const { summary, schemes } = await getEscalationStatus();
 
-    // Query all dispatches from consolidated_email_dispatches
+    // Fetch dispatches from consolidated_email_dispatches (last 30 days or specific date)
     const dispatchesQuery = dateParam
       ? sql`
           SELECT 
@@ -1076,17 +1064,7 @@ router.get("/export-overall-dispatches", async (req: Request, res: Response) => 
             created_at
           FROM consolidated_email_dispatches
           WHERE dispatch_date::date = ${dateParam}::date
-          ORDER BY dispatch_date DESC, 
-            CASE 
-              WHEN engineer_role ILIKE '%Principal%' THEN 1
-              WHEN engineer_role ILIKE '%Member%' THEN 2
-              WHEN engineer_role ILIKE '%Chief%' THEN 3
-              WHEN engineer_role ILIKE '%Superintending%' OR engineer_role ILIKE '%SE%' THEN 4
-              WHEN engineer_role ILIKE '%Executive%' OR engineer_role ILIKE '%EE%' THEN 5
-              WHEN engineer_role ILIKE '%Vendor%' THEN 7
-              ELSE 6
-            END,
-            engineer_name ASC
+          ORDER BY dispatch_date DESC, id DESC
         `
       : sql`
           SELECT 
@@ -1110,230 +1088,178 @@ router.get("/export-overall-dispatches", async (req: Request, res: Response) => 
             status,
             created_at
           FROM consolidated_email_dispatches
-          WHERE dispatch_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '7 days'
-          ORDER BY dispatch_date DESC, 
-            CASE 
-              WHEN engineer_role ILIKE '%Principal%' THEN 1
-              WHEN engineer_role ILIKE '%Member%' THEN 2
-              WHEN engineer_role ILIKE '%Chief%' THEN 3
-              WHEN engineer_role ILIKE '%Superintending%' OR engineer_role ILIKE '%SE%' THEN 4
-              WHEN engineer_role ILIKE '%Executive%' OR engineer_role ILIKE '%EE%' THEN 5
-              WHEN engineer_role ILIKE '%Vendor%' THEN 7
-              ELSE 6
-            END,
-            engineer_name ASC
+          WHERE dispatch_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '30 days'
+          ORDER BY dispatch_date DESC, id DESC
         `;
 
     const dispatchesRes: any = await db.execute(dispatchesQuery);
-    const dispatchesRows: any[] = dispatchesRes.rows || [];
+    let allRows: any[] = dispatchesRes.rows || [];
+
+    // Filter by category if requested (when user clicks LPCD, overall excel will be just for LPCD, same for rest)
+    if (categoryFilter === "lpcd") {
+      allRows = allRows.filter((r) => Number(r.lpcd_alerts_count) > 0);
+    } else if (categoryFilter === "chlorine") {
+      allRows = allRows.filter((r) => Number(r.chlorine_alerts_count) > 0);
+    } else if (categoryFilter === "pressure") {
+      allRows = allRows.filter((r) => Number(r.pressure_alerts_count) > 0);
+    } else if (categoryFilter === "offline") {
+      allRows = allRows.filter((r) => Number(r.offline_alerts_count) > 0);
+    }
 
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "Maharashtra Jeevan Pradhikaran - JJM IoT Cell";
     workbook.created = new Date();
 
-    // =========================================================================
-    // SHEET 1: LEVEL-WISE SUMMARY (How many emails received by each level)
-    // =========================================================================
-    const sheet1 = workbook.addWorksheet("Level-wise Email Summary", {
+    const catSuffix = categoryFilter !== "all" ? `_${categoryFilter.toUpperCase()}` : "";
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    // MODE 1: SINGLE LEVEL EXCEL (when level=1, 2, 3, 4, 5 is specified)
+    if (levelFilter && [1, 2, 3, 4, 5].includes(levelFilter)) {
+      const levelMeta = getLevelTitle(levelFilter);
+      const levelRows = allRows.filter((r) => getEscalationLevelFromRole(r.engineer_role) === levelFilter);
+
+      addLevelDispatchesSheet(
+        workbook,
+        levelMeta.sheetName,
+        levelMeta.title,
+        levelRows,
+        categoryFilter
+      );
+
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="MJP_Level_${levelFilter}_Email_Dispatches${catSuffix}_${todayStr}.xlsx"`
+      );
+      await workbook.xlsx.write(res);
+      return res.end();
+    }
+
+    // MODE 2: OVERALL DISPATCHES OF EMAIL (Overview sheet + sheet by each level)
+    // -------------------------------------------------------------------------
+    // SHEET 1: OVERVIEW OF ALL LEVELS
+    // -------------------------------------------------------------------------
+    const overviewSheet = workbook.addWorksheet("Overview", {
       views: [{ showGridLines: true }],
     });
 
-    sheet1.mergeCells("A1:K1");
-    const s1Title = sheet1.getCell("A1");
-    s1Title.value = "MAHARASHTRA JEEVAN PRADHIKARAN — JAL JEEVAN MISSION";
-    s1Title.font = { name: "Arial", size: 14, bold: true, color: { argb: "FFFFFFFF" } };
-    s1Title.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F172A" } };
-    s1Title.alignment = { horizontal: "center", vertical: "middle" };
-    sheet1.getRow(1).height = 32;
+    const catTag = categoryFilter !== "all" ? ` [${categoryFilter.toUpperCase()} ONLY]` : "";
 
-    sheet1.mergeCells("A2:K2");
-    const s1Sub = sheet1.getCell("A2");
-    s1Sub.value = `Overall Email Alert Dispatches Summary by Escalation Level — (Generated: ${new Date().toLocaleDateString("en-IN")})`;
-    s1Sub.font = { name: "Arial", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
-    s1Sub.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } };
-    s1Sub.alignment = { horizontal: "center", vertical: "middle" };
-    sheet1.getRow(2).height = 24;
+    overviewSheet.mergeCells("A1:L1");
+    const oTitle = overviewSheet.getCell("A1");
+    oTitle.value = "MAHARASHTRA JEEVAN PRADHIKARAN — JAL JEEVAN MISSION";
+    oTitle.font = { name: "Arial", size: 14, bold: true, color: { argb: "FFFFFFFF" } };
+    oTitle.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F172A" } };
+    oTitle.alignment = { horizontal: "center", vertical: "middle" };
+    overviewSheet.getRow(1).height = 32;
 
-    const s1Headers = [
+    overviewSheet.mergeCells("A2:L2");
+    const oSub = overviewSheet.getCell("A2");
+    oSub.value = `Overall Email Alert Dispatches Overview by Escalation Level${catTag} — (Generated: ${new Date().toLocaleDateString("en-IN")})`;
+    oSub.font = { name: "Arial", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
+    oSub.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } };
+    oSub.alignment = { horizontal: "center", vertical: "middle" };
+    overviewSheet.getRow(2).height = 24;
+
+    const overviewHeaders = [
       "Escalation Level",
       "Target Authority",
-      "Escalation Criteria / Cadence",
-      "Schemes in Escalation",
-      "Officers Notified",
-      "Total Emails Received",
-      "Low LPCD (<55)",
-      "Low Chlorine (<0.2)",
-      "Low Pressure (<0.2)",
-      "Offline Sensors",
+      "Cadence",
+      "Total Emails Sent",
+      "Unique Officers Notified",
+      "Total Schemes Covered",
+      "Mails with LPCD Alerts",
+      "Mails with Chlorine Alerts",
+      "Mails with Pressure Alerts",
+      "Mails with Offline Alerts",
+      "Latest Dispatch Date & Time",
       "Delivery Status",
     ];
 
-    const hRow1 = sheet1.addRow(s1Headers);
-    hRow1.height = 26;
-    hRow1.eachCell((cell) => {
+    const ovHeaderRow = overviewSheet.addRow(overviewHeaders);
+    ovHeaderRow.height = 26;
+    ovHeaderRow.eachCell((cell) => {
       cell.font = { name: "Arial", size: 10, bold: true, color: { argb: "FFFFFFFF" } };
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1D4ED8" } };
       cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
     });
 
-    // Compute metrics per level from dispatches
-    const getLevelMetrics = (roleCheck: (role: string) => boolean) => {
-      const filtered = dispatchesRows.filter((r) => roleCheck(String(r.engineer_role || "")));
-      const schemesSet = new Set<string>();
+    // Helper to compute summary stats for a level
+    const computeLevelOverview = (targetLevel: number) => {
+      const rows = allRows.filter((r) => getEscalationLevelFromRole(r.engineer_role) === targetLevel);
+      const meta = getLevelTitle(targetLevel);
       const officersSet = new Set<string>();
-      let emails = 0;
-      let lpcd = 0;
-      let chlorine = 0;
-      let pressure = 0;
-      let offline = 0;
+      const schemesSet = new Set<string>();
+      let lpcdMails = 0;
+      let chlorineMails = 0;
+      let pressureMails = 0;
+      let offlineMails = 0;
+      let latestDate = "-";
+      let latestTime = "";
 
-      filtered.forEach((r) => {
-        emails++;
+      rows.forEach((r, idx) => {
         if (r.engineer_name) officersSet.add(r.engineer_name.trim().toLowerCase());
-        const sids = Array.isArray(r.scheme_ids) ? r.scheme_ids : JSON.parse(r.scheme_ids || "[]");
-        sids.forEach((id: any) => schemesSet.add(String(id)));
-        if (Number(r.lpcd_alerts_count) > 0) lpcd++;
-        if (Number(r.chlorine_alerts_count) > 0) chlorine++;
-        if (Number(r.pressure_alerts_count) > 0) pressure++;
-        if (Number(r.offline_alerts_count) > 0) offline++;
+        const sids = Array.isArray(r.scheme_ids)
+          ? r.scheme_ids
+          : typeof r.scheme_ids === "string"
+          ? JSON.parse(r.scheme_ids || "[]")
+          : [];
+        sids.forEach((sid: any) => schemesSet.add(String(sid)));
+
+        if (Number(r.lpcd_alerts_count) > 0) lpcdMails++;
+        if (Number(r.chlorine_alerts_count) > 0) chlorineMails++;
+        if (Number(r.pressure_alerts_count) > 0) pressureMails++;
+        if (Number(r.offline_alerts_count) > 0) offlineMails++;
+
+        if (idx === 0) {
+          latestDate = r.dispatch_date || "";
+          latestTime = r.sent_time || "";
+        }
       });
 
+      const latestDateTimeStr = latestDate !== "-" ? `${latestDate} ${latestTime}`.trim() : "No Emails";
+
       return {
-        schemesCount: schemesSet.size,
+        levelName: targetLevel === 0 ? "Vendors" : `Level ${targetLevel}`,
+        meta,
+        rows,
+        emailsCount: rows.length,
         officersCount: officersSet.size,
-        emailsCount: emails,
-        lpcdCount: lpcd,
-        chlorineCount: chlorine,
-        pressureCount: pressure,
-        offlineCount: offline,
+        schemesCount: schemesSet.size,
+        lpcdMails,
+        chlorineMails,
+        pressureMails,
+        offlineMails,
+        latestDateTimeStr,
       };
     };
 
-    const l1Metrics = getLevelMetrics((r) => !r.includes("Vendor") && (r.includes("DE") || r.includes("AE") || r.includes("Deputy") || r.includes("Assistant")));
-    const l2Metrics = getLevelMetrics((r) => r.includes("EE") || r.includes("Executive"));
-    const seMetrics = getLevelMetrics((r) => r.includes("Superintending") || r.includes("SE"));
-    const ceMetrics = getLevelMetrics((r) => r.includes("Chief") || r.includes("CE"));
-    const l4Metrics = getLevelMetrics((r) => r.includes("Member") || r.includes("MS"));
-    const l5Metrics = getLevelMetrics((r) => r.includes("Principal") || r.includes("PS"));
-    const vendorMetrics = getLevelMetrics((r) => r.includes("Vendor") || r.includes("Agency"));
+    const l1Stat = computeLevelOverview(1);
+    const l2Stat = computeLevelOverview(2);
+    const l3Stat = computeLevelOverview(3);
+    const l4Stat = computeLevelOverview(4);
+    const l5Stat = computeLevelOverview(5);
+    const vStat = computeLevelOverview(0);
 
-    // Fallbacks to today's active counts if local query is single-day filtered
-    const l1Emails = l1Metrics.emailsCount || summary.dispatches?.today?.de_emails || 39;
-    const l1Schemes = l1Metrics.schemesCount || 39;
-    const l1Officers = l1Metrics.officersCount || 39;
+    const statsList = [l1Stat, l2Stat, l3Stat, l4Stat, l5Stat];
+    if (vStat.emailsCount > 0) statsList.push(vStat);
 
-    const l2Emails = l2Metrics.emailsCount || 18;
-    const l2Schemes = l2Metrics.schemesCount || 18;
-    const l2Officers = l2Metrics.officersCount || 18;
+    statsList.forEach((st, idx) => {
+      const row = overviewSheet.addRow([
+        st.levelName,
+        st.meta.authority,
+        st.meta.cadence,
+        st.emailsCount,
+        st.officersCount,
+        st.schemesCount,
+        st.lpcdMails,
+        st.chlorineMails,
+        st.pressureMails,
+        st.offlineMails,
+        st.latestDateTimeStr,
+        st.emailsCount > 0 ? "100% Delivered (SMTP)" : "No Dispatches",
+      ]);
 
-    const seEmails = seMetrics.emailsCount || 21;
-    const seSchemes = seMetrics.schemesCount || 21;
-    const seOfficers = seMetrics.officersCount || 21;
-
-    const ceEmails = ceMetrics.emailsCount || 21;
-    const ceSchemes = ceMetrics.schemesCount || 21;
-    const ceOfficers = ceMetrics.officersCount || 21;
-
-    const vEmails = vendorMetrics.emailsCount || 6;
-    const vSchemes = vendorMetrics.schemesCount || 29;
-    const vOfficers = vendorMetrics.officersCount || 6;
-
-    const summaryDataRows = [
-      [
-        "Level 1",
-        "Deputy Engineer / Assistant Engineer (DE/AE Civil)",
-        "Daily automated dispatch for all active violations (1+ Days)",
-        l1Schemes,
-        l1Officers,
-        l1Emails,
-        l1Metrics.lpcdCount || 37,
-        l1Metrics.chlorineCount || 27,
-        l1Metrics.pressureCount || 20,
-        l1Metrics.offlineCount || 29,
-        "100% Delivered via SMTP",
-      ],
-      [
-        "Level 2",
-        "Executive Engineer (EE Civil)",
-        "Consecutive 3+ days persistent violations (every 3rd day)",
-        l2Schemes,
-        l2Officers,
-        l2Emails,
-        l2Metrics.lpcdCount || 9,
-        l2Metrics.chlorineCount || 13,
-        l2Metrics.pressureCount || 11,
-        l2Metrics.offlineCount || 2,
-        "100% Delivered via SMTP",
-      ],
-      [
-        "Level 3 (SE)",
-        "Superintending Engineer (Circle Office)",
-        "Consecutive 7+ days chronic violations (Every Monday)",
-        seSchemes,
-        seOfficers,
-        seEmails,
-        seMetrics.lpcdCount || 14,
-        seMetrics.chlorineCount || 13,
-        seMetrics.pressureCount || 9,
-        seMetrics.offlineCount || 6,
-        "100% Delivered via SMTP",
-      ],
-      [
-        "Level 3 (CE)",
-        "Chief Engineer (Regional Office)",
-        "Consecutive 7+ days chronic violations (Every Monday)",
-        ceSchemes,
-        ceOfficers,
-        ceEmails,
-        ceMetrics.lpcdCount || 14,
-        ceMetrics.chlorineCount || 13,
-        ceMetrics.pressureCount || 9,
-        ceMetrics.offlineCount || 6,
-        "100% Delivered via SMTP",
-      ],
-      [
-        "Level 4",
-        "Member Secretary (MS) - Head Office MJP",
-        "Consecutive 15+ days critical violations (1st & 3rd Monday)",
-        summary.level_4_count || 0,
-        l4Metrics.officersCount || 1,
-        l4Metrics.emailsCount || 0,
-        l4Metrics.lpcdCount || 0,
-        l4Metrics.chlorineCount || 0,
-        l4Metrics.pressureCount || 0,
-        l4Metrics.offlineCount || 0,
-        l4Metrics.emailsCount > 0 ? "100% Delivered via SMTP" : "No Dispatches Today",
-      ],
-      [
-        "Level 5",
-        "Principal Secretary (PS) - WSSD Secretariat",
-        "Consecutive 15+ days critical violations (1st & 3rd Monday)",
-        summary.level_5_count || 0,
-        l5Metrics.officersCount || 1,
-        l5Metrics.emailsCount || 0,
-        l5Metrics.lpcdCount || 0,
-        l5Metrics.chlorineCount || 0,
-        l5Metrics.pressureCount || 0,
-        l5Metrics.offlineCount || 0,
-        l5Metrics.emailsCount > 0 ? "100% Delivered via SMTP" : "No Dispatches Today",
-      ],
-      [
-        "Vendors",
-        "IoT Maintenance Agencies (Partner Vendors)",
-        "Daily & immediate offline sensor telemetry alerts",
-        vSchemes,
-        vOfficers,
-        vEmails,
-        0,
-        0,
-        0,
-        vEmails,
-        "100% Delivered via SMTP",
-      ],
-    ];
-
-    summaryDataRows.forEach((rowValues, idx) => {
-      const row = sheet1.addRow(rowValues);
       row.height = 24;
       row.alignment = { vertical: "middle" };
       row.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
@@ -1345,10 +1271,9 @@ router.get("/export-overall-dispatches", async (req: Request, res: Response) => 
       row.getCell(9).alignment = { horizontal: "center", vertical: "middle" };
       row.getCell(10).alignment = { horizontal: "center", vertical: "middle" };
       row.getCell(11).alignment = { horizontal: "center", vertical: "middle" };
+      row.getCell(12).alignment = { horizontal: "center", vertical: "middle" };
 
-      // Highlight level cells
-      const lvlCell = row.getCell(1);
-      lvlCell.font = { bold: true };
+      row.getCell(1).font = { bold: true };
       if (idx % 2 === 1) {
         row.eachCell((c) => {
           c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8FAFC" } };
@@ -1356,29 +1281,37 @@ router.get("/export-overall-dispatches", async (req: Request, res: Response) => 
       }
     });
 
-    // Total Row
-    const totEmails = l1Emails + l2Emails + seEmails + ceEmails + (l4Metrics.emailsCount || 0) + (l5Metrics.emailsCount || 0) + vEmails;
-    const totalRow = sheet1.addRow([
+    // Total Summary Row
+    const totEmails = statsList.reduce((acc, s) => acc + s.emailsCount, 0);
+    const totOfficers = statsList.reduce((acc, s) => acc + s.officersCount, 0);
+    const totSchemes = statsList.reduce((acc, s) => acc + s.schemesCount, 0);
+    const totLpcd = statsList.reduce((acc, s) => acc + s.lpcdMails, 0);
+    const totChlorine = statsList.reduce((acc, s) => acc + s.chlorineMails, 0);
+    const totPressure = statsList.reduce((acc, s) => acc + s.pressureMails, 0);
+    const totOffline = statsList.reduce((acc, s) => acc + s.offlineMails, 0);
+
+    const totRow = overviewSheet.addRow([
       "TOTAL",
       "All Escalation Levels & Authorities Combined",
       "-",
-      schemes.length,
-      l1Officers + l2Officers + seOfficers + ceOfficers + vOfficers,
       totEmails,
-      (l1Metrics.lpcdCount || 37) + (l2Metrics.lpcdCount || 9) + (seMetrics.lpcdCount || 14) + (ceMetrics.lpcdCount || 14),
-      (l1Metrics.chlorineCount || 27) + (l2Metrics.chlorineCount || 13) + (seMetrics.chlorineCount || 13) + (ceMetrics.chlorineCount || 13),
-      (l1Metrics.pressureCount || 20) + (l2Metrics.pressureCount || 11) + (seMetrics.pressureCount || 9) + (ceMetrics.pressureCount || 9),
-      (l1Metrics.offlineCount || 29) + (l2Metrics.offlineCount || 2) + (seMetrics.offlineCount || 6) + (ceMetrics.offlineCount || 6) + vEmails,
-      "100% Delivered via SMTP",
+      totOfficers,
+      totSchemes,
+      totLpcd,
+      totChlorine,
+      totPressure,
+      totOffline,
+      "-",
+      "100% Delivered (SMTP)",
     ]);
-    totalRow.height = 28;
-    totalRow.eachCell((cell) => {
+    totRow.height = 28;
+    totRow.eachCell((cell) => {
       cell.font = { name: "Arial", size: 10, bold: true, color: { argb: "FFFFFFFF" } };
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F172A" } };
       cell.alignment = { horizontal: "center", vertical: "middle" };
     });
 
-    sheet1.columns.forEach((col) => {
+    overviewSheet.columns.forEach((col) => {
       let maxLen = 14;
       col.eachCell?.({ includeEmpty: false }, (cell) => {
         const val = cell.value ? String(cell.value) : "";
@@ -1387,243 +1320,42 @@ router.get("/export-overall-dispatches", async (req: Request, res: Response) => 
       col.width = maxLen;
     });
 
-    // =========================================================================
-    // SHEET 2: RECIPIENT DISPATCHES (TO WHOM) - Detailed List of Every Email
-    // =========================================================================
-    const sheet2 = workbook.addWorksheet("Recipient Dispatches (To Whom)", {
-      views: [{ showGridLines: true }],
-    });
+    // -------------------------------------------------------------------------
+    // SUBSEQUENT SHEETS: JUST SHEET BY EACH LEVEL (no streak, no current level)
+    // -------------------------------------------------------------------------
+    addLevelDispatchesSheet(workbook, "Level 1 - DE & AE", l1Stat.meta.title, l1Stat.rows, categoryFilter);
+    addLevelDispatchesSheet(workbook, "Level 2 - EE", l2Stat.meta.title, l2Stat.rows, categoryFilter);
+    addLevelDispatchesSheet(workbook, "Level 3 - CE & SE", l3Stat.meta.title, l3Stat.rows, categoryFilter);
+    addLevelDispatchesSheet(workbook, "Level 4 - MS", l4Stat.meta.title, l4Stat.rows, categoryFilter);
+    addLevelDispatchesSheet(workbook, "Level 5 - PS", l5Stat.meta.title, l5Stat.rows, categoryFilter);
+    if (vStat.rows.length > 0) {
+      addLevelDispatchesSheet(workbook, "Vendor IoT Agencies", vStat.meta.title, vStat.rows, categoryFilter);
+    }
 
-    sheet2.mergeCells("A1:P1");
-    const s2Title = sheet2.getCell("A1");
-    s2Title.value = "MAHARASHTRA JEEVAN PRADHIKARAN — JAL JEEVAN MISSION";
-    s2Title.font = { name: "Arial", size: 14, bold: true, color: { argb: "FFFFFFFF" } };
-    s2Title.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F172A" } };
-    s2Title.alignment = { horizontal: "center", vertical: "middle" };
-    sheet2.getRow(1).height = 32;
-
-    sheet2.mergeCells("A2:P2");
-    const s2Sub = sheet2.getCell("A2");
-    s2Sub.value = `Official Email Alert Dispatch Registry (To Whom Received) — (${dispatchesRows.length} Emails Logged)`;
-    s2Sub.font = { name: "Arial", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
-    s2Sub.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } };
-    s2Sub.alignment = { horizontal: "center", vertical: "middle" };
-    sheet2.getRow(2).height = 24;
-
-    const s2Headers = [
-      "Sr No",
-      "Escalation Level",
-      "Recipient Officer Name",
-      "Role / Designation",
-      "Recipient Email Address",
-      "Mobile Number",
-      "Schemes Count",
-      "Scheme Name(s) Covered",
-      "Total Issues Bundled",
-      "Low LPCD (<55)",
-      "Chlorine Defects",
-      "Pressure Defects",
-      "Offline Sensors",
-      "Dispatch Date",
-      "Dispatch Time (IST)",
-      "Delivery Status",
-    ];
-
-    const hRow2 = sheet2.addRow(s2Headers);
-    hRow2.height = 26;
-    hRow2.eachCell((cell) => {
-      cell.font = { name: "Arial", size: 10, bold: true, color: { argb: "FFFFFFFF" } };
-      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2563EB" } };
-      cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
-    });
-
-    dispatchesRows.forEach((r, idx) => {
-      let levelLabel = "Level 1 (DE/AE)";
-      const role = String(r.engineer_role || "");
-      if (role.includes("Principal") || role.includes("PS")) levelLabel = "Level 5 (PS)";
-      else if (role.includes("Member") || role.includes("MS")) levelLabel = "Level 4 (MS)";
-      else if (role.includes("Chief") || role.includes("CE")) levelLabel = "Level 3 (CE)";
-      else if (role.includes("Superintending") || role.includes("SE")) levelLabel = "Level 3 (SE)";
-      else if (role.includes("Executive") || role.includes("EE")) levelLabel = "Level 2 (EE)";
-      else if (role.includes("Vendor")) levelLabel = "Vendor (IoT Agency)";
-
-      const sNames = Array.isArray(r.scheme_names)
-        ? r.scheme_names.join("; ")
-        : typeof r.scheme_names === "string"
-        ? (JSON.parse(r.scheme_names || "[]") || []).join("; ")
-        : r.scheme_names || "-";
-
-      const row = sheet2.addRow([
-        idx + 1,
-        levelLabel,
-        r.engineer_name || "-",
-        r.engineer_role || "-",
-        r.engineer_email || "-",
-        r.engineer_mobile ? `+91 ${r.engineer_mobile}` : "-",
-        r.total_schemes || 1,
-        sNames,
-        r.total_alerts || 0,
-        r.lpcd_alerts_count || 0,
-        r.chlorine_alerts_count || 0,
-        r.pressure_alerts_count || 0,
-        r.offline_alerts_count || 0,
-        r.dispatch_date || "-",
-        r.sent_time || "-",
-        r.status === "SENT" ? "DELIVERED (SMTP)" : r.status || "SENT",
-      ]);
-
-      row.height = 22;
-      row.alignment = { vertical: "middle" };
-      row.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
-      row.getCell(2).alignment = { horizontal: "center", vertical: "middle" };
-      row.getCell(7).alignment = { horizontal: "center", vertical: "middle" };
-      row.getCell(9).alignment = { horizontal: "center", vertical: "middle" };
-      row.getCell(10).alignment = { horizontal: "center", vertical: "middle" };
-      row.getCell(11).alignment = { horizontal: "center", vertical: "middle" };
-      row.getCell(12).alignment = { horizontal: "center", vertical: "middle" };
-      row.getCell(13).alignment = { horizontal: "center", vertical: "middle" };
-      row.getCell(14).alignment = { horizontal: "center", vertical: "middle" };
-      row.getCell(15).alignment = { horizontal: "center", vertical: "middle" };
-      row.getCell(16).alignment = { horizontal: "center", vertical: "middle" };
-
-      // Status green
-      const statusCell = row.getCell(16);
-      statusCell.font = { bold: true, color: { argb: "FF065F46" } };
-
-      if (idx % 2 === 1) {
-        row.eachCell((c) => {
-          c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8FAFC" } };
-        });
-      }
-    });
-
-    sheet2.columns.forEach((col) => {
-      let maxLen = 14;
-      col.eachCell?.({ includeEmpty: false }, (cell) => {
-        const val = cell.value ? String(cell.value) : "";
-        if (val.length > maxLen) maxLen = Math.min(val.length + 3, 50);
-      });
-      col.width = maxLen;
-    });
-
-    // =========================================================================
-    // SHEET 3: SCHEME ESCALATION STATUS & DESIGNATED ROSTER
-    // =========================================================================
-    const sheet3 = workbook.addWorksheet("Scheme Escalation Status", {
-      views: [{ showGridLines: true }],
-    });
-
-    sheet3.mergeCells("A1:N1");
-    const s3Title = sheet3.getCell("A1");
-    s3Title.value = "MAHARASHTRA JEEVAN PRADHIKARAN — JAL JEEVAN MISSION";
-    s3Title.font = { name: "Arial", size: 14, bold: true, color: { argb: "FFFFFFFF" } };
-    s3Title.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F172A" } };
-    s3Title.alignment = { horizontal: "center", vertical: "middle" };
-    sheet3.getRow(1).height = 32;
-
-    sheet3.mergeCells("A2:N2");
-    const s3Sub = sheet3.getCell("A2");
-    s3Sub.value = `Scheme Escalation Status & Official Multi-Tier Hierarchy Roster — (${schemes.length} Schemes)`;
-    s3Sub.font = { name: "Arial", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
-    s3Sub.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } };
-    s3Sub.alignment = { horizontal: "center", vertical: "middle" };
-    sheet3.getRow(2).height = 24;
-
-    const s3Headers = [
-      "Scheme ID",
-      "Scheme Name",
-      "Region",
-      "District",
-      "Division",
-      "Escalation Level",
-      "Active Streak (Days)",
-      "DE / AE (Civil) Officer",
-      "Executive Engineer (EE Civil)",
-      "Superintending Engineer (SE)",
-      "Chief Engineer (CE)",
-      "Villages < 55 LPCD",
-      "Chlorine Defects ESRs",
-      "Low Pressure ESRs",
-    ];
-
-    const hRow3 = sheet3.addRow(s3Headers);
-    hRow3.height = 26;
-    hRow3.eachCell((cell) => {
-      cell.font = { name: "Arial", size: 10, bold: true, color: { argb: "FFFFFFFF" } };
-      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0284C7" } };
-      cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
-    });
-
-    schemes.forEach((s, idx) => {
-      const levelLabel =
-        s.escalation_level === 5
-          ? "Level 5 - PS (15+ Days)"
-          : s.escalation_level === 4
-          ? "Level 4 - MS (10-14 Days)"
-          : s.escalation_level === 3
-          ? "Level 3 - CE/SE (7-9 Days)"
-          : s.escalation_level === 2
-          ? "Level 2 - EE (3-6 Days)"
-          : "Level 1 - DE (1-2 Days)";
-
-      const row = sheet3.addRow([
-        s.scheme_id,
-        s.scheme_name,
-        s.region,
-        s.district || "-",
-        s.division || "-",
-        levelLabel,
-        s.max_streak_days,
-        s.de_ae_civil_name ? `${s.de_ae_civil_name} (${s.de_ae_civil_email || "N/A"})` : "-",
-        s.ee_civil_name ? `${s.ee_civil_name} (${s.ee_civil_email || "N/A"})` : "-",
-        s.se_name ? `${s.se_name} (${s.se_email || "N/A"})` : "-",
-        s.chief_engineer_name ? `${s.chief_engineer_name} (${s.chief_engineer_email || "N/A"})` : "-",
-        s.lpcd_villages_count || 0,
-        (s.chlorine_low_count || 0) + (s.chlorine_high_count || 0),
-        s.pressure_low_count || 0,
-      ]);
-
-      row.height = 22;
-      row.alignment = { vertical: "middle" };
-      row.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
-      row.getCell(6).alignment = { horizontal: "center", vertical: "middle" };
-      row.getCell(7).alignment = { horizontal: "center", vertical: "middle" };
-      row.getCell(12).alignment = { horizontal: "center", vertical: "middle" };
-      row.getCell(13).alignment = { horizontal: "center", vertical: "middle" };
-      row.getCell(14).alignment = { horizontal: "center", vertical: "middle" };
-
-      if (idx % 2 === 1) {
-        row.eachCell((c) => {
-          c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8FAFC" } };
-        });
-      }
-    });
-
-    sheet3.columns.forEach((col) => {
-      let maxLen = 14;
-      col.eachCell?.({ includeEmpty: false }, (cell) => {
-        const val = cell.value ? String(cell.value) : "";
-        if (val.length > maxLen) maxLen = Math.min(val.length + 3, 50);
-      });
-      col.width = maxLen;
-    });
-
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="MJP_Overall_Email_Dispatches_${new Date().toISOString().slice(0, 10)}.xlsx"`
+      `attachment; filename="MJP_Overall_Email_Dispatches${catSuffix}_${todayStr}.xlsx"`
     );
-
     await workbook.xlsx.write(res);
     res.end();
   } catch (error: any) {
-    console.error("Error in export-overall-dispatches:", error);
-    res.status(500).json({ error: error.message || "Failed to export overall dispatches" });
+    console.error("Error in export dispatches excel:", error);
+    res.status(500).json({ error: error.message || "Failed to export dispatches Excel" });
   }
-});
+}
+
+/**
+ * GET /api/escalation/export-excel
+ * Main Excel export entrypoint: supports ?level=1..5, ?level=all, and ?category=all|lpcd|chlorine|pressure|offline
+ */
+router.get("/export-excel", handleExportDispatchesExcel);
+
+/**
+ * GET /api/escalation/export-overall-dispatches
+ * Explicit route for overall email dispatches export
+ */
+router.get("/export-overall-dispatches", handleExportDispatchesExcel);
 
 /**
  * GET /api/escalation/level5-summary or /api/level5-summary
@@ -1633,11 +1365,23 @@ router.get("/export-overall-dispatches", async (req: Request, res: Response) => 
  * 3. Operational (water_supply = 'Yes')
  * 4. Alert - Level 5 - 20+ Days (Low LPCD schemes & villages, Low Pressure ESRs, Residual Chlorine out of range ESRs)
  */
+const level5SummaryCache = new Map<string, { timestamp: number; payload: any }>();
+const SUMMARY_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
+
 router.get("/level5-summary", async (req: Request, res: Response) => {
   try {
     const selectedRegion = (req.query.region as string) || "all";
     const streakThreshold = parseInt((req.query.days as string) || "20", 10) || 20;
+    const forceRefresh = req.query.refresh === "true";
     const isAll = !selectedRegion || selectedRegion.toLowerCase() === "all";
+
+    const cacheKey = `${selectedRegion.toLowerCase()}:::${streakThreshold}`;
+    if (!forceRefresh) {
+      const cached = level5SummaryCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < SUMMARY_CACHE_TTL) {
+        return res.json(cached.payload);
+      }
+    }
 
     const db = await getDB();
 
@@ -1673,7 +1417,7 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
       }
     }
 
-    // 2. IoT Progress
+    // 2. IoT Progress (Summary & Itemized Lists)
     let iotProgress = {
       schemes: { totalIntegrated: 226, fullyIntegrated: 52 },
       villages: { totalIntegrated: 2249, fullyIntegrated: 1271 },
@@ -1702,7 +1446,7 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
       }
     }
 
-    // 3. Operational
+    // 3. Operational Schemes, Villages & ESRs
     let operational = {
       schemes: 39,
       villages: 255,
@@ -1731,33 +1475,215 @@ router.get("/level5-summary", async (req: Request, res: Response) => {
       }
     }
 
-    // 4. Alerts - Level 5 (continuous history streak >= streakThreshold)
-    const { allAlerts } = await calculateAllAlertStreaksFromHistory(db);
+    // Concurrent fetching of detail records for clickable items
+    const [
+      iotSchemesTotalRes,
+      iotSchemesFullyRes,
+      iotVillagesTotalRes,
+      iotVillagesFullyRes,
+      iotEsrTotalRes,
+      iotEsrFullyRes,
+      opSchemesRes,
+      opVillagesRes,
+      opEsrsRes,
+      streaksRes
+    ] = await Promise.all([
+      db.execute(sql`
+        SELECT scheme_id, scheme_name, region, circle, division, block, total_villages_integrated, total_esr_integrated, fully_completion_scheme_status as status
+        FROM scheme_status
+        WHERE (total_villages_integrated > 0 OR total_esr_integrated > 0)
+          ${isAll ? sql`` : sql`AND region ILIKE ${`%${selectedRegion}%`}`}
+        ORDER BY region, scheme_name
+      `),
+      db.execute(sql`
+        SELECT scheme_id, scheme_name, region, circle, division, block, fully_completed_villages, no_fully_completed_esr, fully_completion_scheme_status as status
+        FROM scheme_status
+        WHERE TRIM(LOWER(fully_completion_scheme_status)) IN ('fully completed', 'completed', 'fully-completed')
+          ${isAll ? sql`` : sql`AND region ILIKE ${`%${selectedRegion}%`}`}
+        ORDER BY region, scheme_name
+      `),
+      db.execute(sql`
+        SELECT scheme_id, scheme_name, region, circle, division, block, total_villages_integrated, fully_completed_villages, fully_completion_scheme_status as status
+        FROM scheme_status
+        WHERE total_villages_integrated > 0
+          ${isAll ? sql`` : sql`AND region ILIKE ${`%${selectedRegion}%`}`}
+        ORDER BY region, scheme_name
+      `),
+      db.execute(sql`
+        SELECT scheme_id, scheme_name, region, circle, division, block, fully_completed_villages, total_villages_integrated, fully_completion_scheme_status as status
+        FROM scheme_status
+        WHERE fully_completed_villages > 0
+          ${isAll ? sql`` : sql`AND region ILIKE ${`%${selectedRegion}%`}`}
+        ORDER BY region, scheme_name
+      `),
+      db.execute(sql`
+        SELECT scheme_id, scheme_name, region, circle, division, block, total_esr_integrated, no_fully_completed_esr, fully_completion_scheme_status as status
+        FROM scheme_status
+        WHERE total_esr_integrated > 0
+          ${isAll ? sql`` : sql`AND region ILIKE ${`%${selectedRegion}%`}`}
+        ORDER BY region, scheme_name
+      `),
+      db.execute(sql`
+        SELECT scheme_id, scheme_name, region, circle, division, block, no_fully_completed_esr, total_esr_integrated, fully_completion_scheme_status as status
+        FROM scheme_status
+        WHERE no_fully_completed_esr > 0
+          ${isAll ? sql`` : sql`AND region ILIKE ${`%${selectedRegion}%`}`}
+        ORDER BY region, scheme_name
+      `),
+      db.execute(sql`
+        SELECT scheme_id, scheme_name, region, circle, division, block, water_supply as status
+        FROM scheme_status
+        WHERE water_supply = 'Yes'
+          ${isAll ? sql`` : sql`AND region ILIKE ${`%${selectedRegion}%`}`}
+        ORDER BY region, scheme_name
+      `),
+      db.execute(sql`
+        SELECT DISTINCT ss.region, ss.circle, ss.division, ss.block, ss.scheme_id, ss.scheme_name, ws.village_name
+        FROM scheme_status ss
+        JOIN water_scheme_data ws ON ws.scheme_id = ss.scheme_id
+        WHERE ss.water_supply = 'Yes'
+          ${isAll ? sql`` : sql`AND ss.region ILIKE ${`%${selectedRegion}%`}`}
+        ORDER BY ss.region, ss.scheme_name, ws.village_name
+      `),
+      db.execute(sql`
+        SELECT DISTINCT ss.region, ss.circle, ss.division, ss.block, ss.scheme_id, ss.scheme_name, c.village_name, c.esr_name
+        FROM scheme_status ss
+        JOIN chlorine_data c ON c.scheme_id = ss.scheme_id
+        WHERE ss.water_supply = 'Yes'
+          ${isAll ? sql`` : sql`AND ss.region ILIKE ${`%${selectedRegion}%`}`}
+        ORDER BY ss.region, ss.scheme_name, c.village_name, c.esr_name
+      `),
+      calculateAllAlertStreaksFromHistory(db, forceRefresh)
+    ]);
+
+    // 4. Alerts - Level (continuous history streak >= streakThreshold)
+    const { allAlerts } = streaksRes;
     const filteredAlerts = isAll
       ? allAlerts
       : allAlerts.filter(a => a.region && a.region.toLowerCase().includes(selectedRegion.toLowerCase()));
 
     const lpcdVillages = filteredAlerts.filter(a => a.category === 'lpcd' && a.streak_days >= streakThreshold);
-    const lpcdSchemes = new Set(lpcdVillages.map(a => a.scheme_id));
     const pressureEsrs = filteredAlerts.filter(a => a.category === 'pressure' && a.streak_days >= streakThreshold);
     const chlorineEsrs = filteredAlerts.filter(a => a.category === 'chlorine' && a.streak_days >= streakThreshold);
 
-    const alertsLevel5 = {
+    // Group LPCD schemes with village breakdowns
+    const lpcdSchemeMap = new Map<string, any>();
+    lpcdVillages.forEach(v => {
+      const sid = String(v.scheme_id);
+      if (!lpcdSchemeMap.has(sid)) {
+        lpcdSchemeMap.set(sid, {
+          scheme_id: sid,
+          scheme_name: v.scheme_name,
+          region: v.region,
+          villages_count: 0,
+          max_streak: 0,
+          villages: [],
+        });
+      }
+      const item = lpcdSchemeMap.get(sid);
+      item.villages_count++;
+      if ((v.streak_days || 0) > item.max_streak) item.max_streak = v.streak_days;
+      item.villages.push(v.village_name);
+    });
+
+    const lowLpcdSchemesList: any[] = [];
+    lpcdSchemeMap.forEach(v => {
+      lowLpcdSchemesList.push({
+        ...v,
+        villages_list: v.villages.join(', ')
+      });
+    });
+
+    const lowLpcdVillagesList = lpcdVillages.map(v => ({
+      scheme_id: v.scheme_id,
+      scheme_name: v.scheme_name,
+      region: v.region,
+      village_name: v.village_name,
+      parameter_value: v.parameter_value || String((v as any).latest_value ?? "<55"),
+      streak_days: v.streak_days,
+      telemetry_date: v.telemetry_date || null,
+    }));
+
+    const lowPressureEsrsList = pressureEsrs.map(p => ({
+      scheme_id: p.scheme_id,
+      scheme_name: p.scheme_name,
+      region: p.region,
+      village_name: p.village_name,
+      esr_name: p.esr_name,
+      parameter_value: p.parameter_value || String((p as any).latest_value ?? "<0.2"),
+      streak_days: p.streak_days,
+      telemetry_date: p.telemetry_date || null,
+    }));
+
+    const residualChlorineList = chlorineEsrs.map(c => ({
+      scheme_id: c.scheme_id,
+      scheme_name: c.scheme_name,
+      region: c.region,
+      village_name: c.village_name,
+      esr_name: c.esr_name,
+      parameter_value: c.parameter_value || String((c as any).latest_value ?? "-"),
+      issue_type: c.alert_type || (parseFloat(String(c.parameter_value || (c as any).latest_value || '0')) > 0.5 ? "High Chlorine" : "Low Chlorine"),
+      streak_days: c.streak_days,
+      telemetry_date: c.telemetry_date || null,
+    }));
+
+    // Escalation tier metadata depending on streak threshold
+    let escalationLevel = 5;
+    let escalationRole = "Principal Secretary (PS) Escalation";
+    let escalationTitle = `Alert - Level 5 (PS Escalation) - ${streakThreshold}+ Days`;
+    let escalationNotice = "Principal Secretary level escalation for persistent violations (Streak ≥ 20 Days)";
+
+    if (streakThreshold <= 7) {
+      escalationLevel = 3;
+      escalationRole = "CE & SE Escalation";
+      escalationTitle = `Alert - Level 3 (CE & SE Escalation) - ${streakThreshold}+ Days`;
+      escalationNotice = "Chief Engineer & Superintending Engineer weekly escalation for chronic violations (Streak ≥ 7 Days)";
+    } else if (streakThreshold <= 15) {
+      escalationLevel = 4;
+      escalationRole = "Member Secretary (MS) Escalation";
+      escalationTitle = `Alert - Level 4 (MS Escalation) - ${streakThreshold}+ Days`;
+      escalationNotice = "Member Secretary (Head - MJP) escalation for persistent violations (Streak ≥ 15 Days)";
+    }
+
+    const alertsLevel = {
       daysStreak: streakThreshold,
-      lowLpcdSchemes: lpcdSchemes.size,
-      lowLpcdVillages: lpcdVillages.length,
-      lowPressureEsrs: pressureEsrs.length,
-      residualChlorineOutOfRange: chlorineEsrs.length,
+      escalationLevel,
+      escalationRole,
+      escalationTitle,
+      escalationNotice,
+      lowLpcdSchemes: lowLpcdSchemesList.length,
+      lowLpcdVillages: lowLpcdVillagesList.length,
+      lowPressureEsrs: lowPressureEsrsList.length,
+      residualChlorineOutOfRange: residualChlorineList.length,
     };
 
-    res.json({
+    const payload = {
       success: true,
       region: selectedRegion,
       projectScope,
       iotProgress,
       operational,
-      alertsLevel5,
-    });
+      alertsLevel5: alertsLevel, // backwards compatible
+      alertsLevel,
+      details: {
+        iotSchemesTotal: (iotSchemesTotalRes as any).rows || [],
+        iotSchemesFully: (iotSchemesFullyRes as any).rows || [],
+        iotVillagesTotal: (iotVillagesTotalRes as any).rows || [],
+        iotVillagesFully: (iotVillagesFullyRes as any).rows || [],
+        iotEsrTotal: (iotEsrTotalRes as any).rows || [],
+        iotEsrFully: (iotEsrFullyRes as any).rows || [],
+        operationalSchemes: (opSchemesRes as any).rows || [],
+        operationalVillages: (opVillagesRes as any).rows || [],
+        operationalEsr: (opEsrsRes as any).rows || [],
+        lowLpcdSchemes: lowLpcdSchemesList,
+        lowLpcdVillages: lowLpcdVillagesList,
+        lowPressureEsrs: lowPressureEsrsList,
+        residualChlorineOutOfRange: residualChlorineList,
+      },
+    };
+
+    level5SummaryCache.set(cacheKey, { timestamp: Date.now(), payload });
+    res.json(payload);
   } catch (error: any) {
     console.error("Error in level5-summary:", error);
     res.status(500).json({ error: error.message || "Failed to get level 5 summary" });

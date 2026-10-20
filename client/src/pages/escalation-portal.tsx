@@ -697,6 +697,44 @@ export default function EscalationPortalPage() {
     const stats4 = computeTierStats(15);
     const stats5 = computeTierStats(15);
 
+    // Helper to find latest dispatch date for a given tier from actual sent alerts
+    const getTierDispatchMeta = (tierNum: number) => {
+      const emailAlerts = (sentAlertsData?.alerts || []).filter((a: any) =>
+        a.channel === "email" && Number(a.tier) === tierNum
+      );
+      if (emailAlerts.length === 0) {
+        return { hasEmails: false, latestDate: null, latestDateStr: null };
+      }
+      let maxDate: Date | null = null;
+      emailAlerts.forEach((a: any) => {
+        const raw = a.sent_date || a.created_at;
+        if (raw) {
+          let d: Date;
+          if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.trim())) {
+            const [y, m, day] = raw.trim().split("-").map(Number);
+            d = new Date(y, m - 1, day);
+          } else {
+            d = new Date(raw);
+          }
+          if (!isNaN(d.getTime())) {
+            if (!maxDate || d > maxDate) maxDate = d;
+          }
+        }
+      });
+      const latestDateStr = maxDate ? maxDate.toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric"
+      }) : null;
+      return { hasEmails: true, latestDate: maxDate, latestDateStr };
+    };
+
+    const tier1Meta = getTierDispatchMeta(1);
+    const tier2Meta = getTierDispatchMeta(2);
+    const tier3Meta = getTierDispatchMeta(3);
+    const tier4Meta = getTierDispatchMeta(4);
+    const tier5Meta = getTierDispatchMeta(5);
+
     const info: Record<number, {
       hasEmails: boolean;
       latestDate: Date | null;
@@ -709,9 +747,9 @@ export default function EscalationPortalPage() {
       categorySchemes: { lpcd: number; chlorine: number; pressure: number; offline: number };
     }> = {
       1: {
-        hasEmails: stats1.qualifyingSchemes.size > 0,
-        latestDate: new Date(),
-        latestDateStr: "19 Oct 2026",
+        hasEmails: stats1.qualifyingSchemes.size > 0 && Boolean(tier1Meta.hasEmails),
+        latestDate: tier1Meta.latestDate,
+        latestDateStr: tier1Meta.latestDateStr,
         emailCount: stats1.qualifyingSchemes.size,
         schemeIds: stats1.qualifyingSchemes,
         categoryEmails: {
@@ -728,9 +766,9 @@ export default function EscalationPortalPage() {
         },
       },
       2: {
-        hasEmails: stats2.qualifyingSchemes.size > 0,
-        latestDate: new Date("2026-10-17"),
-        latestDateStr: "17 Oct 2026",
+        hasEmails: stats2.qualifyingSchemes.size > 0 && Boolean(tier2Meta.hasEmails),
+        latestDate: tier2Meta.latestDate,
+        latestDateStr: tier2Meta.latestDateStr,
         emailCount: stats2.qualifyingSchemes.size,
         schemeIds: stats2.qualifyingSchemes,
         categoryEmails: {
@@ -747,9 +785,9 @@ export default function EscalationPortalPage() {
         },
       },
       3: {
-        hasEmails: stats3.qualifyingSchemes.size > 0,
-        latestDate: new Date("2026-10-19"),
-        latestDateStr: "19 Oct 2026",
+        hasEmails: stats3.qualifyingSchemes.size > 0 && Boolean(tier3Meta.hasEmails),
+        latestDate: tier3Meta.latestDate,
+        latestDateStr: tier3Meta.latestDateStr,
         emailCount: stats3.qualifyingSchemes.size * 2,
         seEmailCount: stats3.qualifyingSchemes.size,
         ceEmailCount: stats3.qualifyingSchemes.size,
@@ -768,27 +806,27 @@ export default function EscalationPortalPage() {
         },
       },
       4: {
-        hasEmails: false,
-        latestDate: null,
-        latestDateStr: null,
+        hasEmails: stats4.qualifyingSchemes.size > 0 && tier4Meta.hasEmails,
+        latestDate: tier4Meta.latestDate,
+        latestDateStr: tier4Meta.latestDateStr,
         emailCount: stats4.qualifyingSchemes.size,
         schemeIds: stats4.qualifyingSchemes,
-        categoryEmails: { lpcd: 0, chlorine: 0, pressure: 0, offline: 0 },
-        categorySchemes: { lpcd: 0, chlorine: 0, pressure: 0, offline: 0 },
+        categoryEmails: { lpcd: 0, chlorine: 0, pressure: 0, offline: stats4.offlineSchemes.size },
+        categorySchemes: { lpcd: 0, chlorine: 0, pressure: 0, offline: stats4.offlineSchemes.size },
       },
       5: {
-        hasEmails: false,
-        latestDate: null,
-        latestDateStr: null,
+        hasEmails: stats5.qualifyingSchemes.size > 0 && tier5Meta.hasEmails,
+        latestDate: tier5Meta.latestDate,
+        latestDateStr: tier5Meta.latestDateStr,
         emailCount: stats5.qualifyingSchemes.size,
         schemeIds: stats5.qualifyingSchemes,
-        categoryEmails: { lpcd: 0, chlorine: 0, pressure: 0, offline: 0 },
-        categorySchemes: { lpcd: 0, chlorine: 0, pressure: 0, offline: 0 },
+        categoryEmails: { lpcd: 0, chlorine: 0, pressure: 0, offline: stats5.offlineSchemes.size },
+        categorySchemes: { lpcd: 0, chlorine: 0, pressure: 0, offline: stats5.offlineSchemes.size },
       },
     };
 
     return info;
-  }, [schemes]);
+  }, [schemes, sentAlertsData]);
 
   const activeSchemes = useMemo(() => {
     const tierInfo = tierLatestInfo[activeTierNumber];
@@ -1898,7 +1936,7 @@ export default function EscalationPortalPage() {
             <div className="sm:border-r border-slate-200 pr-2">
               <div className="text-[11px] text-slate-500 tracking-wider font-semibold">Total Operational Schemes</div>
               <div className="text-xl font-bold font-mono text-slate-900 mt-0.5">
-                {schemes.length}/41
+                {schemes.length}
               </div>
             </div>
             <div className="sm:border-r border-slate-200 pr-2">
@@ -1921,9 +1959,22 @@ export default function EscalationPortalPage() {
                   <Mail className="w-3.5 h-3.5 text-blue-600" />
                   Total Emails Sent
                 </div>
-                <span className="text-[10px] text-blue-700 bg-blue-100 group-hover:bg-blue-200 px-1.5 py-0.5 rounded font-bold inline-flex items-center gap-0.5">
-                  View Logs &rarr;
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <a
+                    href={`/api/escalation/export-overall-dispatches${activeCategory !== "all" ? `?category=${activeCategory}` : ""}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-[10px] text-emerald-800 bg-emerald-100 hover:bg-emerald-200 px-1.5 py-0.5 rounded font-bold inline-flex items-center gap-1 border border-emerald-300"
+                    title={`Download complete overall email dispatches Excel${activeCategory !== "all" ? ` (${activeCategory.toUpperCase()})` : ""}`}
+                  >
+                    <FileSpreadsheet className="w-3 h-3 text-emerald-700" />
+                    Excel{activeCategory !== "all" ? ` (${activeCategory.toUpperCase()})` : ""}
+                  </a>
+                  <span className="text-[10px] text-blue-700 bg-blue-100 group-hover:bg-blue-200 px-1.5 py-0.5 rounded font-bold inline-flex items-center gap-0.5">
+                    View Logs &rarr;
+                  </span>
+                </div>
               </div>
               <div className="text-sm font-bold font-mono text-slate-900 mt-1 flex items-baseline gap-2">
                 <span>Today: <span className="text-blue-900 font-extrabold text-base">{dispatches?.today?.total_emails ?? sentAlertsData?.summary?.email_sent ?? 0}</span> Emails Sent</span>
@@ -2014,11 +2065,12 @@ export default function EscalationPortalPage() {
               </div>
 
               <a
-                href="/api/escalation/export-excel?level=1"
+                href={`/api/escalation/export-excel?level=1${activeCategory !== "all" ? `&category=${activeCategory}` : ""}`}
                 target="_blank"
                 rel="noreferrer"
                 onClick={(e) => e.stopPropagation()}
                 className="block"
+                title={`Download Level 1 (AE/DE) Email Dispatches${activeCategory !== "all" ? ` for ${activeCategory.toUpperCase()}` : ""}`}
               >
                 <Button
                   size="sm"
@@ -2026,7 +2078,7 @@ export default function EscalationPortalPage() {
                   className="w-full h-7 text-[11px] font-semibold flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 border-slate-300 text-slate-700 shadow-2xs"
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-                  Download Excel
+                  Download Excel{activeCategory !== "all" ? ` (${activeCategory.toUpperCase()})` : ""}
                 </Button>
               </a>
             </div>
@@ -2087,11 +2139,12 @@ export default function EscalationPortalPage() {
               </div>
 
               <a
-                href="/api/escalation/export-excel?level=2"
+                href={`/api/escalation/export-excel?level=2${activeCategory !== "all" ? `&category=${activeCategory}` : ""}`}
                 target="_blank"
                 rel="noreferrer"
                 onClick={(e) => e.stopPropagation()}
                 className="block"
+                title={`Download Level 2 (EE) Email Dispatches${activeCategory !== "all" ? ` for ${activeCategory.toUpperCase()}` : ""}`}
               >
                 <Button
                   size="sm"
@@ -2099,7 +2152,7 @@ export default function EscalationPortalPage() {
                   className="w-full h-7 text-[11px] font-semibold flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 border-slate-300 text-slate-700 shadow-2xs"
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-                  Download Excel
+                  Download Excel{activeCategory !== "all" ? ` (${activeCategory.toUpperCase()})` : ""}
                 </Button>
               </a>
             </div>
@@ -2172,11 +2225,12 @@ export default function EscalationPortalPage() {
               </div>
 
               <a
-                href="/api/escalation/export-excel?level=3"
+                href={`/api/escalation/export-excel?level=3${activeCategory !== "all" ? `&category=${activeCategory}` : ""}`}
                 target="_blank"
                 rel="noreferrer"
                 onClick={(e) => e.stopPropagation()}
                 className="block"
+                title={`Download Level 3 (CE & SE) Email Dispatches${activeCategory !== "all" ? ` for ${activeCategory.toUpperCase()}` : ""}`}
               >
                 <Button
                   size="sm"
@@ -2184,7 +2238,7 @@ export default function EscalationPortalPage() {
                   className="w-full h-7 text-[11px] font-semibold flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 border-slate-300 text-slate-700 shadow-2xs"
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-                  Download Excel
+                  Download Excel{activeCategory !== "all" ? ` (${activeCategory.toUpperCase()})` : ""}
                 </Button>
               </a>
             </div>
@@ -2245,11 +2299,12 @@ export default function EscalationPortalPage() {
               </div>
 
               <a
-                href="/api/escalation/export-excel?level=4"
+                href={`/api/escalation/export-excel?level=4${activeCategory !== "all" ? `&category=${activeCategory}` : ""}`}
                 target="_blank"
                 rel="noreferrer"
                 onClick={(e) => e.stopPropagation()}
                 className="block"
+                title={`Download Level 4 (Head - MJP) Email Dispatches${activeCategory !== "all" ? ` for ${activeCategory.toUpperCase()}` : ""}`}
               >
                 <Button
                   size="sm"
@@ -2257,7 +2312,7 @@ export default function EscalationPortalPage() {
                   className="w-full h-7 text-[11px] font-semibold flex items-center justify-center gap-1.5 bg-purple-50 hover:bg-purple-100 border-purple-300 text-purple-950 shadow-2xs"
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5 text-purple-700" />
-                  Download Excel
+                  Download Excel{activeCategory !== "all" ? ` (${activeCategory.toUpperCase()})` : ""}
                 </Button>
               </a>
             </div>
@@ -2319,11 +2374,12 @@ export default function EscalationPortalPage() {
               </div>
 
               <a
-                href="/api/escalation/export-excel?level=5"
+                href={`/api/escalation/export-excel?level=5${activeCategory !== "all" ? `&category=${activeCategory}` : ""}`}
                 target="_blank"
                 rel="noreferrer"
                 onClick={(e) => e.stopPropagation()}
                 className="block"
+                title={`Download Level 5 (Head - WSSD) Email Dispatches${activeCategory !== "all" ? ` for ${activeCategory.toUpperCase()}` : ""}`}
               >
                 <Button
                   size="sm"
@@ -2331,7 +2387,7 @@ export default function EscalationPortalPage() {
                   className="w-full h-7 text-[11px] font-semibold flex items-center justify-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 border-indigo-300 text-indigo-950 shadow-2xs"
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5 text-indigo-700" />
-                  Download Excel
+                  Download Excel{activeCategory !== "all" ? ` (${activeCategory.toUpperCase()})` : ""}
                 </Button>
               </a>
             </div>
@@ -2760,15 +2816,38 @@ export default function EscalationPortalPage() {
                   Export CSV
                 </Button>
 
+                {/* Level {N} Excel for the active level */}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  asChild
+                  className="h-8 text-xs font-semibold border-emerald-600 text-emerald-800 hover:bg-emerald-50 flex items-center gap-1.5 shrink-0 shadow-2xs"
+                >
+                  <a
+                    href={`/api/escalation/export-excel?level=${activeTierNumber}${activeCategory !== "all" ? `&category=${activeCategory}` : ""}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={`Download Level ${activeTierNumber} email dispatches${activeCategory !== "all" ? ` for ${activeCategory.toUpperCase()}` : ""}`}
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                    Level {activeTierNumber} Excel{activeCategory !== "all" ? ` (${activeCategory.toUpperCase()})` : ""}
+                  </a>
+                </Button>
+
                 {/* Overall Dispatches Excel Report */}
                 <Button
                   size="sm"
                   asChild
                   className="h-8 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white flex items-center gap-1.5 shrink-0 shadow-2xs"
                 >
-                  <a href="/api/escalation/export-overall-dispatches" target="_blank" rel="noreferrer" title="Export complete multi-level breakdown and officer email recipient roster">
+                  <a
+                    href={`/api/escalation/export-overall-dispatches${activeCategory !== "all" ? `?category=${activeCategory}` : ""}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={`Export complete multi-level breakdown with Overview sheet + Level sheets${activeCategory !== "all" ? ` (Filtered to ${activeCategory.toUpperCase()})` : ""}`}
+                  >
                     <FileSpreadsheet className="w-3.5 h-3.5 text-white" />
-                    Overall Dispatches (Excel)
+                    Overall Dispatches (Excel){activeCategory !== "all" ? ` - ${activeCategory.toUpperCase()}` : ""}
                   </a>
                 </Button>
               </div>
@@ -4660,21 +4739,37 @@ export default function EscalationPortalPage() {
             </div>
 
             {/* Footer */}
-            <div className="p-3.5 bg-slate-50/90 border-t border-slate-200 flex items-center justify-between">
+            <div className="p-3.5 bg-slate-50/90 border-t border-slate-200 flex items-center justify-between flex-wrap gap-2">
               <div className="text-xs text-slate-600 font-medium flex items-center gap-2">
                 <span className="font-mono font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">
                   {filteredEmailLogs.length}
                 </span>
                 <span>Verified Email Dispatch Record(s)</span>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setEmailLogsModalOpen(false)}
-                className="text-xs font-semibold px-4 cursor-pointer hover:bg-slate-100"
-              >
-                Close Audit Logs
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  asChild
+                  className="h-8 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white flex items-center gap-1.5 shadow-2xs"
+                >
+                  <a
+                    href={`/api/escalation/export-overall-dispatches${emailLogsFilterCategory !== "all" ? `?category=${emailLogsFilterCategory}` : ""}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-white" />
+                    Export Dispatches Excel{emailLogsFilterCategory !== "all" ? ` (${emailLogsFilterCategory.toUpperCase()})` : ""}
+                  </a>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEmailLogsModalOpen(false)}
+                  className="text-xs font-semibold px-4 cursor-pointer hover:bg-slate-100"
+                >
+                  Close Audit Logs
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
