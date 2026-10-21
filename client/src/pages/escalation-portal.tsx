@@ -264,6 +264,13 @@ export default function EscalationPortalPage() {
 
   // Active layer view: "layer1" (DE/AE Daily) | "layer2" (EE >3 Days) | "layer3" (SE & CE Weekly) | "layer4" (Head - MJP) | "layer5" (Head - WSSD)
   const [activeLayer, setActiveLayer] = useState<"layer1" | "layer2" | "layer3" | "layer4" | "layer5">("layer1");
+  const activeTierNumber = useMemo(() => {
+    if (activeLayer === "layer1") return 1;
+    if (activeLayer === "layer2") return 2;
+    if (activeLayer === "layer3") return 3;
+    if (activeLayer === "layer4") return 4;
+    return 5;
+  }, [activeLayer]);
   const [activeCategory, setActiveCategory] = useState<"all" | "lpcd" | "chlorine" | "pressure" | "offline">("all");
   // Table dispatch view filter: "dispatched" (only alerts for schemes where emails were sent today) | "all" (all eligible alerts by persistence streak)
   const [dispatchViewFilter, setDispatchViewFilter] = useState<"dispatched" | "all">("dispatched");
@@ -606,6 +613,7 @@ export default function EscalationPortalPage() {
   });
 
   const rawSchemes = data?.schemes || [];
+  const rawLayer1Schemes = data?.layer1Schemes || rawSchemes;
   const schemes = useMemo(() => {
     if (!selectedRegion || selectedRegion === "All") return rawSchemes;
     const target = selectedRegion.toLowerCase().trim();
@@ -614,6 +622,15 @@ export default function EscalationPortalPage() {
       return r === target || r.includes(target) || target.includes(r);
     });
   }, [rawSchemes, selectedRegion]);
+
+  const layer1EvaluatedSchemes = useMemo(() => {
+    if (!selectedRegion || selectedRegion === "All") return rawLayer1Schemes;
+    const target = selectedRegion.toLowerCase().trim();
+    return rawLayer1Schemes.filter((s: any) => {
+      const r = (s.region || "").toLowerCase().trim();
+      return r === target || r.includes(target) || target.includes(r);
+    });
+  }, [rawLayer1Schemes, selectedRegion]);
   const dispatches = data?.summary?.dispatches || data?.dispatches;
 
   // Latest email & sms dispatch batch per tier (Tier 1..5) calculated strictly for the date on which emails were sent
@@ -789,10 +806,10 @@ export default function EscalationPortalPage() {
   // Schemes strictly for the date emails were sent for each tier
   // Layer 1: DE / AE Civil (Daily Notice) -> schemes from latest dispatch date (20-Oct telemetry for 21-Oct dispatch)
   const layer1Schemes = useMemo(() => {
-    const srcSchemes = escalationData?.layer1Schemes || schemes;
+    const srcSchemes = layer1EvaluatedSchemes || schemes;
     if (!tierLatestInfo[1]?.hasEmails) return srcSchemes.filter((s) => s.total_issues_count > 0);
     return srcSchemes.filter((s) => tierLatestInfo[1].schemeIds.has(String(s.scheme_id)));
-  }, [schemes, tierLatestInfo, escalationData]);
+  }, [schemes, tierLatestInfo, layer1EvaluatedSchemes]);
 
   // Layer 2: EE Civil -> Schemes emailed on EE's dispatch date (19-Oct)
   const layer2Schemes = useMemo(() => {
@@ -881,15 +898,6 @@ export default function EscalationPortalPage() {
       mobile: deMobile,
     };
   };
-
-  // Current active tier number (1 for Level 1, 2 for Level 2, etc.)
-  const activeTierNumber = useMemo(() => {
-    if (activeLayer === "layer1") return 1;
-    if (activeLayer === "layer2") return 2;
-    if (activeLayer === "layer3") return 3;
-    if (activeLayer === "layer4") return 4;
-    return 5;
-  }, [activeLayer]);
 
   const activeSchemes = useMemo(() => {
     if (activeLayer === "layer1") return layer1Schemes;
