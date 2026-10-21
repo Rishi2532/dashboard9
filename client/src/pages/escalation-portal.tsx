@@ -234,6 +234,7 @@ interface EscalationSummaryResponse {
     };
   };
   schemes: SchemeEscalationItem[];
+  layer1Schemes?: SchemeEscalationItem[];
 }
 
 /**
@@ -326,6 +327,8 @@ export default function EscalationPortalPage() {
       category: String(selectedSevenDaysAlert.category || "all"),
       villageName: String(selectedSevenDaysAlert.village_name || ""),
       esrName: String(selectedSevenDaysAlert.esr_name || ""),
+      tier: String(activeTierNumber),
+      asOfDate: activeTierNumber === 1 ? "20-Oct" : "18-Oct",
     });
     fetch(`/api/escalation/alert-history?${params.toString()}`)
       .then((res) => res.json())
@@ -784,11 +787,12 @@ export default function EscalationPortalPage() {
   }, [sentAlertsData]);
 
   // Schemes strictly for the date emails were sent for each tier
-  // Layer 1: DE / AE Civil (Daily Notice) -> schemes from latest dispatch date
+  // Layer 1: DE / AE Civil (Daily Notice) -> schemes from latest dispatch date (20-Oct telemetry for 21-Oct dispatch)
   const layer1Schemes = useMemo(() => {
-    if (!tierLatestInfo[1]?.hasEmails) return schemes.filter((s) => s.total_issues_count > 0);
-    return schemes.filter((s) => tierLatestInfo[1].schemeIds.has(String(s.scheme_id)));
-  }, [schemes, tierLatestInfo]);
+    const srcSchemes = escalationData?.layer1Schemes || schemes;
+    if (!tierLatestInfo[1]?.hasEmails) return srcSchemes.filter((s) => s.total_issues_count > 0);
+    return srcSchemes.filter((s) => tierLatestInfo[1].schemeIds.has(String(s.scheme_id)));
+  }, [schemes, tierLatestInfo, escalationData]);
 
   // Layer 2: EE Civil -> Schemes emailed on EE's dispatch date (19-Oct)
   const layer2Schemes = useMemo(() => {

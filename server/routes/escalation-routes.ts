@@ -111,13 +111,17 @@ router.get("/sent-alerts", async (req: Request, res: Response) => {
 router.get("/summary", async (req: Request, res: Response) => {
   try {
     const region = req.query.region ? String(req.query.region) : undefined;
-    const { summary, schemes } = await getEscalationStatus({ region });
+    const [status18, status20] = await Promise.all([
+      getEscalationStatus({ region, asOfDate: '18-Oct' }),
+      getEscalationStatus({ region, asOfDate: '20-Oct' }),
+    ]);
     res.json({
       success: true,
       timestamp: new Date().toISOString(),
-      summary,
-      dispatches: summary.dispatches,
-      schemes,
+      summary: status18.summary,
+      dispatches: status18.summary.dispatches,
+      schemes: status18.schemes,
+      layer1Schemes: status20.schemes,
     });
   } catch (error: any) {
     console.error("Error in /api/escalation/summary:", error);
@@ -131,6 +135,14 @@ router.get("/summary", async (req: Request, res: Response) => {
  */
 router.get("/latest-date", async (req: Request, res: Response) => {
   try {
+    const tier = req.query.tier ? String(req.query.tier) : undefined;
+    if (tier === '1') {
+      return res.json({
+        success: true,
+        rawDate: '20-Oct',
+        formatted: 'October 20, 2026',
+      });
+    }
     const raw = '18-Oct';
     const formatted = 'October 18, 2026';
     res.json({
@@ -157,6 +169,8 @@ router.get("/alert-history", async (req: Request, res: Response) => {
     const category = req.query.category ? String(req.query.category).trim().toLowerCase() : "all";
     const villageName = req.query.villageName ? String(req.query.villageName).trim() : "";
     const esrName = req.query.esrName ? String(req.query.esrName).trim() : "";
+    const tier = req.query.tier ? String(req.query.tier).trim() : "";
+    let asOfDate = req.query.asOfDate ? String(req.query.asOfDate).trim() : (tier === "1" ? "20-Oct" : "18-Oct");
 
     if (!schemeId) {
       return res.status(400).json({ error: "schemeId is required" });
@@ -187,6 +201,8 @@ router.get("/alert-history", async (req: Request, res: Response) => {
     `);
     const logs: any[] = logsRes.rows || [];
 
+    const is20Oct = asOfDate === '20-Oct';
+
     // CASE 1: OFFLINE SENSORS
     if (category === "offline") {
       const commRes = await db.execute(sql`
@@ -198,8 +214,16 @@ router.get("/alert-history", async (req: Request, res: Response) => {
       `);
       const row: any = commRes.rows?.[0];
 
-      // Telemetry dates: Day 7 (18-Oct) down to Day 1 (12-Oct)
-      const dateConfigs = [
+      // Telemetry dates: 7 days backwards from evaluation date
+      const dateConfigs = is20Oct ? [
+        { dayIndex: 1, label: '20-Oct', full: '20 Oct 2026', d: new Date('2026-10-20T12:00:00Z') },
+        { dayIndex: 2, label: '19-Oct', full: '19 Oct 2026', d: new Date('2026-10-19T12:00:00Z') },
+        { dayIndex: 3, label: '18-Oct', full: '18 Oct 2026', d: new Date('2026-10-18T12:00:00Z') },
+        { dayIndex: 4, label: '17-Oct', full: '17 Oct 2026', d: new Date('2026-10-17T12:00:00Z') },
+        { dayIndex: 5, label: '16-Oct', full: '16 Oct 2026', d: new Date('2026-10-16T12:00:00Z') },
+        { dayIndex: 6, label: '15-Oct', full: '15 Oct 2026', d: new Date('2026-10-15T12:00:00Z') },
+        { dayIndex: 7, label: '14-Oct', full: '14 Oct 2026', d: new Date('2026-10-14T12:00:00Z') },
+      ] : [
         { dayIndex: 1, label: '18-Oct', full: '18 Oct 2026', d: new Date('2026-10-18T12:00:00Z') },
         { dayIndex: 2, label: '17-Oct', full: '17 Oct 2026', d: new Date('2026-10-17T12:00:00Z') },
         { dayIndex: 3, label: '16-Oct', full: '16 Oct 2026', d: new Date('2026-10-16T12:00:00Z') },
@@ -259,8 +283,10 @@ router.get("/alert-history", async (req: Request, res: Response) => {
       });
     }
 
-    // CASE 2: LPCD, CHLORINE, OR PRESSURE from history tables (18-Oct down to 12-Oct)
-    const targetDates = ['18-Oct', '17-Oct', '16-Oct', '15-Oct', '14-Oct', '13-Oct', '12-Oct'];
+    // CASE 2: LPCD, CHLORINE, OR PRESSURE from history tables
+    const targetDates = is20Oct
+      ? ['20-Oct', '19-Oct', '18-Oct', '17-Oct', '16-Oct', '15-Oct', '14-Oct']
+      : ['18-Oct', '17-Oct', '16-Oct', '15-Oct', '14-Oct', '13-Oct', '12-Oct'];
     const sqlTargetDates = sql.join(targetDates.map(d => sql`${d}`), sql`, `);
 
     const recordsByDate = new Map<string, any>();
